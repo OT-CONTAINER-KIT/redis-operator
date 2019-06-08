@@ -1,0 +1,18 @@
+---
+variables:
+  REPO_NAME: gitlab.com/ot-kubernetes/awesome-operators/redis-operator
+stages:
+  - Build
+  - Build Docker Image
+
+Building Code:
+  stage: Build
+  image: golang:1.9
+  services:
+  - docker:dind
+  before_script:
+    - mkdir -p $GOPATH/src/$(dirname $REPO_NAME)
+    - ln -svf $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
+    - cd $GOPATH/src/$REPO_NAME
+  script:
+    - docker ps
