@@ -17,6 +17,6 @@ Artifact Publishing:
     - tar cvzf redis-operator.tar.gz build
   artifacts:
     paths:
-      - *.gz
+      - redis-operator.tar.gz
   only:
     - tags
