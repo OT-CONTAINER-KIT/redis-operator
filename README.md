@@ -11,3 +11,8 @@ This project is maintained by **[OpsTree Solutions](https://www.opstree.com)**
 
 Redis Operator deploy and manage the Redis instances in form of **cluster** or **Master and Slave** depending upon on your configuration
 
+Things you should know about Redis Operator:-
+- 3 is a minimum number of Redis instances.
+- Redis 5.0 is the minimum supported version.
+- Redis Operator is not a distributed system. It leverages a simple leader election protocol. You can run multiple instances of Redis Operator.
+
