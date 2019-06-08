@@ -2,24 +2,19 @@
 variables:
   REPO_NAME: gitlab.com/ot-kubernetes/awesome-operators/redis-operator
 stages:
-  - Build
-  - Build Docker Image
+  - Deploy
 
-Building Code:
-  stage: Build
+Artifact Publishing:
+  stage: Deploy
   image: golang:1.9
   services:
   - docker:dind
   before_script:
-    - mkdir -p $GOPATH/src/github.com/operator-framework
-    - cd $GOPATH/src/github.com/operator-framework
-    - git clone https://github.com/operator-framework/operator-sdk
-    - cd operator-sdk
-    - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-    - make dep
-    - make install
     - mkdir -p $GOPATH/src/$(dirname $REPO_NAME)
     - ln -svf $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
     - cd $GOPATH/src/$REPO_NAME
   script:
-    - echo "Hey"
+    - tar cvzf redis-operator.tar.gz build
+  artifacts:
+    paths:
+      - *.gz
