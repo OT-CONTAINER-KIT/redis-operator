@@ -78,6 +78,7 @@ kubectl get redis example -n redis-operator
 
 ```shell
 kubectl scale redis example --replicas 4 -n redis-operator
+redis.opstree.com/example scaled
 ```
 
 ``shell
