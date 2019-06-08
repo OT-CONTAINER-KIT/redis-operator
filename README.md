@@ -1,3 +1,5 @@
+![Docker Pulls](https://img.shields.io/docker/pulls/opstreedevops/redis-operator.svg)
+
 # Redis Operator - An OpsTree way of deploying Redis on Kubernetes
 
 This is Redis Operator which will create/manage Redis on the top of the Kubernetes. The project is inspired by the **[Operator Framework](https://coreos.com/operators/)** which is initiated by the **[CoreOS](https://coreos.com/)**.
