@@ -52,3 +52,9 @@ kubectl create namespace redis-operator
 kubectl apply -Rf deploy
 ```
 
+- Check if operator is running fine or not
+
+```shell
+kubectl -n redis-operator get deployment
+kubectl get pods -n redis-operator
+```
