@@ -68,3 +68,9 @@ kubectl get pods -n redis-operator
 kubectl create -f example/deployment.yaml
 ```
 
+- Wait until the redis pods are up. It will show the name for the Pod of the current master instance and the total number of replicas in the setup:
+
+```shell
+kubectl get redis example -n redis-operator
+```
+
