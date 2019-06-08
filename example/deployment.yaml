@@ -1,0 +1,63 @@
+---
+apiVersion: redis.opstree.com/v1alpha1
+kind: Redis
+metadata:
+  labels:
+    lol: woot
+  name: example
+spec:
+  replicas: 3
+  config:
+    repl-ping-replica-period: "10"
+
+  password:
+    secretKeyRef:
+      key: password
+      name: redis-password-secret
+
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: lol
+              operator: In
+              values:
+              - woot
+          topologyKey: kubernetes.io/hostname
+        weight: 70
+  annotations:
+    cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+    seccomp.security.alpha.kubernetes.io/pod: runtime/default
+  securityContext:
+    runAsUser: 7777777
+    runAsGroup: 7777777
+    fsGroup: 7777777
+    runAsNonRoot: true
+
+  redis:
+    image: redis:5-alpine
+    resources:
+      limits:
+        cpu: 100m
+        memory: 200Mi
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - all
+      readOnlyRootFilesystem: true
+
+  exporter:
+    image: oliver006/redis_exporter:v0.33.0
+    resources:
+      limits:
+        cpu: 50m
+        memory: 100Mi
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - all
+      readOnlyRootFilesystem: true

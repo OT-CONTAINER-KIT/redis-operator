@@ -8,3 +8,6 @@ This project is maintained by **[OpsTree Solutions](https://www.opstree.com)**
 - **Kubernetes 1.9+** - This operator supports Kubernetes 1.9+ versions
 
 ## Overview
+
+Redis Operator deploy and manage the Redis instances in form of **cluster** or **Master and Slave** depending upon on your configuration
+
