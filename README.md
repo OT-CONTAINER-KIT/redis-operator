@@ -81,7 +81,7 @@ kubectl scale redis example --replicas 4 -n redis-operator
 redis.opstree.com/example scaled
 ```
 
-``shell
+```shell
 kubectl get redis example -n redis-operator
 NAME      MASTER            REPLICAS   DESIRED   AGE
 example   redis-example-0   4          4         24d
