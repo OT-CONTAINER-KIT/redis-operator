@@ -18,3 +18,5 @@ Artifact Publishing:
   artifacts:
     paths:
       - *.gz
+  only:
+    - tags
