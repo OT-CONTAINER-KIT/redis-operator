@@ -35,3 +35,20 @@ redis-operator      ---> Main codebase directory for Redis Operator
 ├── vendor          ---> The golang vendor directory contains the local copies of external dependencies
 └── version         ---> This directory have the version information of this operator
 ```
+
+## Getting Started
+
+### Deploying Redis Operator
+
+- Create a namespace for **redis-operator**
+
+```shell
+kubectl create namespace redis-operator
+```
+
+- Deploy the CRDs and Operator in **redis-operator** namespace
+
+```shell
+kubectl apply -Rf deploy
+```
+
