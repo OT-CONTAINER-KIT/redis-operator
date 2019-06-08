@@ -74,3 +74,13 @@ kubectl create -f example/deployment.yaml
 kubectl get redis example -n redis-operator
 ```
 
+- Scale the deployment:
+
+```shell
+kubectl scale redis example --replicas 4 -n redis-operator
+
+kubectl get redis example -n redis-operator
+NAME      MASTER            REPLICAS   DESIRED   AGE
+example   redis-example-0   4          4         24d
+```
+
