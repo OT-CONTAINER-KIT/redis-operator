@@ -15,10 +15,11 @@ Building Code:
     - cd $GOPATH/src/github.com/operator-framework
     - git clone https://github.com/operator-framework/operator-sdk
     - cd operator-sdk
+    - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
     - make dep
     - make install
     - mkdir -p $GOPATH/src/$(dirname $REPO_NAME)
     - ln -svf $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
     - cd $GOPATH/src/$REPO_NAME
   script:
-    - docker ps
+    - echo "Hey"
