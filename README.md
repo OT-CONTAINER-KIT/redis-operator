@@ -96,6 +96,6 @@ Redis Operator creates the following resources owned by the corresponding **Redi
 - **ConfigMap** ---> For Redis Configuration Management
 - **PodDisruptionBudget** ---> For managing the Disruptions
 - **StatefulSet** ---> StatefulSets for redis cluster deployment
-- **Services** &nbsp; &nbsp; &nbsp;---> For communication with redis in kubernetes cluster
+- **Services** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ---> For communication with redis in kubernetes cluster
     - **redis-example** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ---> covers all pods
     - **redis-example-master** &nbsp; ---> service for access to the master pod
