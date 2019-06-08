@@ -1,5 +1,5 @@
 ![Docker Pulls](https://img.shields.io/docker/pulls/opstreedevops/redis-operator.svg)
-[![Go Report Card](https://goreportcard.com/badge/github.com/iamabhishek-dubey/redis-operator)
+![Go Report Card](https://goreportcard.com/badge/github.com/iamabhishek-dubey/redis-operator)
 
 # Redis Operator - An OpsTree way of deploying Redis on Kubernetes
 
