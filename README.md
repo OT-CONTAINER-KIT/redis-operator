@@ -9,7 +9,7 @@ This project is maintained by **[OpsTree Solutions](https://www.opstree.com)**
 
 ## Requirements
 
-- **Golang** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ---> If you want to do development
+- **Golang** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ---> If you want to do development
 - **Kubernetes 1.9+** ---> This operator supports Kubernetes 1.9+ versions
 
 ## Overview
