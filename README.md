@@ -86,3 +86,17 @@ kubectl get redis example -n redis-operator
 NAME      MASTER            REPLICAS   DESIRED   AGE
 example   redis-example-0   4          4         24d
 ```
+
+## What Redis Operator provides you?
+
+Redis Operator creates the following resources owned by the corresponding **Redis**.
+
+- **Kubernetes API** - redis.opstree.com
+- **Secret** - In case password setup is enable
+- **ConfigMap** - For Redis Configuration Management
+- **PodDisruptionBudget** - For managing the Disruptions
+- **StatefulSet** - StatefulSets for redis cluster deployment
+- **Services** - For communication with redis in kubernetes cluster
+    - **redis-example** - covers all pods
+    - **redis-example-master** - service for access to the master pod
+
