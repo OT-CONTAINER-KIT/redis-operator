@@ -58,3 +58,13 @@ kubectl apply -Rf deploy
 kubectl -n redis-operator get deployment
 kubectl get pods -n redis-operator
 ```
+
+### Deploying Redis
+
+- Redis can be deployed by creating a **Redis** Custom Resource(CR).
+- Create a Redis CR that deploys a 3 node Redis replication in high availablilty mode:
+
+```shell
+kubectl create -f example/deployment.yaml
+```
+
