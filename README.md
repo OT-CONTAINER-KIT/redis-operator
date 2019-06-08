@@ -99,3 +99,8 @@ Redis Operator creates the following resources owned by the corresponding **Redi
 - **Services** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ---> For communication with redis in kubernetes cluster
     - **redis-example** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ---> covers all pods
     - **redis-example-master** &nbsp; ---> service for access to the master pod
+
+## To Do
+- [ ] Implement CI pipeline for this code.
+- [ ] Add the Design and Goal information in the README.
+- [ ] Create test cases for the operator
