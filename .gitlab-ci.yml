@@ -2,11 +2,13 @@
 variables:
   REPO_NAME: gitlab.com/ot-kubernetes/awesome-operators/redis-operator
 stages:
+  - Build
+  - Test
   - Deploy
 
-Artifact Publishing:
-  stage: Deploy
-  image: golang:1.9
+Building Code:
+  stage: Build
+  image: opstreedevops/golang:1.11
   services:
   - docker:dind
   before_script:
@@ -14,9 +16,5 @@ Artifact Publishing:
     - ln -svf $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
     - cd $GOPATH/src/$REPO_NAME
   script:
-    - tar cvzf redis-operator.tar.gz build
-  artifacts:
-    paths:
-      - redis-operator.tar.gz
-  only:
-    - tags
+    - dep ensure
+    - operator-sdk build opstreedevops/redis-operator:latest
