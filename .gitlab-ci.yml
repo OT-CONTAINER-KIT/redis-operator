@@ -30,4 +30,21 @@ Building Docker Image:
     - cd $GOPATH/src/$REPO_NAME
   script:
     - mv build/Dockerfile .
-    - docker build -t opstreedevops/redis-operator:latest -f Dockerfile.
+    - docker build -t opstreedevops/redis-operator:latest -f Dockerfile .
+
+Publishing Artifact:
+  stage: Deploy
+  image: docker:stable
+  services:
+  - docker:dind
+  before_script:
+    - mkdir -p $GOPATH/src/$(dirname $REPO_NAME)
+    - ln -svf $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
+    - cd $GOPATH/src/$REPO_NAME
+  script:
+    - tar cvzf redis-operator.tar.gz build
+  artifacts:
+    paths:
+      - redis-operator.tar.gz
+  only:
+    - tags
