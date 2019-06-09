@@ -105,6 +105,6 @@ Redis Operator creates the following resources owned by the corresponding **Redi
     - **redis-example-master** &nbsp; ---> service for access to the master pod
 
 ## To Do
-- [ ] Implement CI pipeline for this code.
+- [X] Implement CI pipeline for this code.
 - [ ] Add the Design and Goal information in the README.
 - [ ] Create test cases for the operator
