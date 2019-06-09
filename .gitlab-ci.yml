@@ -17,4 +17,5 @@ Building Code:
     - cd $GOPATH/src/$REPO_NAME
   script:
     - dep ensure
-    - CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/redis-operator -ldflags "-X main.commit=${COMMIT} -X main.version=${VERSION}" ./cmd/operator
+    - CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/redis-operator -ldflags "-X main.commit=${COMMIT} -X main.version=${VERSION}" ./cmd/manager
+
