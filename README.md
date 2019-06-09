@@ -4,6 +4,12 @@
 
 # Redis Operator - An OpsTree way of deploying Redis on Kubernetes
 
+<p align="center">
+  <a href="https://gitlab.com/ot-kubernetes/awesome-operators/redis-operator">
+    <img src="./static/redis-logo.png" alt="Master">
+  </a>
+</p>
+
 This is Redis Operator which will create/manage Redis on the top of the Kubernetes. The project is inspired by the **[Operator Framework](https://coreos.com/operators/)** which is initiated by the **[CoreOS](https://coreos.com/)**.
 
 This project is maintained by **[OpsTree Solutions](https://www.opstree.com)**
