@@ -32,7 +32,7 @@ Building Docker Image:
     - mv build/Dockerfile .
     - docker build -t opstreedevops/redis-operator:latest -f Dockerfile .
 
-Publishing Artifact:
+Creating Artifact:
   stage: Deploy
   image: docker:stable
   services:
