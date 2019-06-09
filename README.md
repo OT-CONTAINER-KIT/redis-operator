@@ -1,4 +1,4 @@
-![build status](https://gitlab.com/ot-kubernetes/awesome-operators/redis-operator/12749961/master/)
+![build status](https://gitlab.com/ot-kubernetes/awesome-operators/redis-operator/badges/master/pipeline.svg)
 ![Go Report Card](https://goreportcard.com/badge/github.com/iamabhishek-dubey/redis-operator)
 ![Docker Pulls](https://img.shields.io/docker/pulls/opstreedevops/redis-operator.svg)
 
