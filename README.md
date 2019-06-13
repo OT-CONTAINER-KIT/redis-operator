@@ -1,6 +1,6 @@
 ![build status](https://gitlab.com/ot-kubernetes/awesome-operators/redis-operator/badges/master/pipeline.svg)
 ![Go Report Card](https://goreportcard.com/badge/github.com/iamabhishek-dubey/redis-operator)
-[![GitHub license](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://gitlab.com/ot-kubernetes/awesome-operators/redis-operator/blob/master/LICENSE)
+![GitHub license](https://img.shields.io/badge/License-Apache%202.0-blue.svg)
 ![Docker Pulls](https://img.shields.io/docker/pulls/opstreedevops/redis-operator.svg)
 
 # Redis Operator - An OpsTree way of deploying Redis on Kubernetes
