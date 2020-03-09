@@ -143,7 +143,7 @@ func RedisStateFulSets(cr *redisv1alpha1.Redis) *appsv1.StatefulSet {
 	}
 	statefulset := &appsv1.StatefulSet{
 		TypeMeta: MetaInformation(),
-		ObjectMeta: ObjectMetaInformation(labels),
+		ObjectMeta: ObjectMetaInformation(cr, labels),
 		Spec: appsv1.StatefulSetSpec{
 			Selector:    labels,
 			ServiceName: cr.ObjectMeta.Name,
@@ -168,20 +168,13 @@ func RedisStateFulSets(cr *redisv1alpha1.Redis) *appsv1.StatefulSet {
 	return statefulset
 }
 
-func RedisService(cr *v1alpha1.HelloStateful) *corev1.Service {
+func RedisService(cr *redisv1alpha1.Redis) *corev1.Service {
 	labels := map[string]string{
 		"app": cr.ObjectMeta.Name,
 	}
 	service := &corev1.Service{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Service",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      cr.ObjectMeta.Name,
-			Namespace: cr.Namespace,
-			Labels:    labels,
-		},
+		TypeMeta: MetaInformation(),
+		ObjectMeta: ObjectMetaInformation(cr, labels),
 		Spec: corev1.ServiceSpec{
 			ClusterIP: corev1.ClusterIPNone,
 			Selector:  labels,
@@ -199,7 +192,7 @@ func MetaInformation() *metav1.TypeMeta{
 
 func ObjectMetaInformation(cr *redisv1alpha1.Redis, labels map[string]string) *metav1.ObjectMeta{
 	return metav1.ObjectMeta{
-		Name:      cr.Name,
+		Name:      cr.ObjectMeta.Name,
 		Namespace: cr.Namespace,
 		Labels:    labels,
 	},
