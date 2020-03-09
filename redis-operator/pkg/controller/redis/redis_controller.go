@@ -29,10 +29,10 @@ var log = logf.Log.WithName("controller_redis")
 * business logic.  Delete these comments after modifying this file.*
  */
 const (
-	consImagePullPolicy  = corev1.PullAlways
-	consAppImage         = "opstree/redis"
-	consAppContainerName = "redis"
-	consReplicas         = 1
+	constImagePullPolicy  = corev1.PullAlways
+	constAppImage         = "opstree/redis"
+	constAppContainerName = "redis"
+	constReplicas         = 1
 )
 // Add creates a new Redis Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
@@ -147,7 +147,7 @@ func RedisStateFulSets(cr *redisv1alpha1.Redis) *appsv1.StatefulSet {
 		Spec: appsv1.StatefulSetSpec{
 			Selector:    labels,
 			ServiceName: cr.Name,
-			Replicas:    consReplicas,
+			Replicas:    constReplicas,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: labels,
@@ -156,9 +156,9 @@ func RedisStateFulSets(cr *redisv1alpha1.Redis) *appsv1.StatefulSet {
 					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 					Containers: []corev1.Container{
 						corev1.Container{
-							Name:            consAppContainerName,
-							Image:           consAppImage,
-							ImagePullPolicy: consImagePullPolicy,
+							Name:            constAppContainerName,
+							Image:           constAppImage,
+							ImagePullPolicy: constImagePullPolicy,
 						},
 					},
 				},
