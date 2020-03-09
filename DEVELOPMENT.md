@@ -47,3 +47,9 @@ redis-operator/redis-operator/pkg/controller/redis/redis_controller.go
 ```
 redis-operator/redis-operator/pkg/controller/redis/redis_controller.go
 ```
+
+### 8. Created a common meta information function
+
+```
+redis-operator/redis-operator/pkg/controller/redis/redis_controller.go
+```

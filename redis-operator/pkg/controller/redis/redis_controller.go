@@ -165,6 +165,7 @@ func RedisStateFulSets(cr *redisv1alpha1.Redis) *appsv1.StatefulSet {
 			},
 		},
 	}
+	addOwnerRefToObject(statefulset, asOwner(cr))
 	return statefulset
 }
 
@@ -180,6 +181,7 @@ func RedisService(cr *redisv1alpha1.Redis) *corev1.Service {
 			Selector:  labels,
 		},
 	}
+	addOwnerRefToObject(service, asOwner(cr))
 	return service
 }
 
@@ -196,4 +198,21 @@ func ObjectMetaInformation(cr *redisv1alpha1.Redis, labels map[string]string) *m
 		Namespace: cr.Namespace,
 		Labels:    labels,
 	},
+}
+
+// addOwnerRefToObject appends the desired OwnerReference to the object
+func addOwnerRefToObject(obj metav1.Object, ownerRef metav1.OwnerReference) {
+	obj.SetOwnerReferences(append(obj.GetOwnerReferences(), ownerRef))
+}
+
+// asOwner returns an OwnerReference set as the memcached CR
+func asOwner(cr *redisv1alpha1.Redis) metav1.OwnerReference {
+	trueVar := true
+	return metav1.OwnerReference{
+		APIVersion: cr.APIVersion,
+		Kind:       cr.Kind,
+		Name:       cr.Name,
+		UID:        cr.UID,
+		Controller: &trueVar,
+	}
 }
