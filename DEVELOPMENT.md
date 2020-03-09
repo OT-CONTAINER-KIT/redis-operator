@@ -16,3 +16,11 @@ operator-sdk add api --api-version=redis.opstreelabs.in/v1alpha1 --kind=Redis
 ```shell
 operator-sdk add controller --api-version=redis.opstreelabs.in/v1alpha1 --kind=Redis
 ```
+
+### 4. Add Interface logic in your code
+
+Updated interface logic in below file
+
+```
+redis-operator/redis-operator/pkg/apis/redis/v1alpha1/redis_types.go
+```
