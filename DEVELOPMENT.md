@@ -41,3 +41,9 @@ redis-operator/redis-operator/pkg/controller/redis/redis_controller.go
 ```
 redis-operator/redis-operator/pkg/controller/redis/redis_controller.go
 ```
+
+### 7. Created an object to generate service definition
+
+```
+redis-operator/redis-operator/pkg/controller/redis/redis_controller.go
+```

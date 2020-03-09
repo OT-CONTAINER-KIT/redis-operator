@@ -139,14 +139,14 @@ func (r *ReconcileRedis) Reconcile(request reconcile.Request) (reconcile.Result,
 
 func RedisStateFulSets(cr *redisv1alpha1.Redis) *appsv1.StatefulSet {
 	labels := map[string]string{
-		"app": cr.Name,
+		"app": cr.ObjectMeta.Name,
 	}
 	statefulset := &appsv1.StatefulSet{
 		TypeMeta: MetaInformation(),
 		ObjectMeta: ObjectMetaInformation(labels),
 		Spec: appsv1.StatefulSetSpec{
 			Selector:    labels,
-			ServiceName: cr.Name,
+			ServiceName: cr.ObjectMeta.Name,
 			Replicas:    constReplicas,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
@@ -166,6 +166,28 @@ func RedisStateFulSets(cr *redisv1alpha1.Redis) *appsv1.StatefulSet {
 		},
 	}
 	return statefulset
+}
+
+func RedisService(cr *v1alpha1.HelloStateful) *corev1.Service {
+	labels := map[string]string{
+		"app": cr.ObjectMeta.Name,
+	}
+	service := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Service",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      cr.ObjectMeta.Name,
+			Namespace: cr.Namespace,
+			Labels:    labels,
+		},
+		Spec: corev1.ServiceSpec{
+			ClusterIP: corev1.ClusterIPNone,
+			Selector:  labels,
+		},
+	}
+	return service
 }
 
 func MetaInformation() *metav1.TypeMeta{
