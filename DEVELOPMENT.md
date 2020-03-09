@@ -1,3 +1,6 @@
+## Reference Link
+https://github.com/joatmon08/hello-stateful-operator/tree/master/pkg/apis/hello-stateful
+
 ### 1. Generated Operator directory structure
 
 This will generate you a directory structure for you
@@ -23,4 +26,18 @@ Updated interface logic in below file
 
 ```
 redis-operator/redis-operator/pkg/apis/redis/v1alpha1/redis_types.go
+```
+
+### 5. Updated container information in controller
+
+Updated the container definition in Redis controller
+
+```
+redis-operator/redis-operator/pkg/controller/redis/redis_controller.go
+```
+
+### 6. Created an object to generate statefulset definitions
+
+```
+redis-operator/redis-operator/pkg/controller/redis/redis_controller.go
 ```

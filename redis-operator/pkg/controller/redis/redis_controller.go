@@ -6,6 +6,8 @@ import (
 	redisv1alpha1 "redis-operator/redis-operator/pkg/apis/redis/v1alpha1"
 
 	corev1 "k8s.io/api/core/v1"
+	appsv1 "k8s.io/api/apps/v1"
+	"github.com/operator-framework/operator-sdk/pkg/sdk"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -26,7 +28,12 @@ var log = logf.Log.WithName("controller_redis")
 * USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
 * business logic.  Delete these comments after modifying this file.*
  */
-
+const (
+	consImagePullPolicy  = corev1.PullAlways
+	consAppImage         = "opstree/redis"
+	consAppContainerName = "redis"
+	consReplicas         = 1
+)
 // Add creates a new Redis Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
@@ -130,25 +137,48 @@ func (r *ReconcileRedis) Reconcile(request reconcile.Request) (reconcile.Result,
 	return reconcile.Result{}, nil
 }
 
-// newPodForCR returns a busybox pod with the same name/namespace as the cr
-func newPodForCR(cr *redisv1alpha1.Redis) *corev1.Pod {
+func RedisStateFulSets(cr *redisv1alpha1.Redis) *appsv1.StatefulSet {
 	labels := map[string]string{
 		"app": cr.Name,
 	}
-	return &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      cr.Name + "-pod",
-			Namespace: cr.Namespace,
-			Labels:    labels,
-		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				{
-					Name:    "busybox",
-					Image:   "busybox",
-					Command: []string{"sleep", "3600"},
+	statefulset := &appsv1.StatefulSet{
+		TypeMeta: MetaInformation(),
+		ObjectMeta: ObjectMetaInformation(labels),
+		Spec: appsv1.StatefulSetSpec{
+			Selector:    labels,
+			ServiceName: cr.Name,
+			Replicas:    consReplicas,
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: labels,
+				},
+				Spec: corev1.PodSpec{
+					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
+					Containers: []corev1.Container{
+						corev1.Container{
+							Name:            consAppContainerName,
+							Image:           consAppImage,
+							ImagePullPolicy: consImagePullPolicy,
+						},
+					},
 				},
 			},
 		},
 	}
+	return statefulset
+}
+
+func MetaInformation() *metav1.TypeMeta{
+	return metav1.TypeMeta{
+		Kind:       "StatefulSet",
+		APIVersion: "apps/v1",
+	}
+}
+
+func ObjectMetaInformation(cr *redisv1alpha1.Redis, labels map[string]string) *metav1.ObjectMeta{
+	return metav1.ObjectMeta{
+		Name:      cr.Name,
+		Namespace: cr.Namespace,
+		Labels:    labels,
+	},
 }
