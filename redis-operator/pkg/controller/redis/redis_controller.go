@@ -5,9 +5,8 @@ import (
 
 	redisv1alpha1 "redis-operator/redis-operator/pkg/apis/redis/v1alpha1"
 
-	corev1 "k8s.io/api/core/v1"
 	appsv1 "k8s.io/api/apps/v1"
-	"github.com/operator-framework/operator-sdk/pkg/sdk"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -32,8 +31,8 @@ const (
 	constImagePullPolicy  = corev1.PullAlways
 	constAppImage         = "opstree/redis"
 	constAppContainerName = "redis"
-	constReplicas         = 1
 )
+
 // Add creates a new Redis Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
@@ -109,7 +108,8 @@ func (r *ReconcileRedis) Reconcile(request reconcile.Request) (reconcile.Result,
 	}
 
 	// Define a new Pod object
-	pod := newPodForCR(instance)
+	pod := RedisStateFulSets(instance)
+	svc := RedisService(instance)
 
 	// Set Redis instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, pod, r.scheme); err != nil {
@@ -126,6 +126,10 @@ func (r *ReconcileRedis) Reconcile(request reconcile.Request) (reconcile.Result,
 			return reconcile.Result{}, err
 		}
 
+		err = r.client.Create(context.TODO(), svc)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
 		// Pod created successfully - don't requeue
 		return reconcile.Result{}, nil
 	} else if err != nil {
@@ -138,14 +142,16 @@ func (r *ReconcileRedis) Reconcile(request reconcile.Request) (reconcile.Result,
 }
 
 func RedisStateFulSets(cr *redisv1alpha1.Redis) *appsv1.StatefulSet {
+	var tempReplica int32 = 1
+	var constReplicas *int32 = &tempReplica
 	labels := map[string]string{
 		"app": cr.ObjectMeta.Name,
 	}
 	statefulset := &appsv1.StatefulSet{
-		TypeMeta: MetaInformation(),
+		TypeMeta:   MetaInformation(),
 		ObjectMeta: ObjectMetaInformation(cr, labels),
 		Spec: appsv1.StatefulSetSpec{
-			Selector:    labels,
+			Selector:    labelSelector(labels),
 			ServiceName: cr.ObjectMeta.Name,
 			Replicas:    constReplicas,
 			Template: corev1.PodTemplateSpec{
@@ -153,7 +159,6 @@ func RedisStateFulSets(cr *redisv1alpha1.Redis) *appsv1.StatefulSet {
 					Labels: labels,
 				},
 				Spec: corev1.PodSpec{
-					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 					Containers: []corev1.Container{
 						corev1.Container{
 							Name:            constAppContainerName,
@@ -174,7 +179,7 @@ func RedisService(cr *redisv1alpha1.Redis) *corev1.Service {
 		"app": cr.ObjectMeta.Name,
 	}
 	service := &corev1.Service{
-		TypeMeta: MetaInformation(),
+		TypeMeta:   MetaInformation(),
 		ObjectMeta: ObjectMetaInformation(cr, labels),
 		Spec: corev1.ServiceSpec{
 			ClusterIP: corev1.ClusterIPNone,
@@ -185,27 +190,25 @@ func RedisService(cr *redisv1alpha1.Redis) *corev1.Service {
 	return service
 }
 
-func MetaInformation() *metav1.TypeMeta{
+func MetaInformation() metav1.TypeMeta {
 	return metav1.TypeMeta{
 		Kind:       "StatefulSet",
 		APIVersion: "apps/v1",
 	}
 }
 
-func ObjectMetaInformation(cr *redisv1alpha1.Redis, labels map[string]string) *metav1.ObjectMeta{
+func ObjectMetaInformation(cr *redisv1alpha1.Redis, labels map[string]string) metav1.ObjectMeta {
 	return metav1.ObjectMeta{
 		Name:      cr.ObjectMeta.Name,
 		Namespace: cr.Namespace,
 		Labels:    labels,
-	},
+	}
 }
 
-// addOwnerRefToObject appends the desired OwnerReference to the object
 func addOwnerRefToObject(obj metav1.Object, ownerRef metav1.OwnerReference) {
 	obj.SetOwnerReferences(append(obj.GetOwnerReferences(), ownerRef))
 }
 
-// asOwner returns an OwnerReference set as the memcached CR
 func asOwner(cr *redisv1alpha1.Redis) metav1.OwnerReference {
 	trueVar := true
 	return metav1.OwnerReference{
@@ -215,4 +218,8 @@ func asOwner(cr *redisv1alpha1.Redis) metav1.OwnerReference {
 		UID:        cr.UID,
 		Controller: &trueVar,
 	}
+}
+
+func labelSelector(labels map[string]string) *metav1.LabelSelector {
+	return &metav1.LabelSelector{MatchLabels: labels}
 }

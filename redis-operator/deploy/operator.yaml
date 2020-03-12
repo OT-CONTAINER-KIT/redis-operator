@@ -16,9 +16,7 @@ spec:
       containers:
         - name: redis-operator
           # Replace this with the built image name
-          image: REPLACE_IMAGE
-          command:
-          - redis-operator
+          image: quay.io/opstree/redis-operator
           imagePullPolicy: Always
           env:
             - name: WATCH_NAMESPACE
