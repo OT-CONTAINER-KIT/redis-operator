@@ -1,0 +1,19 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: opstree-redis-metrics
+  labels:
+    app: redis
+    chart: redis-10.2.1
+    release: opstree-redis
+    heritage: Helm
+spec:
+  type: ClusterIP
+  ports:
+  - name: metrics
+    port: 9121
+    targetPort: metrics
+  selector:
+    app: redis
+    release: opstree-redis
