@@ -1,8 +1,17 @@
+---
 apiVersion: redis.opstreelabs.in/v1alpha1
 kind: Redis
 metadata:
-  name: example-redis
+  name: opstree-redis
 spec:
-  # Add fields here
-  size: 1
-  ServiceName: opstreeredis
+  imageName: "quay.io/opstree/redis:latest"
+  imagePullPolicy: IfNotPresent
+  master:
+  - masterName: master-1
+    slaveCount: 1
+  - masterName: master-2
+    slaveCount: 1
+  - masterName: master-3
+    slaveCount: 1
+  mode: cluster
+  redisPassword: "Opstree@12345"
