@@ -7,11 +7,14 @@ import (
 
 // RedisSpec will define the interface for Redis Configuration Input Values
 type RedisSpec struct {
-	Mode            string            `json:"mode"`
-	Image           string            `json:"image,omitempty"`
-	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
-	Master          []RedisMaster     `json:"master,omitempty"`
-	RedisPassword   *string           `json:"redisPassword,omitempty"`
+	Mode               string            `json:"mode"`
+	ImageName          string            `json:"imageName,omitempty"`
+	ImagePullPolicy    corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
+	Master             []RedisMaster     `json:"master,omitempty"`
+	RedisPassword      *string           `json:"redisPassword,omitempty"`
+	RedisExporter      bool              `json:"exporter"`
+	RedisExporterImage string            `json:"redisExporterImage"`
+	RedisConfig        map[string]string `json:"redisConfig"`
 }
 
 // RedisMaster interface will have the redis master configuration
