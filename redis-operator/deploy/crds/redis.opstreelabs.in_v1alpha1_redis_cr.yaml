@@ -6,8 +6,8 @@ metadata:
 spec:
   mode: cluster
   exporter: true
-  imageName: "quay.io/opstree/redis:latest"
-  redisExporterImage: "oliver006/redis_exporter"
+  imageName: "quay.io/opstree/redis:1.0"
+  redisExporterImage: "quay.io/opstree/redis-exporter:1.0"
   imagePullPolicy: IfNotPresent
   master:
   - masterName: master-1
