@@ -4,11 +4,12 @@ import (
 	"context"
 
 	redisv1alpha1 "redis-operator/redis-operator/pkg/apis/redis/v1alpha1"
+	"redis-operator/redis-operator/pkg/utils"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	// metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -28,7 +29,6 @@ var log = logf.Log.WithName("controller_redis")
 * business logic.  Delete these comments after modifying this file.*
  */
 const (
-	constImagePullPolicy  = corev1.PullAlways
 	constAppImage         = "opstree/redis"
 	constAppContainerName = "redis"
 )
@@ -91,7 +91,7 @@ type ReconcileRedis struct {
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileRedis) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	reqLogger.Info("Reconciling Redis")
+	reqLogger.Info("Reconciling Opstree Redis")
 
 	// Fetch the Redis instance
 	instance := &redisv1alpha1.Redis{}
@@ -107,119 +107,25 @@ func (r *ReconcileRedis) Reconcile(request reconcile.Request) (reconcile.Result,
 		return reconcile.Result{}, err
 	}
 
-	// Define a new Pod object
-	pod := RedisStateFulSets(instance)
-	svc := RedisService(instance)
-
+	redisMaster := otmachinery.CreateRedisMaster(instance)
 	// Set Redis instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, pod, r.scheme); err != nil {
+	if err := controllerutil.SetControllerReference(instance, redisMaster, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 
-	// Check if this Pod already exists
-	found := &corev1.Pod{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, found)
+	found := &appsv1.StatefulSet{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: redisMaster.Name, Namespace: redisMaster.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new Pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
-		err = r.client.Create(context.TODO(), pod)
-		if err != nil {
-			return reconcile.Result{}, err
+		if instance.Spec.Mode == "cluster" {
+			reqLogger.Info("Creating a new Redis master setup", "Namespace", redisMaster.Namespace, "Master.Name", redisMaster.Name)
+			err = r.client.Create(context.TODO(), redisMaster)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
 		}
-
-		err = r.client.Create(context.TODO(), svc)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-		// Pod created successfully - don't requeue
-		return reconcile.Result{}, nil
 	} else if err != nil {
 		return reconcile.Result{}, err
 	}
-
-	// Pod already exists - don't requeue
-	reqLogger.Info("Skip reconcile: Pod already exists", "Pod.Namespace", found.Namespace, "Pod.Name", found.Name)
+	reqLogger.Info("Skip reconcile: Cluster already exists", "Redis.Namespace", found.Namespace, "Redis.Name", found.Name)
 	return reconcile.Result{}, nil
-}
-
-func RedisStateFulSets(cr *redisv1alpha1.Redis) *appsv1.StatefulSet {
-	var tempReplica int32 = 1
-	var constReplicas *int32 = &tempReplica
-	labels := map[string]string{
-		"app": cr.ObjectMeta.Name,
-	}
-	statefulset := &appsv1.StatefulSet{
-		TypeMeta:   MetaInformation(),
-		ObjectMeta: ObjectMetaInformation(cr, labels),
-		Spec: appsv1.StatefulSetSpec{
-			Selector:    labelSelector(labels),
-			ServiceName: cr.ObjectMeta.Name,
-			Replicas:    constReplicas,
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: labels,
-				},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						corev1.Container{
-							Name:            constAppContainerName,
-							Image:           constAppImage,
-							ImagePullPolicy: constImagePullPolicy,
-						},
-					},
-				},
-			},
-		},
-	}
-	addOwnerRefToObject(statefulset, asOwner(cr))
-	return statefulset
-}
-
-func RedisService(cr *redisv1alpha1.Redis) *corev1.Service {
-	labels := map[string]string{
-		"app": cr.ObjectMeta.Name,
-	}
-	service := &corev1.Service{
-		TypeMeta:   MetaInformation(),
-		ObjectMeta: ObjectMetaInformation(cr, labels),
-		Spec: corev1.ServiceSpec{
-			ClusterIP: corev1.ClusterIPNone,
-			Selector:  labels,
-		},
-	}
-	addOwnerRefToObject(service, asOwner(cr))
-	return service
-}
-
-func MetaInformation() metav1.TypeMeta {
-	return metav1.TypeMeta{
-		Kind:       "StatefulSet",
-		APIVersion: "apps/v1",
-	}
-}
-
-func ObjectMetaInformation(cr *redisv1alpha1.Redis, labels map[string]string) metav1.ObjectMeta {
-	return metav1.ObjectMeta{
-		Name:      cr.ObjectMeta.Name,
-		Namespace: cr.Namespace,
-		Labels:    labels,
-	}
-}
-
-func addOwnerRefToObject(obj metav1.Object, ownerRef metav1.OwnerReference) {
-	obj.SetOwnerReferences(append(obj.GetOwnerReferences(), ownerRef))
-}
-
-func asOwner(cr *redisv1alpha1.Redis) metav1.OwnerReference {
-	trueVar := true
-	return metav1.OwnerReference{
-		APIVersion: cr.APIVersion,
-		Kind:       cr.Kind,
-		Name:       cr.Name,
-		UID:        cr.UID,
-		Controller: &trueVar,
-	}
-}
-
-func labelSelector(labels map[string]string) *metav1.LabelSelector {
-	return &metav1.LabelSelector{MatchLabels: labels}
 }

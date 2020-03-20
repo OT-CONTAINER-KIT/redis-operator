@@ -4,7 +4,10 @@ kind: Redis
 metadata:
   name: opstree-redis
 spec:
+  mode: cluster
+  exporter: true
   imageName: "quay.io/opstree/redis:latest"
+  redisExporterImage: "oliver006/redis_exporter"
   imagePullPolicy: IfNotPresent
   master:
   - masterName: master-1
@@ -13,5 +16,7 @@ spec:
     slaveCount: 1
   - masterName: master-3
     slaveCount: 1
-  mode: cluster
+  redisConfig:
+    timeout: "0"
+    tcp-keepalive: "300"
   redisPassword: "Opstree@12345"
