@@ -8,7 +8,8 @@ spec:
   exporter: true
   imageName: "quay.io/opstree/redis:1.0"
   redisExporterImage: "quay.io/opstree/redis-exporter:1.0"
-  imagePullPolicy: IfNotPresent
+# ImagePullPolicy has been set to Always purposely for testing
+  imagePullPolicy: Always
   master:
   - masterName: master-1
     slaveCount: 1
