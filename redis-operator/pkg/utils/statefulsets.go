@@ -134,3 +134,20 @@ func CreateRedisMaster(cr *redisv1alpha1.Redis) *appsv1.StatefulSet{
 	}
 	return GenerateStateFulSetsDef(cr, labels, "master", replicas)
 }
+
+// CreateRedisSlave will create a Redis Slave
+func CreateRedisSlave(cr *redisv1alpha1.Redis) *appsv1.StatefulSet{
+	var tempReplicas int32
+	var replicas *int32
+
+	for count, _ := range cr.Spec.Master {
+		tempReplicas += int32(count)
+		replicas = &tempReplicas
+	}
+
+	labels := map[string]string{
+		"app": cr.ObjectMeta.Name + "-" + "slave",
+		"role": "slave",
+	}
+	return GenerateStateFulSetsDef(cr, labels, "slave", replicas)
+}

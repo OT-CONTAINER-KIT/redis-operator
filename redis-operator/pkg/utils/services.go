@@ -55,3 +55,22 @@ func CreateMasterService(cr *redisv1alpha1.Redis, role string, statefulSet strin
 	}
 	return GenerateServiceDef(cr, labels, int32(6379), "master", cr.ObjectMeta.Name + "-" + role + "-" + statefulSet)
 }
+
+// CreateSlaveHeadlessService creates slave headless service
+func CreateSlaveHeadlessService(cr *redisv1alpha1.Redis, role string) *corev1.Service{
+	labels := map[string]string{
+		"app": cr.ObjectMeta.Name + "-" + role,
+		"role": role,
+	}
+	return GenerateServiceDef(cr, labels, int32(6379), "slave", cr.ObjectMeta.Name + "-" + role)
+}
+
+// CreateSlaveService creates different services for slave
+func CreateSlaveService(cr *redisv1alpha1.Redis, role string, statefulSet string) *corev1.Service{
+	labels := map[string]string{
+		"app": cr.ObjectMeta.Name + "-" + role,
+		"role": role,
+		"statefulset.kubernetes.io/pod-name": cr.ObjectMeta.Name + "-" + role + "-" + statefulSet,
+	}
+	return GenerateServiceDef(cr, labels, int32(6379), "slave", cr.ObjectMeta.Name + "-" + role + "-" + statefulSet)
+}

@@ -1,6 +1,7 @@
 package redis
 
 import (
+	"time"
 	"strconv"
 	"context"
 
@@ -8,9 +9,11 @@ import (
 	"redis-operator/redis-operator/pkg/utils"
 
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
+	// corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	// metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -29,10 +32,6 @@ var log = logf.Log.WithName("controller_redis")
 * USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
 * business logic.  Delete these comments after modifying this file.*
  */
-const (
-	constAppImage         = "opstree/redis"
-	constAppContainerName = "redis"
-)
 
 // Add creates a new Redis Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
@@ -61,7 +60,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	// TODO(user): Modify this to be the types you create that are owned by the primary resource
 	// Watch for changes to secondary resource Pods and requeue the owner Redis
-	err = c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
+	err = c.Watch(&source.Kind{Type: &appsv1.StatefulSet{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &redisv1alpha1.Redis{},
 	})
@@ -94,14 +93,13 @@ func (r *ReconcileRedis) Reconcile(request reconcile.Request) (reconcile.Result,
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling Opstree Redis")
 
+	config, _ := rest.InClusterConfig()
+	clientset, _ := kubernetes.NewForConfig(config)
 	// Fetch the Redis instance
 	instance := &redisv1alpha1.Redis{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			// Request object not found, could have been deleted after reconcile request.
-			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
-			// Return and don't requeue
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
@@ -109,6 +107,7 @@ func (r *ReconcileRedis) Reconcile(request reconcile.Request) (reconcile.Result,
 	}
 
 	redisMaster := otmachinery.CreateRedisMaster(instance)
+	redisSlave  := otmachinery.CreateRedisSlave(instance)
 	// Set Redis instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, redisMaster, r.scheme); err != nil {
 		return reconcile.Result{}, err
@@ -121,11 +120,11 @@ func (r *ReconcileRedis) Reconcile(request reconcile.Request) (reconcile.Result,
 			reqLogger.Info("Creating a new Redis master setup", "Namespace", redisMaster.Namespace, "Master.Name", redisMaster.Name)
 			err = r.client.Create(context.TODO(), redisMaster)
 			for replicaCount, _ := range instance.Spec.Master {
-				reqLogger.Info("Creating redis serveices", "Namespace", redisMaster.Namespace, "Master.Name", redisMaster.Name, "Service.Name", instance.ObjectMeta.Name + "-master" + strconv.Itoa(int(replicaCount)))
+				reqLogger.Info("Creating redis master services", "Namespace", redisMaster.Namespace, "Master.Name", redisMaster.Name, "Service.Name", instance.ObjectMeta.Name + "-master" + strconv.Itoa(int(replicaCount)))
 				redisMasterService := otmachinery.CreateMasterService(instance, "master", strconv.Itoa(int(replicaCount)))
 				err = r.client.Create(context.TODO(), redisMasterService)
 			}
-			reqLogger.Info("Creating redis serveices", "Namespace", redisMaster.Namespace, "Master.Name", redisMaster.Name, "Headless.Service.Name", instance.ObjectMeta.Name + "-master")
+			reqLogger.Info("Creating redis master headless services", "Namespace", redisMaster.Namespace, "Master.Name", redisMaster.Name, "Headless.Service.Name", instance.ObjectMeta.Name + "-master")
 			redisMasterHeadlessService := otmachinery.CreateMasterHeadlessService(instance, "master")
 			err = r.client.Create(context.TODO(), redisMasterHeadlessService)
 			if err != nil {
@@ -134,7 +133,32 @@ func (r *ReconcileRedis) Reconcile(request reconcile.Request) (reconcile.Result,
 		}
 	} else if err != nil {
 		return reconcile.Result{}, err
+	} else {
+		redisMasterInfo, err := clientset.AppsV1().StatefulSets(redisMaster.Namespace).Get(instance.ObjectMeta.Name + "-master", metav1.GetOptions{})
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		_, err = clientset.AppsV1().StatefulSets(redisSlave.Namespace).Get(instance.ObjectMeta.Name + "-slave", metav1.GetOptions{})
+		if err != nil {
+			if int(redisMasterInfo.Status.ReadyReplicas) != int(*redisMaster.Spec.Replicas) {
+				reqLogger.Info("Redis master replicas are not ready yet", "Namespace", redisMaster.Namespace, "Master.Name", redisMaster.Name)
+				return reconcile.Result{RequeueAfter: time.Second*60}, nil
+			} else {
+				reqLogger.Info("Creating a new Redis slave setup", "Namespace", redisSlave.Namespace, "Slave.Name", redisSlave.Name)
+				err = r.client.Create(context.TODO(), redisSlave)
+				for replicaCount, _ := range instance.Spec.Master {
+					reqLogger.Info("Creating redis slave serveices", "Namespace", redisSlave.Namespace, "Slave.Name", redisSlave.Name, "Service.Name", instance.ObjectMeta.Name + "-slave" + strconv.Itoa(int(replicaCount)))
+					redisSlaveService := otmachinery.CreateSlaveService(instance, "slave", strconv.Itoa(int(replicaCount)))
+					err = r.client.Create(context.TODO(), redisSlaveService)
+				}
+				redisSlaveHeadlessService := otmachinery.CreateSlaveHeadlessService(instance, "slave")
+				err = r.client.Create(context.TODO(), redisSlaveHeadlessService)
+				if err != nil {
+					return reconcile.Result{}, err
+				}
+			}
+		}
 	}
-	reqLogger.Info("Skip reconcile: Cluster already exists", "Redis.Namespace", found.Namespace, "Redis.Name", found.Name)
+	reqLogger.Info("Skip reconcile: Cluster already exists", "Redis.Namespace", instance.Namespace, "Redis.Name", instance.Name)
 	return reconcile.Result{}, nil
 }
