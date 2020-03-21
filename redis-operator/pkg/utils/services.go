@@ -6,6 +6,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+const (
+	redisPort = 6379
+)
+
 // GenerateServiceDef generate service definition
 func GenerateServiceDef(cr *redisv1alpha1.Redis, labels map[string]string, portNumber int32, role string, serviceName string) *corev1.Service{
 	var redisExporterPort int32 = 9121
@@ -43,7 +47,7 @@ func CreateMasterHeadlessService(cr *redisv1alpha1.Redis, role string) *corev1.S
 		"app": cr.ObjectMeta.Name + "-" + role,
 		"role": role,
 	}
-	return GenerateServiceDef(cr, labels, int32(6379), "master", cr.ObjectMeta.Name + "-" + role)
+	return GenerateServiceDef(cr, labels, int32(redisPort), "master", cr.ObjectMeta.Name + "-" + role)
 }
 
 // CreateMasterService creates different services for master
@@ -53,5 +57,5 @@ func CreateMasterService(cr *redisv1alpha1.Redis, role string, statefulSet strin
 		"role": role,
 		"statefulset.kubernetes.io/pod-name": cr.ObjectMeta.Name + "-" + role + "-" + statefulSet,
 	}
-	return GenerateServiceDef(cr, labels, int32(6379), "master", cr.ObjectMeta.Name + "-" + role + "-" + statefulSet)
+	return GenerateServiceDef(cr, labels, int32(redisPort), "master", cr.ObjectMeta.Name + "-" + role + "-" + statefulSet)
 }
