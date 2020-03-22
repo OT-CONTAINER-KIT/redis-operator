@@ -1,6 +1,7 @@
 package redis
 
 import (
+	"strconv"
 	"context"
 
 	redisv1alpha1 "redis-operator/redis-operator/pkg/apis/redis/v1alpha1"
@@ -119,6 +120,14 @@ func (r *ReconcileRedis) Reconcile(request reconcile.Request) (reconcile.Result,
 		if instance.Spec.Mode == "cluster" {
 			reqLogger.Info("Creating a new Redis master setup", "Namespace", redisMaster.Namespace, "Master.Name", redisMaster.Name)
 			err = r.client.Create(context.TODO(), redisMaster)
+			for replicaCount, _ := range instance.Spec.Master {
+				reqLogger.Info("Creating redis serveices", "Namespace", redisMaster.Namespace, "Master.Name", redisMaster.Name, "Service.Name", instance.ObjectMeta.Name + "-master" + strconv.Itoa(int(replicaCount)))
+				redisMasterService := otmachinery.CreateMasterService(instance, "master", strconv.Itoa(int(replicaCount)))
+				err = r.client.Create(context.TODO(), redisMasterService)
+			}
+			reqLogger.Info("Creating redis serveices", "Namespace", redisMaster.Namespace, "Master.Name", redisMaster.Name, "Headless.Service.Name", instance.ObjectMeta.Name + "-master")
+			redisMasterHeadlessService := otmachinery.CreateMasterHeadlessService(instance, "master")
+			err = r.client.Create(context.TODO(), redisMasterHeadlessService)
 			if err != nil {
 				return reconcile.Result{}, err
 			}

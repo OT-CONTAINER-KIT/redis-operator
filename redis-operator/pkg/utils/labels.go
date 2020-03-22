@@ -50,6 +50,15 @@ func GenerateStatefulSetsAnots() map[string]string{
 	}
 }
 
+// GenerateStatefulSetsAnots generates and resturns statefulsets annotations
+func GenerateServiceAnots() map[string]string{
+	return map[string]string{
+		"redis.opstreelabs.in": "true",
+		"prometheus.io/scrape": "true",
+		"prometheus.io/port": "9121",
+	}
+}
+
 // LabelSelectors generates object for label selection
 func LabelSelectors(labels map[string]string) *metav1.LabelSelector {
 	return &metav1.LabelSelector{MatchLabels: labels}

@@ -4,12 +4,9 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	redisv1alpha1 "redis-operator/redis-operator/pkg/apis/redis/v1alpha1"
 )
-
-var log = logf.Log.WithName("controller_redis")
 
 const (
 	constRedisExpoterName = "redis-exporter"
@@ -17,7 +14,7 @@ const (
 
 // GenerateStateFulSetsDef generates the statefulsets definition
 func GenerateStateFulSetsDef(cr *redisv1alpha1.Redis, labels map[string]string, role string, replicas *int32) *appsv1.StatefulSet{
-	return &appsv1.StatefulSet{
+	statefulset := &appsv1.StatefulSet{
 		TypeMeta: GenerateMetaInformation("StatefulSet", "apps/v1"),
 		ObjectMeta: GenerateObjectMetaInformation(cr.ObjectMeta.Name + "-" + role, cr.Namespace, labels, GenerateStatefulSetsAnots()),
 		Spec: appsv1.StatefulSetSpec{
@@ -34,6 +31,8 @@ func GenerateStateFulSetsDef(cr *redisv1alpha1.Redis, labels map[string]string, 
 			},
 		},
 	}
+	AddOwnerRefToObject(statefulset, AsOwner(cr))
+	return statefulset
 }
 
 // GenerateContainerDef generates container definition
@@ -130,7 +129,7 @@ func CreateRedisMaster(cr *redisv1alpha1.Redis) *appsv1.StatefulSet{
 	}
 
 	labels := map[string]string{
-		"app": cr.ObjectMeta.Name,
+		"app": cr.ObjectMeta.Name + "-" + "master",
 		"role": "master",
 	}
 	return GenerateStateFulSetsDef(cr, labels, "master", replicas)
