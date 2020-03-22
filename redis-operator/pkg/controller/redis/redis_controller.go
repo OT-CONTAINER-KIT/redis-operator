@@ -119,9 +119,10 @@ func (r *ReconcileRedis) Reconcile(request reconcile.Request) (reconcile.Result,
 		if instance.Spec.Mode == "cluster" {
 			reqLogger.Info("Creating a new Redis master setup", "Namespace", redisMaster.Namespace, "Master.Name", redisMaster.Name)
 			err = r.client.Create(context.TODO(), redisMaster)
-			for replicaCount, _ := range instance.Spec.Master {
-				reqLogger.Info("Creating redis master services", "Namespace", redisMaster.Namespace, "Master.Name", redisMaster.Name, "Service.Name", instance.ObjectMeta.Name + "-master" + strconv.Itoa(int(replicaCount)))
-				redisMasterService := otmachinery.CreateMasterService(instance, "master", strconv.Itoa(int(replicaCount)))
+			masterReplicas := instance.Spec.Master.Size
+			for serviceCount := 1; serviceCount <= int(*masterReplicas); serviceCount++ {
+				reqLogger.Info("Creating redis master services", "Namespace", redisMaster.Namespace, "Master.Name", redisMaster.Name, "Service.Name", instance.ObjectMeta.Name + "-master" + strconv.Itoa(serviceCount))
+				redisMasterService := otmachinery.CreateMasterService(instance, "master", strconv.Itoa(serviceCount))
 				err = r.client.Create(context.TODO(), redisMasterService)
 			}
 			reqLogger.Info("Creating redis master headless services", "Namespace", redisMaster.Namespace, "Master.Name", redisMaster.Name, "Headless.Service.Name", instance.ObjectMeta.Name + "-master")
@@ -146,9 +147,10 @@ func (r *ReconcileRedis) Reconcile(request reconcile.Request) (reconcile.Result,
 			} else {
 				reqLogger.Info("Creating a new Redis slave setup", "Namespace", redisSlave.Namespace, "Slave.Name", redisSlave.Name)
 				err = r.client.Create(context.TODO(), redisSlave)
-				for replicaCount, _ := range instance.Spec.Master {
-					reqLogger.Info("Creating redis slave serveices", "Namespace", redisSlave.Namespace, "Slave.Name", redisSlave.Name, "Service.Name", instance.ObjectMeta.Name + "-slave" + strconv.Itoa(int(replicaCount)))
-					redisSlaveService := otmachinery.CreateSlaveService(instance, "slave", strconv.Itoa(int(replicaCount)))
+				slaveReplicas := instance.Spec.Slave.Size
+				for serviceCount := 1; serviceCount <= int(*slaveReplicas); serviceCount++ {
+					reqLogger.Info("Creating redis slave serveices", "Namespace", redisSlave.Namespace, "Slave.Name", redisSlave.Name, "Service.Name", instance.ObjectMeta.Name + "-slave" + strconv.Itoa(serviceCount))
+					redisSlaveService := otmachinery.CreateSlaveService(instance, "slave", strconv.Itoa(serviceCount))
 					err = r.client.Create(context.TODO(), redisSlaveService)
 				}
 				redisSlaveHeadlessService := otmachinery.CreateSlaveHeadlessService(instance, "slave")

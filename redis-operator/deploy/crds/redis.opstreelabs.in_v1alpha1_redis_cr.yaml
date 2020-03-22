@@ -10,12 +10,9 @@ spec:
   redisExporterImage: "quay.io/opstree/redis-exporter:1.0"
   imagePullPolicy: IfNotPresent
   master:
-  - masterName: master-1
-    slaveCount: 1
-  - masterName: master-2
-    slaveCount: 1
-  - masterName: master-3
-    slaveCount: 1
+    size: 3
+  slave:
+    size: 3
   redisConfig:
     timeout: "0"
     tcp-keepalive: "300"
