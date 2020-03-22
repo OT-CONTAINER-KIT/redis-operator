@@ -66,7 +66,7 @@ func CreateSlaveHeadlessService(cr *redisv1alpha1.Redis, role string) *corev1.Se
 		"app": cr.ObjectMeta.Name + "-" + role,
 		"role": role,
 	}
-	return GenerateServiceDef(cr, labels, int32(6379), "slave", cr.ObjectMeta.Name + "-" + role)
+	return GenerateServiceDef(cr, labels, int32(redisPort), "slave", cr.ObjectMeta.Name + "-" + role)
 }
 
 // CreateSlaveService creates different services for slave
@@ -76,5 +76,5 @@ func CreateSlaveService(cr *redisv1alpha1.Redis, role string, statefulSet string
 		"role": role,
 		"statefulset.kubernetes.io/pod-name": cr.ObjectMeta.Name + "-" + role + "-" + statefulSet,
 	}
-	return GenerateServiceDef(cr, labels, int32(6379), "slave", cr.ObjectMeta.Name + "-" + role + "-" + statefulSet)
+	return GenerateServiceDef(cr, labels, int32(redisPort), "slave", cr.ObjectMeta.Name + "-" + role + "-" + statefulSet)
 }
