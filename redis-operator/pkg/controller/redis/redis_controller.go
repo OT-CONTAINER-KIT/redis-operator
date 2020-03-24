@@ -108,6 +108,7 @@ func (r *ReconcileRedis) Reconcile(request reconcile.Request) (reconcile.Result,
 
 	redisMaster := otmachinery.CreateRedisMaster(instance)
 	redisSlave  := otmachinery.CreateRedisSlave(instance)
+	redisStandalone := otmachinery.CreateRedisStandalone(instance)
 	// Set Redis instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, redisMaster, r.scheme); err != nil {
 		return reconcile.Result{}, err
@@ -131,6 +132,12 @@ func (r *ReconcileRedis) Reconcile(request reconcile.Request) (reconcile.Result,
 			if err != nil {
 				return reconcile.Result{}, err
 			}
+		} else if instance.Spec.Mode == "standalone" {
+			reqLogger.Info("Creating a new Redis standalone setup", "Namespace", redisStandalone.Namespace, "RedisServer.Name", redisStandalone.Name)
+			err = r.client.Create(context.TODO(), redisStandalone)
+			reqLogger.Info("Creating a new Redis standalone service", "Namespace", redisStandalone.Namespace, "RedisServer.Name", redisStandalone.Name)
+			redisStandaloneService := otmachinery.CreateStandaloneService(instance)
+			err = r.client.Create(context.TODO(), redisStandaloneService)
 		}
 	} else if err != nil {
 		return reconcile.Result{}, err

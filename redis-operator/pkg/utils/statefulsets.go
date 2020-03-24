@@ -136,3 +136,14 @@ func CreateRedisSlave(cr *redisv1alpha1.Redis) *appsv1.StatefulSet{
 	}
 	return GenerateStateFulSetsDef(cr, labels, "slave", cr.Spec.Slave.Size)
 }
+
+// CreateRedisStandalone will create a Redis Master
+func CreateRedisStandalone(cr *redisv1alpha1.Redis) *appsv1.StatefulSet{
+	var standaloneReplica int32 = 1
+
+	labels := map[string]string{
+		"app": cr.ObjectMeta.Name + "-" + "standalone",
+		"role": "standalone",
+	}
+	return GenerateStateFulSetsDef(cr, labels, "standalone", &standaloneReplica)
+}
