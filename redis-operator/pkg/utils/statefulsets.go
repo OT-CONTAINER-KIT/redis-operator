@@ -49,7 +49,7 @@ func GenerateContainerDef(cr *redisv1alpha1.Redis, role string) []corev1.Contain
 					ValueFrom: &corev1.EnvVarSource{
 					SecretKeyRef: &corev1.SecretKeySelector{
 							LocalObjectReference: corev1.LocalObjectReference{
-								Name: cr.ObjectMeta.Name + "-" + "generic",
+								Name: cr.ObjectMeta.Name,
 							},
 							Key: "password",
 						},
@@ -103,7 +103,7 @@ func FinalContainerDef(cr *redisv1alpha1.Redis, role string) []corev1.Container{
 					ValueFrom: &corev1.EnvVarSource{
 					SecretKeyRef: &corev1.SecretKeySelector{
 							LocalObjectReference: corev1.LocalObjectReference{
-								Name: cr.ObjectMeta.Name + "-" + "generic",
+								Name: cr.ObjectMeta.Name,
 							},
 							Key: "password",
 						},

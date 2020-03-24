@@ -117,6 +117,7 @@ func (r *ReconcileRedis) Reconcile(request reconcile.Request) (reconcile.Result,
 	found := &appsv1.StatefulSet{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: redisMaster.Name, Namespace: redisMaster.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
+		otmachinery.CreateRedisSecret(instance)
 		if instance.Spec.Mode == "cluster" {
 			reqLogger.Info("Creating a new Redis master setup", "Namespace", redisMaster.Namespace, "Master.Name", redisMaster.Name)
 			err = r.client.Create(context.TODO(), redisMaster)

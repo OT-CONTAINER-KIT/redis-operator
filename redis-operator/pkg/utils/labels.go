@@ -59,6 +59,13 @@ func GenerateServiceAnots() map[string]string{
 	}
 }
 
+// GenerateSecretAnots generates and resturns statefulsets annotations
+func GenerateSecretAnots() map[string]string{
+	return map[string]string{
+		"redis.opstreelabs.in": "true",
+	}
+}
+
 // LabelSelectors generates object for label selection
 func LabelSelectors(labels map[string]string) *metav1.LabelSelector {
 	return &metav1.LabelSelector{MatchLabels: labels}
