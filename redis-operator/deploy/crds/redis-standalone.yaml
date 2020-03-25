@@ -1,0 +1,15 @@
+---
+apiVersion: redis.opstreelabs.in/v1alpha1
+kind: Redis
+metadata:
+  name: opstree-redis
+spec:
+  mode: standalone
+  exporter: true
+  imageName: "quay.io/opstree/redis:1.0"
+  redisExporterImage: "quay.io/opstree/redis-exporter:1.0"
+  imagePullPolicy: IfNotPresent
+  redisConfig:
+    timeout: "0"
+    tcp-keepalive: "300"
+  redisPassword: "Opstree@12345"

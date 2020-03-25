@@ -78,3 +78,12 @@ func CreateSlaveService(cr *redisv1alpha1.Redis, role string, statefulSet string
 	}
 	return GenerateServiceDef(cr, labels, int32(redisPort), "slave", cr.ObjectMeta.Name + "-" + role + "-" + statefulSet)
 }
+
+// CreateStandaloneService creates slave headless service
+func CreateStandaloneService(cr *redisv1alpha1.Redis) *corev1.Service{
+	labels := map[string]string{
+		"app": cr.ObjectMeta.Name + "-" + "standalone",
+		"role": "standalone",
+	}
+	return GenerateServiceDef(cr, labels, int32(redisPort), "standalone", cr.ObjectMeta.Name)
+}
