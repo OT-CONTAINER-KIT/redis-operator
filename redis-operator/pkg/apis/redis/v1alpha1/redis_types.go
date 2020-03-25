@@ -9,6 +9,7 @@ import (
 type RedisSpec struct {
 	Mode               string            `json:"mode"`
 	ImageName          string            `json:"imageName,omitempty"`
+	Size               *int32            `json:"size,omitempty"`
 	ImagePullPolicy    corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
 	Master             RedisMaster       `json:"master,omitempty"`
 	Slave              RedisSlave        `json:"slave,omitempty"`
@@ -20,12 +21,10 @@ type RedisSpec struct {
 
 // RedisMaster interface will have the redis master configuration
 type RedisMaster struct {
-	Size *int32 `json:"size,omitempty"`
 }
 
 // RedisMaster interface will have the redis master configuration
 type RedisSlave struct {
-	Size *int32 `json:"size,omitempty"`
 }
 
 // RedisStatus will give the descriptive information for Redis status
