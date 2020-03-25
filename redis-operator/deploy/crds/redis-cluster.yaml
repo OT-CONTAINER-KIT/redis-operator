@@ -6,13 +6,12 @@ metadata:
 spec:
   mode: cluster
   exporter: true
+  size: 3
   imageName: "quay.io/opstree/redis:1.0"
   redisExporterImage: "quay.io/opstree/redis-exporter:1.0"
   imagePullPolicy: IfNotPresent
   master:
-    size: 3
   slave:
-    size: 3
   redisConfig:
     timeout: "0"
     tcp-keepalive: "300"
