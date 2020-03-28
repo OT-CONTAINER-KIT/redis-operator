@@ -7,17 +7,22 @@ import (
 
 // RedisSpec will define the interface for Redis Configuration Input Values
 type RedisSpec struct {
-	Mode               string                      `json:"mode"`
-	ImageName          string                      `json:"imageName,omitempty"`
-	Size               *int32                      `json:"size,omitempty"`
-	ImagePullPolicy    corev1.PullPolicy           `json:"imagePullPolicy,omitempty"`
-	Master             RedisMaster                 `json:"master,omitempty"`
-	Slave              RedisSlave                  `json:"slave,omitempty"`
-	RedisPassword      *string                     `json:"redisPassword,omitempty"`
-	RedisExporter      bool                        `json:"exporter"`
-	RedisExporterImage string                      `json:"redisExporterImage"`
-	RedisConfig        map[string]string           `json:"redisConfig"`
-	Resources          *Resources                   `json:"resources,omitempty"`
+	Mode                string                       `json:"mode"`
+	ImageName           string                       `json:"imageName,omitempty"`
+	Size                *int32                       `json:"size,omitempty"`
+	ImagePullPolicy     corev1.PullPolicy            `json:"imagePullPolicy,omitempty"`
+	Master              RedisMaster                  `json:"master,omitempty"`
+	Slave               RedisSlave                   `json:"slave,omitempty"`
+	RedisPassword       *string                      `json:"redisPassword,omitempty"`
+	RedisExporter       bool                         `json:"exporter"`
+	RedisExporterImage  string                       `json:"redisExporterImage"`
+	RedisConfig         map[string]string            `json:"redisConfig"`
+	Resources           *Resources                   `json:"resources,omitempty"`
+	Storage             *Storage                     `json:"storage,omitempty"`
+}
+
+type Storage struct {
+	VolumeClaimTemplate corev1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
 }
 
 // RedisMaster interface will have the redis master configuration
