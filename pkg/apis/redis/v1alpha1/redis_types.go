@@ -7,24 +7,39 @@ import (
 
 // RedisSpec will define the interface for Redis Configuration Input Values
 type RedisSpec struct {
-	Mode               string            `json:"mode"`
-	ImageName          string            `json:"imageName,omitempty"`
-	Size               *int32            `json:"size,omitempty"`
-	ImagePullPolicy    corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
-	Master             RedisMaster       `json:"master,omitempty"`
-	Slave              RedisSlave        `json:"slave,omitempty"`
-	RedisPassword      *string           `json:"redisPassword,omitempty"`
-	RedisExporter      bool              `json:"exporter"`
-	RedisExporterImage string            `json:"redisExporterImage"`
-	RedisConfig        map[string]string `json:"redisConfig"`
+	Mode               string                      `json:"mode"`
+	ImageName          string                      `json:"imageName,omitempty"`
+	Size               *int32                      `json:"size,omitempty"`
+	ImagePullPolicy    corev1.PullPolicy           `json:"imagePullPolicy,omitempty"`
+	Master             RedisMaster                 `json:"master,omitempty"`
+	Slave              RedisSlave                  `json:"slave,omitempty"`
+	RedisPassword      *string                     `json:"redisPassword,omitempty"`
+	RedisExporter      bool                        `json:"exporter"`
+	RedisExporterImage string                      `json:"redisExporterImage"`
+	RedisConfig        map[string]string           `json:"redisConfig"`
+	Resources          *Resources                   `json:"resources,omitempty"`
 }
 
 // RedisMaster interface will have the redis master configuration
 type RedisMaster struct {
+	Resources Resources `json:"resources,omitempty"`
 }
 
 // RedisMaster interface will have the redis master configuration
 type RedisSlave struct {
+	Resources Resources `json:"resources,omitempty"`
+}
+
+// ResourceDescription describes CPU and memory resources defined for a cluster.
+type ResourceDescription struct {
+	CPU    string `json:"cpu"`
+	Memory string `json:"memory"`
+}
+
+// Resources describes requests and limits for the cluster resouces.
+type Resources struct {
+	ResourceRequests ResourceDescription `json:"requests,omitempty"`
+	ResourceLimits   ResourceDescription `json:"limits,omitempty"`
 }
 
 // RedisStatus will give the descriptive information for Redis status

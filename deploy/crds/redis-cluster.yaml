@@ -16,3 +16,10 @@ spec:
     timeout: "0"
     tcp-keepalive: "300"
   redisPassword: "Opstree@12345"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi

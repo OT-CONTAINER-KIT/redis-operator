@@ -3,6 +3,7 @@ package otmachinery
 import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	redisv1alpha1 "redis-operator/pkg/apis/redis/v1alpha1"
@@ -54,6 +55,15 @@ func GenerateContainerDef(cr *redisv1alpha1.Redis, role string) corev1.Container
 				Value: role,
 			},
 		},
+		Resources: corev1.ResourceRequirements{
+			Limits: corev1.ResourceList{}, Requests: corev1.ResourceList{},
+		},
+	}
+	if cr.Spec.Resources != nil {
+		containerDefinition.Resources.Limits[corev1.ResourceCPU] = resource.MustParse(cr.Spec.Resources.ResourceLimits.CPU)
+		containerDefinition.Resources.Requests[corev1.ResourceCPU] = resource.MustParse(cr.Spec.Resources.ResourceRequests.CPU)
+		containerDefinition.Resources.Limits[corev1.ResourceMemory] = resource.MustParse(cr.Spec.Resources.ResourceLimits.Memory)
+		containerDefinition.Resources.Requests[corev1.ResourceMemory] = resource.MustParse(cr.Spec.Resources.ResourceRequests.Memory)
 	}
 	if cr.Spec.RedisPassword != nil {
 		containerDefinition.Env = append(containerDefinition.Env, corev1.EnvVar{
