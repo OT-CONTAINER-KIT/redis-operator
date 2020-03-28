@@ -17,3 +17,6 @@ The redis-operator will run in a separate namespace and it will be responsible f
 ## To Do
 - Add slave statefulsets in operator
 - Add services for slave statefulsets in operator
+- Nodeselector
+- PriorityClass
+- Affinity
