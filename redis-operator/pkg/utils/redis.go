@@ -1,25 +1,22 @@
 package otmachinery
 
 import (
+	"bufio"
+	"strings"
 	"bytes"
 	"strconv"
+	"github.com/go-redis/redis"
     "k8s.io/client-go/kubernetes/scheme"
     "k8s.io/client-go/rest"
     "k8s.io/client-go/tools/remotecommand"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	appsv1 "k8s.io/api/apps/v1"
 	redisv1alpha1 "redis-operator/redis-operator/pkg/apis/redis/v1alpha1"
 )
 
 type RedisDetails struct {
 	PodName string
 	Namespace string
-}
-
-type EntityOperatorInterface struct {
-	Existing *appsv1.StatefulSet
-	Desired  *appsv1.StatefulSet
 }
 
 // GetRedisServerIP will return the IP of redis service
@@ -87,6 +84,38 @@ func ExecuteRedisReplicationCommand(cr *redisv1alpha1.Redis) {
 		cmd := CreateRedisReplicationCommand(cr, strconv.Itoa(podCount))
 		ExecuteCommand(cr, cmd)
 	}
+}
+
+// CheckRedisCluster will check the redis cluster have sufficient nodes or not
+func CheckRedisCluster(cr *redisv1alpha1.Redis) int {
+	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
+
+	redisInfo := RedisDetails{
+		PodName:   cr.ObjectMeta.Name + "-master-0",
+		Namespace: cr.Namespace,
+	}
+
+	client := redis.NewClient(&redis.Options{
+		Addr:     GetRedisServerIP(redisInfo) + ":6379",
+		Password: *cr.Spec.RedisPassword,
+		DB:       0,
+	})
+	cmd := redis.NewStringCmd("cluster", "nodes")
+	client.Process(cmd)
+
+	output, err := cmd.Result()
+	if err != nil {
+		reqLogger.Error(err, "Redis command failed with this error")
+	}
+	reqLogger.Info("Redis cluster nodes are listed", "Output", output)
+	scanner := bufio.NewScanner(strings.NewReader(output))
+
+	count := 0
+	for scanner.Scan() {
+		count++
+	}
+	reqLogger.Info("Total number of redis nodes are", "Nodes", strconv.Itoa(count))
+	return count
 }
 
 // int32Ptr converts int32 to pointer of int32

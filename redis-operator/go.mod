@@ -3,6 +3,7 @@ module redis-operator/redis-operator
 go 1.13
 
 require (
+	github.com/go-redis/redis v6.15.7+incompatible
 	github.com/operator-framework/operator-sdk v0.15.2
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/pflag v1.0.5

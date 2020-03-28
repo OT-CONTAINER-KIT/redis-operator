@@ -103,7 +103,6 @@ func (r *ReconcileRedis) Reconcile(request reconcile.Request) (reconcile.Result,
 			otmachinery.CreateRedisSlave(instance)
 			otmachinery.CreateSlaveService(instance)
 			otmachinery.CreateSlaveHeadlessService(instance)
-			otmachinery.ExecuteRedisClusterCommand(instance)
 			redisMasterInfo, err := otmachinery.GenerateK8sClient().AppsV1().StatefulSets(instance.Namespace).Get(instance.ObjectMeta.Name + "-master", metav1.GetOptions{})
 			if err != nil {
 				return reconcile.Result{}, err
@@ -113,8 +112,12 @@ func (r *ReconcileRedis) Reconcile(request reconcile.Request) (reconcile.Result,
 				return reconcile.Result{RequeueAfter: time.Second*120}, nil
 			} else {
 				reqLogger.Info("Creating redis cluster by executing cluster creation command", "Ready.Replicas", strconv.Itoa(int(redisMasterInfo.Status.ReadyReplicas)))
-				otmachinery.ExecuteRedisClusterCommand(instance)
-				otmachinery.ExecuteRedisReplicationCommand(instance)
+				if otmachinery.CheckRedisCluster(instance) != int(*instance.Spec.Size) * 2 {
+					otmachinery.ExecuteRedisClusterCommand(instance)
+					otmachinery.ExecuteRedisReplicationCommand(instance)
+				} else {
+					reqLogger.Info("Redis master count is desired")
+				}
 			}
 		} else if instance.Spec.Mode == "standalone" {
 			otmachinery.CreateRedisStandalone(instance)
