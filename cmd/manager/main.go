@@ -12,9 +12,9 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
 
-	"redis-operator/redis-operator/pkg/apis"
-	"redis-operator/redis-operator/pkg/controller"
-	"redis-operator/redis-operator/version"
+	"redis-operator/pkg/apis"
+	"redis-operator/pkg/controller"
+	"redis-operator/version"
 
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	kubemetrics "github.com/operator-framework/operator-sdk/pkg/kube-metrics"

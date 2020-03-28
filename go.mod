@@ -1,4 +1,4 @@
-module redis-operator/redis-operator
+module redis-operator
 
 go 1.13
 
