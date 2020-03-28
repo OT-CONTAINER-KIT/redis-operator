@@ -19,13 +19,13 @@ type ServiceInterface struct {
 }
 
 // GenerateServiceDef generate service definition
-func GenerateServiceDef(cr *redisv1alpha1.Redis, labels map[string]string, portNumber int32, role string, serviceName string) *corev1.Service{
+func GenerateServiceDef(cr *redisv1alpha1.Redis, labels map[string]string, portNumber int32, role string, serviceName string, clusterIP string) *corev1.Service{
 	var redisExporterPort int32 = 9121
 	service := &corev1.Service{
 		TypeMeta:   GenerateMetaInformation("Service", "core/v1"),
 		ObjectMeta:  GenerateObjectMetaInformation(serviceName, cr.Namespace, labels, GenerateServiceAnots()),
 		Spec: corev1.ServiceSpec{
-			ClusterIP: corev1.ClusterIPNone,
+			ClusterIP: clusterIP,
 			Selector:  labels,
 			Ports: []corev1.ServicePort{
 				{
@@ -55,7 +55,7 @@ func CreateMasterHeadlessService(cr *redisv1alpha1.Redis) {
 		"app": cr.ObjectMeta.Name + "-master",
 		"role": "master",
 	}
-	serviceDefinition := GenerateServiceDef(cr, labels, int32(redisPort), "master", cr.ObjectMeta.Name + "-master")
+	serviceDefinition := GenerateServiceDef(cr, labels, int32(redisPort), "master", cr.ObjectMeta.Name + "-master", "None")
 	serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(cr.ObjectMeta.Name + "-master", metav1.GetOptions{})
 	service := ServiceInterface{
 		ExistingService:      serviceBody,
@@ -68,13 +68,13 @@ func CreateMasterHeadlessService(cr *redisv1alpha1.Redis) {
 // CreateMasterService creates different services for master
 func CreateMasterService(cr *redisv1alpha1.Redis) {
 	masterReplicas := cr.Spec.Size
-	for serviceCount := 1; serviceCount <= int(*masterReplicas); serviceCount++ {
+	for serviceCount := 0; serviceCount <= int(*masterReplicas) - 1; serviceCount++ {
 		labels := map[string]string{
 			"app": cr.ObjectMeta.Name + "-master",
 			"role": "master",
 			"statefulset.kubernetes.io/pod-name": cr.ObjectMeta.Name + "-master-" + strconv.Itoa(serviceCount),
 		}
-		serviceDefinition := GenerateServiceDef(cr, labels, int32(redisPort), "master", cr.ObjectMeta.Name + "-master-" +  strconv.Itoa(serviceCount))
+		serviceDefinition := GenerateServiceDef(cr, labels, int32(redisPort), "master", cr.ObjectMeta.Name + "-master-" +  strconv.Itoa(serviceCount), "None")
 		serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(cr.ObjectMeta.Name + "-master-" + strconv.Itoa(serviceCount), metav1.GetOptions{})
 		service := ServiceInterface{
 			ExistingService:      serviceBody,
@@ -91,7 +91,7 @@ func CreateSlaveHeadlessService(cr *redisv1alpha1.Redis) {
 		"app": cr.ObjectMeta.Name + "-slave",
 		"role": "slave",
 	}
-	serviceDefinition := GenerateServiceDef(cr, labels, int32(redisPort), "slave", cr.ObjectMeta.Name + "-slave")
+	serviceDefinition := GenerateServiceDef(cr, labels, int32(redisPort), "slave", cr.ObjectMeta.Name + "-slave", "None")
 	serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(cr.ObjectMeta.Name + "-slave", metav1.GetOptions{})
 	service := ServiceInterface{
 		ExistingService:      serviceBody,
@@ -104,13 +104,13 @@ func CreateSlaveHeadlessService(cr *redisv1alpha1.Redis) {
 // CreateSlaveService creates different services for slave
 func CreateSlaveService(cr *redisv1alpha1.Redis) {
 	slaveReplicas := cr.Spec.Size
-	for serviceCount := 1; serviceCount <= int(*slaveReplicas); serviceCount++ {
+	for serviceCount := 0; serviceCount <= int(*slaveReplicas) - 1; serviceCount++ {
 		labels := map[string]string{
 			"app": cr.ObjectMeta.Name + "-slave",
 			"role": "slave",
 			"statefulset.kubernetes.io/pod-name": cr.ObjectMeta.Name + "-slave-" + strconv.Itoa(serviceCount),
 		}
-		serviceDefinition := GenerateServiceDef(cr, labels, int32(redisPort), "slave", cr.ObjectMeta.Name + "-slave-" + strconv.Itoa(serviceCount))
+		serviceDefinition := GenerateServiceDef(cr, labels, int32(redisPort), "slave", cr.ObjectMeta.Name + "-slave-" + strconv.Itoa(serviceCount), "None")
 		serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(cr.ObjectMeta.Name + "-slave-" + strconv.Itoa(serviceCount), metav1.GetOptions{})
 		service := ServiceInterface{
 			ExistingService:      serviceBody,
@@ -127,7 +127,7 @@ func CreateStandaloneService(cr *redisv1alpha1.Redis) {
 		"app": cr.ObjectMeta.Name + "-" + "standalone",
 		"role": "standalone",
 	}
-	serviceDefinition := GenerateServiceDef(cr, labels, int32(redisPort), "standalone", cr.ObjectMeta.Name)
+	serviceDefinition := GenerateServiceDef(cr, labels, int32(redisPort), "standalone", cr.ObjectMeta.Name, "None")
 	serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(cr.ObjectMeta.Name, metav1.GetOptions{})
 
 	service := ServiceInterface{
