@@ -1,3 +1,7 @@
+<p align="left">
+  <img src="./static/redis-operator-logo.png">
+</p>
+
 # Speculator: Redis Operator
 
 I am a golang based redis operator which will create/manage Redis standalone/cluster mode setup on top of the Kubernetes.
