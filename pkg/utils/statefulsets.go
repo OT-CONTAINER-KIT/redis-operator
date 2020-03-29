@@ -14,6 +14,7 @@ const (
 	graceTime             = 15
 )
 
+// StatefulInterface is the interface to pass statefulset information accross methods
 type StatefulInterface struct {
 	Existing *appsv1.StatefulSet
 	Desired  *appsv1.StatefulSet

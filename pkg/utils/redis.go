@@ -14,6 +14,7 @@ import (
 	"strings"
 )
 
+// RedisDetails will hold the information for Redis Pod
 type RedisDetails struct {
 	PodName   string
 	Namespace string
@@ -52,7 +53,7 @@ func ExecuteRedisClusterCommand(cr *redisv1alpha1.Redis) {
 	ExecuteCommand(cr, cmd)
 }
 
-// ExecuteRedisClusterCommand will create redis replication creation command
+// CreateRedisReplicationCommand will create redis replication creation command
 func CreateRedisReplicationCommand(cr *redisv1alpha1.Redis, nodeNumber string) []string {
 	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
 	cmd := []string{

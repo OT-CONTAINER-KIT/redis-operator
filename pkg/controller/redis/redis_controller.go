@@ -75,6 +75,7 @@ type ReconcileRedis struct {
 	scheme *runtime.Scheme
 }
 
+// Reconcile method is for reconciling the redis operator
 func (r *ReconcileRedis) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling Opstree Redis")
@@ -111,14 +112,13 @@ func (r *ReconcileRedis) Reconcile(request reconcile.Request) (reconcile.Result,
 			if int(redisMasterInfo.Status.ReadyReplicas) != int(*instance.Spec.Size) && int(redisSlaveInfo.Status.ReadyReplicas) != int(*instance.Spec.Size) {
 				reqLogger.Info("Redis master and slave nodes are not ready yet", "Ready.Replicas", strconv.Itoa(int(redisMasterInfo.Status.ReadyReplicas)))
 				return reconcile.Result{RequeueAfter: time.Second * 120}, nil
+			}
+			reqLogger.Info("Creating redis cluster by executing cluster creation command", "Ready.Replicas", strconv.Itoa(int(redisMasterInfo.Status.ReadyReplicas)))
+			if otmachinery.CheckRedisCluster(instance) != int(*instance.Spec.Size)*2 {
+				otmachinery.ExecuteRedisClusterCommand(instance)
+				otmachinery.ExecuteRedisReplicationCommand(instance)
 			} else {
-				reqLogger.Info("Creating redis cluster by executing cluster creation command", "Ready.Replicas", strconv.Itoa(int(redisMasterInfo.Status.ReadyReplicas)))
-				if otmachinery.CheckRedisCluster(instance) != int(*instance.Spec.Size)*2 {
-					otmachinery.ExecuteRedisClusterCommand(instance)
-					otmachinery.ExecuteRedisReplicationCommand(instance)
-				} else {
-					reqLogger.Info("Redis master count is desired")
-				}
+				reqLogger.Info("Redis master count is desired")
 			}
 		} else if instance.Spec.Mode == "standalone" {
 			otmachinery.CreateRedisStandalone(instance)

@@ -12,6 +12,7 @@ const (
 	redisPort = 6379
 )
 
+// ServiceInterface is the interface to pass service information accross methods
 type ServiceInterface struct {
 	ExistingService      *corev1.Service
 	NewServiceDefinition *corev1.Service

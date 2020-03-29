@@ -41,7 +41,7 @@ func AsOwner(cr *redisv1alpha1.Redis) metav1.OwnerReference {
 	}
 }
 
-// GenerateStatefulSetsAnots generates and resturns statefulsets annotations
+// GenerateStatefulSetsAnots generates and returns statefulsets annotations
 func GenerateStatefulSetsAnots() map[string]string {
 	return map[string]string{
 		"redis.opstreelabs.in": "true",
@@ -50,7 +50,7 @@ func GenerateStatefulSetsAnots() map[string]string {
 	}
 }
 
-// GenerateStatefulSetsAnots generates and resturns statefulsets annotations
+// GenerateServiceAnots generates and returns service annotations
 func GenerateServiceAnots() map[string]string {
 	return map[string]string{
 		"redis.opstreelabs.in": "true",
@@ -59,7 +59,7 @@ func GenerateServiceAnots() map[string]string {
 	}
 }
 
-// GenerateSecretAnots generates and resturns statefulsets annotations
+// GenerateSecretAnots generates and returns secrets annotations
 func GenerateSecretAnots() map[string]string {
 	return map[string]string{
 		"redis.opstreelabs.in": "true",

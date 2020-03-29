@@ -25,6 +25,7 @@ type RedisSpec struct {
 	Affinity           *corev1.Affinity           `json:"affinity,omitempty"`
 }
 
+// Storage is the inteface to add pvc and pv support in redis
 type Storage struct {
 	VolumeClaimTemplate corev1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
 }
@@ -35,7 +36,7 @@ type RedisMaster struct {
 	RedisConfig map[string]string `json:"redisConfig"`
 }
 
-// RedisMaster interface will have the redis master configuration
+// RedisSlave interface will have the redis slave configuration
 type RedisSlave struct {
 	Resources   Resources         `json:"resources,omitempty"`
 	RedisConfig map[string]string `json:"redisConfig"`
