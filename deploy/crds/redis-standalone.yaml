@@ -29,3 +29,5 @@ spec:
           requests:
             storage: 1Gi
       selector: {}
+  nodeSelector:
+    kubernetes.io/hostname: minikube

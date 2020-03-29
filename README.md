@@ -20,3 +20,6 @@ The redis-operator will run in a separate namespace and it will be responsible f
 - Nodeselector
 - PriorityClass
 - Affinity
+- Dynamic Configuration Update
+- SecurityContext
+- Readiness and liveness probes

@@ -19,6 +19,10 @@ type RedisSpec struct {
 	RedisConfig         map[string]string            `json:"redisConfig"`
 	Resources           *Resources                   `json:"resources,omitempty"`
 	Storage             *Storage                     `json:"storage,omitempty"`
+	NodeSelector        map[string]string            `json:"nodeSelector,omitempty"`
+	SecurityContext     *corev1.PodSecurityContext   `json:"securityContext,omitempty"`
+	PriorityClassName   string                       `json:"priorityClassName,omitempty"`
+	Affinity            *corev1.Affinity             `json:"affinity,omitempty"`
 }
 
 type Storage struct {
