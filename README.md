@@ -71,6 +71,8 @@ helm upgrade redis ./helm/redis-setup --set redisSetup.setupMode="standalone" \
 --install --namespace redis-operator
 ```
 
+Other customizable values are present in [values.yaml](./helm/redis-setup/values.yaml) with description.
+
 ## To Do
 - Add slave statefulsets in operator
 - Add services for slave statefulsets in operator
