@@ -2,12 +2,14 @@ package redis
 
 import (
 	"time"
+	"strconv"
 	"context"
 
 	redisv1alpha1 "redis-operator/redis-operator/pkg/apis/redis/v1alpha1"
 	"redis-operator/redis-operator/pkg/utils"
 
 	appsv1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	// corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -101,6 +103,22 @@ func (r *ReconcileRedis) Reconcile(request reconcile.Request) (reconcile.Result,
 			otmachinery.CreateRedisSlave(instance)
 			otmachinery.CreateSlaveService(instance)
 			otmachinery.CreateSlaveHeadlessService(instance)
+			redisMasterInfo, err := otmachinery.GenerateK8sClient().AppsV1().StatefulSets(instance.Namespace).Get(instance.ObjectMeta.Name + "-master", metav1.GetOptions{})
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+			if int(redisMasterInfo.Status.ReadyReplicas) != int(*instance.Spec.Size) {
+				reqLogger.Info("Redis master nodes are not ready yet", "Ready.Replicas", strconv.Itoa(int(redisMasterInfo.Status.ReadyReplicas)))
+				return reconcile.Result{RequeueAfter: time.Second*120}, nil
+			} else {
+				reqLogger.Info("Creating redis cluster by executing cluster creation command", "Ready.Replicas", strconv.Itoa(int(redisMasterInfo.Status.ReadyReplicas)))
+				if otmachinery.CheckRedisCluster(instance) != int(*instance.Spec.Size) * 2 {
+					otmachinery.ExecuteRedisClusterCommand(instance)
+					otmachinery.ExecuteRedisReplicationCommand(instance)
+				} else {
+					reqLogger.Info("Redis master count is desired")
+				}
+			}
 		} else if instance.Spec.Mode == "standalone" {
 			otmachinery.CreateRedisStandalone(instance)
 			otmachinery.CreateStandaloneService(instance)
@@ -108,6 +126,6 @@ func (r *ReconcileRedis) Reconcile(request reconcile.Request) (reconcile.Result,
 	} else if err != nil {
 		return reconcile.Result{}, err
 	}
-	reqLogger.Info("Skip reconcile: Cluster already exists", "Redis.Namespace", instance.Namespace, "Redis.Name", instance.Name)
-	return reconcile.Result{RequeueAfter: time.Second*120}, nil
+	reqLogger.Info("Skipping reconcile: Cluster already exists", "Redis.Namespace", instance.Namespace, "Redis.Name", instance.Name)
+	return reconcile.Result{}, nil
 }

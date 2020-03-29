@@ -53,10 +53,6 @@ func GenerateContainerDef(cr *redisv1alpha1.Redis, role string) corev1.Container
 				Name: "SERVER_MODE",
 				Value: role,
 			},
-			{
-				Name: "SETUP_MODE",
-				Value: "cluster",
-			},
 		},
 	}
 	if cr.Spec.RedisPassword != nil {
@@ -70,6 +66,17 @@ func GenerateContainerDef(cr *redisv1alpha1.Redis, role string) corev1.Container
 					Key: "password",
 				},
 			},
+		})
+	}
+	if cr.Spec.Mode != "cluster" {
+		containerDefinition.Env = append(containerDefinition.Env, corev1.EnvVar{
+			Name: "SETUP_MODE",
+			Value: "standalone",
+		})
+	} else {
+		containerDefinition.Env = append(containerDefinition.Env, corev1.EnvVar{
+			Name: "SETUP_MODE",
+			Value: "cluster",
 		})
 	}
 	return containerDefinition
