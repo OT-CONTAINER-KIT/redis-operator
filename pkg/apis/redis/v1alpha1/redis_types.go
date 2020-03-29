@@ -31,12 +31,14 @@ type Storage struct {
 
 // RedisMaster interface will have the redis master configuration
 type RedisMaster struct {
-	Resources Resources `json:"resources,omitempty"`
+	Resources   Resources         `json:"resources,omitempty"`
+	RedisConfig map[string]string `json:"redisConfig"`
 }
 
 // RedisMaster interface will have the redis master configuration
 type RedisSlave struct {
-	Resources Resources `json:"resources,omitempty"`
+	Resources   Resources         `json:"resources,omitempty"`
+	RedisConfig map[string]string `json:"redisConfig"`
 }
 
 // ResourceDescription describes CPU and memory resources defined for a cluster.
