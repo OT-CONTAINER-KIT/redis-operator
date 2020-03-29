@@ -3,7 +3,7 @@ redisSetup:
   # name of the redis setup
   name: opstree-redis
   # setupMode value could be cluster or standalone
-  setupMode: cluster
+  setupMode: standalone
   # if setupMode is cluster, define size of the cluster
   clusterSize: 3
   # url or path of the redis image, recommended setting is default
