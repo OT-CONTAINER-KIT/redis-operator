@@ -4,15 +4,32 @@
 
 # Speculator: Redis Operator
 
-I am a golang based redis operator which will create/manage Redis standalone/cluster mode setup on top of the Kubernetes.
+A golang based redis operator which will make/oversee Redis standalone/cluster mode setup on top of the Kubernetes.
 
-### Getting Started Architecture
+### Purpose
+
+The purpose of creating this operator was to provide an easy and production grade setup of Redis on Kubernetes. It doesn't care if you have a plan Kubernetes, a Cloud based.
+
+### Supported Features
+
+Here the features which are supported by this operator:-
+
+- Redis cluster/standalone mode setup
+- Inbuilt monitoring with prometheus exporter
+- Dynamic storage provisioning with pvc template
+- Resources restrictions with k8s requests and limits
+- Password/Password-less setup
+- Node selector and affinity
+- Priority class to manage setup priority
+- SecurityContext to manipulate kernel parameters
+
+### Getting Started
 
 <p align="center">
   <img src="./static/redis-operator.png">
 </p>
 
-The redis-operator will run in a separate namespace and it will be responsible for the Redis standalone/Cluster mode
+If you want to deploy redis-operator from scratch to a local Minikube cluster, begin with the [Getting started](./GETTING_STARTED.md) document. It will guide your through the setup step-by-step.
 
 ## To Do
 - Add slave statefulsets in operator
