@@ -58,12 +58,20 @@ func GenerateContainerDef(cr *redisv1alpha1.Redis, role string) corev1.Container
 		Resources: corev1.ResourceRequirements{
 			Limits: corev1.ResourceList{}, Requests: corev1.ResourceList{},
 		},
+		VolumeMounts: []corev1.VolumeMount{},
 	}
 	if cr.Spec.Resources != nil {
 		containerDefinition.Resources.Limits[corev1.ResourceCPU] = resource.MustParse(cr.Spec.Resources.ResourceLimits.CPU)
 		containerDefinition.Resources.Requests[corev1.ResourceCPU] = resource.MustParse(cr.Spec.Resources.ResourceRequests.CPU)
 		containerDefinition.Resources.Limits[corev1.ResourceMemory] = resource.MustParse(cr.Spec.Resources.ResourceLimits.Memory)
 		containerDefinition.Resources.Requests[corev1.ResourceMemory] = resource.MustParse(cr.Spec.Resources.ResourceRequests.Memory)
+	}
+	if cr.Spec.Storage != nil {
+		VolumeMounts := corev1.VolumeMount{
+			Name: cr.ObjectMeta.Name + "-" + role,
+			MountPath: "/data",
+		}
+		containerDefinition.VolumeMounts = append(containerDefinition.VolumeMounts, VolumeMounts)
 	}
 	if cr.Spec.RedisPassword != nil {
 		containerDefinition.Env = append(containerDefinition.Env, corev1.EnvVar{
@@ -135,6 +143,11 @@ func CreateRedisMaster(cr *redisv1alpha1.Redis) {
 	}
 	statefulDefinition := GenerateStateFulSetsDef(cr, labels, "master", cr.Spec.Size)
 	statefulObject, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Get(cr.ObjectMeta.Name + "-master", metav1.GetOptions{})
+
+	if cr.Spec.Storage != nil {
+		statefulDefinition.Spec.VolumeClaimTemplates = append(statefulDefinition.Spec.VolumeClaimTemplates, CreatePVCTemplate(cr, "master"))
+	}
+
 	stateful := StatefulInterface{
 		Existing: statefulObject,
 		Desired:  statefulDefinition,
@@ -151,6 +164,10 @@ func CreateRedisSlave(cr *redisv1alpha1.Redis) {
 	}
 	statefulDefinition := GenerateStateFulSetsDef(cr, labels, "slave", cr.Spec.Size)
 	statefulObject, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Get(cr.ObjectMeta.Name + "-slave", metav1.GetOptions{})
+
+	if cr.Spec.Storage != nil {
+		statefulDefinition.Spec.VolumeClaimTemplates = append(statefulDefinition.Spec.VolumeClaimTemplates, CreatePVCTemplate(cr, "slave"))
+	}
 
 	stateful := StatefulInterface{
 		Existing: statefulObject,
@@ -170,6 +187,10 @@ func CreateRedisStandalone(cr *redisv1alpha1.Redis){
 	}
 	statefulDefinition := GenerateStateFulSetsDef(cr, labels, "standalone", &standaloneReplica)
 	statefulObject, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Get(cr.ObjectMeta.Name + "-standalone", metav1.GetOptions{})
+
+	if cr.Spec.Storage != nil {
+		statefulDefinition.Spec.VolumeClaimTemplates = append(statefulDefinition.Spec.VolumeClaimTemplates, CreatePVCTemplate(cr, "standalone"))
+	}
 
 	stateful := StatefulInterface{
 		Existing: statefulObject,
@@ -192,4 +213,27 @@ func CompareAndCreateStateful(cr *redisv1alpha1.Redis, clusterInfo StatefulInter
 	} else {
 		reqLogger.Info("Redis setup is in sync", "Redis.Name", cr.ObjectMeta.Name + "-" + clusterInfo.Type, "Setup.Type", clusterInfo.Type)
 	}
+}
+
+// CreatePVCTemplate will create the persistent volume claim template
+func CreatePVCTemplate(cr *redisv1alpha1.Redis, role string) corev1.PersistentVolumeClaim {
+	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
+	storageSpec := cr.Spec.Storage
+	pvcTemplate := storageSpec.VolumeClaimTemplate
+
+	if storageSpec == nil {
+		reqLogger.Info("No storage is defined for redis", "Redis.Name", cr.ObjectMeta.Name)
+	} else {
+		pvcTemplate.CreationTimestamp = metav1.Time{}
+		pvcTemplate.Name = cr.ObjectMeta.Name + "-" + role
+		if storageSpec.VolumeClaimTemplate.Spec.AccessModes == nil {
+			pvcTemplate.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
+		} else {
+			pvcTemplate.Spec.AccessModes = storageSpec.VolumeClaimTemplate.Spec.AccessModes
+		}
+		pvcTemplate.Spec.Resources = storageSpec.VolumeClaimTemplate.Spec.Resources
+		pvcTemplate.Spec.Selector = storageSpec.VolumeClaimTemplate.Spec.Selector
+		pvcTemplate.Spec.Selector = storageSpec.VolumeClaimTemplate.Spec.Selector
+	}
+	return pvcTemplate
 }
