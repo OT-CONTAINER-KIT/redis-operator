@@ -35,6 +35,10 @@ If you want to deploy redis-operator from scratch to a local Minikube cluster, b
 
 The configuration of Redis setup should be described in Redis CRD. You will find all the examples manifests in [example](./example) folder.
 
+### Prerequisites
+
+Redis operator requires a Kubernetes cluster of version `>=1.8.0`. If you have just started with Operators, its highly recommended to use latest version of Kubernetes.
+
 ## To Do
 - Add slave statefulsets in operator
 - Add services for slave statefulsets in operator
