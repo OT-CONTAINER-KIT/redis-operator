@@ -84,6 +84,10 @@ To monitor redis performance we will be using prometheus. In any case, extra pro
     "prometheus.io/port": "9121"
 ```
 
+### Development
+
+Please see our [DEVELOPMENT.md](./DEVELOPMENT.md) for details.
+
 ## To Do
 - Add slave statefulsets in operator
 - Add services for slave statefulsets in operator
