@@ -88,18 +88,15 @@ To monitor redis performance we will be using prometheus. In any case, extra pro
 
 Please see our [DEVELOPMENT.md](./DEVELOPMENT.md) for details.
 
+### Release History
+
+Please see our [CHNANGELOG.md](./CHANGELOG.md) for details.
+
 ## To Do
-- Add slave statefulsets in operator
-- Add services for slave statefulsets in operator
-- Nodeselector
-- PriorityClass
-- Affinity
+
 - Dynamic Configuration Update
-- SecurityContext
-- Readiness and liveness probes
-- Create Getting Started
-- Create example folder and add examples
 - Add unit test cases
 - Add circle ci pipeline integration
 - Logging needs to be structured
 - Fix permissions in role and rolebindings
+- Refactor code as much as we can
