@@ -34,6 +34,7 @@ func GenerateStateFulSetsDef(cr *redisv1alpha1.Redis, labels map[string]string, 
 				},
 				Spec: corev1.PodSpec{
 					Containers: FinalContainerDef(cr, role),
+					NodeSelector: cr.Spec.NodeSelector,
 				},
 			},
 		},

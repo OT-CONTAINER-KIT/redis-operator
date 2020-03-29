@@ -19,6 +19,7 @@ type RedisSpec struct {
 	RedisConfig         map[string]string            `json:"redisConfig"`
 	Resources           *Resources                   `json:"resources,omitempty"`
 	Storage             *Storage                     `json:"storage,omitempty"`
+	NodeSelector        map[string]string            `json:"nodeSelector,omitempty"`
 }
 
 type Storage struct {
