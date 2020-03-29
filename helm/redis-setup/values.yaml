@@ -34,6 +34,8 @@ redisSetup:
   redisConfig: {}
     # timeout: "0"
     # tcp-keepalive: "300"
+  # redisPassword :- Redis password
+  redisPassword: "Opstree@12345"
 
 redisExporterSetup:
   # Boolean value needs to be pass to enable or disable exporter
