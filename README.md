@@ -73,6 +73,17 @@ helm upgrade redis ./helm/redis-setup --set redisSetup.setupMode="standalone" \
 
 Other customizable values are present in [values.yaml](./helm/redis-setup/values.yaml) with description.
 
+### Monitoring with Prometheus
+
+To monitor redis performance we will be using prometheus. In any case, extra prometheus configuration will not be required because we will be using the Prometheus service discover pattern. For that we already have set these annotations:-
+
+```yaml
+  annotations:
+		"redis.opstreelabs.in": "true"
+		"prometheus.io/scrape": "true"
+		"prometheus.io/port": "9121"
+```
+
 ## To Do
 - Add slave statefulsets in operator
 - Add services for slave statefulsets in operator
