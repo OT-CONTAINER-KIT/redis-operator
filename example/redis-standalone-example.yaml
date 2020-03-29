@@ -1,0 +1,33 @@
+---
+apiVersion: redis.opstreelabs.in/v1alpha1
+kind: Redis
+metadata:
+  name: opstree-redis
+spec:
+  mode: standalone
+  exporter: true
+  imageName: "quay.io/opstree/redis:2.0"
+  redisExporterImage: "quay.io/opstree/redis-exporter:1.0"
+  imagePullPolicy: IfNotPresent
+  redisConfig:
+    timeout: "0"
+    tcp-keepalive: "300"
+  redisPassword: "Opstree@1234"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+  storage:
+    volumeClaimTemplate:
+      spec:
+        storageClassName: standard
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+      selector: {}
+  nodeSelector:
+    kubernetes.io/hostname: minikube
