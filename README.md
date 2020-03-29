@@ -31,6 +31,10 @@ Here the features which are supported by this operator:-
 
 If you want to deploy redis-operator from scratch to a local Minikube cluster, begin with the [Getting started](./GETTING_STARTED.md) document. It will guide your through the setup step-by-step.
 
+### Example
+
+The configuration of Redis setup should be described in Redis CRD. You will find all the examples manifests in [example](./example) folder.
+
 ## To Do
 - Add slave statefulsets in operator
 - Add services for slave statefulsets in operator
@@ -40,3 +44,7 @@ If you want to deploy redis-operator from scratch to a local Minikube cluster, b
 - Dynamic Configuration Update
 - SecurityContext
 - Readiness and liveness probes
+- Create Getting Started
+- Create example folder and add examples
+- Add unit test cases
+- Add circle ci pipeline integration
