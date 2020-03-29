@@ -92,6 +92,10 @@ Please see our [DEVELOPMENT.md](./DEVELOPMENT.md) for details.
 
 Please see our [CHNANGELOG.md](./CHANGELOG.md) for details.
 
+### Documentation
+
+Please see our [GETTING_STARTED.md](./GETTING_STARTED.md) for details.
+
 ## To Do
 
 - Dynamic Configuration Update
