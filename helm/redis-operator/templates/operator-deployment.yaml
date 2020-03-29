@@ -1,22 +1,23 @@
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: redis-operator
+  name: {{ .Values.redisOperator.name }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      name: redis-operator
+      name: {{ .Values.redisOperator.name }}
   template:
     metadata:
       labels:
-        name: redis-operator
+        name: {{ .Values.redisOperator.name }}
     spec:
-      serviceAccountName: redis-operator
+      serviceAccountName: {{ .Values.redisOperator.name }}
       containers:
-        - name: redis-operator
-          image: quay.io/opstree/redis-operator
-          imagePullPolicy: Always
+        - name: {{ .Values.redisOperator.name }}
+          image: {{ .Values.redisOperator.imageName }}:{{ .Values.redisOperator.imageTag }}
+          imagePullPolicy: {{ .Values.redisOperator.imagePullPolicy }}
           env:
             - name: WATCH_NAMESPACE
               valueFrom:
@@ -27,4 +28,4 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
             - name: OPERATOR_NAME
-              value: "redis-operator"
+              value: "{{ .Values.redisOperator.name }}"

@@ -1,0 +1,27 @@
+---
+apiVersion: redis.opstreelabs.in/v1alpha1
+kind: Redis
+metadata:
+  name: {{ .Values.redisSetup.name }}
+spec:
+  mode: {{ .Values.redisSetup.setupMode }}
+  exporter: {{ .Values.redisExporterSetup.enableExporter }}
+  size: {{ .Values.redisSetup.clusterSize }}
+  imageName: {{ .Values.redisSetup.imageName }}:{{ .Values.redisSetup.imageTag }}
+  redisExporterImage: {{ .Values.redisExporterSetup.imageName }}:{{ .Values.redisExporterSetup.imageTag }}
+  imagePullPolicy: {{ .Values.redisSetup.imagePullPolicy }}
+{{- if .Values.redisSetup.redisConfig }}
+  redisConfig:
+{{ toYaml .Values.redisSetup.redisConfig | indent 4 }}
+{{- end }}
+{{- if .Values.redisSetup.redisPassword }}
+  redisPassword: {{ .Values.redisSetup.redisPassword | quote }}
+{{- end }}
+{{- if .Values.redisSetup.resources }}
+  resources:
+{{ toYaml .Values.redisSetup.resources | indent 4 }}
+{{- end }}
+{{- if .Values.redisSetup.storageSpec }}
+  storage:
+{{ toYaml .Values.redisSetup.storageSpec | indent 4 }}
+{{- end }}
