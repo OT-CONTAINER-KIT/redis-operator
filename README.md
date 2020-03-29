@@ -39,6 +39,38 @@ The configuration of Redis setup should be described in Redis CRD. You will find
 
 Redis operator requires a Kubernetes cluster of version `>=1.8.0`. If you have just started with Operators, its highly recommended to use latest version of Kubernetes.
 
+### Quickstart
+
+The setup can be done by using helm. If you want to see more example, please go through the [example](./example) folder.
+
+But you can simply use the helm chart for installation.
+
+```shell
+# Deploy the redis-operator
+helm upgrade redis-operator ./helm/redis-operator --install --namespace redis-operator
+```
+
+After deployment, verify the installation of operator
+
+```shell
+helm test redis-operator --namespace redis-operator
+```
+
+Creating redis cluster or standalone setup.
+
+```shell
+# Create redis cluster setup
+helm upgrade redis-cluster ./helm/redis-setup --set redisSetup.setupMode="cluster" \
+--set redisSetup.clusterSize=3 \
+--install --namespace redis-operator
+```
+
+```shell
+# Create redis standalone setup
+helm upgrade redis ./helm/redis-setup --set redisSetup.setupMode="standalone" \
+--install --namespace redis-operator
+```
+
 ## To Do
 - Add slave statefulsets in operator
 - Add services for slave statefulsets in operator
@@ -52,3 +84,5 @@ Redis operator requires a Kubernetes cluster of version `>=1.8.0`. If you have j
 - Create example folder and add examples
 - Add unit test cases
 - Add circle ci pipeline integration
+- Logging needs to be structured
+- Fix permissions in role and rolebindings
