@@ -11,6 +11,7 @@ import (
 
 const (
 	constRedisExpoterName = "redis-exporter"
+	graceTime             = 15
 )
 
 type StatefulInterface struct {
@@ -63,6 +64,32 @@ func GenerateContainerDef(cr *redisv1alpha1.Redis, role string) corev1.Container
 			Limits: corev1.ResourceList{}, Requests: corev1.ResourceList{},
 		},
 		VolumeMounts: []corev1.VolumeMount{},
+		ReadinessProbe: &corev1.Probe{
+			InitialDelaySeconds: graceTime,
+			PeriodSeconds:       15,
+			FailureThreshold:    5,
+			TimeoutSeconds:      5,
+			Handler: corev1.Handler{
+				Exec: &corev1.ExecAction{
+					Command: []string{
+						"bash",
+						"/usr/bin/healthcheck.sh",
+					},
+				},
+			},
+		},
+		LivenessProbe: &corev1.Probe{
+			InitialDelaySeconds: graceTime,
+			TimeoutSeconds:      5,
+			Handler: corev1.Handler{
+				Exec: &corev1.ExecAction{
+					Command: []string{
+						"bash",
+						"/usr/bin/healthcheck.sh",
+					},
+				},
+			},
+		},
 	}
 	if cr.Spec.Resources != nil {
 		containerDefinition.Resources.Limits[corev1.ResourceCPU] = resource.MustParse(cr.Spec.Resources.ResourceLimits.CPU)

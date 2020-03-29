@@ -6,7 +6,7 @@ metadata:
 spec:
   mode: standalone
   exporter: true
-  imageName: "quay.io/opstree/redis:1.0"
+  imageName: "quay.io/opstree/redis:2.0"
   redisExporterImage: "quay.io/opstree/redis-exporter:1.0"
   imagePullPolicy: IfNotPresent
   redisConfig:

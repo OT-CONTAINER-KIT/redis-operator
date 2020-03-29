@@ -107,8 +107,9 @@ func (r *ReconcileRedis) Reconcile(request reconcile.Request) (reconcile.Result,
 			if err != nil {
 				return reconcile.Result{}, err
 			}
-			if int(redisMasterInfo.Status.ReadyReplicas) != int(*instance.Spec.Size) {
-				reqLogger.Info("Redis master nodes are not ready yet", "Ready.Replicas", strconv.Itoa(int(redisMasterInfo.Status.ReadyReplicas)))
+			redisSlaveInfo, err := otmachinery.GenerateK8sClient().AppsV1().StatefulSets(instance.Namespace).Get(instance.ObjectMeta.Name + "-slave", metav1.GetOptions{})
+			if int(redisMasterInfo.Status.ReadyReplicas) != int(*instance.Spec.Size) && int(redisSlaveInfo.Status.ReadyReplicas) != int(*instance.Spec.Size) {
+				reqLogger.Info("Redis master and slave nodes are not ready yet", "Ready.Replicas", strconv.Itoa(int(redisMasterInfo.Status.ReadyReplicas)))
 				return reconcile.Result{RequeueAfter: time.Second*120}, nil
 			} else {
 				reqLogger.Info("Creating redis cluster by executing cluster creation command", "Ready.Replicas", strconv.Itoa(int(redisMasterInfo.Status.ReadyReplicas)))
