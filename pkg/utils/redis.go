@@ -11,7 +11,7 @@ import (
     "k8s.io/client-go/tools/remotecommand"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	redisv1alpha1 "redis-operator/redis-operator/pkg/apis/redis/v1alpha1"
+	redisv1alpha1 "redis-operator/pkg/apis/redis/v1alpha1"
 )
 
 type RedisDetails struct {

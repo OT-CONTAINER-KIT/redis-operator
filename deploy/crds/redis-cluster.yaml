@@ -4,12 +4,22 @@ kind: Redis
 metadata:
   name: opstree-redis
 spec:
-  mode: standalone
+  mode: cluster
   exporter: true
+  size: 3
   imageName: "quay.io/opstree/redis:1.0"
   redisExporterImage: "quay.io/opstree/redis-exporter:1.0"
   imagePullPolicy: IfNotPresent
+  master:
+  slave:
   redisConfig:
     timeout: "0"
     tcp-keepalive: "300"
-  redisPassword: "Opstree@1234"
+  redisPassword: "Opstree@12345"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
