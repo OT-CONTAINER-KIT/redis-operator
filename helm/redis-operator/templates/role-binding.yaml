@@ -1,0 +1,12 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ .Values.redisOperator.name }}
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.redisOperator.name }}
+roleRef:
+  kind: Role
+  name: {{ .Values.redisOperator.name }}
+  apiGroup: rbac.authorization.k8s.io

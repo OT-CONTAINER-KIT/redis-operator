@@ -1,55 +1,59 @@
-## Reference Link
-https://github.com/joatmon08/hello-stateful-operator/tree/master/pkg/apis/hello-stateful
+## Development
 
-### 1. Generated Operator directory structure
+### Prerequisites
 
-This will generate you a directory structure for you
+##### Access to a Kubernetes Cluster
+
+First of all, you will need access to a Kubernetes cluster. The easiest way to start is minikube.
+
+- [Virtualbox](https://www.virtualbox.org/wiki/Downloads) - hypervisor to run a kubernetes cluster
+- [Minikube](https://kubernetes.io/docs/setup/minikube/) - for kubernetes cluster creation on local machine
+- [Kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) - to interact with kubernetes cluster
+
+##### Tools to build and test Redis Operator
+
+Apart from kubernetes cluster, there are some tools which are needed to build and test redis operator.
+
+Required Tools:-
+
+- [Git](https://git-scm.com/downloads)
+- [Go](https://golang.org/dl/)
+- [Docker](https://docs.docker.com/install/)
+- [Operator SDK](https://github.com/operator-framework/operator-sdk/blob/v0.8.1/doc/user/install-operator-sdk.md)
+- [Make](https://www.gnu.org/software/make/manual/make.html)
+
+### Build Locally
+
+To achieve this, execute this command:-
+
 ```shell
-operator-sdk new redis-operator
+make build
 ```
 
-### 2. Add api to the directory structure
+### Build Operator Image
+
+Redis operator gets packaged as a container image for running on Kubernetes cluster. These instructions will guide you to build image.
 
 ```shell
-operator-sdk add api --api-version=redis.opstreelabs.in/v1alpha1 --kind=Redis
+make build-image
 ```
 
-### 3. Add controller to the directory structure
+### Testing
+
+If you want to play it on Kubernetes. You can use minikube.
 
 ```shell
-operator-sdk add controller --api-version=redis.opstreelabs.in/v1alpha1 --kind=Redis
+# Start minikube
+minikube start --vm-driver virtualbox
+
+# Deploy the image on minikube
+helm upgrade redis-cluster ./helm/redis-setup --set redisSetup.setupMode="cluster" \
+--set redisSetup.clusterSize=3 \
+--install --namespace redis-operator
 ```
 
-### 4. Add Interface logic in your code
+##### Run Tests
 
-Updated interface logic in below file
-
-```
-redis-operator/redis-operator/pkg/apis/redis/v1alpha1/redis_types.go
-```
-
-### 5. Updated container information in controller
-
-Updated the container definition in Redis controller
-
-```
-redis-operator/redis-operator/pkg/controller/redis/redis_controller.go
-```
-
-### 6. Created an object to generate statefulset definitions
-
-```
-redis-operator/redis-operator/pkg/controller/redis/redis_controller.go
-```
-
-### 7. Created an object to generate service definition
-
-```
-redis-operator/redis-operator/pkg/controller/redis/redis_controller.go
-```
-
-### 8. Created a common meta information function
-
-```
-redis-operator/redis-operator/pkg/controller/redis/redis_controller.go
+```shell
+make test
 ```
