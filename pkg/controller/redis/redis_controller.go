@@ -1,9 +1,9 @@
 package redis
 
 import (
-	"time"
-	"strconv"
 	"context"
+	"strconv"
+	"time"
 
 	redisv1alpha1 "redis-operator/pkg/apis/redis/v1alpha1"
 	"redis-operator/pkg/utils"
@@ -75,6 +75,7 @@ type ReconcileRedis struct {
 	scheme *runtime.Scheme
 }
 
+// Reconcile method is for reconciling the redis operator
 func (r *ReconcileRedis) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling Opstree Redis")
@@ -103,22 +104,21 @@ func (r *ReconcileRedis) Reconcile(request reconcile.Request) (reconcile.Result,
 			otmachinery.CreateRedisSlave(instance)
 			otmachinery.CreateSlaveService(instance)
 			otmachinery.CreateSlaveHeadlessService(instance)
-			redisMasterInfo, err := otmachinery.GenerateK8sClient().AppsV1().StatefulSets(instance.Namespace).Get(instance.ObjectMeta.Name + "-master", metav1.GetOptions{})
+			redisMasterInfo, err := otmachinery.GenerateK8sClient().AppsV1().StatefulSets(instance.Namespace).Get(instance.ObjectMeta.Name+"-master", metav1.GetOptions{})
 			if err != nil {
 				return reconcile.Result{}, err
 			}
-			redisSlaveInfo, err := otmachinery.GenerateK8sClient().AppsV1().StatefulSets(instance.Namespace).Get(instance.ObjectMeta.Name + "-slave", metav1.GetOptions{})
+			redisSlaveInfo, err := otmachinery.GenerateK8sClient().AppsV1().StatefulSets(instance.Namespace).Get(instance.ObjectMeta.Name+"-slave", metav1.GetOptions{})
 			if int(redisMasterInfo.Status.ReadyReplicas) != int(*instance.Spec.Size) && int(redisSlaveInfo.Status.ReadyReplicas) != int(*instance.Spec.Size) {
 				reqLogger.Info("Redis master and slave nodes are not ready yet", "Ready.Replicas", strconv.Itoa(int(redisMasterInfo.Status.ReadyReplicas)))
-				return reconcile.Result{RequeueAfter: time.Second*120}, nil
+				return reconcile.Result{RequeueAfter: time.Second * 120}, nil
+			}
+			reqLogger.Info("Creating redis cluster by executing cluster creation command", "Ready.Replicas", strconv.Itoa(int(redisMasterInfo.Status.ReadyReplicas)))
+			if otmachinery.CheckRedisCluster(instance) != int(*instance.Spec.Size)*2 {
+				otmachinery.ExecuteRedisClusterCommand(instance)
+				otmachinery.ExecuteRedisReplicationCommand(instance)
 			} else {
-				reqLogger.Info("Creating redis cluster by executing cluster creation command", "Ready.Replicas", strconv.Itoa(int(redisMasterInfo.Status.ReadyReplicas)))
-				if otmachinery.CheckRedisCluster(instance) != int(*instance.Spec.Size) * 2 {
-					otmachinery.ExecuteRedisClusterCommand(instance)
-					otmachinery.ExecuteRedisReplicationCommand(instance)
-				} else {
-					reqLogger.Info("Redis master count is desired")
-				}
+				reqLogger.Info("Redis master count is desired")
 			}
 		} else if instance.Spec.Mode == "standalone" {
 			otmachinery.CreateRedisStandalone(instance)

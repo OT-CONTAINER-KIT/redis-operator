@@ -2,20 +2,21 @@ package otmachinery
 
 import (
 	"bufio"
-	"strings"
 	"bytes"
-	"strconv"
 	"github.com/go-redis/redis"
-    "k8s.io/client-go/kubernetes/scheme"
-    "k8s.io/client-go/rest"
-    "k8s.io/client-go/tools/remotecommand"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/remotecommand"
 	redisv1alpha1 "redis-operator/pkg/apis/redis/v1alpha1"
+	"strconv"
+	"strings"
 )
 
+// RedisDetails will hold the information for Redis Pod
 type RedisDetails struct {
-	PodName string
+	PodName   string
 	Namespace string
 }
 
@@ -23,7 +24,7 @@ type RedisDetails struct {
 func GetRedisServerIP(redisInfo RedisDetails) string {
 	reqLogger := log.WithValues("Request.Namespace", redisInfo.Namespace, "Request.PodName", redisInfo.PodName)
 	redisIP, _ := GenerateK8sClient().CoreV1().Pods(redisInfo.Namespace).
-	Get(redisInfo.PodName, metav1.GetOptions{})
+		Get(redisInfo.PodName, metav1.GetOptions{})
 
 	reqLogger.Info("Successfully got the ip for redis", "ip", redisIP.Status.PodIP)
 	return redisIP.Status.PodIP
@@ -38,12 +39,12 @@ func ExecuteRedisClusterCommand(cr *redisv1alpha1.Redis) {
 		"--cluster",
 		"create",
 	}
-	for podCount := 0; podCount <= int(*replicas) - 1; podCount++ {
+	for podCount := 0; podCount <= int(*replicas)-1; podCount++ {
 		pod := RedisDetails{
 			PodName:   cr.ObjectMeta.Name + "-master-" + strconv.Itoa(podCount),
 			Namespace: cr.Namespace,
 		}
-		cmd = append(cmd, GetRedisServerIP(pod) + ":6379")
+		cmd = append(cmd, GetRedisServerIP(pod)+":6379")
 	}
 	cmd = append(cmd, "--cluster-yes")
 	cmd = append(cmd, "-a")
@@ -52,8 +53,8 @@ func ExecuteRedisClusterCommand(cr *redisv1alpha1.Redis) {
 	ExecuteCommand(cr, cmd)
 }
 
-// ExecuteRedisClusterCommand will create redis replication creation command
-func CreateRedisReplicationCommand(cr *redisv1alpha1.Redis, nodeNumber string) []string{
+// CreateRedisReplicationCommand will create redis replication creation command
+func CreateRedisReplicationCommand(cr *redisv1alpha1.Redis, nodeNumber string) []string {
 	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
 	cmd := []string{
 		"redis-cli",
@@ -68,8 +69,8 @@ func CreateRedisReplicationCommand(cr *redisv1alpha1.Redis, nodeNumber string) [
 		PodName:   cr.ObjectMeta.Name + "-slave-" + nodeNumber,
 		Namespace: cr.Namespace,
 	}
-		cmd = append(cmd, GetRedisServerIP(slavePod) + ":6379")
-		cmd = append(cmd, GetRedisServerIP(masterPod) + ":6379")
+	cmd = append(cmd, GetRedisServerIP(slavePod)+":6379")
+	cmd = append(cmd, GetRedisServerIP(masterPod)+":6379")
 	cmd = append(cmd, "--cluster-slave")
 	cmd = append(cmd, "-a")
 	cmd = append(cmd, *cr.Spec.RedisPassword)
@@ -80,7 +81,7 @@ func CreateRedisReplicationCommand(cr *redisv1alpha1.Redis, nodeNumber string) [
 // ExecuteRedisReplicationCommand will execute the replication command
 func ExecuteRedisReplicationCommand(cr *redisv1alpha1.Redis) {
 	replicas := cr.Spec.Size
-	for podCount := 0; podCount <= int(*replicas) - 1; podCount++ {
+	for podCount := 0; podCount <= int(*replicas)-1; podCount++ {
 		cmd := CreateRedisReplicationCommand(cr, strconv.Itoa(podCount))
 		ExecuteCommand(cr, cmd)
 	}
@@ -131,7 +132,7 @@ func ExecuteCommand(cr *redisv1alpha1.Redis, cmd []string) {
 	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
 	config, _ := rest.InClusterConfig()
 
-	pod, err := GenerateK8sClient().CoreV1().Pods(cr.Namespace).Get(cr.ObjectMeta.Name + "-master-0", metav1.GetOptions{})
+	pod, err := GenerateK8sClient().CoreV1().Pods(cr.Namespace).Get(cr.ObjectMeta.Name+"-master-0", metav1.GetOptions{})
 
 	if err != nil {
 		reqLogger.Error(err, "Could not get pod info")
@@ -139,7 +140,7 @@ func ExecuteCommand(cr *redisv1alpha1.Redis, cmd []string) {
 
 	targetContainer := -1
 	for i, tr := range pod.Spec.Containers {
-		if tr.Name + "-master" == tr.Name + "-master" {
+		if tr.Name+"-master" == tr.Name+"-master" {
 			targetContainer = i
 			break
 		}

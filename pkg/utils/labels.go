@@ -7,7 +7,7 @@ import (
 )
 
 // GenerateMetaInformation generates the meta information
-func GenerateMetaInformation(resourceKind string, apiVersion string) metav1.TypeMeta{
+func GenerateMetaInformation(resourceKind string, apiVersion string) metav1.TypeMeta {
 	return metav1.TypeMeta{
 		Kind:       resourceKind,
 		APIVersion: apiVersion,
@@ -15,11 +15,11 @@ func GenerateMetaInformation(resourceKind string, apiVersion string) metav1.Type
 }
 
 // GenerateObjectMetaInformation generates the object meta information
-func GenerateObjectMetaInformation(name string, namespace string, labels map[string]string, annotations map[string]string) metav1.ObjectMeta{
+func GenerateObjectMetaInformation(name string, namespace string, labels map[string]string, annotations map[string]string) metav1.ObjectMeta {
 	return metav1.ObjectMeta{
-		Name:      name,
-		Namespace: namespace,
-		Labels:    labels,
+		Name:        name,
+		Namespace:   namespace,
+		Labels:      labels,
 		Annotations: annotations,
 	}
 }
@@ -30,7 +30,7 @@ func AddOwnerRefToObject(obj metav1.Object, ownerRef metav1.OwnerReference) {
 }
 
 // AsOwner generates and returns object refernece
-func AsOwner(cr *redisv1alpha1.Redis) metav1.OwnerReference{
+func AsOwner(cr *redisv1alpha1.Redis) metav1.OwnerReference {
 	trueVar := true
 	return metav1.OwnerReference{
 		APIVersion: cr.APIVersion,
@@ -41,26 +41,26 @@ func AsOwner(cr *redisv1alpha1.Redis) metav1.OwnerReference{
 	}
 }
 
-// GenerateStatefulSetsAnots generates and resturns statefulsets annotations
-func GenerateStatefulSetsAnots() map[string]string{
+// GenerateStatefulSetsAnots generates and returns statefulsets annotations
+func GenerateStatefulSetsAnots() map[string]string {
 	return map[string]string{
 		"redis.opstreelabs.in": "true",
 		"prometheus.io/scrape": "true",
-		"prometheus.io/port": "9121",
+		"prometheus.io/port":   "9121",
 	}
 }
 
-// GenerateStatefulSetsAnots generates and resturns statefulsets annotations
-func GenerateServiceAnots() map[string]string{
+// GenerateServiceAnots generates and returns service annotations
+func GenerateServiceAnots() map[string]string {
 	return map[string]string{
 		"redis.opstreelabs.in": "true",
 		"prometheus.io/scrape": "true",
-		"prometheus.io/port": "9121",
+		"prometheus.io/port":   "9121",
 	}
 }
 
-// GenerateSecretAnots generates and resturns statefulsets annotations
-func GenerateSecretAnots() map[string]string{
+// GenerateSecretAnots generates and returns secrets annotations
+func GenerateSecretAnots() map[string]string {
 	return map[string]string{
 		"redis.opstreelabs.in": "true",
 	}

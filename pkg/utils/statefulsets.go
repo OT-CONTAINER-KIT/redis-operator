@@ -14,6 +14,7 @@ const (
 	graceTime             = 15
 )
 
+// StatefulInterface is the interface to pass statefulset information accross methods
 type StatefulInterface struct {
 	Existing *appsv1.StatefulSet
 	Desired  *appsv1.StatefulSet
@@ -21,10 +22,10 @@ type StatefulInterface struct {
 }
 
 // GenerateStateFulSetsDef generates the statefulsets definition
-func GenerateStateFulSetsDef(cr *redisv1alpha1.Redis, labels map[string]string, role string, replicas *int32) *appsv1.StatefulSet{
+func GenerateStateFulSetsDef(cr *redisv1alpha1.Redis, labels map[string]string, role string, replicas *int32) *appsv1.StatefulSet {
 	statefulset := &appsv1.StatefulSet{
-		TypeMeta: GenerateMetaInformation("StatefulSet", "apps/v1"),
-		ObjectMeta: GenerateObjectMetaInformation(cr.ObjectMeta.Name + "-" + role, cr.Namespace, labels, GenerateStatefulSetsAnots()),
+		TypeMeta:   GenerateMetaInformation("StatefulSet", "apps/v1"),
+		ObjectMeta: GenerateObjectMetaInformation(cr.ObjectMeta.Name+"-"+role, cr.Namespace, labels, GenerateStatefulSetsAnots()),
 		Spec: appsv1.StatefulSetSpec{
 			Selector:    LabelSelectors(labels),
 			ServiceName: cr.ObjectMeta.Name + "-" + role,
@@ -34,11 +35,11 @@ func GenerateStateFulSetsDef(cr *redisv1alpha1.Redis, labels map[string]string, 
 					Labels: labels,
 				},
 				Spec: corev1.PodSpec{
-					Containers: FinalContainerDef(cr, role),
-					NodeSelector: cr.Spec.NodeSelector,
-					SecurityContext: cr.Spec.SecurityContext,
+					Containers:        FinalContainerDef(cr, role),
+					NodeSelector:      cr.Spec.NodeSelector,
+					SecurityContext:   cr.Spec.SecurityContext,
 					PriorityClassName: cr.Spec.PriorityClassName,
-					Affinity: cr.Spec.Affinity,
+					Affinity:          cr.Spec.Affinity,
 				},
 			},
 		},
@@ -48,7 +49,7 @@ func GenerateStateFulSetsDef(cr *redisv1alpha1.Redis, labels map[string]string, 
 }
 
 // GenerateContainerDef generates container definition
-func GenerateContainerDef(cr *redisv1alpha1.Redis, role string) corev1.Container{
+func GenerateContainerDef(cr *redisv1alpha1.Redis, role string) corev1.Container {
 	var containerDefinition corev1.Container
 	containerDefinition = corev1.Container{
 		Name:            cr.ObjectMeta.Name + "-" + role,
@@ -56,7 +57,7 @@ func GenerateContainerDef(cr *redisv1alpha1.Redis, role string) corev1.Container
 		ImagePullPolicy: cr.Spec.ImagePullPolicy,
 		Env: []corev1.EnvVar{
 			{
-				Name: "SERVER_MODE",
+				Name:  "SERVER_MODE",
 				Value: role,
 			},
 		},
@@ -99,7 +100,7 @@ func GenerateContainerDef(cr *redisv1alpha1.Redis, role string) corev1.Container
 	}
 	if cr.Spec.Storage != nil {
 		VolumeMounts := corev1.VolumeMount{
-			Name: cr.ObjectMeta.Name + "-" + role,
+			Name:      cr.ObjectMeta.Name + "-" + role,
 			MountPath: "/data",
 		}
 		containerDefinition.VolumeMounts = append(containerDefinition.VolumeMounts, VolumeMounts)
@@ -108,7 +109,7 @@ func GenerateContainerDef(cr *redisv1alpha1.Redis, role string) corev1.Container
 		containerDefinition.Env = append(containerDefinition.Env, corev1.EnvVar{
 			Name: "REDIS_PASSWORD",
 			ValueFrom: &corev1.EnvVarSource{
-			SecretKeyRef: &corev1.SecretKeySelector{
+				SecretKeyRef: &corev1.SecretKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: cr.ObjectMeta.Name,
 					},
@@ -119,12 +120,12 @@ func GenerateContainerDef(cr *redisv1alpha1.Redis, role string) corev1.Container
 	}
 	if cr.Spec.Mode != "cluster" {
 		containerDefinition.Env = append(containerDefinition.Env, corev1.EnvVar{
-			Name: "SETUP_MODE",
+			Name:  "SETUP_MODE",
 			Value: "standalone",
 		})
 	} else {
 		containerDefinition.Env = append(containerDefinition.Env, corev1.EnvVar{
-			Name: "SETUP_MODE",
+			Name:  "SETUP_MODE",
 			Value: "cluster",
 		})
 	}
@@ -132,7 +133,7 @@ func GenerateContainerDef(cr *redisv1alpha1.Redis, role string) corev1.Container
 }
 
 // FinalContainerDef will generate the final statefulset definition
-func FinalContainerDef(cr *redisv1alpha1.Redis, role string) []corev1.Container{
+func FinalContainerDef(cr *redisv1alpha1.Redis, role string) []corev1.Container {
 	var containerDefinition []corev1.Container
 
 	containerDefinition = append(containerDefinition, GenerateContainerDef(cr, role))
@@ -148,15 +149,15 @@ func FinalContainerDef(cr *redisv1alpha1.Redis, role string) []corev1.Container{
 				{
 					Name: "REDIS_PASSWORD",
 					ValueFrom: &corev1.EnvVarSource{
-					SecretKeyRef: &corev1.SecretKeySelector{
+						SecretKeyRef: &corev1.SecretKeySelector{
 							LocalObjectReference: corev1.LocalObjectReference{
 								Name: cr.ObjectMeta.Name,
 							},
 							Key: "password",
 						},
 					},
-				},{
-					Name: "REDIS_ADDR",
+				}, {
+					Name:  "REDIS_ADDR",
 					Value: "redis://localhost:6379",
 				},
 			},
@@ -169,11 +170,11 @@ func FinalContainerDef(cr *redisv1alpha1.Redis, role string) []corev1.Container{
 func CreateRedisMaster(cr *redisv1alpha1.Redis) {
 
 	labels := map[string]string{
-		"app": cr.ObjectMeta.Name + "-master",
+		"app":  cr.ObjectMeta.Name + "-master",
 		"role": "master",
 	}
 	statefulDefinition := GenerateStateFulSetsDef(cr, labels, "master", cr.Spec.Size)
-	statefulObject, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Get(cr.ObjectMeta.Name + "-master", metav1.GetOptions{})
+	statefulObject, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Get(cr.ObjectMeta.Name+"-master", metav1.GetOptions{})
 
 	if cr.Spec.Storage != nil {
 		statefulDefinition.Spec.VolumeClaimTemplates = append(statefulDefinition.Spec.VolumeClaimTemplates, CreatePVCTemplate(cr, "master"))
@@ -190,11 +191,11 @@ func CreateRedisMaster(cr *redisv1alpha1.Redis) {
 // CreateRedisSlave will create a Redis Slave
 func CreateRedisSlave(cr *redisv1alpha1.Redis) {
 	labels := map[string]string{
-		"app": cr.ObjectMeta.Name + "-slave",
+		"app":  cr.ObjectMeta.Name + "-slave",
 		"role": "slave",
 	}
 	statefulDefinition := GenerateStateFulSetsDef(cr, labels, "slave", cr.Spec.Size)
-	statefulObject, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Get(cr.ObjectMeta.Name + "-slave", metav1.GetOptions{})
+	statefulObject, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Get(cr.ObjectMeta.Name+"-slave", metav1.GetOptions{})
 
 	if cr.Spec.Storage != nil {
 		statefulDefinition.Spec.VolumeClaimTemplates = append(statefulDefinition.Spec.VolumeClaimTemplates, CreatePVCTemplate(cr, "slave"))
@@ -209,15 +210,15 @@ func CreateRedisSlave(cr *redisv1alpha1.Redis) {
 }
 
 // CreateRedisStandalone will create a Redis Standalone server
-func CreateRedisStandalone(cr *redisv1alpha1.Redis){
+func CreateRedisStandalone(cr *redisv1alpha1.Redis) {
 	var standaloneReplica int32 = 1
 
 	labels := map[string]string{
-		"app": cr.ObjectMeta.Name + "-" + "standalone",
+		"app":  cr.ObjectMeta.Name + "-" + "standalone",
 		"role": "standalone",
 	}
 	statefulDefinition := GenerateStateFulSetsDef(cr, labels, "standalone", &standaloneReplica)
-	statefulObject, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Get(cr.ObjectMeta.Name + "-standalone", metav1.GetOptions{})
+	statefulObject, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Get(cr.ObjectMeta.Name+"-standalone", metav1.GetOptions{})
 
 	if cr.Spec.Storage != nil {
 		statefulDefinition.Spec.VolumeClaimTemplates = append(statefulDefinition.Spec.VolumeClaimTemplates, CreatePVCTemplate(cr, "standalone"))
@@ -236,13 +237,13 @@ func CompareAndCreateStateful(cr *redisv1alpha1.Redis, clusterInfo StatefulInter
 	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
 
 	if err != nil {
-		reqLogger.Info("Creating redis setup", "Redis.Name", cr.ObjectMeta.Name + "-" + clusterInfo.Type, "Setup.Type", clusterInfo.Type)
+		reqLogger.Info("Creating redis setup", "Redis.Name", cr.ObjectMeta.Name+"-"+clusterInfo.Type, "Setup.Type", clusterInfo.Type)
 		GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Create(clusterInfo.Desired)
 	} else if clusterInfo.Existing != clusterInfo.Desired {
-		reqLogger.Info("Reconciling redis setup", "Redis.Name", cr.ObjectMeta.Name + "-" + clusterInfo.Type, "Setup.Type", clusterInfo.Type)
-		GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Update(clusterInfo.Desired)	
+		reqLogger.Info("Reconciling redis setup", "Redis.Name", cr.ObjectMeta.Name+"-"+clusterInfo.Type, "Setup.Type", clusterInfo.Type)
+		GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Update(clusterInfo.Desired)
 	} else {
-		reqLogger.Info("Redis setup is in sync", "Redis.Name", cr.ObjectMeta.Name + "-" + clusterInfo.Type, "Setup.Type", clusterInfo.Type)
+		reqLogger.Info("Redis setup is in sync", "Redis.Name", cr.ObjectMeta.Name+"-"+clusterInfo.Type, "Setup.Type", clusterInfo.Type)
 	}
 }
 
