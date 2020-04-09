@@ -1,0 +1,67 @@
+---
+version: 2
+jobs:
+  build:
+    docker:
+      - image: circleci/golang:1.13
+    working_directory: /go/src/redis-operator
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run: make get-depends
+      - run: make build-code
+      - run: make build-image
+  lint:
+    docker:
+      - image: circleci/golang:1.13
+    working_directory: /go/src/redis-operato
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run: go get -u golang.org/x/lint/golint
+      - run: make lint
+  
+  formatCode:
+    docker:
+      - image: circleci/golang:1.13
+    working_directory: /go/src/redis-operato
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run: make check-fmt
+  
+  go-vet:
+    docker:
+      - image: circleci/golang:1.13
+    working_directory: /go/src/redis-operato
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run: make vet
+  
+  runTests:
+    docker:
+      - image: circleci/golang:1.13
+    working_directory: /go/src/redis-operato
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run: make test
+  
+          
+
+workflows:
+  version: 2
+  main:
+    jobs:
+      - formatCode
+      - lint
+      - go-vet
+      - runTests
+      - build:
+          requires:
+            - lint
+            - formatCode
+            - go-vet
+            - runTests
+
