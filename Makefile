@@ -5,7 +5,7 @@ clean:
 # Build binary
 .PHONY: build
 build:
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/redis-operator -ldflags "-X main.commit=${COMMIT} -X main.version=${VERSION}" ./cmd/manager
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/_output/bin/redis-operator -ldflags "-X main.commit=${COMMIT} -X main.version=${VERSION}" ./cmd/manager
 
 .PHONY: test
 test:
