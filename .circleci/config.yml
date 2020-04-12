@@ -8,7 +8,7 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker
-      - run: make build-code
+      - run: make build
       - run: make build-image
 
   lint:
