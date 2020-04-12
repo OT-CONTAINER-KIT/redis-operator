@@ -1,5 +1,5 @@
 <p align="left">
-  <img src="./static/redis-operator-logo.png">
+  <img src="./static/redis-operator-logo.svg">
 </p>
 
 # Speculator: Redis Operator
