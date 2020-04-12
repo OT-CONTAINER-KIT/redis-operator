@@ -8,7 +8,6 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker
-      - run: make get-depends
       - run: make build-code
       - run: make build-image
 
