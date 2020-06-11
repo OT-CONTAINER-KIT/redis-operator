@@ -139,7 +139,7 @@ func FinalContainerDef(cr *redisv1alpha1.Redis, role string) []corev1.Container 
 	containerDefinition = append(containerDefinition, GenerateContainerDef(cr, role))
 
 	if cr.Spec.RedisExporter != true {
-		containerDefinition = append(containerDefinition, GenerateContainerDef(cr, role))
+		return containerDefinition
 	} else {
 		containerDefinition = append(containerDefinition, corev1.Container{
 			Name:            constRedisExpoterName,

@@ -1,5 +1,5 @@
 <p align="left">
-  <img src="./static/redis-operator-logo.svg">
+  <img src="./static/redis-operator-logo.svg" height="180" width="180">
 </p>
 
 [![CircleCI](https://circleci.com/gh/OT-CONTAINER-KIT/redis-operator.svg?style=shield)](https://circleci.com/gh/OT-CONTAINER-KIT/redis-operator)
