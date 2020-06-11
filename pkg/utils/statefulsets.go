@@ -139,30 +139,29 @@ func FinalContainerDef(cr *redisv1alpha1.Redis, role string) []corev1.Container 
 	containerDefinition = append(containerDefinition, GenerateContainerDef(cr, role))
 
 	if cr.Spec.RedisExporter != true {
-		containerDefinition = append(containerDefinition, GenerateContainerDef(cr, role))
-	} else {
-		containerDefinition = append(containerDefinition, corev1.Container{
-			Name:            constRedisExpoterName,
-			Image:           cr.Spec.RedisExporterImage,
-			ImagePullPolicy: cr.Spec.ImagePullPolicy,
-			Env: []corev1.EnvVar{
-				{
-					Name: "REDIS_PASSWORD",
-					ValueFrom: &corev1.EnvVarSource{
-						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: cr.ObjectMeta.Name,
-							},
-							Key: "password",
-						},
-					},
-				}, {
-					Name:  "REDIS_ADDR",
-					Value: "redis://localhost:6379",
-				},
-			},
-		})
+		return containerDefinition
 	}
+	containerDefinition = append(containerDefinition, corev1.Container{
+		Name:            constRedisExpoterName,
+		Image:           cr.Spec.RedisExporterImage,
+		ImagePullPolicy: cr.Spec.ImagePullPolicy,
+		Env: []corev1.EnvVar{
+			{
+				Name: "REDIS_PASSWORD",
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: cr.ObjectMeta.Name,
+						},
+						Key: "password",
+					},
+				},
+			}, {
+				Name:  "REDIS_ADDR",
+				Value: "redis://localhost:6379",
+			},
+		},
+	})
 	return containerDefinition
 }
 
