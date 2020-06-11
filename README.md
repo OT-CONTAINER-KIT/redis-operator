@@ -108,7 +108,5 @@ Please see our [GETTING_STARTED.md](./GETTING_STARTED.md) for details.
 
 - Dynamic Configuration Update
 - Add unit test cases
-- Add circle ci pipeline integration
 - Logging needs to be structured
 - Fix permissions in role and rolebindings
-- Refactor code as much as we can
