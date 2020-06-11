@@ -12,9 +12,15 @@
 
 A Golang based redis operator that will make/oversee Redis standalone/cluster mode setup on top of the Kubernetes. It can create a redis cluster setup with best practices on Cloud as well as the Bare metal environment. Also, it provides an in-built monitoring capability using redis-exporter.
 
+## Architecture
+
+<div align="center">
+    <img src="./static/redis-operator.png">
+</div>
+
 ### Purpose
 
-The purpose of creating this operator was to provide an easy and production grade setup of Redis on Kubernetes. It doesn't care if you have a plan Kubernetes, a Cloud based.
+The purpose of creating this operator was to provide an easy and production grade setup of Redis on Kubernetes. It doesn't care if you have a plain on-prem Kubernetes or cloud-based.
 
 ### Supported Features
 
@@ -30,10 +36,6 @@ Here the features which are supported by this operator:-
 - SecurityContext to manipulate kernel parameters
 
 ### Getting Started
-
-<p align="center">
-  <img src="./static/redis-operator.png">
-</p>
 
 If you want to deploy redis-operator from scratch to a local Minikube cluster, begin with the [Getting started](./GETTING_STARTED.md) document. It will guide your through the setup step-by-step.
 
