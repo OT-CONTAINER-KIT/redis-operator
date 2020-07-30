@@ -50,12 +50,21 @@ func GenerateHeadlessServiceDef(cr *redisv1alpha1.Redis, labels map[string]strin
 }
 
 // GenerateServiceDef generate service definition
-func GenerateServiceDef(cr *redisv1alpha1.Redis, labels map[string]string, portNumber int32, role string, serviceName string) *corev1.Service {
+func GenerateServiceDef(cr *redisv1alpha1.Redis, labels map[string]string, portNumber int32, role string, serviceName string, typeService string) *corev1.Service {
 	var redisExporterPort int32 = 9121
+	var serviceType corev1.ServiceType
+
+	if typeService == "LoadBalancer" {
+		serviceType = corev1.ServiceTypeLoadBalancer
+	} else {
+		serviceType = corev1.ServiceTypeClusterIP
+	}
+
 	service := &corev1.Service{
 		TypeMeta:   GenerateMetaInformation("Service", "core/v1"),
 		ObjectMeta: GenerateObjectMetaInformation(serviceName, cr.Namespace, labels, GenerateServiceAnots()),
 		Spec: corev1.ServiceSpec{
+			Type:     serviceType,
 			Selector: labels,
 			Ports: []corev1.ServicePort{
 				{
@@ -101,7 +110,7 @@ func CreateMasterService(cr *redisv1alpha1.Redis) {
 		"app":  cr.ObjectMeta.Name + "-master",
 		"role": "master",
 	}
-	serviceDefinition := GenerateServiceDef(cr, labels, int32(redisPort), "master", cr.ObjectMeta.Name+"-master")
+	serviceDefinition := GenerateServiceDef(cr, labels, int32(redisPort), "master", cr.ObjectMeta.Name+"-master", cr.Spec.Master.Service.Type)
 	serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(cr.ObjectMeta.Name+"-master", metav1.GetOptions{})
 	service := ServiceInterface{
 		ExistingService:      serviceBody,
@@ -133,7 +142,7 @@ func CreateSlaveService(cr *redisv1alpha1.Redis) {
 		"app":  cr.ObjectMeta.Name + "-slave",
 		"role": "slave",
 	}
-	serviceDefinition := GenerateServiceDef(cr, labels, int32(redisPort), "slave", cr.ObjectMeta.Name+"-slave")
+	serviceDefinition := GenerateServiceDef(cr, labels, int32(redisPort), "slave", cr.ObjectMeta.Name+"-slave", cr.Spec.Slave.Service.Type)
 	serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(cr.ObjectMeta.Name+"-slave", metav1.GetOptions{})
 	service := ServiceInterface{
 		ExistingService:      serviceBody,
@@ -149,7 +158,7 @@ func CreateStandaloneService(cr *redisv1alpha1.Redis) {
 		"app":  cr.ObjectMeta.Name + "-" + "standalone",
 		"role": "standalone",
 	}
-	serviceDefinition := GenerateServiceDef(cr, labels, int32(redisPort), "standalone", cr.ObjectMeta.Name)
+	serviceDefinition := GenerateServiceDef(cr, labels, int32(redisPort), "standalone", cr.ObjectMeta.Name, cr.Spec.Service.Type)
 	serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(cr.ObjectMeta.Name, metav1.GetOptions{})
 
 	service := ServiceInterface{

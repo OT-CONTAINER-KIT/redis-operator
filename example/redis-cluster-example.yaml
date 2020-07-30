@@ -17,6 +17,12 @@ spec:
       limits:
         cpu: 100m
         memory: 128Mi
+  master:
+    service:
+      type: ClusterIP
+  slave:
+    service:
+      type: ClusterIP  
   redisExporter:
     enabled: true
     image: quay.io/opstree/redis-exporter:1.0

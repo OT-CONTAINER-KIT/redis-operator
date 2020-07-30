@@ -10,6 +10,7 @@ type RedisSpec struct {
 	Mode              string                     `json:"mode"`
 	Size              *int32                     `json:"size,omitempty"`
 	GlobalConfig      GlobalConfig               `json:"global"`
+	Service           Service                    `json:"service"`
 	Master            RedisMaster                `json:"master,omitempty"`
 	Slave             RedisSlave                 `json:"slave,omitempty"`
 	RedisExporter     *RedisExporter             `json:"redisExporter,omitempty"`
@@ -31,6 +32,7 @@ type Storage struct {
 type RedisMaster struct {
 	Resources   Resources         `json:"resources,omitempty"`
 	RedisConfig map[string]string `json:"redisConfig"`
+	Service     Service           `json:"service"`
 }
 
 // RedisExporter interface will have the information for redis exporter related stuff
@@ -53,12 +55,18 @@ type GlobalConfig struct {
 type RedisSlave struct {
 	Resources   Resources         `json:"resources,omitempty"`
 	RedisConfig map[string]string `json:"redisConfig"`
+	Service     Service           `json:"service"`
 }
 
 // ResourceDescription describes CPU and memory resources defined for a cluster.
 type ResourceDescription struct {
 	CPU    string `json:"cpu"`
 	Memory string `json:"memory"`
+}
+
+// Service is the struct for service definition
+type Service struct {
+	Type string `json:"type"`
 }
 
 // Resources describes requests and limits for the cluster resouces.

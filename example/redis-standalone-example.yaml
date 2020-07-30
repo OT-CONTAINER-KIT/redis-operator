@@ -16,6 +16,8 @@ spec:
       limits:
         cpu: 100m
         memory: 128Mi
+  service:
+    type: LoadBalancer
   redisExporter:
     enabled: true
     image: quay.io/opstree/redis-exporter:1.0
