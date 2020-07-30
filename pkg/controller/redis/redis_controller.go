@@ -96,7 +96,9 @@ func (r *ReconcileRedis) Reconcile(request reconcile.Request) (reconcile.Result,
 	found := &appsv1.StatefulSet{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: instance.Name, Namespace: instance.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
-		otmachinery.CreateRedisSecret(instance)
+		if instance.Spec.RedisPassword != nil {
+			otmachinery.CreateRedisSecret(instance)
+		}
 		if instance.Spec.Mode == "cluster" {
 			otmachinery.CreateRedisMaster(instance)
 			otmachinery.CreateMasterService(instance)
@@ -119,10 +121,12 @@ func (r *ReconcileRedis) Reconcile(request reconcile.Request) (reconcile.Result,
 				otmachinery.ExecuteRedisReplicationCommand(instance)
 			} else {
 				reqLogger.Info("Redis master count is desired")
+				return reconcile.Result{RequeueAfter: time.Second * 120}, nil
 			}
 		} else if instance.Spec.Mode == "standalone" {
 			otmachinery.CreateRedisStandalone(instance)
 			otmachinery.CreateStandaloneService(instance)
+			otmachinery.CreateStandaloneHeadlessService(instance)
 		}
 	} else if err != nil {
 		return reconcile.Result{}, err

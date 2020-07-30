@@ -8,14 +8,15 @@ import (
 // RedisSpec will define the interface for Redis Configuration Input Values
 type RedisSpec struct {
 	Mode               string                     `json:"mode"`
-	ImageName          string                     `json:"imageName,omitempty"`
+	// ImageName          string                     `json:"imageName,omitempty"`
 	Size               *int32                     `json:"size,omitempty"`
-	ImagePullPolicy    corev1.PullPolicy          `json:"imagePullPolicy,omitempty"`
+	// ImagePullPolicy    corev1.PullPolicy          `json:"imagePullPolicy,omitempty"`
+	GlobalConfig       GlobalConfig               `json:"global"`
+	RedisStandalone    RedisStandalone            `json:"standaloneServer"`
 	Master             RedisMaster                `json:"master,omitempty"`
 	Slave              RedisSlave                 `json:"slave,omitempty"`
-	RedisPassword      *string                    `json:"redisPassword,omitempty"`
-	RedisExporter      bool                       `json:"exporter"`
-	RedisExporterImage string                     `json:"redisExporterImage"`
+	// RedisPassword      *string                    `json:"redisPassword,omitempty"`
+	RedisExporter      *RedisExporter             `json:"redisExporter,omitempty"`
 	RedisConfig        map[string]string          `json:"redisConfig"`
 	Resources          *Resources                 `json:"resources,omitempty"`
 	Storage            *Storage                   `json:"storage,omitempty"`
@@ -34,6 +35,26 @@ type Storage struct {
 type RedisMaster struct {
 	Resources   Resources         `json:"resources,omitempty"`
 	RedisConfig map[string]string `json:"redisConfig"`
+}
+
+// RedisExporter interface will have the information for redis exporter related stuff
+type RedisExporter struct {
+	Enabled         bool                       `json:"enabled,omitempty"`
+	Image           string                     `json:"image"`
+	Resources       *Resources                 `json:"resources,omitempty"`
+	ImagePullPolicy corev1.PullPolicy          `json:"imagePullPolicy,omitempty"`
+}
+
+// GlobalConfig will be the JSON struct for Basic Redis Config
+type GlobalConfig struct {
+	Image           string                     `json:"image"`
+	ImagePullPolicy corev1.PullPolicy          `json:"imagePullPolicy,omitempty"`
+	Password        *string                    `json:"password,omitempty"`
+}
+
+// RedisStandalone will be the JSON struct for standalone Redis Server
+type RedisStandalone struct {
+	Resources       *Resources                  `json:"resources,omitempty"`
 }
 
 // RedisSlave interface will have the redis slave configuration

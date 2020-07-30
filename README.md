@@ -110,3 +110,7 @@ Please see our [GETTING_STARTED.md](./GETTING_STARTED.md) for details.
 - Add unit test cases
 - Logging needs to be structured
 - Fix permissions in role and rolebindings
+- Add resources in redis exporter
+- Add service type option
+- Structure yaml file
+- Add YAML validation
