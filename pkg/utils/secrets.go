@@ -11,7 +11,7 @@ var log = logf.Log.WithName("controller_redis")
 
 // GenerateSecret is a method that will generate a secret interface
 func GenerateSecret(cr *redisv1alpha1.Redis) *corev1.Secret {
-	password := []byte(*cr.Spec.RedisPassword)
+	password := []byte(*cr.Spec.GlobalConfig.Password)
 	labels := map[string]string{
 		"app": cr.ObjectMeta.Name,
 	}

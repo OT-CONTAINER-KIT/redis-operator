@@ -2,31 +2,36 @@
 apiVersion: redis.opstreelabs.in/v1alpha1
 kind: Redis
 metadata:
-  name: opstree-redis
+  name: redis
 spec:
   mode: cluster
-  exporter: true
   size: 3
-  imageName: "quay.io/opstree/redis:2.0"
-  redisExporterImage: "quay.io/opstree/redis-exporter:1.0"
-  imagePullPolicy: IfNotPresent
-  master:
-  slave:
-  redisConfig:
-    timeout: "0"
-    tcp-keepalive: "300"
-  redisPassword: "Opstree@12345"
-  resources:
-    requests:
-      cpu: 100m
-      memory: 128Mi
-    limits:
-      cpu: 100m
-      memory: 128Mi
+  global:
+    image: opstree/redis:v2.0
+    imagePullPolicy: IfNotPresent
+    password: "Opstree@1234"
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+  redisExporter:
+    enabled: true
+    image: quay.io/opstree/redis-exporter:1.0
+    imagePullPolicy: Always
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
   storage:
     volumeClaimTemplate:
       spec:
-        storageClassName: standard
+        storageClassName: csi-cephfs-sc
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:

@@ -114,3 +114,4 @@ Please see our [GETTING_STARTED.md](./GETTING_STARTED.md) for details.
 - Add service type option
 - Structure yaml file
 - Add YAML validation
+- Add docs for different scenarios

@@ -53,8 +53,8 @@ func GenerateContainerDef(cr *redisv1alpha1.Redis, role string) corev1.Container
 	var containerDefinition corev1.Container
 	containerDefinition = corev1.Container{
 		Name:            cr.ObjectMeta.Name + "-" + role,
-		Image:           cr.Spec.ImageName,
-		ImagePullPolicy: cr.Spec.ImagePullPolicy,
+		Image:           cr.Spec.GlobalConfig.Image,
+		ImagePullPolicy: cr.Spec.GlobalConfig.ImagePullPolicy,
 		Env: []corev1.EnvVar{
 			{
 				Name:  "SERVER_MODE",
@@ -92,11 +92,11 @@ func GenerateContainerDef(cr *redisv1alpha1.Redis, role string) corev1.Container
 			},
 		},
 	}
-	if cr.Spec.Resources != nil {
-		containerDefinition.Resources.Limits[corev1.ResourceCPU] = resource.MustParse(cr.Spec.Resources.ResourceLimits.CPU)
-		containerDefinition.Resources.Requests[corev1.ResourceCPU] = resource.MustParse(cr.Spec.Resources.ResourceRequests.CPU)
-		containerDefinition.Resources.Limits[corev1.ResourceMemory] = resource.MustParse(cr.Spec.Resources.ResourceLimits.Memory)
-		containerDefinition.Resources.Requests[corev1.ResourceMemory] = resource.MustParse(cr.Spec.Resources.ResourceRequests.Memory)
+	if cr.Spec.GlobalConfig.Resources != nil {
+		containerDefinition.Resources.Limits[corev1.ResourceCPU] = resource.MustParse(cr.Spec.GlobalConfig.Resources.ResourceLimits.CPU)
+		containerDefinition.Resources.Requests[corev1.ResourceCPU] = resource.MustParse(cr.Spec.GlobalConfig.Resources.ResourceRequests.CPU)
+		containerDefinition.Resources.Limits[corev1.ResourceMemory] = resource.MustParse(cr.Spec.GlobalConfig.Resources.ResourceLimits.Memory)
+		containerDefinition.Resources.Requests[corev1.ResourceMemory] = resource.MustParse(cr.Spec.GlobalConfig.Resources.ResourceRequests.Memory)
 	}
 	if cr.Spec.Storage != nil {
 		VolumeMounts := corev1.VolumeMount{
@@ -105,7 +105,7 @@ func GenerateContainerDef(cr *redisv1alpha1.Redis, role string) corev1.Container
 		}
 		containerDefinition.VolumeMounts = append(containerDefinition.VolumeMounts, VolumeMounts)
 	}
-	if cr.Spec.RedisPassword != nil {
+	if cr.Spec.GlobalConfig.Password != nil {
 		containerDefinition.Env = append(containerDefinition.Env, corev1.EnvVar{
 			Name: "REDIS_PASSWORD",
 			ValueFrom: &corev1.EnvVarSource{
@@ -151,7 +151,7 @@ func FinalContainerDef(cr *redisv1alpha1.Redis, role string) []corev1.Container 
 		return containerDefinition
 	}
 
-	if cr.Spec.RedisPassword != nil {
+	if cr.Spec.GlobalConfig.Password != nil {
 		exporterEnvDetails = []corev1.EnvVar{
 			{
 				Name: "REDIS_PASSWORD",

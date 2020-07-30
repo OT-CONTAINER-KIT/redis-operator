@@ -47,9 +47,9 @@ func ExecuteRedisClusterCommand(cr *redisv1alpha1.Redis) {
 		cmd = append(cmd, GetRedisServerIP(pod)+":6379")
 	}
 	cmd = append(cmd, "--cluster-yes")
-	if cr.Spec.RedisPassword != nil {
+	if cr.Spec.GlobalConfig.Password != nil {
 		cmd = append(cmd, "-a")
-		cmd = append(cmd, *cr.Spec.RedisPassword)
+		cmd = append(cmd, *cr.Spec.GlobalConfig.Password)
 	}
 	reqLogger.Info("Redis cluster creation command is", "Command", cmd)
 	ExecuteCommand(cr, cmd)
@@ -75,9 +75,9 @@ func CreateRedisReplicationCommand(cr *redisv1alpha1.Redis, nodeNumber string) [
 	cmd = append(cmd, GetRedisServerIP(masterPod)+":6379")
 	cmd = append(cmd, "--cluster-slave")
 
-	if cr.Spec.RedisPassword != nil {
+	if cr.Spec.GlobalConfig.Password != nil {
 		cmd = append(cmd, "-a")
-		cmd = append(cmd, *cr.Spec.RedisPassword)
+		cmd = append(cmd, *cr.Spec.GlobalConfig.Password)
 	}
 	reqLogger.Info("Redis replication creation command is", "Command", cmd)
 	return cmd
@@ -101,11 +101,11 @@ func CheckRedisCluster(cr *redisv1alpha1.Redis) int {
 		PodName:   cr.ObjectMeta.Name + "-master-0",
 		Namespace: cr.Namespace,
 	}
-	
-	if cr.Spec.RedisPassword != nil {
+
+	if cr.Spec.GlobalConfig.Password != nil {
 		client = redis.NewClient(&redis.Options{
 			Addr:     GetRedisServerIP(redisInfo) + ":6379",
-			Password: *cr.Spec.RedisPassword,
+			Password: *cr.Spec.GlobalConfig.Password,
 			DB:       0,
 		})
 	} else {

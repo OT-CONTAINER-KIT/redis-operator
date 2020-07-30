@@ -96,7 +96,7 @@ func (r *ReconcileRedis) Reconcile(request reconcile.Request) (reconcile.Result,
 	found := &appsv1.StatefulSet{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: instance.Name, Namespace: instance.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
-		if instance.Spec.RedisPassword != nil {
+		if instance.Spec.GlobalConfig.Password != nil {
 			otmachinery.CreateRedisSecret(instance)
 		}
 		if instance.Spec.Mode == "cluster" {

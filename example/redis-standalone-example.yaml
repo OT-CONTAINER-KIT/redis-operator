@@ -5,14 +5,10 @@ metadata:
   name: opstree-redis
 spec:
   mode: standalone
-  # imageName: opstree/redis:v2.0
-  # imagePullPolicy: IfNotPresent
-  # redisPassword: "Opstree@1234"
   global:
     image: opstree/redis:v2.0
     imagePullPolicy: IfNotPresent
-    redisPassword: "Opstree@1234"
-  standaloneServer:
+    password: "Opstree@1234"
     resources:
       requests:
         cpu: 100m
@@ -21,7 +17,7 @@ spec:
         cpu: 100m
         memory: 128Mi
   redisExporter:
-    enabled: false
+    enabled: true
     image: quay.io/opstree/redis-exporter:1.0
     imagePullPolicy: Always
     resources:
