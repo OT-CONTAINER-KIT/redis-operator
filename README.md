@@ -115,3 +115,4 @@ Please see our [GETTING_STARTED.md](./GETTING_STARTED.md) for details.
 - Structure yaml file
 - Add YAML validation
 - Add docs for different scenarios
+- Update helm chart with all the latest information
