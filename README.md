@@ -68,18 +68,17 @@ Creating redis cluster or standalone setup.
 
 ```shell
 # Create redis cluster setup
-helm upgrade redis-cluster ./helm/redis-setup --set redisSetup.setupMode="cluster" \
---set redisSetup.clusterSize=3 \
---install --namespace redis-operator
+helm upgrade redis-cluster ./helm/redis-setup -f ./helm/redis-setup/cluster-values.yaml \
+  --set setupMode="cluster" --set cluster.size=3 \
+  --install --namespace redis-operator
 ```
 
 ```shell
 # Create redis standalone setup
-helm upgrade redis ./helm/redis-setup --set redisSetup.setupMode="standalone" \
---install --namespace redis-operator
+helm upgrade redis ./helm/redis-setup -f ./helm/redis-setup/cluster-values.yaml \
+  --set setupMode="standalone" \
+  --install --namespace redis-operator
 ```
-
-Other customizable values are present in [values.yaml](./helm/redis-setup/values.yaml) with description.
 
 ### Monitoring with Prometheus
 
