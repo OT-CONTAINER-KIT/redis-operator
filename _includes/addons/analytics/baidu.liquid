@@ -1,0 +1,18 @@
+{%- if site.baidu.linksubmit -%}
+<script>
+    (function(script) {
+        script.src = "https://zz.bdstatic.com/linksubmit/push.js";
+        document.head.appendChild(script);
+    })(document.createElement("script"));
+</script>
+{%- endif -%}
+
+{%- if site.baidu.hm -%}
+<script>
+    var _hmt = _hmt || [];
+    (function(script) {
+        script.src = "https://hm.baidu.com/hm.js?{{ site.baidu.hm }}";
+        document.head.appendChild(script);
+    })(document.createElement("script"));
+</script>
+{%- endif -%}

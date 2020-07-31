@@ -1,0 +1,2 @@
+{%- assign schema_url = page.url | absolute_url | xml_escape -%}
+{%- assign schema_lastmod = page.date | default: site.time | date_to_xmlschema -%}

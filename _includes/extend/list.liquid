@@ -1,0 +1,15 @@
+{%- include reset/site_pages.liquid -%}
+{%- include reset/workdir.liquid -%}
+
+{%- assign base = page.dir | append: "temp/" | split: "/" | size -%}
+{%- assign size = workdir_level | minus: base -%}
+{%- assign size_p1 = size | plus: 1 -%}
+
+{%- assign dir = site_pages | where: "url", workdir | first %}
+{% include extend/tabs.liquid size=size %}- [{{ dir.title | default: dir.url }}]({{ site.baseurl | append: dir.url }})
+
+{%- for item in workdir_files %}
+{% include extend/tabs.liquid size=size_p1 %}- [{{ item.title | default: item.url }}]({{ site.baseurl | append: item.url }})
+{%- endfor -%}
+
+{%- for workdir in workdir_dirs %}{% include extend/list.liquid %}{% endfor -%}

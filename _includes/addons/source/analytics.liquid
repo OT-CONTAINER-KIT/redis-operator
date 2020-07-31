@@ -1,0 +1,16 @@
+<dl>
+    <dt>{{ __statistics }}</dt>
+    <dd>
+        <a href="https://github.com/rundocs/analytics" target="_blank">
+            {{ __total_visits }} <span id="counter"></span> <i class="fa fa-eye"></i>
+        </a>
+    </dd>
+</dl>
+
+<script>
+    $(document).ready(function() {
+        $.getJSON("https://rundocs-analytics.glitch.me/analytics?host=" + location.host, function(data) {
+            $("#counter").html(data.count);
+        });
+    });
+</script>

@@ -1,0 +1,6 @@
+<dl>
+    <dt>{{ __gems }}</dt>
+    {%- for item in site.plugins %}
+        <dd><a href="https://rubygems.org/gems/{{ item }}"><i class="fa fa-cog"></i> {{ item }}</a></dd>
+    {%- endfor %}
+</dl>

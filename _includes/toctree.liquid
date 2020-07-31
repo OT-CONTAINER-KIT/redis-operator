@@ -1,0 +1,17 @@
+{%- include reset/workdir.liquid %}
+
+<ul>
+    {%- for item in workdir_files -%}
+        {%- assign level = item.dir | append: "temp/" | split: "/" | size | minus: 1 -%}
+        {%- capture current -%}
+            {%- if page.url == item.url %}current{% endif -%}
+        {%- endcapture %}
+        <li class="toctree-l{{ level }} {{ current }}">
+            <a class="reference internal {{ current }}" href="{{ site.baseurl | append: item.url }}">
+                {{ item.title | default: item.url }}
+            </a>
+        </li>
+    {%- endfor %}
+</ul>
+
+{%- for workdir in workdir_dirs %}{% include extend/toctree.liquid %}{% endfor -%}

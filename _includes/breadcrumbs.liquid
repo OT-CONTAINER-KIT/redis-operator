@@ -1,0 +1,37 @@
+<div role="navigation" aria-label="breadcrumbs navigation">
+    <ul class="wy-breadcrumbs">
+        <li>
+            <a href="{{ site.baseurl }}/" class="icon icon-home"></a><i class="fa fa-angle-double-right"></i>
+        </li>
+        {%- case page.url -%}
+            {%- when "/search.html" %}
+                <li>{{ __search }}</li>
+            {%- when "/404.html" %}
+                <li>{{ __404 }}</li>
+            {%- else -%}
+                {%- assign blocks = page.path | split: "/" -%}
+                {%- assign length = blocks | size -%}
+                {%- if page.dir == page.url and page.url != "/" -%}
+                    {%- assign length = blocks | size | minus: 1 -%}
+                {%- endif -%}
+                {%- for block in blocks limit: length -%}
+                    {%- if forloop.last %}
+                        <li>{{ page.title }}</li>
+                    {%- else -%}
+                        {%- capture href -%}
+                            {{ site.baseurl }}/{% for block in blocks limit: forloop.index %}{{ block | append: "/" }}{% endfor %}
+                        {%- endcapture %}
+                        <li>
+                            <a href="{{ href }}">{{ block | split: "." | last | capitalize }}</a><i class="fa fa-angle-double-right"></i>
+                        </li>
+                    {%- endif -%}
+                {%- endfor -%}
+        {%- endcase %}
+        {%- if site.edit -%}
+            <li class="wy-breadcrumbs-aside">
+                <a href="{{ github_edit_link }}" class="fa fa-edit" target="_blank"></a>
+            </li>
+        {%- endif -%}
+    </ul>
+    <hr>
+</div>

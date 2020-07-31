@@ -1,0 +1,37 @@
+<footer>
+    {%- if next or prev -%}
+        <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+            {%- if next -%}
+                <a href="{{ site.baseurl | append: next.url }}" class="btn btn-neutral float-right" title="{{ next.title }}" accesskey="n" rel="next">
+                    {{- __next }} <span class="fa fa-arrow-circle-right"></span>
+                </a>
+            {%- endif -%}
+            {%- if prev -%}
+                <a href="{{ site.baseurl | append: prev.url }}" class="btn btn-neutral  float-left" title="{{ prev.title }}" accesskey="p" rel="prev">
+                    <span class="fa fa-arrow-circle-left"></span> {{ __previous -}}
+                </a>
+            {%- endif -%}
+        </div>
+    {%- endif -%}
+    <hr>
+    {%- if site.copyright -%}
+        <div role="contentinfo" class="copyright">
+            <p>
+                <i class="fa fa-copyright"></i> {{ __copyright }}
+                {% if site.copyright.since -%}
+                    {{ site.copyright.since | append: "-" }}
+                {%- endif -%}
+                {{ site.time | date: "%Y" }},
+                {{ author }}
+                {% if site.copyright.revision -%}
+                    <span class="commit">
+                        {{ __revision }} <code>{{ commit }}</code>
+                    </span>
+                {%- endif -%}
+            </p>
+        </div>
+    {%- endif -%}
+    <div role="contentinfo" class="copyright-rtd">
+        <a href="https://github.com/rundocs/jekyll-rtd-theme">jekyll-rtd-theme</a>
+    </div>
+</footer>

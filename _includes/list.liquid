@@ -1,0 +1,10 @@
+{%- include reset/site_pages.liquid -%}
+{%- include reset/workdir.liquid workdir=page.dir -%}
+
+{%- for item in workdir_files %}
+- [{{ item.title | default: item.url }}]({{ site.baseurl | append: item.url }})
+{%- endfor -%}
+
+{%- if include.all -%}
+    {%- for workdir in workdir_dirs %}{% include extend/list.liquid %}{% endfor -%}
+{%- endif -%}
