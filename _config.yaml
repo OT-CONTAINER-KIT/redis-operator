@@ -2,6 +2,22 @@ title: Redis Operator
 lang: en-US
 description: A golang based Redis Operator
 
+addons:
+  - github
+  - gems
+  - analytics
 
 # theme: null # disable pages default theme
 remote_theme: rundocs/jekyll-rtd-theme
+
+# use front matter sort
+readme_index:
+  with_frontmatter: true
+
+exclude:
+  - CHANGELOG.md
+  - DEVELOPMENT.md
+  - GETTING_STARTED.md
+
+sass:
+  style: compressed
