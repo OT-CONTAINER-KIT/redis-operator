@@ -47,8 +47,10 @@ func ExecuteRedisClusterCommand(cr *redisv1alpha1.Redis) {
 		cmd = append(cmd, GetRedisServerIP(pod)+":6379")
 	}
 	cmd = append(cmd, "--cluster-yes")
-	cmd = append(cmd, "-a")
-	cmd = append(cmd, *cr.Spec.RedisPassword)
+	if cr.Spec.GlobalConfig.Password != nil {
+		cmd = append(cmd, "-a")
+		cmd = append(cmd, *cr.Spec.GlobalConfig.Password)
+	}
 	reqLogger.Info("Redis cluster creation command is", "Command", cmd)
 	ExecuteCommand(cr, cmd)
 }
@@ -72,8 +74,11 @@ func CreateRedisReplicationCommand(cr *redisv1alpha1.Redis, nodeNumber string) [
 	cmd = append(cmd, GetRedisServerIP(slavePod)+":6379")
 	cmd = append(cmd, GetRedisServerIP(masterPod)+":6379")
 	cmd = append(cmd, "--cluster-slave")
-	cmd = append(cmd, "-a")
-	cmd = append(cmd, *cr.Spec.RedisPassword)
+
+	if cr.Spec.GlobalConfig.Password != nil {
+		cmd = append(cmd, "-a")
+		cmd = append(cmd, *cr.Spec.GlobalConfig.Password)
+	}
 	reqLogger.Info("Redis replication creation command is", "Command", cmd)
 	return cmd
 }
@@ -89,6 +94,7 @@ func ExecuteRedisReplicationCommand(cr *redisv1alpha1.Redis) {
 
 // CheckRedisCluster will check the redis cluster have sufficient nodes or not
 func CheckRedisCluster(cr *redisv1alpha1.Redis) int {
+	var client *redis.Client
 	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
 
 	redisInfo := RedisDetails{
@@ -96,11 +102,19 @@ func CheckRedisCluster(cr *redisv1alpha1.Redis) int {
 		Namespace: cr.Namespace,
 	}
 
-	client := redis.NewClient(&redis.Options{
-		Addr:     GetRedisServerIP(redisInfo) + ":6379",
-		Password: *cr.Spec.RedisPassword,
-		DB:       0,
-	})
+	if cr.Spec.GlobalConfig.Password != nil {
+		client = redis.NewClient(&redis.Options{
+			Addr:     GetRedisServerIP(redisInfo) + ":6379",
+			Password: *cr.Spec.GlobalConfig.Password,
+			DB:       0,
+		})
+	} else {
+		client = redis.NewClient(&redis.Options{
+			Addr:     GetRedisServerIP(redisInfo) + ":6379",
+			Password: "",
+			DB:       0,
+		})
+	}
 	cmd := redis.NewStringCmd("cluster", "nodes")
 	client.Process(cmd)
 

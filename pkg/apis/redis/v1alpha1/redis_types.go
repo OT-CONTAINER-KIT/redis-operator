@@ -7,22 +7,20 @@ import (
 
 // RedisSpec will define the interface for Redis Configuration Input Values
 type RedisSpec struct {
-	Mode               string                     `json:"mode"`
-	ImageName          string                     `json:"imageName,omitempty"`
-	Size               *int32                     `json:"size,omitempty"`
-	ImagePullPolicy    corev1.PullPolicy          `json:"imagePullPolicy,omitempty"`
-	Master             RedisMaster                `json:"master,omitempty"`
-	Slave              RedisSlave                 `json:"slave,omitempty"`
-	RedisPassword      *string                    `json:"redisPassword,omitempty"`
-	RedisExporter      bool                       `json:"exporter"`
-	RedisExporterImage string                     `json:"redisExporterImage"`
-	RedisConfig        map[string]string          `json:"redisConfig"`
-	Resources          *Resources                 `json:"resources,omitempty"`
-	Storage            *Storage                   `json:"storage,omitempty"`
-	NodeSelector       map[string]string          `json:"nodeSelector,omitempty"`
-	SecurityContext    *corev1.PodSecurityContext `json:"securityContext,omitempty"`
-	PriorityClassName  string                     `json:"priorityClassName,omitempty"`
-	Affinity           *corev1.Affinity           `json:"affinity,omitempty"`
+	Mode              string                     `json:"mode"`
+	Size              *int32                     `json:"size,omitempty"`
+	GlobalConfig      GlobalConfig               `json:"global"`
+	Service           Service                    `json:"service"`
+	Master            RedisMaster                `json:"master,omitempty"`
+	Slave             RedisSlave                 `json:"slave,omitempty"`
+	RedisExporter     *RedisExporter             `json:"redisExporter,omitempty"`
+	RedisConfig       map[string]string          `json:"redisConfig"`
+	Resources         *Resources                 `json:"resources,omitempty"`
+	Storage           *Storage                   `json:"storage,omitempty"`
+	NodeSelector      map[string]string          `json:"nodeSelector,omitempty"`
+	SecurityContext   *corev1.PodSecurityContext `json:"securityContext,omitempty"`
+	PriorityClassName string                     `json:"priorityClassName,omitempty"`
+	Affinity          *corev1.Affinity           `json:"affinity,omitempty"`
 }
 
 // Storage is the inteface to add pvc and pv support in redis
@@ -34,18 +32,41 @@ type Storage struct {
 type RedisMaster struct {
 	Resources   Resources         `json:"resources,omitempty"`
 	RedisConfig map[string]string `json:"redisConfig"`
+	Service     Service           `json:"service"`
+}
+
+// RedisExporter interface will have the information for redis exporter related stuff
+type RedisExporter struct {
+	Enabled         bool              `json:"enabled,omitempty"`
+	Image           string            `json:"image"`
+	Resources       *Resources        `json:"resources,omitempty"`
+	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
+}
+
+// GlobalConfig will be the JSON struct for Basic Redis Config
+type GlobalConfig struct {
+	Image           string            `json:"image"`
+	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
+	Password        *string           `json:"password,omitempty"`
+	Resources       *Resources        `json:"resources,omitempty"`
 }
 
 // RedisSlave interface will have the redis slave configuration
 type RedisSlave struct {
 	Resources   Resources         `json:"resources,omitempty"`
 	RedisConfig map[string]string `json:"redisConfig"`
+	Service     Service           `json:"service"`
 }
 
 // ResourceDescription describes CPU and memory resources defined for a cluster.
 type ResourceDescription struct {
 	CPU    string `json:"cpu"`
 	Memory string `json:"memory"`
+}
+
+// Service is the struct for service definition
+type Service struct {
+	Type string `json:"type"`
 }
 
 // Resources describes requests and limits for the cluster resouces.

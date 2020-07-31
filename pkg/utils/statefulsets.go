@@ -53,8 +53,8 @@ func GenerateContainerDef(cr *redisv1alpha1.Redis, role string) corev1.Container
 	var containerDefinition corev1.Container
 	containerDefinition = corev1.Container{
 		Name:            cr.ObjectMeta.Name + "-" + role,
-		Image:           cr.Spec.ImageName,
-		ImagePullPolicy: cr.Spec.ImagePullPolicy,
+		Image:           cr.Spec.GlobalConfig.Image,
+		ImagePullPolicy: cr.Spec.GlobalConfig.ImagePullPolicy,
 		Env: []corev1.EnvVar{
 			{
 				Name:  "SERVER_MODE",
@@ -92,11 +92,11 @@ func GenerateContainerDef(cr *redisv1alpha1.Redis, role string) corev1.Container
 			},
 		},
 	}
-	if cr.Spec.Resources != nil {
-		containerDefinition.Resources.Limits[corev1.ResourceCPU] = resource.MustParse(cr.Spec.Resources.ResourceLimits.CPU)
-		containerDefinition.Resources.Requests[corev1.ResourceCPU] = resource.MustParse(cr.Spec.Resources.ResourceRequests.CPU)
-		containerDefinition.Resources.Limits[corev1.ResourceMemory] = resource.MustParse(cr.Spec.Resources.ResourceLimits.Memory)
-		containerDefinition.Resources.Requests[corev1.ResourceMemory] = resource.MustParse(cr.Spec.Resources.ResourceRequests.Memory)
+	if cr.Spec.GlobalConfig.Resources != nil {
+		containerDefinition.Resources.Limits[corev1.ResourceCPU] = resource.MustParse(cr.Spec.GlobalConfig.Resources.ResourceLimits.CPU)
+		containerDefinition.Resources.Requests[corev1.ResourceCPU] = resource.MustParse(cr.Spec.GlobalConfig.Resources.ResourceRequests.CPU)
+		containerDefinition.Resources.Limits[corev1.ResourceMemory] = resource.MustParse(cr.Spec.GlobalConfig.Resources.ResourceLimits.Memory)
+		containerDefinition.Resources.Requests[corev1.ResourceMemory] = resource.MustParse(cr.Spec.GlobalConfig.Resources.ResourceRequests.Memory)
 	}
 	if cr.Spec.Storage != nil {
 		VolumeMounts := corev1.VolumeMount{
@@ -105,7 +105,7 @@ func GenerateContainerDef(cr *redisv1alpha1.Redis, role string) corev1.Container
 		}
 		containerDefinition.VolumeMounts = append(containerDefinition.VolumeMounts, VolumeMounts)
 	}
-	if cr.Spec.RedisPassword != nil {
+	if cr.Spec.GlobalConfig.Password != nil {
 		containerDefinition.Env = append(containerDefinition.Env, corev1.EnvVar{
 			Name: "REDIS_PASSWORD",
 			ValueFrom: &corev1.EnvVarSource{
@@ -129,23 +129,30 @@ func GenerateContainerDef(cr *redisv1alpha1.Redis, role string) corev1.Container
 			Value: "cluster",
 		})
 	}
+
+	if cr.Spec.Storage != nil {
+		containerDefinition.Env = append(containerDefinition.Env, corev1.EnvVar{
+			Name:  "PERSISTENCE_ENABLED",
+			Value: "true",
+		})
+	}
 	return containerDefinition
 }
 
 // FinalContainerDef will generate the final statefulset definition
 func FinalContainerDef(cr *redisv1alpha1.Redis, role string) []corev1.Container {
 	var containerDefinition []corev1.Container
+	var exporterDefinition corev1.Container
+	var exporterEnvDetails []corev1.EnvVar
 
 	containerDefinition = append(containerDefinition, GenerateContainerDef(cr, role))
 
-	if cr.Spec.RedisExporter != true {
+	if cr.Spec.RedisExporter.Enabled != true {
 		return containerDefinition
 	}
-	containerDefinition = append(containerDefinition, corev1.Container{
-		Name:            constRedisExpoterName,
-		Image:           cr.Spec.RedisExporterImage,
-		ImagePullPolicy: cr.Spec.ImagePullPolicy,
-		Env: []corev1.EnvVar{
+
+	if cr.Spec.GlobalConfig.Password != nil {
+		exporterEnvDetails = []corev1.EnvVar{
 			{
 				Name: "REDIS_PASSWORD",
 				ValueFrom: &corev1.EnvVarSource{
@@ -160,8 +167,33 @@ func FinalContainerDef(cr *redisv1alpha1.Redis, role string) []corev1.Container 
 				Name:  "REDIS_ADDR",
 				Value: "redis://localhost:6379",
 			},
+		}
+	} else {
+		exporterEnvDetails = []corev1.EnvVar{
+			{
+				Name:  "REDIS_ADDR",
+				Value: "redis://localhost:6379",
+			},
+		}
+	}
+	exporterDefinition = corev1.Container{
+		Name:            constRedisExpoterName,
+		Image:           cr.Spec.RedisExporter.Image,
+		ImagePullPolicy: cr.Spec.RedisExporter.ImagePullPolicy,
+		Env:             exporterEnvDetails,
+		Resources: corev1.ResourceRequirements{
+			Limits: corev1.ResourceList{}, Requests: corev1.ResourceList{},
 		},
-	})
+	}
+
+	if cr.Spec.RedisExporter.Resources != nil {
+		exporterDefinition.Resources.Limits[corev1.ResourceCPU] = resource.MustParse(cr.Spec.RedisExporter.Resources.ResourceLimits.CPU)
+		exporterDefinition.Resources.Requests[corev1.ResourceCPU] = resource.MustParse(cr.Spec.RedisExporter.Resources.ResourceRequests.CPU)
+		exporterDefinition.Resources.Limits[corev1.ResourceMemory] = resource.MustParse(cr.Spec.RedisExporter.Resources.ResourceLimits.Memory)
+		exporterDefinition.Resources.Requests[corev1.ResourceMemory] = resource.MustParse(cr.Spec.RedisExporter.Resources.ResourceRequests.Memory)
+	}
+
+	containerDefinition = append(containerDefinition, exporterDefinition)
 	return containerDefinition
 }
 

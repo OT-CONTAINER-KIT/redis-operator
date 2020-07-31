@@ -21,4 +21,4 @@ vet:
 	VET_OUTPUT="$(shell go list ./...)"; GO111MODULE=on go vet $$VET_OUTPUT
 
 build-image:
-	docker build -t quay.io/opstree/redis-operator:latest -f build/Dockerfile .
+	docker build -t quay.io/opstree/redis-operator:v0.2 -f build/Dockerfile .

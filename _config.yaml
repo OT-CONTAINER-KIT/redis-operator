@@ -1,0 +1,7 @@
+title: Redis Operator
+lang: en-US
+description: A golang based Redis Operator
+
+
+# theme: null # disable pages default theme
+remote_theme: rundocs/jekyll-rtd-theme
