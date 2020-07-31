@@ -15,17 +15,17 @@ spec:
     spec:
       serviceAccountName: {{ .Values.redisOperator.name }}
       containers:
-        - name: {{ .Values.redisOperator.name }}
-          image: {{ .Values.redisOperator.imageName }}:{{ .Values.redisOperator.imageTag }}
-          imagePullPolicy: {{ .Values.redisOperator.imagePullPolicy }}
-          env:
-            - name: WATCH_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: OPERATOR_NAME
-              value: "{{ .Values.redisOperator.name }}"
+      - name: "{{ .Values.redisOperator.name }}"
+        image: "{{ .Values.redisOperator.imageName }}:{{ .Values.redisOperator.imageTag }}"
+        imagePullPolicy: {{ .Values.redisOperator.imagePullPolicy }}
+        env:
+          - name: WATCH_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: OPERATOR_NAME
+            value: "{{ .Values.redisOperator.name }}"

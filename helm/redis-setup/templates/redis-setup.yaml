@@ -2,26 +2,63 @@
 apiVersion: redis.opstreelabs.in/v1alpha1
 kind: Redis
 metadata:
-  name: {{ .Values.redisSetup.name }}
+  name: {{ .Values.name }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.name }}
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    app.kubernetes.io/component: middleware
 spec:
-  mode: {{ .Values.redisSetup.setupMode }}
-  exporter: {{ .Values.redisExporterSetup.enableExporter }}
-  size: {{ .Values.redisSetup.clusterSize }}
-  imageName: {{ .Values.redisSetup.imageName }}:{{ .Values.redisSetup.imageTag }}
-  redisExporterImage: {{ .Values.redisExporterSetup.imageName }}:{{ .Values.redisExporterSetup.imageTag }}
-  imagePullPolicy: {{ .Values.redisSetup.imagePullPolicy }}
-{{- if .Values.redisSetup.redisConfig }}
-  redisConfig:
-{{ toYaml .Values.redisSetup.redisConfig | indent 4 }}
+  mode: {{ .Values.setupMode }}
+{{- if .Values.cluster.size }}
+  size: {{ .Values.cluster.size }}
 {{- end }}
-{{- if .Values.redisSetup.redisPassword }}
-  redisPassword: {{ .Values.redisSetup.redisPassword | quote }}
+  global:
+    image: "{{ .Values.global.image }}:{{ .Values.global.tag }}"
+    imagePullPolicy: "{{ .Values.global.imagePullPolicy }}"
+{{- if .Values.global.password }}
+    password: {{ .Values.global.password | quote }}
 {{- end }}
-{{- if .Values.redisSetup.resources }}
-  resources:
-{{ toYaml .Values.redisSetup.resources | indent 4 }}
+{{- if .Values.global.resources }}
+    resources:
+{{ toYaml .Values.global.resources | indent 6 }}
 {{- end }}
-{{- if .Values.redisSetup.storageSpec }}
+{{- if .Values.cluster.master }}
+  master:
+    service:
+      type: {{ .Values.cluster.master.serviceType }}
+{{- end }}
+{{- if .Values.cluster.slave }}
+  slave:
+    service:
+      type: {{ .Values.cluster.slave.serviceType }}
+{{- end }}
+  redisExporter:
+    enabled: {{ .Values.exporter.enabled }}
+    image: "{{ .Values.exporter.image }}:{{ .Values.exporter.tag }}"
+    imagePullPolicy: {{ .Values.exporter.imagePullPolicy }}
+{{- if .Values.exporter.resources }}
+    resources:
+{{ toYaml .Values.exporter.resources | indent 6 }}
+{{- end }}
+{{- if .Values.storageSpec }}
   storage:
-{{ toYaml .Values.redisSetup.storageSpec | indent 4 }}
+{{ toYaml .Values.storageSpec | indent 4 }}
+{{- end }}
+{{- if .Values.priorityClassName }}
+  priorityClassName: {{ .Values.priorityClassName }}
+{{- end }}
+{{- if .Values.nodeSelector }}
+  nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 4 }}
+{{- end }}
+{{- if .Values.affinity }}
+  affinity:
+{{ toYaml .Values.affinity | indent 4 }}
+{{- end }}
+{{- if .Values.securityContext }}
+  securityContext:
+{{ toYaml .Values.securityContext | indent 4 }}
 {{- end }}

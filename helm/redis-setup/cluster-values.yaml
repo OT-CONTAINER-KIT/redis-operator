@@ -1,0 +1,65 @@
+---
+name: redis-cluster
+
+setupMode: cluster
+
+cluster:
+  size: 3
+  master:
+    serviceType: ClusterIP
+  slave:
+    serviceType: ClusterIP
+  
+global:
+  image: quay.io/opstree/redis
+  tag: v2.0
+  imagePullPolicy: IfNotPresent
+  password: "Opstree@1234"
+  resources: {}
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+exporter:
+  enabled: true
+  image: quay.io/opstree/redis-exporter
+  tag: "2.0"
+  imagePullPolicy: IfNotPresent
+  resources: {}
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+# priorityClassName: "-"
+
+nodeSelector: {}
+  # memory: medium
+
+storageSpec: {}
+  # volumeClaimTemplate:
+  #   spec:
+  #     storageClassName: standard
+  #     accessModes: ["ReadWriteOnce"]
+  #     resources:
+  #       requests:
+  #         storage: 1Gi
+  #   selector: {}
+
+securityContext: {}
+  # runAsUser: 1000
+
+affinity: {}
+  # nodeAffinity:
+  #   requiredDuringSchedulingIgnoredDuringExecution:
+  #     nodeSelectorTerms:
+  #     - matchExpressions:
+  #       - key: disktype
+  #         operator: In
+  #         values:
+  #         - ssd

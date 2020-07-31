@@ -6,10 +6,13 @@ maintainers:
   - name: Opstree Solutions
 name: redis-operator
 sources:
-  - https://github.com/opstree/redis-operator
-version: 1.0.0
-home: https://github.com/opstree/redis-operator
+  - https://github.com/OT-CONTAINER-KIT/redis-operator
+version: 0.2
+home: https://github.com/OT-CONTAINER-KIT/redis-operator
+icon: https://github.com/OT-CONTAINER-KIT/redis-operator/raw/master/static/redis-operator-logo.svg
 keywords:
 - operator
 - redis
 - opstree
+- kubernetes
+- openshift
