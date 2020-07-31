@@ -30,7 +30,110 @@ spec:
           type: object
         spec:
           description: RedisSpec defines the desired state of Redis
-          type: object
+          # type: object
+          properties:
+            mode:
+              type: string
+              description: Redis setup mode standalone or cluster
+              pattern: "cluster|standalone"
+            size:
+              type: integer
+              description: Size of the redis cluster
+              minimum: 3
+            global:
+              properties:
+                image:
+                  type: string
+                  description: Name of the image for redis
+                imagePullPolicy:
+                  type: string
+                  description: Image Pull Policy for pulling the images
+                  pattern: "IfNotPresent|Always"
+                password:
+                  type: string
+                  description: Password of the redis server
+                resources:
+                  properties:
+                    requests:
+                      properties:
+                        cpu:
+                          type: string
+                          description: CPU request for the redis pods
+                        memory:
+                          type: string
+                          description: Memory request for the redis pods
+                    limits:
+                      properties:
+                        cpu:
+                          type: string
+                          description: CPU limit for the redis pods
+                        memory:
+                          type: string
+                          description: Memory limit for the redis pods
+            service:
+              properties:
+                type:
+                  type: string
+                  description: Service type of redis standalone server
+            master:
+              properties:
+                service:
+                  properties:
+                    type:
+                      type: string
+                      description: Service type of redis standalone server
+            slave:
+              properties:
+                service:
+                  properties:
+                    type:
+                      type: string
+                      description: Service type of redis standalone server
+            redisExporter:
+              properties:
+                enabled:
+                  type: boolean
+                  description: Redis exporter is enabled or not
+                image:
+                  type: string
+                  description: Name of the image for redis
+                imagePullPolicy:
+                  type: string
+                  description: Image Pull Policy for pulling the images
+                  pattern: "IfNotPresent|Always"
+                resources:
+                  properties:
+                    requests:
+                      properties:
+                        cpu:
+                          type: string
+                          description: CPU request for the redis exporter
+                        memory:
+                          type: string
+                          description: Memory request for the redis exporter
+                    limits:
+                      properties:
+                        cpu:
+                          type: string
+                          description: CPU limit for the redis exporter
+                        memory:
+                          type: string
+                          description: Memory limit for the redis exporter
+            priorityClassName:
+              type: string
+              description: Name of the priority class which redis setup should use
+            storage:
+              type: object
+              description: Storage definition of the redis nodes
+            nodeSelector:
+              type: object
+              description: Node selector to determine the pods scheduling nodes
+            securityContext:
+              type: object
+              description: Security context for pods of redis
+            affinity:
+              type: object
+              description: Affinity to control pod scheduling
         status:
           description: RedisStatus defines the observed state of Redis
           type: object
