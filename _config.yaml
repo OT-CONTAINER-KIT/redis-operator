@@ -8,7 +8,7 @@ addons:
   - analytics
 
 # theme: null # disable pages default theme
-remote_theme: rundocs/jekyll-rtd-theme
+theme: jekyll-rtd-theme
 
 # use front matter sort
 readme_index:
