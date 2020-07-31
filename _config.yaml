@@ -17,7 +17,8 @@ addons:
 edit: true
 
 # theme: null # disable pages default theme
-remote_theme: rundocs/jekyll-rtd-theme
+# remote_theme: rundocs/jekyll-rtd-theme
+theme: jekyll-rtd-theme
 
 exclude:
   - CHANGELOG.md
