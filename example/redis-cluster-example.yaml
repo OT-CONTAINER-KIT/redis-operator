@@ -22,7 +22,7 @@ spec:
       type: ClusterIP
   slave:
     service:
-      type: ClusterIP  
+      type: ClusterIP
   redisExporter:
     enabled: true
     image: quay.io/opstree/redis-exporter:1.0

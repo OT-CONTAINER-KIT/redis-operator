@@ -7,4 +7,5 @@
     * [Standalone](setup/redis-standalone.md)
     * [Cluster](setup/redis-cluster.md)
     * [Helm Configuration](setup/helm-config.md)
-* [Configuration](/configuration/README.md)
+* [Configuration](configuration/configuration.md)
+* [Development](development/development.md)

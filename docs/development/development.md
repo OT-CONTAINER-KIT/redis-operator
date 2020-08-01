@@ -47,9 +47,9 @@ If you want to play it on Kubernetes. You can use minikube.
 minikube start --vm-driver virtualbox
 
 # Deploy the image on minikube
-helm upgrade redis-cluster ./helm/redis-setup -f ./helm/redis-setup/cluster-values.yaml \
-  --set setupMode="cluster" --set cluster.size=3 \
-  --install --namespace redis-operator
+helm upgrade redis-cluster ./helm/redis-setup --set redisSetup.setupMode="cluster" \
+--set redisSetup.clusterSize=3 \
+--install --namespace redis-operator
 ```
 
 ##### Run Tests
