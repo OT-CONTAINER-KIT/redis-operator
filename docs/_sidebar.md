@@ -1,4 +1,5 @@
 * [Overview](/)
+* [Quickstart](quickstart/quickstart.md)
 * [Installation](/)
     * [Helm](installation/helm.md)
     * [Kubectl](installation/kubectl.md)
