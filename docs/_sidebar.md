@@ -2,3 +2,6 @@
 * [Installation](/)
     * [Helm](installation/helm.md)
     * [Kubectl](installation/kubectl.md)
+* [Setup](/)
+    * [Standalone](setup/redis-standalone.md)
+    * [Cluster](setup/redis-cluster.md)
