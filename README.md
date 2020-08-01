@@ -97,7 +97,7 @@ Please see our [DEVELOPMENT.md](./DEVELOPMENT.md) for details.
 
 ### Release History
 
-Please see our [CHNANGELOG.md](./CHANGELOG.md) for details.
+Please see our [CHANGELOG.md](./CHANGELOG.md) for details.
 
 ### Documentation
 
