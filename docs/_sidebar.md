@@ -9,3 +9,4 @@
     * [Helm Configuration](setup/helm-config.md)
 * [Configuration](configuration/configuration.md)
 * [Development](development/development.md)
+* [Roadmap](roadmap/roadmap.md)
