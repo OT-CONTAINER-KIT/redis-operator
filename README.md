@@ -105,15 +105,3 @@ Please see our [CHANGELOG.md](./CHANGELOG.md) for details.
 
 Please see our [GETTING_STARTED.md](https://ot-container-kit.github.io/redis-operator/#/quickstart/quickstart) for details.
 
-## To Do
-
-- Dynamic Configuration Update
-- Add unit test cases
-- Logging needs to be structured
-- Fix permissions in role and rolebindings
-- Add resources in redis exporter
-- Add service type option
-- Structure yaml file
-- Add YAML validation
-- Add docs for different scenarios
-- Update helm chart with all the latest information
