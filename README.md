@@ -12,7 +12,7 @@
 
 A Golang based redis operator that will make/oversee Redis standalone/cluster mode setup on top of the Kubernetes. It can create a redis cluster setup with best practices on Cloud as well as the Bare metal environment. Also, it provides an in-built monitoring capability using redis-exporter.
 
-For documentation, please refer to https://ot-container-kit.github.io/redis-operator/#/
+For documentation, please refer to https://docs.opstreelabs.in/redis-operator/
 
 ## Architecture
 
