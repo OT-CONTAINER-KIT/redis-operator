@@ -22,6 +22,7 @@ func GenerateSecret(cr *redisv1alpha1.Redis) *corev1.Secret {
 			"password": password,
 		},
 	}
+	AddOwnerRefToObject(secret, AsOwner(cr))
 	return secret
 }
 
