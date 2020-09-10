@@ -75,20 +75,29 @@ spec:
                 type:
                   type: string
                   description: Service type of redis standalone server
+                labels:
+                  type: object
+                  description: Service labels of redis standalone server
             master:
               properties:
                 service:
                   properties:
                     type:
                       type: string
-                      description: Service type of redis standalone server
+                      description: Service type of redis master server
+                    labels:
+                      type: object
+                      description: Service labels of redis master server
             slave:
               properties:
                 service:
                   properties:
                     type:
                       type: string
-                      description: Service type of redis standalone server
+                      description: Service type of redis slave server
+                    labels:
+                      type: object
+                      description: Service labels of redis slave server
             redisExporter:
               properties:
                 enabled:
@@ -140,6 +149,6 @@ spec:
       type: object
   version: v1alpha1
   versions:
-  - name: v1alpha1
-    served: true
-    storage: true
+    - name: v1alpha1
+      served: true
+      storage: true

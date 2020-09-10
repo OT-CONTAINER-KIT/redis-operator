@@ -1,6 +1,7 @@
 package otmachinery
 
 import (
+	"fmt"
 	redisv1alpha1 "redis-operator/pkg/apis/redis/v1alpha1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -64,6 +65,17 @@ func GenerateSecretAnots() map[string]string {
 	return map[string]string{
 		"redis.opstreelabs.in": "true",
 	}
+}
+
+// GenerateServiceLabels generates and returns service labels
+func GenerateServiceLabels(labels map[string]string, instanceName, role string) map[string]string {
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+	// overwrite label of app and role
+	labels["app"] = fmt.Sprintf("%s-%s", instanceName, role)
+	labels["role"] = role
+	return labels
 }
 
 // LabelSelectors generates object for label selection

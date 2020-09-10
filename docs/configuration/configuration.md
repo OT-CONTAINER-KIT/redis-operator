@@ -53,6 +53,8 @@ Configuration specific to master nodes of Redis
   master:
     service:
       type: ClusterIP
+    labels:
+      app: redis-master
 ```
 
 ## Slave
@@ -63,6 +65,8 @@ Configuration specific to slave nodes of Redis
   slave:
     service:
       type: ClusterIP
+    labels:
+      app: redis-slave
 ```
 
 ## RedisExporter

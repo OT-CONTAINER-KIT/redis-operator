@@ -66,7 +66,8 @@ type ResourceDescription struct {
 
 // Service is the struct for service definition
 type Service struct {
-	Type string `json:"type"`
+	Type   string            `json:"type"`
+	Labels map[string]string `json:"labels,omitempty"`
 }
 
 // Resources describes requests and limits for the cluster resouces.
