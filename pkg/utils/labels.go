@@ -75,6 +75,13 @@ func GenerateServiceLabels(labels map[string]string, instanceName, role string) 
 	// overwrite label of app and role
 	labels["app"] = fmt.Sprintf("%s-%s", instanceName, role)
 	labels["role"] = role
+	// some recommended labels
+	// https://kubernetes.io/docs/concepts/overview/working-with-objects/common-labels/
+	labels["app.kubernetes.io/name"] = "redis"
+	labels["app.kubernetes.io/instance"] = instanceName
+	labels["app.kubernetes.io/version"] = "6.0.6"
+	labels["app.kubernetes.io/component"] = "database"
+	labels["app.kubernetes.io/managed-by"] = "redis-operator"
 	return labels
 }
 
