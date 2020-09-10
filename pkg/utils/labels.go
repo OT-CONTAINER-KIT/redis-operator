@@ -68,7 +68,7 @@ func GenerateSecretAnots() map[string]string {
 }
 
 // GenerateServiceLabels generates and returns service labels
-func GenerateServiceLabels(labels map[string]string, instanceName, role string) map[string]string {
+func GenerateLabels(labels map[string]string, instanceName, role string) map[string]string {
 	if labels == nil {
 		labels = make(map[string]string)
 	}

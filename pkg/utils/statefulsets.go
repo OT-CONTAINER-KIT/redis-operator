@@ -200,10 +200,7 @@ func FinalContainerDef(cr *redisv1alpha1.Redis, role string) []corev1.Container 
 // CreateRedisMaster will create a Redis Master
 func CreateRedisMaster(cr *redisv1alpha1.Redis) {
 
-	labels := map[string]string{
-		"app":  cr.ObjectMeta.Name + "-master",
-		"role": "master",
-	}
+	labels := GenerateLabels(cr.Spec.Service.Labels, cr.ObjectMeta.Name, RoleMaster)
 	statefulDefinition := GenerateStateFulSetsDef(cr, labels, "master", cr.Spec.Size)
 	statefulObject, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Get(cr.ObjectMeta.Name+"-master", metav1.GetOptions{})
 
@@ -221,10 +218,7 @@ func CreateRedisMaster(cr *redisv1alpha1.Redis) {
 
 // CreateRedisSlave will create a Redis Slave
 func CreateRedisSlave(cr *redisv1alpha1.Redis) {
-	labels := map[string]string{
-		"app":  cr.ObjectMeta.Name + "-slave",
-		"role": "slave",
-	}
+	labels := GenerateLabels(cr.Spec.Service.Labels, cr.ObjectMeta.Name, RoleSlave)
 	statefulDefinition := GenerateStateFulSetsDef(cr, labels, "slave", cr.Spec.Size)
 	statefulObject, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Get(cr.ObjectMeta.Name+"-slave", metav1.GetOptions{})
 
@@ -244,10 +238,7 @@ func CreateRedisSlave(cr *redisv1alpha1.Redis) {
 func CreateRedisStandalone(cr *redisv1alpha1.Redis) {
 	var standaloneReplica int32 = 1
 
-	labels := map[string]string{
-		"app":  cr.ObjectMeta.Name + "-" + "standalone",
-		"role": "standalone",
-	}
+	labels := GenerateLabels(cr.Spec.Service.Labels, cr.ObjectMeta.Name, RoleStandalone)
 	statefulDefinition := GenerateStateFulSetsDef(cr, labels, "standalone", &standaloneReplica)
 	statefulObject, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Get(cr.ObjectMeta.Name+"-standalone", metav1.GetOptions{})
 
