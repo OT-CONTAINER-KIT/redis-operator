@@ -200,7 +200,7 @@ func FinalContainerDef(cr *redisv1alpha1.Redis, role string) []corev1.Container 
 // CreateRedisMaster will create a Redis Master
 func CreateRedisMaster(cr *redisv1alpha1.Redis) {
 
-	labels := GenerateLabels(cr.Spec.Service.Labels, cr.ObjectMeta.Name, RoleMaster)
+	labels := GenerateLabels(cr.Spec.Master.Service.Labels, cr.ObjectMeta.Name, RoleMaster)
 	statefulDefinition := GenerateStateFulSetsDef(cr, labels, "master", cr.Spec.Size)
 	statefulObject, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Get(cr.ObjectMeta.Name+"-master", metav1.GetOptions{})
 
@@ -218,7 +218,7 @@ func CreateRedisMaster(cr *redisv1alpha1.Redis) {
 
 // CreateRedisSlave will create a Redis Slave
 func CreateRedisSlave(cr *redisv1alpha1.Redis) {
-	labels := GenerateLabels(cr.Spec.Service.Labels, cr.ObjectMeta.Name, RoleSlave)
+	labels := GenerateLabels(cr.Spec.Slave.Service.Labels, cr.ObjectMeta.Name, RoleSlave)
 	statefulDefinition := GenerateStateFulSetsDef(cr, labels, "slave", cr.Spec.Size)
 	statefulObject, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Get(cr.ObjectMeta.Name+"-slave", metav1.GetOptions{})
 
