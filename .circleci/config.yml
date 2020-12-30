@@ -8,18 +8,8 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker
-      - run: make build
-      - run: make build-image
-
-  lint:
-    docker:
-      - image: circleci/golang:1.13
-    working_directory: /go/src/redis-operator
-    steps:
-      - checkout
-      - setup_remote_docker
-      - run: go get -u golang.org/x/lint/golint
-      - run: make lint
+      - run: make manager
+      - run: make docker-build
   
   formatCode:
     docker:
@@ -28,7 +18,7 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker
-      - run: make check-fmt
+      - run: make fmt
   
   go-vet:
     docker:
@@ -38,15 +28,6 @@ jobs:
       - checkout
       - setup_remote_docker
       - run: make vet
-  
-  runTests:
-    docker:
-      - image: circleci/golang:1.13
-    working_directory: /go/src/redis-operator
-    steps:
-      - checkout
-      - setup_remote_docker
-      - run: make test
   
 workflows:
   version: 2
