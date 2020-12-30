@@ -1,4 +1,12 @@
-### v0.2
+### v0.3.0
+##### Decemeber 30, 2020
+
+#### :tada: Features
+
+- Upgraded operator-sdk version to v1.0.3
+- Added capability to watch multiple namespaces
+
+### v0.2.0
 ##### July 1, 2020
 
 #### :tada: Features
