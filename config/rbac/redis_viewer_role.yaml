@@ -1,0 +1,21 @@
+# permissions for end users to view redis.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: redis-viewer-role
+  namespace: ot-operators
+rules:
+- apiGroups:
+  - redis.redis.opstreelabs.in
+  resources:
+  - redis
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - redis.redis.opstreelabs.in
+  resources:
+  - redis/status
+  verbs:
+  - get

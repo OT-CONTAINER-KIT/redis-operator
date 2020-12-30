@@ -1,0 +1,7 @@
+apiVersion: redis.redis.opstreelabs.in/v1beta1
+kind: Redis
+metadata:
+  name: redis-sample
+spec:
+  # Add fields here
+  foo: bar
