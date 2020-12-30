@@ -1,0 +1,6 @@
+---
+redisOperator:
+  name: redis-operator
+  imageName: quay.io/opstree/redis-operator
+  imageTag: v0.2
+  imagePullPolicy: Always

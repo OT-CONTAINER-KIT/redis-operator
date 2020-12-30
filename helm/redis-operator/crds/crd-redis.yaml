@@ -1,0 +1,145 @@
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: redis.redis.opstreelabs.in
+spec:
+  group: redis.opstreelabs.in
+  names:
+    kind: Redis
+    listKind: RedisList
+    plural: redis
+    singular: redis
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: Redis is the Schema for the redis API
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: RedisSpec defines the desired state of Redis
+          # type: object
+          properties:
+            mode:
+              type: string
+              description: Redis setup mode standalone or cluster
+              pattern: "cluster|standalone"
+            size:
+              type: integer
+              description: Size of the redis cluster
+              minimum: 3
+            global:
+              properties:
+                image:
+                  type: string
+                  description: Name of the image for redis
+                imagePullPolicy:
+                  type: string
+                  description: Image Pull Policy for pulling the images
+                  pattern: "IfNotPresent|Always"
+                password:
+                  type: string
+                  description: Password of the redis server
+                resources:
+                  properties:
+                    requests:
+                      properties:
+                        cpu:
+                          type: string
+                          description: CPU request for the redis pods
+                        memory:
+                          type: string
+                          description: Memory request for the redis pods
+                    limits:
+                      properties:
+                        cpu:
+                          type: string
+                          description: CPU limit for the redis pods
+                        memory:
+                          type: string
+                          description: Memory limit for the redis pods
+            service:
+              properties:
+                type:
+                  type: string
+                  description: Service type of redis standalone server
+            master:
+              properties:
+                service:
+                  properties:
+                    type:
+                      type: string
+                      description: Service type of redis standalone server
+            slave:
+              properties:
+                service:
+                  properties:
+                    type:
+                      type: string
+                      description: Service type of redis standalone server
+            redisExporter:
+              properties:
+                enabled:
+                  type: boolean
+                  description: Redis exporter is enabled or not
+                image:
+                  type: string
+                  description: Name of the image for redis
+                imagePullPolicy:
+                  type: string
+                  description: Image Pull Policy for pulling the images
+                  pattern: "IfNotPresent|Always"
+                resources:
+                  properties:
+                    requests:
+                      properties:
+                        cpu:
+                          type: string
+                          description: CPU request for the redis exporter
+                        memory:
+                          type: string
+                          description: Memory request for the redis exporter
+                    limits:
+                      properties:
+                        cpu:
+                          type: string
+                          description: CPU limit for the redis exporter
+                        memory:
+                          type: string
+                          description: Memory limit for the redis exporter
+            priorityClassName:
+              type: string
+              description: Name of the priority class which redis setup should use
+            storage:
+              type: object
+              description: Storage definition of the redis nodes
+            nodeSelector:
+              type: object
+              description: Node selector to determine the pods scheduling nodes
+            securityContext:
+              type: object
+              description: Security context for pods of redis
+            affinity:
+              type: object
+              description: Affinity to control pod scheduling
+        status:
+          description: RedisStatus defines the observed state of Redis
+          type: object
+      type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
