@@ -18,6 +18,7 @@ spec:
         memory: 128Mi
   service:
     type: ClusterIP
+  redisConfig: {}
   redisExporter:
     enabled: true
     image: quay.io/opstree/redis-exporter:1.0
@@ -37,6 +38,6 @@ spec:
         resources:
           requests:
             storage: 1Gi
-      selector: {}
+            #      selector: {}
   # nodeSelector:
   #   kubernetes.io/hostname: minikube
