@@ -18,11 +18,19 @@ package controllers
 
 import (
 	"context"
+	"strconv"
+	"time"
 
 	"github.com/go-logr/logr"
+	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"redis-operator/k8sutils"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	redisv1beta1 "redis-operator/api/v1beta1"
 )
@@ -48,11 +56,63 @@ type RedisReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.0/pkg/reconcile
 func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = r.Log.WithValues("redis", req.NamespacedName)
+	reqLogger := r.Log.WithValues("Request.Namespace", req.Namespace, "Request.Name", req.Name)
+	reqLogger.Info("Reconciling Opstree Redis controller")
+	instance := &redisv1beta1.Redis{}
 
-	// your logic here
+	err := r.Client.Get(context.TODO(), req.NamespacedName, instance)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, err
+	}
 
-	return ctrl.Result{}, nil
+	if err := controllerutil.SetControllerReference(instance, instance, r.Scheme); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	found := &appsv1.StatefulSet{}
+	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: instance.Name, Namespace: instance.Namespace}, found)
+	if err != nil && errors.IsNotFound(err) {
+		if instance.Spec.GlobalConfig.Password != nil {
+			k8sutils.CreateRedisSecret(instance)
+		}
+		if instance.Spec.Mode == "cluster" {
+			k8sutils.CreateRedisMaster(instance)
+			k8sutils.CreateMasterService(instance)
+			k8sutils.CreateMasterHeadlessService(instance)
+			k8sutils.CreateRedisSlave(instance)
+			k8sutils.CreateSlaveService(instance)
+			k8sutils.CreateSlaveHeadlessService(instance)
+			redisMasterInfo, err := k8sutils.GenerateK8sClient().AppsV1().StatefulSets(instance.Namespace).Get(context.TODO(), instance.ObjectMeta.Name+"-master", metav1.GetOptions{})
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			redisSlaveInfo, err := k8sutils.GenerateK8sClient().AppsV1().StatefulSets(instance.Namespace).Get(context.TODO(), instance.ObjectMeta.Name+"-slave", metav1.GetOptions{})
+			if int(redisMasterInfo.Status.ReadyReplicas) != int(*instance.Spec.Size) && int(redisSlaveInfo.Status.ReadyReplicas) != int(*instance.Spec.Size) {
+				reqLogger.Info("Redis master and slave nodes are not ready yet", "Ready.Replicas", strconv.Itoa(int(redisMasterInfo.Status.ReadyReplicas)))
+				return ctrl.Result{RequeueAfter: time.Second * 120}, nil
+			}
+			reqLogger.Info("Creating redis cluster by executing cluster creation command", "Ready.Replicas", strconv.Itoa(int(redisMasterInfo.Status.ReadyReplicas)))
+			if k8sutils.CheckRedisCluster(instance) != int(*instance.Spec.Size)*2 {
+				k8sutils.ExecuteRedisClusterCommand(instance)
+				k8sutils.ExecuteRedisReplicationCommand(instance)
+			} else {
+				reqLogger.Info("Redis master count is desired")
+				return ctrl.Result{RequeueAfter: time.Second * 120}, nil
+			}
+		} else if instance.Spec.Mode == "standalone" {
+			k8sutils.CreateRedisStandalone(instance)
+			k8sutils.CreateStandaloneService(instance)
+			k8sutils.CreateStandaloneHeadlessService(instance)
+		}
+	} else if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	reqLogger.Info("Will reconcile in again 10 seconds")
+	return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
