@@ -1,12 +1,12 @@
 ---
-apiVersion: redis.opstreelabs.in/v1alpha1
+apiVersion: redis.redis.opstreelabs.in/v1beta1
 kind: Redis
 metadata:
   name: opstree-redis
 spec:
   mode: standalone
   global:
-    image: opstree/redis:v2.0
+    image: quay.io/opstree/redis:v6.2
     imagePullPolicy: IfNotPresent
     password: "Opstree@1234"
     resources:
@@ -17,7 +17,8 @@ spec:
         cpu: 100m
         memory: 128Mi
   service:
-    type: LoadBalancer
+    type: ClusterIP
+  redisConfig: {}
   redisExporter:
     enabled: true
     image: quay.io/opstree/redis-exporter:1.0
@@ -37,6 +38,5 @@ spec:
         resources:
           requests:
             storage: 1Gi
-      selector: {}
   # nodeSelector:
   #   kubernetes.io/hostname: minikube
