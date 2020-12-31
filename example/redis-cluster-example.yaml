@@ -20,9 +20,14 @@ spec:
   master:
     service:
       type: ClusterIP
+    redisConfig: {}
   slave:
     service:
       type: ClusterIP
+    redisConfig: {}
+  service:
+    type: ClusterIP
+  redisConfig: {}
   redisExporter:
     enabled: true
     image: quay.io/opstree/redis-exporter:1.0
@@ -42,4 +47,3 @@ spec:
         resources:
           requests:
             storage: 1Gi
-            #      selector: {}
