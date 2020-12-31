@@ -7,7 +7,7 @@ spec:
   mode: cluster
   size: 3
   global:
-    image: opstree/redis:v2.0
+    image: quay.io/opstree/redis:v6.2
     imagePullPolicy: IfNotPresent
     password: "Opstree@1234"
     resources:
@@ -42,7 +42,7 @@ spec:
   storage:
     volumeClaimTemplate:
       spec:
-        storageClassName: csi-cephfs-sc
+        storageClassName: buildpiper-storage
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:

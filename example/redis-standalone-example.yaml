@@ -6,7 +6,7 @@ metadata:
 spec:
   mode: standalone
   global:
-    image: opstree/redis:v2.0
+    image: quay.io/opstree/redis:v6.2
     imagePullPolicy: IfNotPresent
     password: "Opstree@1234"
     resources:
@@ -38,6 +38,5 @@ spec:
         resources:
           requests:
             storage: 1Gi
-            #      selector: {}
   # nodeSelector:
   #   kubernetes.io/hostname: minikube
