@@ -29,12 +29,17 @@ spec:
   master:
     service:
       type: {{ .Values.cluster.master.serviceType }}
+    redisConfig: {}
 {{- end }}
 {{- if .Values.cluster.slave }}
   slave:
     service:
       type: {{ .Values.cluster.slave.serviceType }}
+    redisConfig: {}
 {{- end }}
+  redisConfig: {}
+  service:
+    type: ClusterIP
   redisExporter:
     enabled: {{ .Values.exporter.enabled }}
     image: "{{ .Values.exporter.image }}:{{ .Values.exporter.tag }}"
