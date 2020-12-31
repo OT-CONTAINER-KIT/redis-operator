@@ -2481,6 +2481,19 @@ spec:
                 type: object
             type: object
         type: object
+    additionalPrinterColumns:
+    - jsonPath: .spec.size
+      description: Current master node count
+      name: Master
+      type: integer
+    - jsonPath: .spec.size
+      description: Current slave node count
+      name: Slave
+      type: integer
+    - jsonPath: .metadata.creationTimestamp
+      description: Last Deployment Time
+      name: Last Deployment Time
+      type: date
     served: true
     storage: true
     subresources:
