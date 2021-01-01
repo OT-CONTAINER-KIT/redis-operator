@@ -1,5 +1,5 @@
-<p align="left">
-  <img src="./static/redis-operator-logo.svg" height="180" width="180">
+<p align="center">
+  <img src="./static/redis-operator-logo.svg" height="220" width="220">
 </p>
 
 [![CircleCI](https://circleci.com/gh/OT-CONTAINER-KIT/redis-operator.svg?style=shield)](https://circleci.com/gh/OT-CONTAINER-KIT/redis-operator)
@@ -8,7 +8,6 @@
 [![Maintainability](https://api.codeclimate.com/v1/badges/89dd2d6355e51d623068/maintainability)](https://codeclimate.com/github/OT-CONTAINER-KIT/redis-operator/maintainability)
 [![Apache License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-# Speculator: Redis Operator
 
 A Golang based redis operator that will make/oversee Redis standalone/cluster mode setup on top of the Kubernetes. It can create a redis cluster setup with best practices on Cloud as well as the Bare metal environment. Also, it provides an in-built monitoring capability using redis-exporter.
 
