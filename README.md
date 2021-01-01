@@ -6,6 +6,12 @@
   <a href="https://goreportcard.com/report/github.com/OT-CONTAINER-KIT/redis-operator">
     <img src="https://goreportcard.com/badge/github.com/OT-CONTAINER-KIT/redis-operator" alt="GoReportCard">
   </a>
+  <a href="http://golang.org">
+    <img src="https://img.shields.io/github/go-mod/go-version/OT-CONTAINER-KIT/redis-operator" alt="GitHub go.mod Go version (subdirectory of monorepo)">
+  </a>
+  <a href="http://golang.org">
+    <img src="https://img.shields.io/badge/Made%20with-Go-1f425f.svg" alt="made-with-Go">
+  </a>
   <a href="https://quay.io/repository/opstree/redis-operator">
     <img src="https://img.shields.io/badge/container-ready-green" alt="Docker">
   </a>
