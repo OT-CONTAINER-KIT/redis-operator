@@ -2,12 +2,17 @@
   <img src="./static/redis-operator-logo.svg" height="220" width="220">
 </p>
 
-[![CircleCI](https://circleci.com/gh/OT-CONTAINER-KIT/redis-operator.svg?style=shield)](https://circleci.com/gh/OT-CONTAINER-KIT/redis-operator)
-[![Go Report Card](https://goreportcard.com/badge/github.com/OT-CONTAINER-KIT/redis-operator)](https://goreportcard.com/report/github.com/OT-CONTAINER-KIT/redis-operator)
-[![Docker Repository on Quay](https://img.shields.io/badge/container-ready-green "Docker Repository on Quay")](https://quay.io/repository/opstree/redis-operator)
-[![Maintainability](https://api.codeclimate.com/v1/badges/89dd2d6355e51d623068/maintainability)](https://codeclimate.com/github/OT-CONTAINER-KIT/redis-operator/maintainability)
-[![Apache License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-
+<p align="center">
+  <a href="https://goreportcard.com/report/github.com/OT-CONTAINER-KIT/redis-operator">
+    <img src="https://goreportcard.com/badge/github.com/OT-CONTAINER-KIT/redis-operator" alt="GoReportCard">
+  </a>
+  <a href="https://quay.io/repository/opstree/redis-operator">
+    <img src="https://img.shields.io/badge/container-ready-green" alt="Docker">
+  </a>
+  <a href="https://github.com/OT-CONTAINER-KIT/redis-operator/master/LICENSE">
+    <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License">
+  </a>
+</p>
 
 A Golang based redis operator that will make/oversee Redis standalone/cluster mode setup on top of the Kubernetes. It can create a redis cluster setup with best practices on Cloud as well as the Bare metal environment. Also, it provides an in-built monitoring capability using redis-exporter.
 
