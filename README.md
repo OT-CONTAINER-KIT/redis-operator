@@ -3,6 +3,9 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/OT-CONTAINER-KIT/redis-operator">
+    <img src="https://github.com/OT-CONTAINER-KIT/redis-operator/workflows/CI%20Pipeline/badge.svg" alt="Github CI">
+  </a>
   <a href="https://goreportcard.com/report/github.com/OT-CONTAINER-KIT/redis-operator">
     <img src="https://goreportcard.com/badge/github.com/OT-CONTAINER-KIT/redis-operator" alt="GoReportCard">
   </a>
