@@ -34,10 +34,16 @@ func CreateRedisSecret(cr *redisv1beta1.Redis) {
 	secretName, err := GenerateK8sClient().CoreV1().Secrets(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name, metav1.GetOptions{})
 	if err != nil {
 		reqLogger.Info("Creating secret for redis", "Secret.Name", cr.ObjectMeta.Name)
-		GenerateK8sClient().CoreV1().Secrets(cr.Namespace).Create(context.TODO(), secretBody, metav1.CreateOptions{})
+		_, err := GenerateK8sClient().CoreV1().Secrets(cr.Namespace).Create(context.TODO(), secretBody, metav1.CreateOptions{})
+		if err != nil {
+			reqLogger.Error(err, "Failed in creating secret for redis")
+		}
 	} else if secretBody != secretName {
 		reqLogger.Info("Reconciling secret for redis", "Secret.Name", cr.ObjectMeta.Name)
-		GenerateK8sClient().CoreV1().Secrets(cr.Namespace).Update(context.TODO(), secretBody, metav1.UpdateOptions{})
+		_, err := GenerateK8sClient().CoreV1().Secrets(cr.Namespace).Update(context.TODO(), secretBody, metav1.UpdateOptions{})
+		if err != nil {
+			reqLogger.Error(err, "Failed in updating secret for redis")
+		}
 	} else {
 		reqLogger.Info("Secret for redis are in sync", "Secret.Name", cr.ObjectMeta.Name)
 	}

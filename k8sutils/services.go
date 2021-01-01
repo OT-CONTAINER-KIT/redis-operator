@@ -38,7 +38,7 @@ func GenerateHeadlessServiceDef(cr *redisv1beta1.Redis, labels map[string]string
 			},
 		},
 	}
-	if cr.Spec.RedisExporter.Enabled != false {
+	if !cr.Spec.RedisExporter.Enabled {
 		service.Spec.Ports = append(service.Spec.Ports, corev1.ServicePort{
 			Name:       "redis-exporter",
 			Port:       redisExporterPort,
@@ -77,7 +77,7 @@ func GenerateServiceDef(cr *redisv1beta1.Redis, labels map[string]string, portNu
 			},
 		},
 	}
-	if cr.Spec.RedisExporter.Enabled != false {
+	if !cr.Spec.RedisExporter.Enabled {
 		service.Spec.Ports = append(service.Spec.Ports, corev1.ServicePort{
 			Name:       "redis-exporter",
 			Port:       redisExporterPort,
@@ -193,10 +193,16 @@ func CompareAndCreateService(cr *redisv1beta1.Redis, service ServiceInterface, e
 
 	if err != nil {
 		reqLogger.Info("Creating redis service", "Redis.Name", cr.ObjectMeta.Name+"-"+service.ServiceType, "Service.Type", service.ServiceType)
-		GenerateK8sClient().CoreV1().Services(cr.Namespace).Create(context.TODO(), service.NewServiceDefinition, metav1.CreateOptions{})
+		_, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Create(context.TODO(), service.NewServiceDefinition, metav1.CreateOptions{})
+		if err != nil {
+			reqLogger.Error(err, "Failed in creating service for redis")
+		}
 	} else if service.ExistingService != service.NewServiceDefinition {
 		reqLogger.Info("Reconciling redis service", "Redis.Name", cr.ObjectMeta.Name+"-"+service.ServiceType, "Service.Type", service.ServiceType)
-		GenerateK8sClient().CoreV1().Services(cr.Namespace).Update(context.TODO(), service.NewServiceDefinition, metav1.UpdateOptions{})
+		_, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Update(context.TODO(), service.NewServiceDefinition, metav1.UpdateOptions{})
+		if err != nil {
+			reqLogger.Error(err, "Failed in updating service for redis")
+		}
 	} else {
 		reqLogger.Info("Redis service is in sync", "Redis.Name", cr.ObjectMeta.Name+"-"+service.ServiceType, "Service.Type", service.ServiceType)
 	}
