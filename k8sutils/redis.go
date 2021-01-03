@@ -117,7 +117,10 @@ func CheckRedisCluster(cr *redisv1beta1.Redis) int {
 		})
 	}
 	cmd := redis.NewStringCmd("cluster", "nodes")
-	client.Process(cmd)
+	err := client.Process(cmd)
+	if err != nil {
+		reqLogger.Error(err, "Redis command failed with this error")
+	}
 
 	output, err := cmd.Result()
 	if err != nil {
@@ -133,9 +136,6 @@ func CheckRedisCluster(cr *redisv1beta1.Redis) int {
 	reqLogger.Info("Total number of redis nodes are", "Nodes", strconv.Itoa(count))
 	return count
 }
-
-// int32Ptr converts int32 to pointer of int32
-func int32Ptr(i int32) *int32 { return &i }
 
 // ExecuteCommand will execute the commands in pod
 func ExecuteCommand(cr *redisv1beta1.Redis, cmd []string) {
@@ -155,7 +155,7 @@ func ExecuteCommand(cr *redisv1beta1.Redis, cmd []string) {
 
 	targetContainer := -1
 	for i, tr := range pod.Spec.Containers {
-		if tr.Name+"-master" == tr.Name+"-master" {
+		if tr.Name+"-master" == cr.ObjectMeta.Name+"-master" {
 			targetContainer = i
 			break
 		}

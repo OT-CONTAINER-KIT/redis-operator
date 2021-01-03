@@ -51,8 +51,7 @@ func GenerateStateFulSetsDef(cr *redisv1beta1.Redis, labels map[string]string, r
 
 // GenerateContainerDef generates container definition
 func GenerateContainerDef(cr *redisv1beta1.Redis, role string) corev1.Container {
-	var containerDefinition corev1.Container
-	containerDefinition = corev1.Container{
+	containerDefinition := corev1.Container{
 		Name:            cr.ObjectMeta.Name + "-" + role,
 		Image:           cr.Spec.GlobalConfig.Image,
 		ImagePullPolicy: cr.Spec.GlobalConfig.ImagePullPolicy,
@@ -148,7 +147,7 @@ func FinalContainerDef(cr *redisv1beta1.Redis, role string) []corev1.Container {
 
 	containerDefinition = append(containerDefinition, GenerateContainerDef(cr, role))
 
-	if cr.Spec.RedisExporter.Enabled != true {
+	if !cr.Spec.RedisExporter.Enabled {
 		return containerDefinition
 	}
 
@@ -270,10 +269,16 @@ func CompareAndCreateStateful(cr *redisv1beta1.Redis, clusterInfo StatefulInterf
 
 	if err != nil {
 		reqLogger.Info("Creating redis setup", "Redis.Name", cr.ObjectMeta.Name+"-"+clusterInfo.Type, "Setup.Type", clusterInfo.Type)
-		GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Create(context.TODO(), clusterInfo.Desired, metav1.CreateOptions{})
+		_, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Create(context.TODO(), clusterInfo.Desired, metav1.CreateOptions{})
+		if err != nil {
+			reqLogger.Error(err, "Failed in creating statefulset for redis")
+		}
 	} else if clusterInfo.Existing != clusterInfo.Desired {
 		reqLogger.Info("Reconciling redis setup", "Redis.Name", cr.ObjectMeta.Name+"-"+clusterInfo.Type, "Setup.Type", clusterInfo.Type)
-		GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Update(context.TODO(), clusterInfo.Desired, metav1.UpdateOptions{})
+		_, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Update(context.TODO(), clusterInfo.Desired, metav1.UpdateOptions{})
+		if err != nil {
+			reqLogger.Error(err, "Failed in updating statefulset for redis")
+		}
 	} else {
 		reqLogger.Info("Redis setup is in sync", "Redis.Name", cr.ObjectMeta.Name+"-"+clusterInfo.Type, "Setup.Type", clusterInfo.Type)
 	}
@@ -283,11 +288,12 @@ func CompareAndCreateStateful(cr *redisv1beta1.Redis, clusterInfo StatefulInterf
 func CreatePVCTemplate(cr *redisv1beta1.Redis, role string) corev1.PersistentVolumeClaim {
 	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
 	storageSpec := cr.Spec.Storage
-	pvcTemplate := storageSpec.VolumeClaimTemplate
+	var pvcTemplate corev1.PersistentVolumeClaim
 
 	if storageSpec == nil {
 		reqLogger.Info("No storage is defined for redis", "Redis.Name", cr.ObjectMeta.Name)
 	} else {
+		pvcTemplate = storageSpec.VolumeClaimTemplate
 		pvcTemplate.CreationTimestamp = metav1.Time{}
 		pvcTemplate.Name = cr.ObjectMeta.Name + "-" + role
 		if storageSpec.VolumeClaimTemplate.Spec.AccessModes == nil {
