@@ -55,8 +55,8 @@ type Storage struct {
 // RedisMaster interface will have the redis master configuration
 type RedisMaster struct {
 	Resources   Resources         `json:"resources,omitempty"`
-	RedisConfig map[string]string `json:"redisConfig"`
-	Service     Service           `json:"service"`
+	RedisConfig map[string]string `json:"redisConfig,omitempty"`
+	Service     Service           `json:"service,omitempty"`
 }
 
 // RedisExporter interface will have the information for redis exporter related stuff
@@ -78,8 +78,8 @@ type GlobalConfig struct {
 // RedisSlave interface will have the redis slave configuration
 type RedisSlave struct {
 	Resources   Resources         `json:"resources,omitempty"`
-	RedisConfig map[string]string `json:"redisConfig"`
-	Service     Service           `json:"service"`
+	RedisConfig map[string]string `json:"redisConfig,omitempty"`
+	Service     Service           `json:"service,omitempty"`
 }
 
 // ResourceDescription describes CPU and memory resources defined for a cluster.

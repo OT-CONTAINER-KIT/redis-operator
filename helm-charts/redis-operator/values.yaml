@@ -2,5 +2,17 @@
 redisOperator:
   name: redis-operator
   imageName: quay.io/opstree/redis-operator
-  imageTag: v0.2
+  imageTag: v0.4.0
   imagePullPolicy: Always
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 100Mi
+  requests:
+    cpu: 100m
+    memory: 100Mi
+
+replicas: 1
+
+serviceAccountName: redis-operator
