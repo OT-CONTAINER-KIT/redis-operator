@@ -1,3 +1,16 @@
+### v0.4.0
+##### February 6, 2021
+
+#### :tada: Features
+
+- Add Nodeport support for Kubernetes service
+
+#### :beetle: Bug Fixes
+
+- Updated helm chart with latest CRD configuration
+- Optimized helm chart
+- RBAC issus fixed
+
 ### v0.3.0
 ##### Decemeber 30, 2020
 

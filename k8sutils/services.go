@@ -57,6 +57,8 @@ func GenerateServiceDef(cr *redisv1beta1.Redis, labels map[string]string, portNu
 
 	if typeService == "LoadBalancer" {
 		serviceType = corev1.ServiceTypeLoadBalancer
+	} else if typeService == "NodePort" {
+		serviceType = corev1.ServiceTypeNodePort
 	} else {
 		serviceType = corev1.ServiceTypeClusterIP
 	}

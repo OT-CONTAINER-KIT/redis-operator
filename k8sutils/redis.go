@@ -155,7 +155,8 @@ func ExecuteCommand(cr *redisv1beta1.Redis, cmd []string) {
 
 	targetContainer := -1
 	for i, tr := range pod.Spec.Containers {
-		if tr.Name+"-master" == cr.ObjectMeta.Name+"-master" {
+		reqLogger.Info("Pod Counted successfully", "Count", i, "Container Name", tr.Name)
+		if tr.Name == cr.ObjectMeta.Name+"-master" {
 			targetContainer = i
 			break
 		}
