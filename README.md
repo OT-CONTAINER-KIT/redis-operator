@@ -70,7 +70,7 @@ But you can simply use the helm chart for installation.
 
 ```shell
 # Deploy the redis-operator
-helm upgrade redis-operator ./helm/redis-operator --install --namespace redis-operator
+helm upgrade redis-operator ./helm-charts/redis-operator --install --namespace redis-operator
 ```
 
 After deployment, verify the installation of operator
@@ -83,14 +83,14 @@ Creating redis cluster or standalone setup.
 
 ```shell
 # Create redis cluster setup
-helm upgrade redis-cluster ./helm/redis-setup -f ./helm/redis-setup/cluster-values.yaml \
+helm upgrade redis-cluster ./helm-charts/redis-setup -f ./helm/redis-setup/cluster-values.yaml \
   --set setupMode="cluster" --set cluster.size=3 \
   --install --namespace redis-operator
 ```
 
 ```shell
 # Create redis standalone setup
-helm upgrade redis ./helm/redis-setup -f ./helm/redis-setup/cluster-values.yaml \
+helm upgrade redis ./helm-charts/redis-setup -f ./helm-charts/redis-setup/cluster-values.yaml \
   --set setupMode="standalone" \
   --install --namespace redis-operator
 ```
