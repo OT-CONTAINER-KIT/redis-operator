@@ -3,6 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ .Values.redisOperator.name }}
+  namespace: {{ .Release.Namespace }}
   labels:
     control-plane: "{{ .Values.redisOperator.name }}"
     app.kubernetes.io/name: {{ .Values.redisOperator.name }}
@@ -31,6 +32,21 @@ spec:
 {{- if .Values.resources }}
         resources:
 {{ toYaml .Values.resources | indent 10 }}
+{{- end }}
+      nodeSelector:
+{{- with .Values.nodeSelector }}
+{{ toYaml . | indent 8 }}
+{{- end }}
+      priorityClassName: {{ .Values.priorityClassName }}
+{{- with .Values.affinity }}
+      affinity: {{ toYaml . | nindent 8 }}
+{{- end }}
+      tolerations:
+{{- if .Values.tolerateAllTaints }}
+        - operator: Exists
+{{- end }}
+{{- with .Values.tolerations }}
+{{ toYaml . | indent 8 }}
 {{- end }}
       serviceAccountName: "{{ .Values.serviceAccountName }}"
       serviceAccount: "{{ .Values.serviceAccountName }}"
