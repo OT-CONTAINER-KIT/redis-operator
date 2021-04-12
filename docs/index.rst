@@ -37,3 +37,5 @@ Here the features which are supported by this operator:-
 - Node selector and affinity
 - Priority class to manage setup priority
 - SecurityContext to manipulate kernel parameters
+
+.. include:: quickstart.rst
