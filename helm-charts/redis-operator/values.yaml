@@ -16,3 +16,9 @@ resources:
 replicas: 1
 
 serviceAccountName: redis-operator
+
+priorityClassName: ""
+nodeSelector: {}
+tolerateAllTaints: false
+tolerations: []
+affinity: {}
