@@ -83,7 +83,7 @@ Creating redis cluster or standalone setup.
 
 ```shell
 # Create redis cluster setup
-helm upgrade redis-cluster ./helm-charts/redis-setup -f ./helm/redis-setup/cluster-values.yaml \
+helm upgrade redis-cluster ./helm-charts/redis-setup -f ./helm-charts/redis-setup/cluster-values.yaml \
   --set setupMode="cluster" --set cluster.size=3 \
   --install --namespace redis-operator
 ```
