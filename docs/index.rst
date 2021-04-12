@@ -2,6 +2,9 @@
 Redis Operator
 **************
 
+.. toctree::
+   :maxdepth: 2
+
 .. image:: img/redis-operator-logo.svg
     :align: center
     :alt: logo
