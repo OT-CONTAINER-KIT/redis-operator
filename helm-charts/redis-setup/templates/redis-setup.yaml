@@ -1,5 +1,5 @@
 ---
-apiVersion: redis.opstreelabs.in/v1alpha1
+apiVersion: redis.redis.opstreelabs.in/v1beta1
 kind: Redis
 metadata:
   name: {{ .Values.name }}
