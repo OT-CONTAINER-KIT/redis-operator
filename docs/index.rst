@@ -1,6 +1,5 @@
-**************
 Redis Operator
-**************
+##############
 
 .. toctree::
    :maxdepth: 2
@@ -13,19 +12,19 @@ A Golang based redis operator that will make/oversee Redis standalone/cluster mo
 
 
 Architecture
-############
+************
 
 .. image:: img/redis-operator.png
     :align: center
     :alt: architecture
 
 Purpose
-#######
+*******
 
 The purpose of creating this operator was to provide easy and production-grade setup of Redis on Kubernetes. It doesn't care if you have a plain on-prem Kubernetes or cloud-based.
 
 Supported Features
-##################
+******************
 
 Here the features which are supported by this operator:-
 
