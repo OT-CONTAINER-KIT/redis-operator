@@ -961,6 +961,7 @@ spec:
               size:
                 format: int32
                 type: integer
+                minimum: 3
               slave:
                 description: RedisSlave interface will have the redis slave configuration
                 properties:
