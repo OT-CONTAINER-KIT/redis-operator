@@ -75,27 +75,27 @@ $ helm repo add ot-helm https://ot-container-kit.github.io/helm-charts/
 
 ```shell
 # Deploy the redis-operator
-helm upgrade redis-operator ot-helm/redis-operator --install --namespace redis-operator
+$ helm upgrade redis-operator ot-helm/redis-operator --install --namespace redis-operator
 ```
 
 After deployment, verify the installation of operator
 
 ```shell
-helm test redis-operator --namespace redis-operator
+$ helm test redis-operator --namespace redis-operator
 ```
 
 Creating redis cluster or standalone setup.
 
 ```shell
 # Create redis cluster setup
-helm upgrade redis-cluster ot-helm/redis-setup \
+$ helm upgrade redis-cluster ot-helm/redis-setup \
   --set setupMode="cluster" --set cluster.size=3 \
   --install --namespace redis-operator
 ```
 
 ```shell
 # Create redis standalone setup
-helm upgrade redis ot-helm/redis-setup \
+$ helm upgrade redis ot-helm/redis-setup \
   --set setupMode="standalone" \
   --install --namespace redis-operator
 ```
