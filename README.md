@@ -69,8 +69,13 @@ The setup can be done by using helm. If you want to see more example, please go 
 But you can simply use the helm chart for installation.
 
 ```shell
+# Add the helm chart
+$ helm repo add ot-helm https://ot-container-kit.github.io/helm-charts/
+```
+
+```shell
 # Deploy the redis-operator
-helm upgrade redis-operator ./helm-charts/redis-operator --install --namespace redis-operator
+helm upgrade redis-operator ot-helm/redis-operator --install --namespace redis-operator
 ```
 
 After deployment, verify the installation of operator
@@ -83,17 +88,19 @@ Creating redis cluster or standalone setup.
 
 ```shell
 # Create redis cluster setup
-helm upgrade redis-cluster ./helm-charts/redis-setup -f ./helm-charts/redis-setup/cluster-values.yaml \
+helm upgrade redis-cluster ot-helm/redis-setup \
   --set setupMode="cluster" --set cluster.size=3 \
   --install --namespace redis-operator
 ```
 
 ```shell
 # Create redis standalone setup
-helm upgrade redis ./helm-charts/redis-setup -f ./helm-charts/redis-setup/cluster-values.yaml \
+helm upgrade redis ot-helm/redis-setup \
   --set setupMode="standalone" \
   --install --namespace redis-operator
 ```
+
+If you want to customize the value file by yourself while initializing the helm command, the values files for reference are present [here](https://github.com/OT-CONTAINER-KIT/helm-charts/tree/main/charts/redis-setup)
 
 ### Monitoring with Prometheus
 
