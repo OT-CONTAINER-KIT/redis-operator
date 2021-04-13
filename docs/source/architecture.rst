@@ -1,30 +1,29 @@
+.. _architecture:
+
+##############
 Redis Operator
 ##############
 
-.. toctree::
-   :maxdepth: 2
-
-.. image:: img/redis-operator-logo.svg
+.. image:: _static/images/redis-operator-logo.svg
     :align: center
-    :alt: logo
+    :alt: architecture
 
 A Golang based redis operator that will make/oversee Redis standalone/cluster mode setup on top of the Kubernetes. It can create a redis cluster setup with best practices on Cloud as well as the Bare-metal environment. Also, it provides an in-built monitoring capability using redis-exporter.
 
-
 Architecture
-************
+============
 
-.. image:: img/redis-operator.png
+.. image:: _static/images/redis-operator.png
     :align: center
     :alt: architecture
 
 Purpose
-*******
+===========
 
 The purpose of creating this operator was to provide easy and production-grade setup of Redis on Kubernetes. It doesn't care if you have a plain on-prem Kubernetes or cloud-based.
 
 Supported Features
-******************
+==================
 
 Here the features which are supported by this operator:-
 
@@ -37,4 +36,3 @@ Here the features which are supported by this operator:-
 - Priority class to manage setup priority
 - SecurityContext to manipulate kernel parameters
 
-.. include:: quickstart.rst
