@@ -107,7 +107,7 @@ func GenerateContainerDef(cr *redisv1beta1.Redis, role string) corev1.Container 
 		}
 		containerDefinition.VolumeMounts = append(containerDefinition.VolumeMounts, VolumeMounts)
 	}
-	if cr.Spec.GlobalConfig.Password != nil {
+	if cr.Spec.GlobalConfig.Password != nil && cr.Spec.GlobalConfig.ExistingPasswordSecret == nil {
 		containerDefinition.Env = append(containerDefinition.Env, corev1.EnvVar{
 			Name: "REDIS_PASSWORD",
 			ValueFrom: &corev1.EnvVarSource{
@@ -120,6 +120,21 @@ func GenerateContainerDef(cr *redisv1beta1.Redis, role string) corev1.Container 
 			},
 		})
 	}
+
+	if cr.Spec.GlobalConfig.ExistingPasswordSecret != nil {
+		containerDefinition.Env = append(containerDefinition.Env, corev1.EnvVar{
+			Name: "REDIS_PASSWORD",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: *cr.Spec.GlobalConfig.ExistingPasswordSecret.Name,
+					},
+					Key: *cr.Spec.GlobalConfig.ExistingPasswordSecret.Name,
+				},
+			},
+		})
+	}
+
 	if cr.Spec.Mode != "cluster" {
 		containerDefinition.Env = append(containerDefinition.Env, corev1.EnvVar{
 			Name:  "SETUP_MODE",

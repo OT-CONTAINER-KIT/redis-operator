@@ -69,10 +69,16 @@ type RedisExporter struct {
 
 // GlobalConfig will be the JSON struct for Basic Redis Config
 type GlobalConfig struct {
-	Image           string            `json:"image"`
-	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
-	Password        *string           `json:"password,omitempty"`
-	Resources       *Resources        `json:"resources,omitempty"`
+	Image                  string                  `json:"image"`
+	ImagePullPolicy        corev1.PullPolicy       `json:"imagePullPolicy,omitempty"`
+	Password               *string                 `json:"password,omitempty"`
+	Resources              *Resources              `json:"resources,omitempty"`
+	ExistingPasswordSecret *ExistingPasswordSecret `json:"existingPasswordSecret,omitempty"`
+}
+
+type ExistingPasswordSecret struct {
+	Name *string `json:"name,omitempty"`
+	Key  *string `json:"key,omitempty"`
 }
 
 // RedisSlave interface will have the redis slave configuration
