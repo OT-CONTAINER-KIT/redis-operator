@@ -2,8 +2,10 @@ package k8sutils
 
 import (
 	"context"
+	// "github.com/google/go-cmp/cmp"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -216,7 +218,7 @@ func CreateRedisMaster(cr *redisv1beta1.Redis) {
 		Desired:  statefulDefinition,
 		Type:     "master",
 	}
-	CompareAndCreateStateful(cr, stateful, err)
+	CompareAndCreateStateful(cr, stateful, err, "master")
 }
 
 // CreateRedisSlave will create a Redis Slave
@@ -237,7 +239,7 @@ func CreateRedisSlave(cr *redisv1beta1.Redis) {
 		Desired:  statefulDefinition,
 		Type:     "slave",
 	}
-	CompareAndCreateStateful(cr, stateful, err)
+	CompareAndCreateStateful(cr, stateful, err, "slave")
 }
 
 // CreateRedisStandalone will create a Redis Standalone server
@@ -250,7 +252,6 @@ func CreateRedisStandalone(cr *redisv1beta1.Redis) {
 	}
 	statefulDefinition := GenerateStateFulSetsDef(cr, labels, "standalone", &standaloneReplica)
 	statefulObject, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name+"-standalone", metav1.GetOptions{})
-
 	if cr.Spec.Storage != nil {
 		statefulDefinition.Spec.VolumeClaimTemplates = append(statefulDefinition.Spec.VolumeClaimTemplates, CreatePVCTemplate(cr, "standalone"))
 	}
@@ -260,11 +261,11 @@ func CreateRedisStandalone(cr *redisv1beta1.Redis) {
 		Desired:  statefulDefinition,
 		Type:     "standalone",
 	}
-	CompareAndCreateStateful(cr, stateful, err)
+	CompareAndCreateStateful(cr, stateful, err, "standalone")
 }
 
 // CompareAndCreateStateful will compare and create a statefulset pod
-func CompareAndCreateStateful(cr *redisv1beta1.Redis, clusterInfo StatefulInterface, err error) {
+func CompareAndCreateStateful(cr *redisv1beta1.Redis, clusterInfo StatefulInterface, err error, role string) {
 	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
 
 	if err != nil {
@@ -273,14 +274,35 @@ func CompareAndCreateStateful(cr *redisv1beta1.Redis, clusterInfo StatefulInterf
 		if err != nil {
 			reqLogger.Error(err, "Failed in creating statefulset for redis")
 		}
-	} else if clusterInfo.Existing != clusterInfo.Desired {
-		reqLogger.Info("Reconciling redis setup", "Redis.Name", cr.ObjectMeta.Name+"-"+clusterInfo.Type, "Setup.Type", clusterInfo.Type)
-		_, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Update(context.TODO(), clusterInfo.Desired, metav1.UpdateOptions{})
-		if err != nil {
-			reqLogger.Error(err, "Failed in updating statefulset for redis")
+	}
+
+	state := compareState(clusterInfo)
+
+	if clusterInfo.Existing != nil {
+		if *clusterInfo.Existing.Spec.Replicas != *cr.Spec.Size {
+			reqLogger.Info("Reconciling redis setup because replica count is changed", "Redis.Name", cr.ObjectMeta.Name+"-"+clusterInfo.Type, "Setup.Type", clusterInfo.Type, "Existing Count", clusterInfo.Existing.Spec.Replicas, "Desired Count", cr.Spec.Size)
+			_, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Update(context.TODO(), clusterInfo.Desired, metav1.UpdateOptions{})
+			if err != nil {
+				reqLogger.Error(err, "Failed in updating statefulset for redis")
+			}
 		}
+
+		if state != true {
+			reqLogger.Info("Reconciling redis setup because spec is changed", "Redis.Name", cr.ObjectMeta.Name+"-"+clusterInfo.Type, "Setup.Type", clusterInfo.Type)
+			_, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Update(context.TODO(), clusterInfo.Desired, metav1.UpdateOptions{})
+			if err != nil {
+				reqLogger.Error(err, "Failed in updating statefulset for redis")
+			}
+		}
+	}
+}
+
+// compareState method will compare the statefulsets
+func compareState(clusterInfo StatefulInterface) bool {
+	if apiequality.Semantic.DeepDerivative(clusterInfo.Existing.Spec, clusterInfo.Desired.Spec) {
+		return true
 	} else {
-		reqLogger.Info("Redis setup is in sync", "Redis.Name", cr.ObjectMeta.Name+"-"+clusterInfo.Type, "Setup.Type", clusterInfo.Type)
+		return false
 	}
 }
 

@@ -104,7 +104,7 @@ func CreateMasterHeadlessService(cr *redisv1beta1.Redis) {
 		NewServiceDefinition: serviceDefinition,
 		ServiceType:          "master",
 	}
-	CompareAndCreateService(cr, service, err)
+	CompareAndCreateHeadlessService(cr, service, err)
 }
 
 // CreateMasterService creates different services for master
@@ -136,7 +136,7 @@ func CreateSlaveHeadlessService(cr *redisv1beta1.Redis) {
 		NewServiceDefinition: serviceDefinition,
 		ServiceType:          "slave",
 	}
-	CompareAndCreateService(cr, service, err)
+	CompareAndCreateHeadlessService(cr, service, err)
 }
 
 // CreateSlaveService creates different services for slave
@@ -186,7 +186,7 @@ func CreateStandaloneHeadlessService(cr *redisv1beta1.Redis) {
 		NewServiceDefinition: serviceDefinition,
 		ServiceType:          "standalone",
 	}
-	CompareAndCreateService(cr, service, err)
+	CompareAndCreateHeadlessService(cr, service, err)
 }
 
 // CompareAndCreateService compares and creates service
@@ -199,13 +199,31 @@ func CompareAndCreateService(cr *redisv1beta1.Redis, service ServiceInterface, e
 		if err != nil {
 			reqLogger.Error(err, "Failed in creating service for redis")
 		}
-	} else if service.ExistingService != service.NewServiceDefinition {
-		reqLogger.Info("Reconciling redis service", "Redis.Name", cr.ObjectMeta.Name+"-"+service.ServiceType, "Service.Type", service.ServiceType)
-		_, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Update(context.TODO(), service.NewServiceDefinition, metav1.UpdateOptions{})
-		if err != nil {
-			reqLogger.Error(err, "Failed in updating service for redis")
+	}
+
+	if service.ExistingService != nil {
+		if service.ExistingService.Spec.Type != service.NewServiceDefinition.Spec.Type {
+			existingService := service.ExistingService
+			existingService.Spec.Type = service.NewServiceDefinition.Spec.Type
+			reqLogger.Info("Reconciling redis service", "Redis.Name", cr.ObjectMeta.Name+"-"+service.ServiceType, "Service.Type", service.ServiceType)
+			reqLogger.Info("Service type has been updated for the service", "Redis.Name", cr.ObjectMeta.Name+"-"+service.ServiceType, "Service.Type", service.ServiceType)
+			_, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Update(context.TODO(), existingService, metav1.UpdateOptions{})
+			if err != nil {
+				reqLogger.Error(err, "Failed in updating service for redis")
+			}
 		}
-	} else {
-		reqLogger.Info("Redis service is in sync", "Redis.Name", cr.ObjectMeta.Name+"-"+service.ServiceType, "Service.Type", service.ServiceType)
+	}
+}
+
+// CompareAndCreateService compares and creates service
+func CompareAndCreateHeadlessService(cr *redisv1beta1.Redis, service ServiceInterface, err error) {
+	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
+
+	if err != nil {
+		reqLogger.Info("Creating redis service", "Redis.Name", cr.ObjectMeta.Name+"-"+service.ServiceType, "Service.Type", service.ServiceType)
+		_, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Create(context.TODO(), service.NewServiceDefinition, metav1.CreateOptions{})
+		if err != nil {
+			reqLogger.Error(err, "Failed in creating service for redis")
+		}
 	}
 }

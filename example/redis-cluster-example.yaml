@@ -19,7 +19,7 @@ spec:
         memory: 128Mi
   master:
     service:
-      type: ClusterIP
+      type: NodePort
     redisConfig: {}
   slave:
     service:
@@ -42,7 +42,7 @@ spec:
   storage:
     volumeClaimTemplate:
       spec:
-        storageClassName: buildpiper-storage
+        storageClassName: local-path
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
