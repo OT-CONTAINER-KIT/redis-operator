@@ -48,3 +48,18 @@ func CreateRedisSecret(cr *redisv1beta1.Redis) {
 		reqLogger.Info("Secret for redis are in sync", "Secret.Name", cr.ObjectMeta.Name)
 	}
 }
+
+// getRedisPassword method will return the redis password
+func getRedisPassword(cr *redisv1beta1.Redis) string {
+	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
+	secretName, err := GenerateK8sClient().CoreV1().Secrets(cr.Namespace).Get(context.TODO(), *cr.Spec.GlobalConfig.ExistingPasswordSecret.Name, metav1.GetOptions{})
+	if err != nil {
+		reqLogger.Error(err, "Failed in getting existing secret for redis")
+	}
+	for key, value := range secretName.Data {
+		if key == *cr.Spec.GlobalConfig.ExistingPasswordSecret.Key {
+			return string(value)
+		}
+	}
+	return ""
+}

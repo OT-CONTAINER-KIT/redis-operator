@@ -48,9 +48,15 @@ func ExecuteRedisClusterCommand(cr *redisv1beta1.Redis) {
 		cmd = append(cmd, GetRedisServerIP(pod)+":6379")
 	}
 	cmd = append(cmd, "--cluster-yes")
-	if cr.Spec.GlobalConfig.Password != nil {
+	if cr.Spec.GlobalConfig.Password != nil && cr.Spec.GlobalConfig.ExistingPasswordSecret == nil {
 		cmd = append(cmd, "-a")
 		cmd = append(cmd, *cr.Spec.GlobalConfig.Password)
+	}
+
+	if cr.Spec.GlobalConfig.ExistingPasswordSecret != nil {
+		pass := getRedisPassword(cr)
+		cmd = append(cmd, "-a")
+		cmd = append(cmd, pass)
 	}
 	reqLogger.Info("Redis cluster creation command is", "Command", cmd)
 	ExecuteCommand(cr, cmd)
@@ -76,9 +82,14 @@ func CreateRedisReplicationCommand(cr *redisv1beta1.Redis, nodeNumber string) []
 	cmd = append(cmd, GetRedisServerIP(masterPod)+":6379")
 	cmd = append(cmd, "--cluster-slave")
 
-	if cr.Spec.GlobalConfig.Password != nil {
+	if cr.Spec.GlobalConfig.Password != nil && cr.Spec.GlobalConfig.ExistingPasswordSecret == nil {
 		cmd = append(cmd, "-a")
 		cmd = append(cmd, *cr.Spec.GlobalConfig.Password)
+	}
+	if cr.Spec.GlobalConfig.ExistingPasswordSecret != nil {
+		pass := getRedisPassword(cr)
+		cmd = append(cmd, "-a")
+		cmd = append(cmd, pass)
 	}
 	reqLogger.Info("Redis replication creation command is", "Command", cmd)
 	return cmd
@@ -103,10 +114,17 @@ func CheckRedisCluster(cr *redisv1beta1.Redis) int {
 		Namespace: cr.Namespace,
 	}
 
-	if cr.Spec.GlobalConfig.Password != nil {
+	if cr.Spec.GlobalConfig.Password != nil && cr.Spec.GlobalConfig.ExistingPasswordSecret == nil {
 		client = redis.NewClient(&redis.Options{
 			Addr:     GetRedisServerIP(redisInfo) + ":6379",
 			Password: *cr.Spec.GlobalConfig.Password,
+			DB:       0,
+		})
+	} else if cr.Spec.GlobalConfig.ExistingPasswordSecret != nil {
+		pass := getRedisPassword(cr)
+		client = redis.NewClient(&redis.Options{
+			Addr:     GetRedisServerIP(redisInfo) + ":6379",
+			Password: pass,
 			DB:       0,
 		})
 	} else {
@@ -116,6 +134,7 @@ func CheckRedisCluster(cr *redisv1beta1.Redis) int {
 			DB:       0,
 		})
 	}
+
 	cmd := redis.NewStringCmd("cluster", "nodes")
 	err := client.Process(cmd)
 	if err != nil {
