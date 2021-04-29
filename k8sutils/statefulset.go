@@ -107,7 +107,7 @@ func GenerateContainerDef(cr *redisv1beta1.Redis, role string) corev1.Container 
 		}
 		containerDefinition.VolumeMounts = append(containerDefinition.VolumeMounts, VolumeMounts)
 	}
-	if cr.Spec.GlobalConfig.Password != nil {
+	if cr.Spec.GlobalConfig.Password != nil && cr.Spec.GlobalConfig.ExistingPasswordSecret == nil {
 		containerDefinition.Env = append(containerDefinition.Env, corev1.EnvVar{
 			Name: "REDIS_PASSWORD",
 			ValueFrom: &corev1.EnvVarSource{
@@ -120,6 +120,21 @@ func GenerateContainerDef(cr *redisv1beta1.Redis, role string) corev1.Container 
 			},
 		})
 	}
+
+	if cr.Spec.GlobalConfig.ExistingPasswordSecret != nil {
+		containerDefinition.Env = append(containerDefinition.Env, corev1.EnvVar{
+			Name: "REDIS_PASSWORD",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: *cr.Spec.GlobalConfig.ExistingPasswordSecret.Name,
+					},
+					Key: *cr.Spec.GlobalConfig.ExistingPasswordSecret.Key,
+				},
+			},
+		})
+	}
+
 	if cr.Spec.Mode != "cluster" {
 		containerDefinition.Env = append(containerDefinition.Env, corev1.EnvVar{
 			Name:  "SETUP_MODE",
@@ -279,14 +294,6 @@ func CompareAndCreateStateful(cr *redisv1beta1.Redis, clusterInfo StatefulInterf
 	state := compareState(clusterInfo)
 
 	if clusterInfo.Existing != nil {
-		if *clusterInfo.Existing.Spec.Replicas != *cr.Spec.Size {
-			reqLogger.Info("Reconciling redis setup because replica count is changed", "Redis.Name", cr.ObjectMeta.Name+"-"+clusterInfo.Type, "Setup.Type", clusterInfo.Type, "Existing Count", clusterInfo.Existing.Spec.Replicas, "Desired Count", cr.Spec.Size)
-			_, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Update(context.TODO(), clusterInfo.Desired, metav1.UpdateOptions{})
-			if err != nil {
-				reqLogger.Error(err, "Failed in updating statefulset for redis")
-			}
-		}
-
 		if !state {
 			reqLogger.Info("Reconciling redis setup because spec is changed", "Redis.Name", cr.ObjectMeta.Name+"-"+clusterInfo.Type, "Setup.Type", clusterInfo.Type)
 			_, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Update(context.TODO(), clusterInfo.Desired, metav1.UpdateOptions{})

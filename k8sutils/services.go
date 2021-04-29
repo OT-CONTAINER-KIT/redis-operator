@@ -205,11 +205,12 @@ func CompareAndCreateService(cr *redisv1beta1.Redis, service ServiceInterface, e
 		if service.ExistingService.Spec.Type != service.NewServiceDefinition.Spec.Type {
 			existingService := service.ExistingService
 			existingService.Spec.Type = service.NewServiceDefinition.Spec.Type
-			reqLogger.Info("Reconciling redis service", "Redis.Name", cr.ObjectMeta.Name+"-"+service.ServiceType, "Service.Type", service.ServiceType)
-			reqLogger.Info("Service type has been updated for the service", "Redis.Name", cr.ObjectMeta.Name+"-"+service.ServiceType, "Service.Type", service.ServiceType)
-			_, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Update(context.TODO(), existingService, metav1.UpdateOptions{})
-			if err != nil {
-				reqLogger.Error(err, "Failed in updating service for redis")
+			if existingService.ObjectMeta.Name != "" && existingService != nil {
+				reqLogger.Info("Service type has been updated for the service", "Redis.Name", cr.ObjectMeta.Name+"-"+service.ServiceType, "Service.Type", service.ServiceType)
+				_, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Update(context.TODO(), existingService, metav1.UpdateOptions{})
+				if err != nil {
+					reqLogger.Error(err, "Failed in updating service for redis")
+				}
 			}
 		}
 	}

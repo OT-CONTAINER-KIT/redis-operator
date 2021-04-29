@@ -631,6 +631,13 @@ spec:
                 description: GlobalConfig will be the JSON struct for Basic Redis
                   Config
                 properties:
+                  existingPasswordSecret:
+                    properties:
+                      key:
+                        type: string
+                      name:
+                        type: string
+                    type: object
                   image:
                     type: string
                   imagePullPolicy:
@@ -715,9 +722,6 @@ spec:
                     required:
                     - type
                     type: object
-                required:
-                - redisConfig
-                - service
                 type: object
               mode:
                 type: string
@@ -1006,9 +1010,6 @@ spec:
                     required:
                     - type
                     type: object
-                required:
-                - redisConfig
-                - service
                 type: object
               storage:
                 description: Storage is the inteface to add pvc and pv support in
@@ -1862,6 +1863,13 @@ spec:
                     description: GlobalConfig will be the JSON struct for Basic Redis
                       Config
                     properties:
+                      existingPasswordSecret:
+                        properties:
+                          key:
+                            type: string
+                          name:
+                            type: string
+                        type: object
                       image:
                         type: string
                       imagePullPolicy:
@@ -1947,9 +1955,6 @@ spec:
                         required:
                         - type
                         type: object
-                    required:
-                    - redisConfig
-                    - service
                     type: object
                   mode:
                     type: string
@@ -2241,9 +2246,6 @@ spec:
                         required:
                         - type
                         type: object
-                    required:
-                    - redisConfig
-                    - service
                     type: object
                   storage:
                     description: Storage is the inteface to add pvc and pv support

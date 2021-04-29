@@ -75,7 +75,7 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	found := &appsv1.StatefulSet{}
 	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: instance.Name, Namespace: instance.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
-		if instance.Spec.GlobalConfig.Password != nil {
+		if instance.Spec.GlobalConfig.Password != nil && instance.Spec.GlobalConfig.ExistingPasswordSecret == nil {
 			k8sutils.CreateRedisSecret(instance)
 		}
 		if instance.Spec.Mode == "cluster" {
