@@ -287,7 +287,7 @@ func CompareAndCreateStateful(cr *redisv1beta1.Redis, clusterInfo StatefulInterf
 			}
 		}
 
-		if state != true {
+		if !state {
 			reqLogger.Info("Reconciling redis setup because spec is changed", "Redis.Name", cr.ObjectMeta.Name+"-"+clusterInfo.Type, "Setup.Type", clusterInfo.Type)
 			_, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Update(context.TODO(), clusterInfo.Desired, metav1.UpdateOptions{})
 			if err != nil {
