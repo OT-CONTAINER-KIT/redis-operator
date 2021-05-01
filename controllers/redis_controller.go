@@ -103,7 +103,7 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 				k8sutils.ExecuteRedisReplicationCommand(instance)
 			} else {
 				reqLogger.Info("Redis master count is desired")
-				if k8sutils.CheckRedisClusterState(instance) {
+				if k8sutils.CheckRedisClusterState(instance) >= int(*instance.Spec.Size)*2-1 {
 					k8sutils.ExecuteFaioverOperation(instance)
 				}
 				return ctrl.Result{RequeueAfter: time.Second * 120}, nil

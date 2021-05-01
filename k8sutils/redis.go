@@ -140,6 +140,11 @@ func executeFailoverCommand(cr *redisv1beta1.Redis, role string) {
 		err := client.Process(cmd)
 		if err != nil {
 			reqLogger.Error(err, "Redis command failed with this error")
+			flushcommand := redis.NewStringCmd("flushall")
+			err := client.Process(flushcommand)
+			if err != nil {
+				reqLogger.Error(err, "Redis flush command failed with this error")
+			}
 		}
 
 		output, err := cmd.Result()
@@ -165,17 +170,13 @@ func CheckRedisNodeCount(cr *redisv1beta1.Redis) int {
 }
 
 // CheckRedisClusterState will check the redis cluster state
-func CheckRedisClusterState(cr *redisv1beta1.Redis) bool {
+func CheckRedisClusterState(cr *redisv1beta1.Redis) int {
 	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
 	output := checkRedisCluster(cr)
-	match, err := regexp.MatchString("fail", output)
-	if err != nil {
-		reqLogger.Error(err, "Error in compiling regex")
-	}
-	if match {
-		reqLogger.Info("Found cluster in failed state")
-	}
-	return match
+	pattern := regexp.MustCompile("fail")
+	match := pattern.FindAllStringIndex(output, -1)
+	reqLogger.Info("Number of failed nodes in cluster", "Failed Node Count", len(match))
+	return len(match)
 }
 
 // configureRedisClient will configure the Redis Client

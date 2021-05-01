@@ -47,6 +47,9 @@ func GenerateStateFulSetsDef(cr *redisv1beta1.Redis, labels map[string]string, r
 			},
 		},
 	}
+	if cr.Spec.Tolerations != nil {
+		statefulset.Spec.Template.Spec.Tolerations = *cr.Spec.Tolerations
+	}
 	AddOwnerRefToObject(statefulset, AsOwner(cr))
 	return statefulset
 }
