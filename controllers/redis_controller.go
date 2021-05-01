@@ -98,11 +98,14 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 				return ctrl.Result{RequeueAfter: time.Second * 120}, nil
 			}
 			reqLogger.Info("Creating redis cluster by executing cluster creation command", "Ready.Replicas", strconv.Itoa(int(redisMasterInfo.Status.ReadyReplicas)))
-			if k8sutils.CheckRedisCluster(instance) != int(*instance.Spec.Size)*2 {
+			if k8sutils.CheckRedisNodeCount(instance) != int(*instance.Spec.Size)*2 {
 				k8sutils.ExecuteRedisClusterCommand(instance)
 				k8sutils.ExecuteRedisReplicationCommand(instance)
 			} else {
 				reqLogger.Info("Redis master count is desired")
+				if k8sutils.CheckRedisClusterState(instance) {
+					k8sutils.ExecuteFaioverOperation(instance)
+				}
 				return ctrl.Result{RequeueAfter: time.Second * 120}, nil
 			}
 		} else if instance.Spec.Mode == "standalone" {
