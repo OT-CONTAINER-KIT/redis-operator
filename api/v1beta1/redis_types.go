@@ -40,6 +40,7 @@ type RedisSpec struct {
 	SecurityContext   *corev1.PodSecurityContext `json:"securityContext,omitempty"`
 	PriorityClassName string                     `json:"priorityClassName,omitempty"`
 	Affinity          *corev1.Affinity           `json:"affinity,omitempty"`
+	Tolerations       *[]corev1.Toleration       `json:"tolerations,omitempty"`
 }
 
 // RedisStatus defines the observed state of Redis
