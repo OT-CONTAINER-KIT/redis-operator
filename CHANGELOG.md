@@ -1,3 +1,16 @@
+### v0.5.0
+##### May 1, 2021
+
+#### :tada: Features
+
+- Added support for recovering redis nodes from failover
+- Added toleration support for redis statefuls
+- Added capability to use existing secret created inside K8s
+
+#### :beetle: Bug Fixes
+
+- Fixed logic for service and statefulset comparison in K8s
+
 ### v0.4.0
 ##### February 6, 2021
 
