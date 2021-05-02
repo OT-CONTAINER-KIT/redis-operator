@@ -52,6 +52,13 @@ module.exports = {
             '',
             'redis',
           ]
+        },
+        {
+          title: 'Getting Started',
+          collapsable: false,
+          children: [
+            'installation.md',
+          ]
         }
       ],
     }
