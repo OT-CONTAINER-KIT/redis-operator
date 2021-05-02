@@ -60,6 +60,29 @@ module.exports = {
             'installation.md',
             'setup.md',
             'configuration.md',
+            'failover.md',
+          ]
+        },
+        {
+          title: 'Monitoring',
+          collapsable: false,
+          children: [
+            'monitoring.md',
+            'grafana.md',
+          ]
+        },
+        {
+          title: 'Development',
+          collapsable: false,
+          children: [
+            'development.md',
+          ]
+        },
+        {
+          title: 'Changelog',
+          collapsable: false,
+          children: [
+            'changelog.md',
           ]
         }
       ],

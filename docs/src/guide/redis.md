@@ -1,4 +1,4 @@
-# Redis
+# Redis Overview
 
 Redis is a popular and opensource in-memory database that supports multiple data structures like strings, hashes, lists, and sets. But similar to other tools, we can scale standalone redis to a particular extent and not beyond that. That’s why we have a cluster mode setup in which we can scale Redis nodes horizontally and then distribute data among those nodes.
 
