@@ -59,6 +59,7 @@ module.exports = {
           children: [
             'installation.md',
             'setup.md',
+            'configuration.md',
           ]
         }
       ],
