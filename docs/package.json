@@ -1,0 +1,19 @@
+{
+  "name": "redis-operator",
+  "version": "0.5.0",
+  "description": "A golang based redis operator that will make/oversee Redis standalone/cluster mode setup on top of the Kubernetes.",
+  "main": "index.js",
+  "authors": {
+    "name": "Abhishek Dubey",
+    "email": "abhishekbhardwaj510@gmail.com"
+  },
+  "repository": "https://github.com/OT-CONTAINER-KIT/redis-operator",
+  "scripts": {
+    "dev": "vuepress dev src",
+    "build": "vuepress build src"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "vuepress": "^1.8.2"
+  }
+}
