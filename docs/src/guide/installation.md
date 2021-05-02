@@ -8,7 +8,7 @@ The API name which we have created is `redis.redis.opstreelabs.in/v1beta1` and t
 
 So for deploying the redis-operator and setup we need a Kubernetes cluster 1.11+ and that’s it. Let’s deploy the redis operator first.
 
-The easiest way to install a redis operator is using Helm chart. The operator helm chart is developed on the `helm=>3.0.0` version.
+The easiest way to install a redis operator is using Helm chart. The operator helm chart is developed on the `helm=>3.0.0` version. Also, you can customize the [values.yaml](https://github.com/OT-CONTAINER-KIT/helm-charts/blob/main/charts/redis-operator/values.yaml) file as per the need.
 
 ```shell
 $ helm repo add ot-helm https://ot-container-kit.github.io/helm-charts/

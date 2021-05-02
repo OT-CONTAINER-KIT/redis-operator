@@ -6,7 +6,7 @@ Redis is a popular and opensource in-memory database that supports multiple data
 
 Sometimes getting data from disks can be time-consuming. In order to increase the performance, we can put the requests those either need to be served first or rapidly in Redis memory and then the Redis service there will keep rest of the data in the main database. So the whole architecture will look like this:-
 
-![](https://miro.medium.com/max/700/0*21IQYNnd9Pu2LtTO.png)
+![](./images/redis-as-database.png)
 
 ## Redis Master-Slave Replication
 
@@ -22,18 +22,18 @@ Replication is also known as mirroring of data. In replication, all the data get
 Sharding is also known as partitioning. It splits up the data by the key to multiple nodes.
 
 <div align="center">
-    <img src="https://miro.medium.com/max/320/0*mCK2JPYgG1L6yFqC.png">
+    <img src="./images/redis-replication.png">
 </div>
 
 As shown in the above figure, all keys 1, 2, 3, 4 are getting stored on both machine A and B.
 
 <div align="center">
-    <img src="https://miro.medium.com/max/320/0*S32cGx8_LDmNoMaS.png">
+    <img src="./images/redis-sharding.png">
 </div>
 
 In sharding, the keys are getting distributed across both machine A and B. That is, the machine A will hold the 1, 3 key and machine B will hold 2, 4 key.
 
-![](https://miro.medium.com/proxy/1*YlZIesKl-3rvAr6KLEoZiQ.png)
+![](./images/redis-cluster.png)
 
 ## Challenges with Kubernetes
 
