@@ -14,6 +14,18 @@ parameters:
 - name: GolangVersion
   type: string
   default: '1.16'
+- name: ApplicationName
+  type: string
+  default: 'redis-operator'
+- name: QuayImageName
+  type: string
+  default: 'opstree/redis-operator'
+- name: GithubImageName
+  type: string
+  default: 'ot-container-kit/redis-operator/redis-operator'
+- name: BuildDocs
+  type: boolean
+  default: true
 
 stages:
 - stage: precheck
@@ -160,10 +172,10 @@ stages:
           displayName: "Installing Golang"
           inputs:
             version: '${{ parameters.GolangVersion }}'
-      - script: |
-          sudo apt-get install make -y
-          make manifests
-        displayName: "Archiving docker image"
+        - script: |
+            sudo apt-get install make -y
+            make manifests
+          displayName: "Archiving docker image"
 
 - stage: code_security
   dependsOn: ["generate_manifests"]
