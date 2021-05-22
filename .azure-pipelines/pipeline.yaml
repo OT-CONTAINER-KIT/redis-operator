@@ -1,0 +1,27 @@
+---
+trigger: 
+  - master
+
+pr:
+  branches:
+    include:
+    - master
+
+variables:
+  - group: RuntimeVariables
+
+resources:
+  repositories:
+  - repository: golang-template
+    type: github
+    name: opstree/azure-devops-template
+    endpoint: OT-CONTAINER-KIT
+
+extends:
+  template: operator-ci.yaml@golang-template
+  parameters:
+    ApplicationName: redis-operator
+    QuayImageName: opstree/redis-operator
+    GithubImageName: ot-container-kit/redis-operator/redis-operator
+    BuildDocs: true
+    AppVersion: "0.5.0"
