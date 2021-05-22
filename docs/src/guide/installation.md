@@ -36,9 +36,9 @@ redis-operator-74b6cbf5c5-td8t7   1/1     Running   0          2m11s
 If you are beginner to Kubernetes and don't want to go inside the complexities of helm, in that case, you can use `kubectl` to install the operator.
 
 ```shell
-$ kubectl apply -f https://github.com/OT-CONTAINER-KIT/redis-operator/raw/master/deploy/crds/redis.opstreelabs.in_redis_crd.yaml
-$ kubectl apply -f https://github.com/OT-CONTAINER-KIT/redis-operator/raw/master/deploy/service_account.yaml
-$ kubectl apply -f https://github.com/OT-CONTAINER-KIT/redis-operator/raw/master/deploy/role.yaml
-$ kubectl apply -f https://github.com/OT-CONTAINER-KIT/redis-operator/raw/master/deploy/role_binding.yaml
-$ kubectl apply -f https://github.com/OT-CONTAINER-KIT/redis-operator/raw/master/deploy/operator.yaml
+$ kubectl apply -f https://raw.githubusercontent.com/OT-CONTAINER-KIT/redis-operator/master/config/crd/bases/redis.redis.opstreelabs.in_redis.yaml
+$ kubectl apply -f https://raw.githubusercontent.com/OT-CONTAINER-KIT/redis-operator/master/config/rbac/serviceaccount.yaml
+$ kubectl apply -f https://raw.githubusercontent.com/OT-CONTAINER-KIT/redis-operator/master/config/rbac/role.yaml
+$ kubectl apply -f https://raw.githubusercontent.com/OT-CONTAINER-KIT/redis-operator/master/config/rbac/role_binding.yaml
+$ kubectl apply -f https://raw.githubusercontent.com/OT-CONTAINER-KIT/redis-operator/master/config/manager/manager.yaml
 ```
