@@ -79,7 +79,7 @@ func GenerateServiceDef(cr *redisv1beta1.Redis, labels map[string]string, portNu
 			},
 		},
 	}
-	if !cr.Spec.RedisExporter.Enabled {
+	if cr.Spec.RedisExporter.Enabled {
 		service.Spec.Ports = append(service.Spec.Ports, corev1.ServicePort{
 			Name:       "redis-exporter",
 			Port:       redisExporterPort,
@@ -110,8 +110,9 @@ func CreateMasterHeadlessService(cr *redisv1beta1.Redis) {
 // CreateMasterService creates different services for master
 func CreateMasterService(cr *redisv1beta1.Redis) {
 	labels := map[string]string{
-		"app":  cr.ObjectMeta.Name + "-master",
-		"role": "master",
+		"app":   cr.ObjectMeta.Name + "-master",
+		"role":  "master",
+		"redis": "monitor",
 	}
 	serviceDefinition := GenerateServiceDef(cr, labels, int32(redisPort), "master", cr.ObjectMeta.Name+"-master", cr.Spec.Master.Service.Type)
 	serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name+"-master", metav1.GetOptions{})
@@ -142,8 +143,9 @@ func CreateSlaveHeadlessService(cr *redisv1beta1.Redis) {
 // CreateSlaveService creates different services for slave
 func CreateSlaveService(cr *redisv1beta1.Redis) {
 	labels := map[string]string{
-		"app":  cr.ObjectMeta.Name + "-slave",
-		"role": "slave",
+		"app":   cr.ObjectMeta.Name + "-slave",
+		"role":  "slave",
+		"redis": "monitor",
 	}
 	serviceDefinition := GenerateServiceDef(cr, labels, int32(redisPort), "slave", cr.ObjectMeta.Name+"-slave", cr.Spec.Slave.Service.Type)
 	serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name+"-slave", metav1.GetOptions{})
@@ -158,8 +160,9 @@ func CreateSlaveService(cr *redisv1beta1.Redis) {
 // CreateStandaloneService creates redis standalone service
 func CreateStandaloneService(cr *redisv1beta1.Redis) {
 	labels := map[string]string{
-		"app":  cr.ObjectMeta.Name + "-" + "standalone",
-		"role": "standalone",
+		"app":   cr.ObjectMeta.Name + "-" + "standalone",
+		"role":  "standalone",
+		"redis": "monitor",
 	}
 	serviceDefinition := GenerateServiceDef(cr, labels, int32(redisPort), "standalone", cr.ObjectMeta.Name, cr.Spec.Service.Type)
 	serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name, metav1.GetOptions{})
