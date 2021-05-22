@@ -1,0 +1,290 @@
+---
+trigger: 
+  - master
+
+pr:
+  branches:
+    include:
+    - master
+
+variables:
+  - group: RuntimeVariables
+
+parameters:
+- name: GolangVersion
+  type: string
+  default: '1.16'
+
+stages:
+- stage: precheck
+  jobs:
+    - job: gofmt
+      dependsOn: []
+      pool:
+        vmImage: "ubuntu-18.04"
+      steps:
+        - task: GoTool@0
+          displayName: "Installing Golang"
+          inputs:
+            version: '${{ parameters.GolangVersion }}'
+        - script: |
+            #!/bin/bash
+            gofmt_files=$(go fmt ./... | wc -l)
+            if [[ ${gofmt_files} > 0 ]]
+            then
+                echo "Please format golang files using:- go fmt ./..."
+                exit 1
+            else
+                echo "All files are formated using gofmt"
+            fi
+          displayName: "Executing gofmt"
+    - job: govet
+      dependsOn: []
+      pool:
+        vmImage: "ubuntu-18.04"
+      steps:
+        - task: GoTool@0
+          displayName: "Installing Golang"
+          inputs:
+            version: '${{ parameters.GolangVersion }}'
+        - task: Go@0
+          displayName: "Executing go vet"
+          inputs:
+            command: 'custom'
+            customCommand: 'vet'
+
+- stage: code_quality
+  dependsOn: ["precheck"]
+  jobs:
+    - job: golang_ci_lint
+      dependsOn: []
+      pool:
+        vmImage: "ubuntu-18.04"
+      steps:
+        - task: GoTool@0
+          displayName: "Installing Golang"
+          inputs:
+            version: '${{ parameters.GolangVersion }}'
+        - script: |
+            curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.40.0
+            ./bin/golangci-lint run --timeout 5m0s ./...
+          displayName: "Executing golang-ci lint"
+
+- stage: container_quality
+  dependsOn: ["precheck"]
+  jobs:
+    - job: dockerfile_lint
+      dependsOn: []
+      pool:
+        vmImage: "ubuntu-18.04"
+      steps:
+        - script: |
+            #!/bin/bash
+            download_hadolint() {
+                wget https://github.com/hadolint/hadolint/releases/download/v2.4.0/hadolint-Linux-x86_64
+                chmod +x hadolint-Linux-x86_64
+            }
+            execute_hadolint() {
+                ./hadolint-Linux-x86_64 Dockerfile --ignore DL3007 --ignore DL3018
+            }
+            main() {
+                download_hadolint
+                execute_hadolint
+            }
+            main
+          displayName: "Executing dockerlinter"
+
+- stage: build
+  dependsOn: ["code_quality"]
+  jobs:
+    - job: linux_amd64
+      dependsOn: []
+      pool:
+        vmImage: "ubuntu-18.04"
+      steps:
+        - task: GoTool@0
+          displayName: "Installing Golang"
+          inputs:
+            version: '${{ parameters.GolangVersion }}'
+        - task: Go@0
+          displayName: "Executing go build"
+          inputs:
+            command: 'build'
+            arguments: '-o $(Agent.BuildDirectory)/${{ parameters.ApplicationName }}'
+        - task: ArchiveFiles@2
+          displayName: 'Archiving go binary'
+          inputs:
+            rootFolderOrFile: '$(Agent.BuildDirectory)/${{ parameters.ApplicationName }}'
+            includeRootFolder: true
+            archiveType: 'zip'
+            archiveFile: '$(Build.ArtifactStagingDirectory)/compiled/${{ parameters.ApplicationName }}-linux-amd64.zip'
+            replaceExistingArchive: true
+        - task: PublishBuildArtifacts@1
+          inputs:
+            PathtoPublish: '$(Build.ArtifactStagingDirectory)/compiled'
+            ArtifactName: 'drop'
+            publishLocation: 'Container'
+
+- stage: build_image
+  dependsOn: ["container_quality"]
+  jobs:
+    - job: linux_amd64
+      dependsOn: []
+      steps:
+      - task: Docker@2
+        displayName: "Building docker image"
+        inputs:
+          command: 'build'
+          Dockerfile: '**/Dockerfile'
+          tags: '$(Build.BuildId)'
+          repository: '${{ parameters.ApplicationName }}'
+      - script: |
+          mkdir -p $(Build.ArtifactStagingDirectory)/image
+          docker save -o $(Build.ArtifactStagingDirectory)/image/${{ parameters.ApplicationName }}.tar ${{ parameters.ApplicationName }}:$(Build.BuildId)
+        displayName: "Archiving docker image"
+      - task: PublishBuildArtifacts@1
+        inputs:
+          PathtoPublish: '$(Build.ArtifactStagingDirectory)/image'
+          ArtifactName: 'dropcontainer'
+          publishLocation: 'Container'
+
+- stage: generate_manifests
+  dependsOn: ["build", "build_image"]
+  jobs:
+    - job: linux_amd64
+      dependsOn: []
+      pool:
+        vmImage: "ubuntu-18.04"
+      steps:
+        - task: GoTool@0
+          displayName: "Installing Golang"
+          inputs:
+            version: '${{ parameters.GolangVersion }}'
+      - script: |
+          sudo apt-get install make -y
+          make manifests
+        displayName: "Archiving docker image"
+
+- stage: code_security
+  dependsOn: ["generate_manifests"]
+  jobs:
+    - job: gosec
+      dependsOn: []
+      steps:
+        - script: |
+            #!/bin/bash
+            install_gosec() {
+                curl -sfL https://raw.githubusercontent.com/securego/gosec/master/install.sh | sh -s latest
+            }
+            execute_gosec() {
+                ./bin/gosec -fmt=junit-xml -out=./bin/results.xml ./... || true
+            }
+            main() {
+                install_gosec
+                execute_gosec
+            }
+            main
+          displayName: "Execute gosec scan"
+        - task: PublishTestResults@2
+          displayName: "Publish test results"
+          inputs:
+            testResultsFormat: 'JUnit'
+            testResultsFiles: './bin/results.xml'
+            failTaskOnFailedTests: false
+            testRunTitle: 'GoSec Test Result'
+
+- stage: container_security
+  dependsOn: ["generate_manifests"]
+  jobs:
+    - job: trivy_scan
+      dependsOn: []
+      steps:
+        - task: DownloadBuildArtifacts@0
+          displayName: "Downloading the image artifact"
+          inputs:
+            buildType: 'current'
+            downloadType: 'single'
+            artifactName: 'dropcontainer'
+            downloadPath: '$(System.ArtifactsDirectory)'
+        - script: |
+            #!/bin/bash
+            install_trivy() {
+                sudo apt-get install wget apt-transport-https gnupg lsb-release -y
+                wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+                echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
+                sudo apt-get update
+                sudo apt-get install trivy -y
+            }
+            execute_trivy() {
+                trivy image --input ${IMAGE_PATH}
+            }
+            main() {
+                install_trivy
+                execute_trivy
+            }
+            main
+          displayName: "Execute trivy scan"
+          env:
+            IMAGE_PATH: $(System.ArtifactsDirectory)/dropcontainer/${{ parameters.ApplicationName }}.tar
+
+- stage: release_quay
+  dependsOn: ["container_security", "code_security"]
+  jobs:
+    - job: quay
+      dependsOn: []  
+      pool:
+        vmImage: "ubuntu-18.04"
+      steps:
+        - task: Docker@2
+          displayName: "Publish quay image"
+          inputs:
+            containerRegistry: 'QuayServiceConnection'
+            repository: '${{ parameters.QuayImageName }}'
+            command: 'buildAndPush'
+            Dockerfile: '**/Dockerfile'
+            tags: |
+              latest
+              $(Build.SourceBranchName)
+      condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+
+- stage: release_github_image
+  dependsOn: ["container_security", "code_security"]
+  jobs:
+    - job: github
+      dependsOn: []  
+      pool:
+        vmImage: "ubuntu-18.04"
+      steps:
+        - task: Docker@2
+          displayName: "Publish github image"
+          inputs:
+            containerRegistry: 'GithubServiceConnection'
+            repository: '${{ parameters.GithubImageName }}'
+            command: 'buildAndPush'
+            Dockerfile: '**/Dockerfile'
+            tags: |
+              latest
+              $(Build.SourceBranchName)
+      condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+
+- stage: docs
+  dependsOn: ["release_quay", "release_github_image"]
+  jobs:
+    - job: build
+      dependsOn: []  
+      pool:
+        vmImage: "ubuntu-18.04"
+      steps:
+        - task: NodeTool@0
+          displayName: "Installing NodeJS"
+          inputs:
+            versionSpec: '>=8.6'
+        - script: |
+            build_docs() {
+                cd docs; yarn install && \
+                    yarn add -D vuepress && \
+                    yarn build
+            }
+            build_docs
+          displayName: "Building documentation"
+  condition: and(succeeded(), eq(${{ parameters.BuildDocs }}, true))
