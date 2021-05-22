@@ -3,8 +3,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/OT-CONTAINER-KIT/redis-operator">
-    <img src="https://github.com/OT-CONTAINER-KIT/redis-operator/workflows/CI%20Pipeline/badge.svg" alt="Github CI">
+  <a href="https://dev.azure.com/opstreedevops/DevOps/_apis/build/status/redis-operator/redis-operator?repoName=OT-CONTAINER-KIT%2Fredis-operator&branchName=master">
+    <img src="https://dev.azure.com/opstreedevops/DevOps/_apis/build/status/redis-operator/redis-operator?repoName=OT-CONTAINER-KIT%2Fredis-operator&branchName=master" alt="Azure Pipelines">
   </a>
   <a href="https://goreportcard.com/report/github.com/OT-CONTAINER-KIT/redis-operator">
     <img src="https://goreportcard.com/badge/github.com/OT-CONTAINER-KIT/redis-operator" alt="GoReportCard">
