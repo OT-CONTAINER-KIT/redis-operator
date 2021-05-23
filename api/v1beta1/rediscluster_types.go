@@ -17,6 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -25,11 +26,31 @@ import (
 
 // RedisClusterSpec defines the desired state of RedisCluster
 type RedisClusterSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	Size              *int32                     `json:"size"`
+	KubernetesConfig  KubernetesConfig           `json:"kubernetesConfig"`
+	RedisLeader       RedisLeader                `json:"redisLeader,omitempty"`
+	RedisFollower     RedisFollower              `json:"redisFollower,omitempty"`
+	RedisExporter     *RedisExporter             `json:"redisExporter,omitempty"`
+	Storage           *Storage                   `json:"storage,omitempty"`
+	NodeSelector      map[string]string          `json:"nodeSelector,omitempty"`
+	SecurityContext   *corev1.PodSecurityContext `json:"securityContext,omitempty"`
+	PriorityClassName string                     `json:"priorityClassName,omitempty"`
+	Affinity          *corev1.Affinity           `json:"affinity,omitempty"`
+	Tolerations       *[]corev1.Toleration       `json:"tolerations,omitempty"`
+}
 
-	// Foo is an example field of RedisCluster. Edit rediscluster_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+// RedisLeader interface will have the redis master configuration
+type RedisLeader struct {
+	Resources   Resources         `json:"resources,omitempty"`
+	RedisConfig map[string]string `json:"redisConfig,omitempty"`
+	Service     Service           `json:"service,omitempty"`
+}
+
+// RedisFollower interface will have the redis slave configuration
+type RedisFollower struct {
+	Resources   Resources         `json:"resources,omitempty"`
+	RedisConfig map[string]string `json:"redisConfig,omitempty"`
+	Service     Service           `json:"service,omitempty"`
 }
 
 // RedisClusterStatus defines the observed state of RedisCluster
