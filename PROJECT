@@ -1,5 +1,9 @@
 domain: redis.opstreelabs.in
-layout: go.kubebuilder.io/v3
+layout:
+- go.kubebuilder.io/v3
+plugins:
+  manifests.sdk.operatorframework.io/v2: {}
+  scorecard.sdk.operatorframework.io/v2: {}
 projectName: redis-operator
 repo: redis-operator
 resources:
@@ -11,7 +15,13 @@ resources:
   kind: Redis
   path: redis-operator/api/v1beta1
   version: v1beta1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: redis.opstreelabs.in
+  group: redis
+  kind: RedisCluster
+  path: redis-operator/api/v1beta1
+  version: v1beta1
 version: "3"
-plugins:
-  manifests.sdk.operatorframework.io/v2: {}
-  scorecard.sdk.operatorframework.io/v2: {}
