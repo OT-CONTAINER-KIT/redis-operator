@@ -8,9 +8,9 @@ Sometimes getting data from disks can be time-consuming. In order to increase th
 
 ![](./images/redis-as-database.png)
 
-## Redis Master-Slave Replication
+## Redis Leader-Follower Replication
 
-Beginning with the explanation about Redis Master-Slave. In this phenomenon, Redis can replicate data to any number of nodes. ie. it lets the slave have the exact copy of their master. This helps in performance optimizations.
+Beginning with the explanation about Redis Leader-Follower. In this phenomenon, Redis can replicate data to any number of nodes. ie. it lets the follower have the exact copy of their Leader. This helps in performance optimizations.
 
 ## Redis Cluster
 
@@ -18,7 +18,7 @@ A Redis cluster is simply a [data sharding strategy](https://www.digitalocean.co
 
 ## Replication vs Sharding
 
-Replication is also known as mirroring of data. In replication, all the data get copied from the master node to the slave node.
+Replication is also known as mirroring of data. In replication, all the data get copied from the leader node to the follower node.
 Sharding is also known as partitioning. It splits up the data by the key to multiple nodes.
 
 <div align="center">

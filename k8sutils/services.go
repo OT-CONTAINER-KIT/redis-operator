@@ -91,66 +91,66 @@ func GenerateServiceDef(cr *redisv1beta1.Redis, labels map[string]string, portNu
 	return service
 }
 
-// CreateMasterHeadlessService creates master headless service
-func CreateMasterHeadlessService(cr *redisv1beta1.Redis) {
+// CreateLeaderHeadlessService creates leader headless service
+func CreateLeaderHeadlessService(cr *redisv1beta1.Redis) {
 	labels := map[string]string{
-		"app":  cr.ObjectMeta.Name + "-master",
-		"role": "master",
+		"app":  cr.ObjectMeta.Name + "-leader",
+		"role": "leader",
 	}
-	serviceDefinition := GenerateHeadlessServiceDef(cr, labels, int32(redisPort), "master", cr.ObjectMeta.Name+"-master-headless", "None")
-	serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name+"-master-headless", metav1.GetOptions{})
+	serviceDefinition := GenerateHeadlessServiceDef(cr, labels, int32(redisPort), "leader", cr.ObjectMeta.Name+"-leader-headless", "None")
+	serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name+"-leader-headless", metav1.GetOptions{})
 	service := ServiceInterface{
 		ExistingService:      serviceBody,
 		NewServiceDefinition: serviceDefinition,
-		ServiceType:          "master",
+		ServiceType:          "leader",
 	}
 	CompareAndCreateHeadlessService(cr, service, err)
 }
 
-// CreateMasterService creates different services for master
-func CreateMasterService(cr *redisv1beta1.Redis) {
+// CreateLeaderService creates different services for leader
+func CreateLeaderService(cr *redisv1beta1.Redis) {
 	labels := map[string]string{
-		"app":  cr.ObjectMeta.Name + "-master",
-		"role": "master",
+		"app":  cr.ObjectMeta.Name + "-leader",
+		"role": "leader",
 	}
-	serviceDefinition := GenerateServiceDef(cr, labels, int32(redisPort), "master", cr.ObjectMeta.Name+"-master", cr.Spec.Master.Service.Type)
-	serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name+"-master", metav1.GetOptions{})
+	serviceDefinition := GenerateServiceDef(cr, labels, int32(redisPort), "leader", cr.ObjectMeta.Name+"-leader", cr.Spec.Leader.Service.Type)
+	serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name+"-leader", metav1.GetOptions{})
 	service := ServiceInterface{
 		ExistingService:      serviceBody,
 		NewServiceDefinition: serviceDefinition,
-		ServiceType:          "master",
+		ServiceType:          "leader",
 	}
 	CompareAndCreateService(cr, service, err)
 }
 
-// CreateSlaveHeadlessService creates slave headless service
-func CreateSlaveHeadlessService(cr *redisv1beta1.Redis) {
+// CreateFollowerHeadlessService creates follower headless service
+func CreateFollowerHeadlessService(cr *redisv1beta1.Redis) {
 	labels := map[string]string{
-		"app":  cr.ObjectMeta.Name + "-slave",
-		"role": "slave",
+		"app":  cr.ObjectMeta.Name + "-follower",
+		"role": "follower",
 	}
-	serviceDefinition := GenerateHeadlessServiceDef(cr, labels, int32(redisPort), "slave", cr.ObjectMeta.Name+"-slave-headless", "None")
-	serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name+"-slave-headless", metav1.GetOptions{})
+	serviceDefinition := GenerateHeadlessServiceDef(cr, labels, int32(redisPort), "follower", cr.ObjectMeta.Name+"-follower-headless", "None")
+	serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name+"-follower-headless", metav1.GetOptions{})
 	service := ServiceInterface{
 		ExistingService:      serviceBody,
 		NewServiceDefinition: serviceDefinition,
-		ServiceType:          "slave",
+		ServiceType:          "follower",
 	}
 	CompareAndCreateHeadlessService(cr, service, err)
 }
 
-// CreateSlaveService creates different services for slave
-func CreateSlaveService(cr *redisv1beta1.Redis) {
+// CreateFollwerService creates different services for follower
+func CreateFollowerService(cr *redisv1beta1.Redis) {
 	labels := map[string]string{
-		"app":  cr.ObjectMeta.Name + "-slave",
-		"role": "slave",
+		"app":  cr.ObjectMeta.Name + "-follower",
+		"role": "follower",
 	}
-	serviceDefinition := GenerateServiceDef(cr, labels, int32(redisPort), "slave", cr.ObjectMeta.Name+"-slave", cr.Spec.Slave.Service.Type)
-	serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name+"-slave", metav1.GetOptions{})
+	serviceDefinition := GenerateServiceDef(cr, labels, int32(redisPort), "follower", cr.ObjectMeta.Name+"-follower", cr.Spec.Follower.Service.Type)
+	serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name+"-follower", metav1.GetOptions{})
 	service := ServiceInterface{
 		ExistingService:      serviceBody,
 		NewServiceDefinition: serviceDefinition,
-		ServiceType:          "slave",
+		ServiceType:          "follower",
 	}
 	CompareAndCreateService(cr, service, err)
 }

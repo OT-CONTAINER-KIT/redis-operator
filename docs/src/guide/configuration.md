@@ -15,9 +15,9 @@ In this configuration section, we have these configuration parameters:-
 |--------|-----------------|------------|---------------|
 |`name` | redis | true | Name of the redis setup whether it is standalone or cluster |
 |`setupMode` | standalone | true | Mode of the redis setup, expected values:- `standalone` or `cluster` |
-|`cluster.size` | 3 | false | The number of master and slaves in redis cluster mode setup |
-|`cluster.master` | | false | Custom configurations for redis master |
-|`cluster.slave` | | false | Custom configurations for redis slave |
+|`cluster.size` | 3 | false | The number of leader and followers in redis cluster mode setup |
+|`cluster.leader` | | false | Custom configurations for redis leader |
+|`cluster.follower` | | false | Custom configurations for redis follower |
 |`existingPasswordSecret.enabled` | false | false | To use existing created password secret in Kubernetes |
 |`existingPasswordSecret.name` | redis-secret | false | Name of the existing secret in Kubernetes |
 |`existingPasswordSecret.key` | password | false | Name of the existing secret key in Kubernetes |
@@ -78,22 +78,22 @@ global:
       memory: 128Mi
 ```
 
-**Master**
+**Leader**
 
-Configuration specific to master nodes of Redis, like:- redis configuration parameters and type of service for master.
+Configuration specific to leader nodes of Redis, like:- redis configuration parameters and type of service for leader.
 
 ```yaml
-master:
+leader:
   service:
     type: ClusterIP
 ```
 
-**Slave**
+**follower**
 
-Configuration specific to slave nodes of Redis, like:- redis configuration parameters and type of service for slave.
+Configuration specific to follower nodes of Redis, like:- redis configuration parameters and type of service for follower.
 
 ```yaml
-slave:
+follower:
   service:
     type: ClusterIP
 ```

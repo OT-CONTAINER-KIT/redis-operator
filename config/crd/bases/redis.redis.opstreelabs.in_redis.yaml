@@ -627,6 +627,51 @@ spec:
                         type: array
                     type: object
                 type: object
+              follower:
+                description: RedisSlave interface will have the redis slave configuration
+                properties:
+                  redisConfig:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  resources:
+                    description: Resources describes requests and limits for the cluster
+                      resouces.
+                    properties:
+                      limits:
+                        description: ResourceDescription describes CPU and memory
+                          resources defined for a cluster.
+                        properties:
+                          cpu:
+                            type: string
+                          memory:
+                            type: string
+                        required:
+                        - cpu
+                        - memory
+                        type: object
+                      requests:
+                        description: ResourceDescription describes CPU and memory
+                          resources defined for a cluster.
+                        properties:
+                          cpu:
+                            type: string
+                          memory:
+                            type: string
+                        required:
+                        - cpu
+                        - memory
+                        type: object
+                    type: object
+                  service:
+                    description: Service is the struct for service definition
+                    properties:
+                      type:
+                        type: string
+                    required:
+                    - type
+                    type: object
+                type: object
               global:
                 description: GlobalConfig will be the JSON struct for Basic Redis
                   Config
@@ -678,7 +723,7 @@ spec:
                 required:
                 - image
                 type: object
-              master:
+              leader:
                 description: RedisMaster interface will have the redis master configuration
                 properties:
                   redisConfig:
@@ -965,52 +1010,6 @@ spec:
               size:
                 format: int32
                 type: integer
-                minimum: 3
-              slave:
-                description: RedisSlave interface will have the redis slave configuration
-                properties:
-                  redisConfig:
-                    additionalProperties:
-                      type: string
-                    type: object
-                  resources:
-                    description: Resources describes requests and limits for the cluster
-                      resouces.
-                    properties:
-                      limits:
-                        description: ResourceDescription describes CPU and memory
-                          resources defined for a cluster.
-                        properties:
-                          cpu:
-                            type: string
-                          memory:
-                            type: string
-                        required:
-                        - cpu
-                        - memory
-                        type: object
-                      requests:
-                        description: ResourceDescription describes CPU and memory
-                          resources defined for a cluster.
-                        properties:
-                          cpu:
-                            type: string
-                          memory:
-                            type: string
-                        required:
-                        - cpu
-                        - memory
-                        type: object
-                    type: object
-                  service:
-                    description: Service is the struct for service definition
-                    properties:
-                      type:
-                        type: string
-                    required:
-                    - type
-                    type: object
-                type: object
               storage:
                 description: Storage is the inteface to add pvc and pv support in
                   redis
@@ -1898,6 +1897,51 @@ spec:
                             type: array
                         type: object
                     type: object
+                  follower:
+                    description: RedisSlave interface will have the redis slave configuration
+                    properties:
+                      redisConfig:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      resources:
+                        description: Resources describes requests and limits for the
+                          cluster resouces.
+                        properties:
+                          limits:
+                            description: ResourceDescription describes CPU and memory
+                              resources defined for a cluster.
+                            properties:
+                              cpu:
+                                type: string
+                              memory:
+                                type: string
+                            required:
+                            - cpu
+                            - memory
+                            type: object
+                          requests:
+                            description: ResourceDescription describes CPU and memory
+                              resources defined for a cluster.
+                            properties:
+                              cpu:
+                                type: string
+                              memory:
+                                type: string
+                            required:
+                            - cpu
+                            - memory
+                            type: object
+                        type: object
+                      service:
+                        description: Service is the struct for service definition
+                        properties:
+                          type:
+                            type: string
+                        required:
+                        - type
+                        type: object
+                    type: object
                   global:
                     description: GlobalConfig will be the JSON struct for Basic Redis
                       Config
@@ -1949,7 +1993,7 @@ spec:
                     required:
                     - image
                     type: object
-                  master:
+                  leader:
                     description: RedisMaster interface will have the redis master
                       configuration
                     properties:
@@ -2241,51 +2285,6 @@ spec:
                   size:
                     format: int32
                     type: integer
-                  slave:
-                    description: RedisSlave interface will have the redis slave configuration
-                    properties:
-                      redisConfig:
-                        additionalProperties:
-                          type: string
-                        type: object
-                      resources:
-                        description: Resources describes requests and limits for the
-                          cluster resouces.
-                        properties:
-                          limits:
-                            description: ResourceDescription describes CPU and memory
-                              resources defined for a cluster.
-                            properties:
-                              cpu:
-                                type: string
-                              memory:
-                                type: string
-                            required:
-                            - cpu
-                            - memory
-                            type: object
-                          requests:
-                            description: ResourceDescription describes CPU and memory
-                              resources defined for a cluster.
-                            properties:
-                              cpu:
-                                type: string
-                              memory:
-                                type: string
-                            required:
-                            - cpu
-                            - memory
-                            type: object
-                        type: object
-                      service:
-                        description: Service is the struct for service definition
-                        properties:
-                          type:
-                            type: string
-                        required:
-                        - type
-                        type: object
-                    type: object
                   storage:
                     description: Storage is the inteface to add pvc and pv support
                       in redis
@@ -2563,19 +2562,6 @@ spec:
                 type: object
             type: object
         type: object
-    additionalPrinterColumns:
-    - jsonPath: .spec.size
-      description: Current master node count
-      name: Master
-      type: integer
-    - jsonPath: .spec.size
-      description: Current slave node count
-      name: Slave
-      type: integer
-    - jsonPath: .metadata.creationTimestamp
-      description: Last Deployment Time
-      name: Last Deployment Time
-      type: date
     served: true
     storage: true
     subresources:

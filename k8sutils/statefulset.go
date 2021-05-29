@@ -217,47 +217,47 @@ func FinalContainerDef(cr *redisv1beta1.Redis, role string) []corev1.Container {
 	return containerDefinition
 }
 
-// CreateRedisMaster will create a Redis Master
-func CreateRedisMaster(cr *redisv1beta1.Redis) {
+// CreateRedisLeader will create a Redis Leader
+func CreateRedisLeader(cr *redisv1beta1.Redis) {
 
 	labels := map[string]string{
-		"app":  cr.ObjectMeta.Name + "-master",
-		"role": "master",
+		"app":  cr.ObjectMeta.Name + "-leader",
+		"role": "leader",
 	}
-	statefulDefinition := GenerateStateFulSetsDef(cr, labels, "master", cr.Spec.Size)
-	statefulObject, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name+"-master", metav1.GetOptions{})
+	statefulDefinition := GenerateStateFulSetsDef(cr, labels, "leader", cr.Spec.Size)
+	statefulObject, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name+"-leader", metav1.GetOptions{})
 
 	if cr.Spec.Storage != nil {
-		statefulDefinition.Spec.VolumeClaimTemplates = append(statefulDefinition.Spec.VolumeClaimTemplates, CreatePVCTemplate(cr, "master"))
+		statefulDefinition.Spec.VolumeClaimTemplates = append(statefulDefinition.Spec.VolumeClaimTemplates, CreatePVCTemplate(cr, "leader"))
 	}
 
 	stateful := StatefulInterface{
 		Existing: statefulObject,
 		Desired:  statefulDefinition,
-		Type:     "master",
+		Type:     "leader",
 	}
-	CompareAndCreateStateful(cr, stateful, err, "master")
+	CompareAndCreateStateful(cr, stateful, err, "leader")
 }
 
-// CreateRedisSlave will create a Redis Slave
-func CreateRedisSlave(cr *redisv1beta1.Redis) {
+// CreateRedisFollower will create a Redis Follower
+func CreateRedisFollower(cr *redisv1beta1.Redis) {
 	labels := map[string]string{
-		"app":  cr.ObjectMeta.Name + "-slave",
-		"role": "slave",
+		"app":  cr.ObjectMeta.Name + "-follower",
+		"role": "follower",
 	}
-	statefulDefinition := GenerateStateFulSetsDef(cr, labels, "slave", cr.Spec.Size)
-	statefulObject, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name+"-slave", metav1.GetOptions{})
+	statefulDefinition := GenerateStateFulSetsDef(cr, labels, "follower", cr.Spec.Size)
+	statefulObject, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name+"-follower", metav1.GetOptions{})
 
 	if cr.Spec.Storage != nil {
-		statefulDefinition.Spec.VolumeClaimTemplates = append(statefulDefinition.Spec.VolumeClaimTemplates, CreatePVCTemplate(cr, "slave"))
+		statefulDefinition.Spec.VolumeClaimTemplates = append(statefulDefinition.Spec.VolumeClaimTemplates, CreatePVCTemplate(cr, "follower"))
 	}
 
 	stateful := StatefulInterface{
 		Existing: statefulObject,
 		Desired:  statefulDefinition,
-		Type:     "slave",
+		Type:     "follower",
 	}
-	CompareAndCreateStateful(cr, stateful, err, "slave")
+	CompareAndCreateStateful(cr, stateful, err, "follower")
 }
 
 // CreateRedisStandalone will create a Redis Standalone server

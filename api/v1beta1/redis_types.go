@@ -30,8 +30,8 @@ type RedisSpec struct {
 	Size              *int32                     `json:"size,omitempty"`
 	GlobalConfig      GlobalConfig               `json:"global"`
 	Service           Service                    `json:"service"`
-	Master            RedisMaster                `json:"master,omitempty"`
-	Slave             RedisSlave                 `json:"slave,omitempty"`
+	Leader            RedisLeader                `json:"leader,omitempty"`
+	Follower          RedisFollower              `json:"follower,omitempty"`
 	RedisExporter     *RedisExporter             `json:"redisExporter,omitempty"`
 	RedisConfig       map[string]string          `json:"redisConfig"`
 	Resources         *Resources                 `json:"resources,omitempty"`
@@ -54,7 +54,7 @@ type Storage struct {
 }
 
 // RedisMaster interface will have the redis master configuration
-type RedisMaster struct {
+type RedisLeader struct {
 	Resources   Resources         `json:"resources,omitempty"`
 	RedisConfig map[string]string `json:"redisConfig,omitempty"`
 	Service     Service           `json:"service,omitempty"`
@@ -83,7 +83,7 @@ type ExistingPasswordSecret struct {
 }
 
 // RedisSlave interface will have the redis slave configuration
-type RedisSlave struct {
+type RedisFollower struct {
 	Resources   Resources         `json:"resources,omitempty"`
 	RedisConfig map[string]string `json:"redisConfig,omitempty"`
 	Service     Service           `json:"service,omitempty"`

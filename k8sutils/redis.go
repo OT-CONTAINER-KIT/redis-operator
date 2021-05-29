@@ -44,7 +44,7 @@ func ExecuteRedisClusterCommand(cr *redisv1beta1.Redis) {
 	cmd := []string{"redis-cli", "--cluster", "create"}
 	for podCount := 0; podCount <= int(*replicas)-1; podCount++ {
 		pod := RedisDetails{
-			PodName:   cr.ObjectMeta.Name + "-master-" + strconv.Itoa(podCount),
+			PodName:   cr.ObjectMeta.Name + "-leader-" + strconv.Itoa(podCount),
 			Namespace: cr.Namespace,
 		}
 		cmd = append(cmd, getRedisServerIP(pod)+":6379")
@@ -61,23 +61,23 @@ func ExecuteRedisClusterCommand(cr *redisv1beta1.Redis) {
 		cmd = append(cmd, pass)
 	}
 	reqLogger.Info("Redis cluster creation command is", "Command", cmd)
-	executeCommand(cr, cmd, cr.ObjectMeta.Name+"-master-0")
+	executeCommand(cr, cmd, cr.ObjectMeta.Name+"-leader-0")
 }
 
 // createRedisReplicationCommand will create redis replication creation command
 func createRedisReplicationCommand(cr *redisv1beta1.Redis, nodeNumber string) []string {
 	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
 	cmd := []string{"redis-cli", "--cluster", "add-node"}
-	masterPod := RedisDetails{
-		PodName:   cr.ObjectMeta.Name + "-master-" + nodeNumber,
+	leaderPod := RedisDetails{
+		PodName:   cr.ObjectMeta.Name + "-leader-" + nodeNumber,
 		Namespace: cr.Namespace,
 	}
-	slavePod := RedisDetails{
-		PodName:   cr.ObjectMeta.Name + "-slave-" + nodeNumber,
+	followerPod := RedisDetails{
+		PodName:   cr.ObjectMeta.Name + "-follower-" + nodeNumber,
 		Namespace: cr.Namespace,
 	}
-	cmd = append(cmd, getRedisServerIP(slavePod)+":6379")
-	cmd = append(cmd, getRedisServerIP(masterPod)+":6379")
+	cmd = append(cmd, getRedisServerIP(followerPod)+":6379")
+	cmd = append(cmd, getRedisServerIP(leaderPod)+":6379")
 	cmd = append(cmd, "--cluster-slave")
 
 	if cr.Spec.GlobalConfig.Password != nil && cr.Spec.GlobalConfig.ExistingPasswordSecret == nil {
@@ -98,7 +98,7 @@ func ExecuteRedisReplicationCommand(cr *redisv1beta1.Redis) {
 	replicas := cr.Spec.Size
 	for podCount := 0; podCount <= int(*replicas)-1; podCount++ {
 		cmd := createRedisReplicationCommand(cr, strconv.Itoa(podCount))
-		executeCommand(cr, cmd, cr.ObjectMeta.Name+"-master-0")
+		executeCommand(cr, cmd, cr.ObjectMeta.Name+"-leader-0")
 	}
 }
 
@@ -107,7 +107,7 @@ func checkRedisCluster(cr *redisv1beta1.Redis) string {
 	var client *redis.Client
 	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
 
-	client = configureRedisClient(cr, cr.ObjectMeta.Name+"-master-0")
+	client = configureRedisClient(cr, cr.ObjectMeta.Name+"-leader-0")
 	cmd := redis.NewStringCmd("cluster", "nodes")
 	err := client.Process(cmd)
 	if err != nil {
@@ -124,8 +124,8 @@ func checkRedisCluster(cr *redisv1beta1.Redis) string {
 
 // ExecuteFaioverOperation will execute redis failover operations
 func ExecuteFaioverOperation(cr *redisv1beta1.Redis) {
-	executeFailoverCommand(cr, "master")
-	executeFailoverCommand(cr, "slave")
+	executeFailoverCommand(cr, "leader")
+	executeFailoverCommand(cr, "follower")
 }
 
 // executeFailoverCommand will execute failover command
@@ -256,7 +256,7 @@ func getContainerID(cr *redisv1beta1.Redis, podName string) (int, *corev1.Pod) {
 	targetContainer := -1
 	for containerID, tr := range pod.Spec.Containers {
 		reqLogger.Info("Pod Counted successfully", "Count", containerID, "Container Name", tr.Name)
-		if tr.Name == cr.ObjectMeta.Name+"-master" {
+		if tr.Name == cr.ObjectMeta.Name+"-leader" {
 			targetContainer = containerID
 			break
 		}
