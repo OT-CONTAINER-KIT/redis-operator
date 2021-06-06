@@ -4,8 +4,8 @@ import (
 	"context"
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -17,12 +17,6 @@ const (
 var (
 	serviceType corev1.ServiceType
 )
-
-// Service is a interface for Redis Operator service related changes
-type Service interface {
-	CreateOrUpdateHeadlessService(namespace string, serviceMeta metav1.ObjectMeta, labels map[string]string, ownerDef metav1.OwnerReference) error
-	CreateOrUpdateService(namespace string, serviceMeta metav1.ObjectMeta, labels map[string]string, ownerDef metav1.OwnerReference) error
-}
 
 // generateHeadlessServiceDef generates service definition for headless service
 func generateHeadlessServiceDef(serviceMeta metav1.ObjectMeta, labels map[string]string, ownerDef metav1.OwnerReference) *corev1.Service {
@@ -122,7 +116,7 @@ func updateService(namespace, service *corev1.Service) error {
 
 // getService is a method to get service is Kubernetes
 func getService(namespace, service string) (*corev1.Service, error) {
-	logger := serviceLogger(namespace, service.Name)
+	logger := serviceLogger(namespace, service)
 	serviceInfo, err := generateK8sClient().CoreV1().Services(namespace).Get(context.TODO(), service, metav1.GetOptions{})
 	if err != nil {
 		logger.Error(err, "Redis service get action is failed")

@@ -14,8 +14,8 @@ func generateMetaInformation(resourceKind string, apiVersion string) metav1.Type
 	}
 }
 
-// GenerateObjectMetaInformation generates the object meta information
-func GenerateObjectMetaInformation(name string, namespace string, labels map[string]string, annotations map[string]string) metav1.ObjectMeta {
+// generateObjectMetaInformation generates the object meta information
+func generateObjectMetaInformation(name string, namespace string, labels map[string]string, annotations map[string]string) metav1.ObjectMeta {
 	return metav1.ObjectMeta{
 		Name:        name,
 		Namespace:   namespace,
@@ -53,8 +53,8 @@ func redisAsOwner(cr *redisv1beta1.Redis) metav1.OwnerReference {
 	}
 }
 
-// GenerateStatefulSetsAnots generates and returns statefulsets annotations
-func GenerateStatefulSetsAnots() map[string]string {
+// generateStatefulSetsAnots generates and returns statefulsets annotations
+func generateStatefulSetsAnots() map[string]string {
 	return map[string]string{
 		"redis.opstreelabs.in": "true",
 		"prometheus.io/scrape": "true",
@@ -62,8 +62,8 @@ func GenerateStatefulSetsAnots() map[string]string {
 	}
 }
 
-// GenerateServiceAnots generates and returns service annotations
-func GenerateServiceAnots() map[string]string {
+// generateServiceAnots generates and returns service annotations
+func generateServiceAnots() map[string]string {
 	return map[string]string{
 		"redis.opstreelabs.in": "true",
 		"prometheus.io/scrape": "true",

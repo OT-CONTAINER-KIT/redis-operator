@@ -62,7 +62,7 @@ type RedisCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   RedisClusterSpec   `json:"spec,omitempty"`
+	Spec   RedisClusterSpec `json:"spec,omitempty"`
 	Status RedisClusterSpec `json:"status,omitempty"`
 }
 

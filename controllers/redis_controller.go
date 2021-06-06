@@ -75,12 +75,8 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	found := &appsv1.StatefulSet{}
 	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: instance.Name, Namespace: instance.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
-		if instance.Spec.KubernetesConfig.Password != nil && instance.Spec.KubernetesConfig.ExistingPasswordSecret == nil {
-			k8sutils.CreateRedisStandaloneSecret(instance)
-		}
-		k8sutils.CreateRedisStandalone(instance)
-		k8sutils.CreateStandaloneService(instance)
-		k8sutils.CreateStandaloneHeadlessService(instance)
+		k8sutils.CreateStandAloneRedis(instance)
+		k8sutils.CreateStandAloneService(instance)
 	} else if err != nil {
 		return ctrl.Result{}, err
 	}

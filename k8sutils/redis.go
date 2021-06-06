@@ -30,7 +30,7 @@ type RedisDetails struct {
 // getRedisServerIP will return the IP of redis service
 func getRedisServerIP(redisInfo RedisDetails) string {
 	reqLogger := log.WithValues("Request.Namespace", redisInfo.Namespace, "Request.PodName", redisInfo.PodName)
-	redisIP, _ := GenerateK8sClient().CoreV1().Pods(redisInfo.Namespace).
+	redisIP, _ := generateK8sClient().CoreV1().Pods(redisInfo.Namespace).
 		Get(context.TODO(), redisInfo.PodName, metav1.GetOptions{})
 
 	reqLogger.Info("Successfully got the ip for redis", "ip", redisIP.Status.PodIP)
@@ -38,7 +38,7 @@ func getRedisServerIP(redisInfo RedisDetails) string {
 }
 
 // ExecuteRedisClusterCommand will execute redis cluster creation command
-func ExecuteRedisClusterCommand(cr *redisv1beta1.Redis) {
+func ExecuteRedisClusterCommand(cr *redisv1beta1.RedisCluster) {
 	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
 	replicas := cr.Spec.Size
 	cmd := []string{"redis-cli", "--cluster", "create"}
@@ -50,15 +50,11 @@ func ExecuteRedisClusterCommand(cr *redisv1beta1.Redis) {
 		cmd = append(cmd, getRedisServerIP(pod)+":6379")
 	}
 	cmd = append(cmd, "--cluster-yes")
-	if cr.Spec.GlobalConfig.Password != nil && cr.Spec.GlobalConfig.ExistingPasswordSecret == nil {
-		cmd = append(cmd, "-a")
-		cmd = append(cmd, *cr.Spec.GlobalConfig.Password)
-	}
 
-	if cr.Spec.GlobalConfig.ExistingPasswordSecret != nil {
-		pass := getRedisPassword(cr)
+	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
+		pass := getRedisPassword(cr.Namespace, cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
 		cmd = append(cmd, "-a")
-		cmd = append(cmd, pass)
+		cmd = append(cmd, *pass)
 	}
 	reqLogger.Info("Redis cluster creation command is", "Command", cmd)
 	executeCommand(cr, cmd, cr.ObjectMeta.Name+"-master-0")
@@ -80,12 +76,8 @@ func createRedisReplicationCommand(cr *redisv1beta1.Redis, nodeNumber string) []
 	cmd = append(cmd, getRedisServerIP(masterPod)+":6379")
 	cmd = append(cmd, "--cluster-slave")
 
-	if cr.Spec.GlobalConfig.Password != nil && cr.Spec.GlobalConfig.ExistingPasswordSecret == nil {
-		cmd = append(cmd, "-a")
-		cmd = append(cmd, *cr.Spec.GlobalConfig.Password)
-	}
-	if cr.Spec.GlobalConfig.ExistingPasswordSecret != nil {
-		pass := getRedisPassword(cr)
+	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
+		pass := getRedisPassword(cr.Namespace, cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
 		cmd = append(cmd, "-a")
 		cmd = append(cmd, pass)
 	}
@@ -94,7 +86,7 @@ func createRedisReplicationCommand(cr *redisv1beta1.Redis, nodeNumber string) []
 }
 
 // ExecuteRedisReplicationCommand will execute the replication command
-func ExecuteRedisReplicationCommand(cr *redisv1beta1.Redis) {
+func ExecuteRedisReplicationCommand(cr *redisv1beta1.RedisCluster) {
 	replicas := cr.Spec.Size
 	for podCount := 0; podCount <= int(*replicas)-1; podCount++ {
 		cmd := createRedisReplicationCommand(cr, strconv.Itoa(podCount))
@@ -187,14 +179,8 @@ func configureRedisClient(cr *redisv1beta1.Redis, podName string) *redis.Client 
 	}
 	var client *redis.Client
 
-	if cr.Spec.GlobalConfig.Password != nil && cr.Spec.GlobalConfig.ExistingPasswordSecret == nil {
-		client = redis.NewClient(&redis.Options{
-			Addr:     getRedisServerIP(redisInfo) + ":6379",
-			Password: *cr.Spec.GlobalConfig.Password,
-			DB:       0,
-		})
-	} else if cr.Spec.GlobalConfig.ExistingPasswordSecret != nil {
-		pass := getRedisPassword(cr)
+	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
+		pass := getRedisPassword(cr.Namespace, cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
 		client = redis.NewClient(&redis.Options{
 			Addr:     getRedisServerIP(redisInfo) + ":6379",
 			Password: pass,
@@ -222,7 +208,7 @@ func executeCommand(cr *redisv1beta1.Redis, cmd []string, podName string) {
 		reqLogger.Error(err, "Could not find pod to execute")
 	}
 
-	req := GenerateK8sClient().CoreV1().RESTClient().Post().Resource("pods").Name(podName).Namespace(cr.Namespace).SubResource("exec")
+	req := generateK8sClient().CoreV1().RESTClient().Post().Resource("pods").Name(podName).Namespace(cr.Namespace).SubResource("exec")
 	req.VersionedParams(&corev1.PodExecOptions{
 		Container: pod.Spec.Containers[targetContainer].Name,
 		Command:   cmd,
@@ -248,7 +234,7 @@ func executeCommand(cr *redisv1beta1.Redis, cmd []string, podName string) {
 // getContainerID will return the id of container from pod
 func getContainerID(cr *redisv1beta1.Redis, podName string) (int, *corev1.Pod) {
 	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
-	pod, err := GenerateK8sClient().CoreV1().Pods(cr.Namespace).Get(context.TODO(), podName, metav1.GetOptions{})
+	pod, err := generateK8sClient().CoreV1().Pods(cr.Namespace).Get(context.TODO(), podName, metav1.GetOptions{})
 	if err != nil {
 		reqLogger.Error(err, "Could not get pod info")
 	}
