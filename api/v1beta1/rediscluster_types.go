@@ -21,9 +21,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // RedisClusterSpec defines the desired state of RedisCluster
 type RedisClusterSpec struct {
 	Size              *int32                     `json:"size"`
@@ -37,26 +34,24 @@ type RedisClusterSpec struct {
 	PriorityClassName string                     `json:"priorityClassName,omitempty"`
 	Affinity          *corev1.Affinity           `json:"affinity,omitempty"`
 	Tolerations       *[]corev1.Toleration       `json:"tolerations,omitempty"`
+	Resources         Resources                  `json:"resources,omitempty"`
 }
 
 // RedisLeader interface will have the redis master configuration
 type RedisLeader struct {
-	Resources   Resources         `json:"resources,omitempty"`
 	RedisConfig map[string]string `json:"redisConfig,omitempty"`
 	Service     Service           `json:"service,omitempty"`
 }
 
 // RedisFollower interface will have the redis slave configuration
 type RedisFollower struct {
-	Resources   Resources         `json:"resources,omitempty"`
 	RedisConfig map[string]string `json:"redisConfig,omitempty"`
 	Service     Service           `json:"service,omitempty"`
 }
 
 // RedisClusterStatus defines the observed state of RedisCluster
 type RedisClusterStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	RedisCluster RedisCluster `json:"redisCluster,omitempty"`
 }
 
 //+kubebuilder:object:root=true

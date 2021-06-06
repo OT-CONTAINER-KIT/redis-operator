@@ -5,8 +5,8 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-// GenerateK8sClient create client for kubernetes
-func GenerateK8sClient() *kubernetes.Clientset {
+// generateK8sClient create client for kubernetes
+func generateK8sClient() *kubernetes.Clientset {
 	config, _ := rest.InClusterConfig()
 	clientset, _ := kubernetes.NewForConfig(config)
 	return clientset

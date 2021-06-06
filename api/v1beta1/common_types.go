@@ -36,9 +36,8 @@ type ResourceDescription struct {
 type KubernetesConfig struct {
 	Image                  string                  `json:"image"`
 	ImagePullPolicy        corev1.PullPolicy       `json:"imagePullPolicy,omitempty"`
-	Password               *string                 `json:"password,omitempty"`
 	Resources              *Resources              `json:"resources,omitempty"`
-	ExistingPasswordSecret *ExistingPasswordSecret `json:"existingPasswordSecret,omitempty"`
+	ExistingPasswordSecret *ExistingPasswordSecret `json:"redisSecret,omitempty"`
 }
 
 // ExistingPasswordSecret is the struct to access the existing secret

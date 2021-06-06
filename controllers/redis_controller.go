@@ -75,44 +75,12 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	found := &appsv1.StatefulSet{}
 	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: instance.Name, Namespace: instance.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
-		if instance.Spec.GlobalConfig.Password != nil && instance.Spec.GlobalConfig.ExistingPasswordSecret == nil {
-			k8sutils.CreateRedisSecret(instance)
+		if instance.Spec.KubernetesConfig.Password != nil && instance.Spec.KubernetesConfig.ExistingPasswordSecret == nil {
+			k8sutils.CreateRedisStandaloneSecret(instance)
 		}
-		if instance.Spec.Mode == "cluster" {
-			k8sutils.CreateRedisMaster(instance)
-			k8sutils.CreateMasterService(instance)
-			k8sutils.CreateMasterHeadlessService(instance)
-			k8sutils.CreateRedisSlave(instance)
-			k8sutils.CreateSlaveService(instance)
-			k8sutils.CreateSlaveHeadlessService(instance)
-			redisMasterInfo, err := k8sutils.GenerateK8sClient().AppsV1().StatefulSets(instance.Namespace).Get(context.TODO(), instance.ObjectMeta.Name+"-master", metav1.GetOptions{})
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-			redisSlaveInfo, err := k8sutils.GenerateK8sClient().AppsV1().StatefulSets(instance.Namespace).Get(context.TODO(), instance.ObjectMeta.Name+"-slave", metav1.GetOptions{})
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-			if int(redisMasterInfo.Status.ReadyReplicas) != int(*instance.Spec.Size) && int(redisSlaveInfo.Status.ReadyReplicas) != int(*instance.Spec.Size) {
-				reqLogger.Info("Redis master and slave nodes are not ready yet", "Ready.Replicas", strconv.Itoa(int(redisMasterInfo.Status.ReadyReplicas)))
-				return ctrl.Result{RequeueAfter: time.Second * 120}, nil
-			}
-			reqLogger.Info("Creating redis cluster by executing cluster creation command", "Ready.Replicas", strconv.Itoa(int(redisMasterInfo.Status.ReadyReplicas)))
-			if k8sutils.CheckRedisNodeCount(instance) != int(*instance.Spec.Size)*2 {
-				k8sutils.ExecuteRedisClusterCommand(instance)
-				k8sutils.ExecuteRedisReplicationCommand(instance)
-			} else {
-				reqLogger.Info("Redis master count is desired")
-				if k8sutils.CheckRedisClusterState(instance) >= int(*instance.Spec.Size)*2-1 {
-					k8sutils.ExecuteFaioverOperation(instance)
-				}
-				return ctrl.Result{RequeueAfter: time.Second * 120}, nil
-			}
-		} else if instance.Spec.Mode == "standalone" {
-			k8sutils.CreateRedisStandalone(instance)
-			k8sutils.CreateStandaloneService(instance)
-			k8sutils.CreateStandaloneHeadlessService(instance)
-		}
+		k8sutils.CreateRedisStandalone(instance)
+		k8sutils.CreateStandaloneService(instance)
+		k8sutils.CreateStandaloneHeadlessService(instance)
 	} else if err != nil {
 		return ctrl.Result{}, err
 	}
