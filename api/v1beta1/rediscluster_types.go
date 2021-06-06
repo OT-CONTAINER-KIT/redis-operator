@@ -63,7 +63,7 @@ type RedisCluster struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec   RedisClusterSpec   `json:"spec,omitempty"`
-	Status RedisClusterStatus `json:"status,omitempty"`
+	Status RedisClusterSpec `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true

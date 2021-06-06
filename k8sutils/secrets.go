@@ -16,11 +16,11 @@ type Secret interface {
 
 // GetRedisPassword method will return the redis password
 func GetRedisPassword(namespace, name, secretKey string) (string, error) {
-	reqLogger := log.WithValues("Request.Namespace", namespace, "Request.Name", namespace)
+	logger := secretLogger(namespace, namespace)
 	secretName, err := generateK8sClient().CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
-		reqLogger.Error(err, "Failed in getting existing secret for redis")
+		logger.Error(err, "Failed in getting existing secret for redis")
 	}
 	for key, value := range secretName.Data {
 		if key == secretKey {
@@ -28,4 +28,9 @@ func GetRedisPassword(namespace, name, secretKey string) (string, error) {
 		}
 	}
 	return "", nil
+}
+
+func secretLogger(namespace string, name string) {
+	reqLogger := log.WithValues("Request.Secret.Namespace", namespace, "Request.Secret.Name")
+	return reqLogger
 }
