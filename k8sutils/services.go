@@ -129,7 +129,7 @@ func getService(namespace string, service string) (*corev1.Service, error) {
 }
 
 func serviceLogger(namespace string, name string) logr.Logger {
-	reqLogger := log.WithValues("Request.Service.Namespace", namespace, "Request.Service.Name")
+	reqLogger := log.WithValues("Request.Service.Namespace", namespace, "Request.Service.Name", name)
 	return reqLogger
 }
 
@@ -138,14 +138,14 @@ func CreateOrUpdateHeadlessService(namespace string, serviceMeta metav1.ObjectMe
 	logger := serviceLogger(namespace, serviceMeta.Name)
 	storedService, err := getService(namespace, serviceMeta.Name)
 	serviceDef := generateHeadlessServiceDef(serviceMeta, labels, ownerDef)
-	if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(serviceDef); err != nil {
-		logger.Error(err, "Unable to patch redis service with comparison object")
-		return err
-	}
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return createService(namespace, serviceDef)
 		}
+		return err
+	}
+	if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(serviceDef); err != nil {
+		logger.Error(err, "Unable to patch redis service with comparison object")
 		return err
 	}
 	return patchService(storedService, serviceDef, namespace)
@@ -156,14 +156,14 @@ func CreateOrUpdateService(namespace string, serviceMeta metav1.ObjectMeta, labe
 	logger := serviceLogger(namespace, serviceMeta.Name)
 	storedService, err := getService(namespace, serviceMeta.Name)
 	serviceDef := generateServiceDef(serviceMeta, labels, k8sServiceType, enableMetrics, ownerDef)
-	if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(serviceDef); err != nil {
-		logger.Error(err, "Unable to patch redis service with comparison object")
-		return err
-	}
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return createService(namespace, serviceDef)
 		}
+		return err
+	}
+	if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(serviceDef); err != nil {
+		logger.Error(err, "Unable to patch redis service with comparison object")
 		return err
 	}
 	return patchService(storedService, serviceDef, namespace)

@@ -7,19 +7,12 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	redisv1beta1 "redis-operator/api/v1beta1"
 )
 
 const (
 	redisExporterContainer = "redis-exporter"
 	graceTime              = 15
-)
-
-var (
-	resourceStruct corev1.ResourceRequirements
 )
 
 // statefulSetParameters will define statefulsets input params
@@ -38,10 +31,10 @@ type statefulSetParameters struct {
 type containerParameters struct {
 	Image                        string
 	ImagePullPolicy              corev1.PullPolicy
-	Resources                    *redisv1beta1.Resources
+	Resources                    *corev1.ResourceRequirements
 	RedisExporterImage           string
 	RedisExporterImagePullPolicy corev1.PullPolicy
-	RedisExporterResources       *redisv1beta1.Resources
+	RedisExporterResources       *corev1.ResourceRequirements
 	Role                         string
 	EnabledPassword              *bool
 	SecretName                   *string
@@ -54,14 +47,14 @@ func CreateOrUpdateStateFul(namespace string, stsMeta metav1.ObjectMeta, labels 
 	logger := stateFulSetLogger(namespace, stsMeta.Name)
 	storedStateful, err := getStateFulSet(namespace, stsMeta.Name)
 	statefulSetDef := generateStateFulSetsDef(stsMeta, labels, params, ownerDef, containerParams)
-	if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(statefulSetDef); err != nil {
-		logger.Error(err, "Unable to patch redis statefulset with comparison object")
-		return err
-	}
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return createStateFulSet(namespace, statefulSetDef)
 		}
+		return err
+	}
+	if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(statefulSetDef); err != nil {
+		logger.Error(err, "Unable to patch redis statefulset with comparison object")
 		return err
 	}
 	return patchStateFulSet(storedStateful, statefulSetDef, namespace)
@@ -138,14 +131,13 @@ func createPVCTemplate(name string, storageSpec corev1.PersistentVolumeClaim) co
 
 // generateContainerDef generates container fefinition for Redis
 func generateContainerDef(name string, containerParams containerParameters, enableMetrics bool) []corev1.Container {
-	resourceInfo := getResources(containerParams.Resources)
 	containerDefinition := []corev1.Container{
 		{
 			Name:            name,
 			Image:           containerParams.Image,
 			ImagePullPolicy: containerParams.ImagePullPolicy,
 			Env:             getEnvironmentVariables(containerParams.Role, containerParams.EnabledPassword, containerParams.SecretName, containerParams.SecretKey, containerParams.PersistenceEnabled),
-			Resources:       *resourceInfo,
+			Resources:       *containerParams.Resources,
 			ReadinessProbe:  getProbeInfo(),
 			LivenessProbe:   getProbeInfo(),
 			VolumeMounts:    getVolumeMount(name, containerParams.PersistenceEnabled),
@@ -162,16 +154,7 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 		Image:           params.RedisExporterImage,
 		ImagePullPolicy: params.RedisExporterImagePullPolicy,
 		Env:             getEnvironmentVariables(params.Role, params.EnabledPassword, params.SecretName, params.SecretKey, params.PersistenceEnabled),
-		Resources: corev1.ResourceRequirements{
-			Limits: corev1.ResourceList{}, Requests: corev1.ResourceList{},
-		},
-	}
-
-	if params.RedisExporterResources != nil {
-		exporterDefinition.Resources.Limits[corev1.ResourceCPU] = resource.MustParse(params.RedisExporterResources.ResourceLimits.CPU)
-		exporterDefinition.Resources.Requests[corev1.ResourceCPU] = resource.MustParse(params.RedisExporterResources.ResourceRequests.CPU)
-		exporterDefinition.Resources.Limits[corev1.ResourceMemory] = resource.MustParse(params.RedisExporterResources.ResourceLimits.Memory)
-		exporterDefinition.Resources.Requests[corev1.ResourceMemory] = resource.MustParse(params.RedisExporterResources.ResourceRequests.Memory)
+		Resources:       *params.RedisExporterResources,
 	}
 	return exporterDefinition
 }
@@ -210,16 +193,17 @@ func getProbeInfo() *corev1.Probe {
 }
 
 // getResources will get the resource information for Redis container
-func getResources(resources *redisv1beta1.Resources) *corev1.ResourceRequirements {
-	if resources != nil {
-		resourceStruct.Limits[corev1.ResourceCPU] = resource.MustParse(resources.ResourceLimits.CPU)
-		resourceStruct.Requests[corev1.ResourceCPU] = resource.MustParse(resources.ResourceRequests.CPU)
-		resourceStruct.Limits[corev1.ResourceMemory] = resource.MustParse(resources.ResourceLimits.Memory)
-		resourceStruct.Requests[corev1.ResourceMemory] = resource.MustParse(resources.ResourceRequests.Memory)
-		return &resourceStruct
-	}
-	return nil
-}
+// func getResources(resources *redisv1beta1.Resources) *corev1.ResourceRequirements {
+// 	var resourceStruct *corev1.ResourceRequirements
+// 	if resources != nil {
+// 		resourceStruct.Limits[corev1.ResourceCPU] = resource.MustParse(resources.ResourceLimits.CPU)
+// 		resourceStruct.Requests[corev1.ResourceCPU] = resource.MustParse(resources.ResourceRequests.CPU)
+// 		resourceStruct.Limits[corev1.ResourceMemory] = resource.MustParse(resources.ResourceLimits.Memory)
+// 		resourceStruct.Requests[corev1.ResourceMemory] = resource.MustParse(resources.ResourceRequests.Memory)
+// 		return resourceStruct
+// 	}
+// 	return nil
+// }
 
 // getEnvironmentVariables returns all the required Environment Variables
 func getEnvironmentVariables(role string, enabledPassword *bool, secretName *string, secretKey *string, persistenceEnabled *bool) []corev1.EnvVar {
@@ -276,15 +260,15 @@ func getStateFulSet(namespace string, stateful string) (*appsv1.StatefulSet, err
 	logger := stateFulSetLogger(namespace, stateful)
 	statefulInfo, err := generateK8sClient().AppsV1().StatefulSets(namespace).Get(context.TODO(), stateful, metav1.GetOptions{})
 	if err != nil {
-		logger.Error(err, "Redis statefulset get action is failed")
+		logger.Info("Redis statefulset get action is failed")
 		return nil, err
 	}
 	logger.Info("Redis statefulset get action is successful")
-	return statefulInfo, nil
+	return statefulInfo, err
 }
 
 // stateFulSetLogger will generate logging interface for Statfulsets
 func stateFulSetLogger(namespace string, name string) logr.Logger {
-	reqLogger := log.WithValues("Request.StateFulSet.Namespace", namespace, "Request.StateFulSet.Name")
+	reqLogger := log.WithValues("Request.StateFulSet.Namespace", namespace, "Request.StateFulSet.Name", name)
 	return reqLogger
 }

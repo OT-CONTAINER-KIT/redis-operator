@@ -29,7 +29,8 @@ spec:
         - /manager
         args:
         - --leader-elect
-        image: quay.io/opstree/redis-operator:v0.3.0
+        image: quay.io/opstree/redis-operator:v0.6.0
+        imagePullPolicy: Always
         name: manager
         securityContext:
           allowPrivilegeEscalation: false

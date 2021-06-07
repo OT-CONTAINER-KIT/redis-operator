@@ -55,8 +55,8 @@ func (in *KubernetesConfig) DeepCopyInto(out *KubernetesConfig) {
 	*out = *in
 	if in.Resources != nil {
 		in, out := &in.Resources, &out.Resources
-		*out = new(Resources)
-		**out = **in
+		*out = new(v1.ResourceRequirements)
+		(*in).DeepCopyInto(*out)
 	}
 	if in.ExistingPasswordSecret != nil {
 		in, out := &in.ExistingPasswordSecret, &out.ExistingPasswordSecret
@@ -244,8 +244,8 @@ func (in *RedisExporter) DeepCopyInto(out *RedisExporter) {
 	*out = *in
 	if in.Resources != nil {
 		in, out := &in.Resources, &out.Resources
-		*out = new(Resources)
-		**out = **in
+		*out = new(v1.ResourceRequirements)
+		(*in).DeepCopyInto(*out)
 	}
 }
 
@@ -356,8 +356,8 @@ func (in *RedisSpec) DeepCopyInto(out *RedisSpec) {
 	}
 	if in.Resources != nil {
 		in, out := &in.Resources, &out.Resources
-		*out = new(Resources)
-		**out = **in
+		*out = new(v1.ResourceRequirements)
+		(*in).DeepCopyInto(*out)
 	}
 	if in.Storage != nil {
 		in, out := &in.Storage, &out.Storage
