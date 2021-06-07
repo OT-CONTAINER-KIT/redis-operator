@@ -50,6 +50,15 @@ func GenerateStateFulSetsDef(cr *redisv1beta1.Redis, labels map[string]string, r
 	if cr.Spec.Tolerations != nil {
 		statefulset.Spec.Template.Spec.Tolerations = *cr.Spec.Tolerations
 	}
+	if cr.Spec.GlobalConfig.TLS != nil {
+		statefulset.Spec.Template.Spec.Volumes = append(statefulset.Spec.Template.Spec.Volumes,
+			corev1.Volume{
+				Name: "tls-certs",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &cr.Spec.GlobalConfig.TLS.Secret,
+				},
+			})
+	}
 	AddOwnerRefToObject(statefulset, AsOwner(cr))
 	return statefulset
 }
@@ -110,6 +119,25 @@ func GenerateContainerDef(cr *redisv1beta1.Redis, role string) corev1.Container 
 		}
 		containerDefinition.VolumeMounts = append(containerDefinition.VolumeMounts, VolumeMounts)
 	}
+	if cr.Spec.GlobalConfig.TLS != nil {
+		containerDefinition.VolumeMounts = append(containerDefinition.VolumeMounts, corev1.VolumeMount{
+			Name:      "tls-certs",
+			ReadOnly:  true,
+			MountPath: "/tls",
+		})
+		containerDefinition.Env = append(containerDefinition.Env, corev1.EnvVar{
+			Name:  "REDIS_TLS_CA_KEY",
+			Value: getTLSValue("ca.crt", cr.Spec.GlobalConfig.TLS),
+		})
+		containerDefinition.Env = append(containerDefinition.Env, corev1.EnvVar{
+			Name:  "REDIS_TLS_KEY",
+			Value: getTLSValue("tls.crt", cr.Spec.GlobalConfig.TLS),
+		})
+		containerDefinition.Env = append(containerDefinition.Env, corev1.EnvVar{
+			Name:  "REDIS_TLS_CERT",
+			Value: getTLSValue("tls.crt", cr.Spec.GlobalConfig.TLS),
+		})
+	}
 	if cr.Spec.GlobalConfig.Password != nil && cr.Spec.GlobalConfig.ExistingPasswordSecret == nil {
 		containerDefinition.Env = append(containerDefinition.Env, corev1.EnvVar{
 			Name: "REDIS_PASSWORD",
@@ -157,6 +185,30 @@ func GenerateContainerDef(cr *redisv1beta1.Redis, role string) corev1.Container 
 		})
 	}
 	return containerDefinition
+}
+
+func getTLSValue(value string, tlsconfig *redisv1beta1.TLSConfig) string {
+	// root := "/tls/"
+	if value == "ca.crt" {
+		if tlsconfig.CaKeyFile == "" {
+			// return path.Join(root, value)
+		} else {
+			// return path.Join(root, tlsconfig.CaKeyFile)
+		}
+	} else if value == "tls.crt" {
+		if tlsconfig.CertKeyFile == "" {
+			// return path.Join(root, value)
+		} else {
+			// return path.Join(root, tlsconfig.CertKeyFile)
+		}
+	} else if value == "tls.key" {
+		if tlsconfig.KeyFile == "" {
+			// return path.Join(root, value)
+		} else {
+			// return path.Join(root, tlsconfig.KeyFile)
+		}
+	}
+	return ""
 }
 
 // FinalContainerDef will generate the final statefulset definition
