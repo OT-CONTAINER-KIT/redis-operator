@@ -42,6 +42,73 @@ type RedisStatus struct {
 	Redis RedisSpec `json:"redis,omitempty"`
 }
 
+// Storage is the inteface to add pvc and pv support in redis
+type Storage struct {
+	VolumeClaimTemplate corev1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
+}
+
+// RedisMaster interface will have the redis master configuration
+type RedisMaster struct {
+	Resources   Resources         `json:"resources,omitempty"`
+	RedisConfig map[string]string `json:"redisConfig,omitempty"`
+	Service     Service           `json:"service,omitempty"`
+}
+
+// RedisExporter interface will have the information for redis exporter related stuff
+type RedisExporter struct {
+	Enabled         bool              `json:"enabled,omitempty"`
+	Image           string            `json:"image"`
+	Resources       *Resources        `json:"resources,omitempty"`
+	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
+}
+
+// GlobalConfig will be the JSON struct for Basic Redis Config
+type GlobalConfig struct {
+	Image                  string                  `json:"image"`
+	ImagePullPolicy        corev1.PullPolicy       `json:"imagePullPolicy,omitempty"`
+	Password               *string                 `json:"password,omitempty"`
+	Resources              *Resources              `json:"resources,omitempty"`
+	ExistingPasswordSecret *ExistingPasswordSecret `json:"existingPasswordSecret,omitempty"`
+	TLS                    *TLSConfig              `json:"TLS,omitempty"`
+}
+
+type ExistingPasswordSecret struct {
+	Name *string `json:"name,omitempty"`
+	Key  *string `json:"key,omitempty"`
+}
+
+type TLSConfig struct {
+	CaKeyFile   string `json:"ca,omitempty"`
+	CertKeyFile string `json:"cert,omitempty"`
+	KeyFile     string `json:"key,omitempty"`
+	// Reference to secret which contains
+	Secret corev1.SecretVolumeSource `json:"secret"`
+}
+
+// RedisSlave interface will have the redis slave configuration
+type RedisSlave struct {
+	Resources   Resources         `json:"resources,omitempty"`
+	RedisConfig map[string]string `json:"redisConfig,omitempty"`
+	Service     Service           `json:"service,omitempty"`
+}
+
+// ResourceDescription describes CPU and memory resources defined for a cluster.
+type ResourceDescription struct {
+	CPU    string `json:"cpu"`
+	Memory string `json:"memory"`
+}
+
+// Service is the struct for service definition
+type Service struct {
+	Type string `json:"type"`
+}
+
+// Resources describes requests and limits for the cluster resouces.
+type Resources struct {
+	ResourceRequests ResourceDescription `json:"requests,omitempty"`
+	ResourceLimits   ResourceDescription `json:"limits,omitempty"`
+}
+
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 

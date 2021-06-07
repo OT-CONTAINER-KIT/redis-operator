@@ -119,12 +119,100 @@ func generateStateFulSetsDef(stsMeta metav1.ObjectMeta, labels map[string]string
 	}
 	if params.ImagePullSecrets != nil {
 		statefulset.Spec.Template.Spec.ImagePullSecrets = *params.ImagePullSecrets
+	if cr.Spec.GlobalConfig.TLS != nil {
+		statefulset.Spec.Template.Spec.Volumes = append(statefulset.Spec.Template.Spec.Volumes,
+			corev1.Volume{
+				Name: "tls-certs",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &cr.Spec.GlobalConfig.TLS.Secret,
+				},
+			})
+	}
+	AddOwnerRefToObject(statefulset, AsOwner(cr))
+	return statefulset
+}
+
+// GenerateContainerDef generates container definition
+func GenerateContainerDef(cr *redisv1beta1.Redis, role string) corev1.Container {
+	containerDefinition := corev1.Container{
+		Name:            cr.ObjectMeta.Name + "-" + role,
+		Image:           cr.Spec.GlobalConfig.Image,
+		ImagePullPolicy: cr.Spec.GlobalConfig.ImagePullPolicy,
+		Env: []corev1.EnvVar{
+			{
+				Name:  "SERVER_MODE",
+				Value: role,
+			},
+		},
+		Resources: corev1.ResourceRequirements{
+			Limits: corev1.ResourceList{}, Requests: corev1.ResourceList{},
+		},
+		VolumeMounts: []corev1.VolumeMount{},
+		ReadinessProbe: &corev1.Probe{
+			InitialDelaySeconds: graceTime,
+			PeriodSeconds:       15,
+			FailureThreshold:    5,
+			TimeoutSeconds:      5,
+			Handler: corev1.Handler{
+				Exec: &corev1.ExecAction{
+					Command: []string{
+						"bash",
+						"/usr/bin/healthcheck.sh",
+					},
+				},
+			},
+		},
+		LivenessProbe: &corev1.Probe{
+			InitialDelaySeconds: graceTime,
+			TimeoutSeconds:      5,
+			Handler: corev1.Handler{
+				Exec: &corev1.ExecAction{
+					Command: []string{
+						"bash",
+						"/usr/bin/healthcheck.sh",
+					},
+				},
+			},
+		},
 	}
 	if containerParams.PersistenceEnabled != nil && *containerParams.PersistenceEnabled {
 		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, createPVCTemplate(stsMeta.Name, params.PersistentVolumeClaim))
 	}
 	if params.ExternalConfig != nil {
 		statefulset.Spec.Template.Spec.Volumes = getExternalConfig(*params.ExternalConfig)
+	}
+    
+	if cr.Spec.GlobalConfig.TLS != nil {
+		containerDefinition.VolumeMounts = append(containerDefinition.VolumeMounts, corev1.VolumeMount{
+			Name:      "tls-certs",
+			ReadOnly:  true,
+			MountPath: "/tls",
+		})
+		containerDefinition.Env = append(containerDefinition.Env, corev1.EnvVar{
+			Name:  "REDIS_TLS_CA_KEY",
+			Value: getTLSValue("ca.crt", cr.Spec.GlobalConfig.TLS),
+		})
+		containerDefinition.Env = append(containerDefinition.Env, corev1.EnvVar{
+			Name:  "REDIS_TLS_KEY",
+			Value: getTLSValue("tls.crt", cr.Spec.GlobalConfig.TLS),
+		})
+		containerDefinition.Env = append(containerDefinition.Env, corev1.EnvVar{
+			Name:  "REDIS_TLS_CERT",
+			Value: getTLSValue("tls.crt", cr.Spec.GlobalConfig.TLS),
+		})
+	}
+	if cr.Spec.GlobalConfig.Password != nil && cr.Spec.GlobalConfig.ExistingPasswordSecret == nil {
+		containerDefinition.Env = append(containerDefinition.Env, corev1.EnvVar{
+			Name: "REDIS_PASSWORD",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: cr.ObjectMeta.Name,
+					},
+					Key: "password",
+				},
+			},
+		})
 	}
 	AddOwnerRefToObject(statefulset, ownerDef)
 	return statefulset
@@ -182,6 +270,40 @@ func generateContainerDef(name string, containerParams containerParameters, enab
 	return containerDefinition
 }
 
+func getTLSValue(value string, tlsconfig *redisv1beta1.TLSConfig) string {
+	// root := "/tls/"
+	if value == "ca.crt" {
+		if tlsconfig.CaKeyFile == "" {
+			// return path.Join(root, value)
+		} else {
+			// return path.Join(root, tlsconfig.CaKeyFile)
+		}
+	} else if value == "tls.crt" {
+		if tlsconfig.CertKeyFile == "" {
+			// return path.Join(root, value)
+		} else {
+			// return path.Join(root, tlsconfig.CertKeyFile)
+		}
+	} else if value == "tls.key" {
+		if tlsconfig.KeyFile == "" {
+			// return path.Join(root, value)
+		} else {
+			// return path.Join(root, tlsconfig.KeyFile)
+		}
+	}
+	return ""
+}
+
+// FinalContainerDef will generate the final statefulset definition
+func FinalContainerDef(cr *redisv1beta1.Redis, role string) []corev1.Container {
+	var containerDefinition []corev1.Container
+	var exporterDefinition corev1.Container
+	var exporterEnvDetails []corev1.EnvVar
+
+	containerDefinition = append(containerDefinition, GenerateContainerDef(cr, role))
+
+	if !cr.Spec.RedisExporter.Enabled {
+		return containerDefinition
 // enableRedisMonitoring will add Redis Exporter as sidecar container
 func enableRedisMonitoring(params containerParameters) corev1.Container {
 	exporterDefinition := corev1.Container{
