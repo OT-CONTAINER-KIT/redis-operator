@@ -125,18 +125,9 @@ func GenerateContainerDef(cr *redisv1beta1.Redis, role string) corev1.Container 
 			ReadOnly:  true,
 			MountPath: "/tls",
 		})
-		containerDefinition.Env = append(containerDefinition.Env, corev1.EnvVar{
-			Name:  "REDIS_TLS_CA_KEY",
-			Value: getTLSValue("ca.crt", cr.Spec.GlobalConfig.TLS),
-		})
-		containerDefinition.Env = append(containerDefinition.Env, corev1.EnvVar{
-			Name:  "REDIS_TLS_KEY",
-			Value: getTLSValue("tls.crt", cr.Spec.GlobalConfig.TLS),
-		})
-		containerDefinition.Env = append(containerDefinition.Env, corev1.EnvVar{
-			Name:  "REDIS_TLS_CERT",
-			Value: getTLSValue("tls.crt", cr.Spec.GlobalConfig.TLS),
-		})
+		for _, envVar := range GenerateTLSEnvironmentVariables(cr.Spec.GlobalConfig.TLS) {
+			containerDefinition.Env = append(containerDefinition.Env, envVar)
+		}
 	}
 	if cr.Spec.GlobalConfig.Password != nil && cr.Spec.GlobalConfig.ExistingPasswordSecret == nil {
 		containerDefinition.Env = append(containerDefinition.Env, corev1.EnvVar{
@@ -187,28 +178,37 @@ func GenerateContainerDef(cr *redisv1beta1.Redis, role string) corev1.Container 
 	return containerDefinition
 }
 
-func getTLSValue(value string, tlsconfig *redisv1beta1.TLSConfig) string {
-	// root := "/tls/"
-	if value == "ca.crt" {
-		if tlsconfig.CaKeyFile == "" {
-			// return path.Join(root, value)
-		} else {
-			// return path.Join(root, tlsconfig.CaKeyFile)
-		}
-	} else if value == "tls.crt" {
-		if tlsconfig.CertKeyFile == "" {
-			// return path.Join(root, value)
-		} else {
-			// return path.Join(root, tlsconfig.CertKeyFile)
-		}
-	} else if value == "tls.key" {
-		if tlsconfig.KeyFile == "" {
-			// return path.Join(root, value)
-		} else {
-			// return path.Join(root, tlsconfig.KeyFile)
-		}
+func GenerateTLSEnvironmentVariables(tlsconfig *redisv1beta1.TLSConfig) []corev1.EnvVar {
+	var envVars []corev1.EnvVar
+
+	// get and set Defaults
+	caCert := "ca.crt"
+	if tlsconfig.CaKeyFile != "" {
+		caCert = tlsconfig.CaKeyFile
 	}
-	return ""
+	tlsCert := "tls.crt"
+	if tlsconfig.CertKeyFile != "" {
+		tlsCert = tlsconfig.CertKeyFile
+	}
+	tlsCertKey := "tls.key"
+	if tlsconfig.KeyFile != "" {
+		tlsCertKey = tlsconfig.KeyFile
+	}
+
+	envVars = append(envVars, corev1.EnvVar{
+		Name:  "REDIS_TLS_CA_KEY",
+		Value: caCert,
+	})
+	envVars = append(envVars, corev1.EnvVar{
+		Name:  "REDIS_TLS_CERT",
+		Value: tlsCert,
+	})
+	envVars = append(envVars, corev1.EnvVar{
+		Name:  "REDIS_TLS_CERT_KEY",
+		Value: tlsCertKey,
+	})
+
+	return envVars
 }
 
 // FinalContainerDef will generate the final statefulset definition
