@@ -21,10 +21,8 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"redis-operator/k8sutils"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -70,14 +68,15 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, err
 	}
 
-	found := &appsv1.StatefulSet{}
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: instance.Name, Namespace: instance.Namespace}, found)
-	if err != nil && errors.IsNotFound(err) {
-		k8sutils.CreateStandAloneRedis(instance)
-		k8sutils.CreateStandAloneService(instance)
-	} else if err != nil {
-		return ctrl.Result{}, err
-	}
+	k8sutils.CreateStandAloneRedis(instance)
+	k8sutils.CreateStandAloneService(instance)
+	// found := &appsv1.StatefulSet{}
+	// err = r.Client.Get(context.TODO(), types.NamespacedName{Name: instance.Name, Namespace: instance.Namespace}, found)
+	// if err != nil && errors.IsNotFound(err) {
+
+	// } else if err != nil {
+	// 	return ctrl.Result{}, err
+	// }
 
 	reqLogger.Info("Will reconcile in again 10 seconds")
 	return ctrl.Result{RequeueAfter: time.Second * 10}, nil

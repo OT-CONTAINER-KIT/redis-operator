@@ -140,12 +140,12 @@ func CreateOrUpdateHeadlessService(namespace string, serviceMeta metav1.ObjectMe
 	serviceDef := generateHeadlessServiceDef(serviceMeta, labels, ownerDef)
 	if err != nil {
 		if errors.IsNotFound(err) {
+			if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(serviceDef); err != nil {
+				logger.Error(err, "Unable to patch redis service with comparison object")
+				return err
+			}
 			return createService(namespace, serviceDef)
 		}
-		return err
-	}
-	if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(serviceDef); err != nil {
-		logger.Error(err, "Unable to patch redis service with comparison object")
 		return err
 	}
 	return patchService(storedService, serviceDef, namespace)
@@ -154,16 +154,15 @@ func CreateOrUpdateHeadlessService(namespace string, serviceMeta metav1.ObjectMe
 // CreateOrUpdateService method will create or update Redis service
 func CreateOrUpdateService(namespace string, serviceMeta metav1.ObjectMeta, labels map[string]string, ownerDef metav1.OwnerReference, k8sServiceType string, enableMetrics bool) error {
 	logger := serviceLogger(namespace, serviceMeta.Name)
-	storedService, err := getService(namespace, serviceMeta.Name)
 	serviceDef := generateServiceDef(serviceMeta, labels, k8sServiceType, enableMetrics, ownerDef)
+	storedService, err := getService(namespace, serviceMeta.Name)
 	if err != nil {
 		if errors.IsNotFound(err) {
+			if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(serviceDef); err != nil {
+				logger.Error(err, "Unable to patch redis service with compare annotations")
+			}
 			return createService(namespace, serviceDef)
 		}
-		return err
-	}
-	if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(serviceDef); err != nil {
-		logger.Error(err, "Unable to patch redis service with comparison object")
 		return err
 	}
 	return patchService(storedService, serviceDef, namespace)
@@ -172,17 +171,28 @@ func CreateOrUpdateService(namespace string, serviceMeta metav1.ObjectMeta, labe
 // patchService will patch Redis Kubernetes service
 func patchService(storedService *corev1.Service, newService *corev1.Service, namespace string) error {
 	logger := serviceLogger(namespace, storedService.Name)
-	patchResult, err := patch.DefaultPatchMaker.Calculate(storedService, newService)
+	patchResult, err := patch.DefaultPatchMaker.Calculate(storedService, newService, patch.IgnoreStatusFields())
 	if err != nil {
 		logger.Error(err, "Unable to patch redis service with comparison object")
 		return err
 	}
 	if !patchResult.IsEmpty() {
+		newService.Spec.ClusterIP = storedService.Spec.ClusterIP
+		newService.ResourceVersion = storedService.ResourceVersion
+		newService.CreationTimestamp = storedService.CreationTimestamp
+		newService.ManagedFields = storedService.ManagedFields
+		for key, value := range storedService.Annotations {
+			if _, present := newService.Annotations[key]; !present {
+				newService.Annotations[key] = value
+			}
+		}
 		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(newService); err != nil {
 			logger.Error(err, "Unable to patch redis service with comparison object")
 			return err
 		}
+		logger.Info("Syncing Redis service with defined properties")
 		return updateService(namespace, newService)
 	}
+	logger.Info("Redis service is already in-sync")
 	return nil
 }

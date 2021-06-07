@@ -20,15 +20,15 @@ spec:
     imagePullPolicy: IfNotPresent
     resources:
       requests:
-        cpu: 100m
+        cpu: 101m
         memory: 128Mi
       limits:
-        cpu: 100m
+        cpu: 101m
         memory: 128Mi
     redisSecret:
       name: redis-secret
       key: password
-    serviceType: ClusterIP
+    serviceType: LoadBalancer
   redisConfig: {}
   storage:
     volumeClaimTemplate:

@@ -48,13 +48,13 @@ func CreateOrUpdateStateFul(namespace string, stsMeta metav1.ObjectMeta, labels 
 	storedStateful, err := getStateFulSet(namespace, stsMeta.Name)
 	statefulSetDef := generateStateFulSetsDef(stsMeta, labels, params, ownerDef, containerParams)
 	if err != nil {
+		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(statefulSetDef); err != nil {
+			logger.Error(err, "Unable to patch redis statefulset with comparison object")
+			return err
+		}
 		if errors.IsNotFound(err) {
 			return createStateFulSet(namespace, statefulSetDef)
 		}
-		return err
-	}
-	if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(statefulSetDef); err != nil {
-		logger.Error(err, "Unable to patch redis statefulset with comparison object")
 		return err
 	}
 	return patchStateFulSet(storedStateful, statefulSetDef, namespace)
@@ -69,6 +69,14 @@ func patchStateFulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 		return err
 	}
 	if !patchResult.IsEmpty() {
+		newStateful.ResourceVersion = storedStateful.ResourceVersion
+		newStateful.CreationTimestamp = storedStateful.CreationTimestamp
+		newStateful.ManagedFields = storedStateful.ManagedFields
+		for key, value := range storedStateful.Annotations {
+			if _, present := newStateful.Annotations[key]; !present {
+				newStateful.Annotations[key] = value
+			}
+		}
 		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(newStateful); err != nil {
 			logger.Error(err, "Unable to patch redis statefulset with comparison object")
 			return err
