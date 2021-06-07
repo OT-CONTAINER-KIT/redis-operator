@@ -52,16 +52,19 @@ func ExecuteRedisClusterCommand(cr *redisv1beta1.RedisCluster) {
 	cmd = append(cmd, "--cluster-yes")
 
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass := getRedisPassword(cr.Namespace, cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+		pass, err := getRedisPassword(cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+		if err != nil {
+			reqLogger.Error(err, "Error in getting redis password")
+		}
 		cmd = append(cmd, "-a")
-		cmd = append(cmd, *pass)
+		cmd = append(cmd, pass)
 	}
 	reqLogger.Info("Redis cluster creation command is", "Command", cmd)
 	executeCommand(cr, cmd, cr.ObjectMeta.Name+"-master-0")
 }
 
 // createRedisReplicationCommand will create redis replication creation command
-func createRedisReplicationCommand(cr *redisv1beta1.Redis, nodeNumber string) []string {
+func createRedisReplicationCommand(cr *redisv1beta1.RedisCluster, nodeNumber string) []string {
 	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
 	cmd := []string{"redis-cli", "--cluster", "add-node"}
 	masterPod := RedisDetails{
@@ -77,7 +80,10 @@ func createRedisReplicationCommand(cr *redisv1beta1.Redis, nodeNumber string) []
 	cmd = append(cmd, "--cluster-slave")
 
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass := getRedisPassword(cr.Namespace, cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+		pass, err := getRedisPassword(cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+		if err != nil {
+			reqLogger.Error(err, "Error in getting redis password")
+		}
 		cmd = append(cmd, "-a")
 		cmd = append(cmd, pass)
 	}
@@ -95,7 +101,7 @@ func ExecuteRedisReplicationCommand(cr *redisv1beta1.RedisCluster) {
 }
 
 // checkRedisCluster will check the redis cluster have sufficient nodes or not
-func checkRedisCluster(cr *redisv1beta1.Redis) string {
+func checkRedisCluster(cr *redisv1beta1.RedisCluster) string {
 	var client *redis.Client
 	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
 
@@ -115,13 +121,13 @@ func checkRedisCluster(cr *redisv1beta1.Redis) string {
 }
 
 // ExecuteFaioverOperation will execute redis failover operations
-func ExecuteFaioverOperation(cr *redisv1beta1.Redis) {
+func ExecuteFaioverOperation(cr *redisv1beta1.RedisCluster) {
 	executeFailoverCommand(cr, "master")
 	executeFailoverCommand(cr, "slave")
 }
 
 // executeFailoverCommand will execute failover command
-func executeFailoverCommand(cr *redisv1beta1.Redis, role string) {
+func executeFailoverCommand(cr *redisv1beta1.RedisCluster, role string) {
 	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
 	replicas := cr.Spec.Size
 	podName := cr.ObjectMeta.Name + "-" + role + "-"
@@ -148,7 +154,7 @@ func executeFailoverCommand(cr *redisv1beta1.Redis, role string) {
 }
 
 // CheckRedisNodeCount will check the count of redis nodes
-func CheckRedisNodeCount(cr *redisv1beta1.Redis) int {
+func CheckRedisNodeCount(cr *redisv1beta1.RedisCluster) int {
 	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
 	output := checkRedisCluster(cr)
 	scanner := bufio.NewScanner(strings.NewReader(output))
@@ -162,7 +168,7 @@ func CheckRedisNodeCount(cr *redisv1beta1.Redis) int {
 }
 
 // CheckRedisClusterState will check the redis cluster state
-func CheckRedisClusterState(cr *redisv1beta1.Redis) int {
+func CheckRedisClusterState(cr *redisv1beta1.RedisCluster) int {
 	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
 	output := checkRedisCluster(cr)
 	pattern := regexp.MustCompile("fail")
@@ -172,7 +178,8 @@ func CheckRedisClusterState(cr *redisv1beta1.Redis) int {
 }
 
 // configureRedisClient will configure the Redis Client
-func configureRedisClient(cr *redisv1beta1.Redis, podName string) *redis.Client {
+func configureRedisClient(cr *redisv1beta1.RedisCluster, podName string) *redis.Client {
+	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
 	redisInfo := RedisDetails{
 		PodName:   podName,
 		Namespace: cr.Namespace,
@@ -180,7 +187,10 @@ func configureRedisClient(cr *redisv1beta1.Redis, podName string) *redis.Client 
 	var client *redis.Client
 
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass := getRedisPassword(cr.Namespace, cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+		pass, err := getRedisPassword(cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+		if err != nil {
+			reqLogger.Error(err, "Error in getting redis password")
+		}
 		client = redis.NewClient(&redis.Options{
 			Addr:     getRedisServerIP(redisInfo) + ":6379",
 			Password: pass,
@@ -197,7 +207,7 @@ func configureRedisClient(cr *redisv1beta1.Redis, podName string) *redis.Client 
 }
 
 // executeCommand will execute the commands in pod
-func executeCommand(cr *redisv1beta1.Redis, cmd []string, podName string) {
+func executeCommand(cr *redisv1beta1.RedisCluster, cmd []string, podName string) {
 	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -232,7 +242,7 @@ func executeCommand(cr *redisv1beta1.Redis, cmd []string, podName string) {
 }
 
 // getContainerID will return the id of container from pod
-func getContainerID(cr *redisv1beta1.Redis, podName string) (int, *corev1.Pod) {
+func getContainerID(cr *redisv1beta1.RedisCluster, podName string) (int, *corev1.Pod) {
 	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
 	pod, err := generateK8sClient().CoreV1().Pods(cr.Namespace).Get(context.TODO(), podName, metav1.GetOptions{})
 	if err != nil {

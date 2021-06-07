@@ -2,6 +2,7 @@ package k8sutils
 
 import (
 	"context"
+	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -10,7 +11,7 @@ var log = logf.Log.WithName("controller_redis")
 
 // getRedisPassword method will return the redis password
 func getRedisPassword(namespace, name, secretKey string) (string, error) {
-	logger := secretLogger(namespace, namespace)
+	logger := secretLogger(namespace, name)
 	secretName, err := generateK8sClient().CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
@@ -24,7 +25,7 @@ func getRedisPassword(namespace, name, secretKey string) (string, error) {
 	return "", nil
 }
 
-func secretLogger(namespace string, name string) {
-	reqLogger := log.WithValues("Request.Secret.Namespace", namespace, "Request.Secret.Name")
+func secretLogger(namespace string, name string) logr.Logger {
+	reqLogger := log.WithValues("Request.Secret.Namespace", namespace, "Request.Secret.Name", name)
 	return reqLogger
 }

@@ -3,6 +3,7 @@ package k8sutils
 import (
 	"context"
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,7 +30,7 @@ func generateHeadlessServiceDef(serviceMeta metav1.ObjectMeta, labels map[string
 			Ports: []corev1.ServicePort{
 				{
 					Name:       "redis-client",
-					Port:       portNumber,
+					Port:       redisPort,
 					TargetPort: intstr.FromInt(int(redisPort)),
 					Protocol:   corev1.ProtocolTCP,
 				},
@@ -41,7 +42,7 @@ func generateHeadlessServiceDef(serviceMeta metav1.ObjectMeta, labels map[string
 }
 
 // generateServiceDef generates service definition for Redis
-func generateServiceDef(serviceMeta metav1.ObjectMeta, labels map[string]string, k8sServiceType string, enableMetrics bool, ownerDef metav1.OwnerReference) {
+func generateServiceDef(serviceMeta metav1.ObjectMeta, labels map[string]string, k8sServiceType string, enableMetrics bool, ownerDef metav1.OwnerReference) *corev1.Service {
 	service := &corev1.Service{
 		TypeMeta:   generateMetaInformation("Service", "core/v1"),
 		ObjectMeta: serviceMeta,
@@ -51,15 +52,16 @@ func generateServiceDef(serviceMeta metav1.ObjectMeta, labels map[string]string,
 			Ports: []corev1.ServicePort{
 				{
 					Name:       "redis-client",
-					Port:       portNumber,
-					TargetPort: intstr.FromInt(int(portNumber)),
+					Port:       redisPort,
+					TargetPort: intstr.FromInt(int(redisPort)),
 					Protocol:   corev1.ProtocolTCP,
 				},
 			},
 		},
 	}
 	if enableMetrics {
-		service.Spec.Ports = append(service.Spec.Ports, enableMetricsPort())
+		redisExporterService := enableMetricsPort()
+		service.Spec.Ports = append(service.Spec.Ports, *redisExporterService)
 	}
 	AddOwnerRefToObject(service, ownerDef)
 	return service
@@ -67,7 +69,7 @@ func generateServiceDef(serviceMeta metav1.ObjectMeta, labels map[string]string,
 
 // enableMetricsPort will enable the metrics for Redis service
 func enableMetricsPort() *corev1.ServicePort {
-	return corev1.ServicePort{
+	return &corev1.ServicePort{
 		Name:       "redis-exporter",
 		Port:       redisExporterPort,
 		TargetPort: intstr.FromInt(int(redisExporterPort)),
@@ -91,7 +93,7 @@ func generateServiceType(k8sServiceType string) corev1.ServiceType {
 }
 
 // createService is a method to create service is Kubernetes
-func createService(namespace, service *corev1.Service) error {
+func createService(namespace string, service *corev1.Service) error {
 	logger := serviceLogger(namespace, service.Name)
 	_, err := generateK8sClient().CoreV1().Services(namespace).Create(context.TODO(), service, metav1.CreateOptions{})
 	if err != nil {
@@ -103,7 +105,7 @@ func createService(namespace, service *corev1.Service) error {
 }
 
 // updateService is a method to update service is Kubernetes
-func updateService(namespace, service *corev1.Service) error {
+func updateService(namespace string, service *corev1.Service) error {
 	logger := serviceLogger(namespace, service.Name)
 	_, err := generateK8sClient().CoreV1().Services(namespace).Update(context.TODO(), service, metav1.UpdateOptions{})
 	if err != nil {
@@ -115,18 +117,18 @@ func updateService(namespace, service *corev1.Service) error {
 }
 
 // getService is a method to get service is Kubernetes
-func getService(namespace, service string) (*corev1.Service, error) {
+func getService(namespace string, service string) (*corev1.Service, error) {
 	logger := serviceLogger(namespace, service)
 	serviceInfo, err := generateK8sClient().CoreV1().Services(namespace).Get(context.TODO(), service, metav1.GetOptions{})
 	if err != nil {
 		logger.Error(err, "Redis service get action is failed")
-		return err
+		return nil, err
 	}
 	logger.Info("Redis service get action is successful")
 	return serviceInfo, nil
 }
 
-func serviceLogger(namespace string, name string) {
+func serviceLogger(namespace string, name string) logr.Logger {
 	reqLogger := log.WithValues("Request.Service.Namespace", namespace, "Request.Service.Name")
 	return reqLogger
 }
@@ -146,14 +148,14 @@ func CreateOrUpdateHeadlessService(namespace string, serviceMeta metav1.ObjectMe
 		}
 		return err
 	}
-	patchService(storedService, serviceDef, namespace)
+	return patchService(storedService, serviceDef, namespace)
 }
 
 // CreateOrUpdateService method will create or update Redis service
-func CreateOrUpdateService(namespace string, serviceMeta metav1.ObjectMeta, labels map[string]string, ownerDef metav1.OwnerReference) error {
+func CreateOrUpdateService(namespace string, serviceMeta metav1.ObjectMeta, labels map[string]string, ownerDef metav1.OwnerReference, k8sServiceType string, enableMetrics bool) error {
 	logger := serviceLogger(namespace, serviceMeta.Name)
 	storedService, err := getService(namespace, serviceMeta.Name)
-	serviceDef := generateServiceDef(serviceMeta, labels, ownerDef)
+	serviceDef := generateServiceDef(serviceMeta, labels, k8sServiceType, enableMetrics, ownerDef)
 	if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(serviceDef); err != nil {
 		logger.Error(err, "Unable to patch redis service with comparison object")
 		return err
@@ -164,7 +166,7 @@ func CreateOrUpdateService(namespace string, serviceMeta metav1.ObjectMeta, labe
 		}
 		return err
 	}
-	patchService(storedService, serviceDef, namespace)
+	return patchService(storedService, serviceDef, namespace)
 }
 
 // patchService will patch Redis Kubernetes service

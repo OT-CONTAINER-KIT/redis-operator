@@ -3,6 +3,7 @@ package k8sutils
 import (
 	"context"
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
+	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -282,7 +283,7 @@ func getStateFulSet(namespace, stateful string) (*appsv1.StatefulSet, error) {
 }
 
 // stateFulSetLogger will generate logging interface for Statfulsets
-func stateFulSetLogger(namespace string, name string) {
+func stateFulSetLogger(namespace string, name string) logr.Logger {
 	reqLogger := log.WithValues("Request.StateFulSet.Namespace", namespace, "Request.StateFulSet.Name")
 	return reqLogger
 }
