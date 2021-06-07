@@ -14,8 +14,8 @@ func getRedisPassword(namespace, name, secretKey string) (string, error) {
 	logger := secretLogger(namespace, name)
 	secretName, err := generateK8sClient().CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
-		return "", err
 		logger.Error(err, "Failed in getting existing secret for redis")
+		return "", err
 	}
 	for key, value := range secretName.Data {
 		if key == secretKey {

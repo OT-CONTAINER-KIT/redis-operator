@@ -62,6 +62,7 @@ func generateRedisStandaloneParams(cr *redisv1beta1.Redis) statefulSetParameters
 		PriorityClassName:     cr.Spec.PriorityClassName,
 		Affinity:              cr.Spec.Affinity,
 		Tolerations:           cr.Spec.Tolerations,
+		EnableMetrics:         cr.Spec.RedisExporter.Enabled,
 		PersistentVolumeClaim: cr.Spec.Storage.VolumeClaimTemplate,
 	}
 }
@@ -73,10 +74,10 @@ func generateRedisStandaloneContainerParams(cr *redisv1beta1.Redis) containerPar
 		Role:                         "standalone",
 		Image:                        cr.Spec.KubernetesConfig.Image,
 		ImagePullPolicy:              cr.Spec.KubernetesConfig.ImagePullPolicy,
-		Resources:                    *cr.Spec.KubernetesConfig.Resources,
+		Resources:                    cr.Spec.KubernetesConfig.Resources,
 		RedisExporterImage:           cr.Spec.RedisExporter.Image,
 		RedisExporterImagePullPolicy: cr.Spec.RedisExporter.ImagePullPolicy,
-		RedisExporterResources:       *cr.Spec.RedisExporter.Resources,
+		RedisExporterResources:       cr.Spec.RedisExporter.Resources,
 	}
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
 		containerProp.EnabledPassword = &trueProperty
