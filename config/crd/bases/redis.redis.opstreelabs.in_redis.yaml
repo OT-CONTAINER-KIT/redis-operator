@@ -646,6 +646,8 @@ spec:
                     type: string
                   password:
                     type: string
+                  pdb:
+                    type: boolean
                   resources:
                     description: Resources describes requests and limits for the cluster
                       resouces.
@@ -1917,6 +1919,8 @@ spec:
                         type: string
                       password:
                         type: string
+                      pdb:
+                        type: boolean
                       resources:
                         description: Resources describes requests and limits for the
                           cluster resouces.

@@ -21,13 +21,14 @@ import (
 	"strconv"
 	"time"
 
+	"redis-operator/k8sutils"
+
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"redis-operator/k8sutils"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -104,7 +105,7 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 			} else {
 				reqLogger.Info("Redis master count is desired")
 				if k8sutils.CheckRedisClusterState(instance) >= int(*instance.Spec.Size)*2-1 {
-					k8sutils.ExecuteFaioverOperation(instance)
+					k8sutils.ExecuteFailoverOperation(instance)
 				}
 				return ctrl.Result{RequeueAfter: time.Second * 120}, nil
 			}

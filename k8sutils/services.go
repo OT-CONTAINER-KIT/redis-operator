@@ -2,10 +2,11 @@ package k8sutils
 
 import (
 	"context"
+	redisv1beta1 "redis-operator/api/v1beta1"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	redisv1beta1 "redis-operator/api/v1beta1"
 )
 
 const (
@@ -94,8 +95,9 @@ func GenerateServiceDef(cr *redisv1beta1.Redis, labels map[string]string, portNu
 // CreateMasterHeadlessService creates master headless service
 func CreateMasterHeadlessService(cr *redisv1beta1.Redis) {
 	labels := map[string]string{
-		"app":  cr.ObjectMeta.Name + "-master",
-		"role": "master",
+		"instance": cr.ObjectMeta.Name,
+		"app":      cr.ObjectMeta.Name + "-master",
+		"role":     "master",
 	}
 	serviceDefinition := GenerateHeadlessServiceDef(cr, labels, int32(redisPort), "master", cr.ObjectMeta.Name+"-master-headless", "None")
 	serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name+"-master-headless", metav1.GetOptions{})
@@ -110,8 +112,9 @@ func CreateMasterHeadlessService(cr *redisv1beta1.Redis) {
 // CreateMasterService creates different services for master
 func CreateMasterService(cr *redisv1beta1.Redis) {
 	labels := map[string]string{
-		"app":  cr.ObjectMeta.Name + "-master",
-		"role": "master",
+		"instance": cr.ObjectMeta.Name,
+		"app":      cr.ObjectMeta.Name + "-master",
+		"role":     "master",
 	}
 	serviceDefinition := GenerateServiceDef(cr, labels, int32(redisPort), "master", cr.ObjectMeta.Name+"-master", cr.Spec.Master.Service.Type)
 	serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name+"-master", metav1.GetOptions{})
@@ -126,8 +129,9 @@ func CreateMasterService(cr *redisv1beta1.Redis) {
 // CreateSlaveHeadlessService creates slave headless service
 func CreateSlaveHeadlessService(cr *redisv1beta1.Redis) {
 	labels := map[string]string{
-		"app":  cr.ObjectMeta.Name + "-slave",
-		"role": "slave",
+		"instance": cr.ObjectMeta.Name,
+		"app":      cr.ObjectMeta.Name + "-slave",
+		"role":     "slave",
 	}
 	serviceDefinition := GenerateHeadlessServiceDef(cr, labels, int32(redisPort), "slave", cr.ObjectMeta.Name+"-slave-headless", "None")
 	serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name+"-slave-headless", metav1.GetOptions{})
@@ -142,8 +146,9 @@ func CreateSlaveHeadlessService(cr *redisv1beta1.Redis) {
 // CreateSlaveService creates different services for slave
 func CreateSlaveService(cr *redisv1beta1.Redis) {
 	labels := map[string]string{
-		"app":  cr.ObjectMeta.Name + "-slave",
-		"role": "slave",
+		"instance": cr.ObjectMeta.Name,
+		"app":      cr.ObjectMeta.Name + "-slave",
+		"role":     "slave",
 	}
 	serviceDefinition := GenerateServiceDef(cr, labels, int32(redisPort), "slave", cr.ObjectMeta.Name+"-slave", cr.Spec.Slave.Service.Type)
 	serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name+"-slave", metav1.GetOptions{})
@@ -158,8 +163,9 @@ func CreateSlaveService(cr *redisv1beta1.Redis) {
 // CreateStandaloneService creates redis standalone service
 func CreateStandaloneService(cr *redisv1beta1.Redis) {
 	labels := map[string]string{
-		"app":  cr.ObjectMeta.Name + "-" + "standalone",
-		"role": "standalone",
+		"instance": cr.ObjectMeta.Name,
+		"app":      cr.ObjectMeta.Name + "-" + "standalone",
+		"role":     "standalone",
 	}
 	serviceDefinition := GenerateServiceDef(cr, labels, int32(redisPort), "standalone", cr.ObjectMeta.Name, cr.Spec.Service.Type)
 	serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name, metav1.GetOptions{})
@@ -175,8 +181,9 @@ func CreateStandaloneService(cr *redisv1beta1.Redis) {
 // CreateStandaloneHeadlessService creates redis standalone service
 func CreateStandaloneHeadlessService(cr *redisv1beta1.Redis) {
 	labels := map[string]string{
-		"app":  cr.ObjectMeta.Name + "-" + "standalone",
-		"role": "standalone",
+		"instance": cr.ObjectMeta.Name,
+		"app":      cr.ObjectMeta.Name + "-" + "standalone",
+		"role":     "standalone",
 	}
 	serviceDefinition := GenerateHeadlessServiceDef(cr, labels, int32(redisPort), "standalone", cr.ObjectMeta.Name+"-headless", "None")
 	serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name+"-headless", metav1.GetOptions{})

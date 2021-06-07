@@ -75,6 +75,7 @@ type GlobalConfig struct {
 	Password               *string                 `json:"password,omitempty"`
 	Resources              *Resources              `json:"resources,omitempty"`
 	ExistingPasswordSecret *ExistingPasswordSecret `json:"existingPasswordSecret,omitempty"`
+	EnablePDB              bool                    `json:"pdb,omitempty"`
 }
 
 type ExistingPasswordSecret struct {

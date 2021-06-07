@@ -4,16 +4,16 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"github.com/go-redis/redis"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/remotecommand"
 	redisv1beta1 "redis-operator/api/v1beta1"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/go-redis/redis"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/remotecommand"
 )
 
 var (
@@ -122,8 +122,8 @@ func checkRedisCluster(cr *redisv1beta1.Redis) string {
 	return output
 }
 
-// ExecuteFaioverOperation will execute redis failover operations
-func ExecuteFaioverOperation(cr *redisv1beta1.Redis) {
+// ExecuteFailoverOperation will execute redis failover operations
+func ExecuteFailoverOperation(cr *redisv1beta1.Redis) {
 	executeFailoverCommand(cr, "master")
 	executeFailoverCommand(cr, "slave")
 }
@@ -213,9 +213,9 @@ func configureRedisClient(cr *redisv1beta1.Redis, podName string) *redis.Client 
 // executeCommand will execute the commands in pod
 func executeCommand(cr *redisv1beta1.Redis, cmd []string, podName string) {
 	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
-	config, err := rest.InClusterConfig()
+	config, err := GenerateK8sConfig()
 	if err != nil {
-		reqLogger.Error(err, "Error while reading Incluster config")
+		reqLogger.Error(err, "Error while reading Cluster config")
 	}
 	targetContainer, pod := getContainerID(cr, podName)
 	if targetContainer < 0 {

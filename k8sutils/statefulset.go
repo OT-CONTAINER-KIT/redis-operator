@@ -2,6 +2,7 @@ package k8sutils
 
 import (
 	"context"
+
 	// "github.com/google/go-cmp/cmp"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -167,7 +168,8 @@ func FinalContainerDef(cr *redisv1beta1.Redis, role string) []corev1.Container {
 
 	containerDefinition = append(containerDefinition, GenerateContainerDef(cr, role))
 
-	if !cr.Spec.RedisExporter.Enabled {
+	// If RedisExport is defined and enabled..
+	if cr.Spec.RedisExporter != nil && !cr.Spec.RedisExporter.Enabled {
 		return containerDefinition
 	}
 
@@ -221,8 +223,9 @@ func FinalContainerDef(cr *redisv1beta1.Redis, role string) []corev1.Container {
 func CreateRedisMaster(cr *redisv1beta1.Redis) {
 
 	labels := map[string]string{
-		"app":  cr.ObjectMeta.Name + "-master",
-		"role": "master",
+		"instance": cr.ObjectMeta.Name,
+		"app":      cr.ObjectMeta.Name + "-master",
+		"role":     "master",
 	}
 	statefulDefinition := GenerateStateFulSetsDef(cr, labels, "master", cr.Spec.Size)
 	statefulObject, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name+"-master", metav1.GetOptions{})
@@ -237,13 +240,17 @@ func CreateRedisMaster(cr *redisv1beta1.Redis) {
 		Type:     "master",
 	}
 	CompareAndCreateStateful(cr, stateful, err, "master")
+	if cr.Spec.GlobalConfig.EnablePDB {
+		CreatePodDisruptionBudget(cr, "master", (*cr.Spec.Size/2)+1)
+	}
 }
 
 // CreateRedisSlave will create a Redis Slave
 func CreateRedisSlave(cr *redisv1beta1.Redis) {
 	labels := map[string]string{
-		"app":  cr.ObjectMeta.Name + "-slave",
-		"role": "slave",
+		"instance": cr.ObjectMeta.Name,
+		"app":      cr.ObjectMeta.Name + "-slave",
+		"role":     "slave",
 	}
 	statefulDefinition := GenerateStateFulSetsDef(cr, labels, "slave", cr.Spec.Size)
 	statefulObject, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name+"-slave", metav1.GetOptions{})
@@ -258,6 +265,9 @@ func CreateRedisSlave(cr *redisv1beta1.Redis) {
 		Type:     "slave",
 	}
 	CompareAndCreateStateful(cr, stateful, err, "slave")
+	if cr.Spec.GlobalConfig.EnablePDB {
+		CreatePodDisruptionBudget(cr, "slave", (*cr.Spec.Size/2)+1)
+	}
 }
 
 // CreateRedisStandalone will create a Redis Standalone server
@@ -265,8 +275,9 @@ func CreateRedisStandalone(cr *redisv1beta1.Redis) {
 	var standaloneReplica int32 = 1
 
 	labels := map[string]string{
-		"app":  cr.ObjectMeta.Name + "-" + "standalone",
-		"role": "standalone",
+		"instance": cr.ObjectMeta.Name,
+		"app":      cr.ObjectMeta.Name + "-" + "standalone",
+		"role":     "standalone",
 	}
 	statefulDefinition := GenerateStateFulSetsDef(cr, labels, "standalone", &standaloneReplica)
 	statefulObject, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name+"-standalone", metav1.GetOptions{})
