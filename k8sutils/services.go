@@ -121,7 +121,7 @@ func getService(namespace string, service string) (*corev1.Service, error) {
 	logger := serviceLogger(namespace, service)
 	serviceInfo, err := generateK8sClient().CoreV1().Services(namespace).Get(context.TODO(), service, metav1.GetOptions{})
 	if err != nil {
-		logger.Error(err, "Redis service get action is failed")
+		logger.Info("Redis service get action is failed")
 		return nil, err
 	}
 	logger.Info("Redis service get action is successful")

@@ -28,17 +28,16 @@ spec:
     redisSecret:
       name: redis-secret
       key: password
+    serviceType: ClusterIP
   redisConfig: {}
   storage:
     volumeClaimTemplate:
       spec:
-        storageClassName: csi-cephfs-sc
+        storageClassName: standard
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
             storage: 1Gi
-  service:
-    type: ClusterIP
   # nodeSelector:
   #   kubernetes.io/hostname: minikube
   # securityContext: {}

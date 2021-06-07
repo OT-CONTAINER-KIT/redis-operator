@@ -27,7 +27,6 @@ import (
 // RedisSpec defines the desired state of Redis
 type RedisSpec struct {
 	KubernetesConfig  KubernetesConfig             `json:"kubernetesConfig"`
-	Service           Service                      `json:"service"`
 	RedisExporter     *RedisExporter               `json:"redisExporter,omitempty"`
 	RedisConfig       map[string]string            `json:"redisConfig"`
 	Resources         *corev1.ResourceRequirements `json:"resources,omitempty"`

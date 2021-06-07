@@ -40,13 +40,13 @@ type RedisClusterSpec struct {
 // RedisLeader interface will have the redis master configuration
 type RedisLeader struct {
 	RedisConfig map[string]string `json:"redisConfig,omitempty"`
-	Service     Service           `json:"service,omitempty"`
+	// Service     Service           `json:"service,omitempty"`
 }
 
 // RedisFollower interface will have the redis slave configuration
 type RedisFollower struct {
 	RedisConfig map[string]string `json:"redisConfig,omitempty"`
-	Service     Service           `json:"service,omitempty"`
+	// Service     Service           `json:"service,omitempty"`
 }
 
 // RedisClusterStatus defines the observed state of RedisCluster

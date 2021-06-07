@@ -673,8 +673,11 @@ spec:
                           to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                         type: object
                     type: object
+                  serviceType:
+                    type: string
                 required:
                 - image
+                - serviceType
                 type: object
               nodeSelector:
                 additionalProperties:
@@ -899,14 +902,6 @@ spec:
                           value specified in SecurityContext takes precedence.
                         type: string
                     type: object
-                type: object
-              service:
-                description: Service is the struct for service definition
-                properties:
-                  type:
-                    type: string
-                required:
-                - type
                 type: object
               storage:
                 description: Storage is the inteface to add pvc and pv support in
@@ -1169,7 +1164,6 @@ spec:
             required:
             - kubernetesConfig
             - redisConfig
-            - service
             type: object
           status:
             description: RedisStatus defines the observed state of Redis
@@ -1841,8 +1835,11 @@ spec:
                               More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                             type: object
                         type: object
+                      serviceType:
+                        type: string
                     required:
                     - image
+                    - serviceType
                     type: object
                   nodeSelector:
                     additionalProperties:
@@ -2073,14 +2070,6 @@ spec:
                               takes precedence.
                             type: string
                         type: object
-                    type: object
-                  service:
-                    description: Service is the struct for service definition
-                    properties:
-                      type:
-                        type: string
-                    required:
-                    - type
                     type: object
                   storage:
                     description: Storage is the inteface to add pvc and pv support
@@ -2354,7 +2343,6 @@ spec:
                 required:
                 - kubernetesConfig
                 - redisConfig
-                - service
                 type: object
             type: object
         type: object

@@ -673,8 +673,11 @@ spec:
                           to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                         type: object
                     type: object
+                  serviceType:
+                    type: string
                 required:
                 - image
+                - serviceType
                 type: object
               nodeSelector:
                 additionalProperties:
@@ -731,14 +734,6 @@ spec:
                     additionalProperties:
                       type: string
                     type: object
-                  service:
-                    description: Service is the struct for service definition
-                    properties:
-                      type:
-                        type: string
-                    required:
-                    - type
-                    type: object
                 type: object
               redisLeader:
                 description: RedisLeader interface will have the redis master configuration
@@ -746,14 +741,6 @@ spec:
                   redisConfig:
                     additionalProperties:
                       type: string
-                    type: object
-                  service:
-                    description: Service is the struct for service definition
-                    properties:
-                      type:
-                        type: string
-                    required:
-                    - type
                     type: object
                 type: object
               resources:
@@ -1836,8 +1823,11 @@ spec:
                           to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                         type: object
                     type: object
+                  serviceType:
+                    type: string
                 required:
                 - image
+                - serviceType
                 type: object
               nodeSelector:
                 additionalProperties:
@@ -1894,14 +1884,6 @@ spec:
                     additionalProperties:
                       type: string
                     type: object
-                  service:
-                    description: Service is the struct for service definition
-                    properties:
-                      type:
-                        type: string
-                    required:
-                    - type
-                    type: object
                 type: object
               redisLeader:
                 description: RedisLeader interface will have the redis master configuration
@@ -1909,14 +1891,6 @@ spec:
                   redisConfig:
                     additionalProperties:
                       type: string
-                    type: object
-                  service:
-                    description: Service is the struct for service definition
-                    properties:
-                      type:
-                        type: string
-                    required:
-                    - type
                     type: object
                 type: object
               resources:

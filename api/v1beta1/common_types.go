@@ -38,6 +38,7 @@ type KubernetesConfig struct {
 	ImagePullPolicy        corev1.PullPolicy            `json:"imagePullPolicy,omitempty"`
 	Resources              *corev1.ResourceRequirements `json:"resources,omitempty"`
 	ExistingPasswordSecret *ExistingPasswordSecret      `json:"redisSecret,omitempty"`
+	ServiceType            string                       `json:"serviceType"`
 }
 
 // ExistingPasswordSecret is the struct to access the existing secret
@@ -57,9 +58,4 @@ type RedisExporter struct {
 	Image           string                       `json:"image"`
 	Resources       *corev1.ResourceRequirements `json:"resources,omitempty"`
 	ImagePullPolicy corev1.PullPolicy            `json:"imagePullPolicy,omitempty"`
-}
-
-// Service is the struct for service definition
-type Service struct {
-	Type string `json:"type"`
 }
