@@ -2,6 +2,50 @@
 apiVersion: redis.redis.opstreelabs.in/v1beta1
 kind: RedisCluster
 metadata:
-  name: rediscluster-sample
+  name: redis-cluster
 spec:
-  foo: bar
+  clusterSize: 3
+  kubernetesConfig:
+    image: quay.io/opstree/redis:v6.2
+    imagePullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 101m
+        memory: 128Mi
+      limits:
+        cpu: 101m
+        memory: 128Mi
+    redisSecret:
+      name: redis-secret
+      key: password
+    serviceType: ClusterIP
+  redisExporter:
+    enabled: true
+    image: quay.io/opstree/redis-exporter:1.0
+    imagePullPolicy: Always
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+  redisLeader:
+    serviceType: LoadBalancer
+  redisFollower:
+    serviceType: LoadBalancer
+  redisConfig: {}
+  storage:
+    volumeClaimTemplate:
+      spec:
+        storageClassName: standard
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+  # nodeSelector:
+  #   kubernetes.io/hostname: minikube
+  # securityContext: {}
+  # priorityClassName:
+  # Affinity:
+  # Tolerations: []

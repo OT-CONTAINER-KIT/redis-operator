@@ -23,30 +23,28 @@ import (
 
 // RedisClusterSpec defines the desired state of RedisCluster
 type RedisClusterSpec struct {
-	Size              *int32                     `json:"size"`
-	KubernetesConfig  KubernetesConfig           `json:"kubernetesConfig"`
-	RedisLeader       RedisLeader                `json:"redisLeader,omitempty"`
-	RedisFollower     RedisFollower              `json:"redisFollower,omitempty"`
-	RedisExporter     *RedisExporter             `json:"redisExporter,omitempty"`
-	Storage           *Storage                   `json:"storage,omitempty"`
-	NodeSelector      map[string]string          `json:"nodeSelector,omitempty"`
-	SecurityContext   *corev1.PodSecurityContext `json:"securityContext,omitempty"`
-	PriorityClassName string                     `json:"priorityClassName,omitempty"`
-	Affinity          *corev1.Affinity           `json:"affinity,omitempty"`
-	Tolerations       *[]corev1.Toleration       `json:"tolerations,omitempty"`
-	Resources         Resources                  `json:"resources,omitempty"`
+	Size              *int32                       `json:"clusterSize"`
+	KubernetesConfig  KubernetesConfig             `json:"kubernetesConfig"`
+	RedisLeader       RedisLeader                  `json:"redisLeader,omitempty"`
+	RedisFollower     RedisFollower                `json:"redisFollower,omitempty"`
+	RedisExporter     *RedisExporter               `json:"redisExporter,omitempty"`
+	Storage           *Storage                     `json:"storage,omitempty"`
+	NodeSelector      map[string]string            `json:"nodeSelector,omitempty"`
+	SecurityContext   *corev1.PodSecurityContext   `json:"securityContext,omitempty"`
+	PriorityClassName string                       `json:"priorityClassName,omitempty"`
+	Affinity          *corev1.Affinity             `json:"affinity,omitempty"`
+	Tolerations       *[]corev1.Toleration         `json:"tolerations,omitempty"`
+	Resources         *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
 // RedisLeader interface will have the redis master configuration
 type RedisLeader struct {
-	RedisConfig map[string]string `json:"redisConfig,omitempty"`
-	// Service     Service           `json:"service,omitempty"`
+	Service string `json:"serviceType,omitempty"`
 }
 
 // RedisFollower interface will have the redis slave configuration
 type RedisFollower struct {
-	RedisConfig map[string]string `json:"redisConfig,omitempty"`
-	// Service     Service           `json:"service,omitempty"`
+	Service string `json:"serviceType,omitempty"`
 }
 
 // RedisClusterStatus defines the observed state of RedisCluster

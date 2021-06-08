@@ -67,9 +67,9 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	if err := controllerutil.SetControllerReference(instance, instance, r.Scheme); err != nil {
 		return ctrl.Result{}, err
 	}
-
 	k8sutils.CreateStandAloneRedis(instance)
 	k8sutils.CreateStandAloneService(instance)
+
 	// found := &appsv1.StatefulSet{}
 	// err = r.Client.Get(context.TODO(), types.NamespacedName{Name: instance.Name, Namespace: instance.Namespace}, found)
 	// if err != nil && errors.IsNotFound(err) {

@@ -12,14 +12,10 @@ var (
 // CreateStandAloneService method will create standalone service for Redis
 func CreateStandAloneService(cr *redisv1beta1.Redis) error {
 	logger := serviceLogger(cr.Namespace, cr.ObjectMeta.Name)
-	labels := map[string]string{
-		"app":              cr.ObjectMeta.Name,
-		"redis_setup_type": "standalone",
-	}
+	labels := getRedisLabels(cr.ObjectMeta.Name, "standalone", "standalone")
 	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
 		enableMetrics = true
 	}
-
 	k8sServiceType = cr.Spec.KubernetesConfig.ServiceType
 	objectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name, cr.Namespace, labels, generateServiceAnots())
 	headlessObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-headless", cr.Namespace, labels, generateServiceAnots())
@@ -39,10 +35,7 @@ func CreateStandAloneService(cr *redisv1beta1.Redis) error {
 // CreateStandAloneRedis will create a standalone redis setup
 func CreateStandAloneRedis(cr *redisv1beta1.Redis) error {
 	logger := stateFulSetLogger(cr.Namespace, cr.ObjectMeta.Name)
-	labels := map[string]string{
-		"app":              cr.ObjectMeta.Name,
-		"redis_setup_type": "standalone",
-	}
+	labels := getRedisLabels(cr.ObjectMeta.Name, "standalone", "standalone")
 	objectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name, cr.Namespace, labels, generateStatefulSetsAnots())
 	err := CreateOrUpdateStateFul(cr.Namespace, objectMetaInfo, labels, generateRedisStandaloneParams(cr), redisAsOwner(cr), generateRedisStandaloneContainerParams(cr))
 	if err != nil {

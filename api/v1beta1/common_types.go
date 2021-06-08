@@ -20,18 +20,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// Resources describes requests and limits for the cluster resouces.
-type Resources struct {
-	ResourceRequests ResourceDescription `json:"requests,omitempty"`
-	ResourceLimits   ResourceDescription `json:"limits,omitempty"`
-}
-
-// ResourceDescription describes CPU and memory resources defined for a cluster.
-type ResourceDescription struct {
-	CPU    string `json:"cpu"`
-	Memory string `json:"memory"`
-}
-
 // KubernetesConfig will be the JSON struct for Basic Redis Config
 type KubernetesConfig struct {
 	Image                  string                       `json:"image"`
