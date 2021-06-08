@@ -196,6 +196,10 @@ func GenerateTLSEnvironmentVariables(tlsconfig *redisv1beta1.TLSConfig) []corev1
 	}
 
 	envVars = append(envVars, corev1.EnvVar{
+		Name:  "TLS_MODE",
+		Value: "true",
+	})
+	envVars = append(envVars, corev1.EnvVar{
 		Name:  "REDIS_TLS_CA_KEY",
 		Value: caCert,
 	})
