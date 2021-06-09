@@ -219,12 +219,16 @@ func FinalContainerDef(cr *redisv1beta1.Redis, role string) []corev1.Container {
 
 // CreateRedisMaster will create a Redis Master
 func CreateRedisMaster(cr *redisv1beta1.Redis) {
+	replicas := cr.Spec.Master.Size
+	if replicas == nil {
+		replicas = cr.Spec.Size
+	}
 
 	labels := map[string]string{
 		"app":  cr.ObjectMeta.Name + "-master",
 		"role": "master",
 	}
-	statefulDefinition := GenerateStateFulSetsDef(cr, labels, "master", cr.Spec.Size)
+	statefulDefinition := GenerateStateFulSetsDef(cr, labels, "master", replicas)
 	statefulObject, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name+"-master", metav1.GetOptions{})
 
 	if cr.Spec.Storage != nil {
@@ -241,11 +245,16 @@ func CreateRedisMaster(cr *redisv1beta1.Redis) {
 
 // CreateRedisSlave will create a Redis Slave
 func CreateRedisSlave(cr *redisv1beta1.Redis) {
+	replicas := cr.Spec.Slave.Size
+	if replicas == nil {
+		replicas = cr.Spec.Size
+	}
+
 	labels := map[string]string{
 		"app":  cr.ObjectMeta.Name + "-slave",
 		"role": "slave",
 	}
-	statefulDefinition := GenerateStateFulSetsDef(cr, labels, "slave", cr.Spec.Size)
+	statefulDefinition := GenerateStateFulSetsDef(cr, labels, "slave", replicas)
 	statefulObject, err := GenerateK8sClient().AppsV1().StatefulSets(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name+"-slave", metav1.GetOptions{})
 
 	if cr.Spec.Storage != nil {

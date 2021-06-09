@@ -55,6 +55,7 @@ type Storage struct {
 
 // RedisMaster interface will have the redis master configuration
 type RedisMaster struct {
+	Size        *int32            `json:"size,omitempty"`
 	Resources   Resources         `json:"resources,omitempty"`
 	RedisConfig map[string]string `json:"redisConfig,omitempty"`
 	Service     Service           `json:"service,omitempty"`
@@ -84,6 +85,7 @@ type ExistingPasswordSecret struct {
 
 // RedisSlave interface will have the redis slave configuration
 type RedisSlave struct {
+	Size        *int32            `json:"size,omitempty"`
 	Resources   Resources         `json:"resources,omitempty"`
 	RedisConfig map[string]string `json:"redisConfig,omitempty"`
 	Service     Service           `json:"service,omitempty"`
