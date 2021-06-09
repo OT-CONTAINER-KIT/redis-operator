@@ -127,10 +127,9 @@ func GenerateContainerDef(cr *redisv1beta1.Redis, role string) corev1.Container 
 			ReadOnly:  true,
 			MountPath: "/tls",
 		})
-		for _, envVar := range GenerateTLSEnvironmentVariables(cr.Spec.GlobalConfig.TLS) {
-			containerDefinition.Env = append(containerDefinition.Env, envVar)
-		}
+		containerDefinition.Env = append(containerDefinition.Env, GenerateTLSEnvironmentVariables(cr.Spec.GlobalConfig.TLS)...)
 	}
+
 	if cr.Spec.GlobalConfig.Password != nil && cr.Spec.GlobalConfig.ExistingPasswordSecret == nil {
 		containerDefinition.Env = append(containerDefinition.Env, corev1.EnvVar{
 			Name: "REDIS_PASSWORD",

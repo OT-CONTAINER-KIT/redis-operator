@@ -108,6 +108,7 @@ func getRedisTLSConfig(cr *redisv1beta1.Redis, redisInfo RedisDetails) *tls.Conf
 			Certificates: tlsClientCertificates,
 			ServerName:   redisInfo.PodName,
 			RootCAs:      tlsCaCertificates,
+			MinVersion:   2,
 			ClientAuth:   0,
 		}
 	}
