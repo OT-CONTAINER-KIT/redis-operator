@@ -2,9 +2,12 @@ package k8sutils
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	redisv1beta1 "redis-operator/api/v1beta1"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	redisv1beta1 "redis-operator/api/v1beta1"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -62,4 +65,51 @@ func getRedisPassword(cr *redisv1beta1.Redis) string {
 		}
 	}
 	return ""
+}
+
+func getRedisTLSConfig(cr *redisv1beta1.Redis, redisInfo RedisDetails) *tls.Config {
+	if cr.Spec.GlobalConfig.TLS != nil {
+		reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
+		secretName, err := GenerateK8sClient().CoreV1().Secrets(cr.Namespace).Get(context.TODO(), cr.Spec.GlobalConfig.TLS.Secret.SecretName, metav1.GetOptions{})
+		if err != nil {
+			reqLogger.Error(err, "Failed in getting TLS secret for redis")
+		}
+
+		var (
+			tlsClientCert         []byte
+			tlsClientKey          []byte
+			tlsCaCertificate      []byte
+			tlsCaCertificates     *x509.CertPool
+			tlsClientCertificates []tls.Certificate
+		)
+		for key, value := range secretName.Data {
+			if key == cr.Spec.GlobalConfig.TLS.CaKeyFile || key == "ca.crt" {
+				tlsCaCertificate = value
+			} else if key == cr.Spec.GlobalConfig.TLS.CertKeyFile || key == "tls.key" {
+				tlsClientKey = value
+			} else if key == cr.Spec.GlobalConfig.TLS.KeyFile || key == "tls.crt" {
+				tlsClientCert = value
+			}
+		}
+
+		cert, err := tls.X509KeyPair(tlsClientCert, tlsClientKey)
+		if err != nil {
+			reqLogger.Error(err, "Couldn't load TLS client key pair")
+		}
+		tlsClientCertificates = append(tlsClientCertificates, cert)
+
+		tlsCaCertificates = x509.NewCertPool()
+		ok := tlsCaCertificates.AppendCertsFromPEM(tlsCaCertificate)
+		if !ok {
+			reqLogger.Info("Failed to load CA Certificates from Secret")
+		}
+
+		return &tls.Config{
+			Certificates: tlsClientCertificates,
+			ServerName:   redisInfo.PodName,
+			RootCAs:      tlsCaCertificates,
+			ClientAuth:   0,
+		}
+	}
+	return nil
 }

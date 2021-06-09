@@ -54,11 +54,21 @@ func ExecuteRedisClusterCommand(cr *redisv1beta1.Redis) {
 		cmd = append(cmd, "-a")
 		cmd = append(cmd, *cr.Spec.GlobalConfig.Password)
 	}
-
 	if cr.Spec.GlobalConfig.ExistingPasswordSecret != nil {
 		pass := getRedisPassword(cr)
 		cmd = append(cmd, "-a")
 		cmd = append(cmd, pass)
+	}
+	if cr.Spec.GlobalConfig.TLS != nil {
+		cmd = append(cmd, "--tls")
+		cmd = append(cmd, "--cert")
+		cmd = append(cmd, "/tls/tls.crt")
+		cmd = append(cmd, "--key")
+		cmd = append(cmd, "/tls/tls.key")
+		cmd = append(cmd, "--cacert")
+		cmd = append(cmd, "/tls/ca.crt")
+		cmd = append(cmd, "-h")
+		cmd = append(cmd, cr.ObjectMeta.Name+"-master-0")
 	}
 	reqLogger.Info("Redis cluster creation command is", "Command", cmd)
 	executeCommand(cr, cmd, cr.ObjectMeta.Name+"-master-0")
@@ -88,6 +98,17 @@ func createRedisReplicationCommand(cr *redisv1beta1.Redis, nodeNumber string) []
 		pass := getRedisPassword(cr)
 		cmd = append(cmd, "-a")
 		cmd = append(cmd, pass)
+	}
+	if cr.Spec.GlobalConfig.TLS != nil {
+		cmd = append(cmd, "--tls")
+		cmd = append(cmd, "--cert")
+		cmd = append(cmd, "/tls/tls.crt")
+		cmd = append(cmd, "--key")
+		cmd = append(cmd, "/tls/tls.key")
+		cmd = append(cmd, "--cacert")
+		cmd = append(cmd, "/tls/ca.crt")
+		cmd = append(cmd, "-h")
+		cmd = append(cmd, cr.ObjectMeta.Name+"-master-0") // Commands are always executed against '-master-0'?
 	}
 	reqLogger.Info("Redis replication creation command is", "Command", cmd)
 	return cmd
@@ -189,22 +210,25 @@ func configureRedisClient(cr *redisv1beta1.Redis, podName string) *redis.Client 
 
 	if cr.Spec.GlobalConfig.Password != nil && cr.Spec.GlobalConfig.ExistingPasswordSecret == nil {
 		client = redis.NewClient(&redis.Options{
-			Addr:     getRedisServerIP(redisInfo) + ":6379",
-			Password: *cr.Spec.GlobalConfig.Password,
-			DB:       0,
+			Addr:      getRedisServerIP(redisInfo) + ":6379",
+			Password:  *cr.Spec.GlobalConfig.Password,
+			DB:        0,
+			TLSConfig: getRedisTLSConfig(cr, redisInfo),
 		})
 	} else if cr.Spec.GlobalConfig.ExistingPasswordSecret != nil {
 		pass := getRedisPassword(cr)
 		client = redis.NewClient(&redis.Options{
-			Addr:     getRedisServerIP(redisInfo) + ":6379",
-			Password: pass,
-			DB:       0,
+			Addr:      getRedisServerIP(redisInfo) + ":6379",
+			Password:  pass,
+			DB:        0,
+			TLSConfig: getRedisTLSConfig(cr, redisInfo),
 		})
 	} else {
 		client = redis.NewClient(&redis.Options{
-			Addr:     getRedisServerIP(redisInfo) + ":6379",
-			Password: "",
-			DB:       0,
+			Addr:      getRedisServerIP(redisInfo) + ":6379",
+			Password:  "",
+			DB:        0,
+			TLSConfig: getRedisTLSConfig(cr, redisInfo),
 		})
 	}
 	return client
