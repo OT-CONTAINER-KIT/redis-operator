@@ -94,13 +94,19 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 				return ctrl.Result{}, err
 			}
 			if int(redisMasterInfo.Status.ReadyReplicas) != int(*instance.Spec.Size) && int(redisSlaveInfo.Status.ReadyReplicas) != int(*instance.Spec.Size) {
-				reqLogger.Info("Redis master and slave nodes are not ready yet", "Ready.Replicas", strconv.Itoa(int(redisMasterInfo.Status.ReadyReplicas)))
+				reqLogger.Info("Redis master and slave nodes are not ready yet", "Ready.Replicas", strconv.Itoa(int(redisMasterInfo.Status.ReadyReplicas)), "Expected.Replicas", instance.Spec.Size)
 				return ctrl.Result{RequeueAfter: time.Second * 120}, nil
 			}
-			reqLogger.Info("Creating redis cluster by executing cluster creation command", "Ready.Replicas", strconv.Itoa(int(redisMasterInfo.Status.ReadyReplicas)))
-			if k8sutils.CheckRedisNodeCount(instance) != int(*instance.Spec.Size)*2 {
-				k8sutils.ExecuteRedisClusterCommand(instance)
-				k8sutils.ExecuteRedisReplicationCommand(instance)
+			reqLogger.Info("Creating redis cluster by executing cluster creation commands", "Ready.Replicas", strconv.Itoa(int(redisMasterInfo.Status.ReadyReplicas)))
+			if k8sutils.CheckRedisNodeCount(instance, "") != int(*instance.Spec.Size)*2 {
+				masterCount := k8sutils.CheckRedisNodeCount(instance, "master")
+				if masterCount != int(*instance.Spec.Size) {
+					reqLogger.Info("Not all masters are part of the cluster...", "Masters.Count", masterCount, "Instance.Size", instance.Spec.Size)
+					k8sutils.ExecuteRedisClusterCommand(instance)
+				} else {
+					reqLogger.Info("All masters are part of the cluster, adding slaves/replicas", "Masters.Count", masterCount, "Instance.Size", instance.Spec.Size)
+					k8sutils.ExecuteRedisReplicationCommand(instance)
+				}
 			} else {
 				reqLogger.Info("Redis master count is desired")
 				if k8sutils.CheckRedisClusterState(instance) >= int(*instance.Spec.Size)*2-1 {
