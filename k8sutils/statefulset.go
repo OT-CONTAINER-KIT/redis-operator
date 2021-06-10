@@ -200,19 +200,6 @@ func getProbeInfo() *corev1.Probe {
 	}
 }
 
-// getResources will get the resource information for Redis container
-// func getResources(resources *redisv1beta1.Resources) *corev1.ResourceRequirements {
-// 	var resourceStruct *corev1.ResourceRequirements
-// 	if resources != nil {
-// 		resourceStruct.Limits[corev1.ResourceCPU] = resource.MustParse(resources.ResourceLimits.CPU)
-// 		resourceStruct.Requests[corev1.ResourceCPU] = resource.MustParse(resources.ResourceRequests.CPU)
-// 		resourceStruct.Limits[corev1.ResourceMemory] = resource.MustParse(resources.ResourceLimits.Memory)
-// 		resourceStruct.Requests[corev1.ResourceMemory] = resource.MustParse(resources.ResourceRequests.Memory)
-// 		return resourceStruct
-// 	}
-// 	return nil
-// }
-
 // getEnvironmentVariables returns all the required Environment Variables
 func getEnvironmentVariables(role string, enabledPassword *bool, secretName *string, secretKey *string, persistenceEnabled *bool) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{

@@ -34,7 +34,7 @@ spec:
     serviceType: LoadBalancer
   redisFollower:
     serviceType: LoadBalancer
-  redisConfig: {}
+  # redisConfig: {}
   storage:
     volumeClaimTemplate:
       spec:

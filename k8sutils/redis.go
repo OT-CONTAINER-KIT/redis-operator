@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"github.com/go-redis/redis"
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -24,11 +25,13 @@ type RedisDetails struct {
 
 // getRedisServerIP will return the IP of redis service
 func getRedisServerIP(redisInfo RedisDetails) string {
-	reqLogger := log.WithValues("Request.Namespace", redisInfo.Namespace, "Request.PodName", redisInfo.PodName)
-	redisIP, _ := generateK8sClient().CoreV1().Pods(redisInfo.Namespace).
-		Get(context.TODO(), redisInfo.PodName, metav1.GetOptions{})
+	logger := generateRedisManagerLogger(redisInfo.Namespace, redisInfo.Name)
+	redisIP, err := generateK8sClient().CoreV1().Pods(redisInfo.Namespace).Get(context.TODO(), redisInfo.PodName, metav1.GetOptions{})
+	if err != nil {
+		logger.Error(err, "Error in getting redis pod IP")
+	}
 
-	reqLogger.Info("Successfully got the ip for redis", "ip", redisIP.Status.PodIP)
+	logger.Info("Successfully got the ip for redis", "ip", redisIP.Status.PodIP)
 	return redisIP.Status.PodIP
 }
 
@@ -59,17 +62,9 @@ func ExecuteRedisClusterCommand(cr *redisv1beta1.RedisCluster) {
 }
 
 // createRedisReplicationCommand will create redis replication creation command
-func createRedisReplicationCommand(cr *redisv1beta1.RedisCluster, nodeNumber string) []string {
+func createRedisReplicationCommand(cr *redisv1beta1.RedisCluster, masterPod, slavePod RedisDetails) []string {
 	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
 	cmd := []string{"redis-cli", "--cluster", "add-node"}
-	masterPod := RedisDetails{
-		PodName:   cr.ObjectMeta.Name + "-master-" + nodeNumber,
-		Namespace: cr.Namespace,
-	}
-	slavePod := RedisDetails{
-		PodName:   cr.ObjectMeta.Name + "-slave-" + nodeNumber,
-		Namespace: cr.Namespace,
-	}
 	cmd = append(cmd, getRedisServerIP(slavePod)+":6379")
 	cmd = append(cmd, getRedisServerIP(masterPod)+":6379")
 	cmd = append(cmd, "--cluster-slave")
@@ -257,4 +252,10 @@ func getContainerID(cr *redisv1beta1.RedisCluster, podName string) (int, *corev1
 		}
 	}
 	return targetContainer, pod
+}
+
+// generateRedisManagerLogger will generate logging interface for Redis operations
+func generateRedisManagerLogger(namespace, name string) logr.Logger {
+	reqLogger := log.WithValues("Request.RedisManager.Namespace", namespace, "Request.RedisManager.Name", name)
+	return reqLogger
 }
