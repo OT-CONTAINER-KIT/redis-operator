@@ -267,7 +267,6 @@ func executeCommand(cr *redisv1beta1.Redis, cmd []string, podName string) {
 	if err != nil {
 		reqLogger.Error(err, "Failed to init executor")
 	}
-
 	var (
 		execOut bytes.Buffer
 		execErr bytes.Buffer
