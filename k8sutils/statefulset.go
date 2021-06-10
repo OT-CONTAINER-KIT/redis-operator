@@ -2,6 +2,8 @@ package k8sutils
 
 import (
 	"context"
+	"path"
+
 	// "github.com/google/go-cmp/cmp"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -49,6 +51,15 @@ func GenerateStateFulSetsDef(cr *redisv1beta1.Redis, labels map[string]string, r
 	}
 	if cr.Spec.Tolerations != nil {
 		statefulset.Spec.Template.Spec.Tolerations = *cr.Spec.Tolerations
+	}
+	if cr.Spec.GlobalConfig.TLS != nil {
+		statefulset.Spec.Template.Spec.Volumes = append(statefulset.Spec.Template.Spec.Volumes,
+			corev1.Volume{
+				Name: "tls-certs",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &cr.Spec.GlobalConfig.TLS.Secret,
+				},
+			})
 	}
 	AddOwnerRefToObject(statefulset, AsOwner(cr))
 	return statefulset
@@ -110,6 +121,15 @@ func GenerateContainerDef(cr *redisv1beta1.Redis, role string) corev1.Container 
 		}
 		containerDefinition.VolumeMounts = append(containerDefinition.VolumeMounts, VolumeMounts)
 	}
+	if cr.Spec.GlobalConfig.TLS != nil {
+		containerDefinition.VolumeMounts = append(containerDefinition.VolumeMounts, corev1.VolumeMount{
+			Name:      "tls-certs",
+			ReadOnly:  true,
+			MountPath: "/tls",
+		})
+		containerDefinition.Env = append(containerDefinition.Env, GenerateTLSEnvironmentVariables(cr.Spec.GlobalConfig.TLS)...)
+	}
+
 	if cr.Spec.GlobalConfig.Password != nil && cr.Spec.GlobalConfig.ExistingPasswordSecret == nil {
 		containerDefinition.Env = append(containerDefinition.Env, corev1.EnvVar{
 			Name: "REDIS_PASSWORD",
@@ -159,11 +179,53 @@ func GenerateContainerDef(cr *redisv1beta1.Redis, role string) corev1.Container 
 	return containerDefinition
 }
 
+func GenerateTLSEnvironmentVariables(tlsconfig *redisv1beta1.TLSConfig) []corev1.EnvVar {
+	var envVars []corev1.EnvVar
+	root := "/tls/"
+
+	// get and set Defaults
+	caCert := "ca.crt"
+	tlsCert := "tls.crt"
+	tlsCertKey := "tls.key"
+
+	if tlsconfig.CaKeyFile != "" {
+		caCert = tlsconfig.CaKeyFile
+	}
+	if tlsconfig.CertKeyFile != "" {
+		tlsCert = tlsconfig.CertKeyFile
+	}
+	if tlsconfig.KeyFile != "" {
+		tlsCertKey = tlsconfig.KeyFile
+	}
+
+	envVars = append(envVars, corev1.EnvVar{
+		Name:  "TLS_MODE",
+		Value: "true",
+	})
+	envVars = append(envVars, corev1.EnvVar{
+		Name:  "REDIS_TLS_CA_KEY",
+		Value: path.Join(root, caCert),
+	})
+	envVars = append(envVars, corev1.EnvVar{
+		Name:  "REDIS_TLS_CERT",
+		Value: path.Join(root, tlsCert),
+	})
+	envVars = append(envVars, corev1.EnvVar{
+		Name:  "REDIS_TLS_CERT_KEY",
+		Value: path.Join(root, tlsCertKey),
+	})
+	return envVars
+}
+
 // FinalContainerDef will generate the final statefulset definition
 func FinalContainerDef(cr *redisv1beta1.Redis, role string) []corev1.Container {
-	var containerDefinition []corev1.Container
-	var exporterDefinition corev1.Container
-	var exporterEnvDetails []corev1.EnvVar
+	var (
+		containerDefinition  []corev1.Container
+		exporterDefinition   corev1.Container
+		exporterEnvDetails   []corev1.EnvVar
+		exporterArgs         []string
+		exporterVolumeMounts []corev1.VolumeMount
+	)
 
 	containerDefinition = append(containerDefinition, GenerateContainerDef(cr, role))
 
@@ -171,36 +233,58 @@ func FinalContainerDef(cr *redisv1beta1.Redis, role string) []corev1.Container {
 		return containerDefinition
 	}
 
-	if cr.Spec.GlobalConfig.Password != nil {
-		exporterEnvDetails = []corev1.EnvVar{
-			{
-				Name: "REDIS_PASSWORD",
-				ValueFrom: &corev1.EnvVarSource{
-					SecretKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: cr.ObjectMeta.Name,
-						},
-						Key: "password",
-					},
-				},
-			}, {
-				Name:  "REDIS_ADDR",
-				Value: "redis://localhost:6379",
-			},
-		}
-	} else {
-		exporterEnvDetails = []corev1.EnvVar{
-			{
-				Name:  "REDIS_ADDR",
-				Value: "redis://localhost:6379",
-			},
-		}
+	redisHost := "redis://localhost:6379"
+	if cr.Spec.GlobalConfig.TLS != nil {
+		redisHost = "rediss://localhost:6379"
+		exporterVolumeMounts = append(exporterVolumeMounts, corev1.VolumeMount{
+			Name:      "tls-certs",
+			ReadOnly:  true,
+			MountPath: "/tls",
+		})
+		exporterEnvDetails = append(exporterEnvDetails, corev1.EnvVar{
+			Name:  "REDIS_EXPORTER_TLS_CLIENT_KEY_FILE",
+			Value: "/tls/tls.key",
+		})
+		exporterEnvDetails = append(exporterEnvDetails, corev1.EnvVar{
+			Name:  "REDIS_EXPORTER_TLS_CLIENT_CERT_FILE",
+			Value: "/tls/tls.crt",
+		})
+		exporterEnvDetails = append(exporterEnvDetails, corev1.EnvVar{
+			Name:  "REDIS_EXPORTER_TLS_CA_CERT_FILE",
+			Value: "/tls/ca.crt",
+		})
+		exporterEnvDetails = append(exporterEnvDetails, corev1.EnvVar{
+			Name:  "REDIS_EXPORTER_SKIP_TLS_VERIFICATION",
+			Value: "true",
+		})
 	}
+
+	exporterEnvDetails = append(exporterEnvDetails, corev1.EnvVar{
+		Name:  "REDIS_ADDR",
+		Value: redisHost,
+	})
+
+	if cr.Spec.GlobalConfig.Password != nil {
+		exporterEnvDetails = append(exporterEnvDetails, corev1.EnvVar{
+			Name: "REDIS_PASSWORD",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: cr.ObjectMeta.Name,
+					},
+					Key: "password",
+				},
+			},
+		})
+	}
+
 	exporterDefinition = corev1.Container{
 		Name:            constRedisExpoterName,
 		Image:           cr.Spec.RedisExporter.Image,
 		ImagePullPolicy: cr.Spec.RedisExporter.ImagePullPolicy,
 		Env:             exporterEnvDetails,
+		Args:            exporterArgs,
+		VolumeMounts:    exporterVolumeMounts,
 		Resources: corev1.ResourceRequirements{
 			Limits: corev1.ResourceList{}, Requests: corev1.ResourceList{},
 		},

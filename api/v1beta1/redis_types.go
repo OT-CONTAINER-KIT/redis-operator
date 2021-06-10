@@ -75,11 +75,20 @@ type GlobalConfig struct {
 	Password               *string                 `json:"password,omitempty"`
 	Resources              *Resources              `json:"resources,omitempty"`
 	ExistingPasswordSecret *ExistingPasswordSecret `json:"existingPasswordSecret,omitempty"`
+	TLS                    *TLSConfig              `json:"TLS,omitempty"`
 }
 
 type ExistingPasswordSecret struct {
 	Name *string `json:"name,omitempty"`
 	Key  *string `json:"key,omitempty"`
+}
+
+type TLSConfig struct {
+	CaKeyFile   string `json:"ca,omitempty"`
+	CertKeyFile string `json:"cert,omitempty"`
+	KeyFile     string `json:"key,omitempty"`
+	// Reference to secret which contains
+	Secret corev1.SecretVolumeSource `json:"secret"`
 }
 
 // RedisSlave interface will have the redis slave configuration
