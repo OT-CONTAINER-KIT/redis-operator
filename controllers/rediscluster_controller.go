@@ -18,11 +18,15 @@ package controllers
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-logr/logr"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"redis-operator/k8sutils"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	redisv1beta1 "redis-operator/api/v1beta1"
 )
@@ -34,25 +38,43 @@ type RedisClusterReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=redis.redis.opstreelabs.in,resources=redisclusters,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=redis.redis.opstreelabs.in,resources=redisclusters/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=redis.redis.opstreelabs.in,resources=redisclusters/finalizers,verbs=update
-
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the RedisCluster object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.2/pkg/reconcile
+// Reconcile is part of the main kubernetes reconciliation loop
 func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = r.Log.WithValues("rediscluster", req.NamespacedName)
+	reqLogger := r.Log.WithValues("Request.Namespace", req.Namespace, "Request.Name", req.Name)
+	reqLogger.Info("Reconciling opstree redis Cluster controller")
+	instance := &redisv1beta1.RedisCluster{}
 
-	// your logic here
+	err := r.Client.Get(context.TODO(), req.NamespacedName, instance)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, err
+	}
 
-	return ctrl.Result{}, nil
+	if err := controllerutil.SetControllerReference(instance, instance, r.Scheme); err != nil {
+		return ctrl.Result{}, err
+	}
+	err = k8sutils.CreateRedisMaster(instance)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	err = k8sutils.CreateRedisMasterService(instance)
+
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	err = k8sutils.CreateRedisSlave(instance)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	err = k8sutils.CreateRedisSlaveService(instance)
+
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	reqLogger.Info("Will reconcile redis cluster operator in again 10 seconds")
+	return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

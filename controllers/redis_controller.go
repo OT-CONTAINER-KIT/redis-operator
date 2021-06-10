@@ -38,22 +38,10 @@ type RedisReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=redis.redis.opstreelabs.in,resources=redis,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=redis.redis.opstreelabs.in,resources=redis/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=redis.redis.opstreelabs.in,resources=redis/finalizers,verbs=update
-
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the Redis object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.0/pkg/reconcile
+// Reconcile is part of the main kubernetes reconciliation loop which aims
 func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	reqLogger := r.Log.WithValues("Request.Namespace", req.Namespace, "Request.Name", req.Name)
-	reqLogger.Info("Reconciling Opstree Redis controller")
+	reqLogger.Info("Reconciling opstree redis controller")
 	instance := &redisv1beta1.Redis{}
 
 	err := r.Client.Get(context.TODO(), req.NamespacedName, instance)
@@ -67,18 +55,17 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	if err := controllerutil.SetControllerReference(instance, instance, r.Scheme); err != nil {
 		return ctrl.Result{}, err
 	}
-	k8sutils.CreateStandAloneRedis(instance)
-	k8sutils.CreateStandAloneService(instance)
+	err = k8sutils.CreateStandAloneRedis(instance)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	err = k8sutils.CreateStandAloneService(instance)
 
-	// found := &appsv1.StatefulSet{}
-	// err = r.Client.Get(context.TODO(), types.NamespacedName{Name: instance.Name, Namespace: instance.Namespace}, found)
-	// if err != nil && errors.IsNotFound(err) {
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 
-	// } else if err != nil {
-	// 	return ctrl.Result{}, err
-	// }
-
-	reqLogger.Info("Will reconcile in again 10 seconds")
+	reqLogger.Info("Will reconcile redis operator in again 10 seconds")
 	return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 }
 

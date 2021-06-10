@@ -63,7 +63,7 @@ func CreateRedisMaster(cr *redisv1beta1.RedisCluster) error {
 // CreateRedisSlave will create a slave redis setup
 func CreateRedisSlave(cr *redisv1beta1.RedisCluster) error {
 	prop := RedisClusterSTS{
-		RedisStateFulType: "master",
+		RedisStateFulType: "slave",
 	}
 	return prop.CreateRedisClusterSetup(cr)
 }
@@ -81,7 +81,7 @@ func CreateRedisMasterService(cr *redisv1beta1.RedisCluster) error {
 func CreateRedisSlaveService(cr *redisv1beta1.RedisCluster) error {
 	prop := RedisClusterService{
 		RedisServiceType: cr.Spec.RedisLeader.Service,
-		RedisServiceRole: "master",
+		RedisServiceRole: "slave",
 	}
 	return prop.CreateRedisClusterService(cr)
 }

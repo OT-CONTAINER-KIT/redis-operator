@@ -2334,6 +2334,7 @@ spec:
     - jsonPath: .metadata.creationTimestamp
       description: Last Deployment Time
       name: Last Deployment Time
+      type: date
     served: true
     storage: true
     subresources:

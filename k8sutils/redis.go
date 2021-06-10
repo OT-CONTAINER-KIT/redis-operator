@@ -16,11 +16,6 @@ import (
 	"strings"
 )
 
-var (
-	execOut bytes.Buffer
-	execErr bytes.Buffer
-)
-
 // RedisDetails will hold the information for Redis Pod
 type RedisDetails struct {
 	PodName   string
@@ -208,6 +203,10 @@ func configureRedisClient(cr *redisv1beta1.RedisCluster, podName string) *redis.
 
 // executeCommand will execute the commands in pod
 func executeCommand(cr *redisv1beta1.RedisCluster, cmd []string, podName string) {
+	var (
+		execOut bytes.Buffer
+		execErr bytes.Buffer
+	)
 	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
 	config, err := rest.InClusterConfig()
 	if err != nil {
