@@ -121,9 +121,7 @@ func generateStateFulSetsDef(stsMeta metav1.ObjectMeta, labels map[string]string
 
 // createPVCTemplate will create the persistent volume claim template
 func createPVCTemplate(name string, storageSpec corev1.PersistentVolumeClaim) corev1.PersistentVolumeClaim {
-	var pvcTemplate corev1.PersistentVolumeClaim
-
-	pvcTemplate = storageSpec
+	pvcTemplate := storageSpec
 	pvcTemplate.CreationTimestamp = metav1.Time{}
 	pvcTemplate.Name = name
 	if storageSpec.Spec.AccessModes == nil {
