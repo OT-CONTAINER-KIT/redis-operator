@@ -45,7 +45,7 @@ type containerParameters struct {
 // CreateOrUpdateService method will create or update Redis service
 func CreateOrUpdateStateFul(namespace string, stsMeta metav1.ObjectMeta, labels map[string]string, params statefulSetParameters, ownerDef metav1.OwnerReference, containerParams containerParameters) error {
 	logger := stateFulSetLogger(namespace, stsMeta.Name)
-	storedStateful, err := getStateFulSet(namespace, stsMeta.Name)
+	storedStateful, err := GetStateFulSet(namespace, stsMeta.Name)
 	statefulSetDef := generateStateFulSetsDef(stsMeta, labels, params, ownerDef, containerParams)
 	if err != nil {
 		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(statefulSetDef); err != nil {
@@ -250,8 +250,8 @@ func updateStateFulSet(namespace string, stateful *appsv1.StatefulSet) error {
 	return nil
 }
 
-// getStateFulSet is a method to get statefulset in Kubernetes
-func getStateFulSet(namespace string, stateful string) (*appsv1.StatefulSet, error) {
+// GetStateFulSet is a method to get statefulset in Kubernetes
+func GetStateFulSet(namespace string, stateful string) (*appsv1.StatefulSet, error) {
 	logger := stateFulSetLogger(namespace, stateful)
 	statefulInfo, err := generateK8sClient().AppsV1().StatefulSets(namespace).Get(context.TODO(), stateful, metav1.GetOptions{})
 	if err != nil {
