@@ -56,49 +56,49 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if err := controllerutil.SetControllerReference(instance, instance, r.Scheme); err != nil {
 		return ctrl.Result{}, err
 	}
-	err = k8sutils.CreateRedisMaster(instance)
+	err = k8sutils.CreateRedisLeader(instance)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	err = k8sutils.CreateRedisMasterService(instance)
+	err = k8sutils.CreateRedisLeaderService(instance)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	err = k8sutils.CreateRedisSlave(instance)
+	err = k8sutils.CreateRedisFollower(instance)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	err = k8sutils.CreateRedisSlaveService(instance)
+	err = k8sutils.CreateRedisFollowerService(instance)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	redisMasterInfo, err := k8sutils.GetStateFulSet(instance.Namespace, instance.ObjectMeta.Name+"-master")
+	redisLeaderInfo, err := k8sutils.GetStateFulSet(instance.Namespace, instance.ObjectMeta.Name+"-leader")
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	redisSlaveInfo, err := k8sutils.GetStateFulSet(instance.Namespace, instance.ObjectMeta.Name+"-slave")
+	redisFollowerInfo, err := k8sutils.GetStateFulSet(instance.Namespace, instance.ObjectMeta.Name+"-follower")
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	if int(redisMasterInfo.Status.ReadyReplicas) != int(*instance.Spec.Size) && int(redisSlaveInfo.Status.ReadyReplicas) != int(*instance.Spec.Size) {
-		reqLogger.Info("Redis master and slave nodes are not ready yet", "Ready.Replicas", strconv.Itoa(int(redisMasterInfo.Status.ReadyReplicas)), "Expected.Replicas", instance.Spec.Size)
+	if int(redisLeaderInfo.Status.ReadyReplicas) != int(*instance.Spec.Size) && int(redisFollowerInfo.Status.ReadyReplicas) != int(*instance.Spec.Size) {
+		reqLogger.Info("Redis leader and follower nodes are not ready yet", "Ready.Replicas", strconv.Itoa(int(redisLeaderInfo.Status.ReadyReplicas)), "Expected.Replicas", instance.Spec.Size)
 		return ctrl.Result{RequeueAfter: time.Second * 120}, nil
 	}
-	reqLogger.Info("Creating redis cluster by executing cluster creation commands", "Ready.Replicas", strconv.Itoa(int(redisMasterInfo.Status.ReadyReplicas)))
+	reqLogger.Info("Creating redis cluster by executing cluster creation commands", "Ready.Replicas", strconv.Itoa(int(redisLeaderInfo.Status.ReadyReplicas)))
 	if k8sutils.CheckRedisNodeCount(instance, "") != int(*instance.Spec.Size)*2 {
-		masterCount := k8sutils.CheckRedisNodeCount(instance, "master")
-		if masterCount != int(*instance.Spec.Size) {
-			reqLogger.Info("Not all masters are part of the cluster...", "Masters.Count", masterCount, "Instance.Size", instance.Spec.Size)
+		leaderCount := k8sutils.CheckRedisNodeCount(instance, "leader")
+		if leaderCount != int(*instance.Spec.Size) {
+			reqLogger.Info("Not all leader are part of the cluster...", "Leaders.Count", leaderCount, "Instance.Size", instance.Spec.Size)
 			k8sutils.ExecuteRedisClusterCommand(instance)
 		} else {
-			reqLogger.Info("All masters are part of the cluster, adding slaves/replicas", "Masters.Count", masterCount, "Instance.Size", instance.Spec.Size)
+			reqLogger.Info("All leader are part of the cluster, adding follower/replicas", "Leaders.Count", leaderCount, "Instance.Size", instance.Spec.Size)
 			k8sutils.ExecuteRedisReplicationCommand(instance)
 		}
 	} else {
-		reqLogger.Info("Redis master count is desired")
+		reqLogger.Info("Redis leader count is desired")
 		if k8sutils.CheckRedisClusterState(instance) >= int(*instance.Spec.Size)*2-1 {
-			reqLogger.Info("Redis master is not desired, executing failover operation")
+			reqLogger.Info("Redis leader is not desired, executing failover operation")
 			k8sutils.ExecuteFaioverOperation(instance)
 		}
 		return ctrl.Result{RequeueAfter: time.Second * 120}, nil

@@ -37,12 +37,12 @@ type RedisClusterSpec struct {
 	Resources         *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
-// RedisLeader interface will have the redis master configuration
+// RedisLeader interface will have the redis leader configuration
 type RedisLeader struct {
 	Service string `json:"serviceType,omitempty"`
 }
 
-// RedisFollower interface will have the redis slave configuration
+// RedisFollower interface will have the redis follower configuration
 type RedisFollower struct {
 	Service string `json:"serviceType,omitempty"`
 }

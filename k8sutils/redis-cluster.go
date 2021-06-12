@@ -52,41 +52,41 @@ func generateRedisClusterContainerParams(cr *redisv1beta1.RedisCluster) containe
 	return containerProp
 }
 
-// CreateRedisMaster will create a master redis setup
-func CreateRedisMaster(cr *redisv1beta1.RedisCluster) error {
+// CreateRedisLeader will create a leader redis setup
+func CreateRedisLeader(cr *redisv1beta1.RedisCluster) error {
 	prop := RedisClusterSTS{
-		RedisStateFulType: "master",
+		RedisStateFulType: "leader",
 	}
 	return prop.CreateRedisClusterSetup(cr)
 }
 
-// CreateRedisSlave will create a slave redis setup
-func CreateRedisSlave(cr *redisv1beta1.RedisCluster) error {
+// CreateRedisFollower will create a follower redis setup
+func CreateRedisFollower(cr *redisv1beta1.RedisCluster) error {
 	prop := RedisClusterSTS{
-		RedisStateFulType: "slave",
+		RedisStateFulType: "follower",
 	}
 	return prop.CreateRedisClusterSetup(cr)
 }
 
-// CreateRedisMasterService method will create service for Redis Master
-func CreateRedisMasterService(cr *redisv1beta1.RedisCluster) error {
+// CreateRedisLeaderService method will create service for Redis Leader
+func CreateRedisLeaderService(cr *redisv1beta1.RedisCluster) error {
 	prop := RedisClusterService{
 		RedisServiceType: cr.Spec.RedisLeader.Service,
-		RedisServiceRole: "master",
+		RedisServiceRole: "leader",
 	}
 	return prop.CreateRedisClusterService(cr)
 }
 
-// CreateRedisSlaveService method will create service for Redis Slave
-func CreateRedisSlaveService(cr *redisv1beta1.RedisCluster) error {
+// CreateRedisFollowerService method will create service for Redis Follower
+func CreateRedisFollowerService(cr *redisv1beta1.RedisCluster) error {
 	prop := RedisClusterService{
 		RedisServiceType: cr.Spec.RedisLeader.Service,
-		RedisServiceRole: "slave",
+		RedisServiceRole: "follower",
 	}
 	return prop.CreateRedisClusterService(cr)
 }
 
-// CreateRedisSetup will create Redis Setup for master and slave
+// CreateRedisSetup will create Redis Setup for leader and follower
 func (service RedisClusterSTS) CreateRedisClusterSetup(cr *redisv1beta1.RedisCluster) error {
 	stateFulName := cr.ObjectMeta.Name + "-" + service.RedisStateFulType
 	logger := stateFulSetLogger(cr.Namespace, stateFulName)

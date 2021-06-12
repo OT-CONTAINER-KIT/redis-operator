@@ -67,28 +67,28 @@ REVISION: 1
 TEST SUITE: None
 ```
 
-Verify the cluster by checking the pod status of master and slave pods.
+Verify the cluster by checking the pod status of leader and follower pods.
 
 ```shell
 $ kubectl get pods -n ot-operators
 ...
 NAME                              READY   STATUS    RESTARTS   AGE
 redis-operator-74b6cbf5c5-td8t7   1/1     Running   1          90m
-redis-slave-0                     2/2     Running   0          75s
-redis-master-0                    2/2     Running   0          76s
-redis-slave-1                     2/2     Running   0          54s
-redis-master-1                    2/2     Running   0          49s
-redis-slave-2                     2/2     Running   0          35s
-redis-master-2                    2/2     Running   0          26s
+redis-follower-0                     2/2     Running   0          75s
+redis-leader-0                    2/2     Running   0          76s
+redis-follower-1                     2/2     Running   0          54s
+redis-leader-1                    2/2     Running   0          49s
+redis-follower-2                     2/2     Running   0          35s
+redis-leader-2                    2/2     Running   0          26s
 ```
 
 If all the pods are in the running state of leader and follower Statefulsets, then we can check the health of the redis cluster by using `redis-cli`.
 
 ```shell
-$ kubectl exec -it redis-master-0 -n ot-operators -- redis-cli -a Opstree@1234 cluster nodes
+$ kubectl exec -it redis-leader-0 -n ot-operators -- redis-cli -a Opstree@1234 cluster nodes
 ...
-Defaulting container name to redis-master.
-Use 'kubectl describe pod/redis-master-0 -n ot-operators' to see all of the containers in this pod.
+Defaulting container name to redis-leader.
+Use 'kubectl describe pod/redis-leader-0 -n ot-operators' to see all of the containers in this pod.
 Warning: Using a password with '-a' or '-u' option on the command line interface may not be safe.
 528438a759cee4528c3071d17d75b27b0818555d 10.42.0.219:6379@16379 myself,master - 0 1619952294000 1 connected 0-5460
 8ec7812903b7e046bec2f2a7bce4a9ccadfa4188 10.42.0.221:6379@16379 slave d0ff3892d2eba0b2707199cb5df57adbba214bcd 0 1619952297241 3 connected

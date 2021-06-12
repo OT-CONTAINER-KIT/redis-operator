@@ -10,14 +10,14 @@ Documentation is available here:- https://ot-container-kit.github.io/redis-opera
 
 The type of Redis setup which is currently supported:-
 
-- Redis in-build master slave with sharding and replication mode
+- Redis Cluster (in-built leader follower with sharding and replication mode)
 - Redis standalone setup
 
 ## Supported Features
 
 Here the features which are supported by this operator:-
 
-- Redis cluster(master-slave in sharding and replication mode) and standalone setup
+- Redis cluster(leader-follower in sharding and replication mode) and standalone setup
 - Inbuilt monitoring support using the Redis Exporter to give detailed insights
 - Dynamic storage provisioning using the PVC template
 - Performance tuned best practices in redis configuration
@@ -28,6 +28,7 @@ Here the features which are supported by this operator:-
     - Resource and Limits
     - Tolerations
     - SecurityContext
+    - Storage
 
 ## Architecture
 
