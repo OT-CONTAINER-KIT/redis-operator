@@ -21,49 +21,58 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
-// RedisSpec defines the desired state of Redis
-type RedisSpec struct {
+// RedisClusterSpec defines the desired state of RedisCluster
+type RedisClusterSpec struct {
+	Size              *int32                       `json:"clusterSize"`
 	KubernetesConfig  KubernetesConfig             `json:"kubernetesConfig"`
+	RedisLeader       RedisLeader                  `json:"redisLeader,omitempty"`
+	RedisFollower     RedisFollower                `json:"redisFollower,omitempty"`
 	RedisExporter     *RedisExporter               `json:"redisExporter,omitempty"`
-	RedisConfig       map[string]string            `json:"redisConfig"`
-	Resources         *corev1.ResourceRequirements `json:"resources,omitempty"`
 	Storage           *Storage                     `json:"storage,omitempty"`
 	NodeSelector      map[string]string            `json:"nodeSelector,omitempty"`
 	SecurityContext   *corev1.PodSecurityContext   `json:"securityContext,omitempty"`
 	PriorityClassName string                       `json:"priorityClassName,omitempty"`
 	Affinity          *corev1.Affinity             `json:"affinity,omitempty"`
 	Tolerations       *[]corev1.Toleration         `json:"tolerations,omitempty"`
+	Resources         *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
-// RedisStatus defines the observed state of Redis
-type RedisStatus struct {
-	Redis RedisSpec `json:"redis,omitempty"`
+// RedisLeader interface will have the redis leader configuration
+type RedisLeader struct {
+	Service string `json:"serviceType,omitempty"`
 }
 
-// +kubebuilder:object:root=true
-// +kubebuilder:subresource:status
+// RedisFollower interface will have the redis follower configuration
+type RedisFollower struct {
+	Service string `json:"serviceType,omitempty"`
+}
 
-// Redis is the Schema for the redis API
-type Redis struct {
+// RedisClusterStatus defines the observed state of RedisCluster
+type RedisClusterStatus struct {
+	RedisCluster RedisCluster `json:"redisCluster,omitempty"`
+}
+
+//+kubebuilder:object:root=true
+//+kubebuilder:subresource:status
+
+// RedisCluster is the Schema for the redisclusters API
+type RedisCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   RedisSpec   `json:"spec,omitempty"`
-	Status RedisStatus `json:"status,omitempty"`
+	Spec   RedisClusterSpec `json:"spec,omitempty"`
+	Status RedisClusterSpec `json:"status,omitempty"`
 }
 
-// +kubebuilder:object:root=true
+//+kubebuilder:object:root=true
 
-// RedisList contains a list of Redis
-type RedisList struct {
+// RedisClusterList contains a list of RedisCluster
+type RedisClusterList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Redis `json:"items"`
+	Items           []RedisCluster `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&Redis{}, &RedisList{})
+	SchemeBuilder.Register(&RedisCluster{}, &RedisClusterList{})
 }

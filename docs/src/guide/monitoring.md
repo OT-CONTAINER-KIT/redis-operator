@@ -25,14 +25,14 @@ Once the exporter is configured, we may have to update Prometheus to monitor thi
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: redis-monitoring-master
+  name: redis-monitoring-leader
   labels:
     redis-operator: "true"
     env: production
 spec:
   selector:
     matchLabels:
-      role: master
+      role: leader
   endpoints:
   - port: redis-exporter
 ```
@@ -42,14 +42,14 @@ spec:
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: redis-monitoring-slave
+  name: redis-monitoring-follower
   labels:
     redis-operator: "true"
     env: production
 spec:
   selector:
     matchLabels:
-      role: slave
+      role: follower
   endpoints:
   - port: redis-exporter
 ```

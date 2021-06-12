@@ -59,8 +59,15 @@ module.exports = {
           children: [
             'installation.md',
             'setup.md',
-            'configuration.md',
             'failover.md',
+          ]
+        },
+        {
+          title: 'Configuration',
+          collapsable: false,
+          children: [
+            'redis-config.md',
+            'redis-cluster-config.md',
           ]
         },
         {
