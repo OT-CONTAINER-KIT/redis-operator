@@ -7,6 +7,7 @@
 - Optimized code configuration for creating Redis cluster
 - Removed string secret type and secret type password is only supported
 - Structured and optimized golang based codebase
+- Removed divisive terminlogies
 
 #### :beetle: Bug Fixes
 

@@ -42,5 +42,5 @@ spec:
   #   kubernetes.io/hostname: minikube
   # securityContext: {}
   # priorityClassName:
-  # Affinity:
+  # affinity:
   # Tolerations: []

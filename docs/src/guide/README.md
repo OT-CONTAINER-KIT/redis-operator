@@ -32,5 +32,5 @@ Here the features which are supported by this operator:-
 ## Architecture
 
 <div align="center">
-    <img src="./images/redis-operator-arc.png" style="padding-top: 45px;">
+    <img src="./images/redis-operator-architecture.png" style="padding-top: 45px;">
 </div>

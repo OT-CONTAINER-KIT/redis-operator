@@ -1,3 +1,19 @@
+### v0.6.0
+**June 12, 2021**
+
+**:tada: Features**
+
+- Breaked the CRDs into Redis standalone cluster setup
+- Optimized code configuration for creating Redis cluster
+- Removed string secret type and secret type password is only supported
+- Structured and optimized golang based codebase
+- Removed divisive terminlogies
+
+**:beetle: Bug Fixes**
+
+- Fixed logic for service and statefulset comparison in K8s
+- Removed the monitor label to resolve service endpoint issue
+
 ### v0.5.0
 **May 1, 2021**
 

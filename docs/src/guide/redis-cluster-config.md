@@ -1,9 +1,8 @@
-# Configuration
+# Redis Cluster
 
-The redis setup in standalone or cluster mode can be customized using custom configuration. If redis setup is done by **Helm**, in that case `values.yaml` can be updated.
+The redis setup cluster mode can be customized using custom configuration. If redis setup is done by **Helm**, in that case `values.yaml` can be updated.
 
-- [Redis cluster values](https://github.com/OT-CONTAINER-KIT/helm-charts/blob/main/charts/redis-cluster/values.yaml)
-- [Redis standalone values](https://github.com/OT-CONTAINER-KIT/helm-charts/blob/main/charts/redis/values.yaml) 
+- [Redis cluster values](https://github.com/OT-CONTAINER-KIT/helm-charts/blob/main/charts/redis-cluster/values.yaml) 
 
 But if the setup is not done via Helm, in that scenario we may have to customize the CRD parameters.
 
@@ -16,13 +15,14 @@ In this configuration section, we have these configuration parameters:-
 
 |**Name**|**Default Value**|**Required**|**Description**|
 |--------|-----------------|------------|---------------|
-|`existingPasswordSecret.enabled` | false | false | To use existing created password secret in Kubernetes |
-|`existingPasswordSecret.name` | redis-secret | false | Name of the existing secret in Kubernetes |
-|`existingPasswordSecret.key` | password | false | Name of the existing secret key in Kubernetes |
-|`global.image` | quay.io/opstree/redis | true | Name of the redis image |
-|`global.tag` | v6.2 | true | Tag of the redis image |
-|`global.imagePullPolicy` | IfNotPresent | true | Image Pull Policy of the redis image |
-|`global.password` | Opstree@1234 | false | Password for the redis setup, leave it blank in case you don't want password |
+|`redisCluster.clusterSize` | 3 | false | Size of the redis cluster leader and follower nodes |
+|`redisCluster.secretName` | redis-secret | false | Name of the existing secret in Kubernetes |
+|`redisCluster.secretKey` | password | false | Name of the existing secret key in Kubernetes |
+|`redisCluster.image` | quay.io/opstree/redis | true | Name of the redis image |
+|`redisCluster.tag` | v6.2 | true | Tag of the redis image |
+|`redisCluster.imagePullPolicy` | IfNotPresent | true | Image Pull Policy of the redis image |
+|`redisCluster.leaderServiceType` | ClusterIP | false | Kubernetes service type for Redis Leader |
+|`redisCluster.followerServiceType` | ClusterIP | false | Kubernetes service type for Redis Follower |
 |`redisExporter.enabled` | true | true | Redis exporter should be deployed or not |
 |`redisExporter.image` | quay.io/opstree/redis-exporter | true | Name of the redis exporter image |
 |`redisExporter.tag` | v6.2 | true | Tag of the redis exporter image |
@@ -33,9 +33,35 @@ In this configuration section, we have these configuration parameters:-
 |`affinity` | {} | false | Affinity for node and pod for redis pods |
 |`tolerations` | {} | false | Tolerations for redis pods |
 
-## CRD Parameters
+# CRD Parameters
 
 These are the CRD Parameters which is currently supported by Redis Exporter for standalone CRD.
+
+**clusterSize**
+
+`clusterSize` is size of the Redis leader and follower nodes.
+
+```yaml
+  clusterSize: 3
+```
+
+**redisLeader**
+
+`redisLeader` is the field for Redis leader related configurations.
+
+```yaml
+  redisLeader:
+    serviceType: ClusterIP
+```
+
+**redisFollower**
+
+`redisFollower` is the field for Redis follower related configurations.
+
+```yaml
+  redisFollower:
+    serviceType: ClusterIP
+```
 
 **kubernetesConfig**
 
@@ -145,3 +171,4 @@ Tolerations for nodes and pods in Kubernetes.
     value: "value1"
     effect: "NoSchedule"
 ```
+
