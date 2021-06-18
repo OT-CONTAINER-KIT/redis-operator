@@ -26,15 +26,9 @@ import (
 
 // RedisSpec defines the desired state of Redis
 type RedisSpec struct {
-	Mode              string                     `json:"mode"`
-	Size              *int32                     `json:"size,omitempty"`
-	GlobalConfig      GlobalConfig               `json:"global"`
-	Service           Service                    `json:"service"`
-	Master            RedisMaster                `json:"master,omitempty"`
-	Slave             RedisSlave                 `json:"slave,omitempty"`
+	KubernetesConfig  KubernetesConfig           `json:"kubernetesConfig"`
 	RedisExporter     *RedisExporter             `json:"redisExporter,omitempty"`
 	RedisConfig       map[string]string          `json:"redisConfig"`
-	Resources         *Resources                 `json:"resources,omitempty"`
 	Storage           *Storage                   `json:"storage,omitempty"`
 	NodeSelector      map[string]string          `json:"nodeSelector,omitempty"`
 	SecurityContext   *corev1.PodSecurityContext `json:"securityContext,omitempty"`
@@ -45,67 +39,7 @@ type RedisSpec struct {
 
 // RedisStatus defines the observed state of Redis
 type RedisStatus struct {
-	Cluster RedisSpec `json:"cluster,omitempty"`
-}
-
-// Storage is the inteface to add pvc and pv support in redis
-type Storage struct {
-	VolumeClaimTemplate corev1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
-}
-
-// RedisMaster interface will have the redis master configuration
-type RedisMaster struct {
-	Size        *int32            `json:"size,omitempty"`
-	Resources   Resources         `json:"resources,omitempty"`
-	RedisConfig map[string]string `json:"redisConfig,omitempty"`
-	Service     Service           `json:"service,omitempty"`
-}
-
-// RedisExporter interface will have the information for redis exporter related stuff
-type RedisExporter struct {
-	Enabled         bool              `json:"enabled,omitempty"`
-	Image           string            `json:"image"`
-	Resources       *Resources        `json:"resources,omitempty"`
-	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
-}
-
-// GlobalConfig will be the JSON struct for Basic Redis Config
-type GlobalConfig struct {
-	Image                  string                  `json:"image"`
-	ImagePullPolicy        corev1.PullPolicy       `json:"imagePullPolicy,omitempty"`
-	Password               *string                 `json:"password,omitempty"`
-	Resources              *Resources              `json:"resources,omitempty"`
-	ExistingPasswordSecret *ExistingPasswordSecret `json:"existingPasswordSecret,omitempty"`
-}
-
-type ExistingPasswordSecret struct {
-	Name *string `json:"name,omitempty"`
-	Key  *string `json:"key,omitempty"`
-}
-
-// RedisSlave interface will have the redis slave configuration
-type RedisSlave struct {
-	Size        *int32            `json:"size,omitempty"`
-	Resources   Resources         `json:"resources,omitempty"`
-	RedisConfig map[string]string `json:"redisConfig,omitempty"`
-	Service     Service           `json:"service,omitempty"`
-}
-
-// ResourceDescription describes CPU and memory resources defined for a cluster.
-type ResourceDescription struct {
-	CPU    string `json:"cpu"`
-	Memory string `json:"memory"`
-}
-
-// Service is the struct for service definition
-type Service struct {
-	Type string `json:"type"`
-}
-
-// Resources describes requests and limits for the cluster resouces.
-type Resources struct {
-	ResourceRequests ResourceDescription `json:"requests,omitempty"`
-	ResourceLimits   ResourceDescription `json:"limits,omitempty"`
+	Redis RedisSpec `json:"redis"`
 }
 
 // +kubebuilder:object:root=true

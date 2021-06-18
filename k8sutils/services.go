@@ -2,229 +2,197 @@ package k8sutils
 
 import (
 	"context"
+	"github.com/banzaicloud/k8s-objectmatcher/patch"
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	redisv1beta1 "redis-operator/api/v1beta1"
 )
 
 const (
-	redisPort = 6379
+	redisPort         = 6379
+	redisExporterPort = 9121
 )
 
-// ServiceInterface is the interface to pass service information accross methods
-type ServiceInterface struct {
-	ExistingService      *corev1.Service
-	NewServiceDefinition *corev1.Service
-	ServiceType          string
-}
+var (
+	serviceType corev1.ServiceType
+)
 
-// GenerateHeadlessServiceDef generate service definition
-func GenerateHeadlessServiceDef(cr *redisv1beta1.Redis, labels map[string]string, portNumber int32, role string, serviceName string, clusterIP string) *corev1.Service {
-	var redisExporterPort int32 = 9121
+// generateHeadlessServiceDef generates service definition for headless service
+func generateHeadlessServiceDef(serviceMeta metav1.ObjectMeta, labels map[string]string, ownerDef metav1.OwnerReference) *corev1.Service {
 	service := &corev1.Service{
-		TypeMeta:   GenerateMetaInformation("Service", "core/v1"),
-		ObjectMeta: GenerateObjectMetaInformation(serviceName, cr.Namespace, labels, GenerateServiceAnots()),
+		TypeMeta:   generateMetaInformation("Service", "core/v1"),
+		ObjectMeta: serviceMeta,
 		Spec: corev1.ServiceSpec{
-			ClusterIP: clusterIP,
+			ClusterIP: "None",
 			Selector:  labels,
 			Ports: []corev1.ServicePort{
 				{
-					Name:       cr.ObjectMeta.Name + "-" + role,
-					Port:       portNumber,
-					TargetPort: intstr.FromInt(int(portNumber)),
+					Name:       "redis-client",
+					Port:       redisPort,
+					TargetPort: intstr.FromInt(int(redisPort)),
 					Protocol:   corev1.ProtocolTCP,
 				},
 			},
 		},
 	}
-	if !cr.Spec.RedisExporter.Enabled {
-		service.Spec.Ports = append(service.Spec.Ports, corev1.ServicePort{
-			Name:       "redis-exporter",
-			Port:       redisExporterPort,
-			TargetPort: intstr.FromInt(int(redisExporterPort)),
-			Protocol:   corev1.ProtocolTCP,
-		})
-	}
-	AddOwnerRefToObject(service, AsOwner(cr))
+	AddOwnerRefToObject(service, ownerDef)
 	return service
 }
 
-// GenerateServiceDef generate service definition
-func GenerateServiceDef(cr *redisv1beta1.Redis, labels map[string]string, portNumber int32, role string, serviceName string, typeService string) *corev1.Service {
-	var redisExporterPort int32 = 9121
-	var serviceType corev1.ServiceType
-
-	if typeService == "LoadBalancer" {
-		serviceType = corev1.ServiceTypeLoadBalancer
-	} else if typeService == "NodePort" {
-		serviceType = corev1.ServiceTypeNodePort
-	} else {
-		serviceType = corev1.ServiceTypeClusterIP
-	}
-
+// generateServiceDef generates service definition for Redis
+func generateServiceDef(serviceMeta metav1.ObjectMeta, labels map[string]string, k8sServiceType string, enableMetrics bool, ownerDef metav1.OwnerReference) *corev1.Service {
 	service := &corev1.Service{
-		TypeMeta:   GenerateMetaInformation("Service", "core/v1"),
-		ObjectMeta: GenerateObjectMetaInformation(serviceName, cr.Namespace, labels, GenerateServiceAnots()),
+		TypeMeta:   generateMetaInformation("Service", "core/v1"),
+		ObjectMeta: serviceMeta,
 		Spec: corev1.ServiceSpec{
-			Type:     serviceType,
+			Type:     generateServiceType(k8sServiceType),
 			Selector: labels,
 			Ports: []corev1.ServicePort{
 				{
-					Name:       cr.ObjectMeta.Name + "-" + role,
-					Port:       portNumber,
-					TargetPort: intstr.FromInt(int(portNumber)),
+					Name:       "redis-client",
+					Port:       redisPort,
+					TargetPort: intstr.FromInt(int(redisPort)),
 					Protocol:   corev1.ProtocolTCP,
 				},
 			},
 		},
 	}
-	if cr.Spec.RedisExporter.Enabled {
-		service.Spec.Ports = append(service.Spec.Ports, corev1.ServicePort{
-			Name:       "redis-exporter",
-			Port:       redisExporterPort,
-			TargetPort: intstr.FromInt(int(redisExporterPort)),
-			Protocol:   corev1.ProtocolTCP,
-		})
+	if enableMetrics {
+		redisExporterService := enableMetricsPort()
+		service.Spec.Ports = append(service.Spec.Ports, *redisExporterService)
 	}
-	AddOwnerRefToObject(service, AsOwner(cr))
+	AddOwnerRefToObject(service, ownerDef)
 	return service
 }
 
-// CreateMasterHeadlessService creates master headless service
-func CreateMasterHeadlessService(cr *redisv1beta1.Redis) {
-	labels := map[string]string{
-		"app":  cr.ObjectMeta.Name + "-master",
-		"role": "master",
+// enableMetricsPort will enable the metrics for Redis service
+func enableMetricsPort() *corev1.ServicePort {
+	return &corev1.ServicePort{
+		Name:       "redis-exporter",
+		Port:       redisExporterPort,
+		TargetPort: intstr.FromInt(int(redisExporterPort)),
+		Protocol:   corev1.ProtocolTCP,
 	}
-	serviceDefinition := GenerateHeadlessServiceDef(cr, labels, int32(redisPort), "master", cr.ObjectMeta.Name+"-master-headless", "None")
-	serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name+"-master-headless", metav1.GetOptions{})
-	service := ServiceInterface{
-		ExistingService:      serviceBody,
-		NewServiceDefinition: serviceDefinition,
-		ServiceType:          "master",
-	}
-	CompareAndCreateHeadlessService(cr, service, err)
 }
 
-// CreateMasterService creates different services for master
-func CreateMasterService(cr *redisv1beta1.Redis) {
-	labels := map[string]string{
-		"app":  cr.ObjectMeta.Name + "-master",
-		"role": "master",
+// generateServiceType generates service type
+func generateServiceType(k8sServiceType string) corev1.ServiceType {
+	switch k8sServiceType {
+	case "LoadBalancer":
+		serviceType = corev1.ServiceTypeLoadBalancer
+	case "NodePort":
+		serviceType = corev1.ServiceTypeNodePort
+	case "ClusterIP":
+		serviceType = corev1.ServiceTypeClusterIP
+	default:
+		serviceType = corev1.ServiceTypeClusterIP
 	}
-	serviceDefinition := GenerateServiceDef(cr, labels, int32(redisPort), "master", cr.ObjectMeta.Name+"-master", cr.Spec.Master.Service.Type)
-	serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name+"-master", metav1.GetOptions{})
-	service := ServiceInterface{
-		ExistingService:      serviceBody,
-		NewServiceDefinition: serviceDefinition,
-		ServiceType:          "master",
-	}
-	CompareAndCreateService(cr, service, err)
+	return serviceType
 }
 
-// CreateSlaveHeadlessService creates slave headless service
-func CreateSlaveHeadlessService(cr *redisv1beta1.Redis) {
-	labels := map[string]string{
-		"app":  cr.ObjectMeta.Name + "-slave",
-		"role": "slave",
-	}
-	serviceDefinition := GenerateHeadlessServiceDef(cr, labels, int32(redisPort), "slave", cr.ObjectMeta.Name+"-slave-headless", "None")
-	serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name+"-slave-headless", metav1.GetOptions{})
-	service := ServiceInterface{
-		ExistingService:      serviceBody,
-		NewServiceDefinition: serviceDefinition,
-		ServiceType:          "slave",
-	}
-	CompareAndCreateHeadlessService(cr, service, err)
-}
-
-// CreateSlaveService creates different services for slave
-func CreateSlaveService(cr *redisv1beta1.Redis) {
-	labels := map[string]string{
-		"app":  cr.ObjectMeta.Name + "-slave",
-		"role": "slave",
-	}
-	serviceDefinition := GenerateServiceDef(cr, labels, int32(redisPort), "slave", cr.ObjectMeta.Name+"-slave", cr.Spec.Slave.Service.Type)
-	serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name+"-slave", metav1.GetOptions{})
-	service := ServiceInterface{
-		ExistingService:      serviceBody,
-		NewServiceDefinition: serviceDefinition,
-		ServiceType:          "slave",
-	}
-	CompareAndCreateService(cr, service, err)
-}
-
-// CreateStandaloneService creates redis standalone service
-func CreateStandaloneService(cr *redisv1beta1.Redis) {
-	labels := map[string]string{
-		"app":  cr.ObjectMeta.Name + "-" + "standalone",
-		"role": "standalone",
-	}
-	serviceDefinition := GenerateServiceDef(cr, labels, int32(redisPort), "standalone", cr.ObjectMeta.Name, cr.Spec.Service.Type)
-	serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name, metav1.GetOptions{})
-
-	service := ServiceInterface{
-		ExistingService:      serviceBody,
-		NewServiceDefinition: serviceDefinition,
-		ServiceType:          "standalone",
-	}
-	CompareAndCreateService(cr, service, err)
-}
-
-// CreateStandaloneHeadlessService creates redis standalone service
-func CreateStandaloneHeadlessService(cr *redisv1beta1.Redis) {
-	labels := map[string]string{
-		"app":  cr.ObjectMeta.Name + "-" + "standalone",
-		"role": "standalone",
-	}
-	serviceDefinition := GenerateHeadlessServiceDef(cr, labels, int32(redisPort), "standalone", cr.ObjectMeta.Name+"-headless", "None")
-	serviceBody, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Get(context.TODO(), cr.ObjectMeta.Name+"-headless", metav1.GetOptions{})
-
-	service := ServiceInterface{
-		ExistingService:      serviceBody,
-		NewServiceDefinition: serviceDefinition,
-		ServiceType:          "standalone",
-	}
-	CompareAndCreateHeadlessService(cr, service, err)
-}
-
-// CompareAndCreateService compares and creates service
-func CompareAndCreateService(cr *redisv1beta1.Redis, service ServiceInterface, err error) {
-	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
-
+// createService is a method to create service is Kubernetes
+func createService(namespace string, service *corev1.Service) error {
+	logger := serviceLogger(namespace, service.Name)
+	_, err := generateK8sClient().CoreV1().Services(namespace).Create(context.TODO(), service, metav1.CreateOptions{})
 	if err != nil {
-		reqLogger.Info("Creating redis service", "Redis.Name", cr.ObjectMeta.Name+"-"+service.ServiceType, "Service.Type", service.ServiceType)
-		_, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Create(context.TODO(), service.NewServiceDefinition, metav1.CreateOptions{})
-		if err != nil {
-			reqLogger.Error(err, "Failed in creating service for redis")
-		}
+		logger.Error(err, "Redis service creation is failed")
+		return err
 	}
+	logger.Info("Redis service creation is successful")
+	return nil
+}
 
-	if service.ExistingService != nil {
-		if service.ExistingService.Spec.Type != service.NewServiceDefinition.Spec.Type {
-			existingService := service.ExistingService
-			existingService.Spec.Type = service.NewServiceDefinition.Spec.Type
-			if existingService.ObjectMeta.Name != "" && existingService != nil {
-				reqLogger.Info("Service type has been updated for the service", "Redis.Name", cr.ObjectMeta.Name+"-"+service.ServiceType, "Service.Type", service.ServiceType)
-				_, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Update(context.TODO(), existingService, metav1.UpdateOptions{})
-				if err != nil {
-					reqLogger.Error(err, "Failed in updating service for redis")
-				}
+// updateService is a method to update service is Kubernetes
+func updateService(namespace string, service *corev1.Service) error {
+	logger := serviceLogger(namespace, service.Name)
+	_, err := generateK8sClient().CoreV1().Services(namespace).Update(context.TODO(), service, metav1.UpdateOptions{})
+	if err != nil {
+		logger.Error(err, "Redis service updation is failed")
+		return err
+	}
+	logger.Info("Redis service updation is successful")
+	return nil
+}
+
+// getService is a method to get service is Kubernetes
+func getService(namespace string, service string) (*corev1.Service, error) {
+	logger := serviceLogger(namespace, service)
+	serviceInfo, err := generateK8sClient().CoreV1().Services(namespace).Get(context.TODO(), service, metav1.GetOptions{})
+	if err != nil {
+		logger.Info("Redis service get action is failed")
+		return nil, err
+	}
+	logger.Info("Redis service get action is successful")
+	return serviceInfo, nil
+}
+
+func serviceLogger(namespace string, name string) logr.Logger {
+	reqLogger := log.WithValues("Request.Service.Namespace", namespace, "Request.Service.Name", name)
+	return reqLogger
+}
+
+// CreateOrUpdateHeadlessService method will create or update Redis headless service
+func CreateOrUpdateHeadlessService(namespace string, serviceMeta metav1.ObjectMeta, labels map[string]string, ownerDef metav1.OwnerReference) error {
+	logger := serviceLogger(namespace, serviceMeta.Name)
+	storedService, err := getService(namespace, serviceMeta.Name)
+	serviceDef := generateHeadlessServiceDef(serviceMeta, labels, ownerDef)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(serviceDef); err != nil {
+				logger.Error(err, "Unable to patch redis service with comparison object")
+				return err
+			}
+			return createService(namespace, serviceDef)
+		}
+		return err
+	}
+	return patchService(storedService, serviceDef, namespace)
+}
+
+// CreateOrUpdateService method will create or update Redis service
+func CreateOrUpdateService(namespace string, serviceMeta metav1.ObjectMeta, labels map[string]string, ownerDef metav1.OwnerReference, k8sServiceType string, enableMetrics bool) error {
+	logger := serviceLogger(namespace, serviceMeta.Name)
+	serviceDef := generateServiceDef(serviceMeta, labels, k8sServiceType, enableMetrics, ownerDef)
+	storedService, err := getService(namespace, serviceMeta.Name)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(serviceDef); err != nil {
+				logger.Error(err, "Unable to patch redis service with compare annotations")
+			}
+			return createService(namespace, serviceDef)
+		}
+		return err
+	}
+	return patchService(storedService, serviceDef, namespace)
+}
+
+// patchService will patch Redis Kubernetes service
+func patchService(storedService *corev1.Service, newService *corev1.Service, namespace string) error {
+	logger := serviceLogger(namespace, storedService.Name)
+	patchResult, err := patch.DefaultPatchMaker.Calculate(storedService, newService, patch.IgnoreStatusFields())
+	if err != nil {
+		logger.Error(err, "Unable to patch redis service with comparison object")
+		return err
+	}
+	if !patchResult.IsEmpty() {
+		newService.Spec.ClusterIP = storedService.Spec.ClusterIP
+		newService.ResourceVersion = storedService.ResourceVersion
+		newService.CreationTimestamp = storedService.CreationTimestamp
+		newService.ManagedFields = storedService.ManagedFields
+		for key, value := range storedService.Annotations {
+			if _, present := newService.Annotations[key]; !present {
+				newService.Annotations[key] = value
 			}
 		}
-	}
-}
-
-// CompareAndCreateService compares and creates service
-func CompareAndCreateHeadlessService(cr *redisv1beta1.Redis, service ServiceInterface, err error) {
-	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
-
-	if err != nil {
-		reqLogger.Info("Creating redis service", "Redis.Name", cr.ObjectMeta.Name+"-"+service.ServiceType, "Service.Type", service.ServiceType)
-		_, err := GenerateK8sClient().CoreV1().Services(cr.Namespace).Create(context.TODO(), service.NewServiceDefinition, metav1.CreateOptions{})
-		if err != nil {
-			reqLogger.Error(err, "Failed in creating service for redis")
+		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(newService); err != nil {
+			logger.Error(err, "Unable to patch redis service with comparison object")
+			return err
 		}
+		logger.Info("Syncing Redis service with defined properties")
+		return updateService(namespace, newService)
 	}
+	logger.Info("Redis service is already in-sync")
+	return nil
 }
