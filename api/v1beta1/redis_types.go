@@ -39,7 +39,7 @@ type RedisSpec struct {
 
 // RedisStatus defines the observed state of Redis
 type RedisStatus struct {
-	Redis RedisSpec `json:"redis"`
+	Redis RedisSpec `json:"redis,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -50,7 +50,7 @@ type Redis struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   RedisSpec   `json:"spec,omitempty"`
+	Spec   RedisSpec   `json:"spec"`
 	Status RedisStatus `json:"status,omitempty"`
 }
 

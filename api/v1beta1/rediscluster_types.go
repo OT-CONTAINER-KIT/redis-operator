@@ -23,6 +23,7 @@ import (
 
 // RedisClusterSpec defines the desired state of RedisCluster
 type RedisClusterSpec struct {
+	// +kubebuilder:validation:Minimum=3
 	Size              *int32                       `json:"clusterSize"`
 	KubernetesConfig  KubernetesConfig             `json:"kubernetesConfig"`
 	RedisLeader       RedisLeader                  `json:"redisLeader,omitempty"`
@@ -39,7 +40,8 @@ type RedisClusterSpec struct {
 
 // RedisLeader interface will have the redis leader configuration
 type RedisLeader struct {
-	Service  string `json:"serviceType,omitempty"`
+	Service string `json:"serviceType,omitempty"`
+	// +kubebuilder:validation:Minimum=3
 	Replicas *int32 `json:"replicas,omitempty"`
 }
 
@@ -56,13 +58,17 @@ type RedisClusterStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="ClusterSize",type=integer,JSONPath=`.spec.clusterSize`,description=Current cluster node count
+// +kubebuilder:printcolumn:name="LeaderReplicas",type=integer,JSONPath=`.spec.redisLeader.replicas`,description=Overridden Leader replica count
+// +kubebuilder:printcolumn:name="FollowerReplicas",type=integer,JSONPath=`.spec.redisFollower.replicas`,description=Overridden Follower replica count
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`,description=Age of Cluster
 
 // RedisCluster is the Schema for the redisclusters API
 type RedisCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   RedisClusterSpec `json:"spec,omitempty"`
+	Spec   RedisClusterSpec `json:"spec"`
 	Status RedisClusterSpec `json:"status,omitempty"`
 }
 

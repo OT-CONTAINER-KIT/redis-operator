@@ -2291,9 +2291,9 @@ spec:
                 - kubernetesConfig
                 - redisConfig
                 type: object
-            required:
-            - redis
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true

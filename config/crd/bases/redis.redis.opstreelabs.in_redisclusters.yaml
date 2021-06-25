@@ -16,7 +16,24 @@ spec:
     singular: rediscluster
   scope: Namespaced
   versions:
-  - name: v1beta1
+  - additionalPrinterColumns:
+    - description: Current cluster node count
+      jsonPath: .spec.clusterSize
+      name: ClusterSize
+      type: integer
+    - description: Overridden Leader replica count
+      jsonPath: .spec.redisLeader.replicas
+      name: LeaderReplicas
+      type: integer
+    - description: Overridden Follower replica count
+      jsonPath: .spec.redisFollower.replicas
+      name: FollowerReplicas
+      type: integer
+    - description: Age of Cluster
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1beta1
     schema:
       openAPIV3Schema:
         description: RedisCluster is the Schema for the redisclusters API
@@ -629,8 +646,8 @@ spec:
                 type: object
               clusterSize:
                 format: int32
-                type: integer
                 minimum: 3
+                type: integer
               kubernetesConfig:
                 description: KubernetesConfig will be the JSON struct for Basic Redis
                   Config
@@ -746,6 +763,7 @@ spec:
                 properties:
                   replicas:
                     format: int32
+                    minimum: 3
                     type: integer
                   serviceType:
                     type: string
@@ -1780,8 +1798,8 @@ spec:
                 type: object
               clusterSize:
                 format: int32
-                type: integer
                 minimum: 3
+                type: integer
               kubernetesConfig:
                 description: KubernetesConfig will be the JSON struct for Basic Redis
                   Config
@@ -1897,6 +1915,7 @@ spec:
                 properties:
                   replicas:
                     format: int32
+                    minimum: 3
                     type: integer
                   serviceType:
                     type: string
@@ -2335,6 +2354,8 @@ spec:
             - clusterSize
             - kubernetesConfig
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true
