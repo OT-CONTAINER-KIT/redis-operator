@@ -39,17 +39,26 @@ type RedisClusterSpec struct {
 
 // RedisLeader interface will have the redis leader configuration
 type RedisLeader struct {
-	Service string `json:"serviceType,omitempty"`
+	PodDisruptionBudget *RedisPodDisruptionBudget `json:"pdb,omitempty"`
+	Service             string                    `json:"serviceType,omitempty"`
 }
 
 // RedisFollower interface will have the redis follower configuration
 type RedisFollower struct {
-	Service string `json:"serviceType,omitempty"`
+	PodDisruptionBudget *RedisPodDisruptionBudget `json:"pdb,omitempty"`
+	Service             string                    `json:"serviceType,omitempty"`
 }
 
 // RedisClusterStatus defines the observed state of RedisCluster
 type RedisClusterStatus struct {
 	RedisCluster RedisCluster `json:"redisCluster,omitempty"`
+}
+
+// RedisPodDisruptionBudget configure a PodDisruptionBudget on the resource (leader/follower)
+type RedisPodDisruptionBudget struct {
+	Enabled        bool   `json:"enabled,omitempty"`
+	MinAvailable   *int32 `json:"minAvailable,omitempty"`
+	MaxUnavailable *int32 `json:"maxUnavailable,omitempty"`
 }
 
 //+kubebuilder:object:root=true

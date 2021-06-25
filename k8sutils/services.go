@@ -2,6 +2,7 @@ package k8sutils
 
 import (
 	"context"
+
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"

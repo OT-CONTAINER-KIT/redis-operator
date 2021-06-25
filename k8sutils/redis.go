@@ -3,9 +3,12 @@ package k8sutils
 import (
 	"bytes"
 	"context"
-	"encoding/csv"
 	"strconv"
 	"strings"
+
+	"encoding/csv"
+
+	redisv1beta1 "redis-operator/api/v1beta1"
 
 	"github.com/go-logr/logr"
 	"github.com/go-redis/redis"
@@ -13,7 +16,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/remotecommand"
-	redisv1beta1 "redis-operator/api/v1beta1"
 )
 
 // RedisDetails will hold the information for Redis Pod

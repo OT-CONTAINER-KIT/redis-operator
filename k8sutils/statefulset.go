@@ -2,6 +2,8 @@ package k8sutils
 
 import (
 	"context"
+
+	// "github.com/google/go-cmp/cmp"
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -205,7 +207,7 @@ func getEnvironmentVariables(role string, enabledPassword *bool, secretName *str
 		{Name: "SETUP_MODE", Value: role},
 		{Name: "REDIS_ADDR", Value: "redis://localhost:6379"},
 	}
-	if *enabledPassword && enabledPassword != nil {
+	if enabledPassword != nil && *enabledPassword {
 		envVars = append(envVars, corev1.EnvVar{
 			Name: "REDIS_PASSWORD",
 			ValueFrom: &corev1.EnvVarSource{
@@ -218,7 +220,7 @@ func getEnvironmentVariables(role string, enabledPassword *bool, secretName *str
 			},
 		})
 	}
-	if *persistenceEnabled && persistenceEnabled != nil {
+	if persistenceEnabled != nil && *persistenceEnabled {
 		envVars = append(envVars, corev1.EnvVar{Name: "PERSISTENCE_ENABLED", Value: "true"})
 	}
 	return envVars

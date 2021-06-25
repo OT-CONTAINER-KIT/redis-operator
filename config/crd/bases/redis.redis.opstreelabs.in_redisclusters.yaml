@@ -732,14 +732,41 @@ spec:
                 - image
                 type: object
               redisFollower:
-                description: RedisFollower interface will have the redis slave configuration
+                description: RedisFollower interface will have the redis follower
+                  configuration
                 properties:
+                  pdb:
+                    description: RedisPodDisruptionBudget configure a PodDisruptionBudget
+                      on the resource (leader/follower)
+                    properties:
+                      enabled:
+                        type: boolean
+                      maxUnavailable:
+                        format: int32
+                        type: integer
+                      minAvailable:
+                        format: int32
+                        type: integer
+                    type: object
                   serviceType:
                     type: string
                 type: object
               redisLeader:
-                description: RedisLeader interface will have the redis master configuration
+                description: RedisLeader interface will have the redis leader configuration
                 properties:
+                  pdb:
+                    description: RedisPodDisruptionBudget configure a PodDisruptionBudget
+                      on the resource (leader/follower)
+                    properties:
+                      enabled:
+                        type: boolean
+                      maxUnavailable:
+                        format: int32
+                        type: integer
+                      minAvailable:
+                        format: int32
+                        type: integer
+                    type: object
                   serviceType:
                     type: string
                 type: object
@@ -1876,14 +1903,41 @@ spec:
                 - image
                 type: object
               redisFollower:
-                description: RedisFollower interface will have the redis slave configuration
+                description: RedisFollower interface will have the redis follower
+                  configuration
                 properties:
+                  pdb:
+                    description: RedisPodDisruptionBudget configure a PodDisruptionBudget
+                      on the resource (leader/follower)
+                    properties:
+                      enabled:
+                        type: boolean
+                      maxUnavailable:
+                        format: int32
+                        type: integer
+                      minAvailable:
+                        format: int32
+                        type: integer
+                    type: object
                   serviceType:
                     type: string
                 type: object
               redisLeader:
-                description: RedisLeader interface will have the redis master configuration
+                description: RedisLeader interface will have the redis leader configuration
                 properties:
+                  pdb:
+                    description: RedisPodDisruptionBudget configure a PodDisruptionBudget
+                      on the resource (leader/follower)
+                    properties:
+                      enabled:
+                        type: boolean
+                      maxUnavailable:
+                        format: int32
+                        type: integer
+                      minAvailable:
+                        format: int32
+                        type: integer
+                    type: object
                   serviceType:
                     type: string
                 type: object

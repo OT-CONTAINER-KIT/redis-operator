@@ -87,3 +87,11 @@ func generateServiceAnots() map[string]string {
 func LabelSelectors(labels map[string]string) *metav1.LabelSelector {
 	return &metav1.LabelSelector{MatchLabels: labels}
 }
+
+func getRedisLabels(name, setupType, role string) map[string]string {
+	return map[string]string{
+		"app":              name,
+		"redis_setup_type": setupType,
+		"role":             role,
+	}
+}
