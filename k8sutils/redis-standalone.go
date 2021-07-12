@@ -48,16 +48,19 @@ func CreateStandAloneRedis(cr *redisv1beta1.Redis) error {
 // generateRedisStandalone generates Redis standalone information
 func generateRedisStandaloneParams(cr *redisv1beta1.Redis) statefulSetParameters {
 	replicas := int32(1)
-	return statefulSetParameters{
-		Replicas:              &replicas,
-		NodeSelector:          cr.Spec.NodeSelector,
-		SecurityContext:       cr.Spec.SecurityContext,
-		PriorityClassName:     cr.Spec.PriorityClassName,
-		Affinity:              cr.Spec.Affinity,
-		Tolerations:           cr.Spec.Tolerations,
-		EnableMetrics:         cr.Spec.RedisExporter.Enabled,
-		PersistentVolumeClaim: cr.Spec.Storage.VolumeClaimTemplate,
+	res := statefulSetParameters{
+		Replicas:          &replicas,
+		NodeSelector:      cr.Spec.NodeSelector,
+		SecurityContext:   cr.Spec.SecurityContext,
+		PriorityClassName: cr.Spec.PriorityClassName,
+		Affinity:          cr.Spec.Affinity,
+		Tolerations:       cr.Spec.Tolerations,
+		EnableMetrics:     cr.Spec.RedisExporter.Enabled,
 	}
+	if cr.Spec.Storage != nil {
+		res.PersistentVolumeClaim = cr.Spec.Storage.VolumeClaimTemplate
+	}
+	return res
 }
 
 // generateRedisStandaloneContainerParams generates Redis container information

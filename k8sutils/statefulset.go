@@ -2,6 +2,7 @@ package k8sutils
 
 import (
 	"context"
+
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -112,7 +113,7 @@ func generateStateFulSetsDef(stsMeta metav1.ObjectMeta, labels map[string]string
 	if params.Tolerations != nil {
 		statefulset.Spec.Template.Spec.Tolerations = *params.Tolerations
 	}
-	if *containerParams.PersistenceEnabled {
+	if containerParams.PersistenceEnabled != nil && *containerParams.PersistenceEnabled {
 		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, createPVCTemplate(stsMeta.Name, params.PersistentVolumeClaim))
 	}
 	AddOwnerRefToObject(statefulset, ownerDef)
@@ -168,7 +169,7 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 // getVolumeMount gives information about persistence mount
 func getVolumeMount(name string, persistenceEnabled *bool) []corev1.VolumeMount {
 	var VolumeMounts []corev1.VolumeMount
-	if *persistenceEnabled && persistenceEnabled != nil {
+	if persistenceEnabled != nil && *persistenceEnabled {
 		VolumeMounts = []corev1.VolumeMount{
 			{
 				Name:      name,
@@ -218,7 +219,7 @@ func getEnvironmentVariables(role string, enabledPassword *bool, secretName *str
 			},
 		})
 	}
-	if *persistenceEnabled && persistenceEnabled != nil {
+	if persistenceEnabled != nil && *persistenceEnabled {
 		envVars = append(envVars, corev1.EnvVar{Name: "PERSISTENCE_ENABLED", Value: "true"})
 	}
 	return envVars
