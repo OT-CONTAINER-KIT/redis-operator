@@ -8,8 +8,8 @@ But if the setup is not done via Helm, in that scenario we may have to customize
 
 In this configuration section, we have these configuration parameters:-
 
-- [Helm Parameters](configuration.html#helm-parameters)
-- [CRD Parameters](configuration.html#crd-parameters)
+- [Helm Parameters](redis-config.html#helm-parameters)
+- [CRD Parameters](redis-config.html#crd-parameters)
 
 ## Helm Parameters
 
