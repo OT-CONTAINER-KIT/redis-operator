@@ -20,10 +20,11 @@ import (
 	"context"
 	"time"
 
+	"redis-operator/k8sutils"
+
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"redis-operator/k8sutils"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -60,7 +61,6 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, err
 	}
 	err = k8sutils.CreateStandAloneService(instance)
-
 	if err != nil {
 		return ctrl.Result{}, err
 	}

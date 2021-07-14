@@ -37,9 +37,15 @@ func CreateStandAloneRedis(cr *redisv1beta1.Redis) error {
 	logger := stateFulSetLogger(cr.Namespace, cr.ObjectMeta.Name)
 	labels := getRedisLabels(cr.ObjectMeta.Name, "standalone", "standalone")
 	objectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name, cr.Namespace, labels, generateStatefulSetsAnots())
-	err := CreateOrUpdateStateFul(cr.Namespace, objectMetaInfo, labels, generateRedisStandaloneParams(cr), redisAsOwner(cr), generateRedisStandaloneContainerParams(cr))
+	err := CreateOrUpdateStateFul(cr.Namespace,
+		objectMetaInfo,
+		labels,
+		generateRedisStandaloneParams(cr),
+		redisAsOwner(cr),
+		generateRedisStandaloneContainerParams(cr),
+	)
 	if err != nil {
-		logger.Error(err, "Cannot create standalone statfulset for Redis")
+		logger.Error(err, "Cannot create standalone statefulset for Redis")
 		return err
 	}
 	return nil

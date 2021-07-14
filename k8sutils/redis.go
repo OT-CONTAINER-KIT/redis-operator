@@ -7,13 +7,14 @@ import (
 	"strconv"
 	"strings"
 
+	redisv1beta1 "redis-operator/api/v1beta1"
+
 	"github.com/go-logr/logr"
 	"github.com/go-redis/redis"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/remotecommand"
-	redisv1beta1 "redis-operator/api/v1beta1"
 )
 
 // RedisDetails will hold the information for Redis Pod
@@ -132,8 +133,8 @@ func checkRedisCluster(cr *redisv1beta1.RedisCluster) [][]string {
 	return csvOutputRecords
 }
 
-// ExecuteFaioverOperation will execute redis failover operations
-func ExecuteFaioverOperation(cr *redisv1beta1.RedisCluster) {
+// ExecuteFailoverOperation will execute redis failover operations
+func ExecuteFailoverOperation(cr *redisv1beta1.RedisCluster) {
 	executeFailoverCommand(cr, "leader")
 	executeFailoverCommand(cr, "follower")
 }

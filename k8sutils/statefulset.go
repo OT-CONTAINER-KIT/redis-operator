@@ -43,7 +43,7 @@ type containerParameters struct {
 	PersistenceEnabled           *bool
 }
 
-// CreateOrUpdateService method will create or update Redis service
+// CreateOrUpdateStateFul method will create or update Redis service
 func CreateOrUpdateStateFul(namespace string, stsMeta metav1.ObjectMeta, labels map[string]string, params statefulSetParameters, ownerDef metav1.OwnerReference, containerParams containerParameters) error {
 	logger := stateFulSetLogger(namespace, stsMeta.Name)
 	storedStateful, err := GetStateFulSet(namespace, stsMeta.Name)
@@ -206,7 +206,7 @@ func getEnvironmentVariables(role string, enabledPassword *bool, secretName *str
 		{Name: "SETUP_MODE", Value: role},
 		{Name: "REDIS_ADDR", Value: "redis://localhost:6379"},
 	}
-	if *enabledPassword && enabledPassword != nil {
+	if enabledPassword != nil && *enabledPassword {
 		envVars = append(envVars, corev1.EnvVar{
 			Name: "REDIS_PASSWORD",
 			ValueFrom: &corev1.EnvVarSource{
@@ -230,10 +230,10 @@ func createStateFulSet(namespace string, stateful *appsv1.StatefulSet) error {
 	logger := stateFulSetLogger(namespace, stateful.Name)
 	_, err := generateK8sClient().AppsV1().StatefulSets(namespace).Create(context.TODO(), stateful, metav1.CreateOptions{})
 	if err != nil {
-		logger.Error(err, "Redis stateful creation is failed")
+		logger.Error(err, "Redis stateful creation failed")
 		return err
 	}
-	logger.Info("Redis stateful creation is successful")
+	logger.Info("Redis stateful successfully created")
 	return nil
 }
 
@@ -242,10 +242,10 @@ func updateStateFulSet(namespace string, stateful *appsv1.StatefulSet) error {
 	logger := stateFulSetLogger(namespace, stateful.Name)
 	_, err := generateK8sClient().AppsV1().StatefulSets(namespace).Update(context.TODO(), stateful, metav1.UpdateOptions{})
 	if err != nil {
-		logger.Error(err, "Redis stateful updation is failed")
+		logger.Error(err, "Redis stateful update failed")
 		return err
 	}
-	logger.Info("Redis stateful updation is successful")
+	logger.Info("Redis stateful ")
 	return nil
 }
 
@@ -254,10 +254,10 @@ func GetStateFulSet(namespace string, stateful string) (*appsv1.StatefulSet, err
 	logger := stateFulSetLogger(namespace, stateful)
 	statefulInfo, err := generateK8sClient().AppsV1().StatefulSets(namespace).Get(context.TODO(), stateful, metav1.GetOptions{})
 	if err != nil {
-		logger.Info("Redis statefulset get action is failed")
+		logger.Info("Redis statefulset get action failed")
 		return nil, err
 	}
-	logger.Info("Redis statefulset get action is successful")
+	logger.Info("Redis statefulset get action was successful")
 	return statefulInfo, err
 }
 
