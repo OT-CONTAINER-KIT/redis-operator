@@ -25,15 +25,15 @@ spec:
       limits:
         cpu: 101m
         memory: 128Mi
-    redisSecret:
-      name: redis-secret
-      key: password
+    # redisSecret:
+    #   name: redis-secret
+    #   key: password
     serviceType: LoadBalancer
   redisConfig: {}
   storage:
     volumeClaimTemplate:
       spec:
-        storageClassName: standard
+        # storageClassName: standard
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
