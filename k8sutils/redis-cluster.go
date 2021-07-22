@@ -32,6 +32,7 @@ func generateRedisClusterarams(cr *redisv1beta1.RedisCluster) statefulSetParamet
 // generateRedisStandaloneContainerParams generates Redis container information
 func generateRedisClusterContainerParams(cr *redisv1beta1.RedisCluster) containerParameters {
 	trueProperty := true
+	falseProperty := false
 	containerProp := containerParameters{
 		Role:                         "cluster",
 		Image:                        cr.Spec.KubernetesConfig.Image,
@@ -45,6 +46,8 @@ func generateRedisClusterContainerParams(cr *redisv1beta1.RedisCluster) containe
 		containerProp.EnabledPassword = &trueProperty
 		containerProp.SecretName = cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name
 		containerProp.SecretKey = cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key
+	} else {
+		containerProp.EnabledPassword = &falseProperty
 	}
 	if cr.Spec.Storage != nil {
 		containerProp.PersistenceEnabled = &trueProperty
