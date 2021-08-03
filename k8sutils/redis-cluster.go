@@ -16,9 +16,9 @@ type RedisClusterService struct {
 }
 
 // generateRedisStandalone generates Redis standalone information
-func generateRedisClusterarams(cr *redisv1beta1.RedisCluster) statefulSetParameters {
+func generateRedisClusterParams(cr *redisv1beta1.RedisCluster, replicas *int32) statefulSetParameters {
 	return statefulSetParameters{
-		Replicas:              cr.Spec.Size,
+		Replicas:              replicas,
 		NodeSelector:          cr.Spec.NodeSelector,
 		SecurityContext:       cr.Spec.SecurityContext,
 		PriorityClassName:     cr.Spec.PriorityClassName,
@@ -89,15 +89,37 @@ func CreateRedisFollowerService(cr *redisv1beta1.RedisCluster) error {
 	return prop.CreateRedisClusterService(cr)
 }
 
-// CreateRedisSetup will create Redis Setup for leader and follower
+func (service RedisClusterSTS) getReplicaCount(cr *redisv1beta1.RedisCluster) *int32 {
+	var replicas *int32
+	if service.RedisStateFulType == "leader" {
+		replicas = cr.Spec.RedisLeader.Replicas
+	} else {
+		replicas = cr.Spec.RedisFollower.Replicas
+	}
+
+	// We fall back to the overall/default size if we don't have a specific one.
+	if replicas == nil {
+		replicas = cr.Spec.Size
+	}
+	return replicas
+}
+
+// CreateRedisClusterSetup will create Redis Setup for leader and follower
 func (service RedisClusterSTS) CreateRedisClusterSetup(cr *redisv1beta1.RedisCluster) error {
 	stateFulName := cr.ObjectMeta.Name + "-" + service.RedisStateFulType
 	logger := stateFulSetLogger(cr.Namespace, stateFulName)
 	labels := getRedisLabels(stateFulName, "cluster", service.RedisStateFulType)
 	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, generateStatefulSetsAnots())
-	err := CreateOrUpdateStateFul(cr.Namespace, objectMetaInfo, labels, generateRedisClusterarams(cr), redisClusterAsOwner(cr), generateRedisClusterContainerParams(cr))
+	err := CreateOrUpdateStateFul(
+		cr.Namespace,
+		objectMetaInfo,
+		labels,
+		generateRedisClusterParams(cr, service.getReplicaCount(cr)),
+		redisClusterAsOwner(cr),
+		generateRedisClusterContainerParams(cr),
+	)
 	if err != nil {
-		logger.Error(err, "Cannot create statfulset for Redis", "Setup.Type", service.RedisStateFulType)
+		logger.Error(err, "Cannot create statefulset for Redis", "Setup.Type", service.RedisStateFulType)
 		return err
 	}
 	return nil

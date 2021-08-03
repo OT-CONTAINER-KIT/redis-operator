@@ -16,7 +16,24 @@ spec:
     singular: rediscluster
   scope: Namespaced
   versions:
-  - name: v1beta1
+  - additionalPrinterColumns:
+    - description: Current cluster node count
+      jsonPath: .spec.clusterSize
+      name: ClusterSize
+      type: integer
+    - description: Overridden Leader replica count
+      jsonPath: .spec.redisLeader.replicas
+      name: LeaderReplicas
+      type: integer
+    - description: Overridden Follower replica count
+      jsonPath: .spec.redisFollower.replicas
+      name: FollowerReplicas
+      type: integer
+    - description: Age of Cluster
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1beta1
     schema:
       openAPIV3Schema:
         description: RedisCluster is the Schema for the redisclusters API
@@ -629,8 +646,8 @@ spec:
                 type: object
               clusterSize:
                 format: int32
-                type: integer
                 minimum: 3
+                type: integer
               kubernetesConfig:
                 description: KubernetesConfig will be the JSON struct for Basic Redis
                   Config
@@ -732,14 +749,22 @@ spec:
                 - image
                 type: object
               redisFollower:
-                description: RedisFollower interface will have the redis slave configuration
+                description: RedisFollower interface will have the redis follower
+                  configuration
                 properties:
+                  replicas:
+                    format: int32
+                    type: integer
                   serviceType:
                     type: string
                 type: object
               redisLeader:
-                description: RedisLeader interface will have the redis master configuration
+                description: RedisLeader interface will have the redis leader configuration
                 properties:
+                  replicas:
+                    format: int32
+                    minimum: 3
+                    type: integer
                   serviceType:
                     type: string
                 type: object
@@ -1773,8 +1798,8 @@ spec:
                 type: object
               clusterSize:
                 format: int32
-                type: integer
                 minimum: 3
+                type: integer
               kubernetesConfig:
                 description: KubernetesConfig will be the JSON struct for Basic Redis
                   Config
@@ -1876,14 +1901,22 @@ spec:
                 - image
                 type: object
               redisFollower:
-                description: RedisFollower interface will have the redis slave configuration
+                description: RedisFollower interface will have the redis follower
+                  configuration
                 properties:
+                  replicas:
+                    format: int32
+                    type: integer
                   serviceType:
                     type: string
                 type: object
               redisLeader:
-                description: RedisLeader interface will have the redis master configuration
+                description: RedisLeader interface will have the redis leader configuration
                 properties:
+                  replicas:
+                    format: int32
+                    minimum: 3
+                    type: integer
                   serviceType:
                     type: string
                 type: object
@@ -2321,20 +2354,9 @@ spec:
             - clusterSize
             - kubernetesConfig
             type: object
+        required:
+        - spec
         type: object
-    additionalPrinterColumns:
-    - jsonPath: .spec.clusterSize
-      description: Current master node count
-      name: Master
-      type: integer
-    - jsonPath: .spec.clusterSize
-      description: Current slave node count
-      name: Slave
-      type: integer
-    - jsonPath: .metadata.creationTimestamp
-      description: Last Deployment Time
-      name: Last Deployment Time
-      type: date
     served: true
     storage: true
     subresources:
