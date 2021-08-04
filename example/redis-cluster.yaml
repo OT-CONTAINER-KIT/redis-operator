@@ -4,7 +4,7 @@ kind: RedisCluster
 metadata:
   name: redis-cluster
 spec:
-  clusterSize: 3
+  clusterSize: 5
   kubernetesConfig:
     image: quay.io/opstree/redis:v6.2
     imagePullPolicy: IfNotPresent
