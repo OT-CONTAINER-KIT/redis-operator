@@ -152,7 +152,7 @@ func generateContainerDef(name string, containerParams containerParameters, enab
 			VolumeMounts:    getVolumeMount(name, containerParams.PersistenceEnabled),
 		},
 	}
-	if enableMetrics == true {
+	if enableMetrics {
 		containerDefinition = append(containerDefinition, enableRedisMonitoring(containerParams))
 	}
 	return containerDefinition
@@ -228,9 +228,7 @@ func getEnvironmentVariables(role string, enabledPassword *bool, secretName *str
 	}
 
 	if extraEnv != nil {
-		for _, varInfo := range *extraEnv {
-			envVars = append(envVars, varInfo)
-		}
+		envVars = append(envVars, *extraEnv...)
 	}
 	sort.SliceStable(envVars, func(i, j int) bool {
 		return envVars[i].Name < envVars[j].Name
