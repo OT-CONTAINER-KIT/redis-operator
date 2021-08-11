@@ -89,6 +89,9 @@ func generateRedisStandaloneContainerParams(cr *redisv1beta1.Redis) containerPar
 	} else {
 		containerProp.EnabledPassword = &falseProperty
 	}
+	if cr.Spec.RedisExporter.EnvVars != nil {
+		containerProp.RedisExporterEnv = cr.Spec.RedisExporter.EnvVars
+	}
 	if cr.Spec.Storage != nil {
 		containerProp.PersistenceEnabled = &trueProperty
 	}
