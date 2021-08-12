@@ -46,4 +46,5 @@ type RedisExporter struct {
 	Image           string                       `json:"image"`
 	Resources       *corev1.ResourceRequirements `json:"resources,omitempty"`
 	ImagePullPolicy corev1.PullPolicy            `json:"imagePullPolicy,omitempty"`
+	EnvVars         *[]corev1.EnvVar             `json:"env,omitempty"`
 }

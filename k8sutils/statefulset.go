@@ -2,6 +2,7 @@ package k8sutils
 
 import (
 	"context"
+	"sort"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/go-logr/logr"
@@ -36,6 +37,7 @@ type containerParameters struct {
 	RedisExporterImage           string
 	RedisExporterImagePullPolicy corev1.PullPolicy
 	RedisExporterResources       *corev1.ResourceRequirements
+	RedisExporterEnv             *[]corev1.EnvVar
 	Role                         string
 	EnabledPassword              *bool
 	SecretName                   *string
@@ -143,14 +145,16 @@ func generateContainerDef(name string, containerParams containerParameters, enab
 			Name:            name,
 			Image:           containerParams.Image,
 			ImagePullPolicy: containerParams.ImagePullPolicy,
-			Env:             getEnvironmentVariables(containerParams.Role, containerParams.EnabledPassword, containerParams.SecretName, containerParams.SecretKey, containerParams.PersistenceEnabled),
+			Env:             getEnvironmentVariables(containerParams.Role, containerParams.EnabledPassword, containerParams.SecretName, containerParams.SecretKey, containerParams.PersistenceEnabled, containerParams.RedisExporterEnv),
 			Resources:       *containerParams.Resources,
 			ReadinessProbe:  getProbeInfo(),
 			LivenessProbe:   getProbeInfo(),
 			VolumeMounts:    getVolumeMount(name, containerParams.PersistenceEnabled),
 		},
 	}
-	containerDefinition = append(containerDefinition, enableRedisMonitoring(containerParams))
+	if enableMetrics {
+		containerDefinition = append(containerDefinition, enableRedisMonitoring(containerParams))
+	}
 	return containerDefinition
 }
 
@@ -160,7 +164,7 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 		Name:            redisExporterContainer,
 		Image:           params.RedisExporterImage,
 		ImagePullPolicy: params.RedisExporterImagePullPolicy,
-		Env:             getEnvironmentVariables(params.Role, params.EnabledPassword, params.SecretName, params.SecretKey, params.PersistenceEnabled),
+		Env:             getEnvironmentVariables(params.Role, params.EnabledPassword, params.SecretName, params.SecretKey, params.PersistenceEnabled, params.RedisExporterEnv),
 		Resources:       *params.RedisExporterResources,
 	}
 	return exporterDefinition
@@ -200,7 +204,7 @@ func getProbeInfo() *corev1.Probe {
 }
 
 // getEnvironmentVariables returns all the required Environment Variables
-func getEnvironmentVariables(role string, enabledPassword *bool, secretName *string, secretKey *string, persistenceEnabled *bool) []corev1.EnvVar {
+func getEnvironmentVariables(role string, enabledPassword *bool, secretName *string, secretKey *string, persistenceEnabled *bool, extraEnv *[]corev1.EnvVar) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{Name: "SERVER_MODE", Value: role},
 		{Name: "SETUP_MODE", Value: role},
@@ -222,6 +226,13 @@ func getEnvironmentVariables(role string, enabledPassword *bool, secretName *str
 	if persistenceEnabled != nil && *persistenceEnabled {
 		envVars = append(envVars, corev1.EnvVar{Name: "PERSISTENCE_ENABLED", Value: "true"})
 	}
+
+	if extraEnv != nil {
+		envVars = append(envVars, *extraEnv...)
+	}
+	sort.SliceStable(envVars, func(i, j int) bool {
+		return envVars[i].Name < envVars[j].Name
+	})
 	return envVars
 }
 
