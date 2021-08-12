@@ -27,6 +27,7 @@ type statefulSetParameters struct {
 	Tolerations           *[]corev1.Toleration
 	EnableMetrics         bool
 	PersistentVolumeClaim corev1.PersistentVolumeClaim
+	ImagePullSecrets      *[]corev1.LocalObjectReference
 }
 
 // containerParameters will define container input params
@@ -114,6 +115,9 @@ func generateStateFulSetsDef(stsMeta metav1.ObjectMeta, labels map[string]string
 	}
 	if params.Tolerations != nil {
 		statefulset.Spec.Template.Spec.Tolerations = *params.Tolerations
+	}
+	if params.ImagePullSecrets != nil {
+		statefulset.Spec.Template.Spec.ImagePullSecrets = *params.ImagePullSecrets
 	}
 	if containerParams.PersistenceEnabled != nil && *containerParams.PersistenceEnabled {
 		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, createPVCTemplate(stsMeta.Name, params.PersistentVolumeClaim))

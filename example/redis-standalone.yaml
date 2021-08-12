@@ -43,6 +43,8 @@ spec:
     #   name: redis-secret
     #   key: password
     serviceType: ClusterIP
+    # imagePullSecrets:
+    #   - name: regcred
   redisConfig: {}
   storage:
     volumeClaimTemplate:

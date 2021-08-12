@@ -19,8 +19,10 @@ spec:
       name: redis-secret
       key: password
     serviceType: ClusterIP
+    # imagePullSecrets:
+    #   - name: regcred
   redisExporter:
-    enabled: true
+    enabled: false
     image: quay.io/opstree/redis-exporter:1.0
     imagePullPolicy: Always
     resources:
@@ -45,9 +47,9 @@ spec:
     #       name: mysecret
     #       key: username
   redisLeader:
-    serviceType: LoadBalancer
+    serviceType: ClusterIP
   redisFollower:
-    serviceType: LoadBalancer
+    serviceType: ClusterIP
   storage:
     volumeClaimTemplate:
       spec:

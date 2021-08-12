@@ -17,16 +17,22 @@ type RedisClusterService struct {
 
 // generateRedisStandalone generates Redis standalone information
 func generateRedisClusterParams(cr *redisv1beta1.RedisCluster, replicas *int32) statefulSetParameters {
-	return statefulSetParameters{
-		Replicas:              replicas,
-		NodeSelector:          cr.Spec.NodeSelector,
-		SecurityContext:       cr.Spec.SecurityContext,
-		PriorityClassName:     cr.Spec.PriorityClassName,
-		Affinity:              cr.Spec.Affinity,
-		Tolerations:           cr.Spec.Tolerations,
-		EnableMetrics:         cr.Spec.RedisExporter.Enabled,
-		PersistentVolumeClaim: cr.Spec.Storage.VolumeClaimTemplate,
+	res := statefulSetParameters{
+		Replicas:          replicas,
+		NodeSelector:      cr.Spec.NodeSelector,
+		SecurityContext:   cr.Spec.SecurityContext,
+		PriorityClassName: cr.Spec.PriorityClassName,
+		Affinity:          cr.Spec.Affinity,
+		Tolerations:       cr.Spec.Tolerations,
+		EnableMetrics:     cr.Spec.RedisExporter.Enabled,
 	}
+	if cr.Spec.KubernetesConfig.ImagePullSecrets != nil {
+		res.ImagePullSecrets = cr.Spec.KubernetesConfig.ImagePullSecrets
+	}
+	if cr.Spec.Storage != nil {
+		res.PersistentVolumeClaim = cr.Spec.Storage.VolumeClaimTemplate
+	}
+	return res
 }
 
 // generateRedisStandaloneContainerParams generates Redis container information

@@ -63,6 +63,9 @@ func generateRedisStandaloneParams(cr *redisv1beta1.Redis) statefulSetParameters
 		Tolerations:       cr.Spec.Tolerations,
 		EnableMetrics:     cr.Spec.RedisExporter.Enabled,
 	}
+	if cr.Spec.KubernetesConfig.ImagePullSecrets != nil {
+		res.ImagePullSecrets = cr.Spec.KubernetesConfig.ImagePullSecrets
+	}
 	if cr.Spec.Storage != nil {
 		res.PersistentVolumeClaim = cr.Spec.Storage.VolumeClaimTemplate
 	}
