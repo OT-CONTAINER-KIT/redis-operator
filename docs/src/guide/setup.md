@@ -72,14 +72,14 @@ Verify the cluster by checking the pod status of leader and follower pods.
 ```shell
 $ kubectl get pods -n ot-operators
 ...
-NAME                              READY   STATUS    RESTARTS   AGE
-redis-operator-74b6cbf5c5-td8t7   1/1     Running   1          90m
-redis-follower-0                     2/2     Running   0          75s
-redis-leader-0                    2/2     Running   0          76s
-redis-follower-1                     2/2     Running   0          54s
-redis-leader-1                    2/2     Running   0          49s
-redis-follower-2                     2/2     Running   0          35s
-redis-leader-2                    2/2     Running   0          26s
+NAME                                 READY   STATUS    RESTARTS   AGE
+redis-cluster-follower-0             1/1     Running   0          149m
+redis-cluster-follower-1             1/1     Running   0          150m
+redis-cluster-follower-2             1/1     Running   0          151m
+redis-cluster-leader-0               1/1     Running   0          149m
+redis-cluster-leader-1               1/1     Running   0          150m
+redis-cluster-leader-2               1/1     Running   0          151m
+redis-operator-5944ffd957-pt57s      1/1     Running   0          156m
 ```
 
 If all the pods are in the running state of leader and follower Statefulsets, then we can check the health of the redis cluster by using `redis-cli`.

@@ -16,41 +16,57 @@ redisExporter:
     limits:
       cpu: 100m
       memory: 128Mi
+  env:
+  - name: REDIS_EXPORTER_INCL_SYSTEM_METRICS
+    value: "true"
+  - name: UI_PROPERTIES_FILE_NAME
+    valueFrom:
+      configMapKeyRef:
+        name: game-demo
+        key: ui_properties_file_name
+  - name: SECRET_USERNAME
+    valueFrom:
+      secretKeyRef:
+        name: mysecret
+        key: username
 ```
 
 Once the exporter is configured, we may have to update Prometheus to monitor this endpoint. For [Prometheus Operator](https://github.com/prometheus-operator/prometheus-operator), we have to create a CRD based object called **ServiceMonitor**.
 
-```yaml
----
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  name: redis-monitoring-leader
-  labels:
-    redis-operator: "true"
-    env: production
-spec:
-  selector:
-    matchLabels:
-      role: leader
-  endpoints:
-  - port: redis-exporter
-```
+### Redis Cluster
 
 ```yaml
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: redis-monitoring-follower
+  name: redis-monitoring-cluster
   labels:
     redis-operator: "true"
     env: production
 spec:
   selector:
     matchLabels:
-      role: follower
+      redis_setup_type: cluster
   endpoints:
   - port: redis-exporter
 ```
 
+### Redis Standalone
+
+```yaml
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: redis-monitoring-standalone
+  labels:
+    redis-operator: "true"
+    env: production
+spec:
+  selector:
+    matchLabels:
+      redis_setup_type: standalone
+  endpoints:
+  - port: redis-exporter
+```
