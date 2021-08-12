@@ -82,6 +82,8 @@ In the `kubernetesConfig` section, we define configuration related to Kubernetes
       name: redis-secret
       key: password
     serviceType: LoadBalancer
+    imagePullSecrets:
+      - name: regcred
 ```
 
 
@@ -101,6 +103,19 @@ In the `kubernetesConfig` section, we define configuration related to Kubernetes
       limits:
         cpu: 100m
         memory: 128Mi
+    env:
+    - name: REDIS_EXPORTER_INCL_SYSTEM_METRICS
+      value: "true"
+    - name: UI_PROPERTIES_FILE_NAME
+      valueFrom:
+        configMapKeyRef:
+          name: game-demo
+          key: ui_properties_file_name
+    - name: SECRET_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: mysecret
+          key: username
 ```
 
 **storage**
