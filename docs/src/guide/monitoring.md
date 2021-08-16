@@ -2,7 +2,7 @@
 
 The redis-operator uses [redis-exporter](https://github.com/oliver006/redis_exporter) to expose metrics of redis setup in Prometheus format. This exporter captures metrics for both redis standalone and cluster setup.
 
-This can be enabled and disabled from configuration. For example:-
+If we are using helm chart for the installation of redis setup, we can simply enable the redis exporter by creating a custom values file for helm chart. The content of the values file will look like this:-
 
 ```yaml
 redisExporter:
@@ -31,9 +31,43 @@ redisExporter:
         key: username
 ```
 
-Once the exporter is configured, we may have to update Prometheus to monitor this endpoint. For [Prometheus Operator](https://github.com/prometheus-operator/prometheus-operator), we have to create a CRD based object called **ServiceMonitor**.
+When we have defined the redis-exporter related config in values file, we can apply or upgrade the redis setup. We need to pass the created file as an argument to the `helm` command.
 
-### Redis Cluster
+```shell
+# redis standalone
+$ helm upgrade redis ot-helm/redis -f custom-values.yaml \
+  --install --namespace ot-operators
+
+# redis cluster
+$ helm upgrade redis-cluster ot-helm/redis-cluster -f custom-values.yaml \
+  --set redisCluster.clusterSize=3 --install --namespace ot-operators
+```
+
+## ServiceMonitor
+
+Once the exporter is configured, we may have to update Prometheus to monitor this endpoint. For [Prometheus Operator](https://github.com/prometheus-operator/prometheus-operator), we have to create a CRD based object called **ServiceMonitor**. We can apply the CRD definition as well using the `helm` command.
+
+```yaml
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  scrapeTimeout: 10s
+  namespace: monitoring
+```
+
+```shell
+# redis standalone
+$ helm upgrade redis ot-helm/redis -f custom-values.yaml \
+  --install --namespace ot-operators
+
+# redis cluster
+$ helm upgrade redis-cluster ot-helm/redis-cluster -f custom-values.yaml \
+  --set redisCluster.clusterSize=3 --install --namespace ot-operators
+```
+
+For kubectl related configuration, we may have to create `ServiceMonitor` definition in a yaml file and apply it using `kubectl` command.
+
+**Redis Cluster**
 
 ```yaml
 ---
@@ -50,9 +84,14 @@ spec:
       redis_setup_type: cluster
   endpoints:
   - port: redis-exporter
+    interval: 30s
+    scrapeTimeout: 10s
+  namespaceSelector:
+    matchNames:
+    - monitoring
 ```
 
-### Redis Standalone
+**Redis Standalone**
 
 ```yaml
 ---
@@ -69,4 +108,9 @@ spec:
       redis_setup_type: standalone
   endpoints:
   - port: redis-exporter
+    interval: 30s
+    scrapeTimeout: 10s
+  namespaceSelector:
+    matchNames:
+    - monitoring
 ```
