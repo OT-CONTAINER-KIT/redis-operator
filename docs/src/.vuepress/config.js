@@ -60,6 +60,7 @@ module.exports = {
             'installation.md',
             'setup.md',
             'failover.md',
+            'exposing-redis.md',
           ]
         },
         {
