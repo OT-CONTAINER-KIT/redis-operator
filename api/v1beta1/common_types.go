@@ -30,6 +30,11 @@ type KubernetesConfig struct {
 	ImagePullSecrets       *[]corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 }
 
+// RedisConfig defines the external configuration of Redis
+type RedisConfig struct {
+	AdditionalRedisConfig *string `json:"additionalRedisConfig,omitempty"`
+}
+
 // ExistingPasswordSecret is the struct to access the existing secret
 type ExistingPasswordSecret struct {
 	Name *string `json:"name,omitempty"`

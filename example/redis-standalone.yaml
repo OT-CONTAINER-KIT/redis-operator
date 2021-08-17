@@ -4,6 +4,24 @@ kind: Redis
 metadata:
   name: redis-standalone
 spec:
+  # redisConfig:
+  #   additionalRedisConfig: redis-external-config
+  kubernetesConfig:
+    image: quay.io/opstree/redis:v6.2.5
+    imagePullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 101m
+        memory: 128Mi
+      limits:
+        cpu: 101m
+        memory: 128Mi
+    # redisSecret:
+    #   name: redis-secret
+    #   key: password
+    serviceType: ClusterIP
+    # imagePullSecrets:
+    #   - name: regcred
   redisExporter:
     enabled: false
     image: quay.io/opstree/redis-exporter:1.0
@@ -29,23 +47,6 @@ spec:
     #     secretKeyRef:
     #       name: mysecret
     #       key: username
-  kubernetesConfig:
-    image: quay.io/opstree/redis:v6.2
-    imagePullPolicy: IfNotPresent
-    resources:
-      requests:
-        cpu: 101m
-        memory: 128Mi
-      limits:
-        cpu: 101m
-        memory: 128Mi
-    # redisSecret:
-    #   name: redis-secret
-    #   key: password
-    serviceType: ClusterIP
-    # imagePullSecrets:
-    #   - name: regcred
-  redisConfig: {}
   storage:
     volumeClaimTemplate:
       spec:

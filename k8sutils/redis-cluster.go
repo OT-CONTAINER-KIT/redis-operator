@@ -7,6 +7,7 @@ import (
 // RedisClusterSTS is a interface to call Redis Statefulset function
 type RedisClusterSTS struct {
 	RedisStateFulType string
+	ExternalConfig    *string
 }
 
 // RedisClusterService is a interface to call Redis Service function
@@ -16,7 +17,7 @@ type RedisClusterService struct {
 }
 
 // generateRedisStandalone generates Redis standalone information
-func generateRedisClusterParams(cr *redisv1beta1.RedisCluster, replicas *int32) statefulSetParameters {
+func generateRedisClusterParams(cr *redisv1beta1.RedisCluster, replicas *int32, externalConfig *string) statefulSetParameters {
 	res := statefulSetParameters{
 		Replicas:          replicas,
 		NodeSelector:      cr.Spec.NodeSelector,
@@ -31,6 +32,9 @@ func generateRedisClusterParams(cr *redisv1beta1.RedisCluster, replicas *int32) 
 	}
 	if cr.Spec.Storage != nil {
 		res.PersistentVolumeClaim = cr.Spec.Storage.VolumeClaimTemplate
+	}
+	if externalConfig != nil {
+		res.ExternalConfig = externalConfig
 	}
 	return res
 }
@@ -69,6 +73,9 @@ func CreateRedisLeader(cr *redisv1beta1.RedisCluster) error {
 	prop := RedisClusterSTS{
 		RedisStateFulType: "leader",
 	}
+	if cr.Spec.RedisLeader.RedisConfig != nil {
+		prop.ExternalConfig = cr.Spec.RedisLeader.RedisConfig.AdditionalRedisConfig
+	}
 	return prop.CreateRedisClusterSetup(cr)
 }
 
@@ -76,6 +83,9 @@ func CreateRedisLeader(cr *redisv1beta1.RedisCluster) error {
 func CreateRedisFollower(cr *redisv1beta1.RedisCluster) error {
 	prop := RedisClusterSTS{
 		RedisStateFulType: "follower",
+	}
+	if cr.Spec.RedisLeader.RedisConfig != nil {
+		prop.ExternalConfig = cr.Spec.RedisFollower.RedisConfig.AdditionalRedisConfig
 	}
 	return prop.CreateRedisClusterSetup(cr)
 }
@@ -123,7 +133,7 @@ func (service RedisClusterSTS) CreateRedisClusterSetup(cr *redisv1beta1.RedisClu
 		cr.Namespace,
 		objectMetaInfo,
 		labels,
-		generateRedisClusterParams(cr, service.getReplicaCount(cr)),
+		generateRedisClusterParams(cr, service.getReplicaCount(cr), service.ExternalConfig),
 		redisClusterAsOwner(cr),
 		generateRedisClusterContainerParams(cr),
 	)

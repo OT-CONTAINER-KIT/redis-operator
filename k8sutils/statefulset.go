@@ -28,6 +28,7 @@ type statefulSetParameters struct {
 	EnableMetrics         bool
 	PersistentVolumeClaim corev1.PersistentVolumeClaim
 	ImagePullSecrets      *[]corev1.LocalObjectReference
+	ExternalConfig        *string
 }
 
 // containerParameters will define container input params
@@ -104,7 +105,7 @@ func generateStateFulSetsDef(stsMeta metav1.ObjectMeta, labels map[string]string
 					Labels: labels,
 				},
 				Spec: corev1.PodSpec{
-					Containers:        generateContainerDef(stsMeta.Name, containerParams, params.EnableMetrics),
+					Containers:        generateContainerDef(stsMeta.Name, containerParams, params.EnableMetrics, params.ExternalConfig),
 					NodeSelector:      params.NodeSelector,
 					SecurityContext:   params.SecurityContext,
 					PriorityClassName: params.PriorityClassName,
@@ -122,8 +123,27 @@ func generateStateFulSetsDef(stsMeta metav1.ObjectMeta, labels map[string]string
 	if containerParams.PersistenceEnabled != nil && *containerParams.PersistenceEnabled {
 		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, createPVCTemplate(stsMeta.Name, params.PersistentVolumeClaim))
 	}
+	if params.ExternalConfig != nil {
+		statefulset.Spec.Template.Spec.Volumes = getExternalConfig(*params.ExternalConfig)
+	}
 	AddOwnerRefToObject(statefulset, ownerDef)
 	return statefulset
+}
+
+// getExternalConfig will return the redis external configuration
+func getExternalConfig(configMapName string) []corev1.Volume {
+	return []corev1.Volume{
+		{
+			Name: "external-config",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: configMapName,
+					},
+				},
+			},
+		},
+	}
 }
 
 // createPVCTemplate will create the persistent volume claim template
@@ -143,7 +163,7 @@ func createPVCTemplate(name string, storageSpec corev1.PersistentVolumeClaim) co
 }
 
 // generateContainerDef generates container fefinition for Redis
-func generateContainerDef(name string, containerParams containerParameters, enableMetrics bool) []corev1.Container {
+func generateContainerDef(name string, containerParams containerParameters, enableMetrics bool, externalConfig *string) []corev1.Container {
 	containerDefinition := []corev1.Container{
 		{
 			Name:            name,
@@ -153,7 +173,7 @@ func generateContainerDef(name string, containerParams containerParameters, enab
 			Resources:       *containerParams.Resources,
 			ReadinessProbe:  getProbeInfo(),
 			LivenessProbe:   getProbeInfo(),
-			VolumeMounts:    getVolumeMount(name, containerParams.PersistenceEnabled),
+			VolumeMounts:    getVolumeMount(name, containerParams.PersistenceEnabled, externalConfig),
 		},
 	}
 	if enableMetrics {
@@ -175,18 +195,24 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 }
 
 // getVolumeMount gives information about persistence mount
-func getVolumeMount(name string, persistenceEnabled *bool) []corev1.VolumeMount {
-	var VolumeMounts []corev1.VolumeMount
+func getVolumeMount(name string, persistenceEnabled *bool, externalConfig *string) []corev1.VolumeMount {
+	var volumeMounts []corev1.VolumeMount
 	if persistenceEnabled != nil && *persistenceEnabled {
-		VolumeMounts = []corev1.VolumeMount{
+		volumeMounts = []corev1.VolumeMount{
 			{
 				Name:      name,
 				MountPath: "/data",
 			},
 		}
-		return VolumeMounts
 	}
-	return VolumeMounts
+
+	if externalConfig != nil {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      "external-config",
+			MountPath: "/etc/redis/external.conf.d",
+		})
+	}
+	return volumeMounts
 }
 
 // getProbeInfo generates probe information for Redis

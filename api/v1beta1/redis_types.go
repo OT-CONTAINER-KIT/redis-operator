@@ -28,7 +28,7 @@ import (
 type RedisSpec struct {
 	KubernetesConfig  KubernetesConfig           `json:"kubernetesConfig"`
 	RedisExporter     *RedisExporter             `json:"redisExporter,omitempty"`
-	RedisConfig       map[string]string          `json:"redisConfig"`
+	RedisConfig       *RedisConfig               `json:"redisConfig,omitempty"`
 	Storage           *Storage                   `json:"storage,omitempty"`
 	NodeSelector      map[string]string          `json:"nodeSelector,omitempty"`
 	SecurityContext   *corev1.PodSecurityContext `json:"securityContext,omitempty"`

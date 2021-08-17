@@ -69,6 +69,9 @@ func generateRedisStandaloneParams(cr *redisv1beta1.Redis) statefulSetParameters
 	if cr.Spec.Storage != nil {
 		res.PersistentVolumeClaim = cr.Spec.Storage.VolumeClaimTemplate
 	}
+	if cr.Spec.RedisConfig != nil {
+		res.ExternalConfig = cr.Spec.RedisConfig.AdditionalRedisConfig
+	}
 	return res
 }
 
