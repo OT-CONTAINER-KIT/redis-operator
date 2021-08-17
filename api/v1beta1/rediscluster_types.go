@@ -42,13 +42,15 @@ type RedisClusterSpec struct {
 type RedisLeader struct {
 	Service string `json:"serviceType,omitempty"`
 	// +kubebuilder:validation:Minimum=3
-	Replicas *int32 `json:"replicas,omitempty"`
+	Replicas    *int32       `json:"replicas,omitempty"`
+	RedisConfig *RedisConfig `json:"redisConfig,omitempty"`
 }
 
 // RedisFollower interface will have the redis follower configuration
 type RedisFollower struct {
-	Service  string `json:"serviceType,omitempty"`
-	Replicas *int32 `json:"replicas,omitempty"`
+	Service     string       `json:"serviceType,omitempty"`
+	Replicas    *int32       `json:"replicas,omitempty"`
+	RedisConfig *RedisConfig `json:"redisConfig,omitempty"`
 }
 
 // RedisClusterStatus defines the observed state of RedisCluster

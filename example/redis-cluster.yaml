@@ -6,7 +6,7 @@ metadata:
 spec:
   clusterSize: 3
   kubernetesConfig:
-    image: quay.io/opstree/redis:v6.2
+    image: quay.io/opstree/redis:v6.2.5
     imagePullPolicy: IfNotPresent
     resources:
       requests:
@@ -48,8 +48,12 @@ spec:
     #       key: username
   redisLeader:
     serviceType: ClusterIP
+    redisConfig:
+      additionalRedisConfig: redis-external-config
   redisFollower:
     serviceType: ClusterIP
+    redisConfig:
+      additionalRedisConfig: redis-external-config
   storage:
     volumeClaimTemplate:
       spec:
