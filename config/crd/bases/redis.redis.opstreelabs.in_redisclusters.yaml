@@ -871,6 +871,13 @@ spec:
                 description: RedisFollower interface will have the redis follower
                   configuration
                 properties:
+                  redisConfig:
+                    description: RedisConfig defines the external configuration of
+                      Redis
+                    properties:
+                      additionalRedisConfig:
+                        type: string
+                    type: object
                   replicas:
                     format: int32
                     type: integer
@@ -880,6 +887,13 @@ spec:
               redisLeader:
                 description: RedisLeader interface will have the redis leader configuration
                 properties:
+                  redisConfig:
+                    description: RedisConfig defines the external configuration of
+                      Redis
+                    properties:
+                      additionalRedisConfig:
+                        type: string
+                    type: object
                   replicas:
                     format: int32
                     minimum: 3
@@ -2142,6 +2156,13 @@ spec:
                 description: RedisFollower interface will have the redis follower
                   configuration
                 properties:
+                  redisConfig:
+                    description: RedisConfig defines the external configuration of
+                      Redis
+                    properties:
+                      additionalRedisConfig:
+                        type: string
+                    type: object
                   replicas:
                     format: int32
                     type: integer
@@ -2151,6 +2172,13 @@ spec:
               redisLeader:
                 description: RedisLeader interface will have the redis leader configuration
                 properties:
+                  redisConfig:
+                    description: RedisConfig defines the external configuration of
+                      Redis
+                    properties:
+                      additionalRedisConfig:
+                        type: string
+                    type: object
                   replicas:
                     format: int32
                     minimum: 3
