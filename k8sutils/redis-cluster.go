@@ -1,6 +1,7 @@
 package k8sutils
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	redisv1beta1 "redis-operator/api/v1beta1"
 )
 
@@ -8,6 +9,7 @@ import (
 type RedisClusterSTS struct {
 	RedisStateFulType string
 	ExternalConfig    *string
+	Affinity          *corev1.Affinity `json:"affinity,omitempty"`
 }
 
 // RedisClusterService is a interface to call Redis Service function
@@ -17,13 +19,13 @@ type RedisClusterService struct {
 }
 
 // generateRedisStandalone generates Redis standalone information
-func generateRedisClusterParams(cr *redisv1beta1.RedisCluster, replicas *int32, externalConfig *string) statefulSetParameters {
+func generateRedisClusterParams(cr *redisv1beta1.RedisCluster, replicas *int32, externalConfig *string, affinity *corev1.Affinity) statefulSetParameters {
 	res := statefulSetParameters{
 		Replicas:          replicas,
 		NodeSelector:      cr.Spec.NodeSelector,
 		SecurityContext:   cr.Spec.SecurityContext,
 		PriorityClassName: cr.Spec.PriorityClassName,
-		Affinity:          cr.Spec.Affinity,
+		Affinity:          affinity,
 		Tolerations:       cr.Spec.Tolerations,
 		EnableMetrics:     cr.Spec.RedisExporter.Enabled,
 	}
@@ -72,6 +74,7 @@ func generateRedisClusterContainerParams(cr *redisv1beta1.RedisCluster) containe
 func CreateRedisLeader(cr *redisv1beta1.RedisCluster) error {
 	prop := RedisClusterSTS{
 		RedisStateFulType: "leader",
+		Affinity:          cr.Spec.RedisLeader.Affinity,
 	}
 	if cr.Spec.RedisLeader.RedisConfig != nil {
 		prop.ExternalConfig = cr.Spec.RedisLeader.RedisConfig.AdditionalRedisConfig
@@ -83,8 +86,9 @@ func CreateRedisLeader(cr *redisv1beta1.RedisCluster) error {
 func CreateRedisFollower(cr *redisv1beta1.RedisCluster) error {
 	prop := RedisClusterSTS{
 		RedisStateFulType: "follower",
+		Affinity:          cr.Spec.RedisFollower.Affinity,
 	}
-	if cr.Spec.RedisLeader.RedisConfig != nil {
+	if cr.Spec.RedisFollower.RedisConfig != nil {
 		prop.ExternalConfig = cr.Spec.RedisFollower.RedisConfig.AdditionalRedisConfig
 	}
 	return prop.CreateRedisClusterSetup(cr)
@@ -133,7 +137,7 @@ func (service RedisClusterSTS) CreateRedisClusterSetup(cr *redisv1beta1.RedisClu
 		cr.Namespace,
 		objectMetaInfo,
 		labels,
-		generateRedisClusterParams(cr, service.getReplicaCount(cr), service.ExternalConfig),
+		generateRedisClusterParams(cr, service.getReplicaCount(cr), service.ExternalConfig, service.Affinity),
 		redisClusterAsOwner(cr),
 		generateRedisClusterContainerParams(cr),
 	)

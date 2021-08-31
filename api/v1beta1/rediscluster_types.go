@@ -33,7 +33,6 @@ type RedisClusterSpec struct {
 	NodeSelector      map[string]string            `json:"nodeSelector,omitempty"`
 	SecurityContext   *corev1.PodSecurityContext   `json:"securityContext,omitempty"`
 	PriorityClassName string                       `json:"priorityClassName,omitempty"`
-	Affinity          *corev1.Affinity             `json:"affinity,omitempty"`
 	Tolerations       *[]corev1.Toleration         `json:"tolerations,omitempty"`
 	Resources         *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
@@ -42,15 +41,17 @@ type RedisClusterSpec struct {
 type RedisLeader struct {
 	Service string `json:"serviceType,omitempty"`
 	// +kubebuilder:validation:Minimum=3
-	Replicas    *int32       `json:"replicas,omitempty"`
-	RedisConfig *RedisConfig `json:"redisConfig,omitempty"`
+	Replicas    *int32           `json:"replicas,omitempty"`
+	RedisConfig *RedisConfig     `json:"redisConfig,omitempty"`
+	Affinity    *corev1.Affinity `json:"affinity,omitempty"`
 }
 
 // RedisFollower interface will have the redis follower configuration
 type RedisFollower struct {
-	Service     string       `json:"serviceType,omitempty"`
-	Replicas    *int32       `json:"replicas,omitempty"`
-	RedisConfig *RedisConfig `json:"redisConfig,omitempty"`
+	Service     string           `json:"serviceType,omitempty"`
+	Replicas    *int32           `json:"replicas,omitempty"`
+	RedisConfig *RedisConfig     `json:"redisConfig,omitempty"`
+	Affinity    *corev1.Affinity `json:"affinity,omitempty"`
 }
 
 // RedisClusterStatus defines the observed state of RedisCluster
