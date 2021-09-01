@@ -63,6 +63,17 @@ These are the CRD Parameters which is currently supported by Redis Exporter for 
 ```yaml
   redisLeader:
     serviceType: ClusterIP
+    redisConfig:
+      additionalRedisConfig: redis-external-config
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: disktype
+              operator: In
+              values:
+              - ssd
 ```
 
 **redisFollower**
@@ -72,6 +83,17 @@ These are the CRD Parameters which is currently supported by Redis Exporter for 
 ```yaml
   redisFollower:
     serviceType: ClusterIP
+    redisConfig:
+      additionalRedisConfig: redis-external-config
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: disktype
+              operator: In
+              values:
+              - ssd
 ```
 
 **kubernetesConfig**
@@ -92,7 +114,7 @@ In the `kubernetesConfig` section, we define configuration related to Kubernetes
     redisSecret:
       name: redis-secret
       key: password
-    serviceType: LoadBalancer
+    serviceType: ClusterIP
     imagePullSecrets:
       - name: regcred
 ```
@@ -168,22 +190,6 @@ Kubernetes security context for redis pods.
 ```yaml
   securityContext:
     runAsUser: 1000
-```
-
-**affinity**
-
-Affinity for node and pod for redis setup.
-
-```yaml
-  affinity:
-    nodeAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-        nodeSelectorTerms:
-        - matchExpressions:
-          - key: disktype
-            operator: In
-            values:
-            - ssd
 ```
 
 **tolerations**
