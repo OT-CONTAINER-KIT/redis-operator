@@ -1,3 +1,12 @@
+### v0.8.0
+##### September 3, 2021
+
+#### :tada: Features
+
+- Added external configuration capability for follower and leader
+- Streamlined examples folder with different examples for standalone and cluster
+- Added the capability for affinity for leader and follower
+
 ### v0.7.0
 ##### August 12, 2021
 

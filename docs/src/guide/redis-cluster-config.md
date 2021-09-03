@@ -22,8 +22,10 @@ In this configuration section, we have these configuration parameters:-
 |`redisCluster.image` | quay.io/opstree/redis | Name of the redis image |
 |`redisCluster.tag` | v6.2 | Tag of the redis image |
 |`redisCluster.imagePullPolicy` | IfNotPresent | Image Pull Policy of the redis image |
-|`redisCluster.leaderServiceType` | ClusterIP | Kubernetes service type for Redis Leader |
-|`redisCluster.followerServiceType` | ClusterIP | Kubernetes service type for Redis Follower |
+|`redisCluster.leader.serviceType` | ClusterIP | Kubernetes service type for Redis Leader |
+|`redisCluster.follower.serviceType` | ClusterIP | Kubernetes service type for Redis Follower |
+|`redisCluster.leader.affinity` | {} | Affinity for node and pods for redis leader statefulset |
+|`redisCluster.follower.affinity` | {} | Affinity for node and pods for redis follower statefulset |
 |`externalService.enabled`| false | If redis service needs to be exposed using LoadBalancer or NodePort |
 |`externalService.annotations`| {} | Kubernetes service related annotations |
 |`externalService.serviceType` | NodePort | Kubernetes service type for exposing service, values - ClusterIP, NodePort, and LoadBalancer |
@@ -41,7 +43,6 @@ In this configuration section, we have these configuration parameters:-
 |`priorityClassName`| "" | Priority class name for the redis statefulset |
 |`storageSpec` | {} | Storage configuration for redis setup |
 |`securityContext` | {} | Security Context for redis pods for changing system or kernel level parameters |
-|`affinity` | {} | Affinity for node and pods for redis statefulset |
 |`tolerations` | [] | Tolerations for redis statefulset |
 
 # CRD Parameters
