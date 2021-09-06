@@ -15,16 +15,13 @@ spec:
       limits:
         cpu: 101m
         memory: 128Mi
-    serviceType: ClusterIP
   redisExporter:
     enabled: false
     image: quay.io/opstree/redis-exporter:1.0
   redisLeader:
-    serviceType: ClusterIP
     redisConfig:
       additionalRedisConfig: redis-external-config
   redisFollower:
-    serviceType: ClusterIP
     redisConfig:
       additionalRedisConfig: redis-external-config
   storage:
