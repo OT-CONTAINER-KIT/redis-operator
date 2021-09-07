@@ -18,7 +18,6 @@ spec:
     redisSecret:
       name: redis-secret
       key: password
-    serviceType: ClusterIP
     # imagePullSecrets:
     #   - name: regcred
   redisExporter:
@@ -47,11 +46,9 @@ spec:
     #       name: mysecret
     #       key: username
   redisLeader:
-    serviceType: ClusterIP
     redisConfig:
       additionalRedisConfig: redis-external-config
   redisFollower:
-    serviceType: ClusterIP
     redisConfig:
       additionalRedisConfig: redis-external-config
   storage:

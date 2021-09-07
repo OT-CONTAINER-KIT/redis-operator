@@ -17,11 +17,11 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - description: Overridden Leader replica count
+    - description: Leader replica count
       jsonPath: .spec.clusterSize
       name: LeaderReplicas
       type: integer
-    - description: Overridden Follower replica count
+    - description: Follower replica count
       jsonPath: .spec.clusterSize
       name: FollowerReplicas
       type: integer
@@ -110,11 +110,8 @@ spec:
                           to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                         type: object
                     type: object
-                  serviceType:
-                    type: string
                 required:
                 - image
-                - serviceType
                 type: object
               nodeSelector:
                 additionalProperties:
@@ -903,8 +900,6 @@ spec:
                   replicas:
                     format: int32
                     type: integer
-                  serviceType:
-                    type: string
                 type: object
               redisLeader:
                 description: RedisLeader interface will have the redis leader configuration
@@ -1537,8 +1532,6 @@ spec:
                     format: int32
                     minimum: 3
                     type: integer
-                  serviceType:
-                    type: string
                 type: object
               resources:
                 description: ResourceRequirements describes the compute resource requirements.
@@ -2038,11 +2031,8 @@ spec:
                           to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                         type: object
                     type: object
-                  serviceType:
-                    type: string
                 required:
                 - image
-                - serviceType
                 type: object
               nodeSelector:
                 additionalProperties:
@@ -2831,8 +2821,6 @@ spec:
                   replicas:
                     format: int32
                     type: integer
-                  serviceType:
-                    type: string
                 type: object
               redisLeader:
                 description: RedisLeader interface will have the redis leader configuration
@@ -3465,8 +3453,6 @@ spec:
                     format: int32
                     minimum: 3
                     type: integer
-                  serviceType:
-                    type: string
                 type: object
               resources:
                 description: ResourceRequirements describes the compute resource requirements.

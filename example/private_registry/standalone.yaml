@@ -14,7 +14,6 @@ spec:
       limits:
         cpu: 101m
         memory: 128Mi
-    serviceType: ClusterIP
     imagePullSecrets:
       - name: regcred
   storage:

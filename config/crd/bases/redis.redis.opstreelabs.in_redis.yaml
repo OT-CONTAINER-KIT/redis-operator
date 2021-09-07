@@ -684,11 +684,8 @@ spec:
                           to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                         type: object
                     type: object
-                  serviceType:
-                    type: string
                 required:
                 - image
-                - serviceType
                 type: object
               nodeSelector:
                 additionalProperties:
@@ -1941,11 +1938,8 @@ spec:
                               More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                             type: object
                         type: object
-                      serviceType:
-                        type: string
                     required:
                     - image
-                    - serviceType
                     type: object
                   nodeSelector:
                     additionalProperties:

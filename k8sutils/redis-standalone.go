@@ -5,8 +5,7 @@ import (
 )
 
 var (
-	k8sServiceType string
-	enableMetrics  bool
+	enableMetrics bool
 )
 
 // CreateStandAloneService method will create standalone service for Redis
@@ -16,7 +15,6 @@ func CreateStandAloneService(cr *redisv1beta1.Redis) error {
 	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
 		enableMetrics = true
 	}
-	k8sServiceType = cr.Spec.KubernetesConfig.ServiceType
 	objectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name, cr.Namespace, labels, generateServiceAnots())
 	headlessObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-headless", cr.Namespace, labels, generateServiceAnots())
 	err := CreateOrUpdateHeadlessService(cr.Namespace, headlessObjectMetaInfo, labels, redisAsOwner(cr))
@@ -24,7 +22,7 @@ func CreateStandAloneService(cr *redisv1beta1.Redis) error {
 		logger.Error(err, "Cannot create standalone headless service for Redis")
 		return err
 	}
-	err = CreateOrUpdateService(cr.Namespace, objectMetaInfo, labels, redisAsOwner(cr), k8sServiceType, enableMetrics)
+	err = CreateOrUpdateService(cr.Namespace, objectMetaInfo, labels, redisAsOwner(cr), enableMetrics)
 	if err != nil {
 		logger.Error(err, "Cannot create standalone service for Redis")
 		return err

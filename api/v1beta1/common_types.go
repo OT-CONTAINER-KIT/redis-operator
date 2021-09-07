@@ -26,7 +26,6 @@ type KubernetesConfig struct {
 	ImagePullPolicy        corev1.PullPolicy              `json:"imagePullPolicy,omitempty"`
 	Resources              *corev1.ResourceRequirements   `json:"resources,omitempty"`
 	ExistingPasswordSecret *ExistingPasswordSecret        `json:"redisSecret,omitempty"`
-	ServiceType            string                         `json:"serviceType"`
 	ImagePullSecrets       *[]corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 }
 

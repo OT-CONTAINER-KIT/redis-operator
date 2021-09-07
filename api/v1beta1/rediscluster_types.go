@@ -39,7 +39,6 @@ type RedisClusterSpec struct {
 
 // RedisLeader interface will have the redis leader configuration
 type RedisLeader struct {
-	Service string `json:"serviceType,omitempty"`
 	// +kubebuilder:validation:Minimum=3
 	Replicas    *int32           `json:"replicas,omitempty"`
 	RedisConfig *RedisConfig     `json:"redisConfig,omitempty"`
@@ -48,7 +47,6 @@ type RedisLeader struct {
 
 // RedisFollower interface will have the redis follower configuration
 type RedisFollower struct {
-	Service     string           `json:"serviceType,omitempty"`
 	Replicas    *int32           `json:"replicas,omitempty"`
 	RedisConfig *RedisConfig     `json:"redisConfig,omitempty"`
 	Affinity    *corev1.Affinity `json:"affinity,omitempty"`

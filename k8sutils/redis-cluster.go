@@ -15,7 +15,6 @@ type RedisClusterSTS struct {
 // RedisClusterService is a interface to call Redis Service function
 type RedisClusterService struct {
 	RedisServiceRole string
-	RedisServiceType string
 }
 
 // generateRedisStandalone generates Redis standalone information
@@ -97,7 +96,6 @@ func CreateRedisFollower(cr *redisv1beta1.RedisCluster) error {
 // CreateRedisLeaderService method will create service for Redis Leader
 func CreateRedisLeaderService(cr *redisv1beta1.RedisCluster) error {
 	prop := RedisClusterService{
-		RedisServiceType: cr.Spec.RedisLeader.Service,
 		RedisServiceRole: "leader",
 	}
 	return prop.CreateRedisClusterService(cr)
@@ -106,7 +104,6 @@ func CreateRedisLeaderService(cr *redisv1beta1.RedisCluster) error {
 // CreateRedisFollowerService method will create service for Redis Follower
 func CreateRedisFollowerService(cr *redisv1beta1.RedisCluster) error {
 	prop := RedisClusterService{
-		RedisServiceType: cr.Spec.RedisLeader.Service,
 		RedisServiceRole: "follower",
 	}
 	return prop.CreateRedisClusterService(cr)
@@ -156,7 +153,6 @@ func (service RedisClusterService) CreateRedisClusterService(cr *redisv1beta1.Re
 	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
 		enableMetrics = true
 	}
-	k8sServiceType = service.RedisServiceType
 	objectMetaInfo := generateObjectMetaInformation(serviceName, cr.Namespace, labels, generateServiceAnots())
 	headlessObjectMetaInfo := generateObjectMetaInformation(serviceName+"-headless", cr.Namespace, labels, generateServiceAnots())
 	err := CreateOrUpdateHeadlessService(cr.Namespace, headlessObjectMetaInfo, labels, redisClusterAsOwner(cr))
@@ -164,7 +160,7 @@ func (service RedisClusterService) CreateRedisClusterService(cr *redisv1beta1.Re
 		logger.Error(err, "Cannot create headless service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err
 	}
-	err = CreateOrUpdateService(cr.Namespace, objectMetaInfo, labels, redisClusterAsOwner(cr), k8sServiceType, enableMetrics)
+	err = CreateOrUpdateService(cr.Namespace, objectMetaInfo, labels, redisClusterAsOwner(cr), enableMetrics)
 	if err != nil {
 		logger.Error(err, "Cannot create service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err
