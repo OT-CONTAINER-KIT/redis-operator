@@ -23,14 +23,14 @@
   </a>
 </p>
 
-A Golang based redis operator that will make/oversee Redis standalone/cluster mode setup on top of the Kubernetes. It can create a redis cluster setup with best practices on Cloud as well as the Bare metal environment. Also, it provides an in-built monitoring capability using redis-exporter.
+A Golang based redis operator that will make/oversee Redis standalone and cluster mode setup on top of the Kubernetes. It can create a redis cluster setup with best practices on Cloud as well as the Bare metal environment. Also, it provides an in-built monitoring capability using redis-exporter.
 
 For documentation, please refer to https://ot-container-kit.github.io/redis-operator/
 
 ## Architecture
 
 <div align="center">
-    <img src="./static/redis-operator.png">
+    <img src="./static/redis-operator-architecture.png">
 </div>
 
 ### Purpose
@@ -41,7 +41,8 @@ The purpose of creating this operator was to provide an easy and production grad
 
 Here the features which are supported by this operator:-
 
-- Redis cluster/standalone mode setup
+- Redis cluster and standalone mode setup
+- Redis cluster failover and recovery
 - Inbuilt monitoring with prometheus exporter
 - Dynamic storage provisioning with pvc template
 - Resources restrictions with k8s requests and limits
@@ -88,15 +89,14 @@ Creating redis cluster or standalone setup.
 
 ```shell
 # Create redis cluster setup
-$ helm upgrade redis-cluster ot-helm/redis-setup \
-  --set setupMode="cluster" --set cluster.size=3 \
-  --install --namespace redis-operator
+$ helm upgrade redis-cluster ot-helm/redis-cluster \
+  --set redisCluster.clusterSize=3 --install \ 
+  --namespace redis-operator
 ```
 
 ```shell
 # Create redis standalone setup
-$ helm upgrade redis ot-helm/redis-setup \
-  --set setupMode="standalone" \
+$ helm upgrade redis ot-helm/redis \
   --install --namespace redis-operator
 ```
 
