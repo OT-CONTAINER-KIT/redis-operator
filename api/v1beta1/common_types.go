@@ -22,11 +22,16 @@ import (
 
 // KubernetesConfig will be the JSON struct for Basic Redis Config
 type KubernetesConfig struct {
-	Image                  string                       `json:"image"`
-	ImagePullPolicy        corev1.PullPolicy            `json:"imagePullPolicy,omitempty"`
-	Resources              *corev1.ResourceRequirements `json:"resources,omitempty"`
-	ExistingPasswordSecret *ExistingPasswordSecret      `json:"redisSecret,omitempty"`
-	ServiceType            string                       `json:"serviceType"`
+	Image                  string                         `json:"image"`
+	ImagePullPolicy        corev1.PullPolicy              `json:"imagePullPolicy,omitempty"`
+	Resources              *corev1.ResourceRequirements   `json:"resources,omitempty"`
+	ExistingPasswordSecret *ExistingPasswordSecret        `json:"redisSecret,omitempty"`
+	ImagePullSecrets       *[]corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
+}
+
+// RedisConfig defines the external configuration of Redis
+type RedisConfig struct {
+	AdditionalRedisConfig *string `json:"additionalRedisConfig,omitempty"`
 }
 
 // ExistingPasswordSecret is the struct to access the existing secret
@@ -46,4 +51,5 @@ type RedisExporter struct {
 	Image           string                       `json:"image"`
 	Resources       *corev1.ResourceRequirements `json:"resources,omitempty"`
 	ImagePullPolicy corev1.PullPolicy            `json:"imagePullPolicy,omitempty"`
+	EnvVars         *[]corev1.EnvVar             `json:"env,omitempty"`
 }

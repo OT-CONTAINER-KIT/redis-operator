@@ -1,3 +1,28 @@
+### v0.8.0
+##### September 3, 2021
+
+#### :tada: Features
+
+- Added external configuration capability for follower and leader
+- Streamlined examples folder with different examples for standalone and cluster
+- Added the capability for affinity for leader and follower
+
+### v0.7.0
+##### August 12, 2021
+
+#### :tada: Features
+
+- Remove all the vulnerable dependencies from docs(NodeJS)
+- Added a new grafana dashboard for better monitoring visualization
+- Added environment variable support for redis exporter
+- Added Image Pull Secret support for private registeries
+
+#### :beetle: Bug Fixes
+
+- Fix bug for non-defined storage
+- Fixed secret nil exception bug
+- Fixed bug for making redis exporter optional
+
 ### v0.6.0
 ##### June 11, 2021
 

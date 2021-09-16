@@ -1,10 +1,8 @@
 # Grafana Dashboard
 
-Grafana Dashboards can be downloaded from grafana site itself by using code or by downloading dashboard JSON.
+We have created a custom detailed dashboard for monitoring the stats of Redis Cluster.
 
-**Note:- Soon we will create our own custom dashboards for redis exporter in grafana**
-
-- [Redis Dashboard for Prometheus](https://grafana.com/grafana/dashboards/763)
+- [Redis Operator Cluster Dashboard for Prometheus](https://github.com/OT-CONTAINER-KIT/redis-operator/blob/master/dashboards/redis-operator-cluster.json)
 
 ![](./images/grafana1.png)
 

@@ -1,33 +1,20 @@
 ---
 apiVersion: redis.redis.opstreelabs.in/v1beta1
-kind: Redis
+kind: RedisCluster
 metadata:
-  name: redis
+  name: redis-cluster
 spec:
-  mode: cluster
-  size: 3
-  global:
-    image: quay.io/opstree/redis:v6.2
+  clusterSize: 3
+  kubernetesConfig:
+    image: quay.io/opstree/redis:v6.2.5
     imagePullPolicy: IfNotPresent
-    password: "Opstree@1234"
     resources:
       requests:
-        cpu: 100m
+        cpu: 101m
         memory: 128Mi
       limits:
-        cpu: 100m
+        cpu: 101m
         memory: 128Mi
-  master:
-    service:
-      type: NodePort
-    redisConfig: {}
-  slave:
-    service:
-      type: ClusterIP
-    redisConfig: {}
-  service:
-    type: ClusterIP
-  redisConfig: {}
   redisExporter:
     enabled: true
     image: quay.io/opstree/redis-exporter:1.0
@@ -39,16 +26,14 @@ spec:
       limits:
         cpu: 100m
         memory: 128Mi
+    # env:
+    # - name: REDIS_EXPORTER_INCL_SYSTEM_METRICS
+    #   value: "true"
   storage:
     volumeClaimTemplate:
       spec:
-        storageClassName: local-path
+        # storageClassName: standard
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
             storage: 1Gi
-  tolerations:
-  - key: "key1"
-    operator: "Equal"
-    value: "value1"
-    effect: "NoSchedule"

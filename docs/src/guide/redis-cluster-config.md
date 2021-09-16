@@ -13,25 +13,37 @@ In this configuration section, we have these configuration parameters:-
 
 ## Helm Parameters
 
-|**Name**|**Default Value**|**Required**|**Description**|
-|--------|-----------------|------------|---------------|
-|`redisCluster.clusterSize` | 3 | false | Size of the redis cluster leader and follower nodes |
-|`redisCluster.secretName` | redis-secret | false | Name of the existing secret in Kubernetes |
-|`redisCluster.secretKey` | password | false | Name of the existing secret key in Kubernetes |
-|`redisCluster.image` | quay.io/opstree/redis | true | Name of the redis image |
-|`redisCluster.tag` | v6.2 | true | Tag of the redis image |
-|`redisCluster.imagePullPolicy` | IfNotPresent | true | Image Pull Policy of the redis image |
-|`redisCluster.leaderServiceType` | ClusterIP | false | Kubernetes service type for Redis Leader |
-|`redisCluster.followerServiceType` | ClusterIP | false | Kubernetes service type for Redis Follower |
-|`redisExporter.enabled` | true | true | Redis exporter should be deployed or not |
-|`redisExporter.image` | quay.io/opstree/redis-exporter | true | Name of the redis exporter image |
-|`redisExporter.tag` | v6.2 | true | Tag of the redis exporter image |
-|`redisExporter.imagePullPolicy` | IfNotPresent | true | Image Pull Policy of the redis exporter image |
-|`nodeSelector` | {} | false | NodeSelector for redis pods |
-|`storageSpec` | {} | false | Storage configuration for redis setup |
-|`securityContext` | {} | false | Security Context for redis pods |
-|`affinity` | {} | false | Affinity for node and pod for redis pods |
-|`tolerations` | {} | false | Tolerations for redis pods |
+|**Name**|**Default Value**|**Description**|
+|--------|-----------------|---------------|
+|`imagePullSecrets` | [] | List of image pull secrets, in case redis image is getting pull from private registry |
+|`redisCluster.clusterSize` | 3 | Size of the redis cluster leader and follower nodes |
+|`redisCluster.secretName` | redis-secret | Name of the existing secret in Kubernetes |
+|`redisCluster.secretKey` | password | Name of the existing secret key in Kubernetes |
+|`redisCluster.image` | quay.io/opstree/redis | Name of the redis image |
+|`redisCluster.tag` | v6.2 | Tag of the redis image |
+|`redisCluster.imagePullPolicy` | IfNotPresent | Image Pull Policy of the redis image |
+|`redisCluster.leader.serviceType` | ClusterIP | Kubernetes service type for Redis Leader |
+|`redisCluster.follower.serviceType` | ClusterIP | Kubernetes service type for Redis Follower |
+|`redisCluster.leader.affinity` | {} | Affinity for node and pods for redis leader statefulset |
+|`redisCluster.follower.affinity` | {} | Affinity for node and pods for redis follower statefulset |
+|`externalService.enabled`| false | If redis service needs to be exposed using LoadBalancer or NodePort |
+|`externalService.annotations`| {} | Kubernetes service related annotations |
+|`externalService.serviceType` | NodePort | Kubernetes service type for exposing service, values - ClusterIP, NodePort, and LoadBalancer |
+|`externalService.port` | 6379 | Port number on which redis external service should be exposed |
+|`serviceMonitor.enabled` | false | Servicemonitor to monitor redis with Prometheus |
+|`serviceMonitor.interval` | 30s | Interval at which metrics should be scraped. |
+|`serviceMonitor.scrapeTimeout` | 10s | Timeout after which the scrape is ended |
+|`serviceMonitor.namespace` | monitoring | 	Namespace in which Prometheus operator is running |
+|`redisExporter.enabled` | true | Redis exporter should be deployed or not |
+|`redisExporter.image` | quay.io/opstree/redis-exporter | Name of the redis exporter image |
+|`redisExporter.tag` | v6.2 | Tag of the redis exporter image |
+|`redisExporter.imagePullPolicy` | IfNotPresent | Image Pull Policy of the redis exporter image |
+|`redisExporter.env` | [] | Extra environment variables which needs to be added in redis exporter|
+|`nodeSelector` | {} | NodeSelector for redis statefulset |
+|`priorityClassName`| "" | Priority class name for the redis statefulset |
+|`storageSpec` | {} | Storage configuration for redis setup |
+|`securityContext` | {} | Security Context for redis pods for changing system or kernel level parameters |
+|`tolerations` | [] | Tolerations for redis statefulset |
 
 # CRD Parameters
 
@@ -52,6 +64,17 @@ These are the CRD Parameters which is currently supported by Redis Exporter for 
 ```yaml
   redisLeader:
     serviceType: ClusterIP
+    redisConfig:
+      additionalRedisConfig: redis-external-config
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: disktype
+              operator: In
+              values:
+              - ssd
 ```
 
 **redisFollower**
@@ -61,6 +84,17 @@ These are the CRD Parameters which is currently supported by Redis Exporter for 
 ```yaml
   redisFollower:
     serviceType: ClusterIP
+    redisConfig:
+      additionalRedisConfig: redis-external-config
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: disktype
+              operator: In
+              values:
+              - ssd
 ```
 
 **kubernetesConfig**
@@ -81,7 +115,9 @@ In the `kubernetesConfig` section, we define configuration related to Kubernetes
     redisSecret:
       name: redis-secret
       key: password
-    serviceType: LoadBalancer
+    serviceType: ClusterIP
+    imagePullSecrets:
+      - name: regcred
 ```
 
 
@@ -101,6 +137,19 @@ In the `kubernetesConfig` section, we define configuration related to Kubernetes
       limits:
         cpu: 100m
         memory: 128Mi
+    env:
+    - name: REDIS_EXPORTER_INCL_SYSTEM_METRICS
+      value: "true"
+    - name: UI_PROPERTIES_FILE_NAME
+      valueFrom:
+        configMapKeyRef:
+          name: game-demo
+          key: ui_properties_file_name
+    - name: SECRET_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: mysecret
+          key: username
 ```
 
 **storage**
@@ -144,22 +193,6 @@ Kubernetes security context for redis pods.
     runAsUser: 1000
 ```
 
-**affinity**
-
-Affinity for node and pod for redis setup.
-
-```yaml
-  affinity:
-    nodeAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-        nodeSelectorTerms:
-        - matchExpressions:
-          - key: disktype
-            operator: In
-            values:
-            - ssd
-```
-
 **tolerations**
 
 Tolerations for nodes and pods in Kubernetes.
@@ -171,4 +204,3 @@ Tolerations for nodes and pods in Kubernetes.
     value: "value1"
     effect: "NoSchedule"
 ```
-

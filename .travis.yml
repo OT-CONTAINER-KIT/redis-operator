@@ -3,6 +3,9 @@ node_js:
   - lts/*
 install:
   - cd docs; yarn install # npm ci
+branches:
+  only:
+    - master
 script:
   - cd docs; yarn build # npm run docs:build
 deploy:

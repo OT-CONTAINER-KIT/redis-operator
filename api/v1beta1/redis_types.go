@@ -26,16 +26,15 @@ import (
 
 // RedisSpec defines the desired state of Redis
 type RedisSpec struct {
-	KubernetesConfig  KubernetesConfig             `json:"kubernetesConfig"`
-	RedisExporter     *RedisExporter               `json:"redisExporter,omitempty"`
-	RedisConfig       map[string]string            `json:"redisConfig"`
-	Resources         *corev1.ResourceRequirements `json:"resources,omitempty"`
-	Storage           *Storage                     `json:"storage,omitempty"`
-	NodeSelector      map[string]string            `json:"nodeSelector,omitempty"`
-	SecurityContext   *corev1.PodSecurityContext   `json:"securityContext,omitempty"`
-	PriorityClassName string                       `json:"priorityClassName,omitempty"`
-	Affinity          *corev1.Affinity             `json:"affinity,omitempty"`
-	Tolerations       *[]corev1.Toleration         `json:"tolerations,omitempty"`
+	KubernetesConfig  KubernetesConfig           `json:"kubernetesConfig"`
+	RedisExporter     *RedisExporter             `json:"redisExporter,omitempty"`
+	RedisConfig       *RedisConfig               `json:"redisConfig,omitempty"`
+	Storage           *Storage                   `json:"storage,omitempty"`
+	NodeSelector      map[string]string          `json:"nodeSelector,omitempty"`
+	SecurityContext   *corev1.PodSecurityContext `json:"securityContext,omitempty"`
+	PriorityClassName string                     `json:"priorityClassName,omitempty"`
+	Affinity          *corev1.Affinity           `json:"affinity,omitempty"`
+	Tolerations       *[]corev1.Toleration       `json:"tolerations,omitempty"`
 }
 
 // RedisStatus defines the observed state of Redis
@@ -51,7 +50,7 @@ type Redis struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   RedisSpec   `json:"spec,omitempty"`
+	Spec   RedisSpec   `json:"spec"`
 	Status RedisStatus `json:"status,omitempty"`
 }
 

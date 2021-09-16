@@ -43,12 +43,12 @@ func generateHeadlessServiceDef(serviceMeta metav1.ObjectMeta, labels map[string
 }
 
 // generateServiceDef generates service definition for Redis
-func generateServiceDef(serviceMeta metav1.ObjectMeta, labels map[string]string, k8sServiceType string, enableMetrics bool, ownerDef metav1.OwnerReference) *corev1.Service {
+func generateServiceDef(serviceMeta metav1.ObjectMeta, labels map[string]string, enableMetrics bool, ownerDef metav1.OwnerReference) *corev1.Service {
 	service := &corev1.Service{
 		TypeMeta:   generateMetaInformation("Service", "core/v1"),
 		ObjectMeta: serviceMeta,
 		Spec: corev1.ServiceSpec{
-			Type:     generateServiceType(k8sServiceType),
+			Type:     generateServiceType("ClusterIP"),
 			Selector: labels,
 			Ports: []corev1.ServicePort{
 				{
@@ -153,9 +153,9 @@ func CreateOrUpdateHeadlessService(namespace string, serviceMeta metav1.ObjectMe
 }
 
 // CreateOrUpdateService method will create or update Redis service
-func CreateOrUpdateService(namespace string, serviceMeta metav1.ObjectMeta, labels map[string]string, ownerDef metav1.OwnerReference, k8sServiceType string, enableMetrics bool) error {
+func CreateOrUpdateService(namespace string, serviceMeta metav1.ObjectMeta, labels map[string]string, ownerDef metav1.OwnerReference, enableMetrics bool) error {
 	logger := serviceLogger(namespace, serviceMeta.Name)
-	serviceDef := generateServiceDef(serviceMeta, labels, k8sServiceType, enableMetrics, ownerDef)
+	serviceDef := generateServiceDef(serviceMeta, labels, enableMetrics, ownerDef)
 	storedService, err := getService(namespace, serviceMeta.Name)
 	if err != nil {
 		if errors.IsNotFound(err) {

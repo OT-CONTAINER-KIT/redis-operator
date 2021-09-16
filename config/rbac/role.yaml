@@ -10,6 +10,7 @@ rules:
   - redis.redis.opstreelabs.in
   resources:
   - redis
+  - rediscluster
   verbs:
   - create
   - delete
@@ -22,12 +23,14 @@ rules:
   - redis.redis.opstreelabs.in
   resources:
   - redis/finalizers
+  - rediscluster/finalizers
   verbs:
   - update
 - apiGroups:
   - redis.redis.opstreelabs.in
   resources:
   - redis/status
+  - rediscluster/status
   verbs:
   - get
   - patch

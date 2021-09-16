@@ -134,8 +134,8 @@ func checkRedisCluster(cr *redisv1beta1.RedisCluster) [][]string {
 	return csvOutputRecords
 }
 
-// ExecuteFaioverOperation will execute redis failover operations
-func ExecuteFaioverOperation(cr *redisv1beta1.RedisCluster) {
+// ExecuteFailoverOperation will execute redis failover operations
+func ExecuteFailoverOperation(cr *redisv1beta1.RedisCluster) {
 	executeFailoverCommand(cr, "leader")
 	executeFailoverCommand(cr, "follower")
 }
