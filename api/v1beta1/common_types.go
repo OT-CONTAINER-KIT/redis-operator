@@ -40,11 +40,9 @@ type ExistingPasswordSecret struct {
 	Key  *string `json:"key,omitempty"`
 }
 
-// Storage is the interface to add pvc and pv support in redis
+// Storage is the inteface to add pvc and pv support in redis
 type Storage struct {
 	VolumeClaimTemplate corev1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
-	VolumeMounts        *[]corev1.VolumeMount        `json:"volumeMounts,omitempty"`
-	Volumes             *[]corev1.VolumeSource       `json:"volumes,omitempty"`
 }
 
 // RedisExporter interface will have the information for redis exporter related stuff
