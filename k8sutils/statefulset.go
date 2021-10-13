@@ -170,11 +170,13 @@ func generateContainerDef(name string, containerParams containerParameters, enab
 			Image:           containerParams.Image,
 			ImagePullPolicy: containerParams.ImagePullPolicy,
 			Env:             getEnvironmentVariables(containerParams.Role, containerParams.EnabledPassword, containerParams.SecretName, containerParams.SecretKey, containerParams.PersistenceEnabled, containerParams.RedisExporterEnv),
-			Resources:       *containerParams.Resources,
 			ReadinessProbe:  getProbeInfo(),
 			LivenessProbe:   getProbeInfo(),
 			VolumeMounts:    getVolumeMount(name, containerParams.PersistenceEnabled, externalConfig),
 		},
+	}
+	if containerParams.Resources != nil {
+		containerDefinition[0].Resources = *containerParams.Resources
 	}
 	if enableMetrics {
 		containerDefinition = append(containerDefinition, enableRedisMonitoring(containerParams))
@@ -189,7 +191,9 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 		Image:           params.RedisExporterImage,
 		ImagePullPolicy: params.RedisExporterImagePullPolicy,
 		Env:             getEnvironmentVariables(params.Role, params.EnabledPassword, params.SecretName, params.SecretKey, params.PersistenceEnabled, params.RedisExporterEnv),
-		Resources:       *params.RedisExporterResources,
+	}
+	if params.RedisExporterResources != nil {
+		exporterDefinition.Resources = *params.RedisExporterResources
 	}
 	return exporterDefinition
 }
