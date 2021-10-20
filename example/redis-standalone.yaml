@@ -19,7 +19,6 @@ spec:
     # redisSecret:
     #   name: redis-secret
     #   key: password
-    serviceType: ClusterIP
     # imagePullSecrets:
     #   - name: regcred
   redisExporter:

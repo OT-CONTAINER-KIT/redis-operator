@@ -4,13 +4,13 @@ kind: Namespace
 metadata:
   labels:
     control-plane: redis-operator
-  name: ot-operators
+  name: redis-operator
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: redis-operator
-  namespace: ot-operators
+  namespace: redis-operator
   labels:
     control-plane: redis-operator
 spec:
@@ -30,7 +30,7 @@ spec:
         - /manager
         args:
         - --leader-elect
-        image: quay.io/opstree/redis-operator:v0.6.0
+        image: quay.io/opstree/redis-operator:v0.9.0
         imagePullPolicy: Always
         name: manager
         securityContext:
