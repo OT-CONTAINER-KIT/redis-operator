@@ -26,7 +26,9 @@ func generateRedisClusterParams(cr *redisv1beta1.RedisCluster, replicas *int32, 
 		PriorityClassName: cr.Spec.PriorityClassName,
 		Affinity:          affinity,
 		Tolerations:       cr.Spec.Tolerations,
-		EnableMetrics:     cr.Spec.RedisExporter.Enabled,
+	}
+	if cr.Spec.RedisExporter != nil {
+		res.EnableMetrics = cr.Spec.RedisExporter.Enabled
 	}
 	if cr.Spec.KubernetesConfig.ImagePullSecrets != nil {
 		res.ImagePullSecrets = cr.Spec.KubernetesConfig.ImagePullSecrets
@@ -45,13 +47,10 @@ func generateRedisClusterContainerParams(cr *redisv1beta1.RedisCluster) containe
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{
-		Role:                         "cluster",
-		Image:                        cr.Spec.KubernetesConfig.Image,
-		ImagePullPolicy:              cr.Spec.KubernetesConfig.ImagePullPolicy,
-		Resources:                    cr.Spec.KubernetesConfig.Resources,
-		RedisExporterImage:           cr.Spec.RedisExporter.Image,
-		RedisExporterImagePullPolicy: cr.Spec.RedisExporter.ImagePullPolicy,
-		RedisExporterResources:       cr.Spec.RedisExporter.Resources,
+		Role:            "cluster",
+		Image:           cr.Spec.KubernetesConfig.Image,
+		ImagePullPolicy: cr.Spec.KubernetesConfig.ImagePullPolicy,
+		Resources:       cr.Spec.KubernetesConfig.Resources,
 	}
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
 		containerProp.EnabledPassword = &trueProperty
@@ -60,8 +59,15 @@ func generateRedisClusterContainerParams(cr *redisv1beta1.RedisCluster) containe
 	} else {
 		containerProp.EnabledPassword = &falseProperty
 	}
-	if cr.Spec.RedisExporter.EnvVars != nil {
-		containerProp.RedisExporterEnv = cr.Spec.RedisExporter.EnvVars
+	if cr.Spec.RedisExporter != nil {
+		containerProp.RedisExporterImage = cr.Spec.RedisExporter.Image
+		containerProp.RedisExporterImagePullPolicy = cr.Spec.RedisExporter.ImagePullPolicy
+		containerProp.RedisExporterResources = cr.Spec.RedisExporter.Resources
+
+		if cr.Spec.RedisExporter.EnvVars != nil {
+			containerProp.RedisExporterEnv = cr.Spec.RedisExporter.EnvVars
+		}
+
 	}
 	if cr.Spec.Storage != nil {
 		containerProp.PersistenceEnabled = &trueProperty
