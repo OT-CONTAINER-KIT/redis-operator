@@ -96,7 +96,10 @@ func generateRedisStandaloneContainerParams(cr *redisv1beta1.Redis) containerPar
 	if cr.Spec.RedisExporter != nil {
 		containerProp.RedisExporterImage = cr.Spec.RedisExporter.Image
 		containerProp.RedisExporterImagePullPolicy = cr.Spec.RedisExporter.ImagePullPolicy
-		containerProp.RedisExporterResources = cr.Spec.RedisExporter.Resources
+
+		if cr.Spec.RedisExporter.Resources != nil {
+			containerProp.RedisExporterResources = cr.Spec.RedisExporter.Resources
+		}
 
 		if cr.Spec.RedisExporter.EnvVars != nil {
 			containerProp.RedisExporterEnv = cr.Spec.RedisExporter.EnvVars
