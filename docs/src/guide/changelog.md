@@ -1,3 +1,32 @@
+### v0.9.0
+**November 13, 2021**
+
+**:tada: Features**
+
+- Added RBAC policies for redis operator with least privileges
+
+**:beetle: Bug Fixes**
+
+- Fix and updated documentation dependencies
+- Test pointers before dereferencing
+- Fix panic error of golang for redis exporter
+- Fix resource block nil exception for redis exporter
+
+### v0.8.0
+**September 3, 2021**
+
+**:tada: Features**
+
+- Added external configuration capability for follower and leader
+- Streamlined examples folder with different examples for standalone and cluster
+- Added the capability for affinity for leader and follower
+
+**:beetle: Bug Fixes**
+
+- Fix bug for non-defined storage
+- Fixed secret nil exception bug
+- Fixed bug for making redis exporter optional
+
 ### v0.7.0
 **August 12, 2021**
 
