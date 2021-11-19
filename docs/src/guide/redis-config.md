@@ -41,6 +41,7 @@ In this configuration section, we have these configuration parameters:-
 |`securityContext` | {} | Security Context for redis pods for changing system or kernel level parameters |
 |`affinity` | {} | Affinity for node and pod for redis statefulset |
 |`tolerations` | [] | Tolerations for redis statefulset |
+|`sidecars` | [] | Sidecar for redis pods
 
 # CRD Parameters
 
@@ -167,4 +168,25 @@ Tolerations for nodes and pods in Kubernetes.
     operator: "Equal"
     value: "value1"
     effect: "NoSchedule"
+```
+
+**sidecars**
+
+Sidecars for redis pods
+
+```yaml
+  sidecars:
+  - name: "sidecar1"
+    image: "image:1.0"
+    imagePullPolicy: Always
+    resources:
+      limits:
+        cpu: 50m
+        memory: 64Mi
+      requests:
+        cpu: 10m
+        memory: 32M
+    env:
+    - name: VAR_NAME
+      value: "value1"
 ```

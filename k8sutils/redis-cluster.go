@@ -1,8 +1,9 @@
 package k8sutils
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	redisv1beta1 "redis-operator/api/v1beta1"
+
+	corev1 "k8s.io/api/core/v1"
 )
 
 // RedisClusterSTS is a interface to call Redis Statefulset function
@@ -146,6 +147,7 @@ func (service RedisClusterSTS) CreateRedisClusterSetup(cr *redisv1beta1.RedisClu
 		generateRedisClusterParams(cr, service.getReplicaCount(cr), service.ExternalConfig, service.Affinity),
 		redisClusterAsOwner(cr),
 		generateRedisClusterContainerParams(cr),
+		cr.Spec.Sidecars,
 	)
 	if err != nil {
 		logger.Error(err, "Cannot create statefulset for Redis", "Setup.Type", service.RedisStateFulType)

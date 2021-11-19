@@ -41,6 +41,7 @@ func CreateStandAloneRedis(cr *redisv1beta1.Redis) error {
 		generateRedisStandaloneParams(cr),
 		redisAsOwner(cr),
 		generateRedisStandaloneContainerParams(cr),
+		cr.Spec.Sidecars,
 	)
 	if err != nil {
 		logger.Error(err, "Cannot create standalone statefulset for Redis")

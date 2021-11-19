@@ -35,6 +35,7 @@ type RedisSpec struct {
 	PriorityClassName string                     `json:"priorityClassName,omitempty"`
 	Affinity          *corev1.Affinity           `json:"affinity,omitempty"`
 	Tolerations       *[]corev1.Toleration       `json:"tolerations,omitempty"`
+	Sidecars          *[]Sidecar                 `json:"sidecars,omitempty"`
 }
 
 // RedisStatus defines the observed state of Redis
