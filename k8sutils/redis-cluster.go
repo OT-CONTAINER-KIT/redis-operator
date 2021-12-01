@@ -11,6 +11,8 @@ type RedisClusterSTS struct {
 	RedisStateFulType string
 	ExternalConfig    *string
 	Affinity          *corev1.Affinity `json:"affinity,omitempty"`
+	ReadinessProbe    *corev1.Probe
+	LivenessProbe     *corev1.Probe
 }
 
 // RedisClusterService is a interface to call Redis Service function
@@ -44,7 +46,7 @@ func generateRedisClusterParams(cr *redisv1beta1.RedisCluster, replicas *int32, 
 }
 
 // generateRedisStandaloneContainerParams generates Redis container information
-func generateRedisClusterContainerParams(cr *redisv1beta1.RedisCluster) containerParameters {
+func generateRedisClusterContainerParams(cr *redisv1beta1.RedisCluster, readinessProbeDef *corev1.Probe, livenessProbeDef *corev1.Probe) containerParameters {
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{
@@ -73,6 +75,12 @@ func generateRedisClusterContainerParams(cr *redisv1beta1.RedisCluster) containe
 		}
 
 	}
+	if readinessProbeDef != nil {
+		containerProp.ReadinessProbe = readinessProbeDef
+	}
+	if livenessProbeDef != nil {
+		containerProp.LivenessProbe = livenessProbeDef
+	}
 	if cr.Spec.Storage != nil {
 		containerProp.PersistenceEnabled = &trueProperty
 	}
@@ -84,6 +92,8 @@ func CreateRedisLeader(cr *redisv1beta1.RedisCluster) error {
 	prop := RedisClusterSTS{
 		RedisStateFulType: "leader",
 		Affinity:          cr.Spec.RedisLeader.Affinity,
+		ReadinessProbe:    cr.Spec.RedisLeader.ReadinessProbe,
+		LivenessProbe:     cr.Spec.RedisLeader.LivenessProbe,
 	}
 	if cr.Spec.RedisLeader.RedisConfig != nil {
 		prop.ExternalConfig = cr.Spec.RedisLeader.RedisConfig.AdditionalRedisConfig
@@ -96,6 +106,8 @@ func CreateRedisFollower(cr *redisv1beta1.RedisCluster) error {
 	prop := RedisClusterSTS{
 		RedisStateFulType: "follower",
 		Affinity:          cr.Spec.RedisFollower.Affinity,
+		ReadinessProbe:    cr.Spec.RedisFollower.ReadinessProbe,
+		LivenessProbe:     cr.Spec.RedisFollower.LivenessProbe,
 	}
 	if cr.Spec.RedisFollower.RedisConfig != nil {
 		prop.ExternalConfig = cr.Spec.RedisFollower.RedisConfig.AdditionalRedisConfig
@@ -146,7 +158,7 @@ func (service RedisClusterSTS) CreateRedisClusterSetup(cr *redisv1beta1.RedisClu
 		labels,
 		generateRedisClusterParams(cr, service.getReplicaCount(cr), service.ExternalConfig, service.Affinity),
 		redisClusterAsOwner(cr),
-		generateRedisClusterContainerParams(cr),
+		generateRedisClusterContainerParams(cr, service.ReadinessProbe, service.LivenessProbe),
 		cr.Spec.Sidecars,
 	)
 	if err != nil {

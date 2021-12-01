@@ -1,4 +1,3 @@
-
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -10,6 +9,8 @@ rules:
   resources:
   - rediss
   - redisclusters
+  - redis
+  - rediscluster
   verbs:
   - create
   - delete
@@ -39,6 +40,7 @@ rules:
   resources:
   - secrets
   - pods/exec
+  - pods
   - services
   - configmaps
   verbs:

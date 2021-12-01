@@ -24,4 +24,4 @@ extends:
     QuayImageName: opstree/redis-operator
     GithubImageName: ot-container-kit/redis-operator/redis-operator
     BuildDocs: true
-    AppVersion: "0.9.0"
+    AppVersion: "0.10.0"

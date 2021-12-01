@@ -46,6 +46,8 @@ type containerParameters struct {
 	SecretName                   *string
 	SecretKey                    *string
 	PersistenceEnabled           *bool
+	ReadinessProbe               *corev1.Probe
+	LivenessProbe                *corev1.Probe
 }
 
 // CreateOrUpdateStateFul method will create or update Redis service
@@ -171,11 +173,20 @@ func generateContainerDef(name string, containerParams containerParameters, enab
 			Image:           containerParams.Image,
 			ImagePullPolicy: containerParams.ImagePullPolicy,
 			Env:             getEnvironmentVariables(containerParams.Role, containerParams.EnabledPassword, containerParams.SecretName, containerParams.SecretKey, containerParams.PersistenceEnabled, containerParams.RedisExporterEnv),
-			ReadinessProbe:  getProbeInfo(),
-			LivenessProbe:   getProbeInfo(),
 			VolumeMounts:    getVolumeMount(name, containerParams.PersistenceEnabled, externalConfig),
 		},
 	}
+	if containerParams.ReadinessProbe != nil {
+		containerDefinition[0].ReadinessProbe = containerParams.ReadinessProbe
+	} else {
+		containerDefinition[0].ReadinessProbe = getProbeInfo()
+	}
+	if containerParams.LivenessProbe != nil {
+		containerDefinition[0].LivenessProbe = containerParams.LivenessProbe
+	} else {
+		containerDefinition[0].LivenessProbe = getProbeInfo()
+	}
+
 	if containerParams.Resources != nil {
 		containerDefinition[0].Resources = *containerParams.Resources
 	}
