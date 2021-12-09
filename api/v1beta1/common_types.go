@@ -53,3 +53,12 @@ type RedisExporter struct {
 	ImagePullPolicy corev1.PullPolicy            `json:"imagePullPolicy,omitempty"`
 	EnvVars         *[]corev1.EnvVar             `json:"env,omitempty"`
 }
+
+// Sidecar for each Redis pods
+type Sidecar struct {
+	Name            string                       `json:"name"`
+	Image           string                       `json:"image"`
+	ImagePullPolicy corev1.PullPolicy            `json:"imagePullPolicy,omitempty"`
+	Resources       *corev1.ResourceRequirements `json:"resources,omitempty"`
+	EnvVars         *[]corev1.EnvVar             `json:"env,omitempty"`
+}

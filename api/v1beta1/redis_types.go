@@ -37,6 +37,7 @@ type RedisSpec struct {
 	Tolerations       *[]corev1.Toleration       `json:"tolerations,omitempty"`
 	ReadinessProbe    *corev1.Probe              `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
 	LivenessProbe     *corev1.Probe              `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
+	Sidecars          *[]Sidecar                 `json:"sidecars,omitempty"`
 }
 
 // RedisStatus defines the observed state of Redis

@@ -35,6 +35,7 @@ type RedisClusterSpec struct {
 	PriorityClassName string                       `json:"priorityClassName,omitempty"`
 	Tolerations       *[]corev1.Toleration         `json:"tolerations,omitempty"`
 	Resources         *corev1.ResourceRequirements `json:"resources,omitempty"`
+	Sidecars          *[]Sidecar                   `json:"sidecars,omitempty"`
 }
 
 // RedisLeader interface will have the redis leader configuration
