@@ -9,6 +9,8 @@ resources:
 - leader_election_role_binding.yaml
 - redis_editor_role.yaml
 - redis_viewer_role.yaml
+- rediscluster_editor_role.yaml
+- rediscluster_viewer_role.yaml
 - role.yaml
 - role_binding.yaml
 - serviceaccount.yaml
