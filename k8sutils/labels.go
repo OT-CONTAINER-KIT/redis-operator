@@ -66,12 +66,16 @@ func redisClusterAsOwner(cr *redisv1beta1.RedisCluster) metav1.OwnerReference {
 }
 
 // generateStatefulSetsAnots generates and returns statefulsets annotations
-func generateStatefulSetsAnots() map[string]string {
-	return map[string]string{
+func generateStatefulSetsAnots(annotations map[string]string) map[string]string {
+	anots := map[string]string{
 		"redis.opstreelabs.in": "true",
 		"prometheus.io/scrape": "true",
 		"prometheus.io/port":   "9121",
 	}
+	for k, v := range annotations {
+		anots[k] = v
+	}
+	return anots
 }
 
 // generateServiceAnots generates and returns service annotations
