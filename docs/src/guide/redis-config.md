@@ -2,7 +2,7 @@
 
 The redis setup in standalone mode can be customized using custom configuration. If redis setup is done by **Helm**, in that case `values.yaml` can be updated.
 
-- [Redis standalone values](https://github.com/OT-CONTAINER-KIT/helm-charts/blob/main/charts/redis/values.yaml) 
+- [Redis standalone values](https://github.com/OT-CONTAINER-KIT/helm-charts/blob/main/charts/redis/values.yaml)
 
 But if the setup is not done via Helm, in that scenario we may have to customize the CRD parameters.
 
@@ -11,7 +11,7 @@ In this configuration section, we have these configuration parameters:-
 - [Helm Parameters](redis-config.html#helm-parameters)
 - [CRD Parameters](redis-config.html#crd-parameters)
 
-## Helm Parameters
+# Helm Parameters
 
 |**Name**|**Value**|**Description**|
 |--------|-----------------|-------|
@@ -21,7 +21,6 @@ In this configuration section, we have these configuration parameters:-
 |`redisStandalone.image` | quay.io/opstree/redis | Name of the redis image |
 |`redisStandalone.tag` | v6.2 | Tag of the redis image |
 |`redisStandalone.imagePullPolicy` | IfNotPresent | Image Pull Policy of the redis image |
-|`redisStandalone.serviceType` | ClusterIP | Kubernetes service type for Redis |
 |`redisStandalone.resources` | {} | Request and limits for redis statefulset |
 |`externalService.enabled`| false | If redis service needs to be exposed using LoadBalancer or NodePort |
 |`externalService.annotations`| {} | Kubernetes service related annotations |
@@ -42,6 +41,7 @@ In this configuration section, we have these configuration parameters:-
 |`securityContext` | {} | Security Context for redis pods for changing system or kernel level parameters |
 |`affinity` | {} | Affinity for node and pod for redis statefulset |
 |`tolerations` | [] | Tolerations for redis statefulset |
+|`sidecars` | [] | Sidecar for redis pods
 
 # CRD Parameters
 
@@ -65,7 +65,6 @@ In the `kubernetesConfig` section, we define configuration related to Kubernetes
     redisSecret:
       name: redis-secret
       key: password
-    serviceType: LoadBalancer
     imagePullSecrets:
       - name: regcred
 ```
@@ -169,4 +168,25 @@ Tolerations for nodes and pods in Kubernetes.
     operator: "Equal"
     value: "value1"
     effect: "NoSchedule"
+```
+
+**sidecars**
+
+Sidecars for redis pods
+
+```yaml
+  sidecars:
+  - name: "sidecar1"
+    image: "image:1.0"
+    imagePullPolicy: Always
+    resources:
+      limits:
+        cpu: 50m
+        memory: 64Mi
+      requests:
+        cpu: 10m
+        memory: 32M
+    env:
+    - name: VAR_NAME
+      value: "value1"
 ```
