@@ -2,6 +2,7 @@ package k8sutils
 
 import (
 	"context"
+	redisv1beta1 "redis-operator/api/v1beta1"
 	"sort"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
@@ -45,13 +46,15 @@ type containerParameters struct {
 	SecretName                   *string
 	SecretKey                    *string
 	PersistenceEnabled           *bool
+	ReadinessProbe               *corev1.Probe
+	LivenessProbe                *corev1.Probe
 }
 
 // CreateOrUpdateStateFul method will create or update Redis service
-func CreateOrUpdateStateFul(namespace string, stsMeta metav1.ObjectMeta, labels map[string]string, params statefulSetParameters, ownerDef metav1.OwnerReference, containerParams containerParameters) error {
+func CreateOrUpdateStateFul(namespace string, stsMeta metav1.ObjectMeta, labels map[string]string, params statefulSetParameters, ownerDef metav1.OwnerReference, containerParams containerParameters, sidecars *[]redisv1beta1.Sidecar) error {
 	logger := stateFulSetLogger(namespace, stsMeta.Name)
 	storedStateful, err := GetStateFulSet(namespace, stsMeta.Name)
-	statefulSetDef := generateStateFulSetsDef(stsMeta, labels, params, ownerDef, containerParams)
+	statefulSetDef := generateStateFulSetsDef(stsMeta, labels, params, ownerDef, containerParams, getSidecars(sidecars))
 	if err != nil {
 		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(statefulSetDef); err != nil {
 			logger.Error(err, "Unable to patch redis statefulset with comparison object")
@@ -92,7 +95,7 @@ func patchStateFulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 }
 
 // generateStateFulSetsDef generates the statefulsets definition of Redis
-func generateStateFulSetsDef(stsMeta metav1.ObjectMeta, labels map[string]string, params statefulSetParameters, ownerDef metav1.OwnerReference, containerParams containerParameters) *appsv1.StatefulSet {
+func generateStateFulSetsDef(stsMeta metav1.ObjectMeta, labels map[string]string, params statefulSetParameters, ownerDef metav1.OwnerReference, containerParams containerParameters, sidecars []redisv1beta1.Sidecar) *appsv1.StatefulSet {
 	statefulset := &appsv1.StatefulSet{
 		TypeMeta:   generateMetaInformation("StatefulSet", "apps/v1"),
 		ObjectMeta: stsMeta,
@@ -105,7 +108,7 @@ func generateStateFulSetsDef(stsMeta metav1.ObjectMeta, labels map[string]string
 					Labels: labels,
 				},
 				Spec: corev1.PodSpec{
-					Containers:        generateContainerDef(stsMeta.Name, containerParams, params.EnableMetrics, params.ExternalConfig),
+					Containers:        generateContainerDef(stsMeta.Name, containerParams, params.EnableMetrics, params.ExternalConfig, sidecars),
 					NodeSelector:      params.NodeSelector,
 					SecurityContext:   params.SecurityContext,
 					PriorityClassName: params.PriorityClassName,
@@ -163,21 +166,46 @@ func createPVCTemplate(name string, storageSpec corev1.PersistentVolumeClaim) co
 }
 
 // generateContainerDef generates container fefinition for Redis
-func generateContainerDef(name string, containerParams containerParameters, enableMetrics bool, externalConfig *string) []corev1.Container {
+func generateContainerDef(name string, containerParams containerParameters, enableMetrics bool, externalConfig *string, sidecars []redisv1beta1.Sidecar) []corev1.Container {
 	containerDefinition := []corev1.Container{
 		{
 			Name:            name,
 			Image:           containerParams.Image,
 			ImagePullPolicy: containerParams.ImagePullPolicy,
 			Env:             getEnvironmentVariables(containerParams.Role, containerParams.EnabledPassword, containerParams.SecretName, containerParams.SecretKey, containerParams.PersistenceEnabled, containerParams.RedisExporterEnv),
-			Resources:       *containerParams.Resources,
-			ReadinessProbe:  getProbeInfo(),
-			LivenessProbe:   getProbeInfo(),
 			VolumeMounts:    getVolumeMount(name, containerParams.PersistenceEnabled, externalConfig),
 		},
 	}
+	if containerParams.ReadinessProbe != nil {
+		containerDefinition[0].ReadinessProbe = containerParams.ReadinessProbe
+	} else {
+		containerDefinition[0].ReadinessProbe = getProbeInfo()
+	}
+	if containerParams.LivenessProbe != nil {
+		containerDefinition[0].LivenessProbe = containerParams.LivenessProbe
+	} else {
+		containerDefinition[0].LivenessProbe = getProbeInfo()
+	}
+
+	if containerParams.Resources != nil {
+		containerDefinition[0].Resources = *containerParams.Resources
+	}
 	if enableMetrics {
 		containerDefinition = append(containerDefinition, enableRedisMonitoring(containerParams))
+	}
+	for _, sidecar := range sidecars {
+		container := corev1.Container{
+			Name:            sidecar.Name,
+			Image:           sidecar.Image,
+			ImagePullPolicy: sidecar.ImagePullPolicy,
+		}
+		if sidecar.Resources != nil {
+			container.Resources = *sidecar.Resources
+		}
+		if sidecar.EnvVars != nil {
+			container.Env = *sidecar.EnvVars
+		}
+		containerDefinition = append(containerDefinition, container)
 	}
 	return containerDefinition
 }
@@ -189,7 +217,9 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 		Image:           params.RedisExporterImage,
 		ImagePullPolicy: params.RedisExporterImagePullPolicy,
 		Env:             getEnvironmentVariables(params.Role, params.EnabledPassword, params.SecretName, params.SecretKey, params.PersistenceEnabled, params.RedisExporterEnv),
-		Resources:       *params.RedisExporterResources,
+	}
+	if params.RedisExporterResources != nil {
+		exporterDefinition.Resources = *params.RedisExporterResources
 	}
 	return exporterDefinition
 }
@@ -306,4 +336,11 @@ func GetStateFulSet(namespace string, stateful string) (*appsv1.StatefulSet, err
 func stateFulSetLogger(namespace string, name string) logr.Logger {
 	reqLogger := log.WithValues("Request.StateFulSet.Namespace", namespace, "Request.StateFulSet.Name", name)
 	return reqLogger
+}
+
+func getSidecars(sidecars *[]redisv1beta1.Sidecar) []redisv1beta1.Sidecar {
+	if sidecars == nil {
+		return []redisv1beta1.Sidecar{}
+	}
+	return *sidecars
 }

@@ -41,6 +41,7 @@ func CreateStandAloneRedis(cr *redisv1beta1.Redis) error {
 		generateRedisStandaloneParams(cr),
 		redisAsOwner(cr),
 		generateRedisStandaloneContainerParams(cr),
+		cr.Spec.Sidecars,
 	)
 	if err != nil {
 		logger.Error(err, "Cannot create standalone statefulset for Redis")
@@ -59,7 +60,6 @@ func generateRedisStandaloneParams(cr *redisv1beta1.Redis) statefulSetParameters
 		PriorityClassName: cr.Spec.PriorityClassName,
 		Affinity:          cr.Spec.Affinity,
 		Tolerations:       cr.Spec.Tolerations,
-		EnableMetrics:     cr.Spec.RedisExporter.Enabled,
 	}
 	if cr.Spec.KubernetesConfig.ImagePullSecrets != nil {
 		res.ImagePullSecrets = cr.Spec.KubernetesConfig.ImagePullSecrets
@@ -70,6 +70,10 @@ func generateRedisStandaloneParams(cr *redisv1beta1.Redis) statefulSetParameters
 	if cr.Spec.RedisConfig != nil {
 		res.ExternalConfig = cr.Spec.RedisConfig.AdditionalRedisConfig
 	}
+	if cr.Spec.RedisExporter != nil {
+		res.EnableMetrics = cr.Spec.RedisExporter.Enabled
+
+	}
 	return res
 }
 
@@ -78,13 +82,10 @@ func generateRedisStandaloneContainerParams(cr *redisv1beta1.Redis) containerPar
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{
-		Role:                         "standalone",
-		Image:                        cr.Spec.KubernetesConfig.Image,
-		ImagePullPolicy:              cr.Spec.KubernetesConfig.ImagePullPolicy,
-		Resources:                    cr.Spec.KubernetesConfig.Resources,
-		RedisExporterImage:           cr.Spec.RedisExporter.Image,
-		RedisExporterImagePullPolicy: cr.Spec.RedisExporter.ImagePullPolicy,
-		RedisExporterResources:       cr.Spec.RedisExporter.Resources,
+		Role:            "standalone",
+		Image:           cr.Spec.KubernetesConfig.Image,
+		ImagePullPolicy: cr.Spec.KubernetesConfig.ImagePullPolicy,
+		Resources:       cr.Spec.KubernetesConfig.Resources,
 	}
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
 		containerProp.EnabledPassword = &trueProperty
@@ -93,8 +94,24 @@ func generateRedisStandaloneContainerParams(cr *redisv1beta1.Redis) containerPar
 	} else {
 		containerProp.EnabledPassword = &falseProperty
 	}
-	if cr.Spec.RedisExporter.EnvVars != nil {
-		containerProp.RedisExporterEnv = cr.Spec.RedisExporter.EnvVars
+	if cr.Spec.RedisExporter != nil {
+		containerProp.RedisExporterImage = cr.Spec.RedisExporter.Image
+		containerProp.RedisExporterImagePullPolicy = cr.Spec.RedisExporter.ImagePullPolicy
+
+		if cr.Spec.RedisExporter.Resources != nil {
+			containerProp.RedisExporterResources = cr.Spec.RedisExporter.Resources
+		}
+
+		if cr.Spec.RedisExporter.EnvVars != nil {
+			containerProp.RedisExporterEnv = cr.Spec.RedisExporter.EnvVars
+		}
+
+	}
+	if cr.Spec.ReadinessProbe != nil {
+		containerProp.ReadinessProbe = cr.Spec.ReadinessProbe
+	}
+	if cr.Spec.LivenessProbe != nil {
+		containerProp.LivenessProbe = cr.Spec.LivenessProbe
 	}
 	if cr.Spec.Storage != nil {
 		containerProp.PersistenceEnabled = &trueProperty

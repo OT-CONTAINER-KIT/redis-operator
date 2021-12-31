@@ -35,6 +35,7 @@ type RedisClusterSpec struct {
 	PriorityClassName string                       `json:"priorityClassName,omitempty"`
 	Tolerations       *[]corev1.Toleration         `json:"tolerations,omitempty"`
 	Resources         *corev1.ResourceRequirements `json:"resources,omitempty"`
+	Sidecars          *[]Sidecar                   `json:"sidecars,omitempty"`
 }
 
 // RedisLeader interface will have the redis leader configuration
@@ -44,6 +45,8 @@ type RedisLeader struct {
 	RedisConfig         *RedisConfig              `json:"redisConfig,omitempty"`
 	Affinity            *corev1.Affinity          `json:"affinity,omitempty"`
 	PodDisruptionBudget *RedisPodDisruptionBudget `json:"pdb,omitempty"`
+	ReadinessProbe      *corev1.Probe             `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
+	LivenessProbe       *corev1.Probe             `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
 }
 
 // RedisFollower interface will have the redis follower configuration
@@ -52,6 +55,8 @@ type RedisFollower struct {
 	RedisConfig         *RedisConfig              `json:"redisConfig,omitempty"`
 	Affinity            *corev1.Affinity          `json:"affinity,omitempty"`
 	PodDisruptionBudget *RedisPodDisruptionBudget `json:"pdb,omitempty"`
+	ReadinessProbe      *corev1.Probe             `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
+	LivenessProbe       *corev1.Probe             `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
 }
 
 // RedisClusterStatus defines the observed state of RedisCluster
