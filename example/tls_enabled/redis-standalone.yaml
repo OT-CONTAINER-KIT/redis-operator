@@ -1,0 +1,45 @@
+# Examples of creating a valid TLS certificate can be found at ./config/certmanager via Cert-manager
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta1
+kind: Redis
+metadata:
+  name: redis-standalone
+spec:
+
+  TLS:
+    ca: ca.key
+    cert: tls.crt
+    key: tls.key
+    secret:
+      secretName: sample-cert
+
+  kubernetesConfig:
+    image: quay.io/opstree/redis:v6.2.5
+    imagePullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 101m
+        memory: 128Mi
+      limits:
+        cpu: 101m
+        memory: 128Mi
+
+  redisExporter:
+    enabled: false
+    image: quay.io/opstree/redis-exporter:1.0
+    imagePullPolicy: Always
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+
+  storage:
+    volumeClaimTemplate:
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
