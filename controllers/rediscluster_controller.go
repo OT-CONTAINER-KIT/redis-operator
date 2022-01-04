@@ -67,7 +67,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return ctrl.Result{}, err
 		}
 	}
-	err = k8sutils.ReconcileRedisLeaderPodDisruptionBudget(instance)
+	err = k8sutils.ReconcileRedisPodDisruptionBudget(instance, "leader")
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -82,7 +82,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return ctrl.Result{}, err
 		}
 	}
-	err = k8sutils.ReconcileRedisFollowerPodDisruptionBudget(instance)
+	err = k8sutils.ReconcileRedisPodDisruptionBudget(instance, "follower")
 	if err != nil {
 		return ctrl.Result{}, err
 	}

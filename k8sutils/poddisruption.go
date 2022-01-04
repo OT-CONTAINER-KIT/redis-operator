@@ -14,35 +14,12 @@ import (
 )
 
 // CreateRedisLeaderPodDisruptionBudget check and create a PodDisruptionBudget for Leaders
-func ReconcileRedisLeaderPodDisruptionBudget(cr *redisv1beta1.RedisCluster) error {
-	role := "leader"
+func ReconcileRedisPodDisruptionBudget(cr *redisv1beta1.RedisCluster, role string) error {
 	pdbName := cr.ObjectMeta.Name + "-" + role
 	if cr.Spec.RedisLeader.PodDisruptionBudget != nil && cr.Spec.RedisLeader.PodDisruptionBudget.Enabled {
 		labels := getRedisLabels(cr.ObjectMeta.Name, "cluster", role)
 		pdbMeta := generateObjectMetaInformation(pdbName, cr.Namespace, labels, generateStatefulSetsAnots())
 		pdbDef := generatePodDisruptionBudgetDef(cr, role, pdbMeta, cr.Spec.RedisLeader.PodDisruptionBudget)
-		return CreateOrUpdatePodDisruptionBudget(pdbDef)
-	} else {
-		// Check if one exists, and delete it.
-		_, err := GetPodDisruptionBudget(cr.Namespace, pdbName)
-		if err == nil {
-			return deletePodDisruptionBudget(cr.Namespace, pdbName)
-		} else if err != nil && errors.IsNotFound(err) {
-			// Its ok if its not found, as we're deleting anyway
-			return nil
-		}
-		return err
-	}
-}
-
-// CreateRedisFollowerPodDisruptionBudget check and create a PodDisruptionBudget for Followers
-func ReconcileRedisFollowerPodDisruptionBudget(cr *redisv1beta1.RedisCluster) error {
-	role := "follower"
-	pdbName := cr.ObjectMeta.Name + "-" + role
-	if cr.Spec.RedisFollower.PodDisruptionBudget != nil && cr.Spec.RedisFollower.PodDisruptionBudget.Enabled {
-		labels := getRedisLabels(cr.ObjectMeta.Name, "cluster", role)
-		pdbMeta := generateObjectMetaInformation(pdbName, cr.Namespace, labels, generateStatefulSetsAnots())
-		pdbDef := generatePodDisruptionBudgetDef(cr, role, pdbMeta, cr.Spec.RedisFollower.PodDisruptionBudget)
 		return CreateOrUpdatePodDisruptionBudget(pdbDef)
 	} else {
 		// Check if one exists, and delete it.
