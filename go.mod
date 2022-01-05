@@ -9,11 +9,14 @@ require (
 	github.com/docker/docker v0.7.3-0.20190327010347-be7ac8be2ae0 // indirect
 	github.com/go-logr/logr v0.3.0
 	github.com/go-redis/redis v6.15.9+incompatible
+	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/goph/emperror v0.17.2 // indirect
 	github.com/gophercloud/gophercloud v0.1.0 // indirect
 	github.com/onsi/ginkgo v1.14.1
 	github.com/onsi/gomega v1.10.2
 	github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8 // indirect
+	golang.org/x/crypto v0.0.0-20201216223049-8b5274cf687f // indirect
+	golang.org/x/text v0.3.7 // indirect
 	gonum.org/v1/netlib v0.0.0-20190331212654-76723241ea4e // indirect
 	k8s.io/api v0.19.2
 	k8s.io/apimachinery v0.19.2
@@ -22,3 +25,5 @@ require (
 	sigs.k8s.io/controller-runtime v0.7.0
 	sigs.k8s.io/structured-merge-diff v1.0.1-0.20191108220359-b1b620dd3f06 // indirect
 )
+
+replace github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt v3.2.1
