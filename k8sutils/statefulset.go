@@ -2,7 +2,6 @@ package k8sutils
 
 import (
 	"context"
-	"fmt"
 	redisv1beta1 "redis-operator/api/v1beta1"
 	"sort"
 
@@ -79,9 +78,12 @@ func patchStateFulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 		return err
 	}
 	if !patchResult.IsEmpty() {
+		logger.Info("Changes in statefulset Detected, Updating...")
 		newStateful.ResourceVersion = storedStateful.ResourceVersion
 		newStateful.CreationTimestamp = storedStateful.CreationTimestamp
 		newStateful.ManagedFields = storedStateful.ManagedFields
+		// Field is immutable therefore we MUST keep it as is.
+		newStateful.Spec.VolumeClaimTemplates = storedStateful.Spec.VolumeClaimTemplates
 		for key, value := range storedStateful.Annotations {
 			if _, present := newStateful.Annotations[key]; !present {
 				newStateful.Annotations[key] = value
@@ -108,10 +110,11 @@ func generateStateFulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      stsMeta.GetLabels(),
-					Annotations: stsMeta.GetAnnotations(),
+					Annotations: generateStatefulSetsAnots(stsMeta),
+					// Annotations: stsMeta.Annotations,
 				},
 				Spec: corev1.PodSpec{
-					Containers:        generateContainerDef(stsMeta.Name, containerParams, params.EnableMetrics, params.ExternalConfig, sidecars),
+					Containers:        generateContainerDef(stsMeta.GetName(), containerParams, params.EnableMetrics, params.ExternalConfig, sidecars),
 					NodeSelector:      params.NodeSelector,
 					SecurityContext:   params.SecurityContext,
 					PriorityClassName: params.PriorityClassName,
@@ -120,6 +123,7 @@ func generateStateFulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 			},
 		},
 	}
+	// fmt.Printf("STS: %s", statefulset)
 	if params.Tolerations != nil {
 		statefulset.Spec.Template.Spec.Tolerations = *params.Tolerations
 	}
@@ -156,16 +160,16 @@ func getExternalConfig(configMapName string) []corev1.Volume {
 func createPVCTemplate(stsMeta metav1.ObjectMeta, storageSpec corev1.PersistentVolumeClaim) corev1.PersistentVolumeClaim {
 	pvcTemplate := storageSpec
 	pvcTemplate.CreationTimestamp = metav1.Time{}
-	pvcTemplate.Name = stsMeta.Name
+	pvcTemplate.Name = stsMeta.GetName()
 	pvcTemplate.Labels = stsMeta.GetLabels()
-	pvcTemplate.Annotations = stsMeta.GetAnnotations()
+	// We want the same annoations as the StatefulSet here
+	pvcTemplate.Annotations = generateStatefulSetsAnots(stsMeta)
 	if storageSpec.Spec.AccessModes == nil {
 		pvcTemplate.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
 	} else {
 		pvcTemplate.Spec.AccessModes = storageSpec.Spec.AccessModes
 	}
 	pvcTemplate.Spec.Resources = storageSpec.Spec.Resources
-	pvcTemplate.Spec.Selector = storageSpec.Spec.Selector
 	pvcTemplate.Spec.Selector = storageSpec.Spec.Selector
 	return pvcTemplate
 }
@@ -316,13 +320,13 @@ func createStateFulSet(namespace string, stateful *appsv1.StatefulSet) error {
 // updateStateFulSet is a method to update statefulset in Kubernetes
 func updateStateFulSet(namespace string, stateful *appsv1.StatefulSet) error {
 	logger := stateFulSetLogger(namespace, stateful.Name)
-	logger.Info(fmt.Sprintf("Setting Statefulset to the following: %s", stateful))
+	// logger.Info(fmt.Sprintf("Setting Statefulset to the following: %s", stateful))
 	_, err := generateK8sClient().AppsV1().StatefulSets(namespace).Update(context.TODO(), stateful, metav1.UpdateOptions{})
 	if err != nil {
 		logger.Error(err, "Redis stateful update failed")
 		return err
 	}
-	logger.Info("Redis stateful ")
+	logger.Info("Redis stateful successfully updated ")
 	return nil
 }
 
