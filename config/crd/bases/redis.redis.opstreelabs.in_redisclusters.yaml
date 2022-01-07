@@ -274,8 +274,7 @@ spec:
                 - image
                 type: object
               redisFollower:
-                description: RedisFollower interface will have the redis follower
-                  configuration
+                description: RedisLeader interface will have the redis leader configuration
                 properties:
                   affinity:
                     description: Affinity is a group of affinity scheduling rules.
@@ -1135,6 +1134,7 @@ spec:
                     type: object
                   replicas:
                     format: int32
+                    minimum: 3
                     type: integer
                 type: object
               redisLeader:
@@ -2815,8 +2815,7 @@ spec:
                 - image
                 type: object
               redisFollower:
-                description: RedisFollower interface will have the redis follower
-                  configuration
+                description: RedisLeader interface will have the redis leader configuration
                 properties:
                   affinity:
                     description: Affinity is a group of affinity scheduling rules.
@@ -3676,6 +3675,7 @@ spec:
                     type: object
                   replicas:
                     format: int32
+                    minimum: 3
                     type: integer
                 type: object
               redisLeader:

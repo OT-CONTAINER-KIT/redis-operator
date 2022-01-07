@@ -6,8 +6,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// RedisClusterSTS is a interface to call Redis Statefulset function
-type RedisClusterSTS struct {
+// RedisSentinelSTS is a interface to call Redis Statefulset function
+type RedisSentinelSTS struct {
 	RedisStateFulType string
 	ExternalConfig    *string
 	Affinity          *corev1.Affinity `json:"affinity,omitempty"`
@@ -15,13 +15,13 @@ type RedisClusterSTS struct {
 	LivenessProbe     *corev1.Probe
 }
 
-// RedisClusterService is a interface to call Redis Service function
-type RedisClusterService struct {
+// RedisSentinelService is a interface to call Redis Service function
+type RedisSentinelService struct {
 	RedisServiceRole string
 }
 
 // generateRedisStandalone generates Redis standalone information
-func generateRedisClusterParams(cr *redisv1beta1.RedisCluster, replicas *int32, externalConfig *string, affinity *corev1.Affinity) statefulSetParameters {
+func generateRedisSentinelParams(cr *redisv1beta1.RedisSentinel, replicas *int32, externalConfig *string, affinity *corev1.Affinity) statefulSetParameters {
 	res := statefulSetParameters{
 		Replicas:          replicas,
 		NodeSelector:      cr.Spec.NodeSelector,
@@ -46,7 +46,7 @@ func generateRedisClusterParams(cr *redisv1beta1.RedisCluster, replicas *int32, 
 }
 
 // generateRedisStandaloneContainerParams generates Redis container information
-func generateRedisClusterContainerParams(cr *redisv1beta1.RedisCluster, readinessProbeDef *corev1.Probe, livenessProbeDef *corev1.Probe) containerParameters {
+func generateRedisSentinelContainerParams(cr *redisv1beta1.RedisSentinel, readinessProbeDef *corev1.Probe, livenessProbeDef *corev1.Probe) containerParameters {
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{
@@ -87,56 +87,56 @@ func generateRedisClusterContainerParams(cr *redisv1beta1.RedisCluster, readines
 	return containerProp
 }
 
-// CreateRedisLeader will create a leader redis setup
-func CreateRedisLeader(cr *redisv1beta1.RedisCluster) error {
-	prop := RedisClusterSTS{
-		RedisStateFulType: "leader",
-		Affinity:          cr.Spec.RedisLeader.Affinity,
-		ReadinessProbe:    cr.Spec.RedisLeader.ReadinessProbe,
-		LivenessProbe:     cr.Spec.RedisLeader.LivenessProbe,
+// CreateRedisReplica will create a redis setup
+func CreateRedisReplica(cr *redisv1beta1.RedisSentinel) error {
+	prop := RedisSentinelSTS{
+		RedisStateFulType: "replica",
+		Affinity:          cr.Spec.RedisReplica.Affinity,
+		ReadinessProbe:    cr.Spec.RedisReplica.ReadinessProbe,
+		LivenessProbe:     cr.Spec.RedisReplica.LivenessProbe,
 	}
-	if cr.Spec.RedisLeader.RedisConfig != nil {
-		prop.ExternalConfig = cr.Spec.RedisLeader.RedisConfig.AdditionalRedisConfig
+	if cr.Spec.RedisReplica.RedisConfig != nil {
+		prop.ExternalConfig = cr.Spec.RedisReplica.RedisConfig.AdditionalRedisConfig
 	}
-	return prop.CreateRedisClusterSetup(cr)
+	return prop.CreateRedisSentinelSetup(cr)
 }
 
 // CreateRedisFollower will create a follower redis setup
-func CreateRedisFollower(cr *redisv1beta1.RedisCluster) error {
-	prop := RedisClusterSTS{
-		RedisStateFulType: "follower",
-		Affinity:          cr.Spec.RedisFollower.Affinity,
-		ReadinessProbe:    cr.Spec.RedisFollower.ReadinessProbe,
-		LivenessProbe:     cr.Spec.RedisFollower.LivenessProbe,
+func CreateRedisSentinel(cr *redisv1beta1.RedisSentinel) error {
+	prop := RedisSentinelSTS{
+		RedisStateFulType: "sentinel",
+		Affinity:          cr.Spec.RedisSentinel.Affinity,
+		ReadinessProbe:    cr.Spec.RedisSentinel.ReadinessProbe,
+		LivenessProbe:     cr.Spec.RedisSentinel.LivenessProbe,
 	}
-	if cr.Spec.RedisFollower.RedisConfig != nil {
-		prop.ExternalConfig = cr.Spec.RedisFollower.RedisConfig.AdditionalRedisConfig
-	}
-	return prop.CreateRedisClusterSetup(cr)
+	// if cr.Spec.RedisSentinel.RedisConfig != nil {
+	// 	prop.ExternalConfig = cr.Spec.RedisSentinel.RedisConfig.AdditionalRedisConfig
+	// }
+	return prop.CreateRedisSentinelSetup(cr)
 }
 
-// CreateRedisLeaderService method will create service for Redis Leader
-func CreateRedisLeaderService(cr *redisv1beta1.RedisCluster) error {
-	prop := RedisClusterService{
-		RedisServiceRole: "leader",
+// CreateRedisSentinelReplicaService method will create service for Redis Replica
+func CreateRedisSentinelReplicaService(cr *redisv1beta1.RedisSentinel) error {
+	prop := RedisSentinelService{
+		RedisServiceRole: "replica",
 	}
-	return prop.CreateRedisClusterService(cr)
+	return prop.CreateRedisSentinelRepliaService(cr)
 }
 
 // CreateRedisFollowerService method will create service for Redis Follower
-func CreateRedisFollowerService(cr *redisv1beta1.RedisCluster) error {
-	prop := RedisClusterService{
-		RedisServiceRole: "follower",
+func CreateRedisSentinelService(cr *redisv1beta1.RedisSentinel) error {
+	prop := RedisSentinelService{
+		RedisServiceRole: "sentinel",
 	}
-	return prop.CreateRedisClusterService(cr)
+	return prop.CreateRedisSentinelService(cr)
 }
 
-func (service RedisClusterSTS) getReplicaCount(cr *redisv1beta1.RedisCluster) *int32 {
+func (service RedisSentinelSTS) getReplicaCount(cr *redisv1beta1.RedisSentinel) *int32 {
 	var replicas *int32
-	if service.RedisStateFulType == "leader" {
-		replicas = cr.Spec.RedisLeader.Replicas
+	if service.RedisStateFulType == "replica" {
+		replicas = cr.Spec.RedisReplica.Replicas
 	} else {
-		replicas = cr.Spec.RedisFollower.Replicas
+		replicas = cr.Spec.RedisSentinel.Replicas
 	}
 
 	// We fall back to the overall/default size if we don't have a specific one.
@@ -146,19 +146,19 @@ func (service RedisClusterSTS) getReplicaCount(cr *redisv1beta1.RedisCluster) *i
 	return replicas
 }
 
-// CreateRedisClusterSetup will create Redis Setup for leader and follower
-func (service RedisClusterSTS) CreateRedisClusterSetup(cr *redisv1beta1.RedisCluster) error {
+// CreateRedisSentinelSetup will create Redis Setup for Replica and Sentinels
+func (service RedisSentinelSTS) CreateRedisSentinelSetup(cr *redisv1beta1.RedisSentinel) error {
 	stateFulName := cr.ObjectMeta.Name + "-" + service.RedisStateFulType
 	logger := stateFulSetLogger(cr.Namespace, stateFulName)
-	labels := getRedisLabels(stateFulName, "cluster", service.RedisStateFulType)
+	labels := getRedisLabels(stateFulName, "sentinel", service.RedisStateFulType)
 	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, generateStatefulSetsAnots())
 	err := CreateOrUpdateStateFul(
 		cr.Namespace,
 		objectMetaInfo,
 		labels,
-		generateRedisClusterParams(cr, service.getReplicaCount(cr), service.ExternalConfig, service.Affinity),
-		redisClusterAsOwner(cr),
-		generateRedisClusterContainerParams(cr, service.ReadinessProbe, service.LivenessProbe),
+		generateRedisSentinelParams(cr, service.getReplicaCount(cr), service.ExternalConfig, service.Affinity),
+		RedisSentinelAsOwner(cr),
+		generateRedisSentinelContainerParams(cr, service.ReadinessProbe, service.LivenessProbe),
 		cr.Spec.Sidecars,
 	)
 	if err != nil {
@@ -168,24 +168,48 @@ func (service RedisClusterSTS) CreateRedisClusterSetup(cr *redisv1beta1.RedisClu
 	return nil
 }
 
-// CreateRedisClusterService method will create service for Redis
-func (service RedisClusterService) CreateRedisClusterService(cr *redisv1beta1.RedisCluster) error {
+// CreateRedisSentinelService method will create service for Redis
+func (service RedisSentinelService) CreateRedisSentinelService(cr *redisv1beta1.RedisSentinel) error {
 	serviceName := cr.ObjectMeta.Name + "-" + service.RedisServiceRole
 	logger := serviceLogger(cr.Namespace, serviceName)
-	labels := getRedisLabels(serviceName, "cluster", service.RedisServiceRole)
+	labels := getRedisLabels(serviceName, "sentinel", service.RedisServiceRole)
+
 	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
 		enableMetrics = true
 	}
+
 	objectMetaInfo := generateObjectMetaInformation(serviceName, cr.Namespace, labels, generateServiceAnots())
 	headlessObjectMetaInfo := generateObjectMetaInformation(serviceName+"-headless", cr.Namespace, labels, generateServiceAnots())
-	err := CreateOrUpdateHeadlessService(cr.Namespace, headlessObjectMetaInfo, labels, redisClusterAsOwner(cr))
+
+	err := CreateOrUpdateHeadlessService(cr.Namespace, headlessObjectMetaInfo, labels, RedisSentinelAsOwner(cr))
 	if err != nil {
 		logger.Error(err, "Cannot create headless service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err
 	}
-	err = CreateOrUpdateService(cr.Namespace, objectMetaInfo, labels, redisClusterAsOwner(cr), enableMetrics)
+
+	err = CreateOrUpdateService(cr.Namespace, objectMetaInfo, labels, RedisSentinelAsOwner(cr), enableMetrics)
 	if err != nil {
 		logger.Error(err, "Cannot create service for Redis", "Setup.Type", service.RedisServiceRole)
+		return err
+	}
+	return nil
+}
+
+// CreateRedisSentinelService method will create service for Redis
+func (service RedisSentinelService) CreateRedisSentinelRepliaService(cr *redisv1beta1.RedisSentinel) error {
+	serviceName := cr.ObjectMeta.Name + "-" + service.RedisServiceRole
+	logger := serviceLogger(cr.Namespace, serviceName)
+	labels := getRedisLabels(serviceName, "sentinel", service.RedisServiceRole)
+
+	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
+		enableMetrics = true
+	}
+
+	objectMetaInfo := generateObjectMetaInformation(serviceName, cr.Namespace, labels, generateServiceAnots())
+
+	err := CreateOrUpdateHeadlessService(cr.Namespace, objectMetaInfo, labels, RedisSentinelAsOwner(cr))
+	if err != nil {
+		logger.Error(err, "Cannot create service for Redis Replica", "Setup.Type", service.RedisServiceRole)
 		return err
 	}
 	return nil

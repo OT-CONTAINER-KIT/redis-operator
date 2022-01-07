@@ -301,10 +301,10 @@ func createStateFulSet(namespace string, stateful *appsv1.StatefulSet) error {
 	logger := stateFulSetLogger(namespace, stateful.Name)
 	_, err := generateK8sClient().AppsV1().StatefulSets(namespace).Create(context.TODO(), stateful, metav1.CreateOptions{})
 	if err != nil {
-		logger.Error(err, "Redis stateful creation failed")
+		logger.Error(err, "Statefulset creation failed")
 		return err
 	}
-	logger.Info("Redis stateful successfully created")
+	logger.Info("Statefulset successfully created")
 	return nil
 }
 
@@ -313,10 +313,10 @@ func updateStateFulSet(namespace string, stateful *appsv1.StatefulSet) error {
 	logger := stateFulSetLogger(namespace, stateful.Name)
 	_, err := generateK8sClient().AppsV1().StatefulSets(namespace).Update(context.TODO(), stateful, metav1.UpdateOptions{})
 	if err != nil {
-		logger.Error(err, "Redis stateful update failed")
+		logger.Error(err, "Statefulset update failed")
 		return err
 	}
-	logger.Info("Redis stateful ")
+	logger.Info("Statefulset updated")
 	return nil
 }
 
@@ -325,10 +325,10 @@ func GetStateFulSet(namespace string, stateful string) (*appsv1.StatefulSet, err
 	logger := stateFulSetLogger(namespace, stateful)
 	statefulInfo, err := generateK8sClient().AppsV1().StatefulSets(namespace).Get(context.TODO(), stateful, metav1.GetOptions{})
 	if err != nil {
-		logger.Info("Redis statefulset get action failed")
+		logger.Info("Statefulset get failed")
 		return nil, err
 	}
-	logger.Info("Redis statefulset get action was successful")
+	// logger.Info("Statefulset get was successful")
 	return statefulInfo, err
 }
 

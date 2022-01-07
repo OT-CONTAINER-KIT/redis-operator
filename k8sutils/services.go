@@ -2,6 +2,7 @@ package k8sutils
 
 import (
 	"context"
+
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -97,10 +98,10 @@ func createService(namespace string, service *corev1.Service) error {
 	logger := serviceLogger(namespace, service.Name)
 	_, err := generateK8sClient().CoreV1().Services(namespace).Create(context.TODO(), service, metav1.CreateOptions{})
 	if err != nil {
-		logger.Error(err, "Redis service creation is failed")
+		logger.Error(err, "Service creation failed")
 		return err
 	}
-	logger.Info("Redis service creation is successful")
+	logger.Info("Service was created successful")
 	return nil
 }
 
@@ -109,10 +110,10 @@ func updateService(namespace string, service *corev1.Service) error {
 	logger := serviceLogger(namespace, service.Name)
 	_, err := generateK8sClient().CoreV1().Services(namespace).Update(context.TODO(), service, metav1.UpdateOptions{})
 	if err != nil {
-		logger.Error(err, "Redis service updation is failed")
+		logger.Error(err, "Service update failed")
 		return err
 	}
-	logger.Info("Redis service updation is successful")
+	logger.Info("Service updated successfully")
 	return nil
 }
 
@@ -121,10 +122,10 @@ func getService(namespace string, service string) (*corev1.Service, error) {
 	logger := serviceLogger(namespace, service)
 	serviceInfo, err := generateK8sClient().CoreV1().Services(namespace).Get(context.TODO(), service, metav1.GetOptions{})
 	if err != nil {
-		logger.Info("Redis service get action is failed")
+		logger.Info("Service get action failed")
 		return nil, err
 	}
-	logger.Info("Redis service get action is successful")
+	// logger.Info("Redis service get action is successful")
 	return serviceInfo, nil
 }
 
@@ -141,7 +142,7 @@ func CreateOrUpdateHeadlessService(namespace string, serviceMeta metav1.ObjectMe
 	if err != nil {
 		if errors.IsNotFound(err) {
 			if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(serviceDef); err != nil {
-				logger.Error(err, "Unable to patch redis service with comparison object")
+				logger.Error(err, "Unable to patch Service with comparison object")
 				return err
 			}
 			return createService(namespace, serviceDef)
@@ -159,7 +160,7 @@ func CreateOrUpdateService(namespace string, serviceMeta metav1.ObjectMeta, labe
 	if err != nil {
 		if errors.IsNotFound(err) {
 			if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(serviceDef); err != nil {
-				logger.Error(err, "Unable to patch redis service with compare annotations")
+				logger.Error(err, "Unable to patch Service with compare annotations")
 			}
 			return createService(namespace, serviceDef)
 		}
@@ -173,7 +174,7 @@ func patchService(storedService *corev1.Service, newService *corev1.Service, nam
 	logger := serviceLogger(namespace, storedService.Name)
 	patchResult, err := patch.DefaultPatchMaker.Calculate(storedService, newService, patch.IgnoreStatusFields())
 	if err != nil {
-		logger.Error(err, "Unable to patch redis service with comparison object")
+		logger.Error(err, "Unable to patch Service with comparison object")
 		return err
 	}
 	if !patchResult.IsEmpty() {
@@ -187,12 +188,12 @@ func patchService(storedService *corev1.Service, newService *corev1.Service, nam
 			}
 		}
 		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(newService); err != nil {
-			logger.Error(err, "Unable to patch redis service with comparison object")
+			logger.Error(err, "Unable to patch Service with comparison object")
 			return err
 		}
-		logger.Info("Syncing Redis service with defined properties")
+		logger.Info("Syncing Service with defined properties")
 		return updateService(namespace, newService)
 	}
-	logger.Info("Redis service is already in-sync")
+	logger.Info("Service is already in-sync")
 	return nil
 }

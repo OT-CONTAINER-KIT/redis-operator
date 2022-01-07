@@ -26,8 +26,8 @@ type RedisClusterSpec struct {
 	// +kubebuilder:validation:Minimum=3
 	Size              *int32                       `json:"clusterSize"`
 	KubernetesConfig  KubernetesConfig             `json:"kubernetesConfig"`
-	RedisLeader       RedisLeader                  `json:"redisLeader,omitempty"`
-	RedisFollower     RedisFollower                `json:"redisFollower,omitempty"`
+	RedisLeader       RedisReplica                 `json:"redisLeader,omitempty"`
+	RedisFollower     RedisReplica                 `json:"redisFollower,omitempty"`
 	RedisExporter     *RedisExporter               `json:"redisExporter,omitempty"`
 	Storage           *Storage                     `json:"storage,omitempty"`
 	NodeSelector      map[string]string            `json:"nodeSelector,omitempty"`
@@ -39,17 +39,8 @@ type RedisClusterSpec struct {
 }
 
 // RedisLeader interface will have the redis leader configuration
-type RedisLeader struct {
+type RedisReplica struct {
 	// +kubebuilder:validation:Minimum=3
-	Replicas       *int32           `json:"replicas,omitempty"`
-	RedisConfig    *RedisConfig     `json:"redisConfig,omitempty"`
-	Affinity       *corev1.Affinity `json:"affinity,omitempty"`
-	ReadinessProbe *corev1.Probe    `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
-	LivenessProbe  *corev1.Probe    `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
-}
-
-// RedisFollower interface will have the redis follower configuration
-type RedisFollower struct {
 	Replicas       *int32           `json:"replicas,omitempty"`
 	RedisConfig    *RedisConfig     `json:"redisConfig,omitempty"`
 	Affinity       *corev1.Affinity `json:"affinity,omitempty"`

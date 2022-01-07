@@ -26,8 +26,8 @@ type RedisSentinelSpec struct {
 	// +kubebuilder:validation:Minimum=3
 	Size              *int32                       `json:"clusterSize"`
 	KubernetesConfig  KubernetesConfig             `json:"kubernetesConfig"`
-	RedisConfig       *RedisConfig                 `json:"redisConfig,omitempty"`
-	RedisSentinel     *RedisSentinelConfig         `json:"sentinel,omitempty"`
+	RedisReplica      RedisReplica                 `json:"redisReplica,omitempty"`
+	RedisSentinel     RedisSentinelSentinel        `json:"redisSentinel,omitempty"`
 	RedisExporter     *RedisExporter               `json:"redisExporter,omitempty"`
 	Storage           *Storage                     `json:"storage,omitempty"`
 	NodeSelector      map[string]string            `json:"nodeSelector,omitempty"`
@@ -38,10 +38,21 @@ type RedisSentinelSpec struct {
 	Sidecars          *[]Sidecar                   `json:"sidecars,omitempty"`
 }
 
+// RedisSentinelStsSpec defines the Statefulset values
+type RedisSentinelSentinel struct {
+	// +kubebuilder:validation:Minimum=3
+	Replicas       *int32               `json:"replicas,omitempty"`
+	Config         *RedisSentinelConfig `json:"sentinelConfig,omitempty"`
+	Affinity       *corev1.Affinity     `json:"affinity,omitempty"`
+	ReadinessProbe *corev1.Probe        `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
+	LivenessProbe  *corev1.Probe        `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
+}
+
 // RedisSentinelConfig defines the config for sentinel
 type RedisSentinelConfig struct {
-	// +kubebuilder:validation:Minimum=2
-	Quorum                *int32 `json:"quorum,omitempty"`
+	// +kubebuilder:validation:Minimum=1
+	Quorum *int32 `json:"quorum,omitempty"`
+	// +kubebuilder:validation:Minimum=1
 	ParallelSyncs         *int32 `json:"parallelSyncs,omitempty"`
 	FailoverTimeout       *int32 `json:"failoverTimeout,omitempty"`
 	DownAfterMilliseconds *int32 `json:"downAfterMilliseconds,omitempty"`
@@ -49,7 +60,8 @@ type RedisSentinelConfig struct {
 
 // RedisSentinelStatus defines the observed state of RedisSentinel
 type RedisSentinelStatus struct {
-	RedisSentinel RedisSentinel `json:"RedisSentinel,omitempty"`
+	// Leader stores the Current Elected Leader from Sentinel
+	Leader string `json:"leader,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -57,6 +69,7 @@ type RedisSentinelStatus struct {
 // +kubebuilder:printcolumn:name="ClusterSize",type=integer,JSONPath=`.spec.clusterSize`,description=Current cluster node count
 // +kubebuilder:printcolumn:name="LeaderReplicas",type=integer,JSONPath=`.spec.redisLeader.replicas`,description=Overridden Leader replica count
 // +kubebuilder:printcolumn:name="FollowerReplicas",type=integer,JSONPath=`.spec.redisFollower.replicas`,description=Overridden Follower replica count
+// +kubebuilder:printcolumn:name="Leader",type=integer,JSONPath=`.status.leader`,description=Overridden Follower replica count
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`,description=Age of Cluster
 
 // RedisSentinel is the Schema for the RedisSentinels API
