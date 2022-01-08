@@ -67,6 +67,11 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return ctrl.Result{}, err
 		}
 	}
+	err = k8sutils.ReconcileRedisPodDisruptionBudget(instance, "leader")
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	err = k8sutils.CreateRedisFollower(instance)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -76,6 +81,10 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		if err != nil {
 			return ctrl.Result{}, err
 		}
+	}
+	err = k8sutils.ReconcileRedisPodDisruptionBudget(instance, "follower")
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
 	redisLeaderInfo, err := k8sutils.GetStateFulSet(instance.Namespace, instance.ObjectMeta.Name+"-leader")

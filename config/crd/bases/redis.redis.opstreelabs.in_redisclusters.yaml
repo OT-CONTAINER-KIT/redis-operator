@@ -1010,6 +1010,19 @@ spec:
                         format: int32
                         type: integer
                     type: object
+                  pdb:
+                    description: RedisPodDisruptionBudget configure a PodDisruptionBudget
+                      on the resource (leader/follower)
+                    properties:
+                      enabled:
+                        type: boolean
+                      maxUnavailable:
+                        format: int32
+                        type: integer
+                      minAvailable:
+                        format: int32
+                        type: integer
+                    type: object
                   readinessProbe:
                     description: Probe describes a health check to be performed against
                       a container to determine whether it is alive or ready to receive
@@ -1870,6 +1883,19 @@ spec:
                         description: 'Number of seconds after which the probe times
                           out. Defaults to 1 second. Minimum value is 1. More info:
                           https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes'
+                        format: int32
+                        type: integer
+                    type: object
+                  pdb:
+                    description: RedisPodDisruptionBudget configure a PodDisruptionBudget
+                      on the resource (leader/follower)
+                    properties:
+                      enabled:
+                        type: boolean
+                      maxUnavailable:
+                        format: int32
+                        type: integer
+                      minAvailable:
                         format: int32
                         type: integer
                     type: object
@@ -3551,6 +3577,19 @@ spec:
                         format: int32
                         type: integer
                     type: object
+                  pdb:
+                    description: RedisPodDisruptionBudget configure a PodDisruptionBudget
+                      on the resource (leader/follower)
+                    properties:
+                      enabled:
+                        type: boolean
+                      maxUnavailable:
+                        format: int32
+                        type: integer
+                      minAvailable:
+                        format: int32
+                        type: integer
+                    type: object
                   readinessProbe:
                     description: Probe describes a health check to be performed against
                       a container to determine whether it is alive or ready to receive
@@ -4411,6 +4450,19 @@ spec:
                         description: 'Number of seconds after which the probe times
                           out. Defaults to 1 second. Minimum value is 1. More info:
                           https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes'
+                        format: int32
+                        type: integer
+                    type: object
+                  pdb:
+                    description: RedisPodDisruptionBudget configure a PodDisruptionBudget
+                      on the resource (leader/follower)
+                    properties:
+                      enabled:
+                        type: boolean
+                      maxUnavailable:
+                        format: int32
+                        type: integer
+                      minAvailable:
                         format: int32
                         type: integer
                     type: object

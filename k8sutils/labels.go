@@ -101,3 +101,15 @@ func generateServiceAnots(stsMeta metav1.ObjectMeta) map[string]string {
 func LabelSelectors(labels map[string]string) *metav1.LabelSelector {
 	return &metav1.LabelSelector{MatchLabels: labels}
 }
+
+func getRedisLabels(name, setupType, role string, labels map[string]string) map[string]string {
+	lbls := map[string]string{
+		"app":              name,
+		"redis_setup_type": setupType,
+		"role":             role,
+	}
+	for k, v := range labels {
+		lbls[k] = v
+	}
+	return lbls
+}
