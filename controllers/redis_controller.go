@@ -53,6 +53,14 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, err
 	}
 
+	if err := k8sutils.HandleFinalizer(instance, r.Client); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if err := k8sutils.AddFinalizer(instance, r.Client); err != nil {
+		return ctrl.Result{}, err
+	}
+
 	if err := controllerutil.SetControllerReference(instance, instance, r.Scheme); err != nil {
 		return ctrl.Result{}, err
 	}

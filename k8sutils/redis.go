@@ -3,9 +3,10 @@ package k8sutils
 import (
 	"bytes"
 	"context"
-	"encoding/csv"
 	"strconv"
 	"strings"
+
+	"encoding/csv"
 
 	redisv1beta1 "redis-operator/api/v1beta1"
 
