@@ -1,3 +1,17 @@
+### v0.9.0
+##### November 13, 2021
+
+#### :tada: Features
+
+- Added RBAC policies for redis operator with least privileges
+
+#### :beetle: Bug Fixes
+
+- Fix and updated documentation dependencies
+- Test pointers before dereferencing
+- Fix panic error of golang for redis exporter
+- Fix resource block nil exception for redis exporter
+
 ### v0.8.0
 ##### September 3, 2021
 

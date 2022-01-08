@@ -2,7 +2,7 @@
 
 The redis setup cluster mode can be customized using custom configuration. If redis setup is done by **Helm**, in that case `values.yaml` can be updated.
 
-- [Redis cluster values](https://github.com/OT-CONTAINER-KIT/helm-charts/blob/main/charts/redis-cluster/values.yaml) 
+- [Redis cluster values](https://github.com/OT-CONTAINER-KIT/helm-charts/blob/main/charts/redis-cluster/values.yaml)
 
 But if the setup is not done via Helm, in that scenario we may have to customize the CRD parameters.
 
@@ -22,8 +22,6 @@ In this configuration section, we have these configuration parameters:-
 |`redisCluster.image` | quay.io/opstree/redis | Name of the redis image |
 |`redisCluster.tag` | v6.2 | Tag of the redis image |
 |`redisCluster.imagePullPolicy` | IfNotPresent | Image Pull Policy of the redis image |
-|`redisCluster.leader.serviceType` | ClusterIP | Kubernetes service type for Redis Leader |
-|`redisCluster.follower.serviceType` | ClusterIP | Kubernetes service type for Redis Follower |
 |`redisCluster.leader.affinity` | {} | Affinity for node and pods for redis leader statefulset |
 |`redisCluster.follower.affinity` | {} | Affinity for node and pods for redis follower statefulset |
 |`externalService.enabled`| false | If redis service needs to be exposed using LoadBalancer or NodePort |
@@ -44,6 +42,7 @@ In this configuration section, we have these configuration parameters:-
 |`storageSpec` | {} | Storage configuration for redis setup |
 |`securityContext` | {} | Security Context for redis pods for changing system or kernel level parameters |
 |`tolerations` | [] | Tolerations for redis statefulset |
+|`sidecars` | [] | Sidecar for redis pods
 
 # CRD Parameters
 
@@ -63,7 +62,6 @@ These are the CRD Parameters which is currently supported by Redis Exporter for 
 
 ```yaml
   redisLeader:
-    serviceType: ClusterIP
     redisConfig:
       additionalRedisConfig: redis-external-config
     affinity:
@@ -83,7 +81,6 @@ These are the CRD Parameters which is currently supported by Redis Exporter for 
 
 ```yaml
   redisFollower:
-    serviceType: ClusterIP
     redisConfig:
       additionalRedisConfig: redis-external-config
     affinity:
@@ -115,7 +112,6 @@ In the `kubernetesConfig` section, we define configuration related to Kubernetes
     redisSecret:
       name: redis-secret
       key: password
-    serviceType: ClusterIP
     imagePullSecrets:
       - name: regcred
 ```
@@ -203,4 +199,25 @@ Tolerations for nodes and pods in Kubernetes.
     operator: "Equal"
     value: "value1"
     effect: "NoSchedule"
+```
+
+**sidecars**
+
+Sidecars for redis pods
+
+```yaml
+  sidecars:
+  - name: "sidecar1"
+    image: "image:1.0"
+    imagePullPolicy: Always
+    resources:
+      limits:
+        cpu: 50m
+        memory: 64Mi
+      requests:
+        cpu: 10m
+        memory: 32M
+    env:
+    - name: VAR_NAME
+      value: "value1"
 ```

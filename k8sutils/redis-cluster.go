@@ -1,8 +1,9 @@
 package k8sutils
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	redisv1beta1 "redis-operator/api/v1beta1"
+
+	corev1 "k8s.io/api/core/v1"
 )
 
 // RedisClusterSTS is a interface to call Redis Statefulset function
@@ -10,6 +11,8 @@ type RedisClusterSTS struct {
 	RedisStateFulType string
 	ExternalConfig    *string
 	Affinity          *corev1.Affinity `json:"affinity,omitempty"`
+	ReadinessProbe    *corev1.Probe
+	LivenessProbe     *corev1.Probe
 }
 
 // RedisClusterService is a interface to call Redis Service function
@@ -26,7 +29,9 @@ func generateRedisClusterParams(cr *redisv1beta1.RedisCluster, replicas *int32, 
 		PriorityClassName: cr.Spec.PriorityClassName,
 		Affinity:          affinity,
 		Tolerations:       cr.Spec.Tolerations,
-		EnableMetrics:     cr.Spec.RedisExporter.Enabled,
+	}
+	if cr.Spec.RedisExporter != nil {
+		res.EnableMetrics = cr.Spec.RedisExporter.Enabled
 	}
 	if cr.Spec.KubernetesConfig.ImagePullSecrets != nil {
 		res.ImagePullSecrets = cr.Spec.KubernetesConfig.ImagePullSecrets
@@ -41,17 +46,14 @@ func generateRedisClusterParams(cr *redisv1beta1.RedisCluster, replicas *int32, 
 }
 
 // generateRedisStandaloneContainerParams generates Redis container information
-func generateRedisClusterContainerParams(cr *redisv1beta1.RedisCluster) containerParameters {
+func generateRedisClusterContainerParams(cr *redisv1beta1.RedisCluster, readinessProbeDef *corev1.Probe, livenessProbeDef *corev1.Probe) containerParameters {
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{
-		Role:                         "cluster",
-		Image:                        cr.Spec.KubernetesConfig.Image,
-		ImagePullPolicy:              cr.Spec.KubernetesConfig.ImagePullPolicy,
-		Resources:                    cr.Spec.KubernetesConfig.Resources,
-		RedisExporterImage:           cr.Spec.RedisExporter.Image,
-		RedisExporterImagePullPolicy: cr.Spec.RedisExporter.ImagePullPolicy,
-		RedisExporterResources:       cr.Spec.RedisExporter.Resources,
+		Role:            "cluster",
+		Image:           cr.Spec.KubernetesConfig.Image,
+		ImagePullPolicy: cr.Spec.KubernetesConfig.ImagePullPolicy,
+		Resources:       cr.Spec.KubernetesConfig.Resources,
 	}
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
 		containerProp.EnabledPassword = &trueProperty
@@ -60,8 +62,24 @@ func generateRedisClusterContainerParams(cr *redisv1beta1.RedisCluster) containe
 	} else {
 		containerProp.EnabledPassword = &falseProperty
 	}
-	if cr.Spec.RedisExporter.EnvVars != nil {
-		containerProp.RedisExporterEnv = cr.Spec.RedisExporter.EnvVars
+	if cr.Spec.RedisExporter != nil {
+		containerProp.RedisExporterImage = cr.Spec.RedisExporter.Image
+		containerProp.RedisExporterImagePullPolicy = cr.Spec.RedisExporter.ImagePullPolicy
+
+		if cr.Spec.RedisExporter.Resources != nil {
+			containerProp.RedisExporterResources = cr.Spec.RedisExporter.Resources
+		}
+
+		if cr.Spec.RedisExporter.EnvVars != nil {
+			containerProp.RedisExporterEnv = cr.Spec.RedisExporter.EnvVars
+		}
+
+	}
+	if readinessProbeDef != nil {
+		containerProp.ReadinessProbe = readinessProbeDef
+	}
+	if livenessProbeDef != nil {
+		containerProp.LivenessProbe = livenessProbeDef
 	}
 	if cr.Spec.Storage != nil {
 		containerProp.PersistenceEnabled = &trueProperty
@@ -74,6 +92,8 @@ func CreateRedisLeader(cr *redisv1beta1.RedisCluster) error {
 	prop := RedisClusterSTS{
 		RedisStateFulType: "leader",
 		Affinity:          cr.Spec.RedisLeader.Affinity,
+		ReadinessProbe:    cr.Spec.RedisLeader.ReadinessProbe,
+		LivenessProbe:     cr.Spec.RedisLeader.LivenessProbe,
 	}
 	if cr.Spec.RedisLeader.RedisConfig != nil {
 		prop.ExternalConfig = cr.Spec.RedisLeader.RedisConfig.AdditionalRedisConfig
@@ -86,6 +106,8 @@ func CreateRedisFollower(cr *redisv1beta1.RedisCluster) error {
 	prop := RedisClusterSTS{
 		RedisStateFulType: "follower",
 		Affinity:          cr.Spec.RedisFollower.Affinity,
+		ReadinessProbe:    cr.Spec.RedisFollower.ReadinessProbe,
+		LivenessProbe:     cr.Spec.RedisFollower.LivenessProbe,
 	}
 	if cr.Spec.RedisFollower.RedisConfig != nil {
 		prop.ExternalConfig = cr.Spec.RedisFollower.RedisConfig.AdditionalRedisConfig
@@ -136,7 +158,8 @@ func (service RedisClusterSTS) CreateRedisClusterSetup(cr *redisv1beta1.RedisClu
 		labels,
 		generateRedisClusterParams(cr, service.getReplicaCount(cr), service.ExternalConfig, service.Affinity),
 		redisClusterAsOwner(cr),
-		generateRedisClusterContainerParams(cr),
+		generateRedisClusterContainerParams(cr, service.ReadinessProbe, service.LivenessProbe),
+		cr.Spec.Sidecars,
 	)
 	if err != nil {
 		logger.Error(err, "Cannot create statefulset for Redis", "Setup.Type", service.RedisStateFulType)
@@ -166,12 +189,4 @@ func (service RedisClusterService) CreateRedisClusterService(cr *redisv1beta1.Re
 		return err
 	}
 	return nil
-}
-
-func getRedisLabels(name, setupType, role string) map[string]string {
-	return map[string]string{
-		"app":              name,
-		"redis_setup_type": setupType,
-		"role":             role,
-	}
 }
