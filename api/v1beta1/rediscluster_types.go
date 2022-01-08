@@ -41,16 +41,24 @@ type RedisClusterSpec struct {
 // RedisLeader interface will have the redis leader configuration
 type RedisReplica struct {
 	// +kubebuilder:validation:Minimum=3
-	Replicas       *int32           `json:"replicas,omitempty"`
-	RedisConfig    *RedisConfig     `json:"redisConfig,omitempty"`
-	Affinity       *corev1.Affinity `json:"affinity,omitempty"`
-	ReadinessProbe *corev1.Probe    `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
-	LivenessProbe  *corev1.Probe    `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
+	Replicas            *int32                    `json:"replicas,omitempty"`
+	RedisConfig         *RedisConfig              `json:"redisConfig,omitempty"`
+	Affinity            *corev1.Affinity          `json:"affinity,omitempty"`
+	PodDisruptionBudget *RedisPodDisruptionBudget `json:"pdb,omitempty"`
+	ReadinessProbe      *corev1.Probe             `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
+	LivenessProbe       *corev1.Probe             `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
 }
 
 // RedisClusterStatus defines the observed state of RedisCluster
 type RedisClusterStatus struct {
 	RedisCluster RedisCluster `json:"redisCluster,omitempty"`
+}
+
+// RedisPodDisruptionBudget configure a PodDisruptionBudget on the resource (leader/follower)
+type RedisPodDisruptionBudget struct {
+	Enabled        bool   `json:"enabled,omitempty"`
+	MinAvailable   *int32 `json:"minAvailable,omitempty"`
+	MaxUnavailable *int32 `json:"maxUnavailable,omitempty"`
 }
 
 //+kubebuilder:object:root=true
