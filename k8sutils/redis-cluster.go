@@ -190,11 +190,3 @@ func (service RedisClusterService) CreateRedisClusterService(cr *redisv1beta1.Re
 	}
 	return nil
 }
-
-func getRedisLabels(name, setupType, role string) map[string]string {
-	return map[string]string{
-		"app":              name,
-		"redis_setup_type": setupType,
-		"role":             role,
-	}
-}
