@@ -54,6 +54,15 @@ type RedisExporter struct {
 	EnvVars         *[]corev1.EnvVar             `json:"env,omitempty"`
 }
 
+// TLS Configuration for redis instances
+type TLSConfig struct {
+	CaKeyFile   string `json:"ca,omitempty"`
+	CertKeyFile string `json:"cert,omitempty"`
+	KeyFile     string `json:"key,omitempty"`
+	// Reference to secret which contains the certificates
+	Secret corev1.SecretVolumeSource `json:"secret"`
+}
+
 // Sidecar for each Redis pods
 type Sidecar struct {
 	Name            string                       `json:"name"`

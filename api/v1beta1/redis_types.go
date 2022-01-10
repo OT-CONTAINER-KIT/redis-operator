@@ -35,6 +35,7 @@ type RedisSpec struct {
 	PriorityClassName string                     `json:"priorityClassName,omitempty"`
 	Affinity          *corev1.Affinity           `json:"affinity,omitempty"`
 	Tolerations       *[]corev1.Toleration       `json:"tolerations,omitempty"`
+	TLS               *TLSConfig                 `json:"TLS,omitempty"`
 	ReadinessProbe    *corev1.Probe              `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
 	LivenessProbe     *corev1.Probe              `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
 	Sidecars          *[]Sidecar                 `json:"sidecars,omitempty"`

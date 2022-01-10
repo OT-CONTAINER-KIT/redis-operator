@@ -2,6 +2,7 @@ package k8sutils
 
 import (
 	"context"
+	"path"
 	redisv1beta1 "redis-operator/api/v1beta1"
 	"sort"
 
@@ -46,6 +47,7 @@ type containerParameters struct {
 	SecretName                   *string
 	SecretKey                    *string
 	PersistenceEnabled           *bool
+	TLSConfig                    *redisv1beta1.TLSConfig
 	ReadinessProbe               *corev1.Probe
 	LivenessProbe                *corev1.Probe
 }
@@ -172,8 +174,19 @@ func generateContainerDef(name string, containerParams containerParameters, enab
 			Name:            name,
 			Image:           containerParams.Image,
 			ImagePullPolicy: containerParams.ImagePullPolicy,
-			Env:             getEnvironmentVariables(containerParams.Role, containerParams.EnabledPassword, containerParams.SecretName, containerParams.SecretKey, containerParams.PersistenceEnabled, containerParams.RedisExporterEnv),
-			VolumeMounts:    getVolumeMount(name, containerParams.PersistenceEnabled, externalConfig),
+			Env: getEnvironmentVariables(
+				containerParams.Role,
+				containerParams.EnabledPassword,
+				containerParams.SecretName,
+				containerParams.SecretKey,
+				containerParams.PersistenceEnabled,
+				containerParams.RedisExporterEnv,
+				containerParams.TLSConfig,
+			),
+			Resources:      *containerParams.Resources,
+			ReadinessProbe: getProbeInfo(),
+			LivenessProbe:  getProbeInfo(),
+			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, externalConfig, containerParams.TLSConfig),
 		},
 	}
 	if containerParams.ReadinessProbe != nil {
@@ -210,13 +223,61 @@ func generateContainerDef(name string, containerParams containerParameters, enab
 	return containerDefinition
 }
 
+func GenerateTLSEnvironmentVariables(tlsconfig *redisv1beta1.TLSConfig) []corev1.EnvVar {
+	var envVars []corev1.EnvVar
+	root := "/tls/"
+
+	// get and set Defaults
+	caCert := "ca.crt"
+	tlsCert := "tls.crt"
+	tlsCertKey := "tls.key"
+
+	if tlsconfig.CaKeyFile != "" {
+		caCert = tlsconfig.CaKeyFile
+	}
+	if tlsconfig.CertKeyFile != "" {
+		tlsCert = tlsconfig.CertKeyFile
+	}
+	if tlsconfig.KeyFile != "" {
+		tlsCertKey = tlsconfig.KeyFile
+	}
+
+	envVars = append(envVars, corev1.EnvVar{
+		Name:  "TLS_MODE",
+		Value: "true",
+	})
+	envVars = append(envVars, corev1.EnvVar{
+		Name:  "REDIS_TLS_CA_KEY",
+		Value: path.Join(root, caCert),
+	})
+	envVars = append(envVars, corev1.EnvVar{
+		Name:  "REDIS_TLS_CERT",
+		Value: path.Join(root, tlsCert),
+	})
+	envVars = append(envVars, corev1.EnvVar{
+		Name:  "REDIS_TLS_CERT_KEY",
+		Value: path.Join(root, tlsCertKey),
+	})
+	return envVars
+}
+
 // enableRedisMonitoring will add Redis Exporter as sidecar container
 func enableRedisMonitoring(params containerParameters) corev1.Container {
 	exporterDefinition := corev1.Container{
 		Name:            redisExporterContainer,
 		Image:           params.RedisExporterImage,
 		ImagePullPolicy: params.RedisExporterImagePullPolicy,
-		Env:             getEnvironmentVariables(params.Role, params.EnabledPassword, params.SecretName, params.SecretKey, params.PersistenceEnabled, params.RedisExporterEnv),
+		Env: getEnvironmentVariables(
+			params.Role,
+			params.EnabledPassword,
+			params.SecretName,
+			params.SecretKey,
+			params.PersistenceEnabled,
+			params.RedisExporterEnv,
+			params.TLSConfig,
+		),
+		Resources:    *params.RedisExporterResources,
+		VolumeMounts: getVolumeMount("", nil, nil, params.TLSConfig), // We need/want the tls-certs but we DON'T need the PVC (if one is available)
 	}
 	if params.RedisExporterResources != nil {
 		exporterDefinition.Resources = *params.RedisExporterResources
@@ -225,24 +286,32 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 }
 
 // getVolumeMount gives information about persistence mount
-func getVolumeMount(name string, persistenceEnabled *bool, externalConfig *string) []corev1.VolumeMount {
-	var volumeMounts []corev1.VolumeMount
-	if persistenceEnabled != nil && *persistenceEnabled {
-		volumeMounts = []corev1.VolumeMount{
-			{
-				Name:      name,
-				MountPath: "/data",
-			},
-		}
+func getVolumeMount(name string, persistenceEnabled *bool, externalConfig *string, tlsConfig *redisv1beta1.TLSConfig) []corev1.VolumeMount {
+	var VolumeMounts []corev1.VolumeMount
+
+	if *persistenceEnabled && persistenceEnabled != nil {
+		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
+			Name:      name,
+			MountPath: "/data",
+		})
+	}
+
+	if tlsConfig != nil {
+		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
+			Name:      "tls-certs",
+			ReadOnly:  true,
+			MountPath: "/tls",
+		})
 	}
 
 	if externalConfig != nil {
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
 			Name:      "external-config",
 			MountPath: "/etc/redis/external.conf.d",
 		})
 	}
-	return volumeMounts
+
+	return VolumeMounts
 }
 
 // getProbeInfo generates probe information for Redis
@@ -264,12 +333,38 @@ func getProbeInfo() *corev1.Probe {
 }
 
 // getEnvironmentVariables returns all the required Environment Variables
-func getEnvironmentVariables(role string, enabledPassword *bool, secretName *string, secretKey *string, persistenceEnabled *bool, extraEnv *[]corev1.EnvVar) []corev1.EnvVar {
+func getEnvironmentVariables(role string, enabledPassword *bool, secretName *string, secretKey *string, persistenceEnabled *bool, extraEnv *[]corev1.EnvVar, tlsConfig *redisv1beta1.TLSConfig) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{Name: "SERVER_MODE", Value: role},
 		{Name: "SETUP_MODE", Value: role},
-		{Name: "REDIS_ADDR", Value: "redis://localhost:6379"},
 	}
+
+	redisHost := "redis://localhost:6379"
+	if tlsConfig != nil {
+		redisHost = "rediss://localhost:6379"
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  "REDIS_EXPORTER_TLS_CLIENT_KEY_FILE",
+			Value: "/tls/tls.key",
+		})
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  "REDIS_EXPORTER_TLS_CLIENT_CERT_FILE",
+			Value: "/tls/tls.crt",
+		})
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  "REDIS_EXPORTER_TLS_CA_CERT_FILE",
+			Value: "/tls/ca.crt",
+		})
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  "REDIS_EXPORTER_SKIP_TLS_VERIFICATION",
+			Value: "true",
+		})
+	}
+
+	envVars = append(envVars, corev1.EnvVar{
+		Name:  "REDIS_ADDR",
+		Value: redisHost,
+	})
+
 	if enabledPassword != nil && *enabledPassword {
 		envVars = append(envVars, corev1.EnvVar{
 			Name: "REDIS_PASSWORD",
