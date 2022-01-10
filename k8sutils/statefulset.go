@@ -22,6 +22,7 @@ const (
 // statefulSetParameters will define statefulsets input params
 type statefulSetParameters struct {
 	Replicas              *int32
+	Metadata              metav1.ObjectMeta
 	NodeSelector          map[string]string
 	SecurityContext       *corev1.PodSecurityContext
 	PriorityClassName     string
@@ -53,10 +54,10 @@ type containerParameters struct {
 }
 
 // CreateOrUpdateStateFul method will create or update Redis service
-func CreateOrUpdateStateFul(namespace string, stsMeta metav1.ObjectMeta, labels map[string]string, params statefulSetParameters, ownerDef metav1.OwnerReference, containerParams containerParameters, sidecars *[]redisv1beta1.Sidecar) error {
+func CreateOrUpdateStateFul(namespace string, stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, containerParams containerParameters, sidecars *[]redisv1beta1.Sidecar) error {
 	logger := stateFulSetLogger(namespace, stsMeta.Name)
 	storedStateful, err := GetStateFulSet(namespace, stsMeta.Name)
-	statefulSetDef := generateStateFulSetsDef(stsMeta, labels, params, ownerDef, containerParams, getSidecars(sidecars))
+	statefulSetDef := generateStateFulSetsDef(stsMeta, params, ownerDef, containerParams, getSidecars(sidecars))
 	if err != nil {
 		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(statefulSetDef); err != nil {
 			logger.Error(err, "Unable to patch redis statefulset with comparison object")
@@ -79,9 +80,12 @@ func patchStateFulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 		return err
 	}
 	if !patchResult.IsEmpty() {
+		logger.Info("Changes in statefulset Detected, Updating...")
 		newStateful.ResourceVersion = storedStateful.ResourceVersion
 		newStateful.CreationTimestamp = storedStateful.CreationTimestamp
 		newStateful.ManagedFields = storedStateful.ManagedFields
+		// Field is immutable therefore we MUST keep it as is.
+		newStateful.Spec.VolumeClaimTemplates = storedStateful.Spec.VolumeClaimTemplates
 		for key, value := range storedStateful.Annotations {
 			if _, present := newStateful.Annotations[key]; !present {
 				newStateful.Annotations[key] = value
@@ -97,20 +101,22 @@ func patchStateFulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 }
 
 // generateStateFulSetsDef generates the statefulsets definition of Redis
-func generateStateFulSetsDef(stsMeta metav1.ObjectMeta, labels map[string]string, params statefulSetParameters, ownerDef metav1.OwnerReference, containerParams containerParameters, sidecars []redisv1beta1.Sidecar) *appsv1.StatefulSet {
+func generateStateFulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, containerParams containerParameters, sidecars []redisv1beta1.Sidecar) *appsv1.StatefulSet {
 	statefulset := &appsv1.StatefulSet{
 		TypeMeta:   generateMetaInformation("StatefulSet", "apps/v1"),
 		ObjectMeta: stsMeta,
 		Spec: appsv1.StatefulSetSpec{
-			Selector:    LabelSelectors(labels),
+			Selector:    LabelSelectors(stsMeta.GetLabels()),
 			ServiceName: stsMeta.Name,
 			Replicas:    params.Replicas,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: labels,
+					Labels:      stsMeta.GetLabels(),
+					Annotations: generateStatefulSetsAnots(stsMeta),
+					// Annotations: stsMeta.Annotations,
 				},
 				Spec: corev1.PodSpec{
-					Containers:        generateContainerDef(stsMeta.Name, containerParams, params.EnableMetrics, params.ExternalConfig, sidecars),
+					Containers:        generateContainerDef(stsMeta.GetName(), containerParams, params.EnableMetrics, params.ExternalConfig, sidecars),
 					NodeSelector:      params.NodeSelector,
 					SecurityContext:   params.SecurityContext,
 					PriorityClassName: params.PriorityClassName,
@@ -119,6 +125,7 @@ func generateStateFulSetsDef(stsMeta metav1.ObjectMeta, labels map[string]string
 			},
 		},
 	}
+	// fmt.Printf("STS: %s", statefulset)
 	if params.Tolerations != nil {
 		statefulset.Spec.Template.Spec.Tolerations = *params.Tolerations
 	}
@@ -126,7 +133,7 @@ func generateStateFulSetsDef(stsMeta metav1.ObjectMeta, labels map[string]string
 		statefulset.Spec.Template.Spec.ImagePullSecrets = *params.ImagePullSecrets
 	}
 	if containerParams.PersistenceEnabled != nil && *containerParams.PersistenceEnabled {
-		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, createPVCTemplate(stsMeta.Name, params.PersistentVolumeClaim))
+		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, createPVCTemplate(stsMeta, params.PersistentVolumeClaim))
 	}
 	if params.ExternalConfig != nil {
 		statefulset.Spec.Template.Spec.Volumes = getExternalConfig(*params.ExternalConfig)
@@ -152,17 +159,19 @@ func getExternalConfig(configMapName string) []corev1.Volume {
 }
 
 // createPVCTemplate will create the persistent volume claim template
-func createPVCTemplate(name string, storageSpec corev1.PersistentVolumeClaim) corev1.PersistentVolumeClaim {
+func createPVCTemplate(stsMeta metav1.ObjectMeta, storageSpec corev1.PersistentVolumeClaim) corev1.PersistentVolumeClaim {
 	pvcTemplate := storageSpec
 	pvcTemplate.CreationTimestamp = metav1.Time{}
-	pvcTemplate.Name = name
+	pvcTemplate.Name = stsMeta.GetName()
+	pvcTemplate.Labels = stsMeta.GetLabels()
+	// We want the same annoations as the StatefulSet here
+	pvcTemplate.Annotations = generateStatefulSetsAnots(stsMeta)
 	if storageSpec.Spec.AccessModes == nil {
 		pvcTemplate.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
 	} else {
 		pvcTemplate.Spec.AccessModes = storageSpec.Spec.AccessModes
 	}
 	pvcTemplate.Spec.Resources = storageSpec.Spec.Resources
-	pvcTemplate.Spec.Selector = storageSpec.Spec.Selector
 	pvcTemplate.Spec.Selector = storageSpec.Spec.Selector
 	return pvcTemplate
 }
@@ -406,12 +415,13 @@ func createStateFulSet(namespace string, stateful *appsv1.StatefulSet) error {
 // updateStateFulSet is a method to update statefulset in Kubernetes
 func updateStateFulSet(namespace string, stateful *appsv1.StatefulSet) error {
 	logger := stateFulSetLogger(namespace, stateful.Name)
+	// logger.Info(fmt.Sprintf("Setting Statefulset to the following: %s", stateful))
 	_, err := generateK8sClient().AppsV1().StatefulSets(namespace).Update(context.TODO(), stateful, metav1.UpdateOptions{})
 	if err != nil {
 		logger.Error(err, "Redis stateful update failed")
 		return err
 	}
-	logger.Info("Redis stateful ")
+	logger.Info("Redis stateful successfully updated ")
 	return nil
 }
 

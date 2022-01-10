@@ -17,8 +17,9 @@ import (
 func ReconcileRedisPodDisruptionBudget(cr *redisv1beta1.RedisCluster, role string) error {
 	pdbName := cr.ObjectMeta.Name + "-" + role
 	if cr.Spec.RedisLeader.PodDisruptionBudget != nil && cr.Spec.RedisLeader.PodDisruptionBudget.Enabled {
-		labels := getRedisLabels(cr.ObjectMeta.Name, "cluster", role)
-		pdbMeta := generateObjectMetaInformation(pdbName, cr.Namespace, labels, generateStatefulSetsAnots())
+		labels := getRedisLabels(cr.ObjectMeta.Name, "cluster", role, cr.ObjectMeta.GetLabels())
+		annotations := generateStatefulSetsAnots(cr.ObjectMeta)
+		pdbMeta := generateObjectMetaInformation(pdbName, cr.Namespace, labels, annotations)
 		pdbDef := generatePodDisruptionBudgetDef(cr, role, pdbMeta, cr.Spec.RedisLeader.PodDisruptionBudget)
 		return CreateOrUpdatePodDisruptionBudget(pdbDef)
 	} else {

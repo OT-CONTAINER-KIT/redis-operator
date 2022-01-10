@@ -21,13 +21,13 @@ var (
 )
 
 // generateHeadlessServiceDef generates service definition for headless service
-func generateHeadlessServiceDef(serviceMeta metav1.ObjectMeta, labels map[string]string, ownerDef metav1.OwnerReference) *corev1.Service {
+func generateHeadlessServiceDef(serviceMeta metav1.ObjectMeta, ownerDef metav1.OwnerReference) *corev1.Service {
 	service := &corev1.Service{
 		TypeMeta:   generateMetaInformation("Service", "core/v1"),
 		ObjectMeta: serviceMeta,
 		Spec: corev1.ServiceSpec{
 			ClusterIP: "None",
-			Selector:  labels,
+			Selector:  serviceMeta.Labels,
 			Ports: []corev1.ServicePort{
 				{
 					Name:       "redis-client",
@@ -135,10 +135,10 @@ func serviceLogger(namespace string, name string) logr.Logger {
 }
 
 // CreateOrUpdateHeadlessService method will create or update Redis headless service
-func CreateOrUpdateHeadlessService(namespace string, serviceMeta metav1.ObjectMeta, labels map[string]string, ownerDef metav1.OwnerReference) error {
+func CreateOrUpdateHeadlessService(namespace string, serviceMeta metav1.ObjectMeta, ownerDef metav1.OwnerReference) error {
 	logger := serviceLogger(namespace, serviceMeta.Name)
 	storedService, err := getService(namespace, serviceMeta.Name)
-	serviceDef := generateHeadlessServiceDef(serviceMeta, labels, ownerDef)
+	serviceDef := generateHeadlessServiceDef(serviceMeta, ownerDef)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(serviceDef); err != nil {
@@ -153,9 +153,9 @@ func CreateOrUpdateHeadlessService(namespace string, serviceMeta metav1.ObjectMe
 }
 
 // CreateOrUpdateService method will create or update Redis service
-func CreateOrUpdateService(namespace string, serviceMeta metav1.ObjectMeta, labels map[string]string, ownerDef metav1.OwnerReference, enableMetrics bool) error {
+func CreateOrUpdateService(namespace string, serviceMeta metav1.ObjectMeta, ownerDef metav1.OwnerReference, enableMetrics bool) error {
 	logger := serviceLogger(namespace, serviceMeta.Name)
-	serviceDef := generateServiceDef(serviceMeta, labels, enableMetrics, ownerDef)
+	serviceDef := generateServiceDef(serviceMeta, serviceMeta.Labels, enableMetrics, ownerDef)
 	storedService, err := getService(namespace, serviceMeta.Name)
 	if err != nil {
 		if errors.IsNotFound(err) {

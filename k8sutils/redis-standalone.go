@@ -11,18 +11,19 @@ var (
 // CreateStandAloneService method will create standalone service for Redis
 func CreateStandAloneService(cr *redisv1beta1.Redis) error {
 	logger := serviceLogger(cr.Namespace, cr.ObjectMeta.Name)
-	labels := getRedisLabels(cr.ObjectMeta.Name, "standalone", "standalone")
+	labels := getRedisLabels(cr.ObjectMeta.Name, "standalone", "standalone", cr.ObjectMeta.Labels)
+	annotations := generateServiceAnots(cr.ObjectMeta)
 	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
 		enableMetrics = true
 	}
-	objectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name, cr.Namespace, labels, generateServiceAnots())
-	headlessObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-headless", cr.Namespace, labels, generateServiceAnots())
-	err := CreateOrUpdateHeadlessService(cr.Namespace, headlessObjectMetaInfo, labels, redisAsOwner(cr))
+	objectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name, cr.Namespace, labels, annotations)
+	headlessObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-headless", cr.Namespace, labels, annotations)
+	err := CreateOrUpdateHeadlessService(cr.Namespace, headlessObjectMetaInfo, redisAsOwner(cr))
 	if err != nil {
 		logger.Error(err, "Cannot create standalone headless service for Redis")
 		return err
 	}
-	err = CreateOrUpdateService(cr.Namespace, objectMetaInfo, labels, redisAsOwner(cr), enableMetrics)
+	err = CreateOrUpdateService(cr.Namespace, objectMetaInfo, redisAsOwner(cr), enableMetrics)
 	if err != nil {
 		logger.Error(err, "Cannot create standalone service for Redis")
 		return err
@@ -33,11 +34,11 @@ func CreateStandAloneService(cr *redisv1beta1.Redis) error {
 // CreateStandAloneRedis will create a standalone redis setup
 func CreateStandAloneRedis(cr *redisv1beta1.Redis) error {
 	logger := stateFulSetLogger(cr.Namespace, cr.ObjectMeta.Name)
-	labels := getRedisLabels(cr.ObjectMeta.Name, "standalone", "standalone")
-	objectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name, cr.Namespace, labels, generateStatefulSetsAnots())
+	labels := getRedisLabels(cr.ObjectMeta.Name, "standalone", "standalone", cr.ObjectMeta.Labels)
+	annotations := generateStatefulSetsAnots(cr.ObjectMeta)
+	objectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name, cr.Namespace, labels, annotations)
 	err := CreateOrUpdateStateFul(cr.Namespace,
 		objectMetaInfo,
-		labels,
 		generateRedisStandaloneParams(cr),
 		redisAsOwner(cr),
 		generateRedisStandaloneContainerParams(cr),
