@@ -12,14 +12,16 @@ import (
 
 const RedisFinalizer string = "redisFinalizer"
 
-// HandleFinalizer finalize resource if instance is marked to be deleted
-func HandleFinalizer(cr *redisv1beta1.Redis, cl client.Client) error {
+// HandleRedisFinalizer finalize resource if instance is marked to be deleted
+func HandleRedisFinalizer(cr *redisv1beta1.Redis, cl client.Client) error {
 	if cr.GetDeletionTimestamp() != nil {
 		if controllerutil.ContainsFinalizer(cr, RedisFinalizer) {
-			if err := finalizeServices(cr); err != nil {
+			if err := finalizeRedisServices(cr); err != nil {
 				return err
 			}
-
+			if err := finalizeRedisPVC(cr); err != nil {
+				return err
+			}
 			controllerutil.RemoveFinalizer(cr, RedisFinalizer)
 			if err := cl.Update(context.TODO(), cr); err != nil {
 				return err
@@ -29,8 +31,8 @@ func HandleFinalizer(cr *redisv1beta1.Redis, cl client.Client) error {
 	return nil
 }
 
-// AddFinalizer add finalizer for graceful deletion
-func AddFinalizer(cr *redisv1beta1.Redis, cl client.Client) error {
+// AddRedisFinalizer add finalizer for graceful deletion
+func AddRedisFinalizer(cr *redisv1beta1.Redis, cl client.Client) error {
 	if !controllerutil.ContainsFinalizer(cr, RedisFinalizer) {
 		controllerutil.AddFinalizer(cr, RedisFinalizer)
 		return cl.Update(context.TODO(), cr)
@@ -38,9 +40,9 @@ func AddFinalizer(cr *redisv1beta1.Redis, cl client.Client) error {
 	return nil
 }
 
-// finalizeServices delete Services
-func finalizeServices(cr *redisv1beta1.Redis) error {
-	serviceName, headlessServiceName := cr.ObjectMeta.Name, cr.ObjectMeta.Name+"-headless"
+// finalizeRedisServices delete Services
+func finalizeRedisServices(cr *redisv1beta1.Redis) error {
+	serviceName, headlessServiceName := cr.Name, cr.Name+"-headless"
 	for _, svc := range []string{serviceName, headlessServiceName} {
 		err := generateK8sClient().CoreV1().Services(cr.Namespace).Delete(context.TODO(), svc, metav1.DeleteOptions{})
 		if err != nil && !errors.IsNotFound(err) {
@@ -48,4 +50,10 @@ func finalizeServices(cr *redisv1beta1.Redis) error {
 		}
 	}
 	return nil
+}
+
+// finalizeRedisPVC delete PVC
+func finalizeRedisPVC(cr *redisv1beta1.Redis) error {
+	PVCName := cr.Name + "-" + cr.Name + "-0"
+	return generateK8sClient().CoreV1().PersistentVolumeClaims(cr.Namespace).Delete(context.TODO(), PVCName, metav1.DeleteOptions{})
 }
