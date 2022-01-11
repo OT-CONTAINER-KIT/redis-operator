@@ -3,10 +3,11 @@ package k8sutils
 import (
 	"bytes"
 	"context"
+	"encoding/csv"
+	"fmt"
+	"net"
 	"strconv"
 	"strings"
-
-	"encoding/csv"
 
 	redisv1beta1 "redis-operator/api/v1beta1"
 
@@ -27,13 +28,19 @@ type RedisDetails struct {
 // getRedisServerIP will return the IP of redis service
 func getRedisServerIP(redisInfo RedisDetails) string {
 	logger := generateRedisManagerLogger(redisInfo.Namespace, redisInfo.PodName)
-	redisIP, err := generateK8sClient().CoreV1().Pods(redisInfo.Namespace).Get(context.TODO(), redisInfo.PodName, metav1.GetOptions{})
+	redisPod, err := generateK8sClient().CoreV1().Pods(redisInfo.Namespace).Get(context.TODO(), redisInfo.PodName, metav1.GetOptions{})
 	if err != nil {
 		logger.Error(err, "Error in getting redis pod IP")
 	}
 
-	logger.Info("Successfully got the ip for redis", "ip", redisIP.Status.PodIP)
-	return redisIP.Status.PodIP
+	redisIP := redisPod.Status.PodIP
+	// If we're a IPv6 Address..
+	if net.ParseIP(redisIP).To16() != nil {
+		redisIP = fmt.Sprintf("[%s]", redisIP)
+	}
+
+	logger.Info("Successfully got the ip for redis", "ip", redisPod.Status.PodIP)
+	return redisIP
 }
 
 // ExecuteRedisClusterCommand will execute redis cluster creation command
