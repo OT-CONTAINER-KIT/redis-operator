@@ -54,6 +54,14 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
+	if err := k8sutils.HandleRedisClusterFinalizer(instance, r.Client); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if err := k8sutils.AddRedisClusterFinalizer(instance, r.Client); err != nil {
+		return ctrl.Result{}, err
+	}
+
 	if err := controllerutil.SetControllerReference(instance, instance, r.Scheme); err != nil {
 		return ctrl.Result{}, err
 	}
