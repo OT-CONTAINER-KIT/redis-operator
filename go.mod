@@ -1,6 +1,6 @@
 module redis-operator
 
-go 1.15
+go 1.16
 
 require (
 	github.com/banzaicloud/k8s-objectmatcher v1.7.0
