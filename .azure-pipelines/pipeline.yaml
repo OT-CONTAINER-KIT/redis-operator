@@ -1,5 +1,5 @@
 ---
-trigger: 
+trigger:
   - master
 
 pr:
@@ -25,3 +25,4 @@ extends:
     GithubImageName: ot-container-kit/redis-operator/redis-operator
     BuildDocs: true
     AppVersion: "0.10.0"
+    GolangVersion: "1.17"
