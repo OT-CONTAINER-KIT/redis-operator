@@ -82,6 +82,8 @@ func patchStateFulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 	patchResult, err := patch.DefaultPatchMaker.Calculate(storedStateful, newStateful,
 		patch.IgnoreStatusFields(),
 		patch.IgnoreVolumeClaimTemplateTypeMetaAndStatus(),
+		patch.IgnoreField("kind"),
+		patch.IgnoreField("apiVersion"),
 	)
 	if err != nil {
 		logger.Error(err, "Unable to patch redis statefulset with comparison object")
@@ -438,7 +440,10 @@ func updateStateFulSet(namespace string, stateful *appsv1.StatefulSet) error {
 // GetStateFulSet is a method to get statefulset in Kubernetes
 func GetStateFulSet(namespace string, stateful string) (*appsv1.StatefulSet, error) {
 	logger := stateFulSetLogger(namespace, stateful)
-	statefulInfo, err := generateK8sClient().AppsV1().StatefulSets(namespace).Get(context.TODO(), stateful, metav1.GetOptions{})
+	getOpts := metav1.GetOptions{
+		TypeMeta: generateMetaInformation("StatefulSet", "apps/v1"),
+	}
+	statefulInfo, err := generateK8sClient().AppsV1().StatefulSets(namespace).Get(context.TODO(), stateful, getOpts)
 	if err != nil {
 		logger.Info("Redis statefulset get action failed")
 		return nil, err

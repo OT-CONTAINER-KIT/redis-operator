@@ -44,10 +44,7 @@ func generatePodDisruptionBudgetDef(cr *redisv1beta1.RedisCluster, role string, 
 		"role": role,
 	})
 	pdbTemplate := &policyv1.PodDisruptionBudget{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "PodDisruptionBudget",
-			APIVersion: "policy/v1",
-		},
+		TypeMeta:   generateMetaInformation("PodDisruptionBudget", "policy/v1"),
 		ObjectMeta: pdbMeta,
 		Spec: policyv1.PodDisruptionBudgetSpec{
 			Selector: lblSelector,

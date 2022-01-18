@@ -121,9 +121,10 @@ func updateService(namespace string, service *corev1.Service) error {
 // getService is a method to get service is Kubernetes
 func getService(namespace string, service string) (*corev1.Service, error) {
 	logger := serviceLogger(namespace, service)
-	serviceInfo, err := generateK8sClient().CoreV1().Services(namespace).Get(context.TODO(), service, metav1.GetOptions{
+	getOpts := metav1.GetOptions{
 		TypeMeta: generateMetaInformation("Service", "v1"),
-	})
+	}
+	serviceInfo, err := generateK8sClient().CoreV1().Services(namespace).Get(context.TODO(), service, getOpts)
 	if err != nil {
 		logger.Info("Redis service get action is failed")
 		return nil, err
