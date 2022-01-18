@@ -2,6 +2,7 @@ package k8sutils
 
 import (
 	"context"
+	"path"
 	redisv1beta1 "redis-operator/api/v1beta1"
 	"sort"
 
@@ -21,6 +22,7 @@ const (
 // statefulSetParameters will define statefulsets input params
 type statefulSetParameters struct {
 	Replicas              *int32
+	Metadata              metav1.ObjectMeta
 	NodeSelector          map[string]string
 	SecurityContext       *corev1.PodSecurityContext
 	PriorityClassName     string
@@ -46,15 +48,16 @@ type containerParameters struct {
 	SecretName                   *string
 	SecretKey                    *string
 	PersistenceEnabled           *bool
+	TLSConfig                    *redisv1beta1.TLSConfig
 	ReadinessProbe               *corev1.Probe
 	LivenessProbe                *corev1.Probe
 }
 
 // CreateOrUpdateStateFul method will create or update Redis service
-func CreateOrUpdateStateFul(namespace string, stsMeta metav1.ObjectMeta, labels map[string]string, params statefulSetParameters, ownerDef metav1.OwnerReference, containerParams containerParameters, sidecars *[]redisv1beta1.Sidecar) error {
+func CreateOrUpdateStateFul(namespace string, stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, containerParams containerParameters, sidecars *[]redisv1beta1.Sidecar) error {
 	logger := stateFulSetLogger(namespace, stsMeta.Name)
 	storedStateful, err := GetStateFulSet(namespace, stsMeta.Name)
-	statefulSetDef := generateStateFulSetsDef(stsMeta, labels, params, ownerDef, containerParams, getSidecars(sidecars))
+	statefulSetDef := generateStateFulSetsDef(stsMeta, params, ownerDef, containerParams, getSidecars(sidecars))
 	if err != nil {
 		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(statefulSetDef); err != nil {
 			logger.Error(err, "Unable to patch redis statefulset with comparison object")
@@ -77,9 +80,12 @@ func patchStateFulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 		return err
 	}
 	if !patchResult.IsEmpty() {
+		logger.Info("Changes in statefulset Detected, Updating...")
 		newStateful.ResourceVersion = storedStateful.ResourceVersion
 		newStateful.CreationTimestamp = storedStateful.CreationTimestamp
 		newStateful.ManagedFields = storedStateful.ManagedFields
+		// Field is immutable therefore we MUST keep it as is.
+		newStateful.Spec.VolumeClaimTemplates = storedStateful.Spec.VolumeClaimTemplates
 		for key, value := range storedStateful.Annotations {
 			if _, present := newStateful.Annotations[key]; !present {
 				newStateful.Annotations[key] = value
@@ -95,20 +101,22 @@ func patchStateFulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 }
 
 // generateStateFulSetsDef generates the statefulsets definition of Redis
-func generateStateFulSetsDef(stsMeta metav1.ObjectMeta, labels map[string]string, params statefulSetParameters, ownerDef metav1.OwnerReference, containerParams containerParameters, sidecars []redisv1beta1.Sidecar) *appsv1.StatefulSet {
+func generateStateFulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, containerParams containerParameters, sidecars []redisv1beta1.Sidecar) *appsv1.StatefulSet {
 	statefulset := &appsv1.StatefulSet{
 		TypeMeta:   generateMetaInformation("StatefulSet", "apps/v1"),
 		ObjectMeta: stsMeta,
 		Spec: appsv1.StatefulSetSpec{
-			Selector:    LabelSelectors(labels),
+			Selector:    LabelSelectors(stsMeta.GetLabels()),
 			ServiceName: stsMeta.Name,
 			Replicas:    params.Replicas,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: labels,
+					Labels:      stsMeta.GetLabels(),
+					Annotations: generateStatefulSetsAnots(stsMeta),
+					// Annotations: stsMeta.Annotations,
 				},
 				Spec: corev1.PodSpec{
-					Containers:        generateContainerDef(stsMeta.Name, containerParams, params.EnableMetrics, params.ExternalConfig, sidecars),
+					Containers:        generateContainerDef(stsMeta.GetName(), containerParams, params.EnableMetrics, params.ExternalConfig, sidecars),
 					NodeSelector:      params.NodeSelector,
 					SecurityContext:   params.SecurityContext,
 					PriorityClassName: params.PriorityClassName,
@@ -117,6 +125,7 @@ func generateStateFulSetsDef(stsMeta metav1.ObjectMeta, labels map[string]string
 			},
 		},
 	}
+	// fmt.Printf("STS: %s", statefulset)
 	if params.Tolerations != nil {
 		statefulset.Spec.Template.Spec.Tolerations = *params.Tolerations
 	}
@@ -124,7 +133,7 @@ func generateStateFulSetsDef(stsMeta metav1.ObjectMeta, labels map[string]string
 		statefulset.Spec.Template.Spec.ImagePullSecrets = *params.ImagePullSecrets
 	}
 	if containerParams.PersistenceEnabled != nil && *containerParams.PersistenceEnabled {
-		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, createPVCTemplate(stsMeta.Name, params.PersistentVolumeClaim))
+		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, createPVCTemplate(stsMeta, params.PersistentVolumeClaim))
 	}
 	if params.ExternalConfig != nil {
 		statefulset.Spec.Template.Spec.Volumes = getExternalConfig(*params.ExternalConfig)
@@ -150,17 +159,19 @@ func getExternalConfig(configMapName string) []corev1.Volume {
 }
 
 // createPVCTemplate will create the persistent volume claim template
-func createPVCTemplate(name string, storageSpec corev1.PersistentVolumeClaim) corev1.PersistentVolumeClaim {
+func createPVCTemplate(stsMeta metav1.ObjectMeta, storageSpec corev1.PersistentVolumeClaim) corev1.PersistentVolumeClaim {
 	pvcTemplate := storageSpec
 	pvcTemplate.CreationTimestamp = metav1.Time{}
-	pvcTemplate.Name = name
+	pvcTemplate.Name = stsMeta.GetName()
+	pvcTemplate.Labels = stsMeta.GetLabels()
+	// We want the same annoations as the StatefulSet here
+	pvcTemplate.Annotations = generateStatefulSetsAnots(stsMeta)
 	if storageSpec.Spec.AccessModes == nil {
 		pvcTemplate.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
 	} else {
 		pvcTemplate.Spec.AccessModes = storageSpec.Spec.AccessModes
 	}
 	pvcTemplate.Spec.Resources = storageSpec.Spec.Resources
-	pvcTemplate.Spec.Selector = storageSpec.Spec.Selector
 	pvcTemplate.Spec.Selector = storageSpec.Spec.Selector
 	return pvcTemplate
 }
@@ -172,8 +183,19 @@ func generateContainerDef(name string, containerParams containerParameters, enab
 			Name:            name,
 			Image:           containerParams.Image,
 			ImagePullPolicy: containerParams.ImagePullPolicy,
-			Env:             getEnvironmentVariables(containerParams.Role, containerParams.EnabledPassword, containerParams.SecretName, containerParams.SecretKey, containerParams.PersistenceEnabled, containerParams.RedisExporterEnv),
-			VolumeMounts:    getVolumeMount(name, containerParams.PersistenceEnabled, externalConfig),
+			Env: getEnvironmentVariables(
+				containerParams.Role,
+				containerParams.EnabledPassword,
+				containerParams.SecretName,
+				containerParams.SecretKey,
+				containerParams.PersistenceEnabled,
+				containerParams.RedisExporterEnv,
+				containerParams.TLSConfig,
+			),
+			Resources:      *containerParams.Resources,
+			ReadinessProbe: getProbeInfo(),
+			LivenessProbe:  getProbeInfo(),
+			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, externalConfig, containerParams.TLSConfig),
 		},
 	}
 	if containerParams.ReadinessProbe != nil {
@@ -210,13 +232,61 @@ func generateContainerDef(name string, containerParams containerParameters, enab
 	return containerDefinition
 }
 
+func GenerateTLSEnvironmentVariables(tlsconfig *redisv1beta1.TLSConfig) []corev1.EnvVar {
+	var envVars []corev1.EnvVar
+	root := "/tls/"
+
+	// get and set Defaults
+	caCert := "ca.crt"
+	tlsCert := "tls.crt"
+	tlsCertKey := "tls.key"
+
+	if tlsconfig.CaKeyFile != "" {
+		caCert = tlsconfig.CaKeyFile
+	}
+	if tlsconfig.CertKeyFile != "" {
+		tlsCert = tlsconfig.CertKeyFile
+	}
+	if tlsconfig.KeyFile != "" {
+		tlsCertKey = tlsconfig.KeyFile
+	}
+
+	envVars = append(envVars, corev1.EnvVar{
+		Name:  "TLS_MODE",
+		Value: "true",
+	})
+	envVars = append(envVars, corev1.EnvVar{
+		Name:  "REDIS_TLS_CA_KEY",
+		Value: path.Join(root, caCert),
+	})
+	envVars = append(envVars, corev1.EnvVar{
+		Name:  "REDIS_TLS_CERT",
+		Value: path.Join(root, tlsCert),
+	})
+	envVars = append(envVars, corev1.EnvVar{
+		Name:  "REDIS_TLS_CERT_KEY",
+		Value: path.Join(root, tlsCertKey),
+	})
+	return envVars
+}
+
 // enableRedisMonitoring will add Redis Exporter as sidecar container
 func enableRedisMonitoring(params containerParameters) corev1.Container {
 	exporterDefinition := corev1.Container{
 		Name:            redisExporterContainer,
 		Image:           params.RedisExporterImage,
 		ImagePullPolicy: params.RedisExporterImagePullPolicy,
-		Env:             getEnvironmentVariables(params.Role, params.EnabledPassword, params.SecretName, params.SecretKey, params.PersistenceEnabled, params.RedisExporterEnv),
+		Env: getEnvironmentVariables(
+			params.Role,
+			params.EnabledPassword,
+			params.SecretName,
+			params.SecretKey,
+			params.PersistenceEnabled,
+			params.RedisExporterEnv,
+			params.TLSConfig,
+		),
+		Resources:    *params.RedisExporterResources,
+		VolumeMounts: getVolumeMount("", nil, nil, params.TLSConfig), // We need/want the tls-certs but we DON'T need the PVC (if one is available)
 	}
 	if params.RedisExporterResources != nil {
 		exporterDefinition.Resources = *params.RedisExporterResources
@@ -225,24 +295,32 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 }
 
 // getVolumeMount gives information about persistence mount
-func getVolumeMount(name string, persistenceEnabled *bool, externalConfig *string) []corev1.VolumeMount {
-	var volumeMounts []corev1.VolumeMount
-	if persistenceEnabled != nil && *persistenceEnabled {
-		volumeMounts = []corev1.VolumeMount{
-			{
-				Name:      name,
-				MountPath: "/data",
-			},
-		}
+func getVolumeMount(name string, persistenceEnabled *bool, externalConfig *string, tlsConfig *redisv1beta1.TLSConfig) []corev1.VolumeMount {
+	var VolumeMounts []corev1.VolumeMount
+
+	if *persistenceEnabled && persistenceEnabled != nil {
+		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
+			Name:      name,
+			MountPath: "/data",
+		})
+	}
+
+	if tlsConfig != nil {
+		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
+			Name:      "tls-certs",
+			ReadOnly:  true,
+			MountPath: "/tls",
+		})
 	}
 
 	if externalConfig != nil {
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
 			Name:      "external-config",
 			MountPath: "/etc/redis/external.conf.d",
 		})
 	}
-	return volumeMounts
+
+	return VolumeMounts
 }
 
 // getProbeInfo generates probe information for Redis
@@ -264,12 +342,38 @@ func getProbeInfo() *corev1.Probe {
 }
 
 // getEnvironmentVariables returns all the required Environment Variables
-func getEnvironmentVariables(role string, enabledPassword *bool, secretName *string, secretKey *string, persistenceEnabled *bool, extraEnv *[]corev1.EnvVar) []corev1.EnvVar {
+func getEnvironmentVariables(role string, enabledPassword *bool, secretName *string, secretKey *string, persistenceEnabled *bool, extraEnv *[]corev1.EnvVar, tlsConfig *redisv1beta1.TLSConfig) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{Name: "SERVER_MODE", Value: role},
 		{Name: "SETUP_MODE", Value: role},
-		{Name: "REDIS_ADDR", Value: "redis://localhost:6379"},
 	}
+
+	redisHost := "redis://localhost:6379"
+	if tlsConfig != nil {
+		redisHost = "rediss://localhost:6379"
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  "REDIS_EXPORTER_TLS_CLIENT_KEY_FILE",
+			Value: "/tls/tls.key",
+		})
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  "REDIS_EXPORTER_TLS_CLIENT_CERT_FILE",
+			Value: "/tls/tls.crt",
+		})
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  "REDIS_EXPORTER_TLS_CA_CERT_FILE",
+			Value: "/tls/ca.crt",
+		})
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  "REDIS_EXPORTER_SKIP_TLS_VERIFICATION",
+			Value: "true",
+		})
+	}
+
+	envVars = append(envVars, corev1.EnvVar{
+		Name:  "REDIS_ADDR",
+		Value: redisHost,
+	})
+
 	if enabledPassword != nil && *enabledPassword {
 		envVars = append(envVars, corev1.EnvVar{
 			Name: "REDIS_PASSWORD",
@@ -311,12 +415,13 @@ func createStateFulSet(namespace string, stateful *appsv1.StatefulSet) error {
 // updateStateFulSet is a method to update statefulset in Kubernetes
 func updateStateFulSet(namespace string, stateful *appsv1.StatefulSet) error {
 	logger := stateFulSetLogger(namespace, stateful.Name)
+	// logger.Info(fmt.Sprintf("Setting Statefulset to the following: %s", stateful))
 	_, err := generateK8sClient().AppsV1().StatefulSets(namespace).Update(context.TODO(), stateful, metav1.UpdateOptions{})
 	if err != nil {
 		logger.Error(err, "Redis stateful update failed")
 		return err
 	}
-	logger.Info("Redis stateful ")
+	logger.Info("Redis stateful successfully updated ")
 	return nil
 }
 

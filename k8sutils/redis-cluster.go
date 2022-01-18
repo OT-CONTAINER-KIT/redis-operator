@@ -23,6 +23,7 @@ type RedisClusterService struct {
 // generateRedisStandalone generates Redis standalone information
 func generateRedisClusterParams(cr *redisv1beta1.RedisCluster, replicas *int32, externalConfig *string, affinity *corev1.Affinity) statefulSetParameters {
 	res := statefulSetParameters{
+		Metadata:          cr.ObjectMeta,
 		Replicas:          replicas,
 		NodeSelector:      cr.Spec.NodeSelector,
 		SecurityContext:   cr.Spec.SecurityContext,
@@ -150,12 +151,12 @@ func (service RedisClusterSTS) getReplicaCount(cr *redisv1beta1.RedisCluster) *i
 func (service RedisClusterSTS) CreateRedisClusterSetup(cr *redisv1beta1.RedisCluster) error {
 	stateFulName := cr.ObjectMeta.Name + "-" + service.RedisStateFulType
 	logger := stateFulSetLogger(cr.Namespace, stateFulName)
-	labels := getRedisLabels(stateFulName, "cluster", service.RedisStateFulType)
-	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, generateStatefulSetsAnots())
+	labels := getRedisLabels(stateFulName, "cluster", service.RedisStateFulType, cr.ObjectMeta.Labels)
+	annotations := generateStatefulSetsAnots(cr.ObjectMeta)
+	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, annotations)
 	err := CreateOrUpdateStateFul(
 		cr.Namespace,
 		objectMetaInfo,
-		labels,
 		generateRedisClusterParams(cr, service.getReplicaCount(cr), service.ExternalConfig, service.Affinity),
 		redisClusterAsOwner(cr),
 		generateRedisClusterContainerParams(cr, service.ReadinessProbe, service.LivenessProbe),
@@ -172,29 +173,22 @@ func (service RedisClusterSTS) CreateRedisClusterSetup(cr *redisv1beta1.RedisClu
 func (service RedisClusterService) CreateRedisClusterService(cr *redisv1beta1.RedisCluster) error {
 	serviceName := cr.ObjectMeta.Name + "-" + service.RedisServiceRole
 	logger := serviceLogger(cr.Namespace, serviceName)
-	labels := getRedisLabels(serviceName, "cluster", service.RedisServiceRole)
+	labels := getRedisLabels(serviceName, "cluster", service.RedisServiceRole, cr.ObjectMeta.Labels)
+	annotations := generateServiceAnots(cr.ObjectMeta)
 	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
 		enableMetrics = true
 	}
-	objectMetaInfo := generateObjectMetaInformation(serviceName, cr.Namespace, labels, generateServiceAnots())
-	headlessObjectMetaInfo := generateObjectMetaInformation(serviceName+"-headless", cr.Namespace, labels, generateServiceAnots())
-	err := CreateOrUpdateHeadlessService(cr.Namespace, headlessObjectMetaInfo, labels, redisClusterAsOwner(cr))
+	objectMetaInfo := generateObjectMetaInformation(serviceName, cr.Namespace, labels, annotations)
+	headlessObjectMetaInfo := generateObjectMetaInformation(serviceName+"-headless", cr.Namespace, labels, annotations)
+	err := CreateOrUpdateHeadlessService(cr.Namespace, headlessObjectMetaInfo, redisClusterAsOwner(cr))
 	if err != nil {
 		logger.Error(err, "Cannot create headless service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err
 	}
-	err = CreateOrUpdateService(cr.Namespace, objectMetaInfo, labels, redisClusterAsOwner(cr), enableMetrics)
+	err = CreateOrUpdateService(cr.Namespace, objectMetaInfo, redisClusterAsOwner(cr), enableMetrics)
 	if err != nil {
 		logger.Error(err, "Cannot create service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err
 	}
 	return nil
-}
-
-func getRedisLabels(name, setupType, role string) map[string]string {
-	return map[string]string{
-		"app":              name,
-		"redis_setup_type": setupType,
-		"role":             role,
-	}
 }

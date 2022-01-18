@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/csv"
+	"fmt"
+	"net"
 	"strconv"
 	"strings"
 
@@ -26,13 +28,19 @@ type RedisDetails struct {
 // getRedisServerIP will return the IP of redis service
 func getRedisServerIP(redisInfo RedisDetails) string {
 	logger := generateRedisManagerLogger(redisInfo.Namespace, redisInfo.PodName)
-	redisIP, err := generateK8sClient().CoreV1().Pods(redisInfo.Namespace).Get(context.TODO(), redisInfo.PodName, metav1.GetOptions{})
+	redisPod, err := generateK8sClient().CoreV1().Pods(redisInfo.Namespace).Get(context.TODO(), redisInfo.PodName, metav1.GetOptions{})
 	if err != nil {
 		logger.Error(err, "Error in getting redis pod IP")
 	}
 
-	logger.Info("Successfully got the ip for redis", "ip", redisIP.Status.PodIP)
-	return redisIP.Status.PodIP
+	redisIP := redisPod.Status.PodIP
+	// If we're a IPv6 Address..
+	if net.ParseIP(redisIP).To16() != nil {
+		redisIP = fmt.Sprintf("[%s]", redisIP)
+	}
+
+	logger.Info("Successfully got the ip for redis", "ip", redisPod.Status.PodIP)
+	return redisIP
 }
 
 // ExecuteRedisClusterCommand will execute redis cluster creation command
@@ -57,8 +65,25 @@ func ExecuteRedisClusterCommand(cr *redisv1beta1.RedisCluster) {
 		cmd = append(cmd, "-a")
 		cmd = append(cmd, pass)
 	}
+	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.ObjectMeta.Name+"-leader-0")...)
 	logger.Info("Redis cluster creation command is", "Command", cmd)
 	executeCommand(cr, cmd, cr.ObjectMeta.Name+"-leader-0")
+}
+
+func getRedisTLSArgs(tlsConfig *redisv1beta1.TLSConfig, clientHost string) []string {
+	cmd := []string{}
+	if tlsConfig != nil {
+		cmd = append(cmd, "--tls")
+		cmd = append(cmd, "--cert")
+		cmd = append(cmd, "/tls/tls.crt")
+		cmd = append(cmd, "--key")
+		cmd = append(cmd, "/tls/tls.key")
+		cmd = append(cmd, "--cacert")
+		cmd = append(cmd, "/tls/ca.crt")
+		cmd = append(cmd, "-h")
+		cmd = append(cmd, clientHost)
+	}
+	return cmd
 }
 
 // createRedisReplicationCommand will create redis replication creation command
@@ -77,6 +102,7 @@ func createRedisReplicationCommand(cr *redisv1beta1.RedisCluster, leaderPod Redi
 		cmd = append(cmd, "-a")
 		cmd = append(cmd, pass)
 	}
+	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, leaderPod.PodName)...)
 	logger.Info("Redis replication creation command is", "Command", cmd)
 	return cmd
 }
@@ -225,15 +251,17 @@ func configureRedisClient(cr *redisv1beta1.RedisCluster, podName string) *redis.
 			logger.Error(err, "Error in getting redis password")
 		}
 		client = redis.NewClient(&redis.Options{
-			Addr:     getRedisServerIP(redisInfo) + ":6379",
-			Password: pass,
-			DB:       0,
+			Addr:      getRedisServerIP(redisInfo) + ":6379",
+			Password:  pass,
+			DB:        0,
+			TLSConfig: getRedisTLSConfig(cr, redisInfo),
 		})
 	} else {
 		client = redis.NewClient(&redis.Options{
-			Addr:     getRedisServerIP(redisInfo) + ":6379",
-			Password: "",
-			DB:       0,
+			Addr:      getRedisServerIP(redisInfo) + ":6379",
+			Password:  "",
+			DB:        0,
+			TLSConfig: getRedisTLSConfig(cr, redisInfo),
 		})
 	}
 	return client
