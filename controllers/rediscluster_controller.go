@@ -61,7 +61,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	if instance.Spec.RedisLeader.Replicas != nil && *instance.Spec.RedisLeader.Replicas != 0 {
+	if (instance.Spec.Size != nil && *instance.Spec.Size != 0) || (instance.Spec.RedisLeader.Replicas != nil && *instance.Spec.RedisLeader.Replicas != 0) {
 		err = k8sutils.CreateRedisLeaderService(instance)
 		if err != nil {
 			return ctrl.Result{}, err
@@ -76,7 +76,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	if instance.Spec.RedisFollower.Replicas != nil && *instance.Spec.RedisFollower.Replicas != 0 {
+	if (instance.Spec.Size != nil && *instance.Spec.Size != 0) || (instance.Spec.RedisFollower.Replicas != nil && *instance.Spec.RedisFollower.Replicas != 0) {
 		err = k8sutils.CreateRedisFollowerService(instance)
 		if err != nil {
 			return ctrl.Result{}, err
