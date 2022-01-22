@@ -63,7 +63,7 @@ func generatePodDisruptionBudgetDef(cr *redisv1beta1.RedisCluster, role string, 
 
 // CreateOrUpdateService method will create or update Redis service
 func CreateOrUpdatePodDisruptionBudget(pdbDef *policyv1beta1.PodDisruptionBudget) error {
-	logger := stateFulSetLogger(pdbDef.Namespace, pdbDef.Name)
+	logger := statefulSetLogger(pdbDef.Namespace, pdbDef.Name)
 	storedPDB, err := GetPodDisruptionBudget(pdbDef.Namespace, pdbDef.Name)
 	if err != nil {
 		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(pdbDef); err != nil {
