@@ -180,12 +180,12 @@ func (service RedisClusterService) CreateRedisClusterService(cr *redisv1beta1.Re
 	}
 	objectMetaInfo := generateObjectMetaInformation(serviceName, cr.Namespace, labels, annotations)
 	headlessObjectMetaInfo := generateObjectMetaInformation(serviceName+"-headless", cr.Namespace, labels, annotations)
-	err := CreateOrUpdateHeadlessService(cr.Namespace, headlessObjectMetaInfo, redisClusterAsOwner(cr))
+	err := CreateOrUpdateService(cr.Namespace, headlessObjectMetaInfo, redisClusterAsOwner(cr), false, true)
 	if err != nil {
 		logger.Error(err, "Cannot create headless service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err
 	}
-	err = CreateOrUpdateService(cr.Namespace, objectMetaInfo, redisClusterAsOwner(cr), enableMetrics)
+	err = CreateOrUpdateService(cr.Namespace, objectMetaInfo, redisClusterAsOwner(cr), enableMetrics, false)
 	if err != nil {
 		logger.Error(err, "Cannot create service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err
