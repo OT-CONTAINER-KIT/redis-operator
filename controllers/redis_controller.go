@@ -65,11 +65,11 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, err
 	}
 
-	if err = k8sutils.CreateStandAloneRedis(instance); err != nil {
+	if err = k8sutils.CreateStandaloneRedis(instance); err != nil {
 		return ctrl.Result{}, err
 	}
 
-	if err = k8sutils.CreateStandAloneService(instance); err != nil {
+	if err = k8sutils.CreateStandaloneService(instance); err != nil {
 		return ctrl.Result{}, err
 	}
 

@@ -46,9 +46,9 @@ func getRedisServerIP(redisInfo RedisDetails) string {
 // ExecuteRedisClusterCommand will execute redis cluster creation command
 func ExecuteRedisClusterCommand(cr *redisv1beta1.RedisCluster) {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
-	replicas := cr.Spec.Size
+	replicas := cr.Spec.GetReplicaCounts("leader")
 	cmd := []string{"redis-cli", "--cluster", "create"}
-	for podCount := 0; podCount <= int(*replicas)-1; podCount++ {
+	for podCount := 0; podCount <= int(replicas)-1; podCount++ {
 		pod := RedisDetails{
 			PodName:   cr.ObjectMeta.Name + "-leader-" + strconv.Itoa(podCount),
 			Namespace: cr.Namespace,
@@ -110,9 +110,9 @@ func createRedisReplicationCommand(cr *redisv1beta1.RedisCluster, leaderPod Redi
 // ExecuteRedisReplicationCommand will execute the replication command
 func ExecuteRedisReplicationCommand(cr *redisv1beta1.RedisCluster) {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
-	replicas := cr.Spec.Size
+	replicas := cr.Spec.GetReplicaCounts("follower")
 	nodes := checkRedisCluster(cr)
-	for podCount := 0; podCount <= int(*replicas)-1; podCount++ {
+	for podCount := 0; podCount <= int(replicas)-1; podCount++ {
 		followerPod := RedisDetails{
 			PodName:   cr.ObjectMeta.Name + "-follower-" + strconv.Itoa(podCount),
 			Namespace: cr.Namespace,
@@ -168,9 +168,9 @@ func ExecuteFailoverOperation(cr *redisv1beta1.RedisCluster) {
 // executeFailoverCommand will execute failover command
 func executeFailoverCommand(cr *redisv1beta1.RedisCluster, role string) {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
-	replicas := cr.Spec.Size
+	replicas := cr.Spec.GetReplicaCounts(role)
 	podName := cr.ObjectMeta.Name + "-" + role + "-"
-	for podCount := 0; podCount <= int(*replicas)-1; podCount++ {
+	for podCount := 0; podCount <= int(replicas)-1; podCount++ {
 		logger.Info("Executing redis failover operations", "Redis Node", podName+strconv.Itoa(podCount))
 		client := configureRedisClient(cr, podName+strconv.Itoa(podCount))
 		cmd := redis.NewStringCmd("cluster", "reset")
@@ -193,7 +193,7 @@ func executeFailoverCommand(cr *redisv1beta1.RedisCluster, role string) {
 }
 
 // CheckRedisNodeCount will check the count of redis nodes
-func CheckRedisNodeCount(cr *redisv1beta1.RedisCluster, nodeType string) int {
+func CheckRedisNodeCount(cr *redisv1beta1.RedisCluster, nodeType string) int32 {
 	var redisNodeType string
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 	clusterNodes := checkRedisCluster(cr)
@@ -218,7 +218,7 @@ func CheckRedisNodeCount(cr *redisv1beta1.RedisCluster, nodeType string) int {
 	} else {
 		logger.Info("Total number of redis nodes are", "Nodes", strconv.Itoa(count))
 	}
-	return count
+	return int32(count)
 }
 
 // CheckRedisClusterState will check the redis cluster state

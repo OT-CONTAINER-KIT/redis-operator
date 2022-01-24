@@ -55,25 +55,25 @@ type containerParameters struct {
 
 // CreateOrUpdateStateFul method will create or update Redis service
 func CreateOrUpdateStateFul(namespace string, stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, containerParams containerParameters, sidecars *[]redisv1beta1.Sidecar) error {
-	logger := stateFulSetLogger(namespace, stsMeta.Name)
-	storedStateful, err := GetStateFulSet(namespace, stsMeta.Name)
-	statefulSetDef := generateStateFulSetsDef(stsMeta, params, ownerDef, containerParams, getSidecars(sidecars))
+	logger := statefulSetLogger(namespace, stsMeta.Name)
+	storedStateful, err := GetStatefulSet(namespace, stsMeta.Name)
+	statefulSetDef := generateStatefulSetsDef(stsMeta, params, ownerDef, containerParams, getSidecars(sidecars))
 	if err != nil {
 		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(statefulSetDef); err != nil {
 			logger.Error(err, "Unable to patch redis statefulset with comparison object")
 			return err
 		}
 		if errors.IsNotFound(err) {
-			return createStateFulSet(namespace, statefulSetDef)
+			return createStatefulSet(namespace, statefulSetDef)
 		}
 		return err
 	}
-	return patchStateFulSet(storedStateful, statefulSetDef, namespace)
+	return patchStatefulSet(storedStateful, statefulSetDef, namespace)
 }
 
-// patchStateFulSet will patch Redis Kubernetes StateFulSet
-func patchStateFulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.StatefulSet, namespace string) error {
-	logger := stateFulSetLogger(namespace, storedStateful.Name)
+// patchStatefulSet will patch Redis Kubernetes StatefulSet
+func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.StatefulSet, namespace string) error {
+	logger := statefulSetLogger(namespace, storedStateful.Name)
 	patchResult, err := patch.DefaultPatchMaker.Calculate(storedStateful, newStateful)
 	if err != nil {
 		logger.Error(err, "Unable to patch redis statefulset with comparison object")
@@ -95,13 +95,13 @@ func patchStateFulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 			logger.Error(err, "Unable to patch redis statefulset with comparison object")
 			return err
 		}
-		return updateStateFulSet(namespace, newStateful)
+		return updateStatefulSet(namespace, newStateful)
 	}
 	return nil
 }
 
-// generateStateFulSetsDef generates the statefulsets definition of Redis
-func generateStateFulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, containerParams containerParameters, sidecars []redisv1beta1.Sidecar) *appsv1.StatefulSet {
+// generateStatefulSetsDef generates the statefulsets definition of Redis
+func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, containerParams containerParameters, sidecars []redisv1beta1.Sidecar) *appsv1.StatefulSet {
 	statefulset := &appsv1.StatefulSet{
 		TypeMeta:   generateMetaInformation("StatefulSet", "apps/v1"),
 		ObjectMeta: stsMeta,
@@ -400,9 +400,9 @@ func getEnvironmentVariables(role string, enabledPassword *bool, secretName *str
 	return envVars
 }
 
-// createStateFulSet is a method to create statefulset in Kubernetes
-func createStateFulSet(namespace string, stateful *appsv1.StatefulSet) error {
-	logger := stateFulSetLogger(namespace, stateful.Name)
+// createStatefulSet is a method to create statefulset in Kubernetes
+func createStatefulSet(namespace string, stateful *appsv1.StatefulSet) error {
+	logger := statefulSetLogger(namespace, stateful.Name)
 	_, err := generateK8sClient().AppsV1().StatefulSets(namespace).Create(context.TODO(), stateful, metav1.CreateOptions{})
 	if err != nil {
 		logger.Error(err, "Redis stateful creation failed")
@@ -412,9 +412,9 @@ func createStateFulSet(namespace string, stateful *appsv1.StatefulSet) error {
 	return nil
 }
 
-// updateStateFulSet is a method to update statefulset in Kubernetes
-func updateStateFulSet(namespace string, stateful *appsv1.StatefulSet) error {
-	logger := stateFulSetLogger(namespace, stateful.Name)
+// updateStatefulSet is a method to update statefulset in Kubernetes
+func updateStatefulSet(namespace string, stateful *appsv1.StatefulSet) error {
+	logger := statefulSetLogger(namespace, stateful.Name)
 	// logger.Info(fmt.Sprintf("Setting Statefulset to the following: %s", stateful))
 	_, err := generateK8sClient().AppsV1().StatefulSets(namespace).Update(context.TODO(), stateful, metav1.UpdateOptions{})
 	if err != nil {
@@ -425,21 +425,21 @@ func updateStateFulSet(namespace string, stateful *appsv1.StatefulSet) error {
 	return nil
 }
 
-// GetStateFulSet is a method to get statefulset in Kubernetes
-func GetStateFulSet(namespace string, stateful string) (*appsv1.StatefulSet, error) {
-	logger := stateFulSetLogger(namespace, stateful)
+// GetStatefulSet is a method to get statefulset in Kubernetes
+func GetStatefulSet(namespace string, stateful string) (*appsv1.StatefulSet, error) {
+	logger := statefulSetLogger(namespace, stateful)
 	statefulInfo, err := generateK8sClient().AppsV1().StatefulSets(namespace).Get(context.TODO(), stateful, metav1.GetOptions{})
 	if err != nil {
 		logger.Info("Redis statefulset get action failed")
 		return nil, err
 	}
 	logger.Info("Redis statefulset get action was successful")
-	return statefulInfo, err
+	return statefulInfo, nil
 }
 
-// stateFulSetLogger will generate logging interface for Statfulsets
-func stateFulSetLogger(namespace string, name string) logr.Logger {
-	reqLogger := log.WithValues("Request.StateFulSet.Namespace", namespace, "Request.StateFulSet.Name", name)
+// statefulSetLogger will generate logging interface for Statfulsets
+func statefulSetLogger(namespace string, name string) logr.Logger {
+	reqLogger := log.WithValues("Request.StatefulSet.Namespace", namespace, "Request.StatefulSet.Name", name)
 	return reqLogger
 }
 

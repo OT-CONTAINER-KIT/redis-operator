@@ -21,10 +21,10 @@ type RedisClusterService struct {
 }
 
 // generateRedisStandalone generates Redis standalone information
-func generateRedisClusterParams(cr *redisv1beta1.RedisCluster, replicas *int32, externalConfig *string, affinity *corev1.Affinity) statefulSetParameters {
+func generateRedisClusterParams(cr *redisv1beta1.RedisCluster, replicas int32, externalConfig *string, affinity *corev1.Affinity) statefulSetParameters {
 	res := statefulSetParameters{
 		Metadata:          cr.ObjectMeta,
-		Replicas:          replicas,
+		Replicas:          &replicas,
 		NodeSelector:      cr.Spec.NodeSelector,
 		SecurityContext:   cr.Spec.SecurityContext,
 		PriorityClassName: cr.Spec.PriorityClassName,
@@ -132,25 +132,14 @@ func CreateRedisFollowerService(cr *redisv1beta1.RedisCluster) error {
 	return prop.CreateRedisClusterService(cr)
 }
 
-func (service RedisClusterSTS) getReplicaCount(cr *redisv1beta1.RedisCluster) *int32 {
-	var replicas *int32
-	if service.RedisStateFulType == "leader" {
-		replicas = cr.Spec.RedisLeader.Replicas
-	} else {
-		replicas = cr.Spec.RedisFollower.Replicas
-	}
-
-	// We fall back to the overall/default size if we don't have a specific one.
-	if replicas == nil {
-		replicas = cr.Spec.Size
-	}
-	return replicas
+func (service RedisClusterSTS) getReplicaCount(cr *redisv1beta1.RedisCluster) int32 {
+	return cr.Spec.GetReplicaCounts(service.RedisStateFulType)
 }
 
 // CreateRedisClusterSetup will create Redis Setup for leader and follower
 func (service RedisClusterSTS) CreateRedisClusterSetup(cr *redisv1beta1.RedisCluster) error {
 	stateFulName := cr.ObjectMeta.Name + "-" + service.RedisStateFulType
-	logger := stateFulSetLogger(cr.Namespace, stateFulName)
+	logger := statefulSetLogger(cr.Namespace, stateFulName)
 	labels := getRedisLabels(stateFulName, "cluster", service.RedisStateFulType, cr.ObjectMeta.Labels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta)
 	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, annotations)
@@ -180,12 +169,12 @@ func (service RedisClusterService) CreateRedisClusterService(cr *redisv1beta1.Re
 	}
 	objectMetaInfo := generateObjectMetaInformation(serviceName, cr.Namespace, labels, annotations)
 	headlessObjectMetaInfo := generateObjectMetaInformation(serviceName+"-headless", cr.Namespace, labels, annotations)
-	err := CreateOrUpdateHeadlessService(cr.Namespace, headlessObjectMetaInfo, redisClusterAsOwner(cr))
+	err := CreateOrUpdateService(cr.Namespace, headlessObjectMetaInfo, redisClusterAsOwner(cr), false, true)
 	if err != nil {
 		logger.Error(err, "Cannot create headless service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err
 	}
-	err = CreateOrUpdateService(cr.Namespace, objectMetaInfo, redisClusterAsOwner(cr), enableMetrics)
+	err = CreateOrUpdateService(cr.Namespace, objectMetaInfo, redisClusterAsOwner(cr), enableMetrics, false)
 	if err != nil {
 		logger.Error(err, "Cannot create service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err
