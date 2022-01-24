@@ -18,12 +18,12 @@ func CreateStandaloneService(cr *redisv1beta1.Redis) error {
 	}
 	objectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name, cr.Namespace, labels, annotations)
 	headlessObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-headless", cr.Namespace, labels, annotations)
-	err := CreateOrUpdateHeadlessService(cr.Namespace, headlessObjectMetaInfo, redisAsOwner(cr))
+	err := CreateOrUpdateService(cr.Namespace, headlessObjectMetaInfo, redisAsOwner(cr), false, true)
 	if err != nil {
 		logger.Error(err, "Cannot create standalone headless service for Redis")
 		return err
 	}
-	err = CreateOrUpdateService(cr.Namespace, objectMetaInfo, redisAsOwner(cr), enableMetrics)
+	err = CreateOrUpdateService(cr.Namespace, objectMetaInfo, redisAsOwner(cr), enableMetrics, false)
 	if err != nil {
 		logger.Error(err, "Cannot create standalone service for Redis")
 		return err
