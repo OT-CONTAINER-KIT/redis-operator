@@ -39,6 +39,16 @@ type RedisClusterSpec struct {
 	Sidecars          *[]Sidecar                   `json:"sidecars,omitempty"`
 }
 
+func (cr *RedisClusterSpec) GetReplicaCounts(t string) int32 {
+	replica := cr.Size
+	if t == "leader" && cr.RedisLeader.Replicas != nil {
+		replica = cr.RedisLeader.Replicas
+	} else if t == "follower" && cr.RedisFollower.Replicas != nil {
+		replica = cr.RedisFollower.Replicas
+	}
+	return *replica
+}
+
 // RedisLeader interface will have the redis leader configuration
 type RedisLeader struct {
 	// +kubebuilder:validation:Minimum=3

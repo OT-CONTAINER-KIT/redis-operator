@@ -96,33 +96,27 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
-	leaderReplicas := instance.Spec.RedisLeader.Replicas
-	if leaderReplicas == nil {
-		leaderReplicas = instance.Spec.Size
-	}
-	followerReplicas := instance.Spec.RedisFollower.Replicas
-	if followerReplicas == nil {
-		followerReplicas = instance.Spec.Size
-	}
-	totalReplicas := int(*leaderReplicas) + int(*followerReplicas)
+	leaderReplicas := instance.Spec.GetReplicaCounts("leader")
+	followerReplicas := instance.Spec.GetReplicaCounts("follower")
+	totalReplicas := leaderReplicas + followerReplicas
 
-	if *leaderReplicas == 0 {
-		reqLogger.Info("Redis leaders Cannot be 0", "Ready.Replicas", strconv.Itoa(int(redisLeaderInfo.Status.ReadyReplicas)), "Expected.Replicas", instance.Spec.Size)
+	if leaderReplicas == 0 {
+		reqLogger.Info("Redis leaders Cannot be 0", "Ready.Replicas", strconv.Itoa(int(redisLeaderInfo.Status.ReadyReplicas)), "Expected.Replicas", leaderReplicas)
 		return ctrl.Result{RequeueAfter: time.Second * 120}, nil
 	}
 
-	if int(redisLeaderInfo.Status.ReadyReplicas) != int(*leaderReplicas) && int(redisFollowerInfo.Status.ReadyReplicas) != int(*followerReplicas) {
-		reqLogger.Info("Redis leader and follower nodes are not ready yet", "Ready.Replicas", strconv.Itoa(int(redisLeaderInfo.Status.ReadyReplicas)), "Expected.Replicas", instance.Spec.Size)
+	if int32(redisLeaderInfo.Status.ReadyReplicas) != leaderReplicas && int32(redisFollowerInfo.Status.ReadyReplicas) != followerReplicas {
+		reqLogger.Info("Redis leader and follower nodes are not ready yet", "Ready.Replicas", strconv.Itoa(int(redisLeaderInfo.Status.ReadyReplicas)), "Expected.Replicas", leaderReplicas)
 		return ctrl.Result{RequeueAfter: time.Second * 120}, nil
 	}
 	reqLogger.Info("Creating redis cluster by executing cluster creation commands", "Leaders.Ready", strconv.Itoa(int(redisLeaderInfo.Status.ReadyReplicas)), "Followers.Ready", strconv.Itoa(int(redisFollowerInfo.Status.ReadyReplicas)))
-	if k8sutils.CheckRedisNodeCount(instance, "") != int(totalReplicas) {
+	if k8sutils.CheckRedisNodeCount(instance, "") != totalReplicas {
 		leaderCount := k8sutils.CheckRedisNodeCount(instance, "leader")
-		if leaderCount != int(*leaderReplicas) {
+		if leaderCount != leaderReplicas {
 			reqLogger.Info("Not all leader are part of the cluster...", "Leaders.Count", leaderCount, "Instance.Size", leaderReplicas)
 			k8sutils.ExecuteRedisClusterCommand(instance)
 		} else {
-			if *followerReplicas > 0 {
+			if followerReplicas > 0 {
 				reqLogger.Info("All leader are part of the cluster, adding follower/replicas", "Leaders.Count", leaderCount, "Instance.Size", leaderReplicas, "Follower.Replicas", followerReplicas)
 				k8sutils.ExecuteRedisReplicationCommand(instance)
 			} else {
