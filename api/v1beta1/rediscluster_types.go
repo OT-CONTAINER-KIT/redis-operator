@@ -62,7 +62,7 @@ type RedisFollower struct {
 
 // RedisClusterStatus defines the observed state of RedisCluster
 type RedisClusterStatus struct {
-	RedisCluster RedisCluster `json:"redisCluster,omitempty"`
+	RedisCluster RedisClusterSpec `json:"redisCluster,omitempty"`
 }
 
 // RedisPodDisruptionBudget configure a PodDisruptionBudget on the resource (leader/follower)
@@ -78,14 +78,13 @@ type RedisPodDisruptionBudget struct {
 // +kubebuilder:printcolumn:name="LeaderReplicas",type=integer,JSONPath=`.spec.redisLeader.replicas`,description=Overridden Leader replica count
 // +kubebuilder:printcolumn:name="FollowerReplicas",type=integer,JSONPath=`.spec.redisFollower.replicas`,description=Overridden Follower replica count
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`,description=Age of Cluster
-
 // RedisCluster is the Schema for the redisclusters API
 type RedisCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   RedisClusterSpec `json:"spec"`
-	Status RedisClusterSpec `json:"status,omitempty"`
+	Spec   RedisClusterSpec   `json:"spec"`
+	Status RedisClusterStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
