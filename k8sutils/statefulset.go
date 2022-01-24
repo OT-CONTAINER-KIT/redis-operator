@@ -56,7 +56,7 @@ type containerParameters struct {
 // CreateOrUpdateStateFul method will create or update Redis service
 func CreateOrUpdateStateFul(namespace string, stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, containerParams containerParameters, sidecars *[]redisv1beta1.Sidecar) error {
 	logger := statefulSetLogger(namespace, stsMeta.Name)
-	storedStateful, err := GetStateFulSet(namespace, stsMeta.Name)
+	storedStateful, err := GetStatefulSet(namespace, stsMeta.Name)
 	statefulSetDef := generateStatefulSetsDef(stsMeta, params, ownerDef, containerParams, getSidecars(sidecars))
 	if err != nil {
 		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(statefulSetDef); err != nil {
@@ -68,11 +68,11 @@ func CreateOrUpdateStateFul(namespace string, stsMeta metav1.ObjectMeta, params 
 		}
 		return err
 	}
-	return patchStateFulSet(storedStateful, statefulSetDef, namespace)
+	return patchStatefulSet(storedStateful, statefulSetDef, namespace)
 }
 
 // patchStateFulSet will patch Redis Kubernetes StateFulSet
-func patchStateFulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.StatefulSet, namespace string) error {
+func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.StatefulSet, namespace string) error {
 	logger := statefulSetLogger(namespace, storedStateful.Name)
 
 	// We want to try and keep this atomic as possible.
@@ -439,7 +439,7 @@ func updateStatefulSet(namespace string, stateful *appsv1.StatefulSet) error {
 }
 
 // GetStateFulSet is a method to get statefulset in Kubernetes
-func GetStateFulSet(namespace string, stateful string) (*appsv1.StatefulSet, error) {
+func GetStatefulSet(namespace string, stateful string) (*appsv1.StatefulSet, error) {
 	logger := statefulSetLogger(namespace, stateful)
 	getOpts := metav1.GetOptions{
 		TypeMeta: generateMetaInformation("StatefulSet", "apps/v1"),
