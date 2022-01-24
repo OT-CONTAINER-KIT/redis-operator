@@ -434,7 +434,7 @@ func GetStateFulSet(namespace string, stateful string) (*appsv1.StatefulSet, err
 		return nil, err
 	}
 	logger.Info("Redis statefulset get action was successful")
-	return statefulInfo, err
+	return statefulInfo, nil
 }
 
 // stateFulSetLogger will generate logging interface for Statfulsets
