@@ -20,14 +20,15 @@ var (
 	serviceType corev1.ServiceType
 )
 
-// generateHeadlessServiceDef generates service definition for headless service
-func generateHeadlessServiceDef(serviceMeta metav1.ObjectMeta, ownerDef metav1.OwnerReference) *corev1.Service {
+// generateServiceDef generates service definition for Redis
+func generateServiceDef(serviceMeta metav1.ObjectMeta, enableMetrics bool, ownerDef metav1.OwnerReference, headless bool) *corev1.Service {
 	service := &corev1.Service{
 		TypeMeta:   generateMetaInformation("Service", "v1"),
 		ObjectMeta: serviceMeta,
 		Spec: corev1.ServiceSpec{
-			ClusterIP: "None",
-			Selector:  serviceMeta.Labels,
+			Type:      generateServiceType("ClusterIP"),
+			ClusterIP: "",
+			Selector:  serviceMeta.GetLabels(),
 			Ports: []corev1.ServicePort{
 				{
 					Name:       "redis-client",
@@ -38,28 +39,8 @@ func generateHeadlessServiceDef(serviceMeta metav1.ObjectMeta, ownerDef metav1.O
 			},
 		},
 	}
-	AddOwnerRefToObject(service, ownerDef)
-	return service
-}
-
-// generateServiceDef generates service definition for Redis
-func generateServiceDef(serviceMeta metav1.ObjectMeta, labels map[string]string, enableMetrics bool, ownerDef metav1.OwnerReference) *corev1.Service {
-	service := &corev1.Service{
-		TypeMeta:   generateMetaInformation("Service", "v1"),
-		ObjectMeta: serviceMeta,
-		Spec: corev1.ServiceSpec{
-			Type:      generateServiceType("ClusterIP"),
-			ClusterIP: "",
-			Selector:  labels,
-			Ports: []corev1.ServicePort{
-				{
-					Name:       "redis-client",
-					Port:       redisPort,
-					TargetPort: intstr.FromInt(int(redisPort)),
-					Protocol:   corev1.ProtocolTCP,
-				},
-			},
-		},
+	if headless {
+		service.Spec.ClusterIP = "None"
 	}
 	if enableMetrics {
 		redisExporterService := enableMetricsPort()
@@ -138,28 +119,10 @@ func serviceLogger(namespace string, name string) logr.Logger {
 	return reqLogger
 }
 
-// CreateOrUpdateHeadlessService method will create or update Redis headless service
-func CreateOrUpdateHeadlessService(namespace string, serviceMeta metav1.ObjectMeta, ownerDef metav1.OwnerReference) error {
-	logger := serviceLogger(namespace, serviceMeta.Name)
-	storedService, err := getService(namespace, serviceMeta.Name)
-	serviceDef := generateHeadlessServiceDef(serviceMeta, ownerDef)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(serviceDef); err != nil {
-				logger.Error(err, "Unable to patch redis service with comparison object")
-				return err
-			}
-			return createService(namespace, serviceDef)
-		}
-		return err
-	}
-	return patchService(storedService, serviceDef, namespace)
-}
-
 // CreateOrUpdateService method will create or update Redis service
-func CreateOrUpdateService(namespace string, serviceMeta metav1.ObjectMeta, ownerDef metav1.OwnerReference, enableMetrics bool) error {
+func CreateOrUpdateService(namespace string, serviceMeta metav1.ObjectMeta, ownerDef metav1.OwnerReference, enableMetrics, headless bool) error {
 	logger := serviceLogger(namespace, serviceMeta.Name)
-	serviceDef := generateServiceDef(serviceMeta, serviceMeta.Labels, enableMetrics, ownerDef)
+	serviceDef := generateServiceDef(serviceMeta, enableMetrics, ownerDef, headless)
 	storedService, err := getService(namespace, serviceMeta.Name)
 	if err != nil {
 		if errors.IsNotFound(err) {

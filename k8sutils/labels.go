@@ -29,18 +29,6 @@ func AddOwnerRefToObject(obj metav1.Object, ownerRef metav1.OwnerReference) {
 	obj.SetOwnerReferences(append(obj.GetOwnerReferences(), ownerRef))
 }
 
-// AsOwner generates and returns object refernece
-func AsOwner(cr *redisv1beta1.Redis) metav1.OwnerReference {
-	trueVar := true
-	return metav1.OwnerReference{
-		APIVersion: cr.APIVersion,
-		Kind:       cr.Kind,
-		Name:       cr.Name,
-		UID:        cr.UID,
-		Controller: &trueVar,
-	}
-}
-
 // redisAsOwner generates and returns object refernece
 func redisAsOwner(cr *redisv1beta1.Redis) metav1.OwnerReference {
 	trueVar := true
