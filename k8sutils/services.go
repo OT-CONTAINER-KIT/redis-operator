@@ -23,11 +23,12 @@ var (
 // generateServiceDef generates service definition for Redis
 func generateServiceDef(serviceMeta metav1.ObjectMeta, enableMetrics bool, ownerDef metav1.OwnerReference, headless bool) *corev1.Service {
 	service := &corev1.Service{
-		TypeMeta:   generateMetaInformation("Service", "core/v1"),
+		TypeMeta:   generateMetaInformation("Service", "v1"),
 		ObjectMeta: serviceMeta,
 		Spec: corev1.ServiceSpec{
-			Type:     generateServiceType("ClusterIP"),
-			Selector: serviceMeta.Labels,
+			Type:      generateServiceType("ClusterIP"),
+			ClusterIP: "",
+			Selector:  serviceMeta.GetLabels(),
 			Ports: []corev1.ServicePort{
 				{
 					Name:       "redis-client",
@@ -91,17 +92,20 @@ func updateService(namespace string, service *corev1.Service) error {
 	logger := serviceLogger(namespace, service.Name)
 	_, err := generateK8sClient().CoreV1().Services(namespace).Update(context.TODO(), service, metav1.UpdateOptions{})
 	if err != nil {
-		logger.Error(err, "Redis service updation is failed")
+		logger.Error(err, "Redis service update failed")
 		return err
 	}
-	logger.Info("Redis service updation is successful")
+	logger.Info("Redis service updated successfully")
 	return nil
 }
 
 // getService is a method to get service is Kubernetes
 func getService(namespace string, service string) (*corev1.Service, error) {
 	logger := serviceLogger(namespace, service)
-	serviceInfo, err := generateK8sClient().CoreV1().Services(namespace).Get(context.TODO(), service, metav1.GetOptions{})
+	getOpts := metav1.GetOptions{
+		TypeMeta: generateMetaInformation("Service", "v1"),
+	}
+	serviceInfo, err := generateK8sClient().CoreV1().Services(namespace).Get(context.TODO(), service, getOpts)
 	if err != nil {
 		logger.Info("Redis service get action is failed")
 		return nil, err
@@ -135,16 +139,27 @@ func CreateOrUpdateService(namespace string, serviceMeta metav1.ObjectMeta, owne
 // patchService will patch Redis Kubernetes service
 func patchService(storedService *corev1.Service, newService *corev1.Service, namespace string) error {
 	logger := serviceLogger(namespace, storedService.Name)
-	patchResult, err := patch.DefaultPatchMaker.Calculate(storedService, newService, patch.IgnoreStatusFields())
+	// We want to try and keep this atomic as possible.
+	newService.ResourceVersion = storedService.ResourceVersion
+	newService.CreationTimestamp = storedService.CreationTimestamp
+	newService.ManagedFields = storedService.ManagedFields
+
+	if newService.Spec.Type == generateServiceType("ClusterIP") {
+		newService.Spec.ClusterIP = storedService.Spec.ClusterIP
+	}
+
+	patchResult, err := patch.DefaultPatchMaker.Calculate(storedService, newService,
+		patch.IgnoreStatusFields(),
+		patch.IgnoreField("kind"),
+		patch.IgnoreField("apiVersion"),
+	)
 	if err != nil {
 		logger.Error(err, "Unable to patch redis service with comparison object")
 		return err
 	}
 	if !patchResult.IsEmpty() {
-		newService.Spec.ClusterIP = storedService.Spec.ClusterIP
-		newService.ResourceVersion = storedService.ResourceVersion
-		newService.CreationTimestamp = storedService.CreationTimestamp
-		newService.ManagedFields = storedService.ManagedFields
+		logger.Info("Changes in service Detected, Updating...", "patch", string(patchResult.Patch))
+
 		for key, value := range storedService.Annotations {
 			if _, present := newService.Annotations[key]; !present {
 				newService.Annotations[key] = value

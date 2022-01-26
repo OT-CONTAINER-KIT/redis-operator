@@ -46,6 +46,10 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	reqLogger.Info("Reconciling opstree redis Cluster controller")
 	instance := &redisv1beta1.RedisCluster{}
 
+	leaderReplicas := instance.Spec.GetReplicaCounts("leader")
+	followerReplicas := instance.Spec.GetReplicaCounts("follower")
+	totalReplicas := leaderReplicas + followerReplicas
+
 	err := r.Client.Get(context.TODO(), req.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -65,16 +69,18 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if err := controllerutil.SetControllerReference(instance, instance, r.Scheme); err != nil {
 		return ctrl.Result{}, err
 	}
+
 	err = k8sutils.CreateRedisLeader(instance)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	if instance.Spec.RedisLeader.Replicas != nil && *instance.Spec.RedisLeader.Replicas != 0 {
+	if leaderReplicas != 0 {
 		err = k8sutils.CreateRedisLeaderService(instance)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
 	}
+
 	err = k8sutils.ReconcileRedisPodDisruptionBudget(instance, "leader")
 	if err != nil {
 		return ctrl.Result{}, err
@@ -84,7 +90,8 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	if instance.Spec.RedisFollower.Replicas != nil && *instance.Spec.RedisFollower.Replicas != 0 {
+	// if we have followers create their service.
+	if followerReplicas != 0 {
 		err = k8sutils.CreateRedisFollowerService(instance)
 		if err != nil {
 			return ctrl.Result{}, err
@@ -103,10 +110,6 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-
-	leaderReplicas := instance.Spec.GetReplicaCounts("leader")
-	followerReplicas := instance.Spec.GetReplicaCounts("follower")
-	totalReplicas := leaderReplicas + followerReplicas
 
 	if leaderReplicas == 0 {
 		reqLogger.Info("Redis leaders Cannot be 0", "Ready.Replicas", strconv.Itoa(int(redisLeaderInfo.Status.ReadyReplicas)), "Expected.Replicas", leaderReplicas)

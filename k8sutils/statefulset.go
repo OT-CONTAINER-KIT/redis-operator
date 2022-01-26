@@ -71,19 +71,27 @@ func CreateOrUpdateStateFul(namespace string, stsMeta metav1.ObjectMeta, params 
 	return patchStatefulSet(storedStateful, statefulSetDef, namespace)
 }
 
-// patchStatefulSet will patch Redis Kubernetes StatefulSet
+// patchStateFulSet will patch Redis Kubernetes StateFulSet
 func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.StatefulSet, namespace string) error {
 	logger := statefulSetLogger(namespace, storedStateful.Name)
-	patchResult, err := patch.DefaultPatchMaker.Calculate(storedStateful, newStateful)
+
+	// We want to try and keep this atomic as possible.
+	newStateful.ResourceVersion = storedStateful.ResourceVersion
+	newStateful.CreationTimestamp = storedStateful.CreationTimestamp
+	newStateful.ManagedFields = storedStateful.ManagedFields
+
+	patchResult, err := patch.DefaultPatchMaker.Calculate(storedStateful, newStateful,
+		patch.IgnoreStatusFields(),
+		patch.IgnoreVolumeClaimTemplateTypeMetaAndStatus(),
+		patch.IgnoreField("kind"),
+		patch.IgnoreField("apiVersion"),
+	)
 	if err != nil {
 		logger.Error(err, "Unable to patch redis statefulset with comparison object")
 		return err
 	}
 	if !patchResult.IsEmpty() {
-		logger.Info("Changes in statefulset Detected, Updating...")
-		newStateful.ResourceVersion = storedStateful.ResourceVersion
-		newStateful.CreationTimestamp = storedStateful.CreationTimestamp
-		newStateful.ManagedFields = storedStateful.ManagedFields
+		logger.Info("Changes in statefulset Detected, Updating...", "patch", string(patchResult.Patch))
 		// Field is immutable therefore we MUST keep it as is.
 		newStateful.Spec.VolumeClaimTemplates = storedStateful.Spec.VolumeClaimTemplates
 		for key, value := range storedStateful.Annotations {
@@ -97,6 +105,7 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 		}
 		return updateStatefulSet(namespace, newStateful)
 	}
+	logger.Info("Reconciliation Complete, no Changes required.")
 	return nil
 }
 
@@ -125,7 +134,6 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 			},
 		},
 	}
-	// fmt.Printf("STS: %s", statefulset)
 	if params.Tolerations != nil {
 		statefulset.Spec.Template.Spec.Tolerations = *params.Tolerations
 	}
@@ -171,12 +179,17 @@ func createPVCTemplate(stsMeta metav1.ObjectMeta, storageSpec corev1.PersistentV
 	} else {
 		pvcTemplate.Spec.AccessModes = storageSpec.Spec.AccessModes
 	}
+	pvcVolumeMode := corev1.PersistentVolumeFilesystem
+	if storageSpec.Spec.VolumeMode != nil {
+		pvcVolumeMode = *storageSpec.Spec.VolumeMode
+	}
+	pvcTemplate.Spec.VolumeMode = &pvcVolumeMode
 	pvcTemplate.Spec.Resources = storageSpec.Spec.Resources
 	pvcTemplate.Spec.Selector = storageSpec.Spec.Selector
 	return pvcTemplate
 }
 
-// generateContainerDef generates container fefinition for Redis
+// generateContainerDef generates container definition for Redis
 func generateContainerDef(name string, containerParams containerParameters, enableMetrics bool, externalConfig *string, sidecars []redisv1beta1.Sidecar) []corev1.Container {
 	containerDefinition := []corev1.Container{
 		{
@@ -330,7 +343,7 @@ func getProbeInfo() *corev1.Probe {
 		PeriodSeconds:       15,
 		FailureThreshold:    5,
 		TimeoutSeconds:      5,
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			Exec: &corev1.ExecAction{
 				Command: []string{
 					"bash",
@@ -425,10 +438,13 @@ func updateStatefulSet(namespace string, stateful *appsv1.StatefulSet) error {
 	return nil
 }
 
-// GetStatefulSet is a method to get statefulset in Kubernetes
+// GetStateFulSet is a method to get statefulset in Kubernetes
 func GetStatefulSet(namespace string, stateful string) (*appsv1.StatefulSet, error) {
 	logger := statefulSetLogger(namespace, stateful)
-	statefulInfo, err := generateK8sClient().AppsV1().StatefulSets(namespace).Get(context.TODO(), stateful, metav1.GetOptions{})
+	getOpts := metav1.GetOptions{
+		TypeMeta: generateMetaInformation("StatefulSet", "apps/v1"),
+	}
+	statefulInfo, err := generateK8sClient().AppsV1().StatefulSets(namespace).Get(context.TODO(), stateful, getOpts)
 	if err != nil {
 		logger.Info("Redis statefulset get action failed")
 		return nil, err
