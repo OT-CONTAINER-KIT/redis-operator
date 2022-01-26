@@ -46,7 +46,7 @@ module.exports = {
     sidebar: {
       '/guide/': [
         {
-          title: 'Guide',
+          title: 'GUIDE',
           collapsable: false,
           children: [
             '',
@@ -54,7 +54,7 @@ module.exports = {
           ]
         },
         {
-          title: 'Getting Started',
+          title: 'GETTING STARTED',
           collapsable: false,
           children: [
             'installation.md',
@@ -64,7 +64,7 @@ module.exports = {
           ]
         },
         {
-          title: 'Configuration',
+          title: 'CONFIGURATION',
           collapsable: false,
           children: [
             'redis-config.md',
@@ -72,7 +72,7 @@ module.exports = {
           ]
         },
         {
-          title: 'Monitoring',
+          title: 'MONITORING',
           collapsable: false,
           children: [
             'monitoring.md',
@@ -80,14 +80,21 @@ module.exports = {
           ]
         },
         {
-          title: 'Development',
+          title: 'DEVELOPMENT',
           collapsable: false,
           children: [
             'development.md',
           ]
         },
         {
-          title: 'Changelog',
+          title: 'RELEASE MANAGEMENT',
+          collapsable: false,
+          children: [
+            'release.md',
+          ]
+        },
+        {
+          title: 'CHANGELOG',
           collapsable: false,
           children: [
             'changelog.md',

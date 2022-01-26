@@ -221,3 +221,56 @@ Sidecars for redis pods
     - name: VAR_NAME
       value: "value1"
 ```
+
+**pdb**
+
+PodDisruptionBugets for redis cluster pods
+
+```yaml
+  pdb:
+    enabled: true
+    maxUnavailable: 1
+    minAvailable: 1
+```
+
+**probes**
+
+Probes for redis leader and follower pods
+
+```yaml
+#  redisFollower:
+#  redisLeader:
+    readinessProbe:
+      exec:
+        command:
+        - bash
+        - /usr/bin/healthcheck.sh
+      failureThreshold: 5
+      initialDelaySeconds: 15
+      periodSeconds: 15
+      successThreshold: 1
+      timeoutSeconds: 5
+    livenessProbe:
+      exec:
+        command:
+        - bash
+        - /usr/bin/healthcheck.sh
+      failureThreshold: 5
+      initialDelaySeconds: 15
+      periodSeconds: 15
+      successThreshold: 1
+      timeoutSeconds: 5
+```
+
+**TLS**
+
+TLS configuration for redis cluster
+
+```yaml
+  TLS:
+    ca: ca.key
+    cert: tls.crt
+    key: tls.key
+    secret:
+      secretName: sample-cert
+```
