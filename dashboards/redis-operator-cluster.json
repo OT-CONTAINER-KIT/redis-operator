@@ -105,7 +105,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "count(redis_up{namespace=~\"$namespace\",service=~\"$service\"})",
+          "expr": "count(redis_up{namespace=~\"$namespace\",service=~\"$service\",env=~\"$env\"})",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -164,7 +164,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum(redis_connected_clients{namespace=~\"$namespace\",service=~\"$service\"})",
+          "expr": "sum(redis_connected_clients{namespace=~\"$namespace\",service=~\"$service\",env=~\"$env\"})",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -227,7 +227,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "avg((redis_config_maxclients - redis_connected_clients) / redis_config_maxclients)",
+          "expr": "avg((redis_config_maxclients{env=~\"$env\"} - redis_connected_clients{env=~\"$env\"}) / redis_config_maxclients{env=~\"$env\"})",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -311,7 +311,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "increase(redis_commands_processed_total{namespace=~\"$namespace\",service=~\"$service\"}[$__rate_interval])",
+          "expr": "increase(redis_commands_processed_total{namespace=~\"$namespace\",service=~\"$service\",env=~\"$env\"}[$__rate_interval])",
           "interval": "",
           "legendFormat": "{{pod}}",
           "refId": "A"
@@ -370,7 +370,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum(redis_cluster_slots_fail{namespace=~\"$namespace\",service=~\"$service\"})",
+          "expr": "sum(redis_cluster_slots_fail{namespace=~\"$namespace\",service=~\"$service\",env=~\"$env\"})",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -449,7 +449,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "count(redis_instance_info{namespace=~\"$namespace\",service=~\"$service\",role=\"master\"})",
+          "expr": "count(redis_instance_info{namespace=~\"$namespace\",service=~\"$service\",role=\"master\",env=~\"$env\"})",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -510,7 +510,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "avg(redis_rdb_changes_since_last_save)",
+          "expr": "avg(redis_rdb_changes_since_last_save{env=~\"$env\"})",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -591,7 +591,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "topk(5, increase(redis_commands_total{namespace=~\"$namespace\",service=~\"$service\"} [$__rate_interval]))",
+          "expr": "topk(5, increase(redis_commands_total{namespace=~\"$namespace\",service=~\"$service\",env=~\"$env\"} [$__rate_interval]))",
           "interval": "",
           "legendFormat": "{{cmd}}",
           "refId": "A"
@@ -673,7 +673,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "avg(irate(redis_commands_duration_seconds_total{namespace=~\"$namespace\",service=~\"$service\"}[1m])) by (cmd)\n  /\navg(irate(redis_commands_total{namespace=~\"$namespace\",service=~\"$service\"}[1m])) by (cmd)",
+          "expr": "avg(irate(redis_commands_duration_seconds_total{namespace=~\"$namespace\",service=~\"$service\",env=~\"$env\"}[1m])) by (cmd)\n  /\navg(irate(redis_commands_total{namespace=~\"$namespace\",service=~\"$service\",env=~\"$env\"}[1m])) by (cmd)",
           "interval": "",
           "legendFormat": "{{cmd}}",
           "refId": "A"
@@ -756,7 +756,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "redis_db_keys{namespace=~\"$namespace\",service=~\"$service\"}",
+          "expr": "redis_db_keys{namespace=~\"$namespace\",service=~\"$service\",env=~\"$env\"}",
           "interval": "",
           "legendFormat": "{{db}}",
           "refId": "A"
@@ -841,7 +841,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "rate(redis_net_input_bytes_total{namespace=~\"$namespace\",service=~\"$service\"}[$__rate_interval])",
+          "expr": "rate(redis_net_input_bytes_total{namespace=~\"$namespace\",service=~\"$service\",env=~\"$env\"}[$__rate_interval])",
           "interval": "",
           "legendFormat": "{{pod}}",
           "refId": "A"
@@ -926,7 +926,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "rate(redis_net_output_bytes_total{namespace=~\"$namespace\",service=~\"$service\"}[$__rate_interval])",
+          "expr": "rate(redis_net_output_bytes_total{namespace=~\"$namespace\",service=~\"$service\",env=~\"$env\"}[$__rate_interval])",
           "interval": "",
           "legendFormat": "{{pod}}",
           "refId": "A"
@@ -1011,7 +1011,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "redis_memory_used_bytes{namespace=~\"$namespace\",service=~\"$service\"}",
+          "expr": "redis_memory_used_bytes{namespace=~\"$namespace\",service=~\"$service\",env=~\"$env\"}",
           "interval": "",
           "legendFormat": "{{pod}}",
           "refId": "A"
@@ -1096,7 +1096,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "redis_connected_clients{namespace=~\"$namespace\",service=~\"$service\"}",
+          "expr": "redis_connected_clients{namespace=~\"$namespace\",service=~\"$service\",env=~\"$env\"}",
           "interval": "",
           "legendFormat": "{{pod}}",
           "refId": "A"
@@ -1181,7 +1181,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "redis_master_repl_offset{namespace=~\"$namespace\",service=~\"$service\"} - redis_slave_repl_offset{namespace=~\"$namespace\",service=~\"$service\"}",
+          "expr": "redis_master_repl_offset{namespace=~\"$namespace\",service=~\"$service\",env=~\"$env\"} - redis_slave_repl_offset{namespace=~\"$namespace\",service=~\"$service\",env=~\"$env\"}",
           "interval": "",
           "legendFormat": "{{pod}}",
           "refId": "A"
@@ -1266,14 +1266,14 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum(redis_cluster_slots_ok)",
+          "expr": "sum(redis_cluster_slots_ok{env=~\"$env\"})",
           "interval": "",
           "legendFormat": "Ok",
           "refId": "A"
         },
         {
           "exemplar": true,
-          "expr": "sum(redis_cluster_slots_fail)",
+          "expr": "sum(redis_cluster_slots_fail{env=~\"$env\"})",
           "hide": false,
           "interval": "",
           "legendFormat": "fail",
@@ -1335,6 +1335,29 @@
         "regex": "",
         "skipUrlSync": false,
         "sort": 0,
+        "type": "query"
+      },
+      {
+        "allValue": null,
+        "current": {},
+        "datasource": "${DS_PROMETHEUS}",
+        "definition": "label_values(up,env)",
+        "description": null,
+        "error": null,
+        "hide": 0,
+        "includeAll": false,
+        "label": "Environment",
+        "multi": false,
+        "name": "env",
+        "options": [],
+        "query": {
+          "query": "label_values(up,env)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
         "type": "query"
       }
     ]
