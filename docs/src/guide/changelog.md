@@ -1,3 +1,24 @@
+### v0.10.0
+**January 26, 2022**
+
+**:tada: Features**
+
+- Added custom probes capability
+- Added sidecar support for redis
+- Added option for namespaced operator
+- Added finalizers for Kubernetes resources
+- Adding PodDisruptionBudget support
+- Added TLS cluster support
+- Pass through Annotations and Labels to all Child resources
+- Adding Rudimentry IPv6 Support
+
+**:beetle: Bug Fixes**
+
+- Fix up RedisClusterStatus Spec being incorrect object
+- Fixed invalid RBAC kustomization
+- Fixed RBAC role for operator
+- Fixed service creation for leader and follower
+
 ### v0.9.0
 **November 13, 2021**
 
