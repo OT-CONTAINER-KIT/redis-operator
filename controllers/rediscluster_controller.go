@@ -28,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	redisv1beta1 "redis-operator/api/v1beta1"
 )
@@ -63,10 +62,6 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	if err := k8sutils.AddRedisClusterFinalizer(instance, r.Client); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	if err := controllerutil.SetControllerReference(instance, instance, r.Scheme); err != nil {
 		return ctrl.Result{}, err
 	}
 
