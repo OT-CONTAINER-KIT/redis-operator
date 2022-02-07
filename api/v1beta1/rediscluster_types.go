@@ -72,7 +72,6 @@ type RedisFollower struct {
 
 // RedisClusterStatus defines the observed state of RedisCluster
 type RedisClusterStatus struct {
-	RedisCluster RedisClusterSpec `json:"redisCluster,omitempty"`
 }
 
 // RedisPodDisruptionBudget configure a PodDisruptionBudget on the resource (leader/follower)
