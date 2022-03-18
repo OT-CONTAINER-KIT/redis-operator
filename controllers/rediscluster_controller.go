@@ -45,10 +45,6 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	reqLogger.Info("Reconciling opstree redis Cluster controller")
 	instance := &redisv1beta1.RedisCluster{}
 
-	leaderReplicas := instance.Spec.GetReplicaCounts("leader")
-	followerReplicas := instance.Spec.GetReplicaCounts("follower")
-	totalReplicas := leaderReplicas + followerReplicas
-
 	err := r.Client.Get(context.TODO(), req.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -56,6 +52,10 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 		return ctrl.Result{}, err
 	}
+
+	leaderReplicas := instance.Spec.GetReplicaCounts("leader")
+	followerReplicas := instance.Spec.GetReplicaCounts("follower")
+	totalReplicas := leaderReplicas + followerReplicas
 
 	if err := k8sutils.HandleRedisClusterFinalizer(instance, r.Client); err != nil {
 		return ctrl.Result{}, err
