@@ -85,6 +85,10 @@ func generateRedisClusterContainerParams(cr *redisv1beta1.RedisCluster, readines
 	if cr.Spec.Storage != nil {
 		containerProp.PersistenceEnabled = &trueProperty
 	}
+	if cr.Spec.TLS != nil {
+		containerProp.TLSConfig = cr.Spec.TLS
+	}
+
 	return containerProp
 }
 
