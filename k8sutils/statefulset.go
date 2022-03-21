@@ -146,6 +146,17 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 	if params.ExternalConfig != nil {
 		statefulset.Spec.Template.Spec.Volumes = getExternalConfig(*params.ExternalConfig)
 	}
+
+	if containerParams.TLSConfig != nil {
+		statefulset.Spec.Template.Spec.Volumes = append(statefulset.Spec.Template.Spec.Volumes,
+			corev1.Volume{
+				Name: "tls-certs",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &containerParams.TLSConfig.Secret,
+				},
+			})
+	}
+
 	AddOwnerRefToObject(statefulset, ownerDef)
 	return statefulset
 }
