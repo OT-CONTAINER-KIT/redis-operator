@@ -209,6 +209,7 @@ func generateContainerDef(name string, containerParams containerParameters, enab
 			ImagePullPolicy: containerParams.ImagePullPolicy,
 			Env: getEnvironmentVariables(
 				containerParams.Role,
+				false,
 				containerParams.EnabledPassword,
 				containerParams.SecretName,
 				containerParams.SecretKey,
@@ -302,6 +303,7 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 		ImagePullPolicy: params.RedisExporterImagePullPolicy,
 		Env: getEnvironmentVariables(
 			params.Role,
+			true,
 			params.EnabledPassword,
 			params.SecretName,
 			params.SecretKey,
@@ -366,7 +368,7 @@ func getProbeInfo() *corev1.Probe {
 }
 
 // getEnvironmentVariables returns all the required Environment Variables
-func getEnvironmentVariables(role string, enabledPassword *bool, secretName *string, secretKey *string, persistenceEnabled *bool, extraEnv *[]corev1.EnvVar, tlsConfig *redisv1beta1.TLSConfig) []corev1.EnvVar {
+func getEnvironmentVariables(role string, enabledMetric bool, enabledPassword *bool, secretName *string, secretKey *string, persistenceEnabled *bool, extraEnv *[]corev1.EnvVar, tlsConfig *redisv1beta1.TLSConfig) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{Name: "SERVER_MODE", Value: role},
 		{Name: "SETUP_MODE", Value: role},
@@ -375,22 +377,25 @@ func getEnvironmentVariables(role string, enabledPassword *bool, secretName *str
 	redisHost := "redis://localhost:6379"
 	if tlsConfig != nil {
 		redisHost = "rediss://localhost:6379"
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  "REDIS_EXPORTER_TLS_CLIENT_KEY_FILE",
-			Value: "/tls/tls.key",
-		})
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  "REDIS_EXPORTER_TLS_CLIENT_CERT_FILE",
-			Value: "/tls/tls.crt",
-		})
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  "REDIS_EXPORTER_TLS_CA_CERT_FILE",
-			Value: "/tls/ca.crt",
-		})
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  "REDIS_EXPORTER_SKIP_TLS_VERIFICATION",
-			Value: "true",
-		})
+		envVars = append(envVars, GenerateTLSEnvironmentVariables(tlsConfig)...)
+		if enabledMetric {
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  "REDIS_EXPORTER_TLS_CLIENT_KEY_FILE",
+				Value: "/tls/tls.key",
+			})
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  "REDIS_EXPORTER_TLS_CLIENT_CERT_FILE",
+				Value: "/tls/tls.crt",
+			})
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  "REDIS_EXPORTER_TLS_CA_CERT_FILE",
+				Value: "/tls/ca.crt",
+			})
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  "REDIS_EXPORTER_SKIP_TLS_VERIFICATION",
+				Value: "true",
+			})
+		}
 	}
 
 	envVars = append(envVars, corev1.EnvVar{
