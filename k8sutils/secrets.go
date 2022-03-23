@@ -52,10 +52,10 @@ func getRedisTLSConfig(cr *redisv1beta1.RedisCluster, redisInfo RedisDetails) *t
 		for key, value := range secretName.Data {
 			if key == cr.Spec.TLS.CaKeyFile || key == "ca.crt" {
 				tlsCaCertificate = value
-			} else if key == cr.Spec.TLS.CertKeyFile || key == "tls.key" {
-				tlsClientKey = value
-			} else if key == cr.Spec.TLS.KeyFile || key == "tls.crt" {
+			} else if key == cr.Spec.TLS.CertKeyFile || key == "tls.crt" {
 				tlsClientCert = value
+			} else if key == cr.Spec.TLS.KeyFile || key == "tls.key" {
+				tlsClientKey = value
 			}
 		}
 
