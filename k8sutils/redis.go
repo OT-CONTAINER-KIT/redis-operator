@@ -75,10 +75,6 @@ func getRedisTLSArgs(tlsConfig *redisv1beta1.TLSConfig, clientHost string) []str
 	cmd := []string{}
 	if tlsConfig != nil {
 		cmd = append(cmd, "--tls")
-		cmd = append(cmd, "--cert")
-		cmd = append(cmd, "/tls/tls.crt")
-		cmd = append(cmd, "--key")
-		cmd = append(cmd, "/tls/tls.key")
 		cmd = append(cmd, "--cacert")
 		cmd = append(cmd, "/tls/ca.crt")
 		cmd = append(cmd, "-h")
