@@ -324,7 +324,7 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 func getVolumeMount(name string, persistenceEnabled *bool, externalConfig *string, tlsConfig *redisv1beta1.TLSConfig) []corev1.VolumeMount {
 	var VolumeMounts []corev1.VolumeMount
 
-	if *persistenceEnabled && persistenceEnabled != nil {
+	if persistenceEnabled != nil && *persistenceEnabled {
 		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
 			Name:      name,
 			MountPath: "/data",
