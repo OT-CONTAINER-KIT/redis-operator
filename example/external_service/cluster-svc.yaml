@@ -28,7 +28,7 @@ metadata:
     app: redis-cluster-follower
     redis_setup_type: cluster
     role: follower
-  name: redis-cluster-follower
+  name: redis-cluster-followers
 spec:
   clusterIP: 10.108.109.134
   ports:
