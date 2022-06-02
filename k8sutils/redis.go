@@ -327,7 +327,8 @@ func checkRedisNodePresence(cr *redisv1beta1.RedisCluster, nodeList [][]string, 
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 	logger.Info("Checking if Node is in cluster", "Node", nodeName)
 	for _, node := range nodeList {
-		if strings.Contains(node[1], nodeName) {
+		s := strings.Split(node[1], ":")
+		if s[0] == nodeName {
 			return true
 		}
 	}
