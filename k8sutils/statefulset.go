@@ -224,7 +224,6 @@ func generateContainerDef(name string, containerParams containerParameters, enab
 				containerParams.RedisExporterEnv,
 				containerParams.TLSConfig,
 			),
-			Resources:      *containerParams.Resources,
 			ReadinessProbe: getProbeInfo(),
 			LivenessProbe:  getProbeInfo(),
 			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, externalConfig, containerParams.TLSConfig),
@@ -318,7 +317,6 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 			params.RedisExporterEnv,
 			params.TLSConfig,
 		),
-		Resources:    *params.RedisExporterResources,
 		VolumeMounts: getVolumeMount("", nil, nil, params.TLSConfig), // We need/want the tls-certs but we DON'T need the PVC (if one is available)
 	}
 	if params.RedisExporterResources != nil {
