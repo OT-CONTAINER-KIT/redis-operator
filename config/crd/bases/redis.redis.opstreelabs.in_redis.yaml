@@ -964,6 +964,9 @@ spec:
                         type: string
                       name:
                         type: string
+                    required:
+                      - key
+                      - name
                     type: object
                   resources:
                     description: ResourceRequirements describes the compute resource
