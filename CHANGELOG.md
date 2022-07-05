@@ -1,3 +1,14 @@
+### v0.11.0
+##### July 5, 2022
+
+#### :beetle: Bug Fixes
+
+- Fix Redis cluster and Redis CRD
+- Fixed TLS authentication between redis cluster
+- Fixed RBAC policy for PDB
+- Redis exporter exception handled
+- External service fix
+
 ### v0.10.0
 ##### January 26, 2022
 

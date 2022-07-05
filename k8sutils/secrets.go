@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	redisv1beta1 "redis-operator/api/v1beta1"
+	"strings"
 
 	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,7 +24,7 @@ func getRedisPassword(namespace, name, secretKey string) (string, error) {
 	}
 	for key, value := range secretName.Data {
 		if key == secretKey {
-			return string(value), nil
+			return strings.TrimSpace(string(value)), nil
 		}
 	}
 	return "", nil
