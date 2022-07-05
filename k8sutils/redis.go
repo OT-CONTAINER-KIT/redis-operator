@@ -274,10 +274,12 @@ func executeCommand(cr *redisv1beta1.RedisCluster, cmd []string, podName string)
 	config, err := generateK8sConfig()
 	if err != nil {
 		logger.Error(err, "Could not find pod to execute")
+		return
 	}
 	targetContainer, pod := getContainerID(cr, podName)
 	if targetContainer < 0 {
 		logger.Error(err, "Could not find pod to execute")
+		return
 	}
 
 	req := generateK8sClient().CoreV1().RESTClient().Post().Resource("pods").Name(podName).Namespace(cr.Namespace).SubResource("exec")
@@ -290,6 +292,7 @@ func executeCommand(cr *redisv1beta1.RedisCluster, cmd []string, podName string)
 	exec, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
 	if err != nil {
 		logger.Error(err, "Failed to init executor")
+		return
 	}
 
 	err = exec.Stream(remotecommand.StreamOptions{
@@ -299,6 +302,7 @@ func executeCommand(cr *redisv1beta1.RedisCluster, cmd []string, podName string)
 	})
 	if err != nil {
 		logger.Error(err, "Could not execute command", "Command", cmd, "Output", execOut.String(), "Error", execErr.String())
+		return
 	}
 	logger.Info("Successfully executed the command", "Command", cmd, "Output", execOut.String())
 }
@@ -327,7 +331,8 @@ func checkRedisNodePresence(cr *redisv1beta1.RedisCluster, nodeList [][]string, 
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 	logger.Info("Checking if Node is in cluster", "Node", nodeName)
 	for _, node := range nodeList {
-		if strings.Contains(node[1], nodeName) {
+		s := strings.Split(node[1], ":")
+		if s[0] == nodeName {
 			return true
 		}
 	}

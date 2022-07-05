@@ -2,6 +2,7 @@ package k8sutils
 
 import (
 	"context"
+	"fmt"
 	"path"
 	redisv1beta1 "redis-operator/api/v1beta1"
 	"sort"
@@ -10,6 +11,7 @@ import (
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -93,7 +95,12 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 	if !patchResult.IsEmpty() {
 		logger.Info("Changes in statefulset Detected, Updating...", "patch", string(patchResult.Patch))
 		// Field is immutable therefore we MUST keep it as is.
-		newStateful.Spec.VolumeClaimTemplates = storedStateful.Spec.VolumeClaimTemplates
+		if !apiequality.Semantic.DeepEqual(newStateful.Spec.VolumeClaimTemplates, storedStateful.Spec.VolumeClaimTemplates) {
+			logger.Error(fmt.Errorf("ignored change in cr.spec.storage.volumeClaimTemplate because it is not supported by statefulset"),
+				"Redis statefulset is patched partially")
+			newStateful.Spec.VolumeClaimTemplates = storedStateful.Spec.VolumeClaimTemplates
+		}
+
 		for key, value := range storedStateful.Annotations {
 			if _, present := newStateful.Annotations[key]; !present {
 				newStateful.Annotations[key] = value
@@ -217,7 +224,6 @@ func generateContainerDef(name string, containerParams containerParameters, enab
 				containerParams.RedisExporterEnv,
 				containerParams.TLSConfig,
 			),
-			Resources:      *containerParams.Resources,
 			ReadinessProbe: getProbeInfo(),
 			LivenessProbe:  getProbeInfo(),
 			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, externalConfig, containerParams.TLSConfig),
@@ -311,7 +317,6 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 			params.RedisExporterEnv,
 			params.TLSConfig,
 		),
-		Resources:    *params.RedisExporterResources,
 		VolumeMounts: getVolumeMount("", nil, nil, params.TLSConfig), // We need/want the tls-certs but we DON'T need the PVC (if one is available)
 	}
 	if params.RedisExporterResources != nil {
@@ -324,7 +329,7 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 func getVolumeMount(name string, persistenceEnabled *bool, externalConfig *string, tlsConfig *redisv1beta1.TLSConfig) []corev1.VolumeMount {
 	var VolumeMounts []corev1.VolumeMount
 
-	if *persistenceEnabled && persistenceEnabled != nil {
+	if persistenceEnabled != nil && *persistenceEnabled {
 		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
 			Name:      name,
 			MountPath: "/data",
