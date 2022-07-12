@@ -51,8 +51,8 @@ type containerParameters struct {
 	SecretKey                    *string
 	PersistenceEnabled           *bool
 	TLSConfig                    *redisv1beta1.TLSConfig
-	ReadinessProbe               *corev1.Probe
-	LivenessProbe                *corev1.Probe
+	ReadinessProbe               *redisv1beta1.Probe
+	LivenessProbe                *redisv1beta1.Probe
 }
 
 // CreateOrUpdateStateFul method will create or update Redis service
@@ -224,20 +224,10 @@ func generateContainerDef(name string, containerParams containerParameters, enab
 				containerParams.RedisExporterEnv,
 				containerParams.TLSConfig,
 			),
-			ReadinessProbe: getProbeInfo(),
-			LivenessProbe:  getProbeInfo(),
+			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe),
+			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe),
 			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, externalConfig, containerParams.TLSConfig),
 		},
-	}
-	if containerParams.ReadinessProbe != nil {
-		containerDefinition[0].ReadinessProbe = containerParams.ReadinessProbe
-	} else {
-		containerDefinition[0].ReadinessProbe = getProbeInfo()
-	}
-	if containerParams.LivenessProbe != nil {
-		containerDefinition[0].LivenessProbe = containerParams.LivenessProbe
-	} else {
-		containerDefinition[0].LivenessProbe = getProbeInfo()
 	}
 
 	if containerParams.Resources != nil {
@@ -354,13 +344,14 @@ func getVolumeMount(name string, persistenceEnabled *bool, externalConfig *strin
 	return VolumeMounts
 }
 
-// getProbeInfo generates probe information for Redis
-func getProbeInfo() *corev1.Probe {
+// getProbeInfo generate probe for Redis StatefulSet
+func getProbeInfo(probe *redisv1beta1.Probe) *corev1.Probe {
 	return &corev1.Probe{
-		InitialDelaySeconds: graceTime,
-		PeriodSeconds:       15,
-		FailureThreshold:    5,
-		TimeoutSeconds:      5,
+		InitialDelaySeconds: probe.InitialDelaySeconds,
+		PeriodSeconds:       probe.PeriodSeconds,
+		FailureThreshold:    probe.FailureThreshold,
+		TimeoutSeconds:      probe.TimeoutSeconds,
+		SuccessThreshold:    probe.SuccessThreshold,
 		ProbeHandler: corev1.ProbeHandler{
 			Exec: &corev1.ExecAction{
 				Command: []string{
