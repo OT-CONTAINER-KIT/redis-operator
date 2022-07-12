@@ -18,7 +18,6 @@ import (
 
 const (
 	redisExporterContainer = "redis-exporter"
-	graceTime              = 15
 )
 
 // statefulSetParameters will define statefulsets input params
