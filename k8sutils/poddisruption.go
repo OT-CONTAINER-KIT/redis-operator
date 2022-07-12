@@ -2,6 +2,7 @@ package k8sutils
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/go-logr/logr"
@@ -14,10 +15,10 @@ import (
 )
 
 // CreateRedisLeaderPodDisruptionBudget check and create a PodDisruptionBudget for Leaders
-func ReconcileRedisPodDisruptionBudget(cr *redisv1beta1.RedisCluster, role string) error {
+func ReconcileRedisPodDisruptionBudget(cr *redisv1beta1.RedisCluster, role string, pdbParams *redisv1beta1.RedisPodDisruptionBudget) error {
 	pdbName := cr.ObjectMeta.Name + "-" + role
 	logger := pdbLogger(cr.Namespace, pdbName)
-	if cr.Spec.RedisLeader.PodDisruptionBudget != nil && cr.Spec.RedisLeader.PodDisruptionBudget.Enabled {
+	if pdbParams != nil && pdbParams.Enabled {
 		labels := getRedisLabels(cr.ObjectMeta.Name, "cluster", role, cr.ObjectMeta.GetLabels())
 		annotations := generateStatefulSetsAnots(cr.ObjectMeta)
 		pdbMeta := generateObjectMetaInformation(pdbName, cr.Namespace, labels, annotations)
@@ -40,7 +41,7 @@ func ReconcileRedisPodDisruptionBudget(cr *redisv1beta1.RedisCluster, role strin
 // generatePodDisruptionBudgetDef will create a PodDisruptionBudget definition
 func generatePodDisruptionBudgetDef(cr *redisv1beta1.RedisCluster, role string, pdbMeta metav1.ObjectMeta, pdbParams *redisv1beta1.RedisPodDisruptionBudget) *policyv1.PodDisruptionBudget {
 	lblSelector := LabelSelectors(map[string]string{
-		"app":  cr.ObjectMeta.Name,
+		"app":  fmt.Sprintf("%s-%s", cr.ObjectMeta.Name, role),
 		"role": role,
 	})
 	pdbTemplate := &policyv1.PodDisruptionBudget{
