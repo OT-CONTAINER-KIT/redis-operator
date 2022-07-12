@@ -24,10 +24,10 @@ import (
 // RedisClusterSpec defines the desired state of RedisCluster
 type RedisClusterSpec struct {
 	// +kubebuilder:validation:Minimum=3
-	Size              *int32                       `json:"clusterSize"`
-	KubernetesConfig  KubernetesConfig             `json:"kubernetesConfig"`
+	Size             *int32           `json:"clusterSize"`
+	KubernetesConfig KubernetesConfig `json:"kubernetesConfig"`
 	// +kubebuilder:default:={livenessProbe:{initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}, readinessProbe:{initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}}
-	RedisLeader       RedisLeader                  `json:"redisLeader,omitempty"`
+	RedisLeader RedisLeader `json:"redisLeader,omitempty"`
 	// +kubebuilder:default:={livenessProbe:{initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}, readinessProbe:{initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}}
 	RedisFollower     RedisFollower                `json:"redisFollower,omitempty"`
 	RedisExporter     *RedisExporter               `json:"redisExporter,omitempty"`
