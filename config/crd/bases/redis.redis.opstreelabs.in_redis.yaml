@@ -996,6 +996,12 @@ spec:
                 - image
                 type: object
               livenessProbe:
+                default:
+                  failureThreshold: 3
+                  initialDelaySeconds: 1
+                  periodSeconds: 10
+                  successThreshold: 1
+                  timeoutSeconds: 1
                 description: Probe is a interface for ReadinessProbe and LivenessProbe
                 properties:
                   failureThreshold:
@@ -1031,6 +1037,12 @@ spec:
               priorityClassName:
                 type: string
               readinessProbe:
+                default:
+                  failureThreshold: 3
+                  initialDelaySeconds: 1
+                  periodSeconds: 10
+                  successThreshold: 1
+                  timeoutSeconds: 1
                 description: Probe is a interface for ReadinessProbe and LivenessProbe
                 properties:
                   failureThreshold:

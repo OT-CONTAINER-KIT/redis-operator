@@ -36,7 +36,9 @@ type RedisSpec struct {
 	Affinity          *corev1.Affinity           `json:"affinity,omitempty"`
 	Tolerations       *[]corev1.Toleration       `json:"tolerations,omitempty"`
 	TLS               *TLSConfig                 `json:"TLS,omitempty"`
+	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
 	ReadinessProbe    *Probe                     `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
+	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
 	LivenessProbe     *Probe                     `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
 	Sidecars          *[]Sidecar                 `json:"sidecars,omitempty"`
 }

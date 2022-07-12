@@ -349,6 +349,19 @@ spec:
                 - image
                 type: object
               redisFollower:
+                default:
+                  livenessProbe:
+                    failureThreshold: 3
+                    initialDelaySeconds: 1
+                    periodSeconds: 10
+                    successThreshold: 1
+                    timeoutSeconds: 1
+                  readinessProbe:
+                    failureThreshold: 3
+                    initialDelaySeconds: 1
+                    periodSeconds: 10
+                    successThreshold: 1
+                    timeoutSeconds: 1
                 description: RedisFollower interface will have the redis follower
                   configuration
                 properties:
@@ -1301,6 +1314,19 @@ spec:
                     type: integer
                 type: object
               redisLeader:
+                default:
+                  livenessProbe:
+                    failureThreshold: 3
+                    initialDelaySeconds: 1
+                    periodSeconds: 10
+                    successThreshold: 1
+                    timeoutSeconds: 1
+                  readinessProbe:
+                    failureThreshold: 3
+                    initialDelaySeconds: 1
+                    periodSeconds: 10
+                    successThreshold: 1
+                    timeoutSeconds: 1
                 description: RedisLeader interface will have the redis leader configuration
                 properties:
                   affinity:
