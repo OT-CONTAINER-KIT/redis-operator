@@ -11,8 +11,8 @@ type RedisClusterSTS struct {
 	RedisStateFulType string
 	ExternalConfig    *string
 	Affinity          *corev1.Affinity `json:"affinity,omitempty"`
-	ReadinessProbe    *corev1.Probe
-	LivenessProbe     *corev1.Probe
+	ReadinessProbe    *redisv1beta1.Probe
+	LivenessProbe     *redisv1beta1.Probe
 }
 
 // RedisClusterService is a interface to call Redis Service function
@@ -47,7 +47,7 @@ func generateRedisClusterParams(cr *redisv1beta1.RedisCluster, replicas int32, e
 }
 
 // generateRedisStandaloneContainerParams generates Redis container information
-func generateRedisClusterContainerParams(cr *redisv1beta1.RedisCluster, readinessProbeDef *corev1.Probe, livenessProbeDef *corev1.Probe) containerParameters {
+func generateRedisClusterContainerParams(cr *redisv1beta1.RedisCluster, readinessProbeDef *redisv1beta1.Probe, livenessProbeDef *redisv1beta1.Probe) containerParameters {
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{

@@ -63,6 +63,25 @@ type TLSConfig struct {
 	Secret corev1.SecretVolumeSource `json:"secret"`
 }
 
+// Probe is a interface for ReadinessProbe and LivenessProbe
+type Probe struct {
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:default=1
+	InitialDelaySeconds int32 `json:"initialDelaySeconds,omitempty" protobuf:"varint,2,opt,name=initialDelaySeconds"`
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:default=1
+	TimeoutSeconds int32 `json:"timeoutSeconds,omitempty" protobuf:"varint,3,opt,name=timeoutSeconds"`
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:default=10
+	PeriodSeconds int32 `json:"periodSeconds,omitempty" protobuf:"varint,4,opt,name=periodSeconds"`
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:default=1
+	SuccessThreshold int32 `json:"successThreshold,omitempty" protobuf:"varint,5,opt,name=successThreshold"`
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:default=3
+	FailureThreshold int32 `json:"failureThreshold,omitempty" protobuf:"varint,6,opt,name=failureThreshold"`
+}
+
 // Sidecar for each Redis pods
 type Sidecar struct {
 	Name            string                       `json:"name"`
