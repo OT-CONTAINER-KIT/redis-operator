@@ -2,6 +2,7 @@ package k8sutils
 
 import (
 	"context"
+	"fmt"
 	"path"
 	redisv1beta1 "redis-operator/api/v1beta1"
 	"sort"
@@ -10,13 +11,13 @@ import (
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
 	redisExporterContainer = "redis-exporter"
-	graceTime              = 15
 )
 
 // statefulSetParameters will define statefulsets input params
@@ -49,8 +50,8 @@ type containerParameters struct {
 	SecretKey                    *string
 	PersistenceEnabled           *bool
 	TLSConfig                    *redisv1beta1.TLSConfig
-	ReadinessProbe               *corev1.Probe
-	LivenessProbe                *corev1.Probe
+	ReadinessProbe               *redisv1beta1.Probe
+	LivenessProbe                *redisv1beta1.Probe
 }
 
 // CreateOrUpdateStateFul method will create or update Redis service
@@ -93,7 +94,12 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 	if !patchResult.IsEmpty() {
 		logger.Info("Changes in statefulset Detected, Updating...", "patch", string(patchResult.Patch))
 		// Field is immutable therefore we MUST keep it as is.
-		newStateful.Spec.VolumeClaimTemplates = storedStateful.Spec.VolumeClaimTemplates
+		if !apiequality.Semantic.DeepEqual(newStateful.Spec.VolumeClaimTemplates, storedStateful.Spec.VolumeClaimTemplates) {
+			logger.Error(fmt.Errorf("ignored change in cr.spec.storage.volumeClaimTemplate because it is not supported by statefulset"),
+				"Redis statefulset is patched partially")
+			newStateful.Spec.VolumeClaimTemplates = storedStateful.Spec.VolumeClaimTemplates
+		}
+
 		for key, value := range storedStateful.Annotations {
 			if _, present := newStateful.Annotations[key]; !present {
 				newStateful.Annotations[key] = value
@@ -217,21 +223,10 @@ func generateContainerDef(name string, containerParams containerParameters, enab
 				containerParams.RedisExporterEnv,
 				containerParams.TLSConfig,
 			),
-			Resources:      *containerParams.Resources,
-			ReadinessProbe: getProbeInfo(),
-			LivenessProbe:  getProbeInfo(),
+			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe),
+			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe),
 			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, externalConfig, containerParams.TLSConfig),
 		},
-	}
-	if containerParams.ReadinessProbe != nil {
-		containerDefinition[0].ReadinessProbe = containerParams.ReadinessProbe
-	} else {
-		containerDefinition[0].ReadinessProbe = getProbeInfo()
-	}
-	if containerParams.LivenessProbe != nil {
-		containerDefinition[0].LivenessProbe = containerParams.LivenessProbe
-	} else {
-		containerDefinition[0].LivenessProbe = getProbeInfo()
 	}
 
 	if containerParams.Resources != nil {
@@ -311,7 +306,6 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 			params.RedisExporterEnv,
 			params.TLSConfig,
 		),
-		Resources:    *params.RedisExporterResources,
 		VolumeMounts: getVolumeMount("", nil, nil, params.TLSConfig), // We need/want the tls-certs but we DON'T need the PVC (if one is available)
 	}
 	if params.RedisExporterResources != nil {
@@ -349,13 +343,14 @@ func getVolumeMount(name string, persistenceEnabled *bool, externalConfig *strin
 	return VolumeMounts
 }
 
-// getProbeInfo generates probe information for Redis
-func getProbeInfo() *corev1.Probe {
+// getProbeInfo generate probe for Redis StatefulSet
+func getProbeInfo(probe *redisv1beta1.Probe) *corev1.Probe {
 	return &corev1.Probe{
-		InitialDelaySeconds: graceTime,
-		PeriodSeconds:       15,
-		FailureThreshold:    5,
-		TimeoutSeconds:      5,
+		InitialDelaySeconds: probe.InitialDelaySeconds,
+		PeriodSeconds:       probe.PeriodSeconds,
+		FailureThreshold:    probe.FailureThreshold,
+		TimeoutSeconds:      probe.TimeoutSeconds,
+		SuccessThreshold:    probe.SuccessThreshold,
 		ProbeHandler: corev1.ProbeHandler{
 			Exec: &corev1.ExecAction{
 				Command: []string{
