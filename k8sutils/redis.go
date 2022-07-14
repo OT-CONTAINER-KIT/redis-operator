@@ -164,7 +164,7 @@ func ExecuteFailoverOperation(cr *redisv1beta1.RedisCluster) error {
 		logger.Error(err, "Redis command failed for leader nodes")
 		return err
 	}
-	executeFailoverCommand(cr, "follower")
+	err = executeFailoverCommand(cr, "follower")
 	if err != nil {
 		logger.Error(err, "Redis command failed for follower nodes")
 		return err
