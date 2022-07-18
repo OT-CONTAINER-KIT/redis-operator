@@ -157,16 +157,26 @@ func checkRedisCluster(cr *redisv1beta1.RedisCluster) [][]string {
 }
 
 // ExecuteFailoverOperation will execute redis failover operations
-func ExecuteFailoverOperation(cr *redisv1beta1.RedisCluster) {
-	executeFailoverCommand(cr, "leader")
-	executeFailoverCommand(cr, "follower")
+func ExecuteFailoverOperation(cr *redisv1beta1.RedisCluster) error {
+	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
+	err := executeFailoverCommand(cr, "leader")
+	if err != nil {
+		logger.Error(err, "Redis command failed for leader nodes")
+		return err
+	}
+	err = executeFailoverCommand(cr, "follower")
+	if err != nil {
+		logger.Error(err, "Redis command failed for follower nodes")
+		return err
+	}
+	return nil
 }
 
 // executeFailoverCommand will execute failover command
-func executeFailoverCommand(cr *redisv1beta1.RedisCluster, role string) {
+func executeFailoverCommand(cr *redisv1beta1.RedisCluster, role string) error {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 	replicas := cr.Spec.GetReplicaCounts(role)
-	podName := cr.ObjectMeta.Name + "-" + role + "-"
+	podName := fmt.Sprintf("%s-%s-", cr.ObjectMeta.Name, role)
 	for podCount := 0; podCount <= int(replicas)-1; podCount++ {
 		logger.Info("Executing redis failover operations", "Redis Node", podName+strconv.Itoa(podCount))
 		client := configureRedisClient(cr, podName+strconv.Itoa(podCount))
@@ -178,15 +188,22 @@ func executeFailoverCommand(cr *redisv1beta1.RedisCluster, role string) {
 			err := client.Process(flushcommand)
 			if err != nil {
 				logger.Error(err, "Redis flush command failed with this error")
+				return err
 			}
 		}
-
+		err = client.Process(cmd)
+		if err != nil {
+			logger.Error(err, "Redis command failed with this error")
+			return err
+		}
 		output, err := cmd.Result()
 		if err != nil {
 			logger.Error(err, "Redis command failed with this error")
+			return err
 		}
 		logger.Info("Redis cluster failover executed", "Output", output)
 	}
+	return nil
 }
 
 // CheckRedisNodeCount will check the count of redis nodes
