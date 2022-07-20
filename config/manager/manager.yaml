@@ -30,6 +30,7 @@ spec:
         - /manager
         args:
         - --leader-elect
+        - -zap-log-level=info
         image: quay.io/opstree/redis-operator:v0.9.0
         imagePullPolicy: Always
         name: manager
