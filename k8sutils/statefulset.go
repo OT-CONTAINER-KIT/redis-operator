@@ -345,9 +345,14 @@ func getVolumeMount(name string, persistenceEnabled *bool, externalConfig *strin
 
 // getProbeInfo generate probe for Redis StatefulSet
 func getProbeInfo(probe *redisv1beta1.Probe) *corev1.Probe {
-	// when probe is nil, return handler
+	// when probe is nil, return default handler
 	if probe == nil {
 		return &corev1.Probe{
+			InitialDelaySeconds: 1,
+			PeriodSeconds:       10,
+			FailureThreshold:    3,
+			TimeoutSeconds:      1,
+			SuccessThreshold:    1,
 			ProbeHandler: corev1.ProbeHandler{
 				Exec: &corev1.ExecAction{
 					Command: []string{
