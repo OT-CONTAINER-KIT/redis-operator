@@ -33,6 +33,8 @@ spec:
         - -zap-log-level=info
         image: quay.io/opstree/redis-operator:v0.9.0
         imagePullPolicy: Always
+        ports:
+          - containerPort: 8090
         name: manager
         securityContext:
           allowPrivilegeEscalation: false

@@ -131,6 +131,8 @@ spec:
                 format: int32
                 minimum: 3
                 type: integer
+              dangerouslyRecreateClusterOnError:
+                type: boolean
               kubernetesConfig:
                 description: KubernetesConfig will be the JSON struct for Basic Redis
                   Config

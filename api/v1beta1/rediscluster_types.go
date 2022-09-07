@@ -29,16 +29,17 @@ type RedisClusterSpec struct {
 	// +kubebuilder:default:={livenessProbe:{initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}, readinessProbe:{initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}}
 	RedisLeader RedisLeader `json:"redisLeader,omitempty"`
 	// +kubebuilder:default:={livenessProbe:{initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}, readinessProbe:{initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}}
-	RedisFollower     RedisFollower                `json:"redisFollower,omitempty"`
-	RedisExporter     *RedisExporter               `json:"redisExporter,omitempty"`
-	Storage           *Storage                     `json:"storage,omitempty"`
-	NodeSelector      map[string]string            `json:"nodeSelector,omitempty"`
-	SecurityContext   *corev1.PodSecurityContext   `json:"securityContext,omitempty"`
-	PriorityClassName string                       `json:"priorityClassName,omitempty"`
-	Tolerations       *[]corev1.Toleration         `json:"tolerations,omitempty"`
-	Resources         *corev1.ResourceRequirements `json:"resources,omitempty"`
-	TLS               *TLSConfig                   `json:"TLS,omitempty"`
-	Sidecars          *[]Sidecar                   `json:"sidecars,omitempty"`
+	RedisFollower                     RedisFollower                `json:"redisFollower,omitempty"`
+	RedisExporter                     *RedisExporter               `json:"redisExporter,omitempty"`
+	Storage                           *Storage                     `json:"storage,omitempty"`
+	NodeSelector                      map[string]string            `json:"nodeSelector,omitempty"`
+	SecurityContext                   *corev1.PodSecurityContext   `json:"securityContext,omitempty"`
+	PriorityClassName                 string                       `json:"priorityClassName,omitempty"`
+	Tolerations                       *[]corev1.Toleration         `json:"tolerations,omitempty"`
+	Resources                         *corev1.ResourceRequirements `json:"resources,omitempty"`
+	TLS                               *TLSConfig                   `json:"TLS,omitempty"`
+	Sidecars                          *[]Sidecar                   `json:"sidecars,omitempty"`
+	DangerouslyRecreateClusterOnError bool                         `json:"dangerouslyRecreateClusterOnError,omitempty"`
 }
 
 func (cr *RedisClusterSpec) GetReplicaCounts(t string) int32 {
