@@ -134,6 +134,7 @@ func checkRedisCluster(cr *redisv1beta1.RedisCluster) [][]string {
 	var client *redis.Client
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 	client = configureRedisClient(cr, cr.ObjectMeta.Name+"-leader-0")
+	defer client.Close()
 	cmd := redis.NewStringCmd("cluster", "nodes")
 	err := client.Process(cmd)
 	if err != nil {
@@ -180,6 +181,7 @@ func executeFailoverCommand(cr *redisv1beta1.RedisCluster, role string) error {
 	for podCount := 0; podCount <= int(replicas)-1; podCount++ {
 		logger.Info("Executing redis failover operations", "Redis Node", podName+strconv.Itoa(podCount))
 		client := configureRedisClient(cr, podName+strconv.Itoa(podCount))
+		defer client.Close()
 		cmd := redis.NewStringCmd("cluster", "reset")
 		err := client.Process(cmd)
 		if err != nil {
