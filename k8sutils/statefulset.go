@@ -33,6 +33,7 @@ type statefulSetParameters struct {
 	PersistentVolumeClaim corev1.PersistentVolumeClaim
 	ImagePullSecrets      *[]corev1.LocalObjectReference
 	ExternalConfig        *string
+	ServiceAccountName    *string
 }
 
 // containerParameters will define container input params
@@ -161,6 +162,10 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 					Secret: &containerParams.TLSConfig.Secret,
 				},
 			})
+	}
+
+	if params.ServiceAccountName != nil {
+		statefulset.Spec.Template.Spec.ServiceAccountName = *params.ServiceAccountName
 	}
 
 	AddOwnerRefToObject(statefulset, ownerDef)
