@@ -20,16 +20,17 @@ type RedisClusterService struct {
 	RedisServiceRole string
 }
 
-// generateRedisStandalone generates Redis standalone information
+// generateRedisClusterParams generates Redis cluster information
 func generateRedisClusterParams(cr *redisv1beta1.RedisCluster, replicas int32, externalConfig *string, affinity *corev1.Affinity) statefulSetParameters {
 	res := statefulSetParameters{
-		Metadata:          cr.ObjectMeta,
-		Replicas:          &replicas,
-		NodeSelector:      cr.Spec.NodeSelector,
-		SecurityContext:   cr.Spec.SecurityContext,
-		PriorityClassName: cr.Spec.PriorityClassName,
-		Affinity:          affinity,
-		Tolerations:       cr.Spec.Tolerations,
+		Metadata:           cr.ObjectMeta,
+		Replicas:           &replicas,
+		NodeSelector:       cr.Spec.NodeSelector,
+		SecurityContext:    cr.Spec.SecurityContext,
+		PriorityClassName:  cr.Spec.PriorityClassName,
+		Affinity:           affinity,
+		Tolerations:        cr.Spec.Tolerations,
+		ServiceAccountName: cr.Spec.ServiceAccountName,
 	}
 	if cr.Spec.RedisExporter != nil {
 		res.EnableMetrics = cr.Spec.RedisExporter.Enabled
@@ -46,7 +47,7 @@ func generateRedisClusterParams(cr *redisv1beta1.RedisCluster, replicas int32, e
 	return res
 }
 
-// generateRedisStandaloneContainerParams generates Redis container information
+// generateRedisClusterContainerParams generates Redis container information
 func generateRedisClusterContainerParams(cr *redisv1beta1.RedisCluster, readinessProbeDef *redisv1beta1.Probe, livenessProbeDef *redisv1beta1.Probe) containerParameters {
 	trueProperty := true
 	falseProperty := false
