@@ -3,10 +3,6 @@ package k8sutils
 import (
 	"context"
 	"fmt"
-	"path"
-	redisv1beta1 "redis-operator/api/v1beta1"
-	"sort"
-
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -14,6 +10,11 @@ import (
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"path"
+	redisv1beta1 "redis-operator/api/v1beta1"
+	"sort"
+	"strconv"
 )
 
 const (
@@ -96,8 +97,67 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 		logger.Info("Changes in statefulset Detected, Updating...", "patch", string(patchResult.Patch))
 		// Field is immutable therefore we MUST keep it as is.
 		if !apiequality.Semantic.DeepEqual(newStateful.Spec.VolumeClaimTemplates, storedStateful.Spec.VolumeClaimTemplates) {
-			logger.Error(fmt.Errorf("ignored change in cr.spec.storage.volumeClaimTemplate because it is not supported by statefulset"),
-				"Redis statefulset is patched partially")
+			// resize pvc
+			// 1.Get the data already stored internally
+			// 2.Get the desired data
+			// 3.Start querying the pvc list when you find data inconsistencies
+			// 3.1 Comparison using real pvc capacity and desired data
+			// 3.1.1 Update if you find inconsistencies
+			// 3.2 Writing successful updates to internal
+			// 4. Set to old VolumeClaimTemplates to update.Prevent update error reporting
+			// 5. Set to old annotations to update
+			annotations := storedStateful.Annotations
+			if annotations == nil {
+				annotations = map[string]string{
+					"storageCapacity": "0",
+				}
+			}
+			storedCapacity, _ := strconv.ParseInt(annotations["storageCapacity"], 0, 64)
+			if len(newStateful.Spec.VolumeClaimTemplates) != 0 {
+				stateCapacity := newStateful.Spec.VolumeClaimTemplates[0].Spec.Resources.Requests.Storage().Value()
+				if storedCapacity != stateCapacity {
+					listOpt := metav1.ListOptions{
+						LabelSelector: labels.FormatLabels(
+							map[string]string{
+								"app":                         storedStateful.Name,
+								"app.kubernetes.io/component": "redis",
+								"app.kubernetes.io/name":      storedStateful.Name,
+							},
+						),
+					}
+					pvcs, err := generateK8sClient().CoreV1().PersistentVolumeClaims(storedStateful.Namespace).List(context.Background(), listOpt)
+					if err != nil {
+						return err
+					}
+					updateFailed := false
+					realUpdate := false
+					for _, pvc := range pvcs.Items {
+						realCapacity := pvc.Spec.Resources.Requests.Storage().Value()
+						if realCapacity != stateCapacity {
+							realUpdate = true
+							pvc.Spec.Resources.Requests = newStateful.Spec.VolumeClaimTemplates[0].Spec.Resources.Requests
+							_, err = generateK8sClient().CoreV1().PersistentVolumeClaims(storedStateful.Namespace).Update(context.Background(), &pvc, metav1.UpdateOptions{})
+							if err != nil {
+								if !updateFailed {
+									updateFailed = true
+								}
+								logger.Error(fmt.Errorf("redis:%s resize pvc failed:%s", storedStateful.Name, err.Error()), "")
+							}
+						}
+					}
+					if !updateFailed && len(pvcs.Items) != 0 {
+						annotations["storageCapacity"] = fmt.Sprintf("%d", stateCapacity)
+						storedStateful.Annotations = annotations
+						if realUpdate {
+							logger.Info(fmt.Sprintf("redis:%s resize pvc from  %d to %d", storedStateful.Name, storedCapacity, stateCapacity))
+						} else {
+							logger.Info(fmt.Sprintf("redis:%s resize noting,just set annotations", storedStateful.Name))
+						}
+					}
+				}
+			}
+			// set stored.volumeClaimTemplates
+			newStateful.Annotations = storedStateful.Annotations
 			newStateful.Spec.VolumeClaimTemplates = storedStateful.Spec.VolumeClaimTemplates
 		}
 
