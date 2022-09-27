@@ -8,6 +8,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 
 	redisv1beta1 "redis-operator/api/v1beta1"
 
@@ -44,11 +45,24 @@ func getRedisServerIP(redisInfo RedisDetails) string {
 	return redisIP
 }
 
-// ExecuteRedisClusterCommand will execute redis cluster creation command
-func ExecuteRedisClusterCommand(cr *redisv1beta1.RedisCluster) {
+// CreateSingleLeaderRedisCommand will create command for single leader cluster creation
+func CreateSingleLeaderRedisCommand(cr *redisv1beta1.RedisCluster) []string {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
-	replicas := cr.Spec.GetReplicaCounts("leader")
+	cmd := []string{"redis-cli", "CLUSTER", "ADDSLOTS"}
+	for i := 0; i < 16384; i++ {
+		cmd = append(cmd, strconv.Itoa(i))
+	}
+
+	logger.Info("Redis Add Slots command for single node cluster is", "Command", cmd)
+	return cmd
+}
+
+// CreateMultipleLeaderRedisCommand will create command for single leader cluster creation
+func CreateMultipleLeaderRedisCommand(cr *redisv1beta1.RedisCluster) []string {
+	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 	cmd := []string{"redis-cli", "--cluster", "create"}
+	replicas := cr.Spec.GetReplicaCounts("leader")
+
 	for podCount := 0; podCount <= int(replicas)-1; podCount++ {
 		pod := RedisDetails{
 			PodName:   cr.ObjectMeta.Name + "-leader-" + strconv.Itoa(podCount),
@@ -57,6 +71,27 @@ func ExecuteRedisClusterCommand(cr *redisv1beta1.RedisCluster) {
 		cmd = append(cmd, getRedisServerIP(pod)+":6379")
 	}
 	cmd = append(cmd, "--cluster-yes")
+
+	logger.Info("Redis Add Slots command for single node cluster is", "Command", cmd)
+	return cmd
+}
+
+// ExecuteRedisClusterCommand will execute redis cluster creation command
+func ExecuteRedisClusterCommand(cr *redisv1beta1.RedisCluster) {
+	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
+	var cmd []string
+	replicas := cr.Spec.GetReplicaCounts("leader")
+	switch int(replicas) {
+	case 1:
+		err := executeFailoverCommand(cr, "leader")
+		if err != nil {
+			logger.Error(err, "error executing failover command")
+		}
+		time.Sleep(15 * time.Second)
+		cmd = CreateSingleLeaderRedisCommand(cr)
+	default:
+		cmd = CreateMultipleLeaderRedisCommand(cr)
+	}
 
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
 		pass, err := getRedisPassword(cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)

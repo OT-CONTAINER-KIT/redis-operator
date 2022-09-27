@@ -129,7 +129,6 @@ spec:
                 type: object
               clusterSize:
                 format: int32
-                minimum: 3
                 type: integer
               kubernetesConfig:
                 description: KubernetesConfig will be the JSON struct for Basic Redis
@@ -1310,7 +1309,6 @@ spec:
                     type: object
                   replicas:
                     format: int32
-                    minimum: 3
                     type: integer
                 type: object
               redisLeader:
@@ -2274,7 +2272,6 @@ spec:
                     type: object
                   replicas:
                     format: int32
-                    minimum: 3
                     type: integer
                 type: object
               resources:
