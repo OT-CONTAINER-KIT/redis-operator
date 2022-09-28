@@ -23,7 +23,6 @@ import (
 
 // RedisClusterSpec defines the desired state of RedisCluster
 type RedisClusterSpec struct {
-	// +kubebuilder:validation:Minimum=3
 	Size             *int32           `json:"clusterSize"`
 	KubernetesConfig KubernetesConfig `json:"kubernetesConfig"`
 	// +kubebuilder:default:={livenessProbe:{initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}, readinessProbe:{initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}}
@@ -54,7 +53,6 @@ func (cr *RedisClusterSpec) GetReplicaCounts(t string) int32 {
 
 // RedisLeader interface will have the redis leader configuration
 type RedisLeader struct {
-	// +kubebuilder:validation:Minimum=3
 	Replicas            *int32                    `json:"replicas,omitempty"`
 	RedisConfig         *RedisConfig              `json:"redisConfig,omitempty"`
 	Affinity            *corev1.Affinity          `json:"affinity,omitempty"`
@@ -65,7 +63,6 @@ type RedisLeader struct {
 
 // RedisFollower interface will have the redis follower configuration
 type RedisFollower struct {
-	// +kubebuilder:validation:Minimum=3
 	Replicas            *int32                    `json:"replicas,omitempty"`
 	RedisConfig         *RedisConfig              `json:"redisConfig,omitempty"`
 	Affinity            *corev1.Affinity          `json:"affinity,omitempty"`
