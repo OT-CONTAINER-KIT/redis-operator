@@ -8,7 +8,6 @@ import (
 	"net"
 	"strconv"
 	"strings"
-	"time"
 
 	redisv1beta1 "redis-operator/api/v1beta1"
 
@@ -87,7 +86,6 @@ func ExecuteRedisClusterCommand(cr *redisv1beta1.RedisCluster) {
 		if err != nil {
 			logger.Error(err, "error executing failover command")
 		}
-		time.Sleep(15 * time.Second)
 		cmd = CreateSingleLeaderRedisCommand(cr)
 	default:
 		cmd = CreateMultipleLeaderRedisCommand(cr)
