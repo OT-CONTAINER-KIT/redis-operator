@@ -27,6 +27,8 @@ A Golang based redis operator that will make/oversee Redis standalone and cluste
 
 For documentation, please refer to https://ot-container-kit.github.io/redis-operator/
 
+Organizations that are using Redis Operator to manage their redis workload can be found [here](./USED_BY_ORGANIZATIONS.md)
+
 ## Architecture
 
 <div align="center">
