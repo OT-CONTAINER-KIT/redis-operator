@@ -34,6 +34,9 @@ func HandleRedisFinalizer(cr *redisv1beta1.Redis, cl client.Client) error {
 			if err := finalizeRedisPVC(cr); err != nil {
 				return err
 			}
+			if err := finalizeRedisStatefulSet(cr); err != nil {
+				return err
+			}
 			controllerutil.RemoveFinalizer(cr, RedisFinalizer)
 			if err := cl.Update(context.TODO(), cr); err != nil {
 				logger.Error(err, "Could not remove finalizer "+RedisFinalizer)
@@ -53,6 +56,9 @@ func HandleRedisClusterFinalizer(cr *redisv1beta1.RedisCluster, cl client.Client
 				return err
 			}
 			if err := finalizeRedisClusterPVC(cr); err != nil {
+				return err
+			}
+			if err := finalizeRedisClusterStatefulSets(cr); err != nil {
 				return err
 			}
 			controllerutil.RemoveFinalizer(cr, RedisClusterFinalizer)
@@ -134,6 +140,30 @@ func finalizeRedisClusterPVC(cr *redisv1beta1.RedisCluster) error {
 				logger.Error(err, "Could not delete Persistent Volume Claim "+PVCName)
 				return err
 			}
+		}
+	}
+	return nil
+}
+
+// finalizeRedisStatefulSet delete statefulset for Redis
+func finalizeRedisStatefulSet(cr *redisv1beta1.Redis) error {
+	logger := finalizerLogger(cr.Namespace, RedisFinalizer)
+	err := generateK8sClient().AppsV1().StatefulSets(cr.Namespace).Delete(context.TODO(), cr.Name, metav1.DeleteOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		logger.Error(err, "Could not delete StatefulSets "+cr.Name)
+		return err
+	}
+	return nil
+}
+
+// finalizeRedisClusterStatefulSets delete statefulset for Redis Cluster
+func finalizeRedisClusterStatefulSets(cr *redisv1beta1.RedisCluster) error {
+	logger := finalizerLogger(cr.Namespace, RedisClusterFinalizer)
+	for _, sts := range []string{cr.Name + "-leader", cr.Name + "-follower"} {
+		err := generateK8sClient().AppsV1().StatefulSets(cr.Namespace).Delete(context.TODO(), sts, metav1.DeleteOptions{})
+		if err != nil && !errors.IsNotFound(err) {
+			logger.Error(err, "Could not delete statefulset "+sts)
+			return err
 		}
 	}
 	return nil
