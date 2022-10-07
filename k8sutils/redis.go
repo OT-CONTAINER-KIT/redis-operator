@@ -35,10 +35,12 @@ func getRedisServerIP(redisInfo RedisDetails) string {
 
 	redisIP := redisPod.Status.PodIP
 	// If we're NOT IPv4, assume were IPv6..
-	if net.ParseIP(redisIP).To4() == nil {
-		logger.Info("Redis is IPv6", "ip", redisIP, "ipv6", net.ParseIP(redisIP).To16())
-		redisIP = fmt.Sprintf("[%s]", redisIP)
-	}
+	if redisIP != "" {
+    	if net.ParseIP(redisIP).To4() == nil {
+    		logger.Info("Redis is IPv6", "ip", redisIP, "ipv6", net.ParseIP(redisIP).To16())
+    		redisIP = fmt.Sprintf("[%s]", redisIP)
+    	}
+    }
 
 	logger.Info("Successfully got the ip for redis", "ip", redisIP)
 	return redisIP
