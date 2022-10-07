@@ -39,6 +39,7 @@ type RedisClusterSpec struct {
 	TLS                *TLSConfig                   `json:"TLS,omitempty"`
 	Sidecars           *[]Sidecar                   `json:"sidecars,omitempty"`
 	ServiceAccountName *string                      `json:"serviceAccountName,omitempty"`
+	PersistenceEnabled *bool                        `json:"persistenceEnabled,omitempty"`
 }
 
 func (cr *RedisClusterSpec) GetReplicaCounts(t string) int32 {

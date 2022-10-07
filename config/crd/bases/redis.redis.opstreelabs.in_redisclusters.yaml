@@ -194,6 +194,8 @@ spec:
                 additionalProperties:
                   type: string
                 type: object
+              persistenceEnabled:
+                type: boolean
               priorityClassName:
                 type: string
               redisExporter:
