@@ -130,6 +130,9 @@ spec:
               clusterSize:
                 format: int32
                 type: integer
+              clusterVersion:
+                default: v7
+                type: string
               kubernetesConfig:
                 description: KubernetesConfig will be the JSON struct for Basic Redis
                   Config
@@ -2952,6 +2955,7 @@ spec:
                 type: array
             required:
             - clusterSize
+            - clusterVersion
             - kubernetesConfig
             type: object
           status:

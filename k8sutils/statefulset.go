@@ -183,7 +183,7 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 		ObjectMeta: stsMeta,
 		Spec: appsv1.StatefulSetSpec{
 			Selector:    LabelSelectors(stsMeta.GetLabels()),
-			ServiceName: stsMeta.Name,
+			ServiceName: fmt.Sprintf("%s-headless", stsMeta.Name),
 			Replicas:    params.Replicas,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{

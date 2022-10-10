@@ -46,6 +46,12 @@ func getRedisServerIP(redisInfo RedisDetails) string {
 	return redisIP
 }
 
+// getRedisHostname will return the complete FQDN for redis
+func getRedisHostname(redisInfo RedisDetails, cr *redisv1beta1.RedisCluster, role string) string {
+	fqdn := fmt.Sprintf("%s.%s-%s.svc", redisInfo.PodName, cr.ObjectMeta.Name, role)
+	return fqdn
+}
+
 // CreateSingleLeaderRedisCommand will create command for single leader cluster creation
 func CreateSingleLeaderRedisCommand(cr *redisv1beta1.RedisCluster) []string {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
@@ -69,7 +75,11 @@ func CreateMultipleLeaderRedisCommand(cr *redisv1beta1.RedisCluster) []string {
 			PodName:   cr.ObjectMeta.Name + "-leader-" + strconv.Itoa(podCount),
 			Namespace: cr.Namespace,
 		}
-		cmd = append(cmd, getRedisServerIP(pod)+":6379")
+		if *cr.Spec.ClusterVersion == "v7" {
+			cmd = append(cmd, getRedisHostname(pod, cr, "leader"))
+		} else {
+			cmd = append(cmd, getRedisServerIP(pod)+":6379")
+		}
 	}
 	cmd = append(cmd, "--cluster-yes")
 
@@ -122,8 +132,13 @@ func getRedisTLSArgs(tlsConfig *redisv1beta1.TLSConfig, clientHost string) []str
 func createRedisReplicationCommand(cr *redisv1beta1.RedisCluster, leaderPod RedisDetails, followerPod RedisDetails) []string {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 	cmd := []string{"redis-cli", "--cluster", "add-node"}
-	cmd = append(cmd, getRedisServerIP(followerPod)+":6379")
-	cmd = append(cmd, getRedisServerIP(leaderPod)+":6379")
+	if *cr.Spec.ClusterVersion == "v7" {
+		cmd = append(cmd, getRedisHostname(followerPod, cr, "follower")+":6379")
+		cmd = append(cmd, getRedisHostname(leaderPod, cr, "leader")+":6379")
+	} else {
+		cmd = append(cmd, getRedisServerIP(followerPod)+":6379")
+		cmd = append(cmd, getRedisServerIP(leaderPod)+":6379")
+	}
 	cmd = append(cmd, "--cluster-slave")
 
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
@@ -135,12 +150,13 @@ func createRedisReplicationCommand(cr *redisv1beta1.RedisCluster, leaderPod Redi
 		cmd = append(cmd, pass)
 	}
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, leaderPod.PodName)...)
-	logger.Info("Redis replication creation command is", "Command", cmd)
+	logger.V(2).Info("Redis replication creation command is", "Command", cmd)
 	return cmd
 }
 
 // ExecuteRedisReplicationCommand will execute the replication command
 func ExecuteRedisReplicationCommand(cr *redisv1beta1.RedisCluster) {
+	var podIP string
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 	replicas := cr.Spec.GetReplicaCounts("follower")
 	nodes := checkRedisCluster(cr)
@@ -153,7 +169,11 @@ func ExecuteRedisReplicationCommand(cr *redisv1beta1.RedisCluster) {
 			PodName:   cr.ObjectMeta.Name + "-leader-" + strconv.Itoa(podCount),
 			Namespace: cr.Namespace,
 		}
-		podIP := getRedisServerIP(followerPod)
+		if *cr.Spec.ClusterVersion == "v7" {
+			podIP = getRedisHostname(followerPod, cr, "follower")
+		} else {
+			podIP = getRedisServerIP(followerPod)
+		}
 		if !checkRedisNodePresence(cr, nodes, podIP) {
 			logger.Info("Adding node to cluster.", "Node.IP", podIP, "Follower.Pod", followerPod)
 			cmd := createRedisReplicationCommand(cr, leaderPod, followerPod)

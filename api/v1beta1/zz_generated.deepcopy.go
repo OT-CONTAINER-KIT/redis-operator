@@ -195,6 +195,11 @@ func (in *RedisClusterSpec) DeepCopyInto(out *RedisClusterSpec) {
 		**out = **in
 	}
 	in.KubernetesConfig.DeepCopyInto(&out.KubernetesConfig)
+	if in.ClusterVersion != nil {
+		in, out := &in.ClusterVersion, &out.ClusterVersion
+		*out = new(string)
+		**out = **in
+	}
 	in.RedisLeader.DeepCopyInto(&out.RedisLeader)
 	in.RedisFollower.DeepCopyInto(&out.RedisFollower)
 	if in.RedisExporter != nil {
