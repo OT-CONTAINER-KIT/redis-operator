@@ -78,6 +78,8 @@ func generateServiceAnots(stsMeta metav1.ObjectMeta) map[string]string {
 	anots := map[string]string{
 		"redis.opstreelabs.in":       "true",
 		"redis.opstreelabs.instance": stsMeta.GetName(),
+		"prometheus.io/scrape":       "true",
+		"prometheus.io/port":         "9121",
 	}
 	for k, v := range stsMeta.GetAnnotations() {
 		anots[k] = v
