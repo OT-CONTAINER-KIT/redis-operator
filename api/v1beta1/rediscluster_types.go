@@ -26,7 +26,7 @@ type RedisClusterSpec struct {
 	Size             *int32           `json:"clusterSize"`
 	KubernetesConfig KubernetesConfig `json:"kubernetesConfig"`
 	// +kubebuilder:default:=v7
-	ClusterVersion *string `json:"clusterVersion"`
+	ClusterVersion *string `json:"clusterVersion,omitempty"`
 	// +kubebuilder:default:={livenessProbe:{initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}, readinessProbe:{initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}}
 	RedisLeader RedisLeader `json:"redisLeader,omitempty"`
 	// +kubebuilder:default:={livenessProbe:{initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}, readinessProbe:{initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}}
@@ -60,7 +60,9 @@ type RedisLeader struct {
 	RedisConfig         *RedisConfig              `json:"redisConfig,omitempty"`
 	Affinity            *corev1.Affinity          `json:"affinity,omitempty"`
 	PodDisruptionBudget *RedisPodDisruptionBudget `json:"pdb,omitempty"`
+	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
 	ReadinessProbe      *Probe                    `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
+	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
 	LivenessProbe       *Probe                    `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
 }
 
@@ -70,7 +72,9 @@ type RedisFollower struct {
 	RedisConfig         *RedisConfig              `json:"redisConfig,omitempty"`
 	Affinity            *corev1.Affinity          `json:"affinity,omitempty"`
 	PodDisruptionBudget *RedisPodDisruptionBudget `json:"pdb,omitempty"`
+	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
 	ReadinessProbe      *Probe                    `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
+	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
 	LivenessProbe       *Probe                    `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
 }
 

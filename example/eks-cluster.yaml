@@ -1,0 +1,14 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+metadata:
+  name: operator-testing
+  region: us-west-2
+  version: "1.22"
+nodeGroups:
+  - name: ng-1
+    instanceType: t3a.medium
+    desiredCapacity: 3
+    volumeSize: 30
+    ssh:
+      allow: true
+    volumeType: gp3

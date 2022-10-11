@@ -48,7 +48,7 @@ func getRedisServerIP(redisInfo RedisDetails) string {
 
 // getRedisHostname will return the complete FQDN for redis
 func getRedisHostname(redisInfo RedisDetails, cr *redisv1beta1.RedisCluster, role string) string {
-	fqdn := fmt.Sprintf("%s.%s-%s.svc", redisInfo.PodName, cr.ObjectMeta.Name, role)
+	fqdn := fmt.Sprintf("%s.%s-%s-headless.%s.svc", redisInfo.PodName, cr.ObjectMeta.Name, role, cr.Namespace)
 	return fqdn
 }
 
@@ -76,7 +76,7 @@ func CreateMultipleLeaderRedisCommand(cr *redisv1beta1.RedisCluster) []string {
 			Namespace: cr.Namespace,
 		}
 		if *cr.Spec.ClusterVersion == "v7" {
-			cmd = append(cmd, getRedisHostname(pod, cr, "leader"))
+			cmd = append(cmd, getRedisHostname(pod, cr, "leader")+":6379")
 		} else {
 			cmd = append(cmd, getRedisServerIP(pod)+":6379")
 		}
