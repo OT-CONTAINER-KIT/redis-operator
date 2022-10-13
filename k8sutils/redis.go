@@ -169,11 +169,7 @@ func ExecuteRedisReplicationCommand(cr *redisv1beta1.RedisCluster) {
 			PodName:   cr.ObjectMeta.Name + "-leader-" + strconv.Itoa(podCount),
 			Namespace: cr.Namespace,
 		}
-		if *cr.Spec.ClusterVersion == "v7" {
-			podIP = getRedisHostname(followerPod, cr, "follower")
-		} else {
-			podIP = getRedisServerIP(followerPod)
-		}
+		podIP = getRedisServerIP(followerPod)
 		if !checkRedisNodePresence(cr, nodes, podIP) {
 			logger.Info("Adding node to cluster.", "Node.IP", podIP, "Follower.Pod", followerPod)
 			cmd := createRedisReplicationCommand(cr, leaderPod, followerPod)

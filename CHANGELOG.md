@@ -1,3 +1,22 @@
+### v0.12.0
+##### October 12, 2022
+
+#### :beetle: Bug Fixes
+
+- PDB (Pod disruption budget) creation issue
+- Fixed cluster recovery logic
+- Fixed IP check and conversion logic
+- Persistence issue fix
+
+#### :tada: Features
+
+- Added pvc, pv clusterrole fix
+- Support for defining serviceAccount
+- Closing of redis client connection
+- Added finalizer for statefulset
+- Added Prometheus service annotation
+- Added support for Redis 7 with DNS hostname
+
 ### v0.11.0
 ##### July 5, 2022
 

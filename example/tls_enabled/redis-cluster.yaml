@@ -12,9 +12,13 @@ spec:
     key: tls.key
     secret:
       secretName: sample-cert
-
+  clusterVersion: v7
+  persistenceEnabled: true
+  securityContext:
+    runAsUser: 1000
+    fsGroup: 1000
   kubernetesConfig:
-    image: quay.io/opstree/redis:v6.2.5
+    image: quay.io/opstree/redis:v7.0.5
     imagePullPolicy: IfNotPresent
     resources:
       requests:
@@ -29,7 +33,7 @@ spec:
 
   redisExporter:
     enabled: false
-    image: quay.io/opstree/redis-exporter:1.0
+    image: quay.io/opstree/redis-exporter:v1.44.0
     imagePullPolicy: Always
     resources:
       requests:

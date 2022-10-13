@@ -61,9 +61,9 @@ type RedisLeader struct {
 	Affinity            *corev1.Affinity          `json:"affinity,omitempty"`
 	PodDisruptionBudget *RedisPodDisruptionBudget `json:"pdb,omitempty"`
 	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
-	ReadinessProbe      *Probe                    `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
+	ReadinessProbe *Probe `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
 	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
-	LivenessProbe       *Probe                    `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
+	LivenessProbe *Probe `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
 }
 
 // RedisFollower interface will have the redis follower configuration
@@ -73,9 +73,9 @@ type RedisFollower struct {
 	Affinity            *corev1.Affinity          `json:"affinity,omitempty"`
 	PodDisruptionBudget *RedisPodDisruptionBudget `json:"pdb,omitempty"`
 	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
-	ReadinessProbe      *Probe                    `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
+	ReadinessProbe *Probe `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
 	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
-	LivenessProbe       *Probe                    `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
+	LivenessProbe *Probe `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
 }
 
 // RedisClusterStatus defines the observed state of RedisCluster
