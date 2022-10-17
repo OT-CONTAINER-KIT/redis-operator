@@ -5,35 +5,24 @@ metadata:
   name: redis-cluster
 spec:
   clusterSize: 3
+  clusterVersion: v7
+  securityContext:
+    runAsUser: 1000
+    fsGroup: 1000
+  persistenceEnabled: true
   kubernetesConfig:
-    image: quay.io/opstree/redis:v6.2.5
-    imagePullPolicy: IfNotPresent
-    resources:
-      requests:
-        cpu: 101m
-        memory: 128Mi
-      limits:
-        cpu: 101m
-        memory: 128Mi
+    image: quay.io/opstree/redis:v7.0.5
   redisExporter:
     enabled: false
-    image: quay.io/opstree/redis-exporter:1.0
+    image: quay.io/opstree/redis-exporter:v1.44.0
   redisLeader:
     readinessProbe:
-      exec:
-        command:
-        - bash
-        - /usr/bin/healthcheck.sh
       failureThreshold: 5
       initialDelaySeconds: 15
       periodSeconds: 15
       successThreshold: 1
       timeoutSeconds: 5
     livenessProbe:
-      exec:
-        command:
-        - bash
-        - /usr/bin/healthcheck.sh
       failureThreshold: 5
       initialDelaySeconds: 15
       periodSeconds: 15

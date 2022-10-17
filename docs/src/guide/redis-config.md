@@ -13,35 +13,35 @@ In this configuration section, we have these configuration parameters:-
 
 # Helm Parameters
 
-|**Name**|**Value**|**Description**|
-|--------|-----------------|-------|
-|`imagePullSecrets` | [] | List of image pull secrets, in case redis image is getting pull from private registry |
-|`redisStandalone.secretName` | redis-secret | Name of the existing secret in Kubernetes |
-|`redisStandalone.secretKey` | password |  Name of the existing secret key in Kubernetes |
-|`redisStandalone.image` | quay.io/opstree/redis | Name of the redis image |
-|`redisStandalone.tag` | v6.2 | Tag of the redis image |
-|`redisStandalone.imagePullPolicy` | IfNotPresent | Image Pull Policy of the redis image |
-|`redisStandalone.resources` | {} | Request and limits for redis statefulset |
-|`externalService.enabled`| false | If redis service needs to be exposed using LoadBalancer or NodePort |
-|`externalService.annotations`| {} | Kubernetes service related annotations |
-|`externalService.serviceType` | NodePort | Kubernetes service type for exposing service, values - ClusterIP, NodePort, and LoadBalancer |
-|`externalService.port` | 6379 | Port number on which redis external service should be exposed |
-|`serviceMonitor.enabled` | false | Servicemonitor to monitor redis with Prometheus |
-|`serviceMonitor.interval` | 30s | Interval at which metrics should be scraped. |
-|`serviceMonitor.scrapeTimeout` | 10s | Timeout after which the scrape is ended |
-|`serviceMonitor.namespace` | monitoring | 	Namespace in which Prometheus operator is running |
-|`redisExporter.enabled` | true | Redis exporter should be deployed or not |
-|`redisExporter.image` | quay.io/opstree/redis-exporter | Name of the redis exporter image |
-|`redisExporter.tag` | v6.2 | Tag of the redis exporter image |
-|`redisExporter.imagePullPolicy` | IfNotPresent | Image Pull Policy of the redis exporter image |
-|`redisExporter.env` | [] | Extra environment variables which needs to be added in redis exporter|
-|`nodeSelector` | {} | NodeSelector for redis statefulset |
-|`priorityClassName`| "" | Priority class name for the redis statefulset |
-|`storageSpec` | {} | Storage configuration for redis setup |
-|`securityContext` | {} | Security Context for redis pods for changing system or kernel level parameters |
-|`affinity` | {} | Affinity for node and pod for redis statefulset |
-|`tolerations` | [] | Tolerations for redis statefulset |
-|`sidecars` | [] | Sidecar for redis pods
+| **Name**                          | **Value**                      | **Description**                                                                              |
+|-----------------------------------|--------------------------------|----------------------------------------------------------------------------------------------|
+| `imagePullSecrets`                | []                             | List of image pull secrets, in case redis image is getting pull from private registry        |
+| `redisStandalone.secretName`      | redis-secret                   | Name of the existing secret in Kubernetes                                                    |
+| `redisStandalone.secretKey`       | password                       | Name of the existing secret key in Kubernetes                                                |
+| `redisStandalone.image`           | quay.io/opstree/redis          | Name of the redis image                                                                      |
+| `redisStandalone.tag`             | v6.2                           | Tag of the redis image                                                                       |
+| `redisStandalone.imagePullPolicy` | IfNotPresent                   | Image Pull Policy of the redis image                                                         |
+| `redisStandalone.resources`       | {}                             | Request and limits for redis statefulset                                                     |
+| `externalService.enabled`         | false                          | If redis service needs to be exposed using LoadBalancer or NodePort                          |
+| `externalService.annotations`     | {}                             | Kubernetes service related annotations                                                       |
+| `externalService.serviceType`     | NodePort                       | Kubernetes service type for exposing service, values - ClusterIP, NodePort, and LoadBalancer |
+| `externalService.port`            | 6379                           | Port number on which redis external service should be exposed                                |
+| `serviceMonitor.enabled`          | false                          | Servicemonitor to monitor redis with Prometheus                                              |
+| `serviceMonitor.interval`         | 30s                            | Interval at which metrics should be scraped.                                                 |
+| `serviceMonitor.scrapeTimeout`    | 10s                            | Timeout after which the scrape is ended                                                      |
+| `serviceMonitor.namespace`        | monitoring                     | 	Namespace in which Prometheus operator is running                                           |
+| `redisExporter.enabled`           | true                           | Redis exporter should be deployed or not                                                     |
+| `redisExporter.image`             | quay.io/opstree/redis-exporter | Name of the redis exporter image                                                             |
+| `redisExporter.tag`               | v6.2                           | Tag of the redis exporter image                                                              |
+| `redisExporter.imagePullPolicy`   | IfNotPresent                   | Image Pull Policy of the redis exporter image                                                |
+| `redisExporter.env`               | []                             | Extra environment variables which needs to be added in redis exporter                        |
+| `nodeSelector`                    | {}                             | NodeSelector for redis statefulset                                                           |
+| `priorityClassName`               | ""                             | Priority class name for the redis statefulset                                                |
+| `storageSpec`                     | {}                             | Storage configuration for redis setup                                                        |
+| `securityContext`                 | {}                             | Security Context for redis pods for changing system or kernel level parameters               |
+| `affinity`                        | {}                             | Affinity for node and pod for redis statefulset                                              |
+| `tolerations`                     | []                             | Tolerations for redis statefulset                                                            |
+| `sidecars`                        | []                             | Sidecar for redis pods                                                                       |
 
 # CRD Parameters
 
@@ -52,6 +52,7 @@ These are the CRD Parameters which is currently supported by Redis Exporter for 
 In the `kubernetesConfig` section, we define configuration related to Kubernetes.
 
 ```yaml
+spec:
   kubernetesConfig:
     image: quay.io/opstree/redis:v6.2
     imagePullPolicy: IfNotPresent
@@ -75,6 +76,7 @@ In the `kubernetesConfig` section, we define configuration related to Kubernetes
 `redisExporter` configuration which enable the metrics for Redis Database to get monitored by Prometheus.
 
 ```yaml
+spec:
   redisExporter:
     enabled: true
     image: quay.io/opstree/redis-exporter:1.0
@@ -106,6 +108,7 @@ In the `kubernetesConfig` section, we define configuration related to Kubernetes
 `storage` configuration for Redis Statefulset pods.
 
 ```yaml
+spec:
   storage:
     volumeClaimTemplate:
       spec:
@@ -121,7 +124,8 @@ In the `kubernetesConfig` section, we define configuration related to Kubernetes
 Name of the Kubernetes priority class which you want to associate with redis setup.
 
 ```yaml
-priorityClassName: priority-100
+spec:
+  priorityClassName: priority-100
 ```
 
 **nodeSelector**
@@ -129,6 +133,7 @@ priorityClassName: priority-100
 Map of the labels which you want to use as nodeSelector.
 
 ```yaml
+spec:
   nodeSelector:
     kubernetes.io/hostname: minikube
 ```
@@ -138,6 +143,7 @@ Map of the labels which you want to use as nodeSelector.
 Kubernetes security context for redis pods.
 
 ```yaml
+spec:
   securityContext:
     runAsUser: 1000
 ```
@@ -147,6 +153,7 @@ Kubernetes security context for redis pods.
 Affinity for node and pod for redis setup.
 
 ```yaml
+spec:
   affinity:
     nodeAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
@@ -163,6 +170,7 @@ Affinity for node and pod for redis setup.
 Tolerations for nodes and pods in Kubernetes.
 
 ```yaml
+spec:
   tolerations:
   - key: "key1"
     operator: "Equal"
@@ -175,6 +183,7 @@ Tolerations for nodes and pods in Kubernetes.
 Sidecars for redis pods
 
 ```yaml
+spec:
   sidecars:
   - name: "sidecar1"
     image: "image:1.0"
@@ -196,6 +205,7 @@ Sidecars for redis pods
 PodDisruptionBugets for redis standalone pods
 
 ```yaml
+spec:
   pdb:
     enabled: true
     maxUnavailable: 1
@@ -207,21 +217,14 @@ PodDisruptionBugets for redis standalone pods
 Probes for redis standalone pods
 
 ```yaml
+spec:
     readinessProbe:
-      exec:
-        command:
-        - bash
-        - /usr/bin/healthcheck.sh
       failureThreshold: 5
       initialDelaySeconds: 15
       periodSeconds: 15
       successThreshold: 1
       timeoutSeconds: 5
     livenessProbe:
-      exec:
-        command:
-        - bash
-        - /usr/bin/healthcheck.sh
       failureThreshold: 5
       initialDelaySeconds: 15
       periodSeconds: 15
@@ -234,6 +237,7 @@ Probes for redis standalone pods
 TLS configuration for redis standalone
 
 ```yaml
+spec:
   TLS:
     ca: ca.key
     cert: tls.crt

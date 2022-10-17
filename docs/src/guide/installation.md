@@ -13,12 +13,12 @@ The easiest way to install a redis operator is using Helm chart. The operator he
 ```shell
 $ helm repo add ot-helm https://ot-container-kit.github.io/helm-charts/
 $ helm upgrade redis-operator ot-helm/redis-operator \
-    --install --namespace redis-operator
+    --install --namespace ot-operators
 ...
 Release "redis-operator" does not exist. Installing it now.
 NAME: redis-operator
 LAST DEPLOYED: Sun May  2 14:42:23 2021
-NAMESPACE: redis-operator
+NAMESPACE: ot-operators
 STATUS: deployed
 REVISION: 1
 TEST SUITE: None
@@ -27,7 +27,7 @@ TEST SUITE: None
 Check the state of the pod is running or not.
 
 ```shell
-$ kubectl get pods -n redis-operator
+$ kubectl get pods -n ot-operators
 ...
 NAME                              READY   STATUS    RESTARTS   AGE
 redis-operator-74b6cbf5c5-td8t7   1/1     Running   0          2m11s

@@ -130,6 +130,9 @@ spec:
               clusterSize:
                 format: int32
                 type: integer
+              clusterVersion:
+                default: v7
+                type: string
               kubernetesConfig:
                 description: KubernetesConfig will be the JSON struct for Basic Redis
                   Config
@@ -1232,6 +1235,12 @@ spec:
                         type: object
                     type: object
                   livenessProbe:
+                    default:
+                      failureThreshold: 3
+                      initialDelaySeconds: 1
+                      periodSeconds: 10
+                      successThreshold: 1
+                      timeoutSeconds: 1
                     description: Probe is a interface for ReadinessProbe and LivenessProbe
                     properties:
                       failureThreshold:
@@ -1274,6 +1283,12 @@ spec:
                         type: integer
                     type: object
                   readinessProbe:
+                    default:
+                      failureThreshold: 3
+                      initialDelaySeconds: 1
+                      periodSeconds: 10
+                      successThreshold: 1
+                      timeoutSeconds: 1
                     description: Probe is a interface for ReadinessProbe and LivenessProbe
                     properties:
                       failureThreshold:
@@ -2195,6 +2210,12 @@ spec:
                         type: object
                     type: object
                   livenessProbe:
+                    default:
+                      failureThreshold: 3
+                      initialDelaySeconds: 1
+                      periodSeconds: 10
+                      successThreshold: 1
+                      timeoutSeconds: 1
                     description: Probe is a interface for ReadinessProbe and LivenessProbe
                     properties:
                       failureThreshold:
@@ -2237,6 +2258,12 @@ spec:
                         type: integer
                     type: object
                   readinessProbe:
+                    default:
+                      failureThreshold: 3
+                      initialDelaySeconds: 1
+                      periodSeconds: 10
+                      successThreshold: 1
+                      timeoutSeconds: 1
                     description: Probe is a interface for ReadinessProbe and LivenessProbe
                     properties:
                       failureThreshold:

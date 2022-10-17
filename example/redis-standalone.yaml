@@ -7,7 +7,7 @@ spec:
   # redisConfig:
   #   additionalRedisConfig: redis-external-config
   kubernetesConfig:
-    image: quay.io/opstree/redis:v6.2.5
+    image: quay.io/opstree/redis:v7.0.5
     imagePullPolicy: IfNotPresent
     resources:
       requests:
@@ -23,7 +23,7 @@ spec:
     #   - name: regcred
   redisExporter:
     enabled: false
-    image: quay.io/opstree/redis-exporter:1.0
+    image: quay.io/opstree/redis-exporter:v1.44.0
     imagePullPolicy: Always
     resources:
       requests:

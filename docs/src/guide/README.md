@@ -29,6 +29,7 @@ Here the features which are supported by this operator:-
     - Tolerations
     - SecurityContext
     - Storage
+    - ServiceAccount
 
 ## Architecture
 
