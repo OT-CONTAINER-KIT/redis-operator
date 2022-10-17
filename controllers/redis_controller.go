@@ -51,7 +51,10 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		}
 		return ctrl.Result{}, err
 	}
-
+	if _, found := instance.ObjectMeta.GetAnnotations()["redis.opstreelabs.in/skip-reconcile"]; found {
+		reqLogger.Info("Found annotations redis.opstreelabs.in/skip-reconcile, so skipping reconcile")
+		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+	}
 	if err := k8sutils.HandleRedisFinalizer(instance, r.Client); err != nil {
 		return ctrl.Result{}, err
 	}
