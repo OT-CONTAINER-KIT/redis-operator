@@ -1,0 +1,23 @@
+name: Deploy Documentation
+
+on:
+  push:
+    branches:
+    - master
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@master
+
+    - name: vuepress-deploy
+      uses: jenkey2011/vuepress-deploy@master
+      env:
+        ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+        TARGET_REPO: OT-CONTAINER-KIT/redis-operator
+        TARGET_BRANCH: master
+        BUILD_SCRIPT: cd docs; yarn && yarn build
+        BUILD_DIR: docs/.vuepress/dist/
+ 
