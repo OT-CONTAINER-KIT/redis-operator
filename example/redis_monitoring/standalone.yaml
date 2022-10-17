@@ -3,6 +3,8 @@ apiVersion: redis.redis.opstreelabs.in/v1beta1
 kind: Redis
 metadata:
   name: redis-standalone
+#  annotations:
+#    redis.opstreelabs.in/skip-reconcile: "true"
 spec:
   kubernetesConfig:
     image: quay.io/opstree/redis:v7.0.5
