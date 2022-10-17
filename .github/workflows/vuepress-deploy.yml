@@ -19,5 +19,5 @@ jobs:
         TARGET_REPO: OT-CONTAINER-KIT/redis-operator
         TARGET_BRANCH: master
         BUILD_SCRIPT: cd docs; yarn && yarn build
-        BUILD_DIR: docs/.vuepress/dist/
+        BUILD_DIR: docs/src/.vuepress/dist/
  
