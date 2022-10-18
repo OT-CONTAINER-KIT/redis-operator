@@ -35,6 +35,7 @@ type statefulSetParameters struct {
 	ImagePullSecrets      *[]corev1.LocalObjectReference
 	ExternalConfig        *string
 	ServiceAccountName    *string
+	UpdateStrategy        appsv1.StatefulSetUpdateStrategy
 }
 
 // containerParameters will define container input params
@@ -182,14 +183,14 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 		TypeMeta:   generateMetaInformation("StatefulSet", "apps/v1"),
 		ObjectMeta: stsMeta,
 		Spec: appsv1.StatefulSetSpec{
-			Selector:    LabelSelectors(stsMeta.GetLabels()),
-			ServiceName: fmt.Sprintf("%s-headless", stsMeta.Name),
-			Replicas:    params.Replicas,
+			Selector:       LabelSelectors(stsMeta.GetLabels()),
+			ServiceName:    fmt.Sprintf("%s-headless", stsMeta.Name),
+			Replicas:       params.Replicas,
+			UpdateStrategy: params.UpdateStrategy,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      stsMeta.GetLabels(),
 					Annotations: generateStatefulSetsAnots(stsMeta),
-					// Annotations: stsMeta.Annotations,
 				},
 				Spec: corev1.PodSpec{
 					Containers:        generateContainerDef(stsMeta.GetName(), containerParams, params.EnableMetrics, params.ExternalConfig, sidecars),

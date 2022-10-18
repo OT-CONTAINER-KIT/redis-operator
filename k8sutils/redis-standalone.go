@@ -61,6 +61,7 @@ func generateRedisStandaloneParams(cr *redisv1beta1.Redis) statefulSetParameters
 		PriorityClassName: cr.Spec.PriorityClassName,
 		Affinity:          cr.Spec.Affinity,
 		Tolerations:       cr.Spec.Tolerations,
+		UpdateStrategy:    cr.Spec.KubernetesConfig.UpdateStrategy,
 	}
 	if cr.Spec.KubernetesConfig.ImagePullSecrets != nil {
 		res.ImagePullSecrets = cr.Spec.KubernetesConfig.ImagePullSecrets
