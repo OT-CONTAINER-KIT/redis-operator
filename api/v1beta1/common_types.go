@@ -17,16 +17,18 @@ limitations under the License.
 package v1beta1
 
 import (
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 )
 
 // KubernetesConfig will be the JSON struct for Basic Redis Config
 type KubernetesConfig struct {
-	Image                  string                         `json:"image"`
-	ImagePullPolicy        corev1.PullPolicy              `json:"imagePullPolicy,omitempty"`
-	Resources              *corev1.ResourceRequirements   `json:"resources,omitempty"`
-	ExistingPasswordSecret *ExistingPasswordSecret        `json:"redisSecret,omitempty"`
-	ImagePullSecrets       *[]corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
+	Image                  string                           `json:"image"`
+	ImagePullPolicy        corev1.PullPolicy                `json:"imagePullPolicy,omitempty"`
+	Resources              *corev1.ResourceRequirements     `json:"resources,omitempty"`
+	ExistingPasswordSecret *ExistingPasswordSecret          `json:"redisSecret,omitempty"`
+	ImagePullSecrets       *[]corev1.LocalObjectReference   `json:"imagePullSecrets,omitempty"`
+	UpdateStrategy         appsv1.StatefulSetUpdateStrategy `json:"updateStrategy,omitempty"`
 }
 
 // RedisConfig defines the external configuration of Redis

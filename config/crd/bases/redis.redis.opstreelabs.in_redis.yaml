@@ -992,6 +992,28 @@ spec:
                           to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                         type: object
                     type: object
+                  updateStrategy:
+                    description: StatefulSetUpdateStrategy indicates the strategy
+                      that the StatefulSet controller will use to perform updates.
+                      It includes any additional parameters necessary to perform the
+                      update for the indicated strategy.
+                    properties:
+                      rollingUpdate:
+                        description: RollingUpdate is used to communicate parameters
+                          when Type is RollingUpdateStatefulSetStrategyType.
+                        properties:
+                          partition:
+                            description: Partition indicates the ordinal at which
+                              the StatefulSet should be partitioned. Default value
+                              is 0.
+                            format: int32
+                            type: integer
+                        type: object
+                      type:
+                        description: Type indicates the type of the StatefulSetUpdateStrategy.
+                          Default is RollingUpdate.
+                        type: string
+                    type: object
                 required:
                 - image
                 type: object
