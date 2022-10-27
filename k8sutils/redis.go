@@ -158,15 +158,16 @@ func createRedisReplicationCommand(cr *redisv1beta1.RedisCluster, leaderPod Redi
 func ExecuteRedisReplicationCommand(cr *redisv1beta1.RedisCluster) {
 	var podIP string
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
-	replicas := cr.Spec.GetReplicaCounts("follower")
+	followerCounts := cr.Spec.GetReplicaCounts("follower")
+	leaderCounts := cr.Spec.GetReplicaCounts("leader")
 	nodes := checkRedisCluster(cr)
-	for podCount := 0; podCount <= int(replicas)-1; podCount++ {
+	for followerIdx := 0; followerIdx <= int(followerCounts)-1; followerIdx++ {
 		followerPod := RedisDetails{
-			PodName:   cr.ObjectMeta.Name + "-follower-" + strconv.Itoa(podCount),
+			PodName:   cr.ObjectMeta.Name + "-follower-" + strconv.Itoa(followerIdx),
 			Namespace: cr.Namespace,
 		}
 		leaderPod := RedisDetails{
-			PodName:   cr.ObjectMeta.Name + "-leader-" + strconv.Itoa(podCount),
+			PodName:   cr.ObjectMeta.Name + "-leader-" + strconv.Itoa(int(followerIdx)%int(leaderCounts)),
 			Namespace: cr.Namespace,
 		}
 		podIP = getRedisServerIP(followerPod)
