@@ -23,5 +23,6 @@ testbin/*
 *.swp
 *.swo
 *~
+.vscode
 
 docs/build
