@@ -4,7 +4,7 @@ kind: ConfigMap
 metadata:
   name: redis-external-config
 data:
-  redis-external.conf: |
+  redis-additional.conf: |
     tcp-keepalive 400
     slowlog-max-len 158 
     stream-node-max-bytes 2048
