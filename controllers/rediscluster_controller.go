@@ -86,25 +86,27 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
-	err = k8sutils.CreateRedisFollower(instance)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	// if we have followers create their service.
-	if followerReplicas != 0 {
-		err = k8sutils.CreateRedisFollowerService(instance)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-	}
-	err = k8sutils.ReconcileRedisPodDisruptionBudget(instance, "follower", instance.Spec.RedisFollower.PodDisruptionBudget)
+	redisLeaderInfo, err := k8sutils.GetStatefulSet(instance.Namespace, instance.ObjectMeta.Name+"-leader")
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	redisLeaderInfo, err := k8sutils.GetStatefulSet(instance.Namespace, instance.ObjectMeta.Name+"-leader")
-	if err != nil {
-		return ctrl.Result{}, err
+	if int32(redisLeaderInfo.Status.ReadyReplicas) == leaderReplicas {
+		err = k8sutils.CreateRedisFollower(instance)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		// if we have followers create their service.
+		if followerReplicas != 0 {
+			err = k8sutils.CreateRedisFollowerService(instance)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+		err = k8sutils.ReconcileRedisPodDisruptionBudget(instance, "follower", instance.Spec.RedisFollower.PodDisruptionBudget)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 	redisFollowerInfo, err := k8sutils.GetStatefulSet(instance.Namespace, instance.ObjectMeta.Name+"-follower")
 	if err != nil {
