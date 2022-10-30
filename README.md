@@ -29,6 +29,8 @@ For documentation, please refer to https://ot-container-kit.github.io/redis-oper
 
 Organizations that are using Redis Operator to manage their redis workload can be found [here](./USED_BY_ORGANIZATIONS.md). If your organization is also using Redis Operator, please free to add by creating a PR https://github.com/OT-CONTAINER-KIT/redis-operator/pulls.
 
+This operator only supports versions of redis `=>6`.
+
 ## Architecture
 
 <div align="center">
@@ -37,7 +39,7 @@ Organizations that are using Redis Operator to manage their redis workload can b
 
 ### Purpose
 
-The purpose of creating this operator was to provide an easy and production grade setup of Redis on Kubernetes. It doesn't care if you have a plain on-prem Kubernetes or cloud-based.
+There are multiple problems that people face while setting up redis setup on Kubernetes, specially cluster type setup. The purpose of creating this opperator is to provide an easy and production ready interface for redis setup that include best-practices, security controls, monitoring, and management.
 
 ### Supported Features
 
@@ -45,25 +47,21 @@ Here the features which are supported by this operator:-
 
 - Redis cluster and standalone mode setup
 - Redis cluster failover and recovery
-- Inbuilt monitoring with prometheus exporter
-- Dynamic storage provisioning with pvc template
-- Resources restrictions with k8s requests and limits
-- Password/Password-less setup
-- Node selector and affinity
-- Priority class to manage setup priority
-- SecurityContext to manipulate kernel parameters
+- Inbuilt monitoring with redis exporter
+- Password and password-less setup of redis
+- TLS support for additional security layer
+- Ipv4 and Ipv6 support for redis setup
+- Detailed monitoring grafana dashboard
 
 ### Getting Started
 
 If you want to deploy redis-operator from scratch to a local Minikube cluster, begin with the [Getting started](https://ot-container-kit.github.io/redis-operator/#/quickstart/quickstart) document. It will guide your through the setup step-by-step.
 
-### Example
-
-The configuration of Redis setup should be described in Redis CRD. You will find all the examples manifests in [example](./example) folder.
+The configuration of Redis setup should be described in [CRD definitions](config/crd/bases). All the examples related to redis standalone and cluster setup can be found inside [example](./example) folder.
 
 ### Prerequisites
 
-Redis operator requires a Kubernetes cluster of version `>=1.8.0`. If you have just started with Operators, its highly recommended to use latest version of Kubernetes.
+Redis operator requires a Kubernetes cluster of version `>=1.18.0`. If you have just started with Operators, it's highly recommended using the latest version of Kubernetes.
 
 ### Quickstart
 
@@ -78,13 +76,13 @@ $ helm repo add ot-helm https://ot-container-kit.github.io/helm-charts/
 
 ```shell
 # Deploy the redis-operator
-$ helm upgrade redis-operator ot-helm/redis-operator --install --namespace redis-operator
+$ helm upgrade redis-operator ot-helm/redis-operator --install --namespace ot-operators
 ```
 
 After deployment, verify the installation of operator
 
 ```shell
-$ helm test redis-operator --namespace redis-operator
+$ helm test redis-operator --namespace ot-operators
 ```
 
 Creating redis cluster or standalone setup.
@@ -93,13 +91,13 @@ Creating redis cluster or standalone setup.
 # Create redis cluster setup
 $ helm upgrade redis-cluster ot-helm/redis-cluster \
   --set redisCluster.clusterSize=3 --install \ 
-  --namespace redis-operator
+  --namespace ot-operators
 ```
 
 ```shell
 # Create redis standalone setup
 $ helm upgrade redis ot-helm/redis \
-  --install --namespace redis-operator
+  --install --namespace ot-operators
 ```
 
 If you want to customize the value file by yourself while initializing the helm command, the values files for reference are present [here](https://github.com/OT-CONTAINER-KIT/helm-charts/tree/main/charts/redis-setup)
