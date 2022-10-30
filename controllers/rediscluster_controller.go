@@ -63,54 +63,54 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	totalReplicas := leaderReplicas + followerReplicas
 
 	if err := k8sutils.HandleRedisClusterFinalizer(instance, r.Client); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Second * 60}, err
 	}
 
 	if err := k8sutils.AddRedisClusterFinalizer(instance, r.Client); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Second * 60}, err
 	}
 
 	err = k8sutils.CreateRedisLeader(instance)
 	if err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Second * 60}, err
 	}
 	if leaderReplicas != 0 {
 		err = k8sutils.CreateRedisLeaderService(instance)
 		if err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{RequeueAfter: time.Second * 60}, err
 		}
 	}
 
 	err = k8sutils.ReconcileRedisPodDisruptionBudget(instance, "leader", instance.Spec.RedisLeader.PodDisruptionBudget)
 	if err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Second * 60}, err
 	}
 
 	redisLeaderInfo, err := k8sutils.GetStatefulSet(instance.Namespace, instance.ObjectMeta.Name+"-leader")
 	if err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Second * 60}, err
 	}
 
 	if int32(redisLeaderInfo.Status.ReadyReplicas) == leaderReplicas {
 		err = k8sutils.CreateRedisFollower(instance)
 		if err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{RequeueAfter: time.Second * 60}, err
 		}
 		// if we have followers create their service.
 		if followerReplicas != 0 {
 			err = k8sutils.CreateRedisFollowerService(instance)
 			if err != nil {
-				return ctrl.Result{}, err
+				return ctrl.Result{RequeueAfter: time.Second * 60}, err
 			}
 		}
 		err = k8sutils.ReconcileRedisPodDisruptionBudget(instance, "follower", instance.Spec.RedisFollower.PodDisruptionBudget)
 		if err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{RequeueAfter: time.Second * 60}, err
 		}
 	}
 	redisFollowerInfo, err := k8sutils.GetStatefulSet(instance.Namespace, instance.ObjectMeta.Name+"-follower")
 	if err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Second * 60}, err
 	}
 
 	if leaderReplicas == 0 {

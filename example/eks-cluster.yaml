@@ -4,7 +4,7 @@ metadata:
   name: operator-testing
   region: us-west-2
   version: "1.22"
-nodeGroups:
+managedNodeGroups:
   - name: ng-1
     instanceType: t3a.medium
     desiredCapacity: 3
@@ -12,3 +12,12 @@ nodeGroups:
     ssh:
       allow: true
     volumeType: gp3
+kubernetesNetworkConfig:
+  ipFamily: IPv4
+# ipFamily: IPv6
+addons:
+  - name: vpc-cni
+  - name: coredns
+  - name: kube-proxy
+iam:
+  withOIDC: true
