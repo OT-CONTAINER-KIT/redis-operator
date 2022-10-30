@@ -37,11 +37,11 @@ This operator only supports versions of redis `=>6`.
     <img src="./static/redis-operator-architecture.png">
 </div>
 
-### Purpose
+## Purpose
 
 There are multiple problems that people face while setting up redis setup on Kubernetes, specially cluster type setup. The purpose of creating this opperator is to provide an easy and production ready interface for redis setup that include best-practices, security controls, monitoring, and management.
 
-### Supported Features
+## Supported Features
 
 Here the features which are supported by this operator:-
 
@@ -53,17 +53,17 @@ Here the features which are supported by this operator:-
 - Ipv4 and Ipv6 support for redis setup
 - Detailed monitoring grafana dashboard
 
-### Getting Started
+## Getting Started
 
 If you want to deploy redis-operator from scratch to a local Minikube cluster, begin with the [Getting started](https://ot-container-kit.github.io/redis-operator/#/quickstart/quickstart) document. It will guide your through the setup step-by-step.
 
 The configuration of Redis setup should be described in [CRD definitions](config/crd/bases). All the examples related to redis standalone and cluster setup can be found inside [example](./example) folder.
 
-### Prerequisites
+## Prerequisites
 
 Redis operator requires a Kubernetes cluster of version `>=1.18.0`. If you have just started with Operators, it's highly recommended using the latest version of Kubernetes.
 
-### Quickstart
+## Quickstart
 
 The setup can be done by using helm. If you want to see more example, please go through the [example](./example) folder.
 
@@ -102,7 +102,7 @@ $ helm upgrade redis ot-helm/redis \
 
 If you want to customize the value file by yourself while initializing the helm command, the values files for reference are present [here](https://github.com/OT-CONTAINER-KIT/helm-charts/tree/main/charts/redis-setup)
 
-### Monitoring with Prometheus
+## Monitoring with Prometheus
 
 To monitor redis performance we will be using prometheus. In any case, extra prometheus configuration will not be required because we will be using the Prometheus service discover pattern. For that we already have set these annotations:-
 
@@ -113,14 +113,14 @@ To monitor redis performance we will be using prometheus. In any case, extra pro
     prometheus.io/port: "9121"
 ```
 
-### Development
+## Development
 
 Please see our [DEVELOPMENT.md](https://ot-container-kit.github.io/redis-operator/guide/development.html) for details.
 
-### Release History
+## Release History
 
 Please see our [CHANGELOG.md](./CHANGELOG.md) for details.
 
-### Documentation
+## Contact Information
 
-Please see our [GETTING_STARTED.md](https://ot-container-kit.github.io/redis-operator/) for details.
+This project is managed by [OpsTree Solutions](http://opstree.com). If you have any queries or suggestions, mail us at [opensource@opstree.com](opensource@opstree.com).
