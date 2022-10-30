@@ -100,7 +100,7 @@ $ helm upgrade redis ot-helm/redis \
   --install --namespace ot-operators
 ```
 
-If you want to customize the value file by yourself while initializing the helm command, the values files for reference are present [here](https://github.com/OT-CONTAINER-KIT/helm-charts/tree/main/charts/redis-setup)
+If you want to customize the value file by yourself while initializing the helm command, the values files for reference are present [here](https://github.com/OT-CONTAINER-KIT/helm-charts/tree/main/charts/redis-setup).
 
 ## Monitoring with Prometheus
 
