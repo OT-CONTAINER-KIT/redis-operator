@@ -113,9 +113,9 @@ To monitor redis performance we will be using prometheus. In any case, extra pro
     prometheus.io/port: "9121"
 ```
 
-## Development
+## Contribution
 
-Please see our [DEVELOPMENT.md](https://ot-container-kit.github.io/redis-operator/guide/development.html) for details.
+Please see our [CONTRIBUTING.md](./CONTRIBUTING.md) for details.
 
 ## Release History
 
