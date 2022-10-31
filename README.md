@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./static/redis-operator-logo.svg" height="220" width="220">
+  <img src="./static/redis-operator-logo.svg" height="440" width="400">
 </p>
 
 <p align="center">
