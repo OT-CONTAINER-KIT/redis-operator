@@ -134,6 +134,12 @@ $ make manager
 $ make docker-build
 ```
 
+For any change inside the `api` module, we need to recreate the CRD schema because of interface changes. To generate the CRD manifest and RBAC policies updated by operator:
+
+```shell
+$ make manifests
+```
+
 ### Deploying Operator
 
 The operator deployment can be done via `helm` cli, we just need to define the custom image name and tag for testing the operator functionality:
