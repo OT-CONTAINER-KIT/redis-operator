@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./static/redis-operator-logo.svg" height="220" width="220">
+  <img src="./static/redis-operator-logo.svg" height="330" width="330">
 </p>
 
 <p align="center">
@@ -25,9 +25,11 @@
 
 A Golang based redis operator that will make/oversee Redis standalone and cluster mode setup on top of the Kubernetes. It can create a redis cluster setup with best practices on Cloud as well as the Bare metal environment. Also, it provides an in-built monitoring capability using redis-exporter.
 
-For documentation, please refer to https://ot-container-kit.github.io/redis-operator/
+For documentation, please refer to https://ot-redis-operator.opstreelabs.in
 
 Organizations that are using Redis Operator to manage their redis workload can be found [here](./USED_BY_ORGANIZATIONS.md). If your organization is also using Redis Operator, please free to add by creating a PR https://github.com/OT-CONTAINER-KIT/redis-operator/pulls.
+
+This operator only supports versions of redis `=>6`.
 
 ## Architecture
 
@@ -35,37 +37,33 @@ Organizations that are using Redis Operator to manage their redis workload can b
     <img src="./static/redis-operator-architecture.png">
 </div>
 
-### Purpose
+## Purpose
 
-The purpose of creating this operator was to provide an easy and production grade setup of Redis on Kubernetes. It doesn't care if you have a plain on-prem Kubernetes or cloud-based.
+There are multiple problems that people face while setting up redis setup on Kubernetes, specially cluster type setup. The purpose of creating this opperator is to provide an easy and production ready interface for redis setup that include best-practices, security controls, monitoring, and management.
 
-### Supported Features
+## Supported Features
 
 Here the features which are supported by this operator:-
 
 - Redis cluster and standalone mode setup
 - Redis cluster failover and recovery
-- Inbuilt monitoring with prometheus exporter
-- Dynamic storage provisioning with pvc template
-- Resources restrictions with k8s requests and limits
-- Password/Password-less setup
-- Node selector and affinity
-- Priority class to manage setup priority
-- SecurityContext to manipulate kernel parameters
+- Inbuilt monitoring with redis exporter
+- Password and password-less setup of redis
+- TLS support for additional security layer
+- Ipv4 and Ipv6 support for redis setup
+- Detailed monitoring grafana dashboard
 
-### Getting Started
+## Getting Started
 
 If you want to deploy redis-operator from scratch to a local Minikube cluster, begin with the [Getting started](https://ot-container-kit.github.io/redis-operator/#/quickstart/quickstart) document. It will guide your through the setup step-by-step.
 
-### Example
+The configuration of Redis setup should be described in [CRD definitions](config/crd/bases). All the examples related to redis standalone and cluster setup can be found inside [example](./example) folder.
 
-The configuration of Redis setup should be described in Redis CRD. You will find all the examples manifests in [example](./example) folder.
+## Prerequisites
 
-### Prerequisites
+Redis operator requires a Kubernetes cluster of version `>=1.18.0`. If you have just started with Operators, it's highly recommended using the latest version of Kubernetes.
 
-Redis operator requires a Kubernetes cluster of version `>=1.8.0`. If you have just started with Operators, its highly recommended to use latest version of Kubernetes.
-
-### Quickstart
+## Quickstart
 
 The setup can be done by using helm. If you want to see more example, please go through the [example](./example) folder.
 
@@ -78,13 +76,13 @@ $ helm repo add ot-helm https://ot-container-kit.github.io/helm-charts/
 
 ```shell
 # Deploy the redis-operator
-$ helm upgrade redis-operator ot-helm/redis-operator --install --namespace redis-operator
+$ helm upgrade redis-operator ot-helm/redis-operator --install --namespace ot-operators
 ```
 
 After deployment, verify the installation of operator
 
 ```shell
-$ helm test redis-operator --namespace redis-operator
+$ helm test redis-operator --namespace ot-operators
 ```
 
 Creating redis cluster or standalone setup.
@@ -93,18 +91,18 @@ Creating redis cluster or standalone setup.
 # Create redis cluster setup
 $ helm upgrade redis-cluster ot-helm/redis-cluster \
   --set redisCluster.clusterSize=3 --install \ 
-  --namespace redis-operator
+  --namespace ot-operators
 ```
 
 ```shell
 # Create redis standalone setup
 $ helm upgrade redis ot-helm/redis \
-  --install --namespace redis-operator
+  --install --namespace ot-operators
 ```
 
-If you want to customize the value file by yourself while initializing the helm command, the values files for reference are present [here](https://github.com/OT-CONTAINER-KIT/helm-charts/tree/main/charts/redis-setup)
+If you want to customize the value file by yourself while initializing the helm command, the values files for reference are present [here](https://github.com/OT-CONTAINER-KIT/helm-charts/tree/main/charts/redis-setup).
 
-### Monitoring with Prometheus
+## Monitoring with Prometheus
 
 To monitor redis performance we will be using prometheus. In any case, extra prometheus configuration will not be required because we will be using the Prometheus service discover pattern. For that we already have set these annotations:-
 
@@ -115,14 +113,14 @@ To monitor redis performance we will be using prometheus. In any case, extra pro
     prometheus.io/port: "9121"
 ```
 
-### Development
+## Contribution
 
-Please see our [DEVELOPMENT.md](https://ot-container-kit.github.io/redis-operator/guide/development.html) for details.
+Please see our [CONTRIBUTING.md](./CONTRIBUTING.md) for details.
 
-### Release History
+## Release History
 
 Please see our [CHANGELOG.md](./CHANGELOG.md) for details.
 
-### Documentation
+## Contact Information
 
-Please see our [GETTING_STARTED.md](https://ot-container-kit.github.io/redis-operator/) for details.
+This project is managed by [OpsTree Solutions](http://opstree.com). If you have any queries or suggestions, mail us at [opensource@opstree.com](opensource@opstree.com).

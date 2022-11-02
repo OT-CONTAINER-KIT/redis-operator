@@ -5,13 +5,12 @@ kind: Redis
 metadata:
   name: redis-standalone
 spec:
-
   TLS:
     ca: ca.key
     cert: tls.crt
     key: tls.key
     secret:
-      secretName: sample-cert
+      secretName: redis-tls-cert
   securityContext:
     runAsUser: 1000
     fsGroup: 1000
@@ -25,7 +24,6 @@ spec:
       limits:
         cpu: 101m
         memory: 128Mi
-
   redisExporter:
     enabled: false
     image: quay.io/opstree/redis-exporter:v1.44.0
@@ -37,7 +35,6 @@ spec:
       limits:
         cpu: 100m
         memory: 128Mi
-
   storage:
     volumeClaimTemplate:
       spec:

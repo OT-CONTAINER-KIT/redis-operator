@@ -23,6 +23,6 @@ extends:
     ApplicationName: redis-operator
     QuayImageName: opstree/redis-operator
     GithubImageName: ot-container-kit/redis-operator/redis-operator
-    BuildDocs: true
+    BuildDocs: false
     AppVersion: "v0.13.0"
     GolangVersion: "1.17"
