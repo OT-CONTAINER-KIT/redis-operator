@@ -7,6 +7,7 @@ currently being supported with security updates.
 
 | Version | Supported          |
 |---------|--------------------|
+| 0.13.0  | :white_check_mark: |
 | 0.12.0  | :white_check_mark: |
 | 0.11.0  | :white_check_mark: |
 | 0.10.0  | :x:                |
@@ -23,4 +24,4 @@ currently being supported with security updates.
 
 ## Reporting a Vulnerability
 
-If you find any security vulnerability inside the Project, please open a issue at https://github.com/OT-CONTAINER-KIT/redis-operator/issues
+If you find any security vulnerability inside the Project, please open an issue at https://github.com/OT-CONTAINER-KIT/redis-operator/issues
