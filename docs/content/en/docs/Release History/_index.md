@@ -7,6 +7,23 @@ description: >
   Release versions and their description about Redis Operator
 ---
 
+### v0.13.0
+##### November 10, 2022
+
+**🐞 Bug Fixes**
+
+- Fixed multiple follower logic for redis cluster
+
+**🎉 Features**
+
+- Updated all examples for Redis v7
+- Revamped documentation with the latest information
+- Added pause option for reconcilations
+- Added support for arm64
+- Added update strategy for statefulset
+- Added logic for updating follower replicas
+- Added TLS feature for standalone
+
 ### v0.12.0
 ##### October 12, 2022
 
