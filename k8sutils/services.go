@@ -26,8 +26,9 @@ func generateServiceDef(serviceMeta metav1.ObjectMeta, enableMetrics bool, owner
 		TypeMeta:   generateMetaInformation("Service", "v1"),
 		ObjectMeta: serviceMeta,
 		Spec: corev1.ServiceSpec{
-			Type:     generateServiceType(serviceType),
-			Selector: serviceMeta.GetLabels(),
+			Type:      generateServiceType(serviceType),
+			ClusterIP: "",
+			Selector:  serviceMeta.GetLabels(),
 			Ports: []corev1.ServicePort{
 				{
 					Name:       "redis-client",
