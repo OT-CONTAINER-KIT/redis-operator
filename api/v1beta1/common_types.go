@@ -29,6 +29,11 @@ type KubernetesConfig struct {
 	ExistingPasswordSecret *ExistingPasswordSecret          `json:"redisSecret,omitempty"`
 	ImagePullSecrets       *[]corev1.LocalObjectReference   `json:"imagePullSecrets,omitempty"`
 	UpdateStrategy         appsv1.StatefulSetUpdateStrategy `json:"updateStrategy,omitempty"`
+	Service                *ServiceConfig                   `json:"service,omitempty"`
+}
+
+// ServiceConfig define the type of service to be created and its annotations
+type ServiceConfig struct {
 	// +kubebuilder:validation:Enum=LoadBalancer;NodePort;ClusterIP
 	ServiceType        string            `json:"serviceType,omitempty"`
 	ServiceAnnotations map[string]string `json:"annotations,omitempty"`
