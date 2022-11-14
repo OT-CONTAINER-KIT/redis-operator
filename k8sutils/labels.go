@@ -84,11 +84,10 @@ func generateServiceAnots(stsMeta metav1.ObjectMeta, serviceAnots map[string]str
 	for k, v := range stsMeta.GetAnnotations() {
 		anots[k] = v
 	}
-	if serviceAnots != nil {
-		for k := range serviceAnots {
-			anots[k] = serviceAnots[k]
-		}
+	for k := range serviceAnots {
+		anots[k] = serviceAnots[k]
 	}
+
 	return filterAnnotations(anots)
 }
 
