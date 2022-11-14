@@ -137,6 +137,10 @@ spec:
                 description: KubernetesConfig will be the JSON struct for Basic Redis
                   Config
                 properties:
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    type: object
                   image:
                     type: string
                   imagePullPolicy:
@@ -190,6 +194,12 @@ spec:
                           to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                         type: object
                     type: object
+                  serviceType:
+                    enum:
+                    - LoadBalancer
+                    - NodePort
+                    - ClusterIP
+                    type: string
                   updateStrategy:
                     description: StatefulSetUpdateStrategy indicates the strategy
                       that the StatefulSet controller will use to perform updates.

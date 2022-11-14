@@ -74,7 +74,7 @@ func filterAnnotations(anots map[string]string) map[string]string {
 }
 
 // generateServiceAnots generates and returns service annotations
-func generateServiceAnots(stsMeta metav1.ObjectMeta) map[string]string {
+func generateServiceAnots(stsMeta metav1.ObjectMeta, serviceAnots map[string]string) map[string]string {
 	anots := map[string]string{
 		"redis.opstreelabs.in":       "true",
 		"redis.opstreelabs.instance": stsMeta.GetName(),
@@ -83,6 +83,11 @@ func generateServiceAnots(stsMeta metav1.ObjectMeta) map[string]string {
 	}
 	for k, v := range stsMeta.GetAnnotations() {
 		anots[k] = v
+	}
+	if serviceAnots != nil {
+		for k := range serviceAnots {
+			anots[k] = serviceAnots[k]
+		}
 	}
 	return filterAnnotations(anots)
 }

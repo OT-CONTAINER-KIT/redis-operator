@@ -21,12 +21,12 @@ var (
 )
 
 // generateServiceDef generates service definition for Redis
-func generateServiceDef(serviceMeta metav1.ObjectMeta, enableMetrics bool, ownerDef metav1.OwnerReference, headless bool) *corev1.Service {
+func generateServiceDef(serviceMeta metav1.ObjectMeta, enableMetrics bool, ownerDef metav1.OwnerReference, headless bool, serviceType string) *corev1.Service {
 	service := &corev1.Service{
 		TypeMeta:   generateMetaInformation("Service", "v1"),
 		ObjectMeta: serviceMeta,
 		Spec: corev1.ServiceSpec{
-			Type:      generateServiceType("ClusterIP"),
+			Type:      generateServiceType(serviceType),
 			ClusterIP: "",
 			Selector:  serviceMeta.GetLabels(),
 			Ports: []corev1.ServicePort{
@@ -120,9 +120,9 @@ func serviceLogger(namespace string, name string) logr.Logger {
 }
 
 // CreateOrUpdateService method will create or update Redis service
-func CreateOrUpdateService(namespace string, serviceMeta metav1.ObjectMeta, ownerDef metav1.OwnerReference, enableMetrics, headless bool) error {
+func CreateOrUpdateService(namespace string, serviceMeta metav1.ObjectMeta, ownerDef metav1.OwnerReference, enableMetrics, headless bool, serviceType string) error {
 	logger := serviceLogger(namespace, serviceMeta.Name)
-	serviceDef := generateServiceDef(serviceMeta, enableMetrics, ownerDef, headless)
+	serviceDef := generateServiceDef(serviceMeta, enableMetrics, ownerDef, headless, serviceType)
 	storedService, err := getService(namespace, serviceMeta.Name)
 	if err != nil {
 		if errors.IsNotFound(err) {

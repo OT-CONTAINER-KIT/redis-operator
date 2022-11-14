@@ -29,6 +29,9 @@ type KubernetesConfig struct {
 	ExistingPasswordSecret *ExistingPasswordSecret          `json:"redisSecret,omitempty"`
 	ImagePullSecrets       *[]corev1.LocalObjectReference   `json:"imagePullSecrets,omitempty"`
 	UpdateStrategy         appsv1.StatefulSetUpdateStrategy `json:"updateStrategy,omitempty"`
+	// +kubebuilder:validation:Enum=LoadBalancer;NodePort;ClusterIP
+	ServiceType        string            `json:"serviceType,omitempty"`
+	ServiceAnnotations map[string]string `json:"annotations,omitempty"`
 }
 
 // RedisConfig defines the external configuration of Redis
