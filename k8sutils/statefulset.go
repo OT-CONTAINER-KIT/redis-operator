@@ -3,6 +3,11 @@ package k8sutils
 import (
 	"context"
 	"fmt"
+	"path"
+	redisv1beta1 "redis-operator/api/v1beta1"
+	"sort"
+	"strconv"
+
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -11,10 +16,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"path"
-	redisv1beta1 "redis-operator/api/v1beta1"
-	"sort"
-	"strconv"
 )
 
 const (
@@ -55,6 +56,8 @@ type containerParameters struct {
 	TLSConfig                    *redisv1beta1.TLSConfig
 	ReadinessProbe               *redisv1beta1.Probe
 	LivenessProbe                *redisv1beta1.Probe
+	AdditionalVolume             []corev1.Volume
+	UserMountPath                []corev1.VolumeMount
 }
 
 // CreateOrUpdateStateFul method will create or update Redis service
@@ -208,11 +211,16 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 	if params.ImagePullSecrets != nil {
 		statefulset.Spec.Template.Spec.ImagePullSecrets = *params.ImagePullSecrets
 	}
+
+	// Add Volume Claim template of statefulsets
 	if containerParams.PersistenceEnabled != nil && *containerParams.PersistenceEnabled {
 		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, createPVCTemplate(stsMeta, params.PersistentVolumeClaim))
 	}
+
+	// Add Volume to spec.template.spec
 	if params.ExternalConfig != nil {
 		statefulset.Spec.Template.Spec.Volumes = getExternalConfig(*params.ExternalConfig)
+		statefulset.Spec.Template.Spec.Volumes = append(statefulset.Spec.Template.Spec.Volumes, containerParams.AdditionalVolume...)
 	}
 
 	if containerParams.TLSConfig != nil {
@@ -273,7 +281,7 @@ func createPVCTemplate(stsMeta metav1.ObjectMeta, storageSpec corev1.PersistentV
 }
 
 // generateContainerDef generates container definition for Redis
-func generateContainerDef(name string, containerParams containerParameters, enableMetrics bool, externalConfig *string, sidecars []redisv1beta1.Sidecar) []corev1.Container {
+func generateContainerDef(name string, containerParams containerParameters, enableMetrics bool, externalConfig *string, userDefined *string, userMountPath string, sidecars []redisv1beta1.Sidecar) []corev1.Container {
 	containerDefinition := []corev1.Container{
 		{
 			Name:            name,
@@ -291,7 +299,7 @@ func generateContainerDef(name string, containerParams containerParameters, enab
 			),
 			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe),
 			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe),
-			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, externalConfig, containerParams.TLSConfig),
+			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, externalConfig, userDefined, userMountPath, containerParams.TLSConfig),
 		},
 	}
 
@@ -381,7 +389,7 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 }
 
 // getVolumeMount gives information about persistence mount
-func getVolumeMount(name string, persistenceEnabled *bool, externalConfig *string, tlsConfig *redisv1beta1.TLSConfig) []corev1.VolumeMount {
+func getVolumeMount(name string, persistenceEnabled *bool, externalConfig *string, mountpath corev1.VolumeMount, tlsConfig *redisv1beta1.TLSConfig) []corev1.VolumeMount {
 	var VolumeMounts []corev1.VolumeMount
 
 	if persistenceEnabled != nil && *persistenceEnabled {
@@ -405,6 +413,8 @@ func getVolumeMount(name string, persistenceEnabled *bool, externalConfig *strin
 			MountPath: "/etc/redis/external.conf.d",
 		})
 	}
+
+	VolumeMounts = append(VolumeMounts, mountpath)
 
 	return VolumeMounts
 }

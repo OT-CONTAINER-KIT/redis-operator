@@ -87,10 +87,12 @@ func generateRedisStandaloneContainerParams(cr *redisv1beta1.Redis) containerPar
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{
-		Role:            "standalone",
-		Image:           cr.Spec.KubernetesConfig.Image,
-		ImagePullPolicy: cr.Spec.KubernetesConfig.ImagePullPolicy,
-		Resources:       cr.Spec.KubernetesConfig.Resources,
+		Role:             "standalone",
+		Image:            cr.Spec.KubernetesConfig.Image,
+		ImagePullPolicy:  cr.Spec.KubernetesConfig.ImagePullPolicy,
+		Resources:        cr.Spec.KubernetesConfig.Resources,
+		AdditionalVolume: ,
+		UserMountPath:    ,
 	}
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
 		containerProp.EnabledPassword = &trueProperty
