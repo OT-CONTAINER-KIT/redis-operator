@@ -196,7 +196,7 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 					Annotations: generateStatefulSetsAnots(stsMeta),
 				},
 				Spec: corev1.PodSpec{
-					Containers:        generateContainerDef(stsMeta.GetName(), containerParams, params.EnableMetrics, params.ExternalConfig, sidecars),
+					Containers:        generateContainerDef(stsMeta.GetName(), containerParams, params.EnableMetrics, params.ExternalConfig, containerParams.UserMountPath, sidecars),
 					NodeSelector:      params.NodeSelector,
 					SecurityContext:   params.SecurityContext,
 					PriorityClassName: params.PriorityClassName,
@@ -281,7 +281,7 @@ func createPVCTemplate(stsMeta metav1.ObjectMeta, storageSpec corev1.PersistentV
 }
 
 // generateContainerDef generates container definition for Redis
-func generateContainerDef(name string, containerParams containerParameters, enableMetrics bool, externalConfig *string, userDefined *string, userMountPath string, sidecars []redisv1beta1.Sidecar) []corev1.Container {
+func generateContainerDef(name string, containerParams containerParameters, enableMetrics bool, externalConfig *string, mountpath []corev1.VolumeMount, sidecars []redisv1beta1.Sidecar) []corev1.Container {
 	containerDefinition := []corev1.Container{
 		{
 			Name:            name,
@@ -299,7 +299,7 @@ func generateContainerDef(name string, containerParams containerParameters, enab
 			),
 			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe),
 			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe),
-			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, externalConfig, userDefined, userMountPath, containerParams.TLSConfig),
+			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, externalConfig, mountpath, containerParams.TLSConfig),
 		},
 	}
 
@@ -380,7 +380,7 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 			params.RedisExporterEnv,
 			params.TLSConfig,
 		),
-		VolumeMounts: getVolumeMount("", nil, nil, params.TLSConfig), // We need/want the tls-certs but we DON'T need the PVC (if one is available)
+		VolumeMounts: getVolumeMount("", nil, nil, params.UserMountPath, params.TLSConfig), // We need/want the tls-certs but we DON'T need the PVC (if one is available)
 	}
 	if params.RedisExporterResources != nil {
 		exporterDefinition.Resources = *params.RedisExporterResources
@@ -389,7 +389,7 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 }
 
 // getVolumeMount gives information about persistence mount
-func getVolumeMount(name string, persistenceEnabled *bool, externalConfig *string, mountpath corev1.VolumeMount, tlsConfig *redisv1beta1.TLSConfig) []corev1.VolumeMount {
+func getVolumeMount(name string, persistenceEnabled *bool, externalConfig *string, mountpath []corev1.VolumeMount, tlsConfig *redisv1beta1.TLSConfig) []corev1.VolumeMount {
 	var VolumeMounts []corev1.VolumeMount
 
 	if persistenceEnabled != nil && *persistenceEnabled {
@@ -414,7 +414,7 @@ func getVolumeMount(name string, persistenceEnabled *bool, externalConfig *strin
 		})
 	}
 
-	VolumeMounts = append(VolumeMounts, mountpath)
+	VolumeMounts = append(VolumeMounts, mountpath...)
 
 	return VolumeMounts
 }

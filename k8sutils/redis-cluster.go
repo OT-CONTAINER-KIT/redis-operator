@@ -57,8 +57,8 @@ func generateRedisClusterContainerParams(cr *redisv1beta1.RedisCluster, readines
 		Image:            cr.Spec.KubernetesConfig.Image,
 		ImagePullPolicy:  cr.Spec.KubernetesConfig.ImagePullPolicy,
 		Resources:        cr.Spec.KubernetesConfig.Resources,
-		AdditionalVolume: ,
-		UserMountPath:  ,
+		AdditionalVolume: cr.Spec.Storage.VolumeMount.Volume,
+		UserMountPath:    cr.Spec.Storage.VolumeMount.Mount,
 	}
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
 		containerProp.EnabledPassword = &trueProperty
@@ -80,10 +80,9 @@ func generateRedisClusterContainerParams(cr *redisv1beta1.RedisCluster, readines
 		}
 
 	}
-	// 
+	//
 
-	
-	// 
+	//
 
 	if readinessProbeDef != nil {
 		containerProp.ReadinessProbe = readinessProbeDef
