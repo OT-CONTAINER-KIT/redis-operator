@@ -190,6 +190,21 @@ spec:
                           to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                         type: object
                     type: object
+                  service:
+                    description: ServiceConfig define the type of service to be created
+                      and its annotations
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      serviceType:
+                        enum:
+                        - LoadBalancer
+                        - NodePort
+                        - ClusterIP
+                        type: string
+                    type: object
                   updateStrategy:
                     description: StatefulSetUpdateStrategy indicates the strategy
                       that the StatefulSet controller will use to perform updates.
