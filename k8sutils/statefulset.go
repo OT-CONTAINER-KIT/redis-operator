@@ -57,7 +57,7 @@ type containerParameters struct {
 	ReadinessProbe               *redisv1beta1.Probe
 	LivenessProbe                *redisv1beta1.Probe
 	AdditionalVolume             []corev1.Volume
-	UserMountPath                []corev1.VolumeMount
+	AdditionalMountPath          []corev1.VolumeMount
 }
 
 // CreateOrUpdateStateFul method will create or update Redis service
@@ -196,7 +196,7 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 					Annotations: generateStatefulSetsAnots(stsMeta),
 				},
 				Spec: corev1.PodSpec{
-					Containers:        generateContainerDef(stsMeta.GetName(), containerParams, params.EnableMetrics, params.ExternalConfig, containerParams.UserMountPath, sidecars),
+					Containers:        generateContainerDef(stsMeta.GetName(), containerParams, params.EnableMetrics, params.ExternalConfig, containerParams.AdditionalMountPath, sidecars),
 					NodeSelector:      params.NodeSelector,
 					SecurityContext:   params.SecurityContext,
 					PriorityClassName: params.PriorityClassName,
@@ -376,7 +376,7 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 			params.RedisExporterEnv,
 			params.TLSConfig,
 		),
-		VolumeMounts: getVolumeMount("", nil, nil, params.UserMountPath, params.TLSConfig), // We need/want the tls-certs but we DON'T need the PVC (if one is available)
+		VolumeMounts: getVolumeMount("", nil, nil, params.AdditionalMountPath, params.TLSConfig), // We need/want the tls-certs but we DON'T need the PVC (if one is available)
 	}
 	if params.RedisExporterResources != nil {
 		exporterDefinition.Resources = *params.RedisExporterResources
