@@ -175,9 +175,13 @@ func (service RedisClusterService) CreateRedisClusterService(cr *redisv1beta1.Re
 	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
 		enableMetrics = true
 	}
+	additionalServiceAnnotations := map[string]string{}
+	if cr.Spec.KubernetesConfig.Service != nil {
+		additionalServiceAnnotations = cr.Spec.KubernetesConfig.Service.ServiceAnnotations
+	}
 	objectMetaInfo := generateObjectMetaInformation(serviceName, cr.Namespace, labels, annotations)
 	headlessObjectMetaInfo := generateObjectMetaInformation(serviceName+"-headless", cr.Namespace, labels, annotations)
-	additionalObjectMetaInfo := generateObjectMetaInformation(serviceName+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.Service.ServiceAnnotations))
+	additionalObjectMetaInfo := generateObjectMetaInformation(serviceName+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, additionalServiceAnnotations))
 	err := CreateOrUpdateService(cr.Namespace, headlessObjectMetaInfo, redisClusterAsOwner(cr), false, true, "ClusterIP")
 	if err != nil {
 		logger.Error(err, "Cannot create headless service for Redis", "Setup.Type", service.RedisServiceRole)
