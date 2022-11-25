@@ -33,7 +33,11 @@ func CreateStandaloneService(cr *redisv1beta1.Redis) error {
 		logger.Error(err, "Cannot create standalone service for Redis")
 		return err
 	}
-	err = CreateOrUpdateService(cr.Namespace, additionalObjectMetaInfo, redisAsOwner(cr), false, false, cr.Spec.KubernetesConfig.Service.ServiceType)
+	additionalServiceType := "ClusterIP"
+	if cr.Spec.KubernetesConfig.Service != nil {
+		additionalServiceType = cr.Spec.KubernetesConfig.Service.ServiceType
+	}
+	err = CreateOrUpdateService(cr.Namespace, additionalObjectMetaInfo, redisAsOwner(cr), false, false, additionalServiceType)
 	if err != nil {
 		logger.Error(err, "Cannot create additional service for Redis")
 		return err

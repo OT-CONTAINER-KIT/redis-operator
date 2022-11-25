@@ -192,7 +192,11 @@ func (service RedisClusterService) CreateRedisClusterService(cr *redisv1beta1.Re
 		logger.Error(err, "Cannot create service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err
 	}
-	err = CreateOrUpdateService(cr.Namespace, additionalObjectMetaInfo, redisClusterAsOwner(cr), false, false, cr.Spec.KubernetesConfig.Service.ServiceType)
+	additionalServiceType := "ClusterIP"
+	if cr.Spec.KubernetesConfig.Service != nil {
+		additionalServiceType = cr.Spec.KubernetesConfig.Service.ServiceType
+	}
+	err = CreateOrUpdateService(cr.Namespace, additionalObjectMetaInfo, redisClusterAsOwner(cr), false, false, additionalServiceType)
 	if err != nil {
 		logger.Error(err, "Cannot create additional service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err
