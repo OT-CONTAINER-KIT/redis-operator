@@ -16,9 +16,13 @@ func CreateStandaloneService(cr *redisv1beta1.Redis) error {
 	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
 		enableMetrics = true
 	}
+	additionalServiceAnnotations := map[string]string{}
+	if cr.Spec.KubernetesConfig.Service != nil {
+		additionalServiceAnnotations = cr.Spec.KubernetesConfig.Service.ServiceAnnotations
+	}
 	objectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name, cr.Namespace, labels, annotations)
 	headlessObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-headless", cr.Namespace, labels, annotations)
-	additionalObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.Service.ServiceAnnotations))
+	additionalObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, additionalServiceAnnotations))
 	err := CreateOrUpdateService(cr.Namespace, headlessObjectMetaInfo, redisAsOwner(cr), false, true, "ClusterIP")
 	if err != nil {
 		logger.Error(err, "Cannot create standalone headless service for Redis")
@@ -29,7 +33,11 @@ func CreateStandaloneService(cr *redisv1beta1.Redis) error {
 		logger.Error(err, "Cannot create standalone service for Redis")
 		return err
 	}
-	err = CreateOrUpdateService(cr.Namespace, additionalObjectMetaInfo, redisAsOwner(cr), false, false, cr.Spec.KubernetesConfig.Service.ServiceType)
+	additionalServiceType := "ClusterIP"
+	if cr.Spec.KubernetesConfig.Service != nil {
+		additionalServiceType = cr.Spec.KubernetesConfig.Service.ServiceType
+	}
+	err = CreateOrUpdateService(cr.Namespace, additionalObjectMetaInfo, redisAsOwner(cr), false, false, additionalServiceType)
 	if err != nil {
 		logger.Error(err, "Cannot create additional service for Redis")
 		return err
