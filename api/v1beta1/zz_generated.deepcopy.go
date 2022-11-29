@@ -36,8 +36,8 @@ func (in *AdditionalVolume) DeepCopyInto(out *AdditionalVolume) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.Mount != nil {
-		in, out := &in.Mount, &out.Mount
+	if in.MountPath != nil {
+		in, out := &in.MountPath, &out.MountPath
 		*out = make([]v1.VolumeMount, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])

@@ -58,8 +58,8 @@ type Storage struct {
 
 // Additional Volume is provided by user that is mounted on the pods
 type AdditionalVolume struct {
-	Volume []corev1.Volume      `json:"volume,omitempty"`
-	Mount  []corev1.VolumeMount `json:"mount,omitempty"`
+	Volume    []corev1.Volume      `json:"volume,omitempty"`
+	MountPath []corev1.VolumeMount `json:"mountPath,omitempty"`
 }
 
 // RedisExporter interface will have the information for redis exporter related stuff

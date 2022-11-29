@@ -2978,7 +2978,7 @@ spec:
                     description: Additional Volume is provided by user that is mounted
                       on the pods
                     properties:
-                      mount:
+                      mountPath:
                         items:
                           description: VolumeMount describes a mounting of a Volume
                             within a container.
