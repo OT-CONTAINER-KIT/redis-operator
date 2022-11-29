@@ -201,7 +201,6 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 					SecurityContext:   params.SecurityContext,
 					PriorityClassName: params.PriorityClassName,
 					Affinity:          params.Affinity,
-					Volumes:           containerParams.AdditionalVolume,
 				},
 			},
 		},
@@ -217,6 +216,9 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 	}
 	if params.ExternalConfig != nil {
 		statefulset.Spec.Template.Spec.Volumes = getExternalConfig(*params.ExternalConfig)
+	}
+	if containerParams.AdditionalVolume != nil {
+		statefulset.Spec.Template.Spec.Volumes = append(statefulset.Spec.Template.Spec.Volumes, containerParams.AdditionalVolume...)
 	}
 
 	if containerParams.TLSConfig != nil {
