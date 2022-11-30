@@ -70,6 +70,14 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{RequeueAfter: time.Second * 60}, err
 	}
 
+	if instance.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret != nil {
+		err = k8sutils.GenerateSecrets(instance.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Name, instance.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.NameSpace, instance.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Key)
+		if err != nil {
+			reqLogger.Error(err, "Failed to create the Secrets")
+			return ctrl.Result{}, err
+		}
+	}
+
 	err = k8sutils.CreateRedisLeader(instance)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: time.Second * 60}, err

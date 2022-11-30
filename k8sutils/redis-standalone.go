@@ -108,11 +108,18 @@ func generateRedisStandaloneContainerParams(cr *redisv1beta1.Redis) containerPar
 		AdditionalVolume:    cr.Spec.Storage.VolumeMount.Volume,
 		AdditionalMountPath: cr.Spec.Storage.VolumeMount.MountPath,
 	}
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
+	switch true {
+	case cr.Spec.KubernetesConfig.ExistOrGenerateSecret.ExistingPasswordSecret != nil:
 		containerProp.EnabledPassword = &trueProperty
-		containerProp.SecretName = cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name
-		containerProp.SecretKey = cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key
-	} else {
+		containerProp.SecretName = cr.Spec.KubernetesConfig.ExistOrGenerateSecret.ExistingPasswordSecret.Name
+		containerProp.SecretKey = cr.Spec.KubernetesConfig.ExistOrGenerateSecret.ExistingPasswordSecret.Key
+
+	case cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret != nil:
+		containerProp.EnabledPassword = &trueProperty
+		containerProp.SecretName = &cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Name
+		containerProp.SecretKey = &cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Key
+
+	default:
 		containerProp.EnabledPassword = &falseProperty
 	}
 	if cr.Spec.RedisExporter != nil {
