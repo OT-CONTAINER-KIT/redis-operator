@@ -65,6 +65,13 @@ type GeneratePassword struct {
 // Storage is the inteface to add pvc and pv support in redis
 type Storage struct {
 	VolumeClaimTemplate corev1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
+	VolumeMount         AdditionalVolume             `json:"volumemount,omitempty"`
+}
+
+// Additional Volume is provided by user that is mounted on the pods
+type AdditionalVolume struct {
+	Volume    []corev1.Volume      `json:"volume,omitempty"`
+	MountPath []corev1.VolumeMount `json:"mountPath,omitempty"`
 }
 
 // RedisExporter interface will have the information for redis exporter related stuff
