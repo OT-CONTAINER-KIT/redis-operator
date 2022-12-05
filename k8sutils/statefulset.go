@@ -379,6 +379,13 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 			params.TLSConfig,
 		),
 		VolumeMounts: getVolumeMount("", nil, nil, params.AdditionalMountPath, params.TLSConfig), // We need/want the tls-certs but we DON'T need the PVC (if one is available)
+		Ports: []corev1.ContainerPort{
+			{
+				Name:          redisExporterPortName,
+				ContainerPort: redisExporterPort,
+				Protocol:      corev1.ProtocolTCP,
+			},
+		},
 	}
 	if params.RedisExporterResources != nil {
 		exporterDefinition.Resources = *params.RedisExporterResources
