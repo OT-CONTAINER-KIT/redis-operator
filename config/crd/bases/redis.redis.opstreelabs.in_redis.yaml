@@ -939,33 +939,6 @@ spec:
                 description: KubernetesConfig will be the JSON struct for Basic Redis
                   Config
                 properties:
-                  existOrGenerateSecrets:
-                    maxProperties: 1
-                    properties:
-                      generatePasswordSecret:
-                        properties:
-                          key:
-                            type: string
-                          name:
-                            type: string
-                          namespace:
-                            items:
-                              type: string
-                            type: array
-                        required:
-                        - key
-                        - name
-                        type: object
-                      redisSecret:
-                        description: ExistingPasswordSecret is the struct to access
-                          the existing secret
-                        properties:
-                          key:
-                            type: string
-                          name:
-                            type: string
-                        type: object
-                    type: object
                   image:
                     type: string
                   imagePullPolicy:
@@ -983,6 +956,32 @@ spec:
                           type: string
                       type: object
                     type: array
+                  redisSecret:
+                    maxProperties: 1
+                    properties:
+                      existRedisSecret:
+                        description: ExistingPasswordSecret is the struct to access
+                          the existing secret
+                        properties:
+                          key:
+                            type: string
+                          name:
+                            type: string
+                        type: object
+                      generatePasswordSecret:
+                        properties:
+                          key:
+                            type: string
+                          name:
+                            type: string
+                          namespace:
+                            items:
+                              type: string
+                            type: array
+                        required:
+                        - name
+                        type: object
+                    type: object
                   resources:
                     description: ResourceRequirements describes the compute resource
                       requirements.

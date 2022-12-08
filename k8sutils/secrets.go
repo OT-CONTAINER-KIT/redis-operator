@@ -85,13 +85,18 @@ func getRedisTLSConfig(cr *redisv1beta1.RedisCluster, redisInfo RedisDetails) *t
 	}
 	return nil
 }
-func GenerateSecrets(name string, namespacelist []string, key string) error {
+func GenerateSecrets(name string, namespacelist []string, key *string) error {
 	genLogger := log.WithValues()
 
 	rndID, err := uuid.NewRandom()
 	if err != nil {
 		genLogger.Error(err, "Unable to generate the UUID")
 	}
+	// If key is empty add the default value
+	if key == nil {
+		*key = "key"
+	}
+
 	// If no namespacelist is defined default would be added.
 	if namespacelist == nil {
 		namespacelist = append(namespacelist, "default")
@@ -106,7 +111,7 @@ func GenerateSecrets(name string, namespacelist []string, key string) error {
 		generatedSecretTemplate.Name = name
 		generatedSecretTemplate.Namespace = namespace
 		generatedSecretTemplate.Data = map[string][]byte{
-			key: value,
+			*key: value,
 		}
 
 		// Check whether the secret exist or not If not then create it

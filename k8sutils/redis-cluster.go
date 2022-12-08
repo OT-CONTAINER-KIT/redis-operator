@@ -68,8 +68,8 @@ func generateRedisClusterContainerParams(cr *redisv1beta1.RedisCluster, readines
 
 	case cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret != nil:
 		containerProp.EnabledPassword = &trueProperty
-		containerProp.SecretName = &cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Name
-		containerProp.SecretKey = &cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Key
+		containerProp.SecretName = cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Name
+		containerProp.SecretKey = cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Key
 
 	default:
 		containerProp.EnabledPassword = &falseProperty

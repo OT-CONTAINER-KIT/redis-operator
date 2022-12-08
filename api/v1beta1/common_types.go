@@ -26,7 +26,7 @@ type KubernetesConfig struct {
 	Image                 string                           `json:"image"`
 	ImagePullPolicy       corev1.PullPolicy                `json:"imagePullPolicy,omitempty"`
 	Resources             *corev1.ResourceRequirements     `json:"resources,omitempty"`
-	ExistOrGenerateSecret *ExistOrGenerateSecrets          `json:"existOrGenerateSecrets,omitempty"`
+	ExistOrGenerateSecret *ExistOrGenerateSecrets          `json:"redisSecret,omitempty"`
 	ImagePullSecrets      *[]corev1.LocalObjectReference   `json:"imagePullSecrets,omitempty"`
 	UpdateStrategy        appsv1.StatefulSetUpdateStrategy `json:"updateStrategy,omitempty"`
 	Service               *ServiceConfig                   `json:"service,omitempty"`
@@ -34,7 +34,7 @@ type KubernetesConfig struct {
 
 // +kubebuilder:validation:MaxProperties=1
 type ExistOrGenerateSecrets struct {
-	ExistingPasswordSecret *ExistingPasswordSecret `json:"redisSecret,omitempty"`
+	ExistingPasswordSecret *ExistingPasswordSecret `json:"existRedisSecret,omitempty"`
 	GeneratePasswordSecret *GeneratePassword       `json:"generatePasswordSecret,omitempty"`
 }
 
@@ -57,8 +57,8 @@ type ExistingPasswordSecret struct {
 }
 
 type GeneratePassword struct {
-	Name      string   `json:"name"`
-	Key       string   `json:"key"`
+	Name      *string  `json:"name"`
+	Key       *string  `json:"key,omitempty"`
 	NameSpace []string `json:"namespace,omitempty"`
 }
 
