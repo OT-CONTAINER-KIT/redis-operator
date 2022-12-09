@@ -162,8 +162,8 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 					}
 				}
 			}
-			// set stored.volumeClaimTemplates
 			newStateful.Annotations["storageCapacity"] = storedStateful.Annotations["storageCapacity"]
+			// set stored.volumeClaimTemplates
 			newStateful.Spec.VolumeClaimTemplates = storedStateful.Spec.VolumeClaimTemplates
 		}
 
