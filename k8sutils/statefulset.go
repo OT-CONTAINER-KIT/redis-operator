@@ -3,6 +3,7 @@ package k8sutils
 import (
 	"context"
 	"fmt"
+	"github.com/google/go-cmp/cmp"
 	"path"
 	redisv1beta1 "redis-operator/api/v1beta1"
 	"sort"
@@ -100,6 +101,8 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 	if !patchResult.IsEmpty() {
 		logger.Info("Changes in statefulset Detected, Updating...", "patch", string(patchResult.Patch))
 		// Field is immutable therefore we MUST keep it as is.
+		di := cmp.Diff(newStateful.Spec.VolumeClaimTemplates, storedStateful.Spec.VolumeClaimTemplates)
+		fmt.Println(di)
 		if !apiequality.Semantic.DeepEqual(newStateful.Spec.VolumeClaimTemplates, storedStateful.Spec.VolumeClaimTemplates) {
 			// resize pvc
 			// 1.Get the data already stored internally
@@ -161,7 +164,7 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 				}
 			}
 			// set stored.volumeClaimTemplates
-			newStateful.Annotations = storedStateful.Annotations
+			newStateful.Annotations["storageCapacity"] = storedStateful.Annotations["storageCapacity"]
 			newStateful.Spec.VolumeClaimTemplates = storedStateful.Spec.VolumeClaimTemplates
 		}
 
