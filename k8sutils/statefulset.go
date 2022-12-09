@@ -166,9 +166,7 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 		}
 
 		for key, value := range storedStateful.Annotations {
-			if _, present := newStateful.Annotations[key]; !present {
-				newStateful.Annotations[key] = value
-			}
+			newStateful.Annotations[key] = value
 		}
 		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(newStateful); err != nil {
 			logger.Error(err, "Unable to patch redis statefulset with comparison object")
