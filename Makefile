@@ -73,9 +73,12 @@ vet:
 generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
+docker-create:
+	docker buildx create --platform "linux/amd64,linux/arm64" --use
+
 # Build the docker image
 docker-build:
-	docker build -t ${IMG} .
+	docker buildx build --platform="linux/arm64,linux/amd64" -t ${IMG} .
 
 # Push the docker image
 docker-push:
@@ -116,4 +119,4 @@ bundle: manifests kustomize
 # Build the bundle image.
 .PHONY: bundle-build
 bundle-build:
-	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+	docker buildx build --platform="linux/arm64,linux/amd64" -f bundle.Dockerfile -t $(BUNDLE_IMG) .

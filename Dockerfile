@@ -1,6 +1,24 @@
 # Build the manager binary
-ARG ARCH="amd64"
-FROM golang:1.17 as builder
+FROM --platform=$BUILDPLATFORM golang:1.17 as builder
+ARG BUILDOS
+ARG BUILDPLATFORM
+ARG BUILDARCH
+ARG BUILDVARIANT
+ARG TARGETPLATFORM
+ARG TARGETOS
+ARG TARGETARCH
+ARG TARGETVARIANT
+
+RUN echo "Container image build platform details :: "
+RUN echo "BUILDPLATFORM.....: $BUILDPLATFORM"
+RUN echo "BUILDOS...........: $BUILDOS"
+RUN echo "BUILDARCH.........: $BUILDARCH"
+RUN echo "BUILDVARIANT......: $BUILDVARIANT"
+RUN echo "Container image target platform details :: "
+RUN echo "TARGETPLATFORM....: $TARGETPLATFORM"
+RUN echo "TARGETOS..........: $TARGETOS"
+RUN echo "TARGETARCH........: $TARGETARCH"
+RUN echo "TARGETVARIANT.....: $TARGETVARIANT"
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -17,11 +35,16 @@ COPY controllers/ controllers/
 COPY k8sutils/ k8sutils/
 
 # Build
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${ARCH} GO111MODULE=on go build -a -o manager main.go
+ARG LDFLAGS="-s -w"
+ENV GOOS=$TARGETOS
+ENV GOARCH=$TARGETARCH
+ENV CGO_ENABLED=0
+
+RUN GO111MODULE=on go build  -ldflags "${LDFLAGS}" -a -o manager main.go
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM gcr.io/distroless/static:nonroot-${ARCH}
+FROM --platform=$TARGETPLATFORM gcr.io/distroless/static:nonroot
 LABEL maintainer="The Opstree Opensource <opensource@opstree.com>"
 WORKDIR /
 COPY --from=builder /workspace/manager .
