@@ -12,8 +12,9 @@ import (
 )
 
 const (
-	redisPort         = 6379
-	redisExporterPort = 9121
+	redisPort             = 6379
+	redisExporterPort     = 9121
+	redisExporterPortName = "redis-exporter"
 )
 
 var (
@@ -53,7 +54,7 @@ func generateServiceDef(serviceMeta metav1.ObjectMeta, enableMetrics bool, owner
 // enableMetricsPort will enable the metrics for Redis service
 func enableMetricsPort() *corev1.ServicePort {
 	return &corev1.ServicePort{
-		Name:       "redis-exporter",
+		Name:       redisExporterPortName,
 		Port:       redisExporterPort,
 		TargetPort: intstr.FromInt(int(redisExporterPort)),
 		Protocol:   corev1.ProtocolTCP,

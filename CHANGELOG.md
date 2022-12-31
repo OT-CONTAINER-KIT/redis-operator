@@ -4,6 +4,7 @@
 #### :beetle: Bug Fixes
 
 - Fixed multiple follower logic for redis cluster
+- Fixed CR's annotations updated,sts annotations will not updated
 
 #### :tada: Features
 

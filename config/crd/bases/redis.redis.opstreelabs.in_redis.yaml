@@ -1890,7 +1890,7 @@ spec:
                             type: string
                         type: object
                     type: object
-                  volumemount:
+                  volumeMount:
                     description: Additional Volume is provided by user that is mounted
                       on the pods
                     properties:

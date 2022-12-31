@@ -53,12 +53,14 @@ func generateRedisClusterContainerParams(cr *redisv1beta1.RedisCluster, readines
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{
-		Role:                "cluster",
-		Image:               cr.Spec.KubernetesConfig.Image,
-		ImagePullPolicy:     cr.Spec.KubernetesConfig.ImagePullPolicy,
-		Resources:           cr.Spec.KubernetesConfig.Resources,
-		AdditionalVolume:    cr.Spec.Storage.VolumeMount.Volume,
-		AdditionalMountPath: cr.Spec.Storage.VolumeMount.MountPath,
+		Role:            "cluster",
+		Image:           cr.Spec.KubernetesConfig.Image,
+		ImagePullPolicy: cr.Spec.KubernetesConfig.ImagePullPolicy,
+		Resources:       cr.Spec.KubernetesConfig.Resources,
+	}
+	if cr.Spec.Storage != nil {
+		containerProp.AdditionalVolume = cr.Spec.Storage.VolumeMount.Volume
+		containerProp.AdditionalMountPath = cr.Spec.Storage.VolumeMount.MountPath
 	}
 	switch true {
 	case cr.Spec.KubernetesConfig.ExistOrGenerateSecret.ExistingPasswordSecret != nil:
