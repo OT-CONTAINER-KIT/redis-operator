@@ -53,6 +53,18 @@ func redisClusterAsOwner(cr *redisv1beta1.RedisCluster) metav1.OwnerReference {
 	}
 }
 
+// RedisSentinelAsOwner generates and returns object refernece
+func redisSentinelAsOwner(cr *redisv1beta1.RedisSentinel) metav1.OwnerReference {
+	trueVar := true
+	return metav1.OwnerReference{
+		APIVersion: cr.APIVersion,
+		Kind:       cr.Kind,
+		Name:       cr.Name,
+		UID:        cr.UID,
+		Controller: &trueVar,
+	}
+}
+
 // generateStatefulSetsAnots generates and returns statefulsets annotations
 func generateStatefulSetsAnots(stsMeta metav1.ObjectMeta) map[string]string {
 	anots := map[string]string{
