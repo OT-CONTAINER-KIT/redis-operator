@@ -6,6 +6,7 @@ metadata:
 spec:
   clusterSize: 3
   kubernetesConfig:
+    kubernetesConfig:
     image: quay.io/opstree/redis:v7.0.5
     imagePullPolicy: IfNotPresent
     resources:
@@ -15,9 +16,11 @@ spec:
       limits:
         cpu: 101m
         memory: 128Mi
-  securityContext:
-    runAsUser: 1000
-    fsGroup: 1000
+    # redisSecret:
+    #   name: redis-secret
+    #   key: password
+    # imagePullSecrets:
+    #   - name: regcred
   storage:
     volumeClaimTemplate:
       spec:
@@ -26,11 +29,4 @@ spec:
         resources:
           requests:
             storage: 1Gi
-  redisExporter:
-    enabled: false
-    image: quay.io/opstree/redis-exporter:v1.44.0
-  # nodeSelector: {}
-  # securityContext: {}
-  # priorityClassName: ""
-  # affinity: {}
-  # Tolerations: []
+
