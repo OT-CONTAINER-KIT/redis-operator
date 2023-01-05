@@ -50,13 +50,18 @@ type RedisSnt struct {
 }
 
 type RedisSentinelConfig struct {
-	MasterGroupName       string `json:"masterGroupName,omitempty"`
-	RedisName             string `json:"redisName,omitempty"`
-	RedisPort             int32  `json:"redisPort,omitempty"`
-	Quorum                int32  `json:"quorum,omitempty"`
-	ParallelSyncs         int32  `json:"parallelSyncs,omitempty"`
-	FailoverTimeout       int32  `json:"failoverTimeout,omitempty"`
-	DownAfterMilliseconds int32  `json:"downAfterMilliseconds,omitempty"`
+	// +kubebuilder:default:=myMaster
+	MasterGroupName string `json:"masterGroupName,omitempty"`
+	// +kubebuilder:default:=6379
+	RedisPort int32 `json:"redisPort,omitempty"`
+	// +kubebuilder:default:=2
+	Quorum int32 `json:"quorum,omitempty"`
+	// +kubebuilder:default:=1
+	ParallelSyncs int32 `json:"parallelSyncs,omitempty"`
+	// +kubebuilder:default:=180000
+	FailoverTimeout int32 `json:"failoverTimeout,omitempty"`
+	// +kubebuilder:default:=30000
+	DownAfterMilliseconds int32 `json:"downAfterMilliseconds,omitempty"`
 }
 
 type RedisSentinelStatus struct {

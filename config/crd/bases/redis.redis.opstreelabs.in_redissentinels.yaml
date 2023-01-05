@@ -2075,22 +2075,26 @@ spec:
                   redisSentinelConfig:
                     properties:
                       downAfterMilliseconds:
+                        default: 30000
                         format: int32
                         type: integer
                       failoverTimeout:
+                        default: 180000
                         format: int32
                         type: integer
                       masterGroupName:
+                        default: myMaster
                         type: string
                       parallelSyncs:
+                        default: 1
                         format: int32
                         type: integer
                       quorum:
+                        default: 2
                         format: int32
                         type: integer
-                      redisName:
-                        type: string
                       redisPort:
+                        default: 6379
                         format: int32
                         type: integer
                     type: object
