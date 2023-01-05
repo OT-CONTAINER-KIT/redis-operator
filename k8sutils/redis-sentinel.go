@@ -85,15 +85,15 @@ func generateRedisSentinelParams(cr *redisv1beta1.RedisSentinel, replicas int32,
 		UpdateStrategy:     cr.Spec.KubernetesConfig.UpdateStrategy,
 	}
 
-	if cr.Spec.RedisExporter != nil {
-		res.EnableMetrics = cr.Spec.RedisExporter.Enabled
-	}
+	// if cr.Spec.RedisExporter != nil {
+	// 	res.EnableMetrics = cr.Spec.RedisExporter.Enabled
+	// }
 	if cr.Spec.KubernetesConfig.ImagePullSecrets != nil {
 		res.ImagePullSecrets = cr.Spec.KubernetesConfig.ImagePullSecrets
 	}
-	if cr.Spec.Storage != nil {
-		res.PersistentVolumeClaim = cr.Spec.Storage.VolumeClaimTemplate
-	}
+	// if cr.Spec.Storage != nil {
+	// 	res.PersistentVolumeClaim = cr.Spec.Storage.VolumeClaimTemplate
+	// }
 	if externalConfig != nil {
 		res.ExternalConfig = externalConfig
 	}
@@ -107,12 +107,12 @@ func generateRedisSentinelContainerParams(cr *redisv1beta1.RedisSentinel, readin
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{
-		Role:                "sentinel",
-		Image:               cr.Spec.KubernetesConfig.Image,
-		ImagePullPolicy:     cr.Spec.KubernetesConfig.ImagePullPolicy,
-		Resources:           cr.Spec.KubernetesConfig.Resources,
-		AdditionalVolume:    cr.Spec.Storage.VolumeMount.Volume,
-		AdditionalMountPath: cr.Spec.Storage.VolumeMount.MountPath,
+		Role:            "sentinel",
+		Image:           cr.Spec.KubernetesConfig.Image,
+		ImagePullPolicy: cr.Spec.KubernetesConfig.ImagePullPolicy,
+		Resources:       cr.Spec.KubernetesConfig.Resources,
+		// AdditionalVolume:    cr.Spec.Storage.VolumeMount.Volume,
+		// AdditionalMountPath: cr.Spec.Storage.VolumeMount.MountPath,
 	}
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
 		containerProp.EnabledPassword = &trueProperty
@@ -121,30 +121,30 @@ func generateRedisSentinelContainerParams(cr *redisv1beta1.RedisSentinel, readin
 	} else {
 		containerProp.EnabledPassword = &falseProperty
 	}
-	if cr.Spec.RedisExporter != nil {
-		containerProp.RedisExporterImage = cr.Spec.RedisExporter.Image
-		containerProp.RedisExporterImagePullPolicy = cr.Spec.RedisExporter.ImagePullPolicy
+	// if cr.Spec.RedisExporter != nil {
+	// 	containerProp.RedisExporterImage = cr.Spec.RedisExporter.Image
+	// 	containerProp.RedisExporterImagePullPolicy = cr.Spec.RedisExporter.ImagePullPolicy
 
-		if cr.Spec.RedisExporter.Resources != nil {
-			containerProp.RedisExporterResources = cr.Spec.RedisExporter.Resources
-		}
+	// 	if cr.Spec.RedisExporter.Resources != nil {
+	// 		containerProp.RedisExporterResources = cr.Spec.RedisExporter.Resources
+	// 	}
 
-		if cr.Spec.RedisExporter.EnvVars != nil {
-			containerProp.RedisExporterEnv = cr.Spec.RedisExporter.EnvVars
-		}
+	// 	if cr.Spec.RedisExporter.EnvVars != nil {
+	// 		containerProp.RedisExporterEnv = cr.Spec.RedisExporter.EnvVars
+	// 	}
 
-	}
+	// }
 	if readinessProbeDef != nil {
 		containerProp.ReadinessProbe = readinessProbeDef
 	}
 	if livenessProbeDef != nil {
 		containerProp.LivenessProbe = livenessProbeDef
 	}
-	if cr.Spec.Storage != nil {
-		containerProp.PersistenceEnabled = &trueProperty
-	} else {
-		containerProp.PersistenceEnabled = &falseProperty
-	}
+	// if cr.Spec.Storage != nil {
+	// 	containerProp.PersistenceEnabled = &trueProperty
+	// } else {
+	// 	containerProp.PersistenceEnabled = &falseProperty
+	// }
 	if cr.Spec.TLS != nil {
 		containerProp.TLSConfig = cr.Spec.TLS
 	}
@@ -165,9 +165,9 @@ func (service RedisSentinelService) CreateRedisSentinelService(cr *redisv1beta1.
 	labels := getRedisLabels(serviceName, "cluster", service.RedisServiceRole, cr.ObjectMeta.Labels)
 	annotations := generateServiceAnots(cr.ObjectMeta, nil)
 
-	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
-		enableMetrics = true
-	}
+	// if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
+	// 	enableMetrics = true
+	// }
 	additionalServiceAnnotations := map[string]string{}
 	if cr.Spec.KubernetesConfig.Service != nil {
 		additionalServiceAnnotations = cr.Spec.KubernetesConfig.Service.ServiceAnnotations

@@ -9,10 +9,10 @@ type RedisSentinelSpec struct {
 	// +kubebuilder:validation:Minimum=3
 	Size             *int32           `json:"clusterSize"`
 	KubernetesConfig KubernetesConfig `json:"kubernetesConfig"`
-	RedisExporter    *RedisExporter   `json:"redisExporter,omitempty"`
-	RedisSnt         *RedisSnt        `json:"redisSentinel,omitempty"`
+	// RedisExporter    *RedisExporter   `json:"redisExporter,omitempty"`
+	RedisSnt *RedisSnt `json:"redisSentinel,omitempty"`
 	// Storage in Sentinel to be removed
-	Storage           *Storage                   `json:"storage,omitempty"`
+	// Storage           *Storage                   `json:"storage,omitempty"`
 	NodeSelector      map[string]string          `json:"nodeSelector,omitempty"`
 	SecurityContext   *corev1.PodSecurityContext `json:"securityContext,omitempty"`
 	PriorityClassName string                     `json:"priorityClassName,omitempty"`
@@ -36,6 +36,7 @@ func (cr *RedisSentinelSpec) GetSentinelCounts(t string) int32 {
 }
 
 type RedisSnt struct {
+	RedisClusterName string `json:"redisClusterName,omitempty"`
 	// +kubebuilder:validation:Minimum=3
 	Replicas            *int32                    `json:"replicas,omitempty"`
 	RedisSentinelConfig *RedisSentinelConfig      `json:"redisSentinelConfig,omitempty"`
