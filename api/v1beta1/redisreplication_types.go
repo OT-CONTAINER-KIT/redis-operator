@@ -6,8 +6,9 @@ import (
 )
 
 type RedisReplicationSpec struct {
+	Size              *int32                     `json:"clusterSize"`
 	KubernetesConfig  KubernetesConfig           `json:"kubernetesConfig"`
-	RedisReplication  RedisReplication           `json:"redisReplication,omitempty"`
+	RedisReplicas     RedisReplicas              `json:"redisReplicas,omitempty"`
 	RedisExporter     *RedisExporter             `json:"redisExporter,omitempty"`
 	RedisConfig       *RedisConfig               `json:"redisConfig,omitempty"`
 	Storage           *Storage                   `json:"storage,omitempty"`
@@ -25,16 +26,16 @@ type RedisReplicationSpec struct {
 	ServiceAccountName *string    `json:"serviceAccountName,omitempty"`
 }
 
-// func (cr *RedisReplicationSpec) GetReplicaCounts(t string) int32 {
-// 	replica := cr.Size
-// 	if t == "replication" && cr.RedisLeader.Replicas != nil {
-// 		replica = cr.RedisLeader.Replicas
-// 	}
-// 	return *replica
-// }
+func (cr *RedisReplicationSpec) GetReplicaCounts(t string) int32 {
+	replica := cr.Size
+	if t == "replication" && cr.RedisReplicas.Replicas != nil {
+		replica = cr.RedisReplicas.Replicas
+	}
+	return *replica
+}
 
 // RedisLeader interface will have the redis leader configuration
-type RedisReplication struct {
+type RedisReplicas struct {
 	Replicas            *int32                    `json:"replicas,omitempty"`
 	RedisConfig         *RedisConfig              `json:"redisConfig,omitempty"`
 	Affinity            *corev1.Affinity          `json:"affinity,omitempty"`
@@ -53,23 +54,23 @@ type RedisReplicationStatus struct {
 // +kubebuilder:subresource:status
 
 // Redis is the Schema for the redis API
-type RedisReplicationCluster struct {
+type RedisReplication struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   RedisSpec   `json:"spec"`
-	Status RedisStatus `json:"status,omitempty"`
+	Spec   RedisReplicationSpec   `json:"spec"`
+	Status RedisReplicationStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
 // RedisList contains a list of Redis
-type RedisReplicationClusterList struct {
+type RedisReplicationList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Redis `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&RedisReplicationCluster{}, &RedisReplicationClusterList{})
+	SchemeBuilder.Register(&RedisReplication{}, &RedisReplicationList{})
 }
