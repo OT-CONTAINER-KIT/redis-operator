@@ -322,6 +322,12 @@ func generateContainerDef(name string, containerParams containerParameters, enab
 		}
 		containerDefinition = append(containerDefinition, container)
 	}
+
+	if containerParams.AdditionalEnvVariable != nil {
+		containerDefinition[0].Env = append(containerDefinition[0].Env, *containerParams.AdditionalEnvVariable...)
+
+	}
+
 	return containerDefinition
 }
 
