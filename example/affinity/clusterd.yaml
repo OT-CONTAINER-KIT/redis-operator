@@ -26,6 +26,10 @@ spec:
                   operator: In
                   values:
                     - redis-cluster-leader
+                - key: role
+                  operator: In 
+                  values:
+                    - follower 
             topologyKey: "kubernetes.io/hostname"
   redisFollower:
     affinity:
@@ -37,6 +41,10 @@ spec:
                   operator: In
                   values:
                     - redis-cluster-follower
+                - key: role
+                  operator: In 
+                  values:
+                    - leader                 
             topologyKey: "kubernetes.io/hostname"
   storage:
     volumeClaimTemplate:
