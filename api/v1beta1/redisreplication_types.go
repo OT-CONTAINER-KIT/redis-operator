@@ -26,7 +26,7 @@ type RedisReplicationSpec struct {
 	ServiceAccountName *string    `json:"serviceAccountName,omitempty"`
 }
 
-func (cr *RedisReplicationSpec) GetReplicaCounts(t string) int32 {
+func (cr *RedisReplicationSpec) GetReplicationCounts(t string) int32 {
 	replica := cr.Size
 	if t == "replication" && cr.RedisReplicas.Replicas != nil {
 		replica = cr.RedisReplicas.Replicas
