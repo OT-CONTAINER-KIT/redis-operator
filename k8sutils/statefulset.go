@@ -56,6 +56,7 @@ type containerParameters struct {
 	TLSConfig                    *redisv1beta1.TLSConfig
 	ReadinessProbe               *redisv1beta1.Probe
 	LivenessProbe                *redisv1beta1.Probe
+	AdditionalEnvVariable        *[]corev1.EnvVar
 	AdditionalVolume             []corev1.Volume
 	AdditionalMountPath          []corev1.VolumeMount
 }
@@ -437,7 +438,7 @@ func getProbeInfo(probe *redisv1beta1.Probe) *corev1.Probe {
 }
 
 // getEnvironmentVariables returns all the required Environment Variables
-func getEnvironmentVariables(role string, enabledMetric bool, enabledPassword *bool, secretName *string, secretKey *string, persistenceEnabled *bool, extraEnv *[]corev1.EnvVar, tlsConfig *redisv1beta1.TLSConfig) []corev1.EnvVar {
+func getEnvironmentVariables(role string, enabledMetric bool, enabledPassword *bool, secretName *string, secretKey *string, persistenceEnabled *bool, exporterEnvVar *[]corev1.EnvVar, tlsConfig *redisv1beta1.TLSConfig) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{Name: "SERVER_MODE", Value: role},
 		{Name: "SETUP_MODE", Value: role},
@@ -489,8 +490,8 @@ func getEnvironmentVariables(role string, enabledMetric bool, enabledPassword *b
 		envVars = append(envVars, corev1.EnvVar{Name: "PERSISTENCE_ENABLED", Value: "true"})
 	}
 
-	if extraEnv != nil {
-		envVars = append(envVars, *extraEnv...)
+	if exporterEnvVar != nil {
+		envVars = append(envVars, *exporterEnvVar...)
 	}
 	sort.SliceStable(envVars, func(i, j int) bool {
 		return envVars[i].Name < envVars[j].Name
