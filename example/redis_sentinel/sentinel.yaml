@@ -1,19 +1,19 @@
 apiVersion: redis.redis.opstreelabs.in/v1beta1
 kind: RedisSentinel
 metadata:
-  name:  redis-sentinel-1
+  name:  shubham-sentinel 
 spec:
   clusterSize: 3
   kubernetesConfig:
-    image: // Sentinel Image 
+    image: "shubham192001/redis-sentinel:v1latest"
     imagePullPolicy:  IfNotPresent
   redisSentinel:
-    redisClusterName : redis-cluster-1
+    redisClusterName : redis-cluster
     replicas: 3
     redisSentinelConfig : 
       masterGroupName : mymaster
-      redisPort : 6379
-      quorum: 2
-      # parallelSyncs : 
-      # failoverTimeout : 
-      # downAfterMilliseconds :
+      redisPort : "6379"
+      quorum: "2"
+      parallelSyncs : "1"
+      failoverTimeout : "180000"
+      downAfterMilliseconds : "30000"

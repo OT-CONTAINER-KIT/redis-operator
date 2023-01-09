@@ -1,0 +1,50 @@
+apiVersion: redis.redis.opstreelabs.in/v1beta1
+kind: RedisSentinel
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"redis.redis.opstreelabs.in/v1beta1","kind":"RedisSentinel","metadata":{"annotations":{},"name":"redis-sentinel-1","namespace":"default"},"spec":{"clusterSize":3,"kubernetesConfig":{"image":"// Sentinel Image","imagePullPolicy":"IfNotPresent"},"redisSentinel":{"redisClusterName":"redis-cluster-1","redisSentinelConfig":{"masterGroupName":"shubham","quorum":2,"redisPort":6380},"replicas":3}}}
+  creationTimestamp: "2023-01-09T11:11:07Z"
+  generation: 1
+  name: redis-sentinel-1
+  namespace: default
+  uid: afb3ba05-2014-4766-9a30-012f7abbcec2
+spec:
+  clusterSize: 3
+  kubernetesConfig:
+    image: // Sentinel Image
+    imagePullPolicy: IfNotPresent
+  livenessProbe:
+    failureThreshold: 3
+    initialDelaySeconds: 1
+    periodSeconds: 10
+    successThreshold: 1
+    timeoutSeconds: 1
+  readinessProbe:
+    failureThreshold: 3
+    initialDelaySeconds: 1
+    periodSeconds: 10
+    successThreshold: 1
+    timeoutSeconds: 1
+  redisSentinel:
+    livenessProbe:
+      failureThreshold: 3
+      initialDelaySeconds: 1
+      periodSeconds: 10
+      successThreshold: 1
+      timeoutSeconds: 1
+    readinessProbe:
+      failureThreshold: 3
+      initialDelaySeconds: 1
+      periodSeconds: 10
+      successThreshold: 1
+      timeoutSeconds: 1
+    redisClusterName: redis-cluster-1
+    redisSentinelConfig:
+      downAfterMilliseconds: 30000
+      failoverTimeout: 180000
+      masterGroupName: shubham
+      parallelSyncs: 1
+      quorum: 2
+      redisPort: 6380
+    replicas: 3

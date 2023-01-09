@@ -1035,41 +1035,6 @@ spec:
                 required:
                 - image
                 type: object
-              livenessProbe:
-                default:
-                  failureThreshold: 3
-                  initialDelaySeconds: 1
-                  periodSeconds: 10
-                  successThreshold: 1
-                  timeoutSeconds: 1
-                description: Probe is a interface for ReadinessProbe and LivenessProbe
-                properties:
-                  failureThreshold:
-                    default: 3
-                    format: int32
-                    minimum: 1
-                    type: integer
-                  initialDelaySeconds:
-                    default: 1
-                    format: int32
-                    minimum: 1
-                    type: integer
-                  periodSeconds:
-                    default: 10
-                    format: int32
-                    minimum: 1
-                    type: integer
-                  successThreshold:
-                    default: 1
-                    format: int32
-                    minimum: 1
-                    type: integer
-                  timeoutSeconds:
-                    default: 1
-                    format: int32
-                    minimum: 1
-                    type: integer
-                type: object
               nodeSelector:
                 additionalProperties:
                   type: string
@@ -1077,41 +1042,6 @@ spec:
                 type: object
               priorityClassName:
                 type: string
-              readinessProbe:
-                default:
-                  failureThreshold: 3
-                  initialDelaySeconds: 1
-                  periodSeconds: 10
-                  successThreshold: 1
-                  timeoutSeconds: 1
-                description: Probe is a interface for ReadinessProbe and LivenessProbe
-                properties:
-                  failureThreshold:
-                    default: 3
-                    format: int32
-                    minimum: 1
-                    type: integer
-                  initialDelaySeconds:
-                    default: 1
-                    format: int32
-                    minimum: 1
-                    type: integer
-                  periodSeconds:
-                    default: 10
-                    format: int32
-                    minimum: 1
-                    type: integer
-                  successThreshold:
-                    default: 1
-                    format: int32
-                    minimum: 1
-                    type: integer
-                  timeoutSeconds:
-                    default: 1
-                    format: int32
-                    minimum: 1
-                    type: integer
-                type: object
               redisSentinel:
                 description: RedisExporter    *RedisExporter   `json:"redisExporter,omitempty"`
                 properties:
@@ -2075,28 +2005,23 @@ spec:
                   redisSentinelConfig:
                     properties:
                       downAfterMilliseconds:
-                        default: 30000
-                        format: int32
-                        type: integer
+                        default: "30000"
+                        type: string
                       failoverTimeout:
-                        default: 180000
-                        format: int32
-                        type: integer
+                        default: "180000"
+                        type: string
                       masterGroupName:
                         default: myMaster
                         type: string
                       parallelSyncs:
-                        default: 1
-                        format: int32
-                        type: integer
+                        default: "1"
+                        type: string
                       quorum:
-                        default: 2
-                        format: int32
-                        type: integer
+                        default: "2"
+                        type: string
                       redisPort:
-                        default: 6379
-                        format: int32
-                        type: integer
+                        default: "6379"
+                        type: string
                     type: object
                   replicas:
                     format: int32

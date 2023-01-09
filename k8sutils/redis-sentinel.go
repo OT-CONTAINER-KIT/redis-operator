@@ -215,23 +215,23 @@ func getSentinelEnvVariable(cr *redisv1beta1.RedisSentinel) *[]corev1.EnvVar {
 		},
 		{
 			Name:  "PORT",
-			Value: string(cr.Spec.RedisSnt.RedisSentinelConfig.RedisPort),
+			Value: cr.Spec.RedisSnt.RedisSentinelConfig.RedisPort,
 		},
 		{
 			Name:  "QUORUM",
-			Value: string(cr.Spec.RedisSnt.RedisSentinelConfig.Quorum),
+			Value: cr.Spec.RedisSnt.RedisSentinelConfig.Quorum,
 		},
 		{
 			Name:  "DOWN_AFTER_MILLISECONDS",
-			Value: string(cr.Spec.RedisSnt.RedisSentinelConfig.DownAfterMilliseconds),
+			Value: cr.Spec.RedisSnt.RedisSentinelConfig.DownAfterMilliseconds,
 		},
 		{
 			Name:  "PARALLEL_SYNCS",
-			Value: string(cr.Spec.RedisSnt.RedisSentinelConfig.ParallelSyncs),
+			Value: cr.Spec.RedisSnt.RedisSentinelConfig.ParallelSyncs,
 		},
 		{
 			Name:  "FAILOVER_TIMEOUT",
-			Value: string(cr.Spec.RedisSnt.RedisSentinelConfig.FailoverTimeout),
+			Value: cr.Spec.RedisSnt.RedisSentinelConfig.FailoverTimeout,
 		},
 	}
 

@@ -13,18 +13,14 @@ type RedisSentinelSpec struct {
 	RedisSnt *RedisSnt `json:"redisSentinel,omitempty"`
 	// Storage in Sentinel to be removed
 	// Storage           *Storage                   `json:"storage,omitempty"`
-	NodeSelector      map[string]string          `json:"nodeSelector,omitempty"`
-	SecurityContext   *corev1.PodSecurityContext `json:"securityContext,omitempty"`
-	PriorityClassName string                     `json:"priorityClassName,omitempty"`
-	Affinity          *corev1.Affinity           `json:"affinity,omitempty"`
-	Tolerations       *[]corev1.Toleration       `json:"tolerations,omitempty"`
-	TLS               *TLSConfig                 `json:"TLS,omitempty"`
-	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
-	ReadinessProbe *Probe `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
-	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
-	LivenessProbe      *Probe     `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
-	Sidecars           *[]Sidecar `json:"sidecars,omitempty"`
-	ServiceAccountName *string    `json:"serviceAccountName,omitempty"`
+	NodeSelector       map[string]string          `json:"nodeSelector,omitempty"`
+	SecurityContext    *corev1.PodSecurityContext `json:"securityContext,omitempty"`
+	PriorityClassName  string                     `json:"priorityClassName,omitempty"`
+	Affinity           *corev1.Affinity           `json:"affinity,omitempty"`
+	Tolerations        *[]corev1.Toleration       `json:"tolerations,omitempty"`
+	TLS                *TLSConfig                 `json:"TLS,omitempty"`
+	Sidecars           *[]Sidecar                 `json:"sidecars,omitempty"`
+	ServiceAccountName *string                    `json:"serviceAccountName,omitempty"`
 }
 
 func (cr *RedisSentinelSpec) GetSentinelCounts(t string) int32 {
@@ -52,16 +48,16 @@ type RedisSnt struct {
 type RedisSentinelConfig struct {
 	// +kubebuilder:default:=myMaster
 	MasterGroupName string `json:"masterGroupName,omitempty"`
-	// +kubebuilder:default:=6379
-	RedisPort int32 `json:"redisPort,omitempty"`
-	// +kubebuilder:default:=2
-	Quorum int32 `json:"quorum,omitempty"`
-	// +kubebuilder:default:=1
-	ParallelSyncs int32 `json:"parallelSyncs,omitempty"`
-	// +kubebuilder:default:=180000
-	FailoverTimeout int32 `json:"failoverTimeout,omitempty"`
-	// +kubebuilder:default:=30000
-	DownAfterMilliseconds int32 `json:"downAfterMilliseconds,omitempty"`
+	// +kubebuilder:default:="6379"
+	RedisPort string `json:"redisPort,omitempty"`
+	// +kubebuilder:default:="2"
+	Quorum string `json:"quorum,omitempty"`
+	// +kubebuilder:default:="1"
+	ParallelSyncs string `json:"parallelSyncs,omitempty"`
+	// +kubebuilder:default:="180000"
+	FailoverTimeout string `json:"failoverTimeout,omitempty"`
+	// +kubebuilder:default:="30000"
+	DownAfterMilliseconds string `json:"downAfterMilliseconds,omitempty"`
 }
 
 type RedisSentinelStatus struct {
