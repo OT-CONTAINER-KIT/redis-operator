@@ -113,6 +113,7 @@ func generateRedisSentinelContainerParams(cr *redisv1beta1.RedisSentinel, readin
 		Resources:       cr.Spec.KubernetesConfig.Resources,
 		// AdditionalVolume:    cr.Spec.Storage.VolumeMount.Volume,
 		// AdditionalMountPath: cr.Spec.Storage.VolumeMount.MountPath,
+		AdditionalEnvVariable: getSentinelEnvVariable(cr),
 	}
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
 		containerProp.EnabledPassword = &trueProperty
@@ -198,5 +199,53 @@ func (service RedisSentinelService) CreateRedisSentinelService(cr *redisv1beta1.
 		return err
 	}
 	return nil
+
+}
+
+func getSentinelEnvVariable(cr *redisv1beta1.RedisSentinel) *[]corev1.EnvVar {
+
+	envVar := &[]corev1.EnvVar{
+		{
+			Name:  "MASTER_GROUP_NAME",
+			Value: cr.Spec.RedisSnt.RedisSentinelConfig.MasterGroupName,
+		},
+		{
+			Name:  "IP",
+			Value: getRedisMasterIP(cr),
+		},
+		{
+			Name:  "PORT",
+			Value: string(cr.Spec.RedisSnt.RedisSentinelConfig.RedisPort),
+		},
+		{
+			Name:  "QUORUM",
+			Value: string(cr.Spec.RedisSnt.RedisSentinelConfig.Quorum),
+		},
+		{
+			Name:  "DOWN_AFTER_MILLISECONDS",
+			Value: string(cr.Spec.RedisSnt.RedisSentinelConfig.DownAfterMilliseconds),
+		},
+		{
+			Name:  "PARALLEL_SYNCS",
+			Value: string(cr.Spec.RedisSnt.RedisSentinelConfig.ParallelSyncs),
+		},
+		{
+			Name:  "FAILOVER_TIMEOUT",
+			Value: string(cr.Spec.RedisSnt.RedisSentinelConfig.FailoverTimeout),
+		},
+	}
+
+	return envVar
+
+}
+
+func getRedisMasterIP(cr *redisv1beta1.RedisSentinel) string {
+
+	master := RedisDetails{
+		PodName:   cr.Spec.RedisSnt.RedisClusterName + "-leader-0",
+		Namespace: cr.Namespace,
+	}
+
+	return getRedisServerIP(master)
 
 }

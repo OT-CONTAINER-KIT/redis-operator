@@ -3,7 +3,6 @@ package controllers
 import (
 	"context"
 	"redis-operator/k8sutils"
-	"strconv"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -36,7 +35,7 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
-	sentinelReplicas := instance.Spec.GetSentinelCounts("sentinel")
+	// sentinelReplicas := instance.Spec.GetSentinelCounts("sentinel")
 
 	if err := k8sutils.HandleRedisSentinelFinalizer(instance, r.Client); err != nil {
 		return ctrl.Result{RequeueAfter: time.Second * 60}, err
@@ -58,28 +57,28 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
-	redisSentinelInfo, err := k8sutils.GetStatefulSet(instance.Namespace, instance.ObjectMeta.Name+"-sentinel")
-	if err != nil {
-		return ctrl.Result{RequeueAfter: time.Second * 60}, err
-	}
+	// redisSentinelInfo, err := k8sutils.GetStatefulSet(instance.Namespace, instance.ObjectMeta.Name+"-sentinel")
+	// if err != nil {
+	// 	return ctrl.Result{RequeueAfter: time.Second * 60}, err
+	// }
 
-	if int32(redisSentinelInfo.Status.ReadyReplicas) != sentinelReplicas {
-		reqLogger.Info("Redis sentinel nodes are not ready yet", "Ready.Replicas", strconv.Itoa(int(redisSentinelInfo.Status.ReadyReplicas)), "Expected.Replicas", sentinelReplicas)
-		return ctrl.Result{RequeueAfter: time.Second * 120}, nil
-	}
+	// if int32(redisSentinelInfo.Status.ReadyReplicas) != sentinelReplicas {
+	// 	reqLogger.Info("Redis sentinel nodes are not ready yet", "Ready.Replicas", strconv.Itoa(int(redisSentinelInfo.Status.ReadyReplicas)), "Expected.Replicas", sentinelReplicas)
+	// 	return ctrl.Result{RequeueAfter: time.Second * 120}, nil
+	// }
 
-	reqLogger.Info("Creating sentinel cluster by executing sentinel cluster creation commands", "Sentinel.Ready", strconv.Itoa(int(redisSentinelInfo.Status.ReadyReplicas)))
+	// reqLogger.Info("Creating sentinel cluster by executing sentinel cluster creation commands", "Sentinel.Ready", strconv.Itoa(int(redisSentinelInfo.Status.ReadyReplicas)))
 
-	// Statefulset is the Leader that need to be watched
-	var statefulsetName = instance.Spec.RedisSnt.RedisClusterName
+	// // Statefulset is the Leader that need to be watched
+	// var statefulsetName = instance.Spec.RedisSnt.RedisClusterName
 
-	leaderSTS, err := k8sutils.GetStatefulSet("default", statefulsetName)
-	if err != nil {
-		reqLogger.Error(err, " The leader statefulset does not exist ")
-		return ctrl.Result{RequeueAfter: time.Second * 30}, err
-	}
+	// leaderSTS, err := k8sutils.GetStatefulSet("default", statefulsetName)
+	// if err != nil {
+	// 	reqLogger.Error(err, " The leader statefulset does not exist ")
+	// 	return ctrl.Result{RequeueAfter: time.Second * 30}, err
+	// }
 
-	k8sutils.ExecuteSenitnelCommand(instance, leaderSTS)
+	// k8sutils.ExecuteSenitnelCommand(instance, leaderSTS)
 
 	reqLogger.Info("Will reconcile redis operator in again 10 seconds")
 	return ctrl.Result{RequeueAfter: time.Second * 10}, nil
