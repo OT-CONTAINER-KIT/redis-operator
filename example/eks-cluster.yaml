@@ -19,5 +19,6 @@ addons:
   - name: vpc-cni
   - name: coredns
   - name: kube-proxy
+  - name: ebs-csi-driver
 iam:
   withOIDC: true
