@@ -9,17 +9,6 @@ ARG TARGETOS
 ARG TARGETARCH
 ARG TARGETVARIANT
 
-RUN echo "Container image build platform details :: "
-RUN echo "BUILDPLATFORM.....: $BUILDPLATFORM"
-RUN echo "BUILDOS...........: $BUILDOS"
-RUN echo "BUILDARCH.........: $BUILDARCH"
-RUN echo "BUILDVARIANT......: $BUILDVARIANT"
-RUN echo "Container image target platform details :: "
-RUN echo "TARGETPLATFORM....: $TARGETPLATFORM"
-RUN echo "TARGETOS..........: $TARGETOS"
-RUN echo "TARGETARCH........: $TARGETARCH"
-RUN echo "TARGETVARIANT.....: $TARGETVARIANT"
-
 WORKDIR /workspace
 # Copy the Go Modules manifests
 COPY go.mod go.mod
