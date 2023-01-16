@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM --platform=$BUILDPLATFORM golang:1.17 as builder
+FROM golang:1.17 as builder
 ARG BUILDOS
 ARG BUILDPLATFORM
 ARG BUILDARCH
@@ -44,7 +44,7 @@ RUN GO111MODULE=on go build  -ldflags "${LDFLAGS}" -a -o manager main.go
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM --platform=$TARGETPLATFORM gcr.io/distroless/static:nonroot
+FROM gcr.io/distroless/static:nonroot
 LABEL maintainer="The Opstree Opensource <opensource@opstree.com>"
 WORKDIR /
 COPY --from=builder /workspace/manager .
