@@ -180,10 +180,7 @@ func CreateRedisSecrets(cr *redisv1beta1.Redis) error {
 	if err != nil {
 		genLogger.Error(err, "Unable to generate the UUID")
 	}
-	value, err := rndID.MarshalBinary()
-	if err != nil {
-		genLogger.Error(err, "Failed to create password")
-	}
+	value := []byte(rndID.String())
 	genLogger.Info("Secrets would be generated in ", "namespace", namespacelist)
 
 	for _, namespace := range namespacelist {
