@@ -1,16 +1,12 @@
 ---
 apiVersion: redis.redis.opstreelabs.in/v1beta1
-kind: RedisCluster
+kind: Redis
 metadata:
-  name: redis-cluster-random
-  namespace: redis-operator  
+  name: redis-standalone
+  namespace: redis-operator
 spec:
-  clusterSize: 3
-  clusterVersion: v7
-  persistenceEnabled: true
-  securityContext:
-    runAsUser: 1000
-    fsGroup: 1000
+  # redisConfig:
+  #   additionalRedisConfig: redis-external-config
   kubernetesConfig:
     image: quay.io/opstree/redis:v7.0.5
     imagePullPolicy: IfNotPresent
@@ -23,9 +19,9 @@ spec:
         memory: 128Mi
     redisSecret:
       generatePasswordSecret:
-        name:  redis-secret-cluster
+        name:  redis-secret-standalone
         namespace : 
-          - redis-operator  
+          - redis-operator
         key :  operator-key # Default is set to 'key'
       # existRedisSecret:
       #   name: redis-secret
@@ -57,12 +53,6 @@ spec:
     #     secretKeyRef:
     #       name: mysecret
     #       key: username
-#  redisLeader:
-#    redisConfig:
-#      additionalRedisConfig: redis-external-config
-#  redisFollower:
-#    redisConfig:
-#      additionalRedisConfig: redis-external-config
   storage:
     volumeClaimTemplate:
       spec:
@@ -73,6 +63,7 @@ spec:
             storage: 1Gi
   # nodeSelector:
   #   kubernetes.io/hostname: minikube
+  # securityContext: {}
   # priorityClassName:
-  # Affinity:
+  # affinity:
   # Tolerations: []

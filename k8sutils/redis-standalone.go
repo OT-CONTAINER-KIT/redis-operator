@@ -2,6 +2,8 @@ package k8sutils
 
 import (
 	redisv1beta1 "redis-operator/api/v1beta1"
+
+	"github.com/google/uuid"
 )
 
 var (
@@ -158,6 +160,7 @@ func CreateRedisSecrets(cr *redisv1beta1.Redis) error {
 	var name = *cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Name
 	var namespacelist = cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.NameSpace
 	var key = cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Key
+	ownerRef := redisAsOwner(cr)
 
 	genLogger := log.WithValues()
 
@@ -165,16 +168,28 @@ func CreateRedisSecrets(cr *redisv1beta1.Redis) error {
 	if key == nil {
 		*key = "key"
 	}
-	genLogger.Info("The key is set to ", *key)
+	genLogger.Info("The key is set to ", "key", *key)
 
 	// If no namespacelist is defined default would be added automatically
 	if namespacelist == nil {
 		namespacelist = append(namespacelist, "default")
 	}
-	genLogger.Info("Secrets would be generated in namespace", namespacelist)
+	genLogger.Info("Namespaces passed to generate secrets are", "namespaces", namespacelist)
 
-	ownerRef := redisAsOwner(cr)
+	rndID, err := uuid.NewRandom()
+	if err != nil {
+		genLogger.Error(err, "Unable to generate the UUID")
+	}
+	value := rndID.NodeID()
+	genLogger.Info("Secrets would be generated in ", "namespace", namespacelist)
 
-	return GenerateSecrets(name, namespacelist, key, ownerRef)
+	for _, namespace := range namespacelist {
+		err := createSecretIfNotExist(name, namespace, key, value, ownerRef)
+		if err != nil {
 
+			return err
+		}
+	}
+
+	return nil
 }
