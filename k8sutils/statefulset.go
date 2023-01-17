@@ -7,13 +7,15 @@ import (
 	redisv1beta1 "redis-operator/api/v1beta1"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/go-logr/logr"
+	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
@@ -37,6 +39,7 @@ type statefulSetParameters struct {
 	ExternalConfig        *string
 	ServiceAccountName    *string
 	UpdateStrategy        appsv1.StatefulSetUpdateStrategy
+	RecreateStatefulSet   bool
 }
 
 // containerParameters will define container input params
@@ -70,16 +73,16 @@ func CreateOrUpdateStateFul(namespace string, stsMeta metav1.ObjectMeta, params 
 			logger.Error(err, "Unable to patch redis statefulset with comparison object")
 			return err
 		}
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return createStatefulSet(namespace, statefulSetDef)
 		}
 		return err
 	}
-	return patchStatefulSet(storedStateful, statefulSetDef, namespace)
+	return patchStatefulSet(storedStateful, statefulSetDef, namespace, params.RecreateStatefulSet)
 }
 
 // patchStateFulSet will patch Redis Kubernetes StateFulSet
-func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.StatefulSet, namespace string) error {
+func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.StatefulSet, namespace string, recreateStateFulSet bool) error {
 	logger := statefulSetLogger(namespace, storedStateful.Name)
 
 	// We want to try and keep this atomic as possible.
@@ -176,7 +179,7 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 			logger.Error(err, "Unable to patch redis statefulset with comparison object")
 			return err
 		}
-		return updateStatefulSet(namespace, newStateful)
+		return updateStatefulSet(namespace, newStateful, recreateStateFulSet)
 	}
 	logger.Info("Reconciliation Complete, no Changes required.")
 	return nil
@@ -520,15 +523,28 @@ func createStatefulSet(namespace string, stateful *appsv1.StatefulSet) error {
 }
 
 // updateStatefulSet is a method to update statefulset in Kubernetes
-func updateStatefulSet(namespace string, stateful *appsv1.StatefulSet) error {
+func updateStatefulSet(namespace string, stateful *appsv1.StatefulSet, recreateStateFulSet bool) error {
 	logger := statefulSetLogger(namespace, stateful.Name)
-	// logger.Info(fmt.Sprintf("Setting Statefulset to the following: %s", stateful))
 	_, err := generateK8sClient().AppsV1().StatefulSets(namespace).Update(context.TODO(), stateful, metav1.UpdateOptions{})
+	if recreateStateFulSet {
+		sErr, ok := err.(*apierrors.StatusError)
+		if ok && sErr.ErrStatus.Code == 422 && sErr.ErrStatus.Reason == metav1.StatusReasonInvalid {
+			failMsg := make([]string, len(sErr.ErrStatus.Details.Causes))
+			for messageCount, cause := range sErr.ErrStatus.Details.Causes {
+				failMsg[messageCount] = cause.Message
+			}
+			logger.Info("recreating StatefulSet because the update operation wasn't possible", "reason", strings.Join(failMsg, ", "))
+			propagationPolicy := metav1.DeletePropagationForeground
+			if err := generateK8sClient().AppsV1().StatefulSets(namespace).Delete(context.TODO(), stateful.GetName(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}); err != nil {
+				return errors.Wrap(err, "failed to delete StatefulSet to avoid forbidden action")
+			}
+		}
+	}
 	if err != nil {
-		logger.Error(err, "Redis stateful update failed")
+		logger.Error(err, "Redis statefulset update failed")
 		return err
 	}
-	logger.Info("Redis stateful successfully updated ")
+	logger.Info("Redis statefulset successfully updated ")
 	return nil
 }
 

@@ -82,7 +82,7 @@ docker-build:
 
 # Push the docker image
 docker-push:
-	docker push ${IMG}
+	docker buildx build --push --platform="linux/arm64,linux/amd64" -t ${IMG} .
 
 # Download controller-gen locally if necessary
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
