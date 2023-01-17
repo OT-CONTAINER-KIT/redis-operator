@@ -71,7 +71,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	if instance.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret != nil {
-		err = k8sutils.GenerateSecrets(*instance.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Name, instance.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.NameSpace, instance.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Key)
+		err = k8sutils.GenerateSecrets(instance)
 		if err != nil {
 			reqLogger.Error(err, "Failed to create the Secrets")
 			return ctrl.Result{RequeueAfter: time.Second * 10}, err

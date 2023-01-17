@@ -85,7 +85,13 @@ func getRedisTLSConfig(cr *redisv1beta1.RedisCluster, redisInfo RedisDetails) *t
 	}
 	return nil
 }
-func GenerateSecrets(name string, namespacelist []string, key *string) error {
+
+//func GenerateSecrets(name string, namespacelist []string, key *string, ownerRef metav1.OwnerReference) error {
+func GenerateSecrets(instance *redisv1beta1.RedisCluster) error {
+	var name = *instance.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Name
+	var namespacelist = instance.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.NameSpace
+	var key = instance.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Key
+
 	genLogger := log.WithValues()
 
 	rndID, err := uuid.NewRandom()
@@ -113,6 +119,8 @@ func GenerateSecrets(name string, namespacelist []string, key *string) error {
 		generatedSecretTemplate.Data = map[string][]byte{
 			*key: value,
 		}
+
+		AddOwnerRefToObject(generatedSecretTemplate, redisClusterAsOwner(instance))
 
 		// Check whether the secret exist or not If not then create it
 		_, err := generateK8sClient().CoreV1().Secrets(namespace).Get(context.Background(), name, metav1.GetOptions{})
