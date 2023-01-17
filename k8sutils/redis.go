@@ -111,6 +111,15 @@ func ExecuteRedisClusterCommand(cr *redisv1beta1.RedisCluster) {
 		cmd = append(cmd, "-a")
 		cmd = append(cmd, pass)
 	}
+
+	if cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret != nil {
+		pass, err := getRedisPassword(cr.Namespace, *cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Key)
+		if err != nil {
+			logger.Error(err, "Error in getting redis password")
+		}
+		cmd = append(cmd, "-a")
+		cmd = append(cmd, pass)
+	}
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.ObjectMeta.Name+"-leader-0")...)
 	logger.Info("Redis cluster creation command is", "Command", cmd)
 	executeCommand(cr, cmd, cr.ObjectMeta.Name+"-leader-0")
@@ -143,6 +152,15 @@ func createRedisReplicationCommand(cr *redisv1beta1.RedisCluster, leaderPod Redi
 
 	if cr.Spec.KubernetesConfig.ExistOrGenerateSecret.ExistingPasswordSecret != nil {
 		pass, err := getRedisPassword(cr.Namespace, *cr.Spec.KubernetesConfig.ExistOrGenerateSecret.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistOrGenerateSecret.ExistingPasswordSecret.Key)
+		if err != nil {
+			logger.Error(err, "Error in getting redis password")
+		}
+		cmd = append(cmd, "-a")
+		cmd = append(cmd, pass)
+	}
+
+	if cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret != nil {
+		pass, err := getRedisPassword(cr.Namespace, *cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Key)
 		if err != nil {
 			logger.Error(err, "Error in getting redis password")
 		}
