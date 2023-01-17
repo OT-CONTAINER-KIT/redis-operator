@@ -86,11 +86,11 @@ func getRedisTLSConfig(cr *redisv1beta1.RedisCluster, redisInfo RedisDetails) *t
 	return nil
 }
 
-//func GenerateSecrets(name string, namespacelist []string, key *string, ownerRef metav1.OwnerReference) error {
-func GenerateSecrets(instance *redisv1beta1.RedisCluster) error {
-	var name = *instance.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Name
-	var namespacelist = instance.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.NameSpace
-	var key = instance.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Key
+func GenerateSecrets(name string, namespacelist []string, key *string, ownerRef metav1.OwnerReference) error {
+
+	// var name = *instance.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Name
+	// var namespacelist = instance.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.NameSpace
+	// var key = instance.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Key
 
 	genLogger := log.WithValues()
 
@@ -98,39 +98,25 @@ func GenerateSecrets(instance *redisv1beta1.RedisCluster) error {
 	if err != nil {
 		genLogger.Error(err, "Unable to generate the UUID")
 	}
-	// If key is empty add the default value
-	if key == nil {
-		*key = "key"
-	}
-
-	// If no namespacelist is defined default would be added.
-	if namespacelist == nil {
-		namespacelist = append(namespacelist, "default")
-	}
-
 	// Key and Value for the secret
 	value := rndID.NodeID()
 
 	for _, namespace := range namespacelist {
 
-		generatedSecretTemplate := generateSecretTemplate()
-		generatedSecretTemplate.Name = name
-		generatedSecretTemplate.Namespace = namespace
+		generatedSecretTemplate := generateSecretTemplate(name, namespace)
 		generatedSecretTemplate.Data = map[string][]byte{
 			*key: value,
 		}
 
-		AddOwnerRefToObject(generatedSecretTemplate, redisClusterAsOwner(instance))
+		AddOwnerRefToObject(generatedSecretTemplate, ownerRef)
 
 		// Check whether the secret exist or not If not then create it
-		_, err := generateK8sClient().CoreV1().Secrets(namespace).Get(context.Background(), name, metav1.GetOptions{})
-		if kerror.IsNotFound(err) {
-			_, err := generateK8sClient().CoreV1().Secrets(namespace).Create(context.Background(), generatedSecretTemplate, metav1.CreateOptions{})
-			if err != nil {
+		_, err := getSecrets(namespace, name)
+		if err != nil {
+			if kerror.IsNotFound(err) {
+				_, err := generateK8sClient().CoreV1().Secrets(namespace).Create(context.TODO(), generatedSecretTemplate, metav1.CreateOptions{})
 				genLogger.Error(err, "Failed to create the Secrets by the operator")
-				return err
 			}
-		} else {
 			return err
 		}
 
@@ -140,7 +126,7 @@ func GenerateSecrets(instance *redisv1beta1.RedisCluster) error {
 
 }
 
-func generateSecretTemplate() *corev1.Secret {
+func generateSecretTemplate(name string, namespace string) *corev1.Secret {
 
 	return &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -148,8 +134,8 @@ func generateSecretTemplate() *corev1.Secret {
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "",
-			Namespace: "",
+			Name:      name,
+			Namespace: namespace,
 		},
 
 		Data: map[string][]byte{},
@@ -157,4 +143,20 @@ func generateSecretTemplate() *corev1.Secret {
 		Type: "Opaque",
 	}
 
+}
+
+// GetStateFulSet is a method to get statefulset in Kubernetes
+func getSecrets(namespace string, secret string) (*corev1.Secret, error) {
+	logger := secretLogger(namespace, secret)
+	getOpts := metav1.GetOptions{
+		TypeMeta: generateMetaInformation("Secrets", "v1"),
+	}
+	secretInfo, err := generateK8sClient().CoreV1().Secrets(namespace).Get(context.TODO(), secret, getOpts)
+
+	if err != nil {
+		logger.Info("Redis secret get action failed")
+		return nil, err
+	}
+	logger.Info("Redis secret get action was successful")
+	return secretInfo, nil
 }

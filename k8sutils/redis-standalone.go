@@ -152,3 +152,29 @@ func generateRedisStandaloneContainerParams(cr *redisv1beta1.Redis) containerPar
 	}
 	return containerProp
 }
+
+func CreateRedisSecrets(cr *redisv1beta1.Redis) error {
+
+	var name = *cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Name
+	var namespacelist = cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.NameSpace
+	var key = cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Key
+
+	genLogger := log.WithValues()
+
+	// If key is empty add the default value
+	if key == nil {
+		*key = "key"
+	}
+	genLogger.Info("The key is set to ", *key)
+
+	// If no namespacelist is defined default would be added automatically
+	if namespacelist == nil {
+		namespacelist = append(namespacelist, "default")
+	}
+	genLogger.Info("Secrets would be generated in namespace", namespacelist)
+
+	ownerRef := redisAsOwner(cr)
+
+	return GenerateSecrets(name, namespacelist, key, ownerRef)
+
+}

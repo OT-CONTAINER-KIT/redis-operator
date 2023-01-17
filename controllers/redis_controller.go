@@ -63,13 +63,13 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, err
 	}
 
-	// if instance.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret != nil {
-	// 	err = k8sutils.GenerateSecrets(*instance.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Name, instance.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.NameSpace, instance.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Key)
-	// 	if err != nil {
-	// 		reqLogger.Error(err, "Failed to create the Secrets")
-	// 		return ctrl.Result{RequeueAfter: time.Second * 10}, err
-	// 	}
-	// }
+	if instance.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret != nil {
+		err = k8sutils.CreateRedisSecrets(instance)
+		if err != nil {
+			reqLogger.Error(err, "Failed to create the Secrets")
+			return ctrl.Result{RequeueAfter: time.Second * 10}, err
+		}
+	}
 
 	err = k8sutils.CreateStandaloneRedis(instance)
 	if err != nil {
