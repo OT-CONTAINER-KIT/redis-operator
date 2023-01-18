@@ -157,12 +157,11 @@ func generateRedisStandaloneContainerParams(cr *redisv1beta1.Redis) containerPar
 
 func CreateRedisSecrets(cr *redisv1beta1.Redis) error {
 
-	var name = *cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Name
+	// Create logger
+	genLogger := log.WithValues()
+
 	var namespacelist = cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.NameSpace
 	var key = cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Key
-	ownerRef := redisAsOwner(cr)
-
-	genLogger := log.WithValues()
 
 	// If key is empty add the default value
 	if key == nil {
@@ -172,21 +171,30 @@ func CreateRedisSecrets(cr *redisv1beta1.Redis) error {
 
 	// If no namespacelist is defined default would be added automatically
 	if namespacelist == nil {
-		namespacelist = append(namespacelist, "default")
+		namespacelist = append(namespacelist, cr.Namespace)
 	}
 	genLogger.Info("Namespaces passed to generate secrets are", "namespaces", namespacelist)
-
+	// Create a random UUID which is used as redis password
 	rndID, err := uuid.NewRandom()
 	if err != nil {
 		genLogger.Error(err, "Unable to generate the UUID")
 	}
-	value := []byte(rndID.String())
-	genLogger.Info("Secrets would be generated in ", "namespace", namespacelist)
+
+	genLogger.Info("Secrets would be generated in ", "namespaces", namespacelist)
+
+	secretParams := RedisSecretParams{
+		name:     *cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Name,
+		key:      *cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Key,
+		ownerRef: redisAsOwner(cr),
+		ownerNS:  cr.Namespace,
+		value:    []byte(rndID.String()),
+		labels:   getSecretLabels(cr.Name, "Redis-Standalone"),
+	}
 
 	for _, namespace := range namespacelist {
-		err := createSecretIfNotExist(name, namespace, key, value, ownerRef)
+		secretParams.namespace = namespace
+		err := createSecretIfNotExist(secretParams)
 		if err != nil {
-
 			return err
 		}
 	}
