@@ -1,5 +1,5 @@
 # Current Operator version
-VERSION ?= 0.13.0
+VERSION ?= 0.14.0
 # Default bundle image tag
 BUNDLE_IMG ?= controller-bundle:$(VERSION)
 # Options for 'bundle-build'
@@ -73,13 +73,16 @@ vet:
 generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
+docker-create:
+	docker buildx create --platform "linux/amd64,linux/arm64" --use
+
 # Build the docker image
 docker-build:
-	docker build -t ${IMG} .
+	docker buildx build --platform="linux/arm64,linux/amd64" -t ${IMG} .
 
 # Push the docker image
 docker-push:
-	docker push ${IMG}
+	docker buildx build --push --platform="linux/arm64,linux/amd64" -t ${IMG} .
 
 # Download controller-gen locally if necessary
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
@@ -116,4 +119,4 @@ bundle: manifests kustomize
 # Build the bundle image.
 .PHONY: bundle-build
 bundle-build:
-	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+	docker buildx build --platform="linux/arm64,linux/amd64" -f bundle.Dockerfile -t $(BUNDLE_IMG) .
