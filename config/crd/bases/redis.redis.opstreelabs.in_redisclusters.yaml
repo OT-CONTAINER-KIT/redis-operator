@@ -155,13 +155,31 @@ spec:
                       type: object
                     type: array
                   redisSecret:
-                    description: ExistingPasswordSecret is the struct to access the
-                      existing secret
+                    maxProperties: 1
                     properties:
-                      key:
-                        type: string
-                      name:
-                        type: string
+                      existRedisSecret:
+                        description: ExistingPasswordSecret is the struct to access
+                          the existing secret
+                        properties:
+                          key:
+                            type: string
+                          name:
+                            type: string
+                        type: object
+                      generatePasswordSecret:
+                        properties:
+                          key:
+                            default: key
+                            type: string
+                          name:
+                            type: string
+                          namespace:
+                            items:
+                              type: string
+                            type: array
+                        required:
+                        - name
+                        type: object
                     type: object
                   resources:
                     description: ResourceRequirements describes the compute resource

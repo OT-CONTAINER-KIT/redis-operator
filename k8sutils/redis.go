@@ -103,8 +103,17 @@ func ExecuteRedisClusterCommand(cr *redisv1beta1.RedisCluster) {
 		cmd = CreateMultipleLeaderRedisCommand(cr)
 	}
 
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+	if cr.Spec.KubernetesConfig.ExistOrGenerateSecret.ExistingPasswordSecret != nil {
+		pass, err := getRedisPassword(cr.Namespace, *cr.Spec.KubernetesConfig.ExistOrGenerateSecret.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistOrGenerateSecret.ExistingPasswordSecret.Key)
+		if err != nil {
+			logger.Error(err, "Error in getting redis password")
+		}
+		cmd = append(cmd, "-a")
+		cmd = append(cmd, pass)
+	}
+
+	if cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret != nil {
+		pass, err := getRedisPassword(cr.Namespace, *cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Key)
 		if err != nil {
 			logger.Error(err, "Error in getting redis password")
 		}
@@ -141,8 +150,17 @@ func createRedisReplicationCommand(cr *redisv1beta1.RedisCluster, leaderPod Redi
 	}
 	cmd = append(cmd, "--cluster-slave")
 
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+	if cr.Spec.KubernetesConfig.ExistOrGenerateSecret.ExistingPasswordSecret != nil {
+		pass, err := getRedisPassword(cr.Namespace, *cr.Spec.KubernetesConfig.ExistOrGenerateSecret.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistOrGenerateSecret.ExistingPasswordSecret.Key)
+		if err != nil {
+			logger.Error(err, "Error in getting redis password")
+		}
+		cmd = append(cmd, "-a")
+		cmd = append(cmd, pass)
+	}
+
+	if cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret != nil {
+		pass, err := getRedisPassword(cr.Namespace, *cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Key)
 		if err != nil {
 			logger.Error(err, "Error in getting redis password")
 		}
@@ -313,8 +331,8 @@ func configureRedisClient(cr *redisv1beta1.RedisCluster, podName string) *redis.
 	}
 	var client *redis.Client
 
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+	if cr.Spec.KubernetesConfig.ExistOrGenerateSecret.ExistingPasswordSecret != nil {
+		pass, err := getRedisPassword(cr.Namespace, *cr.Spec.KubernetesConfig.ExistOrGenerateSecret.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistOrGenerateSecret.ExistingPasswordSecret.Key)
 		if err != nil {
 			logger.Error(err, "Error in getting redis password")
 		}

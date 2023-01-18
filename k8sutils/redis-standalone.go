@@ -2,6 +2,8 @@ package k8sutils
 
 import (
 	redisv1beta1 "redis-operator/api/v1beta1"
+
+	"github.com/google/uuid"
 )
 
 var (
@@ -114,12 +116,18 @@ func generateRedisStandaloneContainerParams(cr *redisv1beta1.Redis) containerPar
 		containerProp.AdditionalVolume = cr.Spec.Storage.VolumeMount.Volume
 		containerProp.AdditionalMountPath = cr.Spec.Storage.VolumeMount.MountPath
 	}
-
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
+	switch true {
+	case cr.Spec.KubernetesConfig.ExistOrGenerateSecret.ExistingPasswordSecret != nil:
 		containerProp.EnabledPassword = &trueProperty
-		containerProp.SecretName = cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name
-		containerProp.SecretKey = cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key
-	} else {
+		containerProp.SecretName = cr.Spec.KubernetesConfig.ExistOrGenerateSecret.ExistingPasswordSecret.Name
+		containerProp.SecretKey = cr.Spec.KubernetesConfig.ExistOrGenerateSecret.ExistingPasswordSecret.Key
+
+	case cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret != nil:
+		containerProp.EnabledPassword = &trueProperty
+		containerProp.SecretName = cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Name
+		containerProp.SecretKey = cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Key
+
+	default:
 		containerProp.EnabledPassword = &falseProperty
 	}
 	if cr.Spec.RedisExporter != nil {
@@ -148,4 +156,51 @@ func generateRedisStandaloneContainerParams(cr *redisv1beta1.Redis) containerPar
 		containerProp.TLSConfig = cr.Spec.TLS
 	}
 	return containerProp
+}
+
+func CreateRedisSecrets(cr *redisv1beta1.Redis) error {
+
+	// Create logger
+	genLogger := log.WithValues()
+
+	var namespacelist = cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.NameSpace
+	var key = cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Key
+
+	// If key is empty add the default value
+	if key == nil {
+		*key = "key"
+	}
+	genLogger.Info("The key is set to ", "key", *key)
+
+	// If no namespacelist is defined default would be added automatically
+	if namespacelist == nil {
+		namespacelist = append(namespacelist, cr.Namespace)
+	}
+	genLogger.Info("Namespaces passed to generate secrets are", "namespaces", namespacelist)
+	// Create a random UUID which is used as redis password
+	rndID, err := uuid.NewRandom()
+	if err != nil {
+		genLogger.Error(err, "Unable to generate the UUID")
+	}
+
+	genLogger.Info("Secrets would be generated in ", "namespaces", namespacelist)
+
+	secretParams := RedisSecretParams{
+		name:     *cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Name,
+		key:      *cr.Spec.KubernetesConfig.ExistOrGenerateSecret.GeneratePasswordSecret.Key,
+		ownerRef: redisAsOwner(cr),
+		ownerNS:  cr.Namespace,
+		value:    []byte(rndID.String()),
+		labels:   getSecretLabels(cr.Name, "Redis-Standalone"),
+	}
+
+	for _, namespace := range namespacelist {
+		secretParams.namespace = namespace
+		err := createSecretIfNotExist(secretParams)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

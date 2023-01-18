@@ -23,13 +23,19 @@ import (
 
 // KubernetesConfig will be the JSON struct for Basic Redis Config
 type KubernetesConfig struct {
-	Image                  string                           `json:"image"`
-	ImagePullPolicy        corev1.PullPolicy                `json:"imagePullPolicy,omitempty"`
-	Resources              *corev1.ResourceRequirements     `json:"resources,omitempty"`
-	ExistingPasswordSecret *ExistingPasswordSecret          `json:"redisSecret,omitempty"`
-	ImagePullSecrets       *[]corev1.LocalObjectReference   `json:"imagePullSecrets,omitempty"`
-	UpdateStrategy         appsv1.StatefulSetUpdateStrategy `json:"updateStrategy,omitempty"`
-	Service                *ServiceConfig                   `json:"service,omitempty"`
+	Image                 string                           `json:"image"`
+	ImagePullPolicy       corev1.PullPolicy                `json:"imagePullPolicy,omitempty"`
+	Resources             *corev1.ResourceRequirements     `json:"resources,omitempty"`
+	ExistOrGenerateSecret *ExistOrGenerateSecrets          `json:"redisSecret,omitempty"`
+	ImagePullSecrets      *[]corev1.LocalObjectReference   `json:"imagePullSecrets,omitempty"`
+	UpdateStrategy        appsv1.StatefulSetUpdateStrategy `json:"updateStrategy,omitempty"`
+	Service               *ServiceConfig                   `json:"service,omitempty"`
+}
+
+// +kubebuilder:validation:MaxProperties=1
+type ExistOrGenerateSecrets struct {
+	ExistingPasswordSecret *ExistingPasswordSecret `json:"existRedisSecret,omitempty"`
+	GeneratePasswordSecret *GeneratePassword       `json:"generatePasswordSecret,omitempty"`
 }
 
 // ServiceConfig define the type of service to be created and its annotations
@@ -48,6 +54,13 @@ type RedisConfig struct {
 type ExistingPasswordSecret struct {
 	Name *string `json:"name,omitempty"`
 	Key  *string `json:"key,omitempty"`
+}
+
+type GeneratePassword struct {
+	Name *string `json:"name"`
+	// +kubebuilder:default=key
+	Key       *string  `json:"key,omitempty"`
+	NameSpace []string `json:"namespace,omitempty"`
 }
 
 // Storage is the inteface to add pvc and pv support in redis

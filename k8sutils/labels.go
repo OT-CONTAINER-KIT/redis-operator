@@ -107,3 +107,12 @@ func getRedisLabels(name, setupType, role string, labels map[string]string) map[
 	}
 	return lbls
 }
+
+func getSecretLabels(name, setupType string) map[string]string {
+	lbls := map[string]string{
+		"app":              name,
+		"redis_setup_type": setupType,
+	}
+
+	return lbls
+}
