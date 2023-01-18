@@ -971,6 +971,7 @@ spec:
                       generatePasswordSecret:
                         properties:
                           key:
+                            default: key
                             type: string
                           name:
                             type: string

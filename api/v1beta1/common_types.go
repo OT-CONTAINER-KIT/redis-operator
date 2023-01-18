@@ -57,7 +57,8 @@ type ExistingPasswordSecret struct {
 }
 
 type GeneratePassword struct {
-	Name      *string  `json:"name"`
+	Name *string `json:"name"`
+	// +kubebuilder:default=key
 	Key       *string  `json:"key,omitempty"`
 	NameSpace []string `json:"namespace,omitempty"`
 }
