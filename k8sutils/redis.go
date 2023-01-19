@@ -415,3 +415,66 @@ func generateRedisManagerLogger(namespace, name string) logr.Logger {
 	reqLogger := log.WithValues("Request.RedisManager.Namespace", namespace, "Request.RedisManager.Name", name)
 	return reqLogger
 }
+
+// Replication Management of ReCommands for the Redis
+
+// func checkTotalMaster
+
+// checkRedisCluster will check the redis cluster have sufficient nodes or not
+func checkRedisReplication(cr *redisv1beta1.RedisReplication) [][]string {
+	var client *redis.Client
+	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
+	client = configureRedisReplicationClient(cr, cr.ObjectMeta.Name+"-0")
+	defer client.Close()
+	cmd := redis.NewStringCmd("cluster", "nodes")
+	err := client.Process(cmd)
+	if err != nil {
+		logger.Error(err, "Redis command failed with this error")
+	}
+
+	output, err := cmd.Result()
+	if err != nil {
+		logger.Error(err, "Redis command failed with this error")
+	}
+	logger.Info("Redis cluster nodes are listed", "Output", output)
+
+	csvOutput := csv.NewReader(strings.NewReader(output))
+	csvOutput.Comma = ' '
+	csvOutput.FieldsPerRecord = -1
+	csvOutputRecords, err := csvOutput.ReadAll()
+	if err != nil {
+		logger.Error(err, "Error parsing Node Counts", "output", output)
+	}
+	return csvOutputRecords
+}
+
+// configureRedisClient will configure the Redis Client
+func configureRedisReplicationClient(cr *redisv1beta1.RedisReplication, podName string) *redis.Client {
+	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
+	redisInfo := RedisDetails{
+		PodName:   podName,
+		Namespace: cr.Namespace,
+	}
+	var client *redis.Client
+
+	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
+		pass, err := getRedisPassword(cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+		if err != nil {
+			logger.Error(err, "Error in getting redis password")
+		}
+		client = redis.NewClient(&redis.Options{
+			Addr:      getRedisServerIP(redisInfo) + ":6379",
+			Password:  pass,
+			DB:        0,
+			TLSConfig: getRedisTLSConfig(cr, redisInfo),
+		})
+	} else {
+		client = redis.NewClient(&redis.Options{
+			Addr:      getRedisServerIP(redisInfo) + ":6379",
+			Password:  "",
+			DB:        0,
+			TLSConfig: getRedisTLSConfig(cr, redisInfo),
+		})
+	}
+	return client
+}
