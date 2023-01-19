@@ -4,10 +4,10 @@ import (
 	redisv1beta1 "redis-operator/api/v1beta1"
 )
 
-// CreateStandaloneService method will create standalone service for Redis
+// CreateReplicationService method will create replication service for Redis
 func CreateReplicationService(cr *redisv1beta1.RedisReplication) error {
 	logger := serviceLogger(cr.Namespace, cr.ObjectMeta.Name)
-	labels := getRedisLabels(cr.ObjectMeta.Name, "standalone", "standalone", cr.ObjectMeta.Labels)
+	labels := getRedisLabels(cr.ObjectMeta.Name, "replication", "replication", cr.ObjectMeta.Labels)
 	annotations := generateServiceAnots(cr.ObjectMeta, nil)
 	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
 		enableMetrics = true
@@ -21,12 +21,12 @@ func CreateReplicationService(cr *redisv1beta1.RedisReplication) error {
 	additionalObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, additionalServiceAnnotations))
 	err := CreateOrUpdateService(cr.Namespace, headlessObjectMetaInfo, redisReplicationAsOwner(cr), false, true, "ClusterIP")
 	if err != nil {
-		logger.Error(err, "Cannot create standalone headless service for Redis")
+		logger.Error(err, "Cannot create replication headless service for Redis")
 		return err
 	}
 	err = CreateOrUpdateService(cr.Namespace, objectMetaInfo, redisReplicationAsOwner(cr), enableMetrics, false, "ClusterIP")
 	if err != nil {
-		logger.Error(err, "Cannot create standalone service for Redis")
+		logger.Error(err, "Cannot create replication service for Redis")
 		return err
 	}
 	additionalServiceType := "ClusterIP"
@@ -35,16 +35,16 @@ func CreateReplicationService(cr *redisv1beta1.RedisReplication) error {
 	}
 	err = CreateOrUpdateService(cr.Namespace, additionalObjectMetaInfo, redisReplicationAsOwner(cr), false, false, additionalServiceType)
 	if err != nil {
-		logger.Error(err, "Cannot create additional service for Redis")
+		logger.Error(err, "Cannot create additional service for Redis Replication")
 		return err
 	}
 	return nil
 }
 
-// CreateStandaloneRedis will create a standalone redis setup
+// CreateReplicationRedis will create a replication redis setup
 func CreateReplicationRedis(cr *redisv1beta1.RedisReplication) error {
 	logger := statefulSetLogger(cr.Namespace, cr.ObjectMeta.Name)
-	labels := getRedisLabels(cr.ObjectMeta.Name, "standalone", "standalone", cr.ObjectMeta.Labels)
+	labels := getRedisLabels(cr.ObjectMeta.Name, "replication", "replication", cr.ObjectMeta.Labels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta)
 	objectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name, cr.Namespace, labels, annotations)
 	err := CreateOrUpdateStateFul(cr.Namespace,
@@ -55,7 +55,7 @@ func CreateReplicationRedis(cr *redisv1beta1.RedisReplication) error {
 		cr.Spec.Sidecars,
 	)
 	if err != nil {
-		logger.Error(err, "Cannot create standalone statefulset for Redis")
+		logger.Error(err, "Cannot create replication statefulset for Redis")
 		return err
 	}
 	return nil
@@ -91,7 +91,7 @@ func generateRedisReplicationParams(cr *redisv1beta1.RedisReplication) statefulS
 	return res
 }
 
-// generateRedisStandaloneContainerParams generates Redis container information
+// generateRedisReplicationContainerParams generates Redis container information
 func generateRedisReplicationContainerParams(cr *redisv1beta1.RedisReplication) containerParameters {
 	trueProperty := true
 	falseProperty := false
