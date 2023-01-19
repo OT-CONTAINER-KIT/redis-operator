@@ -16,7 +16,7 @@ import (
 	redisv1beta1 "redis-operator/api/v1beta1"
 )
 
-// RedisClusterReconciler reconciles a RedisCluster object
+// RedisReplicationReconciler reconciles a RedisReplication object
 type RedisReplicationReconciler struct {
 	client.Client
 	Log    logr.Logger
@@ -26,7 +26,7 @@ type RedisReplicationReconciler struct {
 func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 
 	reqLogger := r.Log.WithValues("Request.Namespace", req.Namespace, "Request.Name", req.Name)
-	reqLogger.Info("Reconciling opstree redis Cluster controller")
+	reqLogger.Info("Reconciling opstree redis replication controller")
 	instance := &redisv1beta1.RedisReplication{}
 
 	err := r.Client.Get(context.TODO(), req.NamespacedName, instance)
@@ -37,8 +37,8 @@ func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, err
 	}
 
-	if _, found := instance.ObjectMeta.GetAnnotations()["rediscluster.opstreelabs.in/skip-reconcile"]; found {
-		reqLogger.Info("Found annotations rediscluster.opstreelabs.in/skip-reconcile, so skipping reconcile")
+	if _, found := instance.ObjectMeta.GetAnnotations()["redisreplication.opstreelabs.in/skip-reconcile"]; found {
+		reqLogger.Info("Found annotations redisreplication.opstreelabs.in/skip-reconcile, so skipping reconcile")
 		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 	}
 
@@ -70,13 +70,13 @@ func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{RequeueAfter: time.Second * 60}, err
 	}
 
-	// Check that the Leader and Follower are ready
+	// Check that the Leader and Follower are ready in redis replication
 	if int32(redisReplicationInfo.Status.ReadyReplicas) != totalReplicas {
 		reqLogger.Info("Redis leader and follower nodes are not ready yet", "Ready.Replicas", strconv.Itoa(int(redisReplicationInfo.Status.ReadyReplicas)), "Expected.Replicas", totalReplicas)
 		return ctrl.Result{RequeueAfter: time.Second * 120}, nil
 	}
 
-	reqLogger.Info("Creating redis cluster by executing cluster creation commands", "Leaders.Ready", strconv.Itoa(int(redisLeaderInfo.Status.ReadyReplicas)), "Followers.Ready", strconv.Itoa(int(redisFollowerInfo.Status.ReadyReplicas)))
+	reqLogger.Info("Creating redis replication by executing replication creation commands", "Replication.Ready", strconv.Itoa(int(redisReplicationInfo.Status.ReadyReplicas)))
 
 	reqLogger.Info("Will reconcile redis operator in again 10 seconds")
 	return ctrl.Result{RequeueAfter: time.Second * 10}, nil
