@@ -78,6 +78,17 @@ func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	reqLogger.Info("Creating redis replication by executing replication creation commands", "Replication.Ready", strconv.Itoa(int(redisReplicationInfo.Status.ReadyReplicas)))
 
+	if len(k8sutils.GetRedisNodesByRole(instance, "master")) > int(leaderReplicas) {
+
+		masterNodes := k8sutils.GetRedisNodesByRole(instance, "master")
+		slaveNodes := k8sutils.GetRedisNodesByRole(instance, "slave")
+		err := k8sutils.CreateMasterSlaveReplication(instance, masterNodes, slaveNodes)
+		if err != nil {
+			return ctrl.Result{RequeueAfter: time.Second * 60}, err
+		}
+
+	}
+
 	reqLogger.Info("Will reconcile redis operator in again 10 seconds")
 	return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 

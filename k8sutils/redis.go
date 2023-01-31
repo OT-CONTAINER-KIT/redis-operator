@@ -463,18 +463,134 @@ func configureRedisReplicationClient(cr *redisv1beta1.RedisReplication, podName 
 			logger.Error(err, "Error in getting redis password")
 		}
 		client = redis.NewClient(&redis.Options{
-			Addr:      getRedisServerIP(redisInfo) + ":6379",
-			Password:  pass,
-			DB:        0,
-			TLSConfig: getRedisTLSConfig(cr, redisInfo),
+			Addr:     getRedisServerIP(redisInfo) + ":6379",
+			Password: pass,
+			DB:       0,
+			//TLSConfig: getRedisTLSConfig(cr, redisInfo),
 		})
 	} else {
 		client = redis.NewClient(&redis.Options{
-			Addr:      getRedisServerIP(redisInfo) + ":6379",
-			Password:  "",
-			DB:        0,
-			TLSConfig: getRedisTLSConfig(cr, redisInfo),
+			Addr:     getRedisServerIP(redisInfo) + ":6379",
+			Password: "",
+			DB:       0,
+			//	TLSConfig: getRedisTLSConfig(cr, redisInfo),
 		})
 	}
 	return client
+}
+
+// get master nodes
+
+func GetRedisNodesByRole(cr *redisv1beta1.RedisReplication, redisRole string) []string {
+	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
+	statefulset, err := GetStatefulSet(cr.Namespace, cr.Name)
+	logger.Error(err, "Failed to Get the Statefulset of the custom resource", cr.Name, "in namespace", cr.Namespace)
+	// var ipList []string
+	var pods []string
+	// replicas := statefulset.Spec.Replicas
+	replicas := cr.Spec.GetReplicationCounts("replication")
+
+	for i := 0; i < int(replicas); i++ {
+
+		// redisInfo := RedisDetails{
+		// 	PodName:   statefulset.Name + strconv.Itoa(i),
+		// 	Namespace: statefulset.Namespace,
+		// }
+
+		//ip := getRedisServerIP(redisInfo)
+		podRole := checkRedisServerRole(cr, statefulset.Name+strconv.Itoa(i))
+		if podRole == redisRole {
+			// ipList = append(ipList, ip)
+			pods = append(pods, statefulset.Name+strconv.Itoa(i))
+		}
+
+	}
+
+	return pods
+}
+
+func checkRedisServerRole(cr *redisv1beta1.RedisReplication, podName string) string {
+	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
+
+	redisClient := configureRedisReplicationClient(cr, podName)
+	info, err := redisClient.Info("replication").Result()
+	logger.Error(err, "Failed to Get the Info of the redis pod", podName)
+
+	lines := strings.Split(info, "\r\n")
+	role := ""
+	for _, line := range lines {
+		if strings.HasPrefix(line, "role:") {
+			role = strings.TrimPrefix(line, "role:")
+			break
+		}
+	}
+
+	return role
+
+}
+
+func checkAttachedSlave(cr *redisv1beta1.RedisReplication, masterPods []string) string {
+	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
+	// var maxConnectedSlaves int
+
+	for _, podName := range masterPods {
+
+		connected_slaves := ""
+		redisClient := configureRedisReplicationClient(cr, podName)
+		info, err := redisClient.Info("replication").Result()
+		logger.Error(err, "Failed to Get the Info of the redis pod", podName)
+
+		lines := strings.Split(info, "\r\n")
+
+		for _, line := range lines {
+			if strings.HasPrefix(line, "connected_slaves:") {
+				connected_slaves = strings.TrimPrefix(line, "connected_slaves:")
+				break
+			}
+		}
+
+		nums, _ := strconv.Atoi(connected_slaves)
+		if nums > 0 {
+			return podName
+		}
+
+	}
+
+	logger.Info("No Master Node Found promoting the following pod to master", masterPods[0])
+	return masterPods[0]
+
+}
+
+func CreateMasterSlaveReplication(cr *redisv1beta1.RedisReplication, masterPods []string, slavePods []string) error {
+	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
+
+	for i := 0; i < len(masterPods); i++ {
+
+		var realMasterPod string
+		realMasterPod = checkAttachedSlave(cr, masterPods)
+
+		if len(slavePods) < 1 {
+			realMasterPod = masterPods[0]
+		}
+		logger.Info("Redis Master Node is set to ", realMasterPod)
+		realMasterInfo := RedisDetails{
+			PodName:   realMasterPod,
+			Namespace: cr.Namespace,
+		}
+		realMasterPodIP := getRedisServerIP(realMasterInfo)
+
+		if masterPods[i] != realMasterPod {
+
+			redisClient := configureRedisReplicationClient(cr, masterPods[i])
+			err := redisClient.SlaveOf(realMasterPodIP, "6379").Err()
+			if err != nil {
+				logger.Error(err, "Failed to set", masterPods[i], "to slave of", realMasterPod)
+				return err
+			}
+
+		}
+
+	}
+
+	return nil
 }
