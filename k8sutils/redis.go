@@ -416,38 +416,6 @@ func generateRedisManagerLogger(namespace, name string) logr.Logger {
 	return reqLogger
 }
 
-// Replication Management of ReCommands for the Redis
-
-// func checkTotalMaster
-
-// checkRedisCluster will check the redis cluster have sufficient nodes or not
-func checkRedisReplication(cr *redisv1beta1.RedisReplication) [][]string {
-	var client *redis.Client
-	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
-	client = configureRedisReplicationClient(cr, cr.ObjectMeta.Name+"-0")
-	defer client.Close()
-	cmd := redis.NewStringCmd("cluster", "nodes")
-	err := client.Process(cmd)
-	if err != nil {
-		logger.Error(err, "Redis command failed with this error")
-	}
-
-	output, err := cmd.Result()
-	if err != nil {
-		logger.Error(err, "Redis command failed with this error")
-	}
-	logger.Info("Redis cluster nodes are listed", "Output", output)
-
-	csvOutput := csv.NewReader(strings.NewReader(output))
-	csvOutput.Comma = ' '
-	csvOutput.FieldsPerRecord = -1
-	csvOutputRecords, err := csvOutput.ReadAll()
-	if err != nil {
-		logger.Error(err, "Error parsing Node Counts", "output", output)
-	}
-	return csvOutputRecords
-}
-
 // configureRedisClient will configure the Redis Client
 func configureRedisReplicationClient(cr *redisv1beta1.RedisReplication, podName string) *redis.Client {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
@@ -479,42 +447,39 @@ func configureRedisReplicationClient(cr *redisv1beta1.RedisReplication, podName 
 	return client
 }
 
-// get master nodes
-
+// Get Redis nodes by it's role i.e. master, slave and sentinel
 func GetRedisNodesByRole(cr *redisv1beta1.RedisReplication, redisRole string) []string {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 	statefulset, err := GetStatefulSet(cr.Namespace, cr.Name)
-	logger.Error(err, "Failed to Get the Statefulset of the custom resource", cr.Name, "in namespace", cr.Namespace)
-	// var ipList []string
+	if err != nil {
+		logger.Error(err, "Failed to Get the Statefulset of the", "custom resource", cr.Name, "in namespace", cr.Namespace)
+	}
+
 	var pods []string
-	// replicas := statefulset.Spec.Replicas
+
 	replicas := cr.Spec.GetReplicationCounts("replication")
 
 	for i := 0; i < int(replicas); i++ {
 
-		// redisInfo := RedisDetails{
-		// 	PodName:   statefulset.Name + strconv.Itoa(i),
-		// 	Namespace: statefulset.Namespace,
-		// }
-
-		//ip := getRedisServerIP(redisInfo)
-		podRole := checkRedisServerRole(cr, statefulset.Name+strconv.Itoa(i))
+		podName := statefulset.Name + "-" + strconv.Itoa(i)
+		podRole := checkRedisServerRole(cr, podName)
 		if podRole == redisRole {
-			// ipList = append(ipList, ip)
-			pods = append(pods, statefulset.Name+strconv.Itoa(i))
+			pods = append(pods, podName)
 		}
-
 	}
 
 	return pods
 }
 
+// Check the Redis Server Role i.e. master, slave and sentinel
 func checkRedisServerRole(cr *redisv1beta1.RedisReplication, podName string) string {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 
 	redisClient := configureRedisReplicationClient(cr, podName)
 	info, err := redisClient.Info("replication").Result()
-	logger.Error(err, "Failed to Get the Info of the redis pod", podName)
+	if err != nil {
+		logger.Error(err, "Failed to Get the role Info of the", "redis pod", podName)
+	}
 
 	lines := strings.Split(info, "\r\n")
 	role := ""
@@ -531,14 +496,15 @@ func checkRedisServerRole(cr *redisv1beta1.RedisReplication, podName string) str
 
 func checkAttachedSlave(cr *redisv1beta1.RedisReplication, masterPods []string) string {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
-	// var maxConnectedSlaves int
 
 	for _, podName := range masterPods {
 
 		connected_slaves := ""
 		redisClient := configureRedisReplicationClient(cr, podName)
 		info, err := redisClient.Info("replication").Result()
-		logger.Error(err, "Failed to Get the Info of the redis pod", podName)
+		if err != nil {
+			logger.Error(err, "Failed to Get the connected slaves Info of the", "redis pod", podName)
+		}
 
 		lines := strings.Split(info, "\r\n")
 
@@ -556,7 +522,7 @@ func checkAttachedSlave(cr *redisv1beta1.RedisReplication, masterPods []string) 
 
 	}
 
-	logger.Info("No Master Node Found promoting the following pod to master", masterPods[0])
+	logger.Info("No Master Node Found promoting the following pod to master", "pod", masterPods[0])
 	return masterPods[0]
 
 }
@@ -566,13 +532,14 @@ func CreateMasterSlaveReplication(cr *redisv1beta1.RedisReplication, masterPods 
 
 	for i := 0; i < len(masterPods); i++ {
 
-		var realMasterPod string
-		realMasterPod = checkAttachedSlave(cr, masterPods)
+		// var realMasterPod string
 
-		if len(slavePods) < 1 {
-			realMasterPod = masterPods[0]
-		}
-		logger.Info("Redis Master Node is set to ", realMasterPod)
+		realMasterPod := checkAttachedSlave(cr, masterPods)
+
+		// if len(slavePods) < 1 {
+		// 	realMasterPod = masterPods[0]
+		// }
+		logger.Info("Redis Master Node is set to", "pod", realMasterPod)
 		realMasterInfo := RedisDetails{
 			PodName:   realMasterPod,
 			Namespace: cr.Namespace,
@@ -584,7 +551,7 @@ func CreateMasterSlaveReplication(cr *redisv1beta1.RedisReplication, masterPods 
 			redisClient := configureRedisReplicationClient(cr, masterPods[i])
 			err := redisClient.SlaveOf(realMasterPodIP, "6379").Err()
 			if err != nil {
-				logger.Error(err, "Failed to set", masterPods[i], "to slave of", realMasterPod)
+				logger.Error(err, "Failed to set", "pod", masterPods[i], "to slave of", realMasterPod)
 				return err
 			}
 

@@ -65,7 +65,7 @@ func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	// Set Pod distruptiuon Budget Later
 
-	redisReplicationInfo, err := k8sutils.GetStatefulSet(instance.Namespace, instance.ObjectMeta.Name+"-replication")
+	redisReplicationInfo, err := k8sutils.GetStatefulSet(instance.Namespace, instance.ObjectMeta.Name)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: time.Second * 60}, err
 	}
@@ -73,7 +73,7 @@ func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	// Check that the Leader and Follower are ready in redis replication
 	if int32(redisReplicationInfo.Status.ReadyReplicas) != totalReplicas {
 		reqLogger.Info("Redis leader and follower nodes are not ready yet", "Ready.Replicas", strconv.Itoa(int(redisReplicationInfo.Status.ReadyReplicas)), "Expected.Replicas", totalReplicas)
-		return ctrl.Result{RequeueAfter: time.Second * 120}, nil
+		return ctrl.Result{RequeueAfter: time.Second * 60}, nil
 	}
 
 	reqLogger.Info("Creating redis replication by executing replication creation commands", "Replication.Ready", strconv.Itoa(int(redisReplicationInfo.Status.ReadyReplicas)))
