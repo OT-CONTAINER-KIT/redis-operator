@@ -43,7 +43,7 @@ func CreateReplicationService(cr *redisv1beta1.RedisReplication) error {
 
 // CreateReplicationRedis will create a replication redis setup
 func CreateReplicationRedis(cr *redisv1beta1.RedisReplication) error {
-	stateFulName := cr.ObjectMeta.Name + "-" + "replication"
+	stateFulName := cr.ObjectMeta.Name
 	logger := statefulSetLogger(cr.Namespace, cr.ObjectMeta.Name)
 	labels := getRedisLabels(cr.ObjectMeta.Name, "replication", "replication", cr.ObjectMeta.Labels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta)
