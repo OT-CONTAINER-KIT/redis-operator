@@ -456,7 +456,6 @@ func GetRedisNodesByRole(cr *redisv1beta1.RedisReplication, redisRole string) []
 	}
 
 	var pods []string
-
 	replicas := cr.Spec.GetReplicationCounts("replication")
 
 	for i := 0; i < int(replicas); i++ {
@@ -494,6 +493,7 @@ func checkRedisServerRole(cr *redisv1beta1.RedisReplication, podName string) str
 
 }
 
+// checkAttachedSlave would return redis pod name which has slave
 func checkAttachedSlave(cr *redisv1beta1.RedisReplication, masterPods []string) string {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 
@@ -522,41 +522,40 @@ func checkAttachedSlave(cr *redisv1beta1.RedisReplication, masterPods []string) 
 
 	}
 
-	logger.Info("No Master Node Found promoting the following pod to master", "pod", masterPods[0])
-	return masterPods[0]
+	return ""
 
 }
 
 func CreateMasterSlaveReplication(cr *redisv1beta1.RedisReplication, masterPods []string, slavePods []string) error {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 
+	var realMasterPod string
+	realMasterPod = checkAttachedSlave(cr, masterPods)
+
+	if len(slavePods) < 1 {
+		realMasterPod = masterPods[0]
+		logger.Info("No Master Node Found with attached slave promoting the following pod to master", "pod", masterPods[0])
+	}
+
+	logger.Info("Redis Master Node is set to", "pod", realMasterPod)
+	realMasterInfo := RedisDetails{
+		PodName:   realMasterPod,
+		Namespace: cr.Namespace,
+	}
+
+	realMasterPodIP := getRedisServerIP(realMasterInfo)
+
 	for i := 0; i < len(masterPods); i++ {
-
-		// var realMasterPod string
-
-		realMasterPod := checkAttachedSlave(cr, masterPods)
-
-		// if len(slavePods) < 1 {
-		// 	realMasterPod = masterPods[0]
-		// }
-		logger.Info("Redis Master Node is set to", "pod", realMasterPod)
-		realMasterInfo := RedisDetails{
-			PodName:   realMasterPod,
-			Namespace: cr.Namespace,
-		}
-		realMasterPodIP := getRedisServerIP(realMasterInfo)
-
 		if masterPods[i] != realMasterPod {
 
 			redisClient := configureRedisReplicationClient(cr, masterPods[i])
+			log.Info("Setting the", "pod", masterPods[i], "to slave of", realMasterPod)
 			err := redisClient.SlaveOf(realMasterPodIP, "6379").Err()
 			if err != nil {
 				logger.Error(err, "Failed to set", "pod", masterPods[i], "to slave of", realMasterPod)
 				return err
 			}
-
 		}
-
 	}
 
 	return nil
