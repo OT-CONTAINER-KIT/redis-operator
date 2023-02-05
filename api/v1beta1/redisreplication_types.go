@@ -8,7 +8,6 @@ import (
 type RedisReplicationSpec struct {
 	Size              *int32                     `json:"clusterSize"`
 	KubernetesConfig  KubernetesConfig           `json:"kubernetesConfig"`
-	RedisReplicas     RedisReplicas              `json:"redisReplicas,omitempty"`
 	RedisExporter     *RedisExporter             `json:"redisExporter,omitempty"`
 	RedisConfig       *RedisConfig               `json:"redisConfig,omitempty"`
 	Storage           *Storage                   `json:"storage,omitempty"`
@@ -28,22 +27,7 @@ type RedisReplicationSpec struct {
 
 func (cr *RedisReplicationSpec) GetReplicationCounts(t string) int32 {
 	replica := cr.Size
-	if t == "replication" && cr.RedisReplicas.Replicas != nil {
-		replica = cr.RedisReplicas.Replicas
-	}
 	return *replica
-}
-
-// RedisLeader interface will have the redis leader configuration
-type RedisReplicas struct {
-	Replicas            *int32                    `json:"replicas,omitempty"`
-	RedisConfig         *RedisConfig              `json:"redisConfig,omitempty"`
-	Affinity            *corev1.Affinity          `json:"affinity,omitempty"`
-	PodDisruptionBudget *RedisPodDisruptionBudget `json:"pdb,omitempty"`
-	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
-	ReadinessProbe *Probe `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
-	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
-	LivenessProbe *Probe `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
 }
 
 // RedisStatus defines the observed state of Redis
