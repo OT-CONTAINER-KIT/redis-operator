@@ -431,17 +431,17 @@ func configureRedisReplicationClient(cr *redisv1beta1.RedisReplication, podName 
 			logger.Error(err, "Error in getting redis password")
 		}
 		client = redis.NewClient(&redis.Options{
-			Addr:     getRedisServerIP(redisInfo) + ":6379",
-			Password: pass,
-			DB:       0,
-			//TLSConfig: getRedisTLSConfig(cr, redisInfo),
+			Addr:      getRedisServerIP(redisInfo) + ":6379",
+			Password:  pass,
+			DB:        0,
+			TLSConfig: getRedisReplicationTLSConfig(cr, redisInfo),
 		})
 	} else {
 		client = redis.NewClient(&redis.Options{
-			Addr:     getRedisServerIP(redisInfo) + ":6379",
-			Password: "",
-			DB:       0,
-			//	TLSConfig: getRedisTLSConfig(cr, redisInfo),
+			Addr:      getRedisServerIP(redisInfo) + ":6379",
+			Password:  "",
+			DB:        0,
+			TLSConfig: getRedisReplicationTLSConfig(cr, redisInfo),
 		})
 	}
 	return client
@@ -475,6 +475,7 @@ func checkRedisServerRole(cr *redisv1beta1.RedisReplication, podName string) str
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 
 	redisClient := configureRedisReplicationClient(cr, podName)
+	defer redisClient.Close()
 	info, err := redisClient.Info("replication").Result()
 	if err != nil {
 		logger.Error(err, "Failed to Get the role Info of the", "redis pod", podName)
@@ -501,6 +502,7 @@ func checkAttachedSlave(cr *redisv1beta1.RedisReplication, masterPods []string) 
 
 		connected_slaves := ""
 		redisClient := configureRedisReplicationClient(cr, podName)
+		defer redisClient.Close()
 		info, err := redisClient.Info("replication").Result()
 		if err != nil {
 			logger.Error(err, "Failed to Get the connected slaves Info of the", "redis pod", podName)
@@ -549,6 +551,7 @@ func CreateMasterSlaveReplication(cr *redisv1beta1.RedisReplication, masterPods 
 		if masterPods[i] != realMasterPod {
 
 			redisClient := configureRedisReplicationClient(cr, masterPods[i])
+			defer redisClient.Close()
 			log.Info("Setting the", "pod", masterPods[i], "to slave of", realMasterPod)
 			err := redisClient.SlaveOf(realMasterPodIP, "6379").Err()
 			if err != nil {
