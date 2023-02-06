@@ -46,6 +46,7 @@ type RedisSnt struct {
 }
 
 type RedisSentinelConfig struct {
+	Replication string `json:"replicationName"`
 	// +kubebuilder:default:=myMaster
 	MasterGroupName string `json:"masterGroupName,omitempty"`
 	// +kubebuilder:default:="6379"

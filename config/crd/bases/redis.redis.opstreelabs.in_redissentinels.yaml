@@ -2022,6 +2022,10 @@ spec:
                       redisPort:
                         default: "6379"
                         type: string
+                      replicationName:
+                        type: string
+                    required:
+                    - replicationName
                     type: object
                   replicas:
                     format: int32
