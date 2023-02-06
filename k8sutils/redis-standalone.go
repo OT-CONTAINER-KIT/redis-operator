@@ -53,7 +53,7 @@ func CreateStandaloneRedis(cr *redisv1beta1.Redis) error {
 	objectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name, cr.Namespace, labels, annotations)
 	err := CreateOrUpdateStateFul(cr.Namespace,
 		objectMetaInfo,
-		generateRedisStandaloneParams(cr),
+		generateRedisStandaloneParams(cr, cr.Spec.GetReplicaCounts()),
 		redisAsOwner(cr),
 		generateRedisStandaloneContainerParams(cr),
 		cr.Spec.Sidecars,
@@ -66,8 +66,7 @@ func CreateStandaloneRedis(cr *redisv1beta1.Redis) error {
 }
 
 // generateRedisStandalone generates Redis standalone information
-func generateRedisStandaloneParams(cr *redisv1beta1.Redis) statefulSetParameters {
-	replicas := int32(1)
+func generateRedisStandaloneParams(cr *redisv1beta1.Redis, replicas int32) statefulSetParameters {
 	res := statefulSetParameters{
 		Replicas:          &replicas,
 		NodeSelector:      cr.Spec.NodeSelector,

@@ -26,6 +26,7 @@ import (
 
 // RedisSpec defines the desired state of Redis
 type RedisSpec struct {
+	Replicas          *int32                     `json:"replicas,omitempty"`
 	KubernetesConfig  KubernetesConfig           `json:"kubernetesConfig"`
 	RedisExporter     *RedisExporter             `json:"redisExporter,omitempty"`
 	RedisConfig       *RedisConfig               `json:"redisConfig,omitempty"`
@@ -42,6 +43,11 @@ type RedisSpec struct {
 	LivenessProbe      *Probe     `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
 	Sidecars           *[]Sidecar `json:"sidecars,omitempty"`
 	ServiceAccountName *string    `json:"serviceAccountName,omitempty"`
+}
+
+func (cr *RedisSpec) GetReplicaCounts() int32 {
+	replica := cr.Replicas
+	return *replica
 }
 
 // RedisStatus defines the observed state of Redis

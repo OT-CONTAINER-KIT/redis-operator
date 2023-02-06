@@ -935,6 +935,11 @@ spec:
                         type: array
                     type: object
                 type: object
+              replicas:
+                description: Number of replicas we want 
+                format: int32
+                type: integer
+                default: 1
               kubernetesConfig:
                 description: KubernetesConfig will be the JSON struct for Basic Redis
                   Config
