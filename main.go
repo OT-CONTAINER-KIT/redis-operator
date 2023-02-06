@@ -100,6 +100,14 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "RedisCluster")
 		os.Exit(1)
 	}
+	if err = (&controllers.RedisReplicationReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("RedisReplication"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "RedisReplication")
+		os.Exit(1)
+	}
 
 	if err = (&controllers.RedisSentinelReconciler{
 		Client: mgr.GetClient(),

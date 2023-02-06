@@ -4,14 +4,10 @@ import (
 	redisv1beta1 "redis-operator/api/v1beta1"
 )
 
-var (
-	enableMetrics bool
-)
-
-// CreateStandaloneService method will create standalone service for Redis
-func CreateStandaloneService(cr *redisv1beta1.Redis) error {
+// CreateReplicationService method will create replication service for Redis
+func CreateReplicationService(cr *redisv1beta1.RedisReplication) error {
 	logger := serviceLogger(cr.Namespace, cr.ObjectMeta.Name)
-	labels := getRedisLabels(cr.ObjectMeta.Name, "standalone", "standalone", cr.ObjectMeta.Labels)
+	labels := getRedisLabels(cr.ObjectMeta.Name, "replication", "replication", cr.ObjectMeta.Labels)
 	annotations := generateServiceAnots(cr.ObjectMeta, nil)
 	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
 		enableMetrics = true
@@ -23,51 +19,51 @@ func CreateStandaloneService(cr *redisv1beta1.Redis) error {
 	objectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name, cr.Namespace, labels, annotations)
 	headlessObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-headless", cr.Namespace, labels, annotations)
 	additionalObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, additionalServiceAnnotations))
-	err := CreateOrUpdateService(cr.Namespace, headlessObjectMetaInfo, redisAsOwner(cr), false, true, "ClusterIP")
+	err := CreateOrUpdateService(cr.Namespace, headlessObjectMetaInfo, redisReplicationAsOwner(cr), false, true, "ClusterIP")
 	if err != nil {
-		logger.Error(err, "Cannot create standalone headless service for Redis")
+		logger.Error(err, "Cannot create replication headless service for Redis")
 		return err
 	}
-	err = CreateOrUpdateService(cr.Namespace, objectMetaInfo, redisAsOwner(cr), enableMetrics, false, "ClusterIP")
+	err = CreateOrUpdateService(cr.Namespace, objectMetaInfo, redisReplicationAsOwner(cr), enableMetrics, false, "ClusterIP")
 	if err != nil {
-		logger.Error(err, "Cannot create standalone service for Redis")
+		logger.Error(err, "Cannot create replication service for Redis")
 		return err
 	}
 	additionalServiceType := "ClusterIP"
 	if cr.Spec.KubernetesConfig.Service != nil {
 		additionalServiceType = cr.Spec.KubernetesConfig.Service.ServiceType
 	}
-	err = CreateOrUpdateService(cr.Namespace, additionalObjectMetaInfo, redisAsOwner(cr), false, false, additionalServiceType)
+	err = CreateOrUpdateService(cr.Namespace, additionalObjectMetaInfo, redisReplicationAsOwner(cr), false, false, additionalServiceType)
 	if err != nil {
-		logger.Error(err, "Cannot create additional service for Redis")
+		logger.Error(err, "Cannot create additional service for Redis Replication")
 		return err
 	}
 	return nil
 }
 
-// CreateStandaloneRedis will create a standalone redis setup
-func CreateStandaloneRedis(cr *redisv1beta1.Redis) error {
+// CreateReplicationRedis will create a replication redis setup
+func CreateReplicationRedis(cr *redisv1beta1.RedisReplication) error {
+	stateFulName := cr.ObjectMeta.Name
 	logger := statefulSetLogger(cr.Namespace, cr.ObjectMeta.Name)
-	labels := getRedisLabels(cr.ObjectMeta.Name, "standalone", "standalone", cr.ObjectMeta.Labels)
+	labels := getRedisLabels(cr.ObjectMeta.Name, "replication", "replication", cr.ObjectMeta.Labels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta)
-	objectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name, cr.Namespace, labels, annotations)
+	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, annotations)
 	err := CreateOrUpdateStateFul(cr.Namespace,
 		objectMetaInfo,
-		generateRedisStandaloneParams(cr),
-		redisAsOwner(cr),
-		generateRedisStandaloneContainerParams(cr),
+		generateRedisReplicationParams(cr),
+		redisReplicationAsOwner(cr),
+		generateRedisReplicationContainerParams(cr),
 		cr.Spec.Sidecars,
 	)
 	if err != nil {
-		logger.Error(err, "Cannot create standalone statefulset for Redis")
+		logger.Error(err, "Cannot create replication statefulset for Redis")
 		return err
 	}
 	return nil
 }
 
-// generateRedisStandalone generates Redis standalone information
-func generateRedisStandaloneParams(cr *redisv1beta1.Redis) statefulSetParameters {
-	replicas := int32(1)
+func generateRedisReplicationParams(cr *redisv1beta1.RedisReplication) statefulSetParameters {
+	replicas := cr.Spec.GetReplicationCounts("Replication")
 	res := statefulSetParameters{
 		Replicas:          &replicas,
 		NodeSelector:      cr.Spec.NodeSelector,
@@ -93,18 +89,15 @@ func generateRedisStandaloneParams(cr *redisv1beta1.Redis) statefulSetParameters
 	if cr.Spec.ServiceAccountName != nil {
 		res.ServiceAccountName = cr.Spec.ServiceAccountName
 	}
-	if _, found := cr.ObjectMeta.GetAnnotations()["redis.opstreelabs.in/recreate-statefulset"]; found {
-		res.RecreateStatefulSet = true
-	}
 	return res
 }
 
-// generateRedisStandaloneContainerParams generates Redis container information
-func generateRedisStandaloneContainerParams(cr *redisv1beta1.Redis) containerParameters {
+// generateRedisReplicationContainerParams generates Redis container information
+func generateRedisReplicationContainerParams(cr *redisv1beta1.RedisReplication) containerParameters {
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{
-		Role:            "standalone",
+		Role:            "replication",
 		Image:           cr.Spec.KubernetesConfig.Image,
 		ImagePullPolicy: cr.Spec.KubernetesConfig.ImagePullPolicy,
 		Resources:       cr.Spec.KubernetesConfig.Resources,

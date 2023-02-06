@@ -19,5 +19,8 @@ addons:
   - name: vpc-cni
   - name: coredns
   - name: kube-proxy
+  - name: aws-ebs-csi-driver
+    attachPolicyARNs:
+      - arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy
 iam:
   withOIDC: true

@@ -7,13 +7,15 @@ import (
 	redisv1beta1 "redis-operator/api/v1beta1"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/go-logr/logr"
+	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
@@ -37,6 +39,7 @@ type statefulSetParameters struct {
 	ExternalConfig        *string
 	ServiceAccountName    *string
 	UpdateStrategy        appsv1.StatefulSetUpdateStrategy
+	RecreateStatefulSet   bool
 }
 
 // containerParameters will define container input params
@@ -71,16 +74,16 @@ func CreateOrUpdateStateFul(namespace string, stsMeta metav1.ObjectMeta, params 
 			logger.Error(err, "Unable to patch redis statefulset with comparison object")
 			return err
 		}
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return createStatefulSet(namespace, statefulSetDef)
 		}
 		return err
 	}
-	return patchStatefulSet(storedStateful, statefulSetDef, namespace)
+	return patchStatefulSet(storedStateful, statefulSetDef, namespace, params.RecreateStatefulSet)
 }
 
 // patchStateFulSet will patch Redis Kubernetes StateFulSet
-func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.StatefulSet, namespace string) error {
+func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.StatefulSet, namespace string, recreateStateFulSet bool) error {
 	logger := statefulSetLogger(namespace, storedStateful.Name)
 
 	// We want to try and keep this atomic as possible.
@@ -100,69 +103,71 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 	}
 	if !patchResult.IsEmpty() {
 		logger.Info("Changes in statefulset Detected, Updating...", "patch", string(patchResult.Patch))
-		// Field is immutable therefore we MUST keep it as is.
-		if !apiequality.Semantic.DeepEqual(newStateful.Spec.VolumeClaimTemplates, storedStateful.Spec.VolumeClaimTemplates) {
-			// resize pvc
-			// 1.Get the data already stored internally
-			// 2.Get the desired data
-			// 3.Start querying the pvc list when you find data inconsistencies
-			// 3.1 Comparison using real pvc capacity and desired data
-			// 3.1.1 Update if you find inconsistencies
-			// 3.2 Writing successful updates to internal
-			// 4. Set to old VolumeClaimTemplates to update.Prevent update error reporting
-			// 5. Set to old annotations to update
-			annotations := storedStateful.Annotations
-			if annotations == nil {
-				annotations = map[string]string{
-					"storageCapacity": "0",
+		if len(newStateful.Spec.VolumeClaimTemplates) >= 1 && len(newStateful.Spec.VolumeClaimTemplates) == len(storedStateful.Spec.VolumeClaimTemplates) {
+			// Field is immutable therefore we MUST keep it as is.
+			if !apiequality.Semantic.DeepEqual(newStateful.Spec.VolumeClaimTemplates[0].Spec, storedStateful.Spec.VolumeClaimTemplates[0].Spec) {
+				// resize pvc
+				// 1.Get the data already stored internally
+				// 2.Get the desired data
+				// 3.Start querying the pvc list when you find data inconsistencies
+				// 3.1 Comparison using real pvc capacity and desired data
+				// 3.1.1 Update if you find inconsistencies
+				// 3.2 Writing successful updates to internal
+				// 4. Set to old VolumeClaimTemplates to update.Prevent update error reporting
+				// 5. Set to old annotations to update
+				annotations := storedStateful.Annotations
+				if annotations == nil {
+					annotations = map[string]string{
+						"storageCapacity": "0",
+					}
 				}
-			}
-			storedCapacity, _ := strconv.ParseInt(annotations["storageCapacity"], 0, 64)
-			if len(newStateful.Spec.VolumeClaimTemplates) != 0 {
-				stateCapacity := newStateful.Spec.VolumeClaimTemplates[0].Spec.Resources.Requests.Storage().Value()
-				if storedCapacity != stateCapacity {
-					listOpt := metav1.ListOptions{
-						LabelSelector: labels.FormatLabels(
-							map[string]string{
-								"app":                         storedStateful.Name,
-								"app.kubernetes.io/component": "redis",
-								"app.kubernetes.io/name":      storedStateful.Name,
-							},
-						),
-					}
-					pvcs, err := generateK8sClient().CoreV1().PersistentVolumeClaims(storedStateful.Namespace).List(context.Background(), listOpt)
-					if err != nil {
-						return err
-					}
-					updateFailed := false
-					realUpdate := false
-					for _, pvc := range pvcs.Items {
-						realCapacity := pvc.Spec.Resources.Requests.Storage().Value()
-						if realCapacity != stateCapacity {
-							realUpdate = true
-							pvc.Spec.Resources.Requests = newStateful.Spec.VolumeClaimTemplates[0].Spec.Resources.Requests
-							_, err = generateK8sClient().CoreV1().PersistentVolumeClaims(storedStateful.Namespace).Update(context.Background(), &pvc, metav1.UpdateOptions{})
-							if err != nil {
-								if !updateFailed {
-									updateFailed = true
+				storedCapacity, _ := strconv.ParseInt(annotations["storageCapacity"], 0, 64)
+				if len(newStateful.Spec.VolumeClaimTemplates) != 0 {
+					stateCapacity := newStateful.Spec.VolumeClaimTemplates[0].Spec.Resources.Requests.Storage().Value()
+					if storedCapacity != stateCapacity {
+						listOpt := metav1.ListOptions{
+							LabelSelector: labels.FormatLabels(
+								map[string]string{
+									"app":                         storedStateful.Name,
+									"app.kubernetes.io/component": "redis",
+									"app.kubernetes.io/name":      storedStateful.Name,
+								},
+							),
+						}
+						pvcs, err := generateK8sClient().CoreV1().PersistentVolumeClaims(storedStateful.Namespace).List(context.Background(), listOpt)
+						if err != nil {
+							return err
+						}
+						updateFailed := false
+						realUpdate := false
+						for _, pvc := range pvcs.Items {
+							realCapacity := pvc.Spec.Resources.Requests.Storage().Value()
+							if realCapacity != stateCapacity {
+								realUpdate = true
+								pvc.Spec.Resources.Requests = newStateful.Spec.VolumeClaimTemplates[0].Spec.Resources.Requests
+								_, err = generateK8sClient().CoreV1().PersistentVolumeClaims(storedStateful.Namespace).Update(context.Background(), &pvc, metav1.UpdateOptions{})
+								if err != nil {
+									if !updateFailed {
+										updateFailed = true
+									}
+									logger.Error(fmt.Errorf("redis:%s resize pvc failed:%s", storedStateful.Name, err.Error()), "")
 								}
-								logger.Error(fmt.Errorf("redis:%s resize pvc failed:%s", storedStateful.Name, err.Error()), "")
+							}
+						}
+						if !updateFailed && len(pvcs.Items) != 0 {
+							annotations["storageCapacity"] = fmt.Sprintf("%d", stateCapacity)
+							storedStateful.Annotations = annotations
+							if realUpdate {
+								logger.Info(fmt.Sprintf("redis:%s resize pvc from  %d to %d", storedStateful.Name, storedCapacity, stateCapacity))
+							} else {
+								logger.Info(fmt.Sprintf("redis:%s resize noting,just set annotations", storedStateful.Name))
 							}
 						}
 					}
-					if !updateFailed && len(pvcs.Items) != 0 {
-						annotations["storageCapacity"] = fmt.Sprintf("%d", stateCapacity)
-						storedStateful.Annotations = annotations
-						if realUpdate {
-							logger.Info(fmt.Sprintf("redis:%s resize pvc from  %d to %d", storedStateful.Name, storedCapacity, stateCapacity))
-						} else {
-							logger.Info(fmt.Sprintf("redis:%s resize noting,just set annotations", storedStateful.Name))
-						}
-					}
 				}
 			}
+			newStateful.Annotations["storageCapacity"] = storedStateful.Annotations["storageCapacity"]
 			// set stored.volumeClaimTemplates
-			newStateful.Annotations = storedStateful.Annotations
 			newStateful.Spec.VolumeClaimTemplates = storedStateful.Spec.VolumeClaimTemplates
 		}
 
@@ -175,7 +180,7 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 			logger.Error(err, "Unable to patch redis statefulset with comparison object")
 			return err
 		}
-		return updateStatefulSet(namespace, newStateful)
+		return updateStatefulSet(namespace, newStateful, recreateStateFulSet)
 	}
 	logger.Info("Reconciliation Complete, no Changes required.")
 	return nil
@@ -386,6 +391,13 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 			params.TLSConfig,
 		),
 		VolumeMounts: getVolumeMount("", nil, nil, params.AdditionalMountPath, params.TLSConfig), // We need/want the tls-certs but we DON'T need the PVC (if one is available)
+		Ports: []corev1.ContainerPort{
+			{
+				Name:          redisExporterPortName,
+				ContainerPort: redisExporterPort,
+				Protocol:      corev1.ProtocolTCP,
+			},
+		},
 	}
 	if params.RedisExporterResources != nil {
 		exporterDefinition.Resources = *params.RedisExporterResources
@@ -518,15 +530,28 @@ func createStatefulSet(namespace string, stateful *appsv1.StatefulSet) error {
 }
 
 // updateStatefulSet is a method to update statefulset in Kubernetes
-func updateStatefulSet(namespace string, stateful *appsv1.StatefulSet) error {
+func updateStatefulSet(namespace string, stateful *appsv1.StatefulSet, recreateStateFulSet bool) error {
 	logger := statefulSetLogger(namespace, stateful.Name)
-	// logger.Info(fmt.Sprintf("Setting Statefulset to the following: %s", stateful))
 	_, err := generateK8sClient().AppsV1().StatefulSets(namespace).Update(context.TODO(), stateful, metav1.UpdateOptions{})
+	if recreateStateFulSet {
+		sErr, ok := err.(*apierrors.StatusError)
+		if ok && sErr.ErrStatus.Code == 422 && sErr.ErrStatus.Reason == metav1.StatusReasonInvalid {
+			failMsg := make([]string, len(sErr.ErrStatus.Details.Causes))
+			for messageCount, cause := range sErr.ErrStatus.Details.Causes {
+				failMsg[messageCount] = cause.Message
+			}
+			logger.Info("recreating StatefulSet because the update operation wasn't possible", "reason", strings.Join(failMsg, ", "))
+			propagationPolicy := metav1.DeletePropagationForeground
+			if err := generateK8sClient().AppsV1().StatefulSets(namespace).Delete(context.TODO(), stateful.GetName(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}); err != nil {
+				return errors.Wrap(err, "failed to delete StatefulSet to avoid forbidden action")
+			}
+		}
+	}
 	if err != nil {
-		logger.Error(err, "Redis stateful update failed")
+		logger.Error(err, "Redis statefulset update failed")
 		return err
 	}
-	logger.Info("Redis stateful successfully updated ")
+	logger.Info("Redis statefulset successfully updated ")
 	return nil
 }
 

@@ -6,14 +6,14 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.4.1
   creationTimestamp: null
-  name: redis.redis.redis.opstreelabs.in
+  name: redisreplications.redis.redis.opstreelabs.in
 spec:
   group: redis.redis.opstreelabs.in
   names:
-    kind: Redis
-    listKind: RedisList
-    plural: redis
-    singular: redis
+    kind: RedisReplication
+    listKind: RedisReplicationList
+    plural: redisreplications
+    singular: redisreplication
   scope: Namespaced
   versions:
   - name: v1beta1
@@ -34,7 +34,6 @@ spec:
           metadata:
             type: object
           spec:
-            description: RedisSpec defines the desired state of Redis
             properties:
               TLS:
                 description: TLS Configuration for redis instances
@@ -935,6 +934,9 @@ spec:
                         type: array
                     type: object
                 type: object
+              clusterSize:
+                format: int32
+                type: integer
               kubernetesConfig:
                 description: KubernetesConfig will be the JSON struct for Basic Redis
                   Config
@@ -3564,6 +3566,7 @@ spec:
                   type: object
                 type: array
             required:
+            - clusterSize
             - kubernetesConfig
             type: object
           status:

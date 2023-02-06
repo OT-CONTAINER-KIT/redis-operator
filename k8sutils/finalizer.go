@@ -13,9 +13,10 @@ import (
 )
 
 const (
-	RedisFinalizer         string = "redisFinalizer"
-	RedisClusterFinalizer  string = "redisClusterFinalizer"
-	RedisSentinelFinalizer string = "redisSentinelFinalizer"
+	RedisFinalizer            string = "redisFinalizer"
+	RedisClusterFinalizer     string = "redisClusterFinalizer"
+	RedisReplicationFinalizer string = "redisReplicationFinalizer"
+	RedisSentinelFinalizer    string = "redisSentinelFinalizer"
 )
 
 // finalizeLogger will generate logging interface
@@ -72,6 +73,30 @@ func HandleRedisClusterFinalizer(cr *redisv1beta1.RedisCluster, cl client.Client
 	return nil
 }
 
+// Handle RedisReplicationFinalizer finalize resource if instance is marked to be deleted
+func HandleRedisReplicationFinalizer(cr *redisv1beta1.RedisReplication, cl client.Client) error {
+	logger := finalizerLogger(cr.Namespace, RedisReplicationFinalizer)
+	if cr.GetDeletionTimestamp() != nil {
+		if controllerutil.ContainsFinalizer(cr, RedisReplicationFinalizer) {
+			if err := finalizeRedisReplicationServices(cr); err != nil {
+				return err
+			}
+			if err := finalizeRedisReplicationPVC(cr); err != nil {
+				return err
+			}
+			if err := finalizeRedisReplicationStatefulSets(cr); err != nil {
+				return err
+			}
+			controllerutil.RemoveFinalizer(cr, RedisReplicationFinalizer)
+			if err := cl.Update(context.TODO(), cr); err != nil {
+				logger.Error(err, "Could not remove finalizer "+RedisReplicationFinalizer)
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // HandleRedisSentinelFinalizer finalize resource if instance is marked to be deleted
 func HandleRedisSentinelFinalizer(cr *redisv1beta1.RedisSentinel, cl client.Client) error {
 	logger := finalizerLogger(cr.Namespace, RedisSentinelFinalizer)
@@ -114,6 +139,15 @@ func AddRedisClusterFinalizer(cr *redisv1beta1.RedisCluster, cl client.Client) e
 	return nil
 }
 
+// AddRedisReplicationFinalizer add finalizer for graceful deletion
+func AddRedisReplicationFinalizer(cr *redisv1beta1.RedisReplication, cl client.Client) error {
+	if !controllerutil.ContainsFinalizer(cr, RedisReplicationFinalizer) {
+		controllerutil.AddFinalizer(cr, RedisReplicationFinalizer)
+		return cl.Update(context.TODO(), cr)
+	}
+	return nil
+}
+
 // AddRedisSentinelFinalizer add finalizer for graceful deletion
 func AddRedisSentinelFinalizer(cr *redisv1beta1.RedisSentinel, cl client.Client) error {
 	if !controllerutil.ContainsFinalizer(cr, RedisSentinelFinalizer) {
@@ -140,6 +174,20 @@ func finalizeRedisServices(cr *redisv1beta1.Redis) error {
 // finalizeRedisClusterServices delete Services
 func finalizeRedisClusterServices(cr *redisv1beta1.RedisCluster) error {
 	logger := finalizerLogger(cr.Namespace, RedisClusterFinalizer)
+	serviceName, headlessServiceName := cr.Name, cr.Name+"-headless"
+	for _, svc := range []string{serviceName, headlessServiceName} {
+		err := generateK8sClient().CoreV1().Services(cr.Namespace).Delete(context.TODO(), svc, metav1.DeleteOptions{})
+		if err != nil && !errors.IsNotFound(err) {
+			logger.Error(err, "Could not delete service "+svc)
+			return err
+		}
+	}
+	return nil
+}
+
+// finalize RedisReplicationServices delete Services
+func finalizeRedisReplicationServices(cr *redisv1beta1.RedisReplication) error {
+	logger := finalizerLogger(cr.Namespace, RedisReplicationFinalizer)
 	serviceName, headlessServiceName := cr.Name, cr.Name+"-headless"
 	for _, svc := range []string{serviceName, headlessServiceName} {
 		err := generateK8sClient().CoreV1().Services(cr.Namespace).Delete(context.TODO(), svc, metav1.DeleteOptions{})
@@ -194,6 +242,21 @@ func finalizeRedisClusterPVC(cr *redisv1beta1.RedisCluster) error {
 	return nil
 }
 
+// finalizeRedisReplicationPVC delete PVCs
+func finalizeRedisReplicationPVC(cr *redisv1beta1.RedisReplication) error {
+	logger := finalizerLogger(cr.Namespace, RedisReplicationFinalizer)
+	for i := 0; i < int(cr.Spec.GetReplicationCounts("replication")); i++ {
+		PVCName := cr.Name + "-" + "replication" + "-" + cr.Name + "-" + "replication" + "-" + strconv.Itoa(i)
+		err := generateK8sClient().CoreV1().PersistentVolumeClaims(cr.Namespace).Delete(context.TODO(), PVCName, metav1.DeleteOptions{})
+		if err != nil && !errors.IsNotFound(err) {
+			logger.Error(err, "Could not delete Persistent Volume Claim "+PVCName)
+			return err
+		}
+	}
+
+	return nil
+}
+
 func finalizeRedisSentinelPVC(cr *redisv1beta1.RedisSentinel) error {
 
 	return nil
@@ -219,6 +282,17 @@ func finalizeRedisClusterStatefulSets(cr *redisv1beta1.RedisCluster) error {
 			logger.Error(err, "Could not delete statefulset "+sts)
 			return err
 		}
+	}
+	return nil
+}
+
+// finalizeRedisReplicationStatefulSets delete statefulset for Redis Replication
+func finalizeRedisReplicationStatefulSets(cr *redisv1beta1.RedisReplication) error {
+	logger := finalizerLogger(cr.Namespace, RedisReplicationFinalizer)
+	err := generateK8sClient().AppsV1().StatefulSets(cr.Namespace).Delete(context.TODO(), cr.Name, metav1.DeleteOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		logger.Error(err, "Could not delete StatefulSets "+cr.Name)
+		return err
 	}
 	return nil
 }

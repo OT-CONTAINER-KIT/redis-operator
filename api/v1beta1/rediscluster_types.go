@@ -33,10 +33,8 @@ type RedisClusterSpec struct {
 	RedisFollower      RedisFollower                `json:"redisFollower,omitempty"`
 	RedisExporter      *RedisExporter               `json:"redisExporter,omitempty"`
 	Storage            *Storage                     `json:"storage,omitempty"`
-	NodeSelector       map[string]string            `json:"nodeSelector,omitempty"`
 	SecurityContext    *corev1.PodSecurityContext   `json:"securityContext,omitempty"`
 	PriorityClassName  string                       `json:"priorityClassName,omitempty"`
-	Tolerations        *[]corev1.Toleration         `json:"tolerations,omitempty"`
 	Resources          *corev1.ResourceRequirements `json:"resources,omitempty"`
 	TLS                *TLSConfig                   `json:"TLS,omitempty"`
 	Sidecars           *[]Sidecar                   `json:"sidecars,omitempty"`
@@ -63,7 +61,9 @@ type RedisLeader struct {
 	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
 	ReadinessProbe *Probe `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
 	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
-	LivenessProbe *Probe `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
+	LivenessProbe *Probe               `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
+	Tolerations   *[]corev1.Toleration `json:"tolerations,omitempty"`
+	NodeSelector  map[string]string    `json:"nodeSelector,omitempty"`
 }
 
 // RedisFollower interface will have the redis follower configuration
@@ -75,7 +75,9 @@ type RedisFollower struct {
 	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
 	ReadinessProbe *Probe `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
 	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
-	LivenessProbe *Probe `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
+	LivenessProbe *Probe               `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
+	Tolerations   *[]corev1.Toleration `json:"tolerations,omitempty"`
+	NodeSelector  map[string]string    `json:"nodeSelector,omitempty"`
 }
 
 // RedisClusterStatus defines the observed state of RedisCluster
@@ -89,8 +91,8 @@ type RedisPodDisruptionBudget struct {
 	MaxUnavailable *int32 `json:"maxUnavailable,omitempty"`
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="ClusterSize",type=integer,JSONPath=`.spec.clusterSize`,description=Current cluster node count
 // +kubebuilder:printcolumn:name="LeaderReplicas",type=integer,JSONPath=`.spec.redisLeader.replicas`,description=Overridden Leader replica count
 // +kubebuilder:printcolumn:name="FollowerReplicas",type=integer,JSONPath=`.spec.redisFollower.replicas`,description=Overridden Follower replica count
