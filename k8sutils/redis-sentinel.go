@@ -1,6 +1,7 @@
 package k8sutils
 
 import (
+	"context"
 	redisv1beta1 "redis-operator/api/v1beta1"
 
 	corev1 "k8s.io/api/core/v1"
@@ -20,17 +21,21 @@ type RedisSentinelService struct {
 	RedisServiceRole string
 }
 
+type RedisReplicationObject struct {
+	RedisReplication *redisv1beta1.RedisReplication
+}
+
 // Redis Sentinel Create the Redis Sentinel Setup
 func CreateRedisSentinel(cr *redisv1beta1.RedisSentinel) error {
 	prop := RedisSentinelSTS{
 		RedisStateFulType: "sentinel",
-		Affinity:          cr.Spec.RedisSnt.Affinity,
-		ReadinessProbe:    cr.Spec.RedisSnt.ReadinessProbe,
-		LivenessProbe:     cr.Spec.RedisSnt.LivenessProbe,
+		Affinity:          cr.Spec.Affinity,
+		ReadinessProbe:    cr.Spec.ReadinessProbe,
+		LivenessProbe:     cr.Spec.LivenessProbe,
 	}
 
-	if cr.Spec.RedisSnt.RedisConfig != nil {
-		prop.ExternalConfig = cr.Spec.RedisSnt.RedisConfig.AdditionalRedisConfig
+	if cr.Spec.RedisSentinelConfig.AdditionalRedisConfig != nil {
+		prop.ExternalConfig = cr.Spec.RedisSentinelConfig.AdditionalRedisConfig
 	}
 
 	return prop.CreateRedisSentinelSetup(cr)
@@ -85,15 +90,9 @@ func generateRedisSentinelParams(cr *redisv1beta1.RedisSentinel, replicas int32,
 		UpdateStrategy:     cr.Spec.KubernetesConfig.UpdateStrategy,
 	}
 
-	// if cr.Spec.RedisExporter != nil {
-	// 	res.EnableMetrics = cr.Spec.RedisExporter.Enabled
-	// }
 	if cr.Spec.KubernetesConfig.ImagePullSecrets != nil {
 		res.ImagePullSecrets = cr.Spec.KubernetesConfig.ImagePullSecrets
 	}
-	// if cr.Spec.Storage != nil {
-	// 	res.PersistentVolumeClaim = cr.Spec.Storage.VolumeClaimTemplate
-	// }
 	if externalConfig != nil {
 		res.ExternalConfig = externalConfig
 	}
@@ -107,12 +106,10 @@ func generateRedisSentinelContainerParams(cr *redisv1beta1.RedisSentinel, readin
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{
-		Role:            "sentinel",
-		Image:           cr.Spec.KubernetesConfig.Image,
-		ImagePullPolicy: cr.Spec.KubernetesConfig.ImagePullPolicy,
-		Resources:       cr.Spec.KubernetesConfig.Resources,
-		// AdditionalVolume:    cr.Spec.Storage.VolumeMount.Volume,
-		// AdditionalMountPath: cr.Spec.Storage.VolumeMount.MountPath,
+		Role:                  "sentinel",
+		Image:                 cr.Spec.KubernetesConfig.Image,
+		ImagePullPolicy:       cr.Spec.KubernetesConfig.ImagePullPolicy,
+		Resources:             cr.Spec.KubernetesConfig.Resources,
 		AdditionalEnvVariable: getSentinelEnvVariable(cr),
 	}
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
@@ -122,30 +119,12 @@ func generateRedisSentinelContainerParams(cr *redisv1beta1.RedisSentinel, readin
 	} else {
 		containerProp.EnabledPassword = &falseProperty
 	}
-	// if cr.Spec.RedisExporter != nil {
-	// 	containerProp.RedisExporterImage = cr.Spec.RedisExporter.Image
-	// 	containerProp.RedisExporterImagePullPolicy = cr.Spec.RedisExporter.ImagePullPolicy
-
-	// 	if cr.Spec.RedisExporter.Resources != nil {
-	// 		containerProp.RedisExporterResources = cr.Spec.RedisExporter.Resources
-	// 	}
-
-	// 	if cr.Spec.RedisExporter.EnvVars != nil {
-	// 		containerProp.RedisExporterEnv = cr.Spec.RedisExporter.EnvVars
-	// 	}
-
-	// }
 	if readinessProbeDef != nil {
 		containerProp.ReadinessProbe = readinessProbeDef
 	}
 	if livenessProbeDef != nil {
 		containerProp.LivenessProbe = livenessProbeDef
 	}
-	// if cr.Spec.Storage != nil {
-	// 	containerProp.PersistenceEnabled = &trueProperty
-	// } else {
-	// 	containerProp.PersistenceEnabled = &falseProperty
-	// }
 	if cr.Spec.TLS != nil {
 		containerProp.TLSConfig = cr.Spec.TLS
 	}
@@ -166,9 +145,6 @@ func (service RedisSentinelService) CreateRedisSentinelService(cr *redisv1beta1.
 	labels := getRedisLabels(serviceName, "cluster", service.RedisServiceRole, cr.ObjectMeta.Labels)
 	annotations := generateServiceAnots(cr.ObjectMeta, nil)
 
-	// if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
-	// 	enableMetrics = true
-	// }
 	additionalServiceAnnotations := map[string]string{}
 	if cr.Spec.KubernetesConfig.Service != nil {
 		additionalServiceAnnotations = cr.Spec.KubernetesConfig.Service.ServiceAnnotations
@@ -207,7 +183,7 @@ func getSentinelEnvVariable(cr *redisv1beta1.RedisSentinel) *[]corev1.EnvVar {
 	envVar := &[]corev1.EnvVar{
 		{
 			Name:  "MASTER_GROUP_NAME",
-			Value: cr.Spec.RedisSnt.RedisSentinelConfig.MasterGroupName,
+			Value: cr.Spec.RedisSentinelConfig.MasterGroupName,
 		},
 		{
 			Name:  "IP",
@@ -215,23 +191,23 @@ func getSentinelEnvVariable(cr *redisv1beta1.RedisSentinel) *[]corev1.EnvVar {
 		},
 		{
 			Name:  "PORT",
-			Value: cr.Spec.RedisSnt.RedisSentinelConfig.RedisPort,
+			Value: cr.Spec.RedisSentinelConfig.RedisPort,
 		},
 		{
 			Name:  "QUORUM",
-			Value: cr.Spec.RedisSnt.RedisSentinelConfig.Quorum,
+			Value: cr.Spec.RedisSentinelConfig.Quorum,
 		},
 		{
 			Name:  "DOWN_AFTER_MILLISECONDS",
-			Value: cr.Spec.RedisSnt.RedisSentinelConfig.DownAfterMilliseconds,
+			Value: cr.Spec.RedisSentinelConfig.DownAfterMilliseconds,
 		},
 		{
 			Name:  "PARALLEL_SYNCS",
-			Value: cr.Spec.RedisSnt.RedisSentinelConfig.ParallelSyncs,
+			Value: cr.Spec.RedisSentinelConfig.ParallelSyncs,
 		},
 		{
 			Name:  "FAILOVER_TIMEOUT",
-			Value: cr.Spec.RedisSnt.RedisSentinelConfig.FailoverTimeout,
+			Value: cr.Spec.RedisSentinelConfig.FailoverTimeout,
 		},
 	}
 
@@ -240,12 +216,32 @@ func getSentinelEnvVariable(cr *redisv1beta1.RedisSentinel) *[]corev1.EnvVar {
 }
 
 func getRedisMasterIP(cr *redisv1beta1.RedisSentinel) string {
+	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 
-	master := RedisDetails{
-		PodName:   cr.Spec.RedisSnt.RedisClusterName + "-leader-0",
-		Namespace: cr.Namespace,
+	replicationName := cr.Spec.RedisSentinelConfig.RedisReplicationName
+	replicationNamespace := cr.Namespace
+
+	// key := types.NamespacedName{Name: replicationName, Namespace: replicationNamespace}
+	replicationInstance := &redisv1beta1.RedisReplication{}
+
+	err := generateK8sClient().RESTClient().Get().
+		Name(replicationName).Namespace(replicationNamespace).
+		Resource("redisreplications").Verb("GET").
+		Do(context.TODO()).Into(replicationInstance)
+
+	if err != nil {
+		logger.Error(err, "Failed to Execute Get command", "replication name", replicationName, "namespace", replicationNamespace)
+		return ""
 	}
 
-	return getRedisServerIP(master)
+	masterPods := GetRedisNodesByRole(replicationInstance, "master")
+	realMasterPod := checkAttachedSlave(replicationInstance, masterPods)
+	realMasterInfo := RedisDetails{
+		PodName:   realMasterPod,
+		Namespace: replicationNamespace,
+	}
+
+	realMasterPodIP := getRedisServerIP(realMasterInfo)
+	return realMasterPodIP
 
 }

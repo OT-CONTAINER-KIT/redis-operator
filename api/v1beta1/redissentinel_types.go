@@ -7,46 +7,32 @@ import (
 
 type RedisSentinelSpec struct {
 	// +kubebuilder:validation:Minimum=3
-	Size             *int32           `json:"clusterSize"`
-	KubernetesConfig KubernetesConfig `json:"kubernetesConfig"`
-	// RedisExporter    *RedisExporter   `json:"redisExporter,omitempty"`
-	RedisSnt *RedisSnt `json:"redisSentinel,omitempty"`
-	// Storage in Sentinel to be removed
-	// Storage           *Storage                   `json:"storage,omitempty"`
-	NodeSelector       map[string]string          `json:"nodeSelector,omitempty"`
-	SecurityContext    *corev1.PodSecurityContext `json:"securityContext,omitempty"`
-	PriorityClassName  string                     `json:"priorityClassName,omitempty"`
-	Affinity           *corev1.Affinity           `json:"affinity,omitempty"`
-	Tolerations        *[]corev1.Toleration       `json:"tolerations,omitempty"`
-	TLS                *TLSConfig                 `json:"TLS,omitempty"`
-	Sidecars           *[]Sidecar                 `json:"sidecars,omitempty"`
-	ServiceAccountName *string                    `json:"serviceAccountName,omitempty"`
+	Size                *int32                     `json:"clusterSize"`
+	KubernetesConfig    KubernetesConfig           `json:"kubernetesConfig"`
+	RedisSentinelConfig *RedisSentinelConfig       `json:"redisSentinelConfig,omitempty"`
+	NodeSelector        map[string]string          `json:"nodeSelector,omitempty"`
+	SecurityContext     *corev1.PodSecurityContext `json:"securityContext,omitempty"`
+	PriorityClassName   string                     `json:"priorityClassName,omitempty"`
+	Affinity            *corev1.Affinity           `json:"affinity,omitempty"`
+	Tolerations         *[]corev1.Toleration       `json:"tolerations,omitempty"`
+	TLS                 *TLSConfig                 `json:"TLS,omitempty"`
+	PodDisruptionBudget *RedisPodDisruptionBudget  `json:"pdb,omitempty"`
+	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
+	ReadinessProbe *Probe `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
+	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
+	LivenessProbe      *Probe     `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
+	Sidecars           *[]Sidecar `json:"sidecars,omitempty"`
+	ServiceAccountName *string    `json:"serviceAccountName,omitempty"`
 }
 
 func (cr *RedisSentinelSpec) GetSentinelCounts(t string) int32 {
 	replica := cr.Size
-	if t == "sentinel" && cr.RedisSnt.Replicas != nil {
-		replica = cr.RedisSnt.Replicas
-	}
 	return *replica
 }
 
-type RedisSnt struct {
-	RedisClusterName string `json:"redisClusterName,omitempty"`
-	// +kubebuilder:validation:Minimum=3
-	Replicas            *int32                    `json:"replicas,omitempty"`
-	RedisSentinelConfig *RedisSentinelConfig      `json:"redisSentinelConfig,omitempty"`
-	RedisConfig         *RedisConfig              `json:"redisConfig,omitempty"`
-	Affinity            *corev1.Affinity          `json:"affinity,omitempty"`
-	PodDisruptionBudget *RedisPodDisruptionBudget `json:"pdb,omitempty"`
-	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
-	ReadinessProbe *Probe `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
-	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
-	LivenessProbe *Probe `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
-}
-
 type RedisSentinelConfig struct {
-	Replication string `json:"replicationName"`
+	AdditionalRedisConfig *string `json:"additionalRedisConfig,omitempty"`
+	RedisReplicationName  string  `json:"redisReplicationName"`
 	// +kubebuilder:default:=myMaster
 	MasterGroupName string `json:"masterGroupName,omitempty"`
 	// +kubebuilder:default:="6379"
