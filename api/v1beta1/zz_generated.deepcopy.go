@@ -578,7 +578,7 @@ func (in *RedisReplicationList) DeepCopyInto(out *RedisReplicationList) {
 	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
-		*out = make([]Redis, len(*in))
+		*out = make([]RedisReplication, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
