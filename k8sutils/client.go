@@ -2,6 +2,7 @@ package k8sutils
 
 import (
 	// custom "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -20,17 +21,18 @@ func generateK8sClient() *kubernetes.Clientset {
 	return clientset
 }
 
-// func generateK8sCustomClient() *custom.Clientset {
-// 	config, err := generateK8sConfig()
-// 	if err != nil {
-// 		panic(err.Error())
-// 	}
-// 	customClientset, err := custom.NewForConfig(config)
-// 	if err != nil {
-// 		panic(err.Error())
-// 	}
-// 	return customClientset
-// }
+// generateK8sClient create Dynamic client for kubernetes
+func generateK8sDynamicClient() dynamic.Interface {
+	config, err := generateK8sConfig()
+	if err != nil {
+		panic(err.Error())
+	}
+	dynamicClientset, err := dynamic.NewForConfig(config)
+	if err != nil {
+		panic(err.Error())
+	}
+	return dynamicClientset
+}
 
 // generateK8sConfig will load the kube config file
 func generateK8sConfig() (*rest.Config, error) {

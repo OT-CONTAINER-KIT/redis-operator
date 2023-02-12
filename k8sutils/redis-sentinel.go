@@ -2,9 +2,12 @@ package k8sutils
 
 import (
 	"context"
+	"encoding/json"
 	redisv1beta1 "redis-operator/api/v1beta1"
 
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // RedisSentinelSTS is a interface to call Redis Statefulset function
@@ -221,21 +224,37 @@ func getRedisMasterIP(cr *redisv1beta1.RedisSentinel) string {
 	replicationName := cr.Spec.RedisSentinelConfig.RedisReplicationName
 	replicationNamespace := cr.Namespace
 
-	// key := types.NamespacedName{Name: replicationName, Namespace: replicationNamespace}
-	replicationInstance := &redisv1beta1.RedisReplication{}
+	var replicationInstance redisv1beta1.RedisReplication
 
-	err := generateK8sClient().RESTClient().Get().
-		Name(replicationName).Namespace(replicationNamespace).
-		Resource("redisreplications").Verb("GET").
-		Do(context.TODO()).Into(replicationInstance)
+	// Get Request on Dynamic Client
+	customObject, err := generateK8sDynamicClient().Resource(schema.GroupVersionResource{
+		Group:    "redis.redis.opstreelabs.in",
+		Version:  "v1beta1",
+		Resource: "redisreplications",
+	}).Namespace(replicationNamespace).Get(context.TODO(), replicationName, v1.GetOptions{})
 
 	if err != nil {
-		logger.Error(err, "Failed to Execute Get command", "replication name", replicationName, "namespace", replicationNamespace)
+		logger.Error(err, "Failed to Execute Get Request", "replication name", replicationName, "namespace", replicationNamespace)
+		return ""
+	} else {
+		logger.Info("Successfully Execute the Get Request", "replication name", replicationName, "namespace", replicationNamespace)
+	}
+
+	// Marshal CustomObject to JSON
+	myjson, err := customObject.MarshalJSON()
+	if err != nil {
+		logger.Error(err, "Failed To Load JSON")
 		return ""
 	}
 
-	masterPods := GetRedisNodesByRole(replicationInstance, "master")
-	realMasterPod := checkAttachedSlave(replicationInstance, masterPods)
+	// Unmarshal The JSON on Object
+	if err := json.Unmarshal(myjson, &replicationInstance); err != nil {
+		logger.Error(err, "Failed To Unmarshal JSON over the Object")
+		return ""
+	}
+
+	masterPods := GetRedisNodesByRole(&replicationInstance, "master")
+	realMasterPod := checkAttachedSlave(&replicationInstance, masterPods)
 	realMasterInfo := RedisDetails{
 		PodName:   realMasterPod,
 		Namespace: replicationNamespace,
