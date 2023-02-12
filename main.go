@@ -31,8 +31,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	redisv1beta1 "redis-operator/api/v1beta1"
-	"redis-operator/controllers"
+	redisv1beta1 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta1"
+	"github.com/OT-CONTAINER-KIT/redis-operator/controllers"
 	// +kubebuilder:scaffold:imports
 )
 

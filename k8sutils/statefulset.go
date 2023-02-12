@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 	"path"
-	redisv1beta1 "redis-operator/api/v1beta1"
 	"sort"
 	"strconv"
 	"strings"
+
+	redisv1beta1 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta1"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/go-logr/logr"
