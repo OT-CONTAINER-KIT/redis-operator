@@ -1,4 +1,4 @@
-module redis-operator
+module github.com/OT-CONTAINER-KIT/redis-operator
 
 go 1.17
 

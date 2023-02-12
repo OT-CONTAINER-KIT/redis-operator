@@ -1,7 +1,7 @@
 package k8sutils
 
 import (
-	redisv1beta1 "redis-operator/api/v1beta1"
+	redisv1beta1 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta1"
 
 	corev1 "k8s.io/api/core/v1"
 )
