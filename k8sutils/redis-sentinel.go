@@ -37,8 +37,8 @@ func CreateRedisSentinel(cr *redisv1beta1.RedisSentinel) error {
 		LivenessProbe:     cr.Spec.LivenessProbe,
 	}
 
-	if cr.Spec.RedisSentinelConfig.AdditionalRedisConfig != nil {
-		prop.ExternalConfig = cr.Spec.RedisSentinelConfig.AdditionalRedisConfig
+	if cr.Spec.RedisSentinelConfig.AdditionalSentinelConfig != nil {
+		prop.ExternalConfig = cr.Spec.RedisSentinelConfig.AdditionalSentinelConfig
 	}
 
 	return prop.CreateRedisSentinelSetup(cr)
@@ -190,7 +190,7 @@ func getSentinelEnvVariable(cr *redisv1beta1.RedisSentinel) *[]corev1.EnvVar {
 		},
 		{
 			Name:  "IP",
-			Value: getRedisMasterIP(cr),
+			Value: getRedisReplicationMasterIP(cr),
 		},
 		{
 			Name:  "PORT",
@@ -218,7 +218,7 @@ func getSentinelEnvVariable(cr *redisv1beta1.RedisSentinel) *[]corev1.EnvVar {
 
 }
 
-func getRedisMasterIP(cr *redisv1beta1.RedisSentinel) string {
+func getRedisReplicationMasterIP(cr *redisv1beta1.RedisSentinel) string {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 
 	replicationName := cr.Spec.RedisSentinelConfig.RedisReplicationName
@@ -241,14 +241,14 @@ func getRedisMasterIP(cr *redisv1beta1.RedisSentinel) string {
 	}
 
 	// Marshal CustomObject to JSON
-	myjson, err := customObject.MarshalJSON()
+	replicationJSON, err := customObject.MarshalJSON()
 	if err != nil {
 		logger.Error(err, "Failed To Load JSON")
 		return ""
 	}
 
 	// Unmarshal The JSON on Object
-	if err := json.Unmarshal(myjson, &replicationInstance); err != nil {
+	if err := json.Unmarshal(replicationJSON, &replicationInstance); err != nil {
 		logger.Error(err, "Failed To Unmarshal JSON over the Object")
 		return ""
 	}

@@ -6,7 +6,9 @@ import (
 )
 
 type RedisSentinelSpec struct {
-	// +kubebuilder:validation:Minimum=3
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Default=3
+	// +kubebuilder:validation:Not=2
 	Size                *int32                     `json:"clusterSize"`
 	KubernetesConfig    KubernetesConfig           `json:"kubernetesConfig"`
 	RedisSentinelConfig *RedisSentinelConfig       `json:"redisSentinelConfig,omitempty"`
@@ -31,8 +33,8 @@ func (cr *RedisSentinelSpec) GetSentinelCounts(t string) int32 {
 }
 
 type RedisSentinelConfig struct {
-	AdditionalRedisConfig *string `json:"additionalRedisConfig,omitempty"`
-	RedisReplicationName  string  `json:"redisReplicationName"`
+	AdditionalSentinelConfig *string `json:"additionalSentinelConfig,omitempty"`
+	RedisReplicationName     string  `json:"redisReplicationName"`
 	// +kubebuilder:default:=myMaster
 	MasterGroupName string `json:"masterGroupName,omitempty"`
 	// +kubebuilder:default:="6379"

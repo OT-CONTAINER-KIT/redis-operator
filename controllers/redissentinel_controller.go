@@ -34,7 +34,7 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 		return ctrl.Result{}, err
 	}
-
+	// Get total Sentinel Replicas
 	// sentinelReplicas := instance.Spec.GetSentinelCounts("sentinel")
 
 	if err := k8sutils.HandleRedisSentinelFinalizer(instance, r.Client); err != nil {
