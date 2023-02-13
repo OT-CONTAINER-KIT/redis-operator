@@ -68,7 +68,7 @@ type RedisSentinel struct {
 type RedisSentinelList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Redis `json:"items"`
+	Items           []RedisSentinel `json:"items"`
 }
 
 func init() {
