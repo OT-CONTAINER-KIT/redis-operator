@@ -156,7 +156,10 @@ func (service RedisSentinelService) CreateRedisSentinelService(cr *redisv1beta1.
 	logger := serviceLogger(cr.Namespace, serviceName)
 	labels := getRedisLabels(serviceName, "cluster", service.RedisServiceRole, cr.ObjectMeta.Labels)
 	annotations := generateServiceAnots(cr.ObjectMeta, nil)
-
+	if true {
+		// todo for cr.spec.RedisExporter
+		enableMetrics = false
+	}
 	additionalServiceAnnotations := map[string]string{}
 	if cr.Spec.KubernetesConfig.Service != nil {
 		additionalServiceAnnotations = cr.Spec.KubernetesConfig.Service.ServiceAnnotations
