@@ -106,6 +106,7 @@ func generateRedisReplicationContainerParams(cr *redisv1beta1.RedisReplication) 
 	if cr.Spec.Storage != nil {
 		containerProp.AdditionalVolume = cr.Spec.Storage.VolumeMount.Volume
 		containerProp.AdditionalMountPath = cr.Spec.Storage.VolumeMount.MountPath
+		containerProp.PersistenceEnabled = &trueProperty
 	}
 
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
@@ -133,9 +134,6 @@ func generateRedisReplicationContainerParams(cr *redisv1beta1.RedisReplication) 
 	}
 	if cr.Spec.LivenessProbe != nil {
 		containerProp.LivenessProbe = cr.Spec.LivenessProbe
-	}
-	if cr.Spec.Storage != nil {
-		containerProp.PersistenceEnabled = &trueProperty
 	}
 	if cr.Spec.TLS != nil {
 		containerProp.TLSConfig = cr.Spec.TLS
