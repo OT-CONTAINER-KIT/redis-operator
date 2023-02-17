@@ -12,6 +12,7 @@ type RedisSentinelSpec struct {
 	Size                *int32                     `json:"clusterSize"`
 	KubernetesConfig    KubernetesConfig           `json:"kubernetesConfig"`
 	RedisSentinelConfig *RedisSentinelConfig       `json:"redisSentinelConfig,omitempty"`
+	Storage             *Storage                   `json:"storage,omitempty"`
 	NodeSelector        map[string]string          `json:"nodeSelector,omitempty"`
 	SecurityContext     *corev1.PodSecurityContext `json:"securityContext,omitempty"`
 	PriorityClassName   string                     `json:"priorityClassName,omitempty"`
