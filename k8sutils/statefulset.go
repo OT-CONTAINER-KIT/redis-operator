@@ -462,9 +462,7 @@ func getEnvironmentVariables(role string, enabledMetric bool, enabledPassword *b
 		{Name: "SETUP_MODE", Value: role},
 	}
 
-	redisHost := "redis://localhost:6379"
 	if tlsConfig != nil {
-		redisHost = "rediss://localhost:6379"
 		envVars = append(envVars, GenerateTLSEnvironmentVariables(tlsConfig)...)
 		if enabledMetric {
 			envVars = append(envVars, corev1.EnvVar{
@@ -484,6 +482,11 @@ func getEnvironmentVariables(role string, enabledMetric bool, enabledPassword *b
 				Value: "true",
 			})
 		}
+	}
+
+	redisHost := "redis://localhost:6379"
+	if role == "sentinel" {
+		redisHost = "redis://localhost:26379"
 	}
 
 	envVars = append(envVars, corev1.EnvVar{

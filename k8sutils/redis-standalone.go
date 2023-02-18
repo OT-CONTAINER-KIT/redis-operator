@@ -110,10 +110,12 @@ func generateRedisStandaloneContainerParams(cr *redisv1beta1.Redis) containerPar
 		Resources:       cr.Spec.KubernetesConfig.Resources,
 	}
 
-	if cr.Spec.Storage != nil {
+	if cr.Spec.Storage.VolumeClaimTemplate.Spec.AccessModes != nil {
+		containerProp.PersistenceEnabled = &trueProperty
+	}
+	if cr.Spec.Storage.VolumeMount.Volume != nil {
 		containerProp.AdditionalVolume = cr.Spec.Storage.VolumeMount.Volume
 		containerProp.AdditionalMountPath = cr.Spec.Storage.VolumeMount.MountPath
-		containerProp.PersistenceEnabled = &trueProperty
 	}
 
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {

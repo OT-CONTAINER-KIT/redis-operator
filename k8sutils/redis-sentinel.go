@@ -117,11 +117,12 @@ func generateRedisSentinelContainerParams(cr *redisv1beta1.RedisSentinel, readin
 		Resources:             cr.Spec.KubernetesConfig.Resources,
 		AdditionalEnvVariable: getSentinelEnvVariable(cr),
 	}
-
-	if cr.Spec.Storage != nil {
+	if cr.Spec.Storage.VolumeClaimTemplate.Spec.AccessModes != nil {
+		containerProp.PersistenceEnabled = &trueProperty
+	}
+	if cr.Spec.Storage.VolumeMount.Volume != nil {
 		containerProp.AdditionalVolume = cr.Spec.Storage.VolumeMount.Volume
 		containerProp.AdditionalMountPath = cr.Spec.Storage.VolumeMount.MountPath
-		containerProp.PersistenceEnabled = &trueProperty
 	}
 
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {

@@ -63,7 +63,7 @@ func generateRedisClusterContainerParams(cr *redisv1beta1.RedisCluster, readines
 		ImagePullPolicy: cr.Spec.KubernetesConfig.ImagePullPolicy,
 		Resources:       cr.Spec.KubernetesConfig.Resources,
 	}
-	if cr.Spec.Storage != nil {
+	if cr.Spec.Storage.VolumeMount.Volume != nil {
 		containerProp.AdditionalVolume = cr.Spec.Storage.VolumeMount.Volume
 		containerProp.AdditionalMountPath = cr.Spec.Storage.VolumeMount.MountPath
 	}
@@ -93,7 +93,7 @@ func generateRedisClusterContainerParams(cr *redisv1beta1.RedisCluster, readines
 	if livenessProbeDef != nil {
 		containerProp.LivenessProbe = livenessProbeDef
 	}
-	if cr.Spec.Storage != nil && cr.Spec.PersistenceEnabled != nil && *cr.Spec.PersistenceEnabled {
+	if cr.Spec.Storage.VolumeClaimTemplate.Spec.AccessModes != nil && cr.Spec.PersistenceEnabled != nil && *cr.Spec.PersistenceEnabled {
 		containerProp.PersistenceEnabled = &trueProperty
 	} else {
 		containerProp.PersistenceEnabled = &falseProperty
