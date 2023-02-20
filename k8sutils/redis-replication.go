@@ -139,7 +139,7 @@ func generateRedisReplicationContainerParams(cr *redisv1beta1.RedisReplication) 
 	if cr.Spec.LivenessProbe != nil {
 		containerProp.LivenessProbe = cr.Spec.LivenessProbe
 	}
-	if cr.Spec.Storage != nil {
+	if cr.Spec.Storage.VolumeClaimTemplate.Spec.AccessModes != nil {
 		containerProp.PersistenceEnabled = &trueProperty
 	}
 	if cr.Spec.TLS != nil {
@@ -174,7 +174,7 @@ func generateRedisReplicationInitContainerParams(cr *redisv1beta1.RedisReplicati
 			initcontainerProp.AdditionalVolume = cr.Spec.Storage.VolumeMount.Volume
 			initcontainerProp.AdditionalMountPath = cr.Spec.Storage.VolumeMount.MountPath
 		}
-		if cr.Spec.Storage != nil {
+		if cr.Spec.Storage.VolumeClaimTemplate.Spec.AccessModes != nil {
 			initcontainerProp.PersistenceEnabled = &trueProperty
 		}
 

@@ -79,7 +79,7 @@ func generateRedisClusterInitContainerParams(cr *redisv1beta1.RedisCluster) init
 			initcontainerProp.AdditionalVolume = cr.Spec.Storage.VolumeMount.Volume
 			initcontainerProp.AdditionalMountPath = cr.Spec.Storage.VolumeMount.MountPath
 		}
-		if cr.Spec.Storage != nil {
+		if cr.Spec.Storage.VolumeClaimTemplate.Spec.AccessModes != nil {
 			initcontainerProp.PersistenceEnabled = &trueProperty
 		}
 
@@ -129,7 +129,7 @@ func generateRedisClusterContainerParams(cr *redisv1beta1.RedisCluster, security
 	if livenessProbeDef != nil {
 		containerProp.LivenessProbe = livenessProbeDef
 	}
-	if cr.Spec.Storage != nil && cr.Spec.PersistenceEnabled != nil && *cr.Spec.PersistenceEnabled {
+	if cr.Spec.Storage.VolumeClaimTemplate.Spec.AccessModes != nil && cr.Spec.PersistenceEnabled != nil && *cr.Spec.PersistenceEnabled {
 		containerProp.PersistenceEnabled = &trueProperty
 	} else {
 		containerProp.PersistenceEnabled = &falseProperty
