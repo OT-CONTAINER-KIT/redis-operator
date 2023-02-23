@@ -121,11 +121,12 @@ func getRedisReplicationTLSConfig(cr *redisv1beta1.RedisReplication, redisInfo R
 		}
 
 		return &tls.Config{
-			Certificates: tlsClientCertificates,
-			ServerName:   redisInfo.PodName,
-			RootCAs:      tlsCaCertificates,
-			MinVersion:   2,
-			ClientAuth:   0,
+			Certificates:       tlsClientCertificates,
+			ServerName:         redisInfo.PodName,
+			RootCAs:            tlsCaCertificates,
+			InsecureSkipVerify: true,
+			MinVersion:         2,
+			ClientAuth:         0,
 		}
 	}
 	return nil
