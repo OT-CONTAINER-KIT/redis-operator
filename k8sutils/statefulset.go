@@ -265,7 +265,7 @@ func getExternalConfig(configMapName string) []corev1.Volume {
 func createPVCTemplate(stsMeta metav1.ObjectMeta, storageSpec corev1.PersistentVolumeClaim) corev1.PersistentVolumeClaim {
 	pvcTemplate := storageSpec
 	pvcTemplate.CreationTimestamp = metav1.Time{}
-	pvcTemplate.Name = stsMeta.GetName()
+	pvcTemplate.Name = "data"
 	pvcTemplate.Labels = stsMeta.GetLabels()
 	// We want the same annoations as the StatefulSet here
 	pvcTemplate.Annotations = generateStatefulSetsAnots(stsMeta)
@@ -411,7 +411,7 @@ func getVolumeMount(name string, persistenceEnabled *bool, externalConfig *strin
 
 	if persistenceEnabled != nil && *persistenceEnabled {
 		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
-			Name:      name,
+			Name:      "data",
 			MountPath: "/data",
 		})
 	}
