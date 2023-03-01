@@ -40,7 +40,7 @@ RUN --mount=type=cache,target=/root/.cache \
 FROM gcr.io/distroless/static:nonroot
 LABEL maintainer="The Opstree Opensource <opensource@opstree.com>"
 WORKDIR /
-COPY --from=builder --link /workspace/manager .
+COPY --from=builder /workspace/manager .
 USER 65532:65532
 
 ENTRYPOINT ["/manager"]
