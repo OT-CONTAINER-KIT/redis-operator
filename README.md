@@ -100,6 +100,29 @@ $ helm upgrade redis ot-helm/redis \
   --install --namespace ot-operators
 ```
 
+To delete all resources which you just installed 
+
+
+
+```shell
+# Delete the Redis standalone setup
+$ helm delete redis --namespace ot-operators
+```
+
+
+```shell
+# Delete the Redis cluster setup
+$ helm delete redis-cluster --namespace ot-operators
+
+```
+
+```shell
+# Delete the Redis operator 
+$ helm delete redis-operator --namespace ot-operators --purge
+```
+
+
+
 If you want to customize the value file by yourself while initializing the helm command, the values files for reference are present [here](https://github.com/OT-CONTAINER-KIT/helm-charts/tree/main/charts/redis-setup).
 
 ## Monitoring with Prometheus
