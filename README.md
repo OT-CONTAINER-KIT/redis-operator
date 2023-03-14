@@ -100,8 +100,7 @@ $ helm upgrade redis ot-helm/redis \
   --install --namespace ot-operators
 ```
 
-To delete all resources which you just installed 
-
+If you used this just for testing and development purpose you can delete the resources associated with it
 
 
 ```shell
@@ -113,8 +112,8 @@ $ helm delete redis --namespace ot-operators
 ```shell
 # Delete the Redis cluster setup
 $ helm delete redis-cluster --namespace ot-operators
-
 ```
+
 
 ```shell
 # Delete the Redis operator 
