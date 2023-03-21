@@ -130,7 +130,6 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 								map[string]string{
 									"app":                         storedStateful.Name,
 									"app.kubernetes.io/component": "redis",
-									"app.kubernetes.io/name":      storedStateful.Name,
 								},
 							),
 						}
