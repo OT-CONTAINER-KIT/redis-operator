@@ -11,3 +11,5 @@ The redis operator supports below deployment strategies for redis:-
 
 - Cluster setup
 - Standalone setup
+- Replication setup
+- Sentinel setup
