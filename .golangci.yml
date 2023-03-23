@@ -1,5 +1,12 @@
-linters-settings:
-  exclude:
-    - go.mod
-    - vendor/
-    - go.sum
+linters:
+  enable-all: true
+  disable:
+    - goimports
+    - golint
+    - gocritic
+    - unused
+    - varcheck
+  skip-dirs:
+    - vendor
+    - third_party
+    - generated
