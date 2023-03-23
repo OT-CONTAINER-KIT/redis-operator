@@ -6,3 +6,5 @@ run:
     - vendor
     - third_party
     - generated
+linters:
+  enable-all: true
