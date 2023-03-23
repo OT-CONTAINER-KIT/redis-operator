@@ -1,0 +1,5 @@
+linters:
+  exclude:
+    - go.mod
+    - vendor/
+    - go.sum
