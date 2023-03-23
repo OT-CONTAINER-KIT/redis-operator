@@ -12,14 +12,15 @@ run:
   go: '1.17'
 linters:
   enable-all: true
-  # disable:
-  #   - scopelint
+  disable:
+    - gomoddirectives
+    - scopelint
+    - maligned
+    - interfacer
   #   - ifshort
   #   - nosnakecase
   #   - exhaustivestruct
-  #   - interfacer
   #   - varcheck
-  #   - maligned
   #   - golint
   #   - structcheck
   #   - goanalysis_metalinter
