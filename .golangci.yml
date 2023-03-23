@@ -1,6 +1,6 @@
 run:
   # run all available linters
-  deadline: 5m
+  # deadline: 5m
   issues-exit-code: 2
   skip-files:
     - go.mod
