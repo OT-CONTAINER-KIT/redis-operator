@@ -1,10 +1,27 @@
 run:
-  enable-all: true
+  # run all available linters
+  deadline: 5m
+  issues-exit-code: 2
   skip-files:
     - go.mod
   skip-dirs:
     - vendor
     - third_party
     - generated
+  tests: false
+  go: '1.17'
 linters:
   enable-all: true
+  disable:
+    - scopelint
+    - ifshort
+    - nosnakecase
+    - exhaustivestruct
+    - interfacer
+    - varcheck
+    - maligned
+    - golint
+    - structcheck
+    - goanalysis_metalinter
+output:
+  format: json
