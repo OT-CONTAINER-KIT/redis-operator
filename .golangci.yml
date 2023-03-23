@@ -1,11 +1,7 @@
-linters:
+run:
   enable-all: true
-  disable:
-    - goimports
-    - golint
-    - gocritic
-    - unused
-    - varcheck
+  skip-files:
+    - go.mod
   skip-dirs:
     - vendor
     - third_party
