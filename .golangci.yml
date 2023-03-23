@@ -12,16 +12,16 @@ run:
   go: '1.17'
 linters:
   enable-all: true
-  disable:
-    - scopelint
-    - ifshort
-    - nosnakecase
-    - exhaustivestruct
-    - interfacer
-    - varcheck
-    - maligned
-    - golint
-    - structcheck
-    - goanalysis_metalinter
+  # disable:
+  #   - scopelint
+  #   - ifshort
+  #   - nosnakecase
+  #   - exhaustivestruct
+  #   - interfacer
+  #   - varcheck
+  #   - maligned
+  #   - golint
+  #   - structcheck
+  #   - goanalysis_metalinter
 output:
   format: json
