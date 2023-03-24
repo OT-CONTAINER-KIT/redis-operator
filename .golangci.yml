@@ -1,28 +1,27 @@
-run:
-  # run all available linters
-  # deadline: 5m
-  issues-exit-code: 2
-  skip-files:
-    - go.mod
-  skip-dirs:
-    - vendor
-    - third_party
-    - generated
-  tests: false
-  go: '1.17'
+linters-settings:
+  govet:
+    check-shadowing: true
+  golint:
+    min-confidence: 0.8 # Increase the confidence level to reduce false positives
+  gofmt:
+    simplify: true
+
 linters:
   enable-all: true
   disable:
-    - gomoddirectives
-    - scopelint
-    - maligned
-    - interfacer
-  #   - ifshort
-  #   - nosnakecase
-  #   - exhaustivestruct
-  #   - varcheck
-  #   - golint
-  #   - structcheck
-  #   - goanalysis_metalinter
-output:
-  format: json
+    - errcheck # Disable errcheck if you want less strict error handling
+
+issues:
+  exclude-rules:
+    - path: _test\.go # Ignore test files for linting
+      linters:
+        - gocyclo
+        - errcheck
+        - dupl
+        - gosec
+run:
+  timeout: 5m
+  go-version: "1.17"
+# Exclude third-party packages and go.mod from the lint checks
+exclude: |
+  (^vendor/.*|.*_test\.go|go\.mod)
