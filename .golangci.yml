@@ -10,7 +10,7 @@ linters:
   enable-all: true
   disable:
     - errcheck # Disable errcheck if you want less strict error handling
-    - structtag
+    - tagliatelle
 
 issues:
   exclude-rules:
