@@ -40,3 +40,4 @@ run:
     - k8s.io/api
     - k8s.io/apimachinery
     - sigs.k8s.io/controller-runtime
+    - vendor$, third_party$, testdata$, examples$, Godeps$, builtin$
