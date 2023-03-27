@@ -28,8 +28,8 @@ run:
   exclude: |
     '(^vendor/.*|.*_test\.go|go\.mod|.*validatingwebhookconfiguration\.go|.*mutatingwebhookconfiguration\.go)'
   skip-files:
-  - '^.*validatingwebhookconfiguration\.go$'
-  - controllers/suite_test.go
+    - '^.*validatingwebhookconfiguration\.go$'
+    - controllers/suite_test.go
   skip-dirs:
     - k8s.io/client-go
     - github.com/banzaicloud/k8s-objectmatcher
