@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 	"path"
-	redisv1beta1 "redis-operator/api/v1beta1"
 	"sort"
 	"strconv"
 	"strings"
+
+	redisv1beta1 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta1"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/go-logr/logr"
@@ -265,7 +266,7 @@ func getExternalConfig(configMapName string) []corev1.Volume {
 func createPVCTemplate(stsMeta metav1.ObjectMeta, storageSpec corev1.PersistentVolumeClaim) corev1.PersistentVolumeClaim {
 	pvcTemplate := storageSpec
 	pvcTemplate.CreationTimestamp = metav1.Time{}
-	pvcTemplate.Name = stsMeta.GetName()
+	pvcTemplate.Name = "data"
 	pvcTemplate.Labels = stsMeta.GetLabels()
 	// We want the same annoations as the StatefulSet here
 	pvcTemplate.Annotations = generateStatefulSetsAnots(stsMeta)
@@ -411,7 +412,7 @@ func getVolumeMount(name string, persistenceEnabled *bool, externalConfig *strin
 
 	if persistenceEnabled != nil && *persistenceEnabled {
 		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
-			Name:      name,
+			Name:      "data",
 			MountPath: "/data",
 		})
 	}

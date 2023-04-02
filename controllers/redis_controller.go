@@ -20,7 +20,7 @@ import (
 	"context"
 	"time"
 
-	"redis-operator/k8sutils"
+	"github.com/OT-CONTAINER-KIT/redis-operator/k8sutils"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -28,7 +28,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	redisv1beta1 "redis-operator/api/v1beta1"
+	redisv1beta1 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta1"
 )
 
 // RedisReconciler reconciles a Redis object

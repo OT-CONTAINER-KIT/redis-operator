@@ -13,6 +13,7 @@ import (
 
 const (
 	redisPort             = 6379
+	sentinelPort          = 26379
 	redisExporterPort     = 9121
 	redisExporterPortName = "redis-exporter"
 )
@@ -23,6 +24,15 @@ var (
 
 // generateServiceDef generates service definition for Redis
 func generateServiceDef(serviceMeta metav1.ObjectMeta, enableMetrics bool, ownerDef metav1.OwnerReference, headless bool, serviceType string) *corev1.Service {
+	var PortName string
+	var PortNum int32
+	if serviceMeta.Labels["role"] == "sentinel" {
+		PortName = "sentinel-client"
+		PortNum = sentinelPort
+	} else {
+		PortName = "redis-client"
+		PortNum = redisPort
+	}
 	service := &corev1.Service{
 		TypeMeta:   generateMetaInformation("Service", "v1"),
 		ObjectMeta: serviceMeta,
@@ -32,9 +42,9 @@ func generateServiceDef(serviceMeta metav1.ObjectMeta, enableMetrics bool, owner
 			Selector:  serviceMeta.GetLabels(),
 			Ports: []corev1.ServicePort{
 				{
-					Name:       "redis-client",
-					Port:       redisPort,
-					TargetPort: intstr.FromInt(int(redisPort)),
+					Name:       PortName,
+					Port:       PortNum,
+					TargetPort: intstr.FromInt(int(PortNum)),
 					Protocol:   corev1.ProtocolTCP,
 				},
 			},
