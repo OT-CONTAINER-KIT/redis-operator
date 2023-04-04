@@ -27,7 +27,7 @@ A Golang based redis operator that will make/oversee Redis standalone and cluste
 
 For documentation, please refer to https://ot-redis-operator.netlify.app/
 
-Organizations that are using Redis Operator to manage their redis workload can be found [here](./USED_BY_ORGANIZATIONS.md). If your organization is also using Redis Operator, please free to add by creating a PR https://github.com/OT-CONTAINER-KIT/redis-operator/pulls.
+Organizations that are using Redis Operator to manage their redis workload can be found [here](./USED_BY_ORGANIZATIONS.md). If your organization is also using Redis Operator, please free to add by creating a [pull request](https://github.com/OT-CONTAINER-KIT/redis-operator/pulls)
 
 This operator only supports versions of redis `=>6`.
 
@@ -82,10 +82,10 @@ $ helm upgrade redis-operator ot-helm/redis-operator --install --namespace ot-op
 After deployment, verify the installation of operator
 
 ```shell
-$ helm test redis-operator --namespace ot-operators
+helm test redis-operator --namespace ot-operators
 ```
 
-Creating redis cluster or standalone setup.
+Creating redis cluster, standalone, replication and sentinel setup.
 
 ```shell
 # Create redis cluster setup
@@ -98,6 +98,45 @@ $ helm upgrade redis-cluster ot-helm/redis-cluster \
 # Create redis standalone setup
 $ helm upgrade redis ot-helm/redis \
   --install --namespace ot-operators
+```
+
+```shell
+# Create redis replication setup
+$ helm upgrade redis-replication ot-helm/replication \
+  --install --namespace ot-operators
+```
+
+```shell
+# Create redis sentinel setup
+$ helm upgrade redis-sentinel ot-helm/sentinel \
+  --install --namespace ot-operators
+```
+
+If you used this just for testing and development purpose you can delete the resources associated with it
+
+```shell
+# Delete the Redis standalone setup
+$ helm uninstall redis --namespace ot-operators
+```
+
+```shell
+# Delete the Redis cluster setup
+$ helm uninstall redis-cluster --namespace ot-operators
+```
+
+```shell
+# Delete the Redis replication setup
+$ helm uninstall redis-replication --namespace ot-operators
+```
+
+```shell
+# Delete the Redis sentinel setup
+$ helm uninstall redis-sentinel --namespace ot-operators
+```
+
+```shell
+# Delete the Redis operator 
+$ helm uninstall redis-operator --namespace ot-operators 
 ```
 
 If you want to customize the value file by yourself while initializing the helm command, the values files for reference are present [here](https://github.com/OT-CONTAINER-KIT/helm-charts/tree/main/charts/redis-setup).
