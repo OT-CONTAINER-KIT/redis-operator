@@ -22,7 +22,7 @@ Package v1beta1 contains API Schema definitions for the redis v1beta1 API group
 - [Redis](#redis)
 - [RedisCluster](#rediscluster)
 - [RedisReplication](#redisreplication)
-<!-- - [RedisSentinel](#redissentinel) -->
+- [RedisSentinel](#redissentinel)
 
 #### ExistingPasswordSecret
 
@@ -46,6 +46,7 @@ _Appears in:_
 - [RedisClusterSpec](#redisclusterspec)
 - [RedisSpec](#redisspec)
 - [RedisReplicationSpec](#redisreplicationspec)
+- [RedisSentinel](#redissentinelspec)
 
 | Field | Description |
 | --- | --- |
@@ -66,6 +67,7 @@ _Appears in:_
 - [RedisLeader](#redisleader)
 - [RedisSpec](#redisspec)
 - [RedisReplicationSpec](#redisreplicationspec)
+- [RedisSentinel](#redissentinelspec)
 
 | Field | Description |
 | --- | --- |
@@ -107,6 +109,17 @@ RedisReplication is the Schema for the redisreplication API
 | `kind` _string_ | `RedisReplication`
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |
 | `spec` _[RedisReplicationSpec](#redisreplicationspec)_ |  |
+
+#### RedisSentinel
+
+RedisSentinel is the Schema for the redissentinel API
+
+| Field | Description |
+| --- | --- |
+| `apiVersion` _string_ | `redis.redis.opstreelabs.in/v1beta1`
+| `kind` _string_ | `RedisSentinel`
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |
+| `spec` _[RedisSentinelSpec](#redissentinelspec)_ |  |
 
 #### RedisClusterSpec
 
@@ -186,6 +199,30 @@ _Appears in:_
 | `sidecars` _[Sidecar](#sidecar)_ |  |
 | `serviceAccountName` _string_ |  |
 
+#### RedisSentinelSpec
+
+RedisSentinelSpec defines the desired state of RedisSentinel
+
+_Appears in:_
+
+- [RedisSentinel](#redissentinel)
+
+| Field | Description |
+| --- | --- |
+| `clusterSize` _integer_ |  |
+| `kubernetesConfig` _[KubernetesConfig](#kubernetesconfig)_ |  |
+| `redisSentinelConfig` _[RedisSentinelConfig](#redissentinelconfig)_ |  |
+| `nodeSelector` _object (keys:string, values:string)_ |  |
+| `securityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#podsecuritycontext-v1-core)_ |  |
+| `priorityClassName` _string_ |  |
+| `affinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#affinity-v1-core)_ |  |
+| `tolerations` _[Toleration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#toleration-v1-core)_ |  |
+| `TLS` _[TLSConfig](#tlsconfig)_ |  |
+| `readinessProbe` _[Probe](#probe)_ |  |
+| `livenessProbe` _[Probe](#probe)_ |  |
+| `sidecars` _[Sidecar](#sidecar)_ |  |
+| `serviceAccountName` _string_ |  |
+
 #### RedisConfig
 
 RedisConfig defines the external configuration of Redis
@@ -200,6 +237,24 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `additionalRedisConfig` _string_ |  |
+
+#### RedisSentinelConfig
+
+RedisSentinelConfig defines the external configuration of RedisSentinel
+
+_Appears in:_
+
+- [RedisSentinelSpec](#redissentinelspec)
+
+| Field | Description |
+| --- | --- |
+| `additionalRedisConfig` _string_ |  |
+| `masterGroupName` _string_ |  |
+| `redisPort` _string_ |  |
+| `quorum` _string_ |  |
+| `parallelSyncs` _string_ |  |
+| `failoverTimeout` _string_ |  |
+| `downAfterMilliseconds` _string_ |  |
 
 #### RedisExporter
 
@@ -262,7 +317,8 @@ _Appears in:_
 - [RedisFollower](#redisfollower)
 - [RedisLeader](#redisleader)
 - [RedisReplication](#redisreplicationspec)
-
+- [RedisSentinel](#redissentinelspec)
+  
 | Field | Description |
 | --- | --- |
 | `enabled` _boolean_ |  |
@@ -278,6 +334,7 @@ _Appears in:_
 - [RedisClusterSpec](#redisclusterspec)
 - [RedisSpec](#redisspec)
 - [RedisReplicationSpec](#redisreplicationspec)
+- [RedisSentinel](#redissentinelspec)
 
 | Field | Description |
 | --- | --- |
@@ -310,6 +367,7 @@ _Appears in:_
 - [RedisClusterSpec](#redisclusterspec)
 - [RedisSpec](#redisspec)
 - [RedisReplicationSpec](#redisreplicationspec)
+- [RedisSentinel](#redissentinelspec)
 
 | Field | Description |
 | --- | --- |

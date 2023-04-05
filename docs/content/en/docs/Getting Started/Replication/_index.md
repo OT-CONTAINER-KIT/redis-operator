@@ -2,7 +2,7 @@
 title: "Replication"
 linkTitle: "Replication"
 weight: 10
-date: 2022-11-02T00:19:19Z
+date: 2023-04-05T19:00:00Z
 description: >
   Instructions for setting up Redis Replication
 ---

@@ -2,7 +2,7 @@
 title: "RedisReplication"
 linkTitle: "RedisReplication"
 weight: 10
-date: 2022-11-02T00:19:19Z
+date: 2023-04-05T19:00:00Z
 description: >
   Configurations and parameters for Redis replication
 ---

@@ -50,4 +50,3 @@ Participation in this project comes under the [CONTRIBUTING.md](https://github.c
 - Setup of Redis standalone, cluster, replication and sentinel mode
 - Monitoring of Redis setup
 - Configuration and advance cofiguration of Operator
-
