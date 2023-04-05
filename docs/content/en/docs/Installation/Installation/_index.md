@@ -9,10 +9,12 @@ description: >
 
 Redis Operator is developed as CRD(Custom Resource Definition) to deploy and manage Redis in standalone/cluster mode. So CRD is an amazing feature of Kubernetes which allows us to create our own resources and APIs in Kubernetes. For further information about CRD, please go through the [official documentation](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/).
 
-There are two different Objects available under `redis.redis.opstreelabs.in/v1beta1`:
+There are four different Objects available under `redis.redis.opstreelabs.in/v1beta1`:
 
 - Redis
 - Redis Cluster
+- Redis Replication
+- Redis Sentinel
 
 For [OperatorHub](https://operatorhub.io) installation:
 

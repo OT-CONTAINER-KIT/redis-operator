@@ -1,14 +1,20 @@
-
 ---
+
 title: "Redis Operator"
+
 linkTitle: Documentation
+
 weight: 20
+
 menu:
   main:
     weight: 20
+
 date: 2022-11-02T00:19:19Z
+
 description: >
   Documentation and usage guides on how to deploy redis operator on top of Kubernetes.
+
 ---
 Release version: {{< release-version >}}
 
