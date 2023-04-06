@@ -100,7 +100,10 @@ func generateRedisSentinelParams(cr *redisv1beta1.RedisSentinel, replicas int32,
 	if externalConfig != nil {
 		res.ExternalConfig = externalConfig
 	}
+	if cr.Spec.RedisExporter != nil {
+		res.EnableMetrics = cr.Spec.RedisExporter.Enabled
 
+	}
 	return res
 }
 
@@ -122,6 +125,18 @@ func generateRedisSentinelContainerParams(cr *redisv1beta1.RedisSentinel, readin
 		containerProp.SecretKey = cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key
 	} else {
 		containerProp.EnabledPassword = &falseProperty
+	}
+	if cr.Spec.RedisExporter != nil {
+		containerProp.RedisExporterImage = cr.Spec.RedisExporter.Image
+		containerProp.RedisExporterImagePullPolicy = cr.Spec.RedisExporter.ImagePullPolicy
+
+		if cr.Spec.RedisExporter.Resources != nil {
+			containerProp.RedisExporterResources = cr.Spec.RedisExporter.Resources
+		}
+
+		if cr.Spec.RedisExporter.EnvVars != nil {
+			containerProp.RedisExporterEnv = cr.Spec.RedisExporter.EnvVars
+		}
 	}
 	if readinessProbeDef != nil {
 		containerProp.ReadinessProbe = readinessProbeDef
@@ -149,6 +164,9 @@ func (service RedisSentinelService) CreateRedisSentinelService(cr *redisv1beta1.
 	labels := getRedisLabels(serviceName, "cluster", service.RedisServiceRole, cr.ObjectMeta.Labels)
 	annotations := generateServiceAnots(cr.ObjectMeta, nil)
 
+	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
+		enableMetrics = true
+	}
 	additionalServiceAnnotations := map[string]string{}
 	if cr.Spec.KubernetesConfig.Service != nil {
 		additionalServiceAnnotations = cr.Spec.KubernetesConfig.Service.ServiceAnnotations
