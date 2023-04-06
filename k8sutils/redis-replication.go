@@ -84,7 +84,9 @@ func generateRedisReplicationParams(cr *redisv1beta1.RedisReplication) statefulS
 	}
 	if cr.Spec.RedisExporter != nil {
 		res.EnableMetrics = cr.Spec.RedisExporter.Enabled
-
+	}
+	if cr.Spec.InitContainers != nil {
+		res.InitContainers = cr.Spec.InitContainers
 	}
 	if cr.Spec.ServiceAccountName != nil {
 		res.ServiceAccountName = cr.Spec.ServiceAccountName

@@ -47,6 +47,9 @@ func generateRedisClusterParams(cr *redisv1beta1.RedisCluster, replicas int32, e
 	if externalConfig != nil {
 		res.ExternalConfig = externalConfig
 	}
+	if cr.Spec.InitContainers != nil {
+		res.InitContainers = cr.Spec.InitContainers
+	}
 	if _, found := cr.ObjectMeta.GetAnnotations()["redis.opstreelabs.in/recreate-statefulset"]; found {
 		res.RecreateStatefulSet = true
 	}

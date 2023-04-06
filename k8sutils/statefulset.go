@@ -41,6 +41,7 @@ type statefulSetParameters struct {
 	ServiceAccountName    *string
 	UpdateStrategy        appsv1.StatefulSetUpdateStrategy
 	RecreateStatefulSet   bool
+	InitContainers        *[]redisv1beta1.InitContainer
 }
 
 // containerParameters will define container input params
@@ -226,6 +227,25 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 	}
 	if containerParams.AdditionalVolume != nil {
 		statefulset.Spec.Template.Spec.Volumes = append(statefulset.Spec.Template.Spec.Volumes, containerParams.AdditionalVolume...)
+	}
+	if params.InitContainers != nil {
+		initContainers := make([]corev1.Container, 0, len(*params.InitContainers))
+		for _, initContainer := range *params.InitContainers {
+			ctr := corev1.Container{
+				Name:         initContainer.Name,
+				Image:        initContainer.Image,
+				Args:         initContainer.Args,
+				VolumeMounts: initContainer.VolumeMounts,
+			}
+			if initContainer.EnvVars != nil {
+				ctr.Env = *initContainer.EnvVars
+			}
+			if initContainer.Resources != nil {
+				ctr.Resources = *initContainer.Resources
+			}
+			initContainers = append(initContainers, ctr)
+		}
+		statefulset.Spec.Template.Spec.InitContainers = initContainers
 	}
 
 	if containerParams.TLSConfig != nil {

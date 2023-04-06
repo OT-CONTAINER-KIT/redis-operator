@@ -38,6 +38,7 @@ type RedisClusterSpec struct {
 	Resources          *corev1.ResourceRequirements `json:"resources,omitempty"`
 	TLS                *TLSConfig                   `json:"TLS,omitempty"`
 	Sidecars           *[]Sidecar                   `json:"sidecars,omitempty"`
+	InitContainers     *[]InitContainer             `json:"initContainers,omitempty"`
 	ServiceAccountName *string                      `json:"serviceAccountName,omitempty"`
 	PersistenceEnabled *bool                        `json:"persistenceEnabled,omitempty"`
 }
