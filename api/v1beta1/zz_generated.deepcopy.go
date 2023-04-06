@@ -801,6 +801,11 @@ func (in *RedisSentinelSpec) DeepCopyInto(out *RedisSentinelSpec) {
 		**out = **in
 	}
 	in.KubernetesConfig.DeepCopyInto(&out.KubernetesConfig)
+	if in.RedisExporter != nil {
+		in, out := &in.RedisExporter, &out.RedisExporter
+		*out = new(RedisExporter)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.RedisSentinelConfig != nil {
 		in, out := &in.RedisSentinelConfig, &out.RedisSentinelConfig
 		*out = new(RedisSentinelConfig)
