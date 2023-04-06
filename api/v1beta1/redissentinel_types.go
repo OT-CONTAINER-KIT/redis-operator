@@ -11,6 +11,7 @@ type RedisSentinelSpec struct {
 	// +kubebuilder:validation:Not=2
 	Size                *int32                     `json:"clusterSize"`
 	KubernetesConfig    KubernetesConfig           `json:"kubernetesConfig"`
+	RedisExporter       *RedisExporter             `json:"redisExporter,omitempty"`
 	RedisSentinelConfig *RedisSentinelConfig       `json:"redisSentinelConfig,omitempty"`
 	NodeSelector        map[string]string          `json:"nodeSelector,omitempty"`
 	SecurityContext     *corev1.PodSecurityContext `json:"securityContext,omitempty"`
