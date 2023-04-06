@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 
 	redisv1beta1 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta1"
-
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -166,7 +165,7 @@ func (service RedisSentinelService) CreateRedisSentinelService(cr *redisv1beta1.
 
 	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
 		enableMetrics = true
-	}else{
+	} else {
 		enableMetrics = false
 	}
 	additionalServiceAnnotations := map[string]string{}
