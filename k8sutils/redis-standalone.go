@@ -15,6 +15,8 @@ func CreateStandaloneService(cr *redisv1beta1.Redis) error {
 	annotations := generateServiceAnots(cr.ObjectMeta, nil)
 	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
 		enableMetrics = true
+	}else{
+		enableMetrics = false
 	}
 	additionalServiceAnnotations := map[string]string{}
 	if cr.Spec.KubernetesConfig.Service != nil {
