@@ -175,7 +175,7 @@ func (service RedisClusterSTS) CreateRedisClusterSetup(cr *redisv1beta1.RedisClu
 	if err != nil {
 		logger.Error(err, "Cannot create statefulset for Redis", "Setup.Type", service.RedisStateFulType)
 		return err
-	}
+	} 
 	return nil
 }
 
@@ -187,6 +187,8 @@ func (service RedisClusterService) CreateRedisClusterService(cr *redisv1beta1.Re
 	annotations := generateServiceAnots(cr.ObjectMeta, nil)
 	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
 		enableMetrics = true
+	}else{
+		enableMetrics = false
 	}
 	additionalServiceAnnotations := map[string]string{}
 	if cr.Spec.KubernetesConfig.Service != nil {
