@@ -85,12 +85,12 @@ docker-push:
 	docker buildx build --push --platform="linux/arm64,linux/amd64" -t ${IMG} .
 
 # Download controller-gen locally if necessary
-CONTROLLER_GEN = /home/sadath/go/bin/controller-gen
+CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen:
 	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1)
 
 # Download kustomize locally if necessary
-KUSTOMIZE = /usr/local/bin/kustomize
+KUSTOMIZE = $(shell pwd)/bin/kustomize
 kustomize:
 	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v3@v3.8.7)
 
