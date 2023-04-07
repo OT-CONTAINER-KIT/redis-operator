@@ -187,7 +187,9 @@ func (service RedisClusterService) CreateRedisClusterService(cr *redisv1beta1.Re
 	annotations := generateServiceAnots(cr.ObjectMeta, nil)
 	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
 		enableMetrics = true
-	}else{
+
+	} else {
+
 		enableMetrics = false
 	}
 	additionalServiceAnnotations := map[string]string{}
