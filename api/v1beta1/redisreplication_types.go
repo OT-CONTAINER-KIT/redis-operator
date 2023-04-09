@@ -20,10 +20,10 @@ type RedisReplicationSpec struct {
 	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
 	ReadinessProbe *Probe `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
 	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
-	LivenessProbe      *Probe           `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
-	InitContainers     *[]InitContainer `json:"initContainers,omitempty"`
-	Sidecars           *[]Sidecar       `json:"sidecars,omitempty"`
-	ServiceAccountName *string          `json:"serviceAccountName,omitempty"`
+	LivenessProbe      *Probe         `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
+	InitContainer      *InitContainer `json:"initContainer,omitempty"`
+	Sidecars           *[]Sidecar     `json:"sidecars,omitempty"`
+	ServiceAccountName *string        `json:"serviceAccountName,omitempty"`
 }
 
 func (cr *RedisReplicationSpec) GetReplicationCounts(t string) int32 {

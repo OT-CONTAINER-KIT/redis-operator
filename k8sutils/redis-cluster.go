@@ -47,13 +47,41 @@ func generateRedisClusterParams(cr *redisv1beta1.RedisCluster, replicas int32, e
 	if externalConfig != nil {
 		res.ExternalConfig = externalConfig
 	}
-	if cr.Spec.InitContainers != nil {
-		res.InitContainers = cr.Spec.InitContainers
-	}
 	if _, found := cr.ObjectMeta.GetAnnotations()["redis.opstreelabs.in/recreate-statefulset"]; found {
 		res.RecreateStatefulSet = true
 	}
 	return res
+}
+
+func generateRedisClusterInitContainerParams(cr *redisv1beta1.RedisCluster) initContainerParameters {
+	trueProperty := true
+	initcontainerProp := initContainerParameters{}
+
+	if cr.Spec.InitContainer != nil {
+		initContainer := cr.Spec.InitContainer
+
+		initcontainerProp = initContainerParameters{
+			Enabled:               initContainer.Enabled,
+			Role:                  "cluster",
+			Image:                 initContainer.Image,
+			ImagePullPolicy:       initContainer.ImagePullPolicy,
+			Resources:             initContainer.Resources,
+			AdditionalEnvVariable: initContainer.EnvVars,
+			Command:               initContainer.Command,
+			Arguments:             initContainer.Args,
+		}
+
+		if cr.Spec.Storage != nil {
+			initcontainerProp.AdditionalVolume = cr.Spec.Storage.VolumeMount.Volume
+			initcontainerProp.AdditionalMountPath = cr.Spec.Storage.VolumeMount.MountPath
+		}
+		if cr.Spec.Storage != nil {
+			initcontainerProp.PersistenceEnabled = &trueProperty
+		}
+
+	}
+
+	return initcontainerProp
 }
 
 // generateRedisClusterContainerParams generates Redis container information
@@ -172,6 +200,7 @@ func (service RedisClusterSTS) CreateRedisClusterSetup(cr *redisv1beta1.RedisClu
 		objectMetaInfo,
 		generateRedisClusterParams(cr, service.getReplicaCount(cr), service.ExternalConfig, service),
 		redisClusterAsOwner(cr),
+		generateRedisClusterInitContainerParams(cr),
 		generateRedisClusterContainerParams(cr, service.ReadinessProbe, service.LivenessProbe),
 		cr.Spec.Sidecars,
 	)

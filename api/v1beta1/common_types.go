@@ -110,12 +110,11 @@ type Sidecar struct {
 
 // InitContainer for each Redis pods
 type InitContainer struct {
-	Name            string                       `json:"name"`
+	Enabled         *bool                        `json:"enabled,omitempty"`
 	Image           string                       `json:"image"`
-	Command         []string                     `json:"command,omitempty"`
-	Args            []string                     `json:"args,omitempty"`
-	VolumeMounts    []corev1.VolumeMount         `json:"volumeMount,omitempty"`
 	ImagePullPolicy corev1.PullPolicy            `json:"imagePullPolicy,omitempty"`
 	Resources       *corev1.ResourceRequirements `json:"resources,omitempty"`
 	EnvVars         *[]corev1.EnvVar             `json:"env,omitempty"`
+	Command         []string                     `json:"command,omitempty"`
+	Args            []string                     `json:"args,omitempty"`
 }
