@@ -41,6 +41,7 @@ type statefulSetParameters struct {
 	ServiceAccountName    *string
 	UpdateStrategy        appsv1.StatefulSetUpdateStrategy
 	RecreateStatefulSet   bool
+	InitContainers        *[]redisv1beta1.InitContainer
 }
 
 // containerParameters will define container input params
@@ -65,11 +66,25 @@ type containerParameters struct {
 	AdditionalMountPath          []corev1.VolumeMount
 }
 
+type initContainerParameters struct {
+	Enabled               *bool
+	Image                 string
+	ImagePullPolicy       corev1.PullPolicy
+	Resources             *corev1.ResourceRequirements
+	Role                  string
+	Command               []string
+	Arguments             []string
+	PersistenceEnabled    *bool
+	AdditionalEnvVariable *[]corev1.EnvVar
+	AdditionalVolume      []corev1.Volume
+	AdditionalMountPath   []corev1.VolumeMount
+}
+
 // CreateOrUpdateStateFul method will create or update Redis service
-func CreateOrUpdateStateFul(namespace string, stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, containerParams containerParameters, sidecars *[]redisv1beta1.Sidecar) error {
+func CreateOrUpdateStateFul(namespace string, stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, initcontainerParams initContainerParameters, containerParams containerParameters, sidecars *[]redisv1beta1.Sidecar) error {
 	logger := statefulSetLogger(namespace, stsMeta.Name)
 	storedStateful, err := GetStatefulSet(namespace, stsMeta.Name)
-	statefulSetDef := generateStatefulSetsDef(stsMeta, params, ownerDef, containerParams, getSidecars(sidecars))
+	statefulSetDef := generateStatefulSetsDef(stsMeta, params, ownerDef, initcontainerParams, containerParams, getSidecars(sidecars))
 	if err != nil {
 		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(statefulSetDef); err != nil {
 			logger.Error(err, "Unable to patch redis statefulset with comparison object")
@@ -188,7 +203,7 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 }
 
 // generateStatefulSetsDef generates the statefulsets definition of Redis
-func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, containerParams containerParameters, sidecars []redisv1beta1.Sidecar) *appsv1.StatefulSet {
+func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, initcontainerParams initContainerParameters, containerParams containerParameters, sidecars []redisv1beta1.Sidecar) *appsv1.StatefulSet {
 	statefulset := &appsv1.StatefulSet{
 		TypeMeta:   generateMetaInformation("StatefulSet", "apps/v1"),
 		ObjectMeta: stsMeta,
@@ -211,6 +226,10 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 				},
 			},
 		},
+	}
+
+	if initcontainerParams.Enabled != nil && *initcontainerParams.Enabled {
+		statefulset.Spec.Template.Spec.InitContainers = generateInitContainerDef("init-"+stsMeta.GetName(), initcontainerParams, initcontainerParams.AdditionalMountPath)
 	}
 	if params.Tolerations != nil {
 		statefulset.Spec.Template.Spec.Tolerations = *params.Tolerations
@@ -335,6 +354,29 @@ func generateContainerDef(name string, containerParams containerParameters, enab
 	}
 
 	return containerDefinition
+}
+
+func generateInitContainerDef(name string, initcontainerParams initContainerParameters, mountpath []corev1.VolumeMount) []corev1.Container {
+	initcontainerDefinition := []corev1.Container{
+		{
+			Name:            name,
+			Image:           initcontainerParams.Image,
+			ImagePullPolicy: initcontainerParams.ImagePullPolicy,
+			Command:         initcontainerParams.Command,
+			Args:            initcontainerParams.Arguments,
+			VolumeMounts:    getVolumeMount(name, initcontainerParams.PersistenceEnabled, nil, mountpath, nil),
+		},
+	}
+
+	if initcontainerParams.Resources != nil {
+		initcontainerDefinition[0].Resources = *initcontainerParams.Resources
+	}
+
+	if initcontainerParams.AdditionalEnvVariable != nil {
+		initcontainerDefinition[0].Env = append(initcontainerDefinition[0].Env, *initcontainerParams.AdditionalEnvVariable...)
+	}
+
+	return initcontainerDefinition
 }
 
 func GenerateTLSEnvironmentVariables(tlsconfig *redisv1beta1.TLSConfig) []corev1.EnvVar {
