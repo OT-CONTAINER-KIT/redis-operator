@@ -68,6 +68,7 @@ func (service RedisSentinelSTS) CreateRedisSentinelSetup(cr *redisv1beta1.RedisS
 		objectMetaInfo,
 		generateRedisSentinelParams(cr, service.getSentinelCount(cr), service.ExternalConfig, service.Affinity),
 		redisSentinelAsOwner(cr),
+		generateRedisSentinelInitContainerParams(cr),
 		generateRedisSentinelContainerParams(cr, service.ReadinessProbe, service.LivenessProbe),
 		cr.Spec.Sidecars,
 	)
@@ -105,6 +106,30 @@ func generateRedisSentinelParams(cr *redisv1beta1.RedisSentinel, replicas int32,
 
 	}
 	return res
+}
+
+// generateRedisSentinelInitContainerParams generates Redis sentinel initcontainer information
+func generateRedisSentinelInitContainerParams(cr *redisv1beta1.RedisSentinel) initContainerParameters {
+
+	initcontainerProp := initContainerParameters{}
+
+	if cr.Spec.InitContainer != nil {
+		initContainer := cr.Spec.InitContainer
+
+		initcontainerProp = initContainerParameters{
+			Enabled:               initContainer.Enabled,
+			Role:                  "sentinel",
+			Image:                 initContainer.Image,
+			ImagePullPolicy:       initContainer.ImagePullPolicy,
+			Resources:             initContainer.Resources,
+			AdditionalEnvVariable: initContainer.EnvVars,
+			Command:               initContainer.Command,
+			Arguments:             initContainer.Args,
+		}
+
+	}
+
+	return initcontainerProp
 }
 
 // Create Redis Sentinel Statefulset Container Params
