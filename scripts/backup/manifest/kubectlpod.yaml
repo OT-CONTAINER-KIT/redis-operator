@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kubectl-pod
+  namespace: default
+spec:
+  serviceAccountName: internal-kubectl
+  containers:
+  - name: kubectl-container
+    image: shubham192001/backup-pod:latest
+    command: ["sleep", "3600"]
