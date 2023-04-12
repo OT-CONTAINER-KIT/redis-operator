@@ -27,21 +27,21 @@ const (
 
 // statefulSetParameters will define statefulsets input params
 type statefulSetParameters struct {
-	Replicas              *int32
-	Metadata              metav1.ObjectMeta
-	NodeSelector          map[string]string
-	SecurityContext       *corev1.PodSecurityContext
-	PriorityClassName     string
-	Affinity              *corev1.Affinity
-	Tolerations           *[]corev1.Toleration
-	EnableMetrics         bool
-	PersistentVolumeClaim corev1.PersistentVolumeClaim
-	ImagePullSecrets      *[]corev1.LocalObjectReference
-	ExternalConfig        *string
-	ServiceAccountName    *string
-	UpdateStrategy        appsv1.StatefulSetUpdateStrategy
-	RecreateStatefulSet   bool
-	InitContainers        *[]redisv1beta1.InitContainer
+	Replicas                      *int32
+	Metadata                      metav1.ObjectMeta
+	NodeSelector                  map[string]string
+	SecurityContext               *corev1.PodSecurityContext
+	PriorityClassName             string
+	Affinity                      *corev1.Affinity
+	Tolerations                   *[]corev1.Toleration
+	EnableMetrics                 bool
+	PersistentVolumeClaim         corev1.PersistentVolumeClaim
+	ImagePullSecrets              *[]corev1.LocalObjectReference
+	ExternalConfig                *string
+	ServiceAccountName            *string
+	UpdateStrategy                appsv1.StatefulSetUpdateStrategy
+	RecreateStatefulSet           bool
+	TerminationGracePeriodSeconds *int64
 }
 
 // containerParameters will define container input params
@@ -66,25 +66,11 @@ type containerParameters struct {
 	AdditionalMountPath          []corev1.VolumeMount
 }
 
-type initContainerParameters struct {
-	Enabled               *bool
-	Image                 string
-	ImagePullPolicy       corev1.PullPolicy
-	Resources             *corev1.ResourceRequirements
-	Role                  string
-	Command               []string
-	Arguments             []string
-	PersistenceEnabled    *bool
-	AdditionalEnvVariable *[]corev1.EnvVar
-	AdditionalVolume      []corev1.Volume
-	AdditionalMountPath   []corev1.VolumeMount
-}
-
 // CreateOrUpdateStateFul method will create or update Redis service
-func CreateOrUpdateStateFul(namespace string, stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, initcontainerParams initContainerParameters, containerParams containerParameters, sidecars *[]redisv1beta1.Sidecar) error {
+func CreateOrUpdateStateFul(namespace string, stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, containerParams containerParameters, sidecars *[]redisv1beta1.Sidecar) error {
 	logger := statefulSetLogger(namespace, stsMeta.Name)
 	storedStateful, err := GetStatefulSet(namespace, stsMeta.Name)
-	statefulSetDef := generateStatefulSetsDef(stsMeta, params, ownerDef, initcontainerParams, containerParams, getSidecars(sidecars))
+	statefulSetDef := generateStatefulSetsDef(stsMeta, params, ownerDef, containerParams, getSidecars(sidecars))
 	if err != nil {
 		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(statefulSetDef); err != nil {
 			logger.Error(err, "Unable to patch redis statefulset with comparison object")
@@ -203,7 +189,13 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 }
 
 // generateStatefulSetsDef generates the statefulsets definition of Redis
-func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, initcontainerParams initContainerParameters, containerParams containerParameters, sidecars []redisv1beta1.Sidecar) *appsv1.StatefulSet {
+func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, containerParams containerParameters, sidecars []redisv1beta1.Sidecar) *appsv1.StatefulSet {
+	terminationGracePeriodSeconds := params.TerminationGracePeriodSeconds
+	if *params.TerminationGracePeriodSeconds > int64(0) {
+		terminationGracePeriodSeconds = params.TerminationGracePeriodSeconds
+	} else {
+		*terminationGracePeriodSeconds = int64(30) //take default if not provided
+	}
 	statefulset := &appsv1.StatefulSet{
 		TypeMeta:   generateMetaInformation("StatefulSet", "apps/v1"),
 		ObjectMeta: stsMeta,
@@ -218,18 +210,15 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 					Annotations: generateStatefulSetsAnots(stsMeta),
 				},
 				Spec: corev1.PodSpec{
-					Containers:        generateContainerDef(stsMeta.GetName(), containerParams, params.EnableMetrics, params.ExternalConfig, containerParams.AdditionalMountPath, sidecars),
-					NodeSelector:      params.NodeSelector,
-					SecurityContext:   params.SecurityContext,
-					PriorityClassName: params.PriorityClassName,
-					Affinity:          params.Affinity,
+					Containers:                    generateContainerDef(stsMeta.GetName(), containerParams, params.EnableMetrics, params.ExternalConfig, containerParams.AdditionalMountPath, sidecars),
+					NodeSelector:                  params.NodeSelector,
+					SecurityContext:               params.SecurityContext,
+					PriorityClassName:             params.PriorityClassName,
+					Affinity:                      params.Affinity,
+					TerminationGracePeriodSeconds: terminationGracePeriodSeconds,
 				},
 			},
 		},
-	}
-
-	if initcontainerParams.Enabled != nil && *initcontainerParams.Enabled {
-		statefulset.Spec.Template.Spec.InitContainers = generateInitContainerDef("init-"+stsMeta.GetName(), initcontainerParams, initcontainerParams.AdditionalMountPath)
 	}
 	if params.Tolerations != nil {
 		statefulset.Spec.Template.Spec.Tolerations = *params.Tolerations
@@ -339,6 +328,15 @@ func generateContainerDef(name string, containerParams containerParameters, enab
 			Image:           sidecar.Image,
 			ImagePullPolicy: sidecar.ImagePullPolicy,
 		}
+		if sidecar.Command != nil {
+			container.Command = sidecar.Command
+		}
+		if sidecar.Ports != nil {
+			container.Ports = append(container.Ports, *sidecar.Ports...)
+		}
+		if sidecar.Volumes != nil {
+			container.VolumeMounts = *sidecar.Volumes
+		}
 		if sidecar.Resources != nil {
 			container.Resources = *sidecar.Resources
 		}
@@ -354,29 +352,6 @@ func generateContainerDef(name string, containerParams containerParameters, enab
 	}
 
 	return containerDefinition
-}
-
-func generateInitContainerDef(name string, initcontainerParams initContainerParameters, mountpath []corev1.VolumeMount) []corev1.Container {
-	initcontainerDefinition := []corev1.Container{
-		{
-			Name:            name,
-			Image:           initcontainerParams.Image,
-			ImagePullPolicy: initcontainerParams.ImagePullPolicy,
-			Command:         initcontainerParams.Command,
-			Args:            initcontainerParams.Arguments,
-			VolumeMounts:    getVolumeMount(name, initcontainerParams.PersistenceEnabled, nil, mountpath, nil),
-		},
-	}
-
-	if initcontainerParams.Resources != nil {
-		initcontainerDefinition[0].Resources = *initcontainerParams.Resources
-	}
-
-	if initcontainerParams.AdditionalEnvVariable != nil {
-		initcontainerDefinition[0].Env = append(initcontainerDefinition[0].Env, *initcontainerParams.AdditionalEnvVariable...)
-	}
-
-	return initcontainerDefinition
 }
 
 func GenerateTLSEnvironmentVariables(tlsconfig *redisv1beta1.TLSConfig) []corev1.EnvVar {

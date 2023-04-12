@@ -13,11 +13,12 @@ import (
 
 // RedisSentinelSTS is a interface to call Redis Statefulset function
 type RedisSentinelSTS struct {
-	RedisStateFulType string
-	ExternalConfig    *string
-	Affinity          *corev1.Affinity `json:"affinity,omitempty"`
-	ReadinessProbe    *redisv1beta1.Probe
-	LivenessProbe     *redisv1beta1.Probe
+	RedisStateFulType             string
+	ExternalConfig                *string
+	Affinity                      *corev1.Affinity `json:"affinity,omitempty"`
+	TerminationGracePeriodSeconds *int64           `json:"terminationGracePeriodSeconds,omitempty" protobuf:"varint,4,opt,name=terminationGracePeriodSeconds"`
+	ReadinessProbe                *redisv1beta1.Probe
+	LivenessProbe                 *redisv1beta1.Probe
 }
 
 // RedisSentinelService is a interface to call Redis Service function
@@ -32,10 +33,11 @@ type RedisReplicationObject struct {
 // Redis Sentinel Create the Redis Sentinel Setup
 func CreateRedisSentinel(cr *redisv1beta1.RedisSentinel) error {
 	prop := RedisSentinelSTS{
-		RedisStateFulType: "sentinel",
-		Affinity:          cr.Spec.Affinity,
-		ReadinessProbe:    cr.Spec.ReadinessProbe,
-		LivenessProbe:     cr.Spec.LivenessProbe,
+		RedisStateFulType:             "sentinel",
+		Affinity:                      cr.Spec.Affinity,
+		ReadinessProbe:                cr.Spec.ReadinessProbe,
+		LivenessProbe:                 cr.Spec.LivenessProbe,
+		TerminationGracePeriodSeconds: cr.Spec.TerminationGracePeriodSeconds,
 	}
 
 	if cr.Spec.RedisSentinelConfig.AdditionalSentinelConfig != nil {
@@ -68,7 +70,6 @@ func (service RedisSentinelSTS) CreateRedisSentinelSetup(cr *redisv1beta1.RedisS
 		objectMetaInfo,
 		generateRedisSentinelParams(cr, service.getSentinelCount(cr), service.ExternalConfig, service.Affinity),
 		redisSentinelAsOwner(cr),
-		generateRedisSentinelInitContainerParams(cr),
 		generateRedisSentinelContainerParams(cr, service.ReadinessProbe, service.LivenessProbe),
 		cr.Spec.Sidecars,
 	)
@@ -84,15 +85,16 @@ func (service RedisSentinelSTS) CreateRedisSentinelSetup(cr *redisv1beta1.RedisS
 func generateRedisSentinelParams(cr *redisv1beta1.RedisSentinel, replicas int32, externalConfig *string, affinity *corev1.Affinity) statefulSetParameters {
 
 	res := statefulSetParameters{
-		Metadata:           cr.ObjectMeta,
-		Replicas:           &replicas,
-		NodeSelector:       cr.Spec.NodeSelector,
-		SecurityContext:    cr.Spec.SecurityContext,
-		PriorityClassName:  cr.Spec.PriorityClassName,
-		Affinity:           affinity,
-		Tolerations:        cr.Spec.Tolerations,
-		ServiceAccountName: cr.Spec.ServiceAccountName,
-		UpdateStrategy:     cr.Spec.KubernetesConfig.UpdateStrategy,
+		Metadata:                      cr.ObjectMeta,
+		Replicas:                      &replicas,
+		NodeSelector:                  cr.Spec.NodeSelector,
+		SecurityContext:               cr.Spec.SecurityContext,
+		PriorityClassName:             cr.Spec.PriorityClassName,
+		Affinity:                      affinity,
+		TerminationGracePeriodSeconds: cr.Spec.TerminationGracePeriodSeconds,
+		Tolerations:                   cr.Spec.Tolerations,
+		ServiceAccountName:            cr.Spec.ServiceAccountName,
+		UpdateStrategy:                cr.Spec.KubernetesConfig.UpdateStrategy,
 	}
 
 	if cr.Spec.KubernetesConfig.ImagePullSecrets != nil {
@@ -101,35 +103,8 @@ func generateRedisSentinelParams(cr *redisv1beta1.RedisSentinel, replicas int32,
 	if externalConfig != nil {
 		res.ExternalConfig = externalConfig
 	}
-	if cr.Spec.RedisExporter != nil {
-		res.EnableMetrics = cr.Spec.RedisExporter.Enabled
 
-	}
 	return res
-}
-
-// generateRedisSentinelInitContainerParams generates Redis sentinel initcontainer information
-func generateRedisSentinelInitContainerParams(cr *redisv1beta1.RedisSentinel) initContainerParameters {
-
-	initcontainerProp := initContainerParameters{}
-
-	if cr.Spec.InitContainer != nil {
-		initContainer := cr.Spec.InitContainer
-
-		initcontainerProp = initContainerParameters{
-			Enabled:               initContainer.Enabled,
-			Role:                  "sentinel",
-			Image:                 initContainer.Image,
-			ImagePullPolicy:       initContainer.ImagePullPolicy,
-			Resources:             initContainer.Resources,
-			AdditionalEnvVariable: initContainer.EnvVars,
-			Command:               initContainer.Command,
-			Arguments:             initContainer.Args,
-		}
-
-	}
-
-	return initcontainerProp
 }
 
 // Create Redis Sentinel Statefulset Container Params
@@ -150,18 +125,6 @@ func generateRedisSentinelContainerParams(cr *redisv1beta1.RedisSentinel, readin
 		containerProp.SecretKey = cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key
 	} else {
 		containerProp.EnabledPassword = &falseProperty
-	}
-	if cr.Spec.RedisExporter != nil {
-		containerProp.RedisExporterImage = cr.Spec.RedisExporter.Image
-		containerProp.RedisExporterImagePullPolicy = cr.Spec.RedisExporter.ImagePullPolicy
-
-		if cr.Spec.RedisExporter.Resources != nil {
-			containerProp.RedisExporterResources = cr.Spec.RedisExporter.Resources
-		}
-
-		if cr.Spec.RedisExporter.EnvVars != nil {
-			containerProp.RedisExporterEnv = cr.Spec.RedisExporter.EnvVars
-		}
 	}
 	if readinessProbeDef != nil {
 		containerProp.ReadinessProbe = readinessProbeDef
@@ -189,11 +152,6 @@ func (service RedisSentinelService) CreateRedisSentinelService(cr *redisv1beta1.
 	labels := getRedisLabels(serviceName, "cluster", service.RedisServiceRole, cr.ObjectMeta.Labels)
 	annotations := generateServiceAnots(cr.ObjectMeta, nil)
 
-	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
-		enableMetrics = true
-	} else {
-		enableMetrics = false
-	}
 	additionalServiceAnnotations := map[string]string{}
 	if cr.Spec.KubernetesConfig.Service != nil {
 		additionalServiceAnnotations = cr.Spec.KubernetesConfig.Service.ServiceAnnotations
