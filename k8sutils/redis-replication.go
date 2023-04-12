@@ -11,6 +11,8 @@ func CreateReplicationService(cr *redisv1beta1.RedisReplication) error {
 	annotations := generateServiceAnots(cr.ObjectMeta, nil)
 	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
 		enableMetrics = true
+	} else {
+		enableMetrics = false
 	}
 	additionalServiceAnnotations := map[string]string{}
 	if cr.Spec.KubernetesConfig.Service != nil {
@@ -52,6 +54,7 @@ func CreateReplicationRedis(cr *redisv1beta1.RedisReplication) error {
 		objectMetaInfo,
 		generateRedisReplicationParams(cr),
 		redisReplicationAsOwner(cr),
+		generateRedisReplicationInitContainerParams(cr),
 		generateRedisReplicationContainerParams(cr),
 		cr.Spec.Sidecars,
 	)
@@ -85,7 +88,6 @@ func generateRedisReplicationParams(cr *redisv1beta1.RedisReplication) statefulS
 	}
 	if cr.Spec.RedisExporter != nil {
 		res.EnableMetrics = cr.Spec.RedisExporter.Enabled
-
 	}
 	if cr.Spec.ServiceAccountName != nil {
 		res.ServiceAccountName = cr.Spec.ServiceAccountName
@@ -142,4 +144,36 @@ func generateRedisReplicationContainerParams(cr *redisv1beta1.RedisReplication) 
 		containerProp.TLSConfig = cr.Spec.TLS
 	}
 	return containerProp
+}
+
+// generateRedisReplicationInitContainerParams generates Redis Replication initcontainer information
+func generateRedisReplicationInitContainerParams(cr *redisv1beta1.RedisReplication) initContainerParameters {
+	trueProperty := true
+	initcontainerProp := initContainerParameters{}
+
+	if cr.Spec.InitContainer != nil {
+		initContainer := cr.Spec.InitContainer
+
+		initcontainerProp = initContainerParameters{
+			Enabled:               initContainer.Enabled,
+			Role:                  "replication",
+			Image:                 initContainer.Image,
+			ImagePullPolicy:       initContainer.ImagePullPolicy,
+			Resources:             initContainer.Resources,
+			AdditionalEnvVariable: initContainer.EnvVars,
+			Command:               initContainer.Command,
+			Arguments:             initContainer.Args,
+		}
+
+		if cr.Spec.Storage != nil {
+			initcontainerProp.AdditionalVolume = cr.Spec.Storage.VolumeMount.Volume
+			initcontainerProp.AdditionalMountPath = cr.Spec.Storage.VolumeMount.MountPath
+		}
+		if cr.Spec.Storage != nil {
+			initcontainerProp.PersistenceEnabled = &trueProperty
+		}
+
+	}
+
+	return initcontainerProp
 }
