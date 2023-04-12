@@ -15,6 +15,8 @@ func CreateStandaloneService(cr *redisv1beta1.Redis) error {
 	annotations := generateServiceAnots(cr.ObjectMeta, nil)
 	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
 		enableMetrics = true
+	} else {
+		enableMetrics = false
 	}
 	additionalServiceAnnotations := map[string]string{}
 	if cr.Spec.KubernetesConfig.Service != nil {
@@ -55,6 +57,7 @@ func CreateStandaloneRedis(cr *redisv1beta1.Redis) error {
 		objectMetaInfo,
 		generateRedisStandaloneParams(cr),
 		redisAsOwner(cr),
+		generateRedisStandaloneInitContainerParams(cr),
 		generateRedisStandaloneContainerParams(cr),
 		cr.Spec.Sidecars,
 	)
@@ -149,4 +152,36 @@ func generateRedisStandaloneContainerParams(cr *redisv1beta1.Redis) containerPar
 		containerProp.TLSConfig = cr.Spec.TLS
 	}
 	return containerProp
+}
+
+// generateRedisStandaloneInitContainerParams generates Redis initcontainer information
+func generateRedisStandaloneInitContainerParams(cr *redisv1beta1.Redis) initContainerParameters {
+	trueProperty := true
+	initcontainerProp := initContainerParameters{}
+
+	if cr.Spec.InitContainer != nil {
+		initContainer := cr.Spec.InitContainer
+
+		initcontainerProp = initContainerParameters{
+			Enabled:               initContainer.Enabled,
+			Role:                  "standalone",
+			Image:                 initContainer.Image,
+			ImagePullPolicy:       initContainer.ImagePullPolicy,
+			Resources:             initContainer.Resources,
+			AdditionalEnvVariable: initContainer.EnvVars,
+			Command:               initContainer.Command,
+			Arguments:             initContainer.Args,
+		}
+
+		if cr.Spec.Storage != nil {
+			initcontainerProp.AdditionalVolume = cr.Spec.Storage.VolumeMount.Volume
+			initcontainerProp.AdditionalMountPath = cr.Spec.Storage.VolumeMount.MountPath
+		}
+		if cr.Spec.Storage != nil {
+			initcontainerProp.PersistenceEnabled = &trueProperty
+		}
+
+	}
+
+	return initcontainerProp
 }
