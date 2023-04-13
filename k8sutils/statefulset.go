@@ -60,6 +60,7 @@ type containerParameters struct {
 	SecretKey                    *string
 	PersistenceEnabled           *bool
 	TLSConfig                    *redisv1beta1.TLSConfig
+	ACLConfig                    *redisv1beta1.ACLConfig
 	ReadinessProbe               *redisv1beta1.Probe
 	LivenessProbe                *redisv1beta1.Probe
 	AdditionalEnvVariable        *[]corev1.EnvVar
@@ -264,6 +265,16 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 			})
 	}
 
+	if containerParams.ACLConfig != nil && containerParams.ACLConfig.Secret != nil {
+		statefulset.Spec.Template.Spec.Volumes = append(statefulset.Spec.Template.Spec.Volumes,
+			corev1.Volume{
+				Name: "acl-secret",
+				VolumeSource: corev1.VolumeSource{
+					Secret: containerParams.ACLConfig.Secret,
+				},
+			})
+	}
+
 	if params.ServiceAccountName != nil {
 		statefulset.Spec.Template.Spec.ServiceAccountName = *params.ServiceAccountName
 	}
@@ -327,10 +338,11 @@ func generateContainerDef(name string, containerParams containerParameters, enab
 				containerParams.PersistenceEnabled,
 				containerParams.RedisExporterEnv,
 				containerParams.TLSConfig,
+				containerParams.ACLConfig,
 			),
 			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe),
 			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe),
-			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, externalConfig, mountpath, containerParams.TLSConfig),
+			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, externalConfig, mountpath, containerParams.TLSConfig, containerParams.ACLConfig),
 		},
 	}
 
@@ -366,7 +378,6 @@ func generateContainerDef(name string, containerParams containerParameters, enab
 
 	if containerParams.AdditionalEnvVariable != nil {
 		containerDefinition[0].Env = append(containerDefinition[0].Env, *containerParams.AdditionalEnvVariable...)
-
 	}
 
 	return containerDefinition
@@ -380,7 +391,7 @@ func generateInitContainerDef(name string, initcontainerParams initContainerPara
 			ImagePullPolicy: initcontainerParams.ImagePullPolicy,
 			Command:         initcontainerParams.Command,
 			Args:            initcontainerParams.Arguments,
-			VolumeMounts:    getVolumeMount(name, initcontainerParams.PersistenceEnabled, nil, mountpath, nil),
+			VolumeMounts:    getVolumeMount(name, initcontainerParams.PersistenceEnabled, nil, mountpath, nil, nil),
 		},
 	}
 
@@ -448,8 +459,9 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 			params.PersistenceEnabled,
 			params.RedisExporterEnv,
 			params.TLSConfig,
+			params.ACLConfig,
 		),
-		VolumeMounts: getVolumeMount("", nil, nil, params.AdditionalMountPath, params.TLSConfig), // We need/want the tls-certs but we DON'T need the PVC (if one is available)
+		VolumeMounts: getVolumeMount("", nil, nil, params.AdditionalMountPath, params.TLSConfig, params.ACLConfig), // We need/want the tls-certs but we DON'T need the PVC (if one is available)
 		Ports: []corev1.ContainerPort{
 			{
 				Name:          redisExporterPortName,
@@ -465,7 +477,7 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 }
 
 // getVolumeMount gives information about persistence mount
-func getVolumeMount(name string, persistenceEnabled *bool, externalConfig *string, mountpath []corev1.VolumeMount, tlsConfig *redisv1beta1.TLSConfig) []corev1.VolumeMount {
+func getVolumeMount(name string, persistenceEnabled *bool, externalConfig *string, mountpath []corev1.VolumeMount, tlsConfig *redisv1beta1.TLSConfig, aclConfig *redisv1beta1.ACLConfig) []corev1.VolumeMount {
 	var VolumeMounts []corev1.VolumeMount
 
 	if persistenceEnabled != nil && *persistenceEnabled {
@@ -480,6 +492,14 @@ func getVolumeMount(name string, persistenceEnabled *bool, externalConfig *strin
 			Name:      "tls-certs",
 			ReadOnly:  true,
 			MountPath: "/tls",
+		})
+	}
+
+	if aclConfig != nil {
+		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
+			Name:      "acl-secret",
+			MountPath: "/etc/redis/user.acl",
+			SubPath:   "user.acl",
 		})
 	}
 
@@ -515,7 +535,7 @@ func getProbeInfo(probe *redisv1beta1.Probe) *corev1.Probe {
 }
 
 // getEnvironmentVariables returns all the required Environment Variables
-func getEnvironmentVariables(role string, enabledMetric bool, enabledPassword *bool, secretName *string, secretKey *string, persistenceEnabled *bool, exporterEnvVar *[]corev1.EnvVar, tlsConfig *redisv1beta1.TLSConfig) []corev1.EnvVar {
+func getEnvironmentVariables(role string, enabledMetric bool, enabledPassword *bool, secretName *string, secretKey *string, persistenceEnabled *bool, exporterEnvVar *[]corev1.EnvVar, tlsConfig *redisv1beta1.TLSConfig, aclConfig *redisv1beta1.ACLConfig) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{Name: "SERVER_MODE", Value: role},
 		{Name: "SETUP_MODE", Value: role},
@@ -543,6 +563,13 @@ func getEnvironmentVariables(role string, enabledMetric bool, enabledPassword *b
 				Value: "true",
 			})
 		}
+	}
+
+	if aclConfig != nil {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  "ACL_MODE",
+			Value: "true",
+		})
 	}
 
 	envVars = append(envVars, corev1.EnvVar{
