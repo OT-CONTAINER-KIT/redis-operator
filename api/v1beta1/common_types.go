@@ -81,9 +81,7 @@ type TLSConfig struct {
 }
 
 type ACLConfig struct {
-	Users  []string                      `json:"users,omitempty"`
-	Config *corev1.ConfigMapVolumeSource `json:"configmap,omitempty"`
-	Secret *corev1.SecretEnvSource       `json:"secret,omitempty"`
+	Secret *corev1.SecretVolumeSource `json:"secret,omitempty"`
 }
 
 // Probe is a interface for ReadinessProbe and LivenessProbe

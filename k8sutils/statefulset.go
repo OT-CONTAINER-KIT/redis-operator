@@ -258,12 +258,12 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 			})
 	}
 
-	if containerParams.ACLConfig != nil && containerParams.ACLConfig.Config != nil {
+	if containerParams.ACLConfig != nil && containerParams.ACLConfig.Secret != nil {
 		statefulset.Spec.Template.Spec.Volumes = append(statefulset.Spec.Template.Spec.Volumes,
 			corev1.Volume{
-				Name: "acl-config",
+				Name: "acl-secret",
 				VolumeSource: corev1.VolumeSource{
-					ConfigMap: containerParams.ACLConfig.Config,
+					Secret: containerParams.ACLConfig.Secret,
 				},
 			})
 	}
@@ -362,9 +362,6 @@ func generateContainerDef(name string, containerParams containerParameters, enab
 
 	if containerParams.AdditionalEnvVariable != nil {
 		containerDefinition[0].Env = append(containerDefinition[0].Env, *containerParams.AdditionalEnvVariable...)
-	}
-	if containerParams.ACLConfig != nil && containerParams.ACLConfig.Secret != nil {
-		containerDefinition[0].EnvFrom = []corev1.EnvFromSource{{SecretRef: containerParams.ACLConfig.Secret}}
 	}
 
 	return containerDefinition
@@ -484,7 +481,7 @@ func getVolumeMount(name string, persistenceEnabled *bool, externalConfig *strin
 
 	if aclConfig != nil {
 		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
-			Name:      "acl-config",
+			Name:      "acl-secret",
 			MountPath: "/etc/redis/user.acl",
 			SubPath:   "user.acl",
 		})
