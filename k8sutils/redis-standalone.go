@@ -151,6 +151,9 @@ func generateRedisStandaloneContainerParams(cr *redisv1beta1.Redis) containerPar
 	if cr.Spec.TLS != nil {
 		containerProp.TLSConfig = cr.Spec.TLS
 	}
+	if cr.Spec.ACL != nil {
+		containerProp.ACLConfig = cr.Spec.ACL
+	}
 	return containerProp
 }
 

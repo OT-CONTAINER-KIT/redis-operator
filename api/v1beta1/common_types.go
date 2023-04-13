@@ -80,6 +80,10 @@ type TLSConfig struct {
 	Secret corev1.SecretVolumeSource `json:"secret"`
 }
 
+type ACLConfig struct {
+	Secret *corev1.SecretVolumeSource `json:"secret,omitempty"`
+}
+
 // Probe is a interface for ReadinessProbe and LivenessProbe
 type Probe struct {
 	// +kubebuilder:validation:Minimum=1

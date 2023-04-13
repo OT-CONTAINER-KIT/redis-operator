@@ -37,6 +37,7 @@ type RedisClusterSpec struct {
 	PriorityClassName  string                       `json:"priorityClassName,omitempty"`
 	Resources          *corev1.ResourceRequirements `json:"resources,omitempty"`
 	TLS                *TLSConfig                   `json:"TLS,omitempty"`
+	ACL                *ACLConfig                   `json:"acl,omitempty"`
 	InitContainer      *InitContainer               `json:"initContainer,omitempty"`
 	Sidecars           *[]Sidecar                   `json:"sidecars,omitempty"`
 	ServiceAccountName *string                      `json:"serviceAccountName,omitempty"`
