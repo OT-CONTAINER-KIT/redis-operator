@@ -26,10 +26,8 @@ spec:
     # imagePullSecrets:
     #   - name: regcred
   acl:
-    configmap: 
-      name:  acl-configmap
-    # secret : 
-    #   name: acl-secret
+    secret : 
+      name: acl-secret
     
   redisExporter:
     enabled: false
