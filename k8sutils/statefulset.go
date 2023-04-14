@@ -206,12 +206,6 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 
 // generateStatefulSetsDef generates the statefulsets definition of Redis
 func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, initcontainerParams initContainerParameters, containerParams containerParameters, sidecars []redisv1beta1.Sidecar) *appsv1.StatefulSet {
-	terminationGracePeriodSeconds := params.TerminationGracePeriodSeconds
-	if *params.TerminationGracePeriodSeconds > int64(0) {
-		terminationGracePeriodSeconds = params.TerminationGracePeriodSeconds
-	} else {
-		*terminationGracePeriodSeconds = int64(30) //take default if not provided
-	}
 	statefulset := &appsv1.StatefulSet{
 		TypeMeta:   generateMetaInformation("StatefulSet", "apps/v1"),
 		ObjectMeta: stsMeta,
@@ -231,7 +225,7 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 					SecurityContext:               params.SecurityContext,
 					PriorityClassName:             params.PriorityClassName,
 					Affinity:                      params.Affinity,
-					TerminationGracePeriodSeconds: terminationGracePeriodSeconds,
+					TerminationGracePeriodSeconds: params.TerminationGracePeriodSeconds,
 				},
 			},
 		},
