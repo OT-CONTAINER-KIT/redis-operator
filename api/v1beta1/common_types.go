@@ -110,9 +110,6 @@ type Sidecar struct {
 	ImagePullPolicy corev1.PullPolicy            `json:"imagePullPolicy,omitempty"`
 	Resources       *corev1.ResourceRequirements `json:"resources,omitempty"`
 	EnvVars         *[]corev1.EnvVar             `json:"env,omitempty"`
-	Volumes         *[]corev1.VolumeMount        `json:"mountPath,omitempty"`
-	Command         []string                     `json:"command,omitempty" protobuf:"bytes,3,rep,name=command"`
-	Ports           *[]corev1.ContainerPort      `json:"ports,omitempty" patchStrategy:"merge" patchMergeKey:"containerPort" protobuf:"bytes,6,rep,name=ports"`
 }
 
 // InitContainer for each Redis pods

@@ -1590,9 +1590,6 @@ spec:
                   replicas:
                     format: int32
                     type: integer
-                  terminationGracePeriodSeconds:
-                    format: int64
-                    type: integer
                   tolerations:
                     items:
                       description: The pod this Toleration is attached to tolerates
@@ -2612,9 +2609,6 @@ spec:
                   replicas:
                     format: int32
                     type: integer
-                  terminationGracePeriodSeconds:
-                    format: int64
-                    type: integer
                   tolerations:
                     items:
                       description: The pod this Toleration is attached to tolerates
@@ -2854,10 +2848,6 @@ spec:
                 items:
                   description: Sidecar for each Redis pods
                   properties:
-                    command:
-                      items:
-                        type: string
-                      type: array
                     env:
                       items:
                         description: EnvVar represents an environment variable present
@@ -2977,82 +2967,8 @@ spec:
                       description: PullPolicy describes a policy for if/when to pull
                         a container image
                       type: string
-                    mountPath:
-                      items:
-                        description: VolumeMount describes a mounting of a Volume
-                          within a container.
-                        properties:
-                          mountPath:
-                            description: Path within the container at which the volume
-                              should be mounted.  Must not contain ':'.
-                            type: string
-                          mountPropagation:
-                            description: mountPropagation determines how mounts are
-                              propagated from the host to container and the other
-                              way around. When not set, MountPropagationNone is used.
-                              This field is beta in 1.10.
-                            type: string
-                          name:
-                            description: This must match the Name of a Volume.
-                            type: string
-                          readOnly:
-                            description: Mounted read-only if true, read-write otherwise
-                              (false or unspecified). Defaults to false.
-                            type: boolean
-                          subPath:
-                            description: Path within the volume from which the container's
-                              volume should be mounted. Defaults to "" (volume's root).
-                            type: string
-                          subPathExpr:
-                            description: Expanded path within the volume from which
-                              the container's volume should be mounted. Behaves similarly
-                              to SubPath but environment variable references $(VAR_NAME)
-                              are expanded using the container's environment. Defaults
-                              to "" (volume's root). SubPathExpr and SubPath are mutually
-                              exclusive.
-                            type: string
-                        required:
-                        - mountPath
-                        - name
-                        type: object
-                      type: array
                     name:
                       type: string
-                    ports:
-                      items:
-                        description: ContainerPort represents a network port in a
-                          single container.
-                        properties:
-                          containerPort:
-                            description: Number of port to expose on the pod's IP
-                              address. This must be a valid port number, 0 < x < 65536.
-                            format: int32
-                            type: integer
-                          hostIP:
-                            description: What host IP to bind the external port to.
-                            type: string
-                          hostPort:
-                            description: Number of port to expose on the host. If
-                              specified, this must be a valid port number, 0 < x <
-                              65536. If HostNetwork is specified, this must match
-                              ContainerPort. Most containers do not need this.
-                            format: int32
-                            type: integer
-                          name:
-                            description: If specified, this must be an IANA_SVC_NAME
-                              and unique within the pod. Each named port in a pod
-                              must have a unique name. Name for the port that can
-                              be referred to by services.
-                            type: string
-                          protocol:
-                            default: TCP
-                            description: Protocol for port. Must be UDP, TCP, or SCTP.
-                              Defaults to "TCP".
-                            type: string
-                        required:
-                        - containerPort
-                        type: object
-                      type: array
                     resources:
                       description: ResourceRequirements describes the compute resource
                         requirements.
