@@ -230,6 +230,7 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 			},
 		},
 	}
+
 	if initcontainerParams.Enabled != nil && *initcontainerParams.Enabled {
 		statefulset.Spec.Template.Spec.InitContainers = generateInitContainerDef("init-"+stsMeta.GetName(), initcontainerParams, initcontainerParams.AdditionalMountPath)
 	}
