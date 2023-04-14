@@ -68,14 +68,13 @@ func CreateReplicationRedis(cr *redisv1beta1.RedisReplication) error {
 func generateRedisReplicationParams(cr *redisv1beta1.RedisReplication) statefulSetParameters {
 	replicas := cr.Spec.GetReplicationCounts("Replication")
 	res := statefulSetParameters{
-		Replicas:                      &replicas,
-		NodeSelector:                  cr.Spec.NodeSelector,
-		SecurityContext:               cr.Spec.SecurityContext,
-		PriorityClassName:             cr.Spec.PriorityClassName,
-		Affinity:                      cr.Spec.Affinity,
-		Tolerations:                   cr.Spec.Tolerations,
-		TerminationGracePeriodSeconds: cr.Spec.TerminationGracePeriodSeconds,
-		UpdateStrategy:                cr.Spec.KubernetesConfig.UpdateStrategy,
+		Replicas:          &replicas,
+		NodeSelector:      cr.Spec.NodeSelector,
+		SecurityContext:   cr.Spec.SecurityContext,
+		PriorityClassName: cr.Spec.PriorityClassName,
+		Affinity:          cr.Spec.Affinity,
+		Tolerations:       cr.Spec.Tolerations,
+		UpdateStrategy:    cr.Spec.KubernetesConfig.UpdateStrategy,
 	}
 	if cr.Spec.KubernetesConfig.ImagePullSecrets != nil {
 		res.ImagePullSecrets = cr.Spec.KubernetesConfig.ImagePullSecrets
