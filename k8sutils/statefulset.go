@@ -27,22 +27,21 @@ const (
 
 // statefulSetParameters will define statefulsets input params
 type statefulSetParameters struct {
-	Replicas                      *int32
-	Metadata                      metav1.ObjectMeta
-	NodeSelector                  map[string]string
-	SecurityContext               *corev1.PodSecurityContext
-	PriorityClassName             string
-	Affinity                      *corev1.Affinity
-	Tolerations                   *[]corev1.Toleration
-	EnableMetrics                 bool
-	PersistentVolumeClaim         corev1.PersistentVolumeClaim
-	ImagePullSecrets              *[]corev1.LocalObjectReference
-	ExternalConfig                *string
-	ServiceAccountName            *string
-	UpdateStrategy                appsv1.StatefulSetUpdateStrategy
-	RecreateStatefulSet           bool
-	InitContainers                *[]redisv1beta1.InitContainer
-	TerminationGracePeriodSeconds *int64
+	Replicas              *int32
+	Metadata              metav1.ObjectMeta
+	NodeSelector          map[string]string
+	SecurityContext       *corev1.PodSecurityContext
+	PriorityClassName     string
+	Affinity              *corev1.Affinity
+	Tolerations           *[]corev1.Toleration
+	EnableMetrics         bool
+	PersistentVolumeClaim corev1.PersistentVolumeClaim
+	ImagePullSecrets      *[]corev1.LocalObjectReference
+	ExternalConfig        *string
+	ServiceAccountName    *string
+	UpdateStrategy        appsv1.StatefulSetUpdateStrategy
+	RecreateStatefulSet   bool
+	InitContainers        *[]redisv1beta1.InitContainer
 }
 
 // containerParameters will define container input params
@@ -206,12 +205,6 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 
 // generateStatefulSetsDef generates the statefulsets definition of Redis
 func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, initcontainerParams initContainerParameters, containerParams containerParameters, sidecars []redisv1beta1.Sidecar) *appsv1.StatefulSet {
-	terminationGracePeriodSeconds := params.TerminationGracePeriodSeconds
-	if *params.TerminationGracePeriodSeconds > int64(0) {
-		terminationGracePeriodSeconds = params.TerminationGracePeriodSeconds
-	} else {
-		*terminationGracePeriodSeconds = int64(30) //take default if not provided
-	}
 	statefulset := &appsv1.StatefulSet{
 		TypeMeta:   generateMetaInformation("StatefulSet", "apps/v1"),
 		ObjectMeta: stsMeta,
@@ -226,16 +219,16 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 					Annotations: generateStatefulSetsAnots(stsMeta),
 				},
 				Spec: corev1.PodSpec{
-					Containers:                    generateContainerDef(stsMeta.GetName(), containerParams, params.EnableMetrics, params.ExternalConfig, containerParams.AdditionalMountPath, sidecars),
-					NodeSelector:                  params.NodeSelector,
-					SecurityContext:               params.SecurityContext,
-					PriorityClassName:             params.PriorityClassName,
-					Affinity:                      params.Affinity,
-					TerminationGracePeriodSeconds: terminationGracePeriodSeconds,
+					Containers:        generateContainerDef(stsMeta.GetName(), containerParams, params.EnableMetrics, params.ExternalConfig, containerParams.AdditionalMountPath, sidecars),
+					NodeSelector:      params.NodeSelector,
+					SecurityContext:   params.SecurityContext,
+					PriorityClassName: params.PriorityClassName,
+					Affinity:          params.Affinity,
 				},
 			},
 		},
 	}
+
 	if initcontainerParams.Enabled != nil && *initcontainerParams.Enabled {
 		statefulset.Spec.Template.Spec.InitContainers = generateInitContainerDef("init-"+stsMeta.GetName(), initcontainerParams, initcontainerParams.AdditionalMountPath)
 	}
@@ -357,15 +350,6 @@ func generateContainerDef(name string, containerParams containerParameters, enab
 			Name:            sidecar.Name,
 			Image:           sidecar.Image,
 			ImagePullPolicy: sidecar.ImagePullPolicy,
-		}
-		if sidecar.Command != nil {
-			container.Command = sidecar.Command
-		}
-		if sidecar.Ports != nil {
-			container.Ports = append(container.Ports, *sidecar.Ports...)
-		}
-		if sidecar.Volumes != nil {
-			container.VolumeMounts = *sidecar.Volumes
 		}
 		if sidecar.Resources != nil {
 			container.Resources = *sidecar.Resources

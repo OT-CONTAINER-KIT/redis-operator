@@ -13,12 +13,11 @@ import (
 
 // RedisSentinelSTS is a interface to call Redis Statefulset function
 type RedisSentinelSTS struct {
-	RedisStateFulType             string
-	ExternalConfig                *string
-	Affinity                      *corev1.Affinity `json:"affinity,omitempty"`
-	TerminationGracePeriodSeconds *int64           `json:"terminationGracePeriodSeconds,omitempty" protobuf:"varint,4,opt,name=terminationGracePeriodSeconds"`
-	ReadinessProbe                *redisv1beta1.Probe
-	LivenessProbe                 *redisv1beta1.Probe
+	RedisStateFulType string
+	ExternalConfig    *string
+	Affinity          *corev1.Affinity `json:"affinity,omitempty"`
+	ReadinessProbe    *redisv1beta1.Probe
+	LivenessProbe     *redisv1beta1.Probe
 }
 
 // RedisSentinelService is a interface to call Redis Service function
@@ -33,11 +32,10 @@ type RedisReplicationObject struct {
 // Redis Sentinel Create the Redis Sentinel Setup
 func CreateRedisSentinel(cr *redisv1beta1.RedisSentinel) error {
 	prop := RedisSentinelSTS{
-		RedisStateFulType:             "sentinel",
-		Affinity:                      cr.Spec.Affinity,
-		ReadinessProbe:                cr.Spec.ReadinessProbe,
-		LivenessProbe:                 cr.Spec.LivenessProbe,
-		TerminationGracePeriodSeconds: cr.Spec.TerminationGracePeriodSeconds,
+		RedisStateFulType: "sentinel",
+		Affinity:          cr.Spec.Affinity,
+		ReadinessProbe:    cr.Spec.ReadinessProbe,
+		LivenessProbe:     cr.Spec.LivenessProbe,
 	}
 
 	if cr.Spec.RedisSentinelConfig.AdditionalSentinelConfig != nil {
@@ -86,16 +84,15 @@ func (service RedisSentinelSTS) CreateRedisSentinelSetup(cr *redisv1beta1.RedisS
 func generateRedisSentinelParams(cr *redisv1beta1.RedisSentinel, replicas int32, externalConfig *string, affinity *corev1.Affinity) statefulSetParameters {
 
 	res := statefulSetParameters{
-		Metadata:                      cr.ObjectMeta,
-		Replicas:                      &replicas,
-		NodeSelector:                  cr.Spec.NodeSelector,
-		SecurityContext:               cr.Spec.SecurityContext,
-		PriorityClassName:             cr.Spec.PriorityClassName,
-		Affinity:                      affinity,
-		TerminationGracePeriodSeconds: cr.Spec.TerminationGracePeriodSeconds,
-		Tolerations:                   cr.Spec.Tolerations,
-		ServiceAccountName:            cr.Spec.ServiceAccountName,
-		UpdateStrategy:                cr.Spec.KubernetesConfig.UpdateStrategy,
+		Metadata:           cr.ObjectMeta,
+		Replicas:           &replicas,
+		NodeSelector:       cr.Spec.NodeSelector,
+		SecurityContext:    cr.Spec.SecurityContext,
+		PriorityClassName:  cr.Spec.PriorityClassName,
+		Affinity:           affinity,
+		Tolerations:        cr.Spec.Tolerations,
+		ServiceAccountName: cr.Spec.ServiceAccountName,
+		UpdateStrategy:     cr.Spec.KubernetesConfig.UpdateStrategy,
 	}
 
 	if cr.Spec.KubernetesConfig.ImagePullSecrets != nil {
@@ -197,7 +194,6 @@ func (service RedisSentinelService) CreateRedisSentinelService(cr *redisv1beta1.
 	} else {
 		enableMetrics = false
 	}
-
 	additionalServiceAnnotations := map[string]string{}
 	if cr.Spec.KubernetesConfig.Service != nil {
 		additionalServiceAnnotations = cr.Spec.KubernetesConfig.Service.ServiceAnnotations
