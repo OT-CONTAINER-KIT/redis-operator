@@ -125,14 +125,3 @@ type InitContainer struct {
 	Command         []string                     `json:"command,omitempty"`
 	Args            []string                     `json:"args,omitempty"`
 }
-
-// InitContainer for each Redis pods
-type InitContainer struct {
-	Enabled         *bool                        `json:"enabled,omitempty"`
-	Image           string                       `json:"image"`
-	ImagePullPolicy corev1.PullPolicy            `json:"imagePullPolicy,omitempty"`
-	Resources       *corev1.ResourceRequirements `json:"resources,omitempty"`
-	EnvVars         *[]corev1.EnvVar             `json:"env,omitempty"`
-	Command         []string                     `json:"command,omitempty"`
-	Args            []string                     `json:"args,omitempty"`
-}
