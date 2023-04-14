@@ -1,0 +1,19 @@
+# Use an existing image as a base
+FROM ubuntu:20.04
+
+# Install the required dependencies
+RUN apt-get update && \
+    apt-get install -y curl vim unzip jq && \
+    apt-get install -y restic && \
+    apt-get install -y redis-tools
+
+WORKDIR /backup
+
+# Download and install kubectl
+RUN curl -LO "https://dl.k8s.io/release/stable.txt"
+RUN curl -LO "https://dl.k8s.io/$(cat stable.txt)/bin/linux/amd64/kubectl"
+RUN chmod +x kubectl
+RUN mv kubectl /usr/local/bin/
+
+COPY backup-user.bash /backup
+COPY env_vars.env /backup
