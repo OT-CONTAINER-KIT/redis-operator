@@ -1,0 +1,20 @@
+# Use an existing image as a base
+FROM ubuntu:20.04
+
+# Install the required dependencies
+RUN apt-get update && \
+    apt-get install -y curl vim unzip && \
+    apt-get install -y restic && \
+    apt-get install -y jq
+
+# Set the working directory
+WORKDIR /app
+
+# Copy the script into the container
+COPY restore.bash /app
+
+# Make the script executable
+RUN chmod +x /app/restore.bash
+
+# Set the entrypoint
+ENTRYPOINT ["/app/restore.bash"]
