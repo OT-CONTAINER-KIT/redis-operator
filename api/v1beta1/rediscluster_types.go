@@ -63,9 +63,10 @@ type RedisLeader struct {
 	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
 	ReadinessProbe *Probe `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
 	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
-	LivenessProbe *Probe               `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
-	Tolerations   *[]corev1.Toleration `json:"tolerations,omitempty"`
-	NodeSelector  map[string]string    `json:"nodeSelector,omitempty"`
+	LivenessProbe                 *Probe               `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
+	Tolerations                   *[]corev1.Toleration `json:"tolerations,omitempty"`
+	NodeSelector                  map[string]string    `json:"nodeSelector,omitempty"`
+	TerminationGracePeriodSeconds *int64               `json:"terminationGracePeriodSeconds,omitempty" protobuf:"varint,4,opt,name=terminationGracePeriodSeconds"`
 }
 
 // RedisFollower interface will have the redis follower configuration
@@ -77,9 +78,10 @@ type RedisFollower struct {
 	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
 	ReadinessProbe *Probe `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
 	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
-	LivenessProbe *Probe               `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
-	Tolerations   *[]corev1.Toleration `json:"tolerations,omitempty"`
-	NodeSelector  map[string]string    `json:"nodeSelector,omitempty"`
+	LivenessProbe                 *Probe               `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
+	Tolerations                   *[]corev1.Toleration `json:"tolerations,omitempty"`
+	NodeSelector                  map[string]string    `json:"nodeSelector,omitempty"`
+	TerminationGracePeriodSeconds *int64               `json:"terminationGracePeriodSeconds,omitempty" protobuf:"varint,4,opt,name=terminationGracePeriodSeconds"`
 }
 
 // RedisClusterStatus defines the observed state of RedisCluster
