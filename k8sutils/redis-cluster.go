@@ -8,13 +8,14 @@ import (
 
 // RedisClusterSTS is a interface to call Redis Statefulset function
 type RedisClusterSTS struct {
-	RedisStateFulType string
-	ExternalConfig    *string
-	Affinity          *corev1.Affinity `json:"affinity,omitempty"`
-	ReadinessProbe    *redisv1beta1.Probe
-	LivenessProbe     *redisv1beta1.Probe
-	NodeSelector      map[string]string
-	Tolerations       *[]corev1.Toleration
+	RedisStateFulType             string
+	ExternalConfig                *string
+	Affinity                      *corev1.Affinity `json:"affinity,omitempty"`
+	TerminationGracePeriodSeconds *int64           `json:"terminationGracePeriodSeconds,omitempty" protobuf:"varint,4,opt,name=terminationGracePeriodSeconds"`
+	ReadinessProbe                *redisv1beta1.Probe
+	LivenessProbe                 *redisv1beta1.Probe
+	NodeSelector                  map[string]string
+	Tolerations                   *[]corev1.Toleration
 }
 
 // RedisClusterService is a interface to call Redis Service function
@@ -25,15 +26,16 @@ type RedisClusterService struct {
 // generateRedisClusterParams generates Redis cluster information
 func generateRedisClusterParams(cr *redisv1beta1.RedisCluster, replicas int32, externalConfig *string, params RedisClusterSTS) statefulSetParameters {
 	res := statefulSetParameters{
-		Metadata:           cr.ObjectMeta,
-		Replicas:           &replicas,
-		NodeSelector:       params.NodeSelector,
-		SecurityContext:    cr.Spec.SecurityContext,
-		PriorityClassName:  cr.Spec.PriorityClassName,
-		Affinity:           params.Affinity,
-		Tolerations:        params.Tolerations,
-		ServiceAccountName: cr.Spec.ServiceAccountName,
-		UpdateStrategy:     cr.Spec.KubernetesConfig.UpdateStrategy,
+		Metadata:                      cr.ObjectMeta,
+		Replicas:                      &replicas,
+		NodeSelector:                  params.NodeSelector,
+		SecurityContext:               cr.Spec.SecurityContext,
+		PriorityClassName:             cr.Spec.PriorityClassName,
+		Affinity:                      params.Affinity,
+		TerminationGracePeriodSeconds: params.TerminationGracePeriodSeconds,
+		Tolerations:                   params.Tolerations,
+		ServiceAccountName:            cr.Spec.ServiceAccountName,
+		UpdateStrategy:                cr.Spec.KubernetesConfig.UpdateStrategy,
 	}
 	if cr.Spec.RedisExporter != nil {
 		res.EnableMetrics = cr.Spec.RedisExporter.Enabled
@@ -142,12 +144,13 @@ func generateRedisClusterContainerParams(cr *redisv1beta1.RedisCluster, readines
 // CreateRedisLeader will create a leader redis setup
 func CreateRedisLeader(cr *redisv1beta1.RedisCluster) error {
 	prop := RedisClusterSTS{
-		RedisStateFulType: "leader",
-		Affinity:          cr.Spec.RedisLeader.Affinity,
-		NodeSelector:      cr.Spec.RedisLeader.NodeSelector,
-		Tolerations:       cr.Spec.RedisLeader.Tolerations,
-		ReadinessProbe:    cr.Spec.RedisLeader.ReadinessProbe,
-		LivenessProbe:     cr.Spec.RedisLeader.LivenessProbe,
+		RedisStateFulType:             "leader",
+		Affinity:                      cr.Spec.RedisLeader.Affinity,
+		TerminationGracePeriodSeconds: cr.Spec.RedisLeader.TerminationGracePeriodSeconds,
+		NodeSelector:                  cr.Spec.RedisLeader.NodeSelector,
+		Tolerations:                   cr.Spec.RedisLeader.Tolerations,
+		ReadinessProbe:                cr.Spec.RedisLeader.ReadinessProbe,
+		LivenessProbe:                 cr.Spec.RedisLeader.LivenessProbe,
 	}
 	if cr.Spec.RedisLeader.RedisConfig != nil {
 		prop.ExternalConfig = cr.Spec.RedisLeader.RedisConfig.AdditionalRedisConfig
@@ -158,12 +161,13 @@ func CreateRedisLeader(cr *redisv1beta1.RedisCluster) error {
 // CreateRedisFollower will create a follower redis setup
 func CreateRedisFollower(cr *redisv1beta1.RedisCluster) error {
 	prop := RedisClusterSTS{
-		RedisStateFulType: "follower",
-		Affinity:          cr.Spec.RedisFollower.Affinity,
-		NodeSelector:      cr.Spec.RedisFollower.NodeSelector,
-		Tolerations:       cr.Spec.RedisFollower.Tolerations,
-		ReadinessProbe:    cr.Spec.RedisFollower.ReadinessProbe,
-		LivenessProbe:     cr.Spec.RedisFollower.LivenessProbe,
+		RedisStateFulType:             "follower",
+		Affinity:                      cr.Spec.RedisFollower.Affinity,
+		TerminationGracePeriodSeconds: cr.Spec.RedisFollower.TerminationGracePeriodSeconds,
+		NodeSelector:                  cr.Spec.RedisFollower.NodeSelector,
+		Tolerations:                   cr.Spec.RedisFollower.Tolerations,
+		ReadinessProbe:                cr.Spec.RedisFollower.ReadinessProbe,
+		LivenessProbe:                 cr.Spec.RedisFollower.LivenessProbe,
 	}
 	if cr.Spec.RedisFollower.RedisConfig != nil {
 		prop.ExternalConfig = cr.Spec.RedisFollower.RedisConfig.AdditionalRedisConfig

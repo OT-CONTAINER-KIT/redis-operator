@@ -72,13 +72,14 @@ func CreateStandaloneRedis(cr *redisv1beta1.Redis) error {
 func generateRedisStandaloneParams(cr *redisv1beta1.Redis) statefulSetParameters {
 	replicas := int32(1)
 	res := statefulSetParameters{
-		Replicas:          &replicas,
-		NodeSelector:      cr.Spec.NodeSelector,
-		SecurityContext:   cr.Spec.SecurityContext,
-		PriorityClassName: cr.Spec.PriorityClassName,
-		Affinity:          cr.Spec.Affinity,
-		Tolerations:       cr.Spec.Tolerations,
-		UpdateStrategy:    cr.Spec.KubernetesConfig.UpdateStrategy,
+		Replicas:                      &replicas,
+		NodeSelector:                  cr.Spec.NodeSelector,
+		SecurityContext:               cr.Spec.SecurityContext,
+		PriorityClassName:             cr.Spec.PriorityClassName,
+		Affinity:                      cr.Spec.Affinity,
+		TerminationGracePeriodSeconds: cr.Spec.TerminationGracePeriodSeconds,
+		Tolerations:                   cr.Spec.Tolerations,
+		UpdateStrategy:                cr.Spec.KubernetesConfig.UpdateStrategy,
 	}
 	if cr.Spec.KubernetesConfig.ImagePullSecrets != nil {
 		res.ImagePullSecrets = cr.Spec.KubernetesConfig.ImagePullSecrets
