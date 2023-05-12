@@ -456,6 +456,15 @@ spec:
                 required:
                 - image
                 type: object
+              networkPolicy:
+                items:
+                  properties:
+                    matchLabels:
+                      additionalProperties:
+                        type: string
+                      type: object
+                  type: object
+                type: array
               persistenceEnabled:
                 type: boolean
               priorityClassName:

@@ -70,6 +70,11 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{RequeueAfter: time.Second * 60}, err
 	}
 
+	err = k8sutils.CreateRedisNetworkPolicy(instance)
+	if err != nil {
+		return ctrl.Result{RequeueAfter: time.Second * 60}, err
+	}
+
 	err = k8sutils.CreateRedisLeader(instance)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: time.Second * 60}, err

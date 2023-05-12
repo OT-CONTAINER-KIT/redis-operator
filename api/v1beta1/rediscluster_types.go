@@ -42,6 +42,7 @@ type RedisClusterSpec struct {
 	Sidecars           *[]Sidecar                   `json:"sidecars,omitempty"`
 	ServiceAccountName *string                      `json:"serviceAccountName,omitempty"`
 	PersistenceEnabled *bool                        `json:"persistenceEnabled,omitempty"`
+	NetworkPolicy      []NetworkPolicyConfigs       `json:"networkPolicy,omitempty"`
 }
 
 func (cr *RedisClusterSpec) GetReplicaCounts(t string) int32 {
@@ -85,8 +86,7 @@ type RedisFollower struct {
 }
 
 // RedisClusterStatus defines the observed state of RedisCluster
-type RedisClusterStatus struct {
-}
+type RedisClusterStatus struct{}
 
 // RedisPodDisruptionBudget configure a PodDisruptionBudget on the resource (leader/follower)
 type RedisPodDisruptionBudget struct {

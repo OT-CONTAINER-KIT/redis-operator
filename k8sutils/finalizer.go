@@ -58,6 +58,9 @@ func HandleRedisClusterFinalizer(cr *redisv1beta1.RedisCluster, cl client.Client
 			if err := finalizeRedisClusterServices(cr); err != nil {
 				return err
 			}
+			if err := finalizeRedisClusterNetworkPolicy(cr); err != nil {
+				return err
+			}
 			if err := finalizeRedisClusterPVC(cr); err != nil {
 				return err
 			}
@@ -186,6 +189,18 @@ func finalizeRedisClusterServices(cr *redisv1beta1.RedisCluster) error {
 	return nil
 }
 
+// finalizeRedisClusterServices delete Services
+func finalizeRedisClusterNetworkPolicy(cr *redisv1beta1.RedisCluster) error {
+	logger := finalizerLogger(cr.Namespace, RedisClusterFinalizer)
+	networkPolicyName := cr.ObjectMeta.Name + "-nodes"
+	err := generateK8sClient().NetworkingV1().NetworkPolicies(cr.Namespace).Delete(context.TODO(), networkPolicyName, metav1.DeleteOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		logger.Error(err, "Could not delete network policy "+networkPolicyName)
+		return err
+	}
+	return nil
+}
+
 // finalize RedisReplicationServices delete Services
 func finalizeRedisReplicationServices(cr *redisv1beta1.RedisReplication) error {
 	logger := finalizerLogger(cr.Namespace, RedisReplicationFinalizer)
@@ -212,7 +227,6 @@ func finalizeRedisSentinelServices(cr *redisv1beta1.RedisSentinel) error {
 		}
 	}
 	return nil
-
 }
 
 // finalizeRedisPVC delete PVC
@@ -259,7 +273,6 @@ func finalizeRedisReplicationPVC(cr *redisv1beta1.RedisReplication) error {
 }
 
 func finalizeRedisSentinelPVC(cr *redisv1beta1.RedisSentinel) error {
-
 	return nil
 }
 
@@ -299,6 +312,5 @@ func finalizeRedisReplicationStatefulSets(cr *redisv1beta1.RedisReplication) err
 }
 
 func finalizeRedisSentinelStatefulSets(cr *redisv1beta1.RedisSentinel) error {
-
 	return nil
 }
