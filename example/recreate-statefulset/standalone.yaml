@@ -9,7 +9,7 @@ spec:
   kubernetesConfig:
     image: quay.io/opstree/redis:v7.0.5
     imagePullPolicy: IfNotPresent
-  securityContext:
+  podSecurityContext:
     runAsUser: 1000
     fsGroup: 1000
   storage:

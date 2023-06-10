@@ -33,7 +33,7 @@ type RedisClusterSpec struct {
 	RedisFollower      RedisFollower                `json:"redisFollower,omitempty"`
 	RedisExporter      *RedisExporter               `json:"redisExporter,omitempty"`
 	Storage            *Storage                     `json:"storage,omitempty"`
-	SecurityContext    *corev1.PodSecurityContext   `json:"securityContext,omitempty"`
+	PodSecurityContext *corev1.PodSecurityContext   `json:"podSecurityContext,omitempty"`
 	PriorityClassName  string                       `json:"priorityClassName,omitempty"`
 	Resources          *corev1.ResourceRequirements `json:"resources,omitempty"`
 	TLS                *TLSConfig                   `json:"TLS,omitempty"`
@@ -58,6 +58,7 @@ func (cr *RedisClusterSpec) GetReplicaCounts(t string) int32 {
 type RedisLeader struct {
 	Replicas            *int32                    `json:"replicas,omitempty"`
 	RedisConfig         *RedisConfig              `json:"redisConfig,omitempty"`
+	SecurityContext     *corev1.SecurityContext   `json:"securityContext,omitempty"`
 	Affinity            *corev1.Affinity          `json:"affinity,omitempty"`
 	PodDisruptionBudget *RedisPodDisruptionBudget `json:"pdb,omitempty"`
 	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
@@ -73,6 +74,7 @@ type RedisLeader struct {
 type RedisFollower struct {
 	Replicas            *int32                    `json:"replicas,omitempty"`
 	RedisConfig         *RedisConfig              `json:"redisConfig,omitempty"`
+	SecurityContext     *corev1.SecurityContext   `json:"securityContext,omitempty"`
 	Affinity            *corev1.Affinity          `json:"affinity,omitempty"`
 	PodDisruptionBudget *RedisPodDisruptionBudget `json:"pdb,omitempty"`
 	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}

@@ -89,7 +89,7 @@ func generateRedisSentinelParams(cr *redisv1beta1.RedisSentinel, replicas int32,
 		Metadata:                      cr.ObjectMeta,
 		Replicas:                      &replicas,
 		NodeSelector:                  cr.Spec.NodeSelector,
-		SecurityContext:               cr.Spec.SecurityContext,
+		PodSecurityContext:            cr.Spec.PodSecurityContext,
 		PriorityClassName:             cr.Spec.PriorityClassName,
 		Affinity:                      affinity,
 		TerminationGracePeriodSeconds: cr.Spec.TerminationGracePeriodSeconds,
@@ -145,6 +145,7 @@ func generateRedisSentinelContainerParams(cr *redisv1beta1.RedisSentinel, readin
 		Image:                 cr.Spec.KubernetesConfig.Image,
 		ImagePullPolicy:       cr.Spec.KubernetesConfig.ImagePullPolicy,
 		Resources:             cr.Spec.KubernetesConfig.Resources,
+		SecurityContext:       cr.Spec.SecurityContext,
 		AdditionalEnvVariable: getSentinelEnvVariable(cr),
 	}
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {

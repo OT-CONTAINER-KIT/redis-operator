@@ -56,7 +56,7 @@ spec:
             storage: 1Gi
   # nodeSelector:
   #   kubernetes.io/hostname: minikube
-  # securityContext: {}
+  # podSecurityContext: {}
   # priorityClassName:
   # affinity:
   # Tolerations: []

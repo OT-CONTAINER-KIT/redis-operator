@@ -10,6 +10,7 @@ import (
 type RedisClusterSTS struct {
 	RedisStateFulType             string
 	ExternalConfig                *string
+	SecurityContext               *corev1.SecurityContext
 	Affinity                      *corev1.Affinity `json:"affinity,omitempty"`
 	TerminationGracePeriodSeconds *int64           `json:"terminationGracePeriodSeconds,omitempty" protobuf:"varint,4,opt,name=terminationGracePeriodSeconds"`
 	ReadinessProbe                *redisv1beta1.Probe
@@ -29,7 +30,7 @@ func generateRedisClusterParams(cr *redisv1beta1.RedisCluster, replicas int32, e
 		Metadata:                      cr.ObjectMeta,
 		Replicas:                      &replicas,
 		NodeSelector:                  params.NodeSelector,
-		SecurityContext:               cr.Spec.SecurityContext,
+		PodSecurityContext:            cr.Spec.PodSecurityContext,
 		PriorityClassName:             cr.Spec.PriorityClassName,
 		Affinity:                      params.Affinity,
 		TerminationGracePeriodSeconds: params.TerminationGracePeriodSeconds,
@@ -87,7 +88,7 @@ func generateRedisClusterInitContainerParams(cr *redisv1beta1.RedisCluster) init
 }
 
 // generateRedisClusterContainerParams generates Redis container information
-func generateRedisClusterContainerParams(cr *redisv1beta1.RedisCluster, readinessProbeDef *redisv1beta1.Probe, livenessProbeDef *redisv1beta1.Probe) containerParameters {
+func generateRedisClusterContainerParams(cr *redisv1beta1.RedisCluster, securityContext *corev1.SecurityContext, readinessProbeDef *redisv1beta1.Probe, livenessProbeDef *redisv1beta1.Probe) containerParameters {
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{
@@ -95,6 +96,7 @@ func generateRedisClusterContainerParams(cr *redisv1beta1.RedisCluster, readines
 		Image:           cr.Spec.KubernetesConfig.Image,
 		ImagePullPolicy: cr.Spec.KubernetesConfig.ImagePullPolicy,
 		Resources:       cr.Spec.KubernetesConfig.Resources,
+		SecurityContext: securityContext,
 	}
 	if cr.Spec.Storage != nil {
 		containerProp.AdditionalVolume = cr.Spec.Storage.VolumeMount.Volume
@@ -145,6 +147,7 @@ func generateRedisClusterContainerParams(cr *redisv1beta1.RedisCluster, readines
 func CreateRedisLeader(cr *redisv1beta1.RedisCluster) error {
 	prop := RedisClusterSTS{
 		RedisStateFulType:             "leader",
+		SecurityContext:               cr.Spec.RedisLeader.SecurityContext,
 		Affinity:                      cr.Spec.RedisLeader.Affinity,
 		TerminationGracePeriodSeconds: cr.Spec.RedisLeader.TerminationGracePeriodSeconds,
 		NodeSelector:                  cr.Spec.RedisLeader.NodeSelector,
@@ -162,6 +165,7 @@ func CreateRedisLeader(cr *redisv1beta1.RedisCluster) error {
 func CreateRedisFollower(cr *redisv1beta1.RedisCluster) error {
 	prop := RedisClusterSTS{
 		RedisStateFulType:             "follower",
+		SecurityContext:               cr.Spec.RedisFollower.SecurityContext,
 		Affinity:                      cr.Spec.RedisFollower.Affinity,
 		TerminationGracePeriodSeconds: cr.Spec.RedisFollower.TerminationGracePeriodSeconds,
 		NodeSelector:                  cr.Spec.RedisFollower.NodeSelector,
@@ -208,7 +212,7 @@ func (service RedisClusterSTS) CreateRedisClusterSetup(cr *redisv1beta1.RedisClu
 		generateRedisClusterParams(cr, service.getReplicaCount(cr), service.ExternalConfig, service),
 		redisClusterAsOwner(cr),
 		generateRedisClusterInitContainerParams(cr),
-		generateRedisClusterContainerParams(cr, service.ReadinessProbe, service.LivenessProbe),
+		generateRedisClusterContainerParams(cr, service.SecurityContext, service.ReadinessProbe, service.LivenessProbe),
 		cr.Spec.Sidecars,
 	)
 	if err != nil {

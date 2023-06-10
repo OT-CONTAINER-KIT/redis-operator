@@ -26,17 +26,18 @@ import (
 
 // RedisSpec defines the desired state of Redis
 type RedisSpec struct {
-	KubernetesConfig  KubernetesConfig           `json:"kubernetesConfig"`
-	RedisExporter     *RedisExporter             `json:"redisExporter,omitempty"`
-	RedisConfig       *RedisConfig               `json:"redisConfig,omitempty"`
-	Storage           *Storage                   `json:"storage,omitempty"`
-	NodeSelector      map[string]string          `json:"nodeSelector,omitempty"`
-	SecurityContext   *corev1.PodSecurityContext `json:"securityContext,omitempty"`
-	PriorityClassName string                     `json:"priorityClassName,omitempty"`
-	Affinity          *corev1.Affinity           `json:"affinity,omitempty"`
-	Tolerations       *[]corev1.Toleration       `json:"tolerations,omitempty"`
-	TLS               *TLSConfig                 `json:"TLS,omitempty"`
-	ACL               *ACLConfig                 `json:"acl,omitempty"`
+	KubernetesConfig   KubernetesConfig           `json:"kubernetesConfig"`
+	RedisExporter      *RedisExporter             `json:"redisExporter,omitempty"`
+	RedisConfig        *RedisConfig               `json:"redisConfig,omitempty"`
+	Storage            *Storage                   `json:"storage,omitempty"`
+	NodeSelector       map[string]string          `json:"nodeSelector,omitempty"`
+	PodSecurityContext *corev1.PodSecurityContext `json:"podSecurityContext,omitempty"`
+	SecurityContext    *corev1.SecurityContext    `json:"securityContext,omitempty"`
+	PriorityClassName  string                     `json:"priorityClassName,omitempty"`
+	Affinity           *corev1.Affinity           `json:"affinity,omitempty"`
+	Tolerations        *[]corev1.Toleration       `json:"tolerations,omitempty"`
+	TLS                *TLSConfig                 `json:"TLS,omitempty"`
+	ACL                *ACLConfig                 `json:"acl,omitempty"`
 	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
 	ReadinessProbe *Probe `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
 	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}

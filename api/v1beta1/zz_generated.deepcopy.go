@@ -313,8 +313,8 @@ func (in *RedisClusterSpec) DeepCopyInto(out *RedisClusterSpec) {
 		*out = new(Storage)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.SecurityContext != nil {
-		in, out := &in.SecurityContext, &out.SecurityContext
+	if in.PodSecurityContext != nil {
+		in, out := &in.PodSecurityContext, &out.PodSecurityContext
 		*out = new(v1.PodSecurityContext)
 		(*in).DeepCopyInto(*out)
 	}
@@ -720,9 +720,14 @@ func (in *RedisReplicationSpec) DeepCopyInto(out *RedisReplicationSpec) {
 			(*out)[key] = val
 		}
 	}
+	if in.PodSecurityContext != nil {
+		in, out := &in.PodSecurityContext, &out.PodSecurityContext
+		*out = new(v1.PodSecurityContext)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.SecurityContext != nil {
 		in, out := &in.SecurityContext, &out.SecurityContext
-		*out = new(v1.PodSecurityContext)
+		*out = new(v1.SecurityContext)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.Affinity != nil {
@@ -919,9 +924,14 @@ func (in *RedisSentinelSpec) DeepCopyInto(out *RedisSentinelSpec) {
 			(*out)[key] = val
 		}
 	}
+	if in.PodSecurityContext != nil {
+		in, out := &in.PodSecurityContext, &out.PodSecurityContext
+		*out = new(v1.PodSecurityContext)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.SecurityContext != nil {
 		in, out := &in.SecurityContext, &out.SecurityContext
-		*out = new(v1.PodSecurityContext)
+		*out = new(v1.SecurityContext)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.Affinity != nil {
@@ -1039,9 +1049,14 @@ func (in *RedisSpec) DeepCopyInto(out *RedisSpec) {
 			(*out)[key] = val
 		}
 	}
+	if in.PodSecurityContext != nil {
+		in, out := &in.PodSecurityContext, &out.PodSecurityContext
+		*out = new(v1.PodSecurityContext)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.SecurityContext != nil {
 		in, out := &in.SecurityContext, &out.SecurityContext
-		*out = new(v1.PodSecurityContext)
+		*out = new(v1.SecurityContext)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.Affinity != nil {

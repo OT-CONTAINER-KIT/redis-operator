@@ -70,7 +70,7 @@ func generateRedisReplicationParams(cr *redisv1beta1.RedisReplication) statefulS
 	res := statefulSetParameters{
 		Replicas:                      &replicas,
 		NodeSelector:                  cr.Spec.NodeSelector,
-		SecurityContext:               cr.Spec.SecurityContext,
+		PodSecurityContext:            cr.Spec.PodSecurityContext,
 		PriorityClassName:             cr.Spec.PriorityClassName,
 		Affinity:                      cr.Spec.Affinity,
 		Tolerations:                   cr.Spec.Tolerations,
@@ -104,6 +104,7 @@ func generateRedisReplicationContainerParams(cr *redisv1beta1.RedisReplication) 
 		Image:           cr.Spec.KubernetesConfig.Image,
 		ImagePullPolicy: cr.Spec.KubernetesConfig.ImagePullPolicy,
 		Resources:       cr.Spec.KubernetesConfig.Resources,
+		SecurityContext: cr.Spec.SecurityContext,
 	}
 
 	if cr.Spec.Storage != nil {
