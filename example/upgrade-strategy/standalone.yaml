@@ -10,7 +10,7 @@ spec:
     updateStrategy:
       type: OnDelete
 #      type: RollingUpdate
-  securityContext:
+  podSecurityContext:
     runAsUser: 1000
     fsGroup: 1000
   storage:

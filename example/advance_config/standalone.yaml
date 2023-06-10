@@ -14,7 +14,7 @@ spec:
       limits:
         cpu: 101m
         memory: 128Mi
-  securityContext:
+  podSecurityContext:
     runAsUser: 1000
     fsGroup: 1000
   storage:
@@ -29,7 +29,7 @@ spec:
     enabled: false
     image: quay.io/opstree/redis-exporter:v1.44.0
   # nodeSelector: {}
-  # securityContext: {}
+  # podSecurityContext: {}
   # priorityClassName: ""
   # affinity: {}
   # Tolerations: []

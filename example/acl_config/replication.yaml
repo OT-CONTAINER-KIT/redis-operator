@@ -5,7 +5,7 @@ metadata:
   name:  redis-replication
 spec:
   clusterSize: 3
-  securityContext:
+  podSecurityContext:
     runAsUser: 1000
     fsGroup: 1000
   # redisConfig:

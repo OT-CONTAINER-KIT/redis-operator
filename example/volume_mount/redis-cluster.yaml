@@ -6,7 +6,7 @@ spec:
   clusterSize: 3
   clusterVersion: v7
   persistenceEnabled: true
-  securityContext:
+  podSecurityContext:
     runAsUser: 1000
     fsGroup: 1000
   kubernetesConfig:

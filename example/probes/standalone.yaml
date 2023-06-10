@@ -4,7 +4,7 @@ kind: Redis
 metadata:
   name: redis-standalone
 spec:
-  securityContext:
+  podSecurityContext:
     runAsUser: 1000
     fsGroup: 1000
   kubernetesConfig:

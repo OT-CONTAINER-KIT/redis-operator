@@ -25,6 +25,6 @@ spec:
     # env:
     # - name: REDIS_EXPORTER_INCL_SYSTEM_METRICS
     #   value: "true"
-  securityContext:
+  podSecurityContext:
     runAsUser: 1000
     fsGroup: 1000

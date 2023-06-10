@@ -30,7 +30,7 @@ type statefulSetParameters struct {
 	Replicas                      *int32
 	Metadata                      metav1.ObjectMeta
 	NodeSelector                  map[string]string
-	SecurityContext               *corev1.PodSecurityContext
+	PodSecurityContext            *corev1.PodSecurityContext
 	PriorityClassName             string
 	Affinity                      *corev1.Affinity
 	Tolerations                   *[]corev1.Toleration
@@ -50,6 +50,7 @@ type containerParameters struct {
 	Image                        string
 	ImagePullPolicy              corev1.PullPolicy
 	Resources                    *corev1.ResourceRequirements
+	SecurityContext              *corev1.SecurityContext
 	RedisExporterImage           string
 	RedisExporterImagePullPolicy corev1.PullPolicy
 	RedisExporterResources       *corev1.ResourceRequirements
@@ -222,7 +223,7 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 				Spec: corev1.PodSpec{
 					Containers:                    generateContainerDef(stsMeta.GetName(), containerParams, params.EnableMetrics, params.ExternalConfig, containerParams.AdditionalMountPath, sidecars),
 					NodeSelector:                  params.NodeSelector,
-					SecurityContext:               params.SecurityContext,
+					SecurityContext:               params.PodSecurityContext,
 					PriorityClassName:             params.PriorityClassName,
 					Affinity:                      params.Affinity,
 					TerminationGracePeriodSeconds: params.TerminationGracePeriodSeconds,
@@ -324,6 +325,7 @@ func generateContainerDef(name string, containerParams containerParameters, enab
 			Name:            name,
 			Image:           containerParams.Image,
 			ImagePullPolicy: containerParams.ImagePullPolicy,
+			SecurityContext: containerParams.SecurityContext,
 			Env: getEnvironmentVariables(
 				containerParams.Role,
 				false,
