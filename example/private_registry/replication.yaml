@@ -21,6 +21,6 @@ spec:
   redisExporter:
     enabled: false
     image: quay.io/opstree/redis-exporter:v1.44.0
-  securityContext:
+  podSecurityContext:
     runAsUser: 1000
     fsGroup: 1000

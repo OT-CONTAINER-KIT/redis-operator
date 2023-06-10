@@ -8,7 +8,7 @@ metadata:
 spec:
   clusterSize: 3
   clusterVersion: v7
-  securityContext:
+  podSecurityContext:
     runAsUser: 1000
     fsGroup: 1000
   persistenceEnabled: true
