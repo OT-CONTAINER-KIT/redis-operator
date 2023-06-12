@@ -88,6 +88,7 @@ func generateRedisSentinelParams(cr *redisv1beta1.RedisSentinel, replicas int32,
 	res := statefulSetParameters{
 		Metadata:                      cr.ObjectMeta,
 		Replicas:                      &replicas,
+		ClusterMode:                   false,
 		NodeSelector:                  cr.Spec.NodeSelector,
 		PodSecurityContext:            cr.Spec.PodSecurityContext,
 		PriorityClassName:             cr.Spec.PriorityClassName,

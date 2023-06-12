@@ -17,6 +17,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
@@ -28,6 +29,7 @@ const (
 // statefulSetParameters will define statefulsets input params
 type statefulSetParameters struct {
 	Replicas                      *int32
+	ClusterMode                   bool
 	Metadata                      metav1.ObjectMeta
 	NodeSelector                  map[string]string
 	PodSecurityContext            *corev1.PodSecurityContext
@@ -241,6 +243,9 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 	if params.ImagePullSecrets != nil {
 		statefulset.Spec.Template.Spec.ImagePullSecrets = *params.ImagePullSecrets
 	}
+	if containerParams.PersistenceEnabled != nil && params.ClusterMode {
+		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, createPVCTemplateNodeConf(stsMeta))
+	}
 	if containerParams.PersistenceEnabled != nil && *containerParams.PersistenceEnabled {
 		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, createPVCTemplate(stsMeta, params.PersistentVolumeClaim))
 	}
@@ -295,6 +300,35 @@ func getExternalConfig(configMapName string) []corev1.Volume {
 	}
 }
 
+// createPVCTemplate to store node.conf in durable manner
+func createPVCTemplateNodeConf(stsMeta metav1.ObjectMeta) corev1.PersistentVolumeClaim {
+	//  1Mb Resource requirement for the node.conf
+	pvcNodeConf := corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "node-conf",
+		},
+		Spec: corev1.PersistentVolumeClaimSpec{
+			AccessModes: []corev1.PersistentVolumeAccessMode{
+				corev1.ReadWriteOnce,
+			},
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceStorage: resource.MustParse("1Mi"),
+				},
+			},
+			VolumeMode: func() *corev1.PersistentVolumeMode {
+				volumeMode := corev1.PersistentVolumeFilesystem
+				return &volumeMode
+			}(),
+		},
+	}
+	// Load the labels from the statefulset
+	pvcNodeConf.Labels = stsMeta.GetLabels()
+	// We want the same annoations as the StatefulSet here
+	pvcNodeConf.Annotations = generateStatefulSetsAnots(stsMeta)
+	return pvcNodeConf
+}
+
 // createPVCTemplate will create the persistent volume claim template
 func createPVCTemplate(stsMeta metav1.ObjectMeta, storageSpec corev1.PersistentVolumeClaim) corev1.PersistentVolumeClaim {
 	pvcTemplate := storageSpec
@@ -339,7 +373,7 @@ func generateContainerDef(name string, containerParams containerParameters, enab
 			),
 			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe),
 			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe),
-			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, externalConfig, mountpath, containerParams.TLSConfig, containerParams.ACLConfig),
+			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, true, externalConfig, mountpath, containerParams.TLSConfig, containerParams.ACLConfig),
 		},
 	}
 
@@ -388,7 +422,7 @@ func generateInitContainerDef(name string, initcontainerParams initContainerPara
 			ImagePullPolicy: initcontainerParams.ImagePullPolicy,
 			Command:         initcontainerParams.Command,
 			Args:            initcontainerParams.Arguments,
-			VolumeMounts:    getVolumeMount(name, initcontainerParams.PersistenceEnabled, nil, mountpath, nil, nil),
+			VolumeMounts:    getVolumeMount(name, initcontainerParams.PersistenceEnabled, false, nil, mountpath, nil, nil),
 		},
 	}
 
@@ -458,7 +492,7 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 			params.TLSConfig,
 			params.ACLConfig,
 		),
-		VolumeMounts: getVolumeMount("", nil, nil, params.AdditionalMountPath, params.TLSConfig, params.ACLConfig), // We need/want the tls-certs but we DON'T need the PVC (if one is available)
+		VolumeMounts: getVolumeMount("", nil, false, nil, params.AdditionalMountPath, params.TLSConfig, params.ACLConfig), // We need/want the tls-certs but we DON'T need the PVC (if one is available)
 		Ports: []corev1.ContainerPort{
 			{
 				Name:          redisExporterPortName,
@@ -474,8 +508,15 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 }
 
 // getVolumeMount gives information about persistence mount
-func getVolumeMount(name string, persistenceEnabled *bool, externalConfig *string, mountpath []corev1.VolumeMount, tlsConfig *redisv1beta1.TLSConfig, aclConfig *redisv1beta1.ACLConfig) []corev1.VolumeMount {
+func getVolumeMount(name string, persistenceEnabled *bool, cluster bool, externalConfig *string, mountpath []corev1.VolumeMount, tlsConfig *redisv1beta1.TLSConfig, aclConfig *redisv1beta1.ACLConfig) []corev1.VolumeMount {
 	var VolumeMounts []corev1.VolumeMount
+
+	if persistenceEnabled != nil && cluster {
+		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
+			Name:      "node-conf",
+			MountPath: "/node-conf",
+		})
+	}
 
 	if persistenceEnabled != nil && *persistenceEnabled {
 		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
