@@ -29,6 +29,7 @@ func generateRedisClusterParams(cr *redisv1beta1.RedisCluster, replicas int32, e
 	res := statefulSetParameters{
 		Metadata:                      cr.ObjectMeta,
 		Replicas:                      &replicas,
+		ClusterMode:                   true,
 		NodeSelector:                  params.NodeSelector,
 		PodSecurityContext:            cr.Spec.PodSecurityContext,
 		PriorityClassName:             cr.Spec.PriorityClassName,
