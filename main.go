@@ -64,6 +64,8 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	
+	watchNamespace := getWatchNamespace()
 
 	options := ctrl.Options{
 		Scheme:                 scheme,
@@ -72,6 +74,7 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "6cab913b.redis.opstreelabs.in",
+		Namespace:              watchNamespace,
 	}
 
 	if ns := os.Getenv("NAMESPACE"); ns != "" {
@@ -133,4 +136,13 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+}
+func getWatchNamespace() string {
+	var watchNamespaceEnvVar = "WATCH_NAMESPACE"
+
+	ns, found := os.LookupEnv(watchNamespaceEnvVar)
+	if !found {
+		return ""
+	}
+	return ns
 }
