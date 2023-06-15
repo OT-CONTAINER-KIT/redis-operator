@@ -3,6 +3,7 @@ package k8sutils
 import (
 	"context"
 	"encoding/json"
+	"errors"
 
 	redisv1beta1 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta1"
 
@@ -276,6 +277,7 @@ func getRedisReplicationMasterIP(cr *redisv1beta1.RedisSentinel) string {
 	replicationNamespace := cr.Namespace
 
 	var replicationInstance redisv1beta1.RedisReplication
+	var realMasterPod string
 
 	// Get Request on Dynamic Client
 	customObject, err := generateK8sDynamicClient().Resource(schema.GroupVersionResource{
@@ -305,7 +307,17 @@ func getRedisReplicationMasterIP(cr *redisv1beta1.RedisSentinel) string {
 	}
 
 	masterPods := GetRedisNodesByRole(&replicationInstance, "master")
-	realMasterPod := checkAttachedSlave(&replicationInstance, masterPods)
+
+	if len(masterPods) == 0 {
+		realMasterPod = ""
+		err := errors.New("no master pods found")
+		logger.Error(err, "")
+	} else if len(masterPods) == 1 {
+		realMasterPod = masterPods[0]
+	} else {
+		realMasterPod = checkAttachedSlave(&replicationInstance, masterPods)
+	}
+
 	realMasterInfo := RedisDetails{
 		PodName:   realMasterPod,
 		Namespace: replicationNamespace,
@@ -313,5 +325,4 @@ func getRedisReplicationMasterIP(cr *redisv1beta1.RedisSentinel) string {
 
 	realMasterPodIP := getRedisServerIP(realMasterInfo)
 	return realMasterPodIP
-
 }
