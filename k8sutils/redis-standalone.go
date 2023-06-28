@@ -73,6 +73,7 @@ func generateRedisStandaloneParams(cr *redisv1beta1.Redis) statefulSetParameters
 	replicas := int32(1)
 	res := statefulSetParameters{
 		Replicas:                      &replicas,
+		ClusterMode:                   false,
 		NodeSelector:                  cr.Spec.NodeSelector,
 		PodSecurityContext:            cr.Spec.PodSecurityContext,
 		PriorityClassName:             cr.Spec.PriorityClassName,
