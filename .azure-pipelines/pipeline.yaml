@@ -14,14 +14,14 @@ resources:
   repositories:
   - repository: golang-template
     type: github
-    name: shubham-cmyk/azure-devops-template
-    endpoint: shubham-cmyk
+    name: opstree/azure-devops-template
+    endpoint: OT-CONTAINER-KIT
 
 extends:
   template: operator-ci.yaml@golang-template
   parameters:
     ApplicationName: redis-operator
-    QuayImageName: shubham-cmyk/redis-operator
+    QuayImageName: opstree/redis-operator
     GithubImageName: ot-container-kit/redis-operator/redis-operator
     BuildDocs: false
     AppVersion: "v0.15.0"
