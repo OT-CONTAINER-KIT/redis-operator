@@ -361,7 +361,7 @@ func createPVCTemplate(stsMeta metav1.ObjectMeta, storageSpec corev1.PersistentV
 }
 
 // generateContainerDef generates container definition for Redis
-func generateContainerDef(name string, containerParams containerParameters, cluster, enableMetrics bool, externalConfig *string, mountpath []corev1.VolumeMount, sidecars []redisv1beta1.Sidecar) []corev1.Container {
+func generateContainerDef(name string, containerParams containerParameters, clusterMode, enableMetrics bool, externalConfig *string, mountpath []corev1.VolumeMount, sidecars []redisv1beta1.Sidecar) []corev1.Container {
 	containerDefinition := []corev1.Container{
 		{
 			Name:            name,
@@ -381,7 +381,7 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 			),
 			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe),
 			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe),
-			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, cluster, externalConfig, mountpath, containerParams.TLSConfig, containerParams.ACLConfig),
+			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, clusterMode, externalConfig, mountpath, containerParams.TLSConfig, containerParams.ACLConfig),
 		},
 	}
 
@@ -516,10 +516,10 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 }
 
 // getVolumeMount gives information about persistence mount
-func getVolumeMount(name string, persistenceEnabled *bool, cluster bool, externalConfig *string, mountpath []corev1.VolumeMount, tlsConfig *redisv1beta1.TLSConfig, aclConfig *redisv1beta1.ACLConfig) []corev1.VolumeMount {
+func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, externalConfig *string, mountpath []corev1.VolumeMount, tlsConfig *redisv1beta1.TLSConfig, aclConfig *redisv1beta1.ACLConfig) []corev1.VolumeMount {
 	var VolumeMounts []corev1.VolumeMount
 
-	if persistenceEnabled != nil && cluster {
+	if persistenceEnabled != nil && clusterMode {
 		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
 			Name:      "node-conf",
 			MountPath: "/node-conf",
