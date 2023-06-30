@@ -1,12 +1,15 @@
 ---
 trigger:
   - master
+
 pr:
   branches:
     include:
     - master
+
 variables:
   - group: RuntimeVariables
+
 resources:
   repositories:
   - repository: golang-template
