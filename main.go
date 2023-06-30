@@ -74,7 +74,7 @@ func main() {
 		LeaderElectionID:       "6cab913b.redis.opstreelabs.in",
 	}
 
-	if ns := os.Getenv("WATCH_NAMESPACE"); ns != "" {
+	if ns := os.Getenv("NAMESPACE"); ns != "" {
 		options.Namespace = ns
 	}
 
