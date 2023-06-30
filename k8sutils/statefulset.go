@@ -223,7 +223,15 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 					Annotations: generateStatefulSetsAnots(stsMeta),
 				},
 				Spec: corev1.PodSpec{
-					Containers:                    generateContainerDef(stsMeta.GetName(), containerParams, params.EnableMetrics, params.ExternalConfig, containerParams.AdditionalMountPath, sidecars),
+					Containers: generateContainerDef(
+						stsMeta.GetName(),
+						containerParams,
+						params.ClusterMode,
+						params.EnableMetrics,
+						params.ExternalConfig,
+						containerParams.AdditionalMountPath,
+						sidecars,
+					),
 					NodeSelector:                  params.NodeSelector,
 					SecurityContext:               params.PodSecurityContext,
 					PriorityClassName:             params.PriorityClassName,
@@ -353,7 +361,7 @@ func createPVCTemplate(stsMeta metav1.ObjectMeta, storageSpec corev1.PersistentV
 }
 
 // generateContainerDef generates container definition for Redis
-func generateContainerDef(name string, containerParams containerParameters, enableMetrics bool, externalConfig *string, mountpath []corev1.VolumeMount, sidecars []redisv1beta1.Sidecar) []corev1.Container {
+func generateContainerDef(name string, containerParams containerParameters, cluster, enableMetrics bool, externalConfig *string, mountpath []corev1.VolumeMount, sidecars []redisv1beta1.Sidecar) []corev1.Container {
 	containerDefinition := []corev1.Container{
 		{
 			Name:            name,
@@ -373,7 +381,7 @@ func generateContainerDef(name string, containerParams containerParameters, enab
 			),
 			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe),
 			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe),
-			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, true, externalConfig, mountpath, containerParams.TLSConfig, containerParams.ACLConfig),
+			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, cluster, externalConfig, mountpath, containerParams.TLSConfig, containerParams.ACLConfig),
 		},
 	}
 
