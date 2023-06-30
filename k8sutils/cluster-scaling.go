@@ -408,9 +408,9 @@ func RemoveRedisNodeFromCluster(cr *redisv1beta1.RedisCluster) {
 }
 
 // RebalanceFollowerByIndex would rebalance the follower evenly on the all the leaders.
-func RebalanceFollowerByIndex() {
+// func RebalanceFollowerByIndex() {
 
-}
+// }
 
 // verifyLeaderPod return true if the pod is leader/master
 func VerifyLeaderPod(cr *redisv1beta1.RedisCluster, podName string) bool {
@@ -499,6 +499,6 @@ func ClusterFailover(cr *redisv1beta1.RedisCluster, slavePodName string) {
 	executeCommand(cr, cmd, slavePodName)
 }
 
-func ClusterReplicate(cr *redisv1beta1.RedisCluster, masterNodeID string, folloer []string) {
+// func ClusterReplicate(cr *redisv1beta1.RedisCluster, masterNodeID string, folloer []string) {
 
-}
+// }
