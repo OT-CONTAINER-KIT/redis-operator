@@ -1,12 +1,15 @@
 ---
 trigger:
   - master
+
 pr:
   branches:
     include:
     - master
+
 variables:
   - group: RuntimeVariables
+
 resources:
   repositories:
   - repository: golang-template
@@ -22,3 +25,4 @@ extends:
     GithubImageName: ot-container-kit/redis-operator/redis-operator
     BuildDocs: false
     AppVersion: "v0.15.0"
+    GolangVersion: "1.17"
