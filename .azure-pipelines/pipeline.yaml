@@ -15,7 +15,7 @@ resources:
   - repository: golang-template
     type: github
     name: opstree/azure-devops-template
-    endpoint: shubham-cmyk
+    endpoint: OT-CONTAINER-KIT
 
 extends:
   template: operator-ci.yaml@golang-template
