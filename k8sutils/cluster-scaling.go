@@ -288,35 +288,6 @@ func getAttachedFollowerNodeIDs(cr *redisv1beta1.RedisCluster, masterNodeID stri
 	return slaveIDs
 }
 
-// getAttachedLeaderNodeID would return the redis leader attached to a redis follower
-// func getAttachedLeaderNodeID(cr *redisv1beta1.RedisCluster, slaveNodeID string) string {
-// 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
-// 	redisClient := configureRedisClient(cr, cr.ObjectMeta.Name+"-leader-0")
-// 	redisClusterInfo, err := redisClient.ClusterNodes().Result()
-// 	if err != nil {
-// 		logger.Error(err, "Failed to Get Cluster Info")
-// 		return ""
-// 	}
-
-// 	var masterID string
-// 	// Split the Redis cluster info into lines
-// 	lines := strings.Split(redisClusterInfo, "\n")
-
-// 	for _, line := range lines {
-// 		if strings.Contains(line, "slave") && strings.Contains(line, "connected") {
-// 			parts := strings.Fields(line)
-// 			if len(parts) >= 3 && parts[0] == slaveNodeID {
-// 				masterID = parts[3]
-// 				logger.Info("Master Node attached to", " slave node", slaveNodeID, "is", masterID)
-// 				return masterID
-// 			}
-// 		}
-// 	}
-
-// 	logger.Info("Master Node attached to", " slave node", slaveNodeID, "is", masterID)
-// 	return ""
-// }
-
 // Remove redis follower node would remove all follower nodes of last leader node using redis-cli
 func RemoveRedisFollowerNodesFromCluster(cr *redisv1beta1.RedisCluster) {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
@@ -407,11 +378,6 @@ func RemoveRedisNodeFromCluster(cr *redisv1beta1.RedisCluster) {
 	executeCommand(cr, cmd, cr.ObjectMeta.Name+"-leader-0")
 }
 
-// RebalanceFollowerByIndex would rebalance the follower evenly on the all the leaders.
-// func RebalanceFollowerByIndex() {
-
-// }
-
 // verifyLeaderPod return true if the pod is leader/master
 func VerifyLeaderPod(cr *redisv1beta1.RedisCluster, podName string) bool {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
@@ -434,37 +400,6 @@ func VerifyLeaderPod(cr *redisv1beta1.RedisCluster, podName string) bool {
 	}
 	return false
 }
-
-// func getRedisMasterHostandPortOfSlave(cr *redisv1beta1.RedisCluster, slavePodName string) (string, string) {
-// 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
-
-// 	redisClient := configureRedisClient(cr, slavePodName)
-// 	defer redisClient.Close()
-// 	info, err := redisClient.Info("replication").Result()
-// 	if err != nil {
-// 		logger.Error(err, "Failed to Get the role Info of the", "redis pod", slavePodName)
-// 	}
-
-// 	lines := strings.Split(info, "\r\n")
-
-// 	master_host := ""
-// 	for _, line := range lines {
-// 		if strings.HasPrefix(line, "master_host:") {
-// 			master_host = strings.TrimPrefix(line, "master_host:")
-// 			break
-// 		}
-// 	}
-
-// 	master_port := ""
-// 	for _, line := range lines {
-// 		if strings.HasPrefix(line, "master_port:") {
-// 			master_port = strings.TrimPrefix(line, "master_port:")
-// 			break
-// 		}
-// 	}
-
-// 	return master_host, master_port
-// }
 
 func ClusterFailover(cr *redisv1beta1.RedisCluster, slavePodName string) {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
@@ -498,7 +433,3 @@ func ClusterFailover(cr *redisv1beta1.RedisCluster, slavePodName string) {
 	logger.Info("Redis cluster failover command is", "Command", cmd)
 	executeCommand(cr, cmd, slavePodName)
 }
-
-// func ClusterReplicate(cr *redisv1beta1.RedisCluster, masterNodeID string, folloer []string) {
-
-// }
