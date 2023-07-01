@@ -935,6 +935,7 @@ spec:
                     type: object
                 type: object
               clusterSize:
+                default: 3
                 format: int32
                 minimum: 1
                 type: integer
