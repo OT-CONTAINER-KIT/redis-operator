@@ -125,3 +125,7 @@ type InitContainer struct {
 	Command         []string                     `json:"command,omitempty"`
 	Args            []string                     `json:"args,omitempty"`
 }
+
+type NetworkPolicyConfigs struct {
+	ExternalComponentMatchLabels map[string]string `json:"matchLabels,omitempty"`
+}
