@@ -243,7 +243,7 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 	}
 
 	if initcontainerParams.Enabled != nil && *initcontainerParams.Enabled {
-		statefulset.Spec.Template.Spec.InitContainers = generateInitContainerDef("init-"+stsMeta.GetName(), initcontainerParams, initcontainerParams.AdditionalMountPath)
+		statefulset.Spec.Template.Spec.InitContainers = generateInitContainerDef(stsMeta.GetName(), initcontainerParams, initcontainerParams.AdditionalMountPath)
 	}
 	if params.Tolerations != nil {
 		statefulset.Spec.Template.Spec.Tolerations = *params.Tolerations
@@ -425,7 +425,7 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 func generateInitContainerDef(name string, initcontainerParams initContainerParameters, mountpath []corev1.VolumeMount) []corev1.Container {
 	initcontainerDefinition := []corev1.Container{
 		{
-			Name:            name,
+			Name:            "init" + name,
 			Image:           initcontainerParams.Image,
 			ImagePullPolicy: initcontainerParams.ImagePullPolicy,
 			Command:         initcontainerParams.Command,
