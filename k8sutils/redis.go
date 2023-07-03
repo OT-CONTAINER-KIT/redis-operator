@@ -160,23 +160,39 @@ func ExecuteRedisReplicationCommand(cr *redisv1beta1.RedisCluster) {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 	followerCounts := cr.Spec.GetReplicaCounts("follower")
 	leaderCounts := cr.Spec.GetReplicaCounts("leader")
+	followerPerLeader := followerCounts / leaderCounts
+
 	nodes := checkRedisCluster(cr)
-	for followerIdx := 0; followerIdx <= int(followerCounts)-1; followerIdx++ {
-		followerPod := RedisDetails{
-			PodName:   cr.ObjectMeta.Name + "-follower-" + strconv.Itoa(followerIdx),
-			Namespace: cr.Namespace,
-		}
-		leaderPod := RedisDetails{
-			PodName:   cr.ObjectMeta.Name + "-leader-" + strconv.Itoa(int(followerIdx)%int(leaderCounts)),
-			Namespace: cr.Namespace,
-		}
-		podIP = getRedisServerIP(followerPod)
-		if !checkRedisNodePresence(cr, nodes, podIP) {
-			logger.Info("Adding node to cluster.", "Node.IP", podIP, "Follower.Pod", followerPod)
-			cmd := createRedisReplicationCommand(cr, leaderPod, followerPod)
-			executeCommand(cr, cmd, cr.ObjectMeta.Name+"-leader-0")
-		} else {
-			logger.Info("Skipping Adding node to cluster, already present.", "Follower.Pod", followerPod)
+	for followerIdx := 0; followerIdx <= int(followerCounts)-1; {
+		for i := 0; i < int(followerPerLeader) && followerIdx <= int(followerCounts)-1; i++ {
+			followerPod := RedisDetails{
+				PodName:   cr.ObjectMeta.Name + "-follower-" + strconv.Itoa(followerIdx),
+				Namespace: cr.Namespace,
+			}
+			leaderPod := RedisDetails{
+				PodName:   cr.ObjectMeta.Name + "-leader-" + strconv.Itoa(int(followerIdx)%int(leaderCounts)),
+				Namespace: cr.Namespace,
+			}
+			podIP = getRedisServerIP(followerPod)
+			if !checkRedisNodePresence(cr, nodes, podIP) {
+				logger.Info("Adding node to cluster.", "Node.IP", podIP, "Follower.Pod", followerPod)
+				cmd := createRedisReplicationCommand(cr, leaderPod, followerPod)
+				redisClient := configureRedisClient(cr, followerPod.PodName)
+				pong, err := redisClient.Ping().Result()
+				if err != nil {
+					logger.Error(err, "Failed to ping Redis server", "Follower.Pod", followerPod)
+					continue
+				}
+				if pong == "PONG" {
+					executeCommand(cr, cmd, cr.ObjectMeta.Name+"-leader-0")
+				} else {
+					logger.Info("Skipping execution of command due to failed Redis ping", "Follower.Pod", followerPod)
+				}
+			} else {
+				logger.Info("Skipping Adding node to cluster, already present.", "Follower.Pod", followerPod)
+			}
+
+			followerIdx++
 		}
 	}
 }
@@ -491,7 +507,6 @@ func checkRedisServerRole(cr *redisv1beta1.RedisReplication, podName string) str
 	}
 
 	return role
-
 }
 
 // checkAttachedSlave would return redis pod name which has slave
