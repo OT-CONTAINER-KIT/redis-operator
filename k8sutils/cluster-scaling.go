@@ -112,25 +112,31 @@ func getRedisClusterSlots(cr *redisv1beta1.RedisCluster, nodeID string) string {
 
 // getRedisNodeID would return nodeID of a redis node by passing pod
 func getRedisNodeID(cr *redisv1beta1.RedisCluster, pod RedisDetails) string {
-
 	var client *redis.Client
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 	client = configureRedisClient(cr, pod.PodName)
 	defer client.Close()
+
+	pong, err := client.Ping().Result()
+	if err != nil || pong != "PONG" {
+		logger.Error(err, "Failed to ping Redis server")
+		return ""
+	}
+
 	cmd := redis.NewStringCmd("cluster", "myid")
-	err := client.Process(cmd)
+	err = client.Process(cmd)
 	if err != nil {
 		logger.Error(err, "Redis command failed with this error")
+		return ""
 	}
 
 	output, err := cmd.Result()
 	if err != nil {
 		logger.Error(err, "Redis command failed with this error")
+		return ""
 	}
 	logger.Info("Redis node ID ", "is", output)
-
 	return output
-
 }
 
 // Rebalance the Redis CLuster using the Empty Master Nodes
@@ -179,7 +185,7 @@ func CheckIfEmptyMasters(cr *redisv1beta1.RedisCluster) {
 		podNodeID := getRedisNodeID(cr, pod)
 		podSlots := getRedisClusterSlots(cr, podNodeID)
 
-		if podSlots == "0" {
+		if podSlots == "0" || podSlots == "" {
 			logger.Info("Found Empty Redis Leader Node", "pod", pod)
 			RebalanceRedisClusterEmptyMasters(cr)
 			break
@@ -379,8 +385,9 @@ func RemoveRedisNodeFromCluster(cr *redisv1beta1.RedisCluster) {
 }
 
 // verifyLeaderPod return true if the pod is leader/master
-func VerifyLeaderPod(cr *redisv1beta1.RedisCluster, podName string) bool {
+func VerifyLeaderPod(cr *redisv1beta1.RedisCluster) bool {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
+	podName := cr.Name + "-leader-" + strconv.Itoa(int(CheckRedisNodeCount(cr, "leader"))-1)
 
 	redisClient := configureRedisClient(cr, podName)
 	defer redisClient.Close()
@@ -401,8 +408,9 @@ func VerifyLeaderPod(cr *redisv1beta1.RedisCluster, podName string) bool {
 	return false
 }
 
-func ClusterFailover(cr *redisv1beta1.RedisCluster, slavePodName string) {
+func ClusterFailover(cr *redisv1beta1.RedisCluster) {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
+	slavePodName := cr.Name + "-leader-" + strconv.Itoa(int(CheckRedisNodeCount(cr, "leader"))-1)
 	// cmd = redis-cli cluster failover  -a <pass>
 
 	var cmd []string

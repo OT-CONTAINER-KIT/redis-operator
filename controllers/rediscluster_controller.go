@@ -70,8 +70,6 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{RequeueAfter: time.Second * 60}, err
 	}
 
-	// last Leader in redis cluster
-	lastLeaderPod := instance.Name + "-leader-" + strconv.Itoa(int(k8sutils.CheckRedisNodeCount(instance, "leader"))-1)
 	// Check if the cluster is downscaled
 	if leaderReplicas < k8sutils.CheckRedisNodeCount(instance, "leader") {
 
@@ -79,11 +77,11 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		// check whether the redis is leader or not ?
 		// if not true then make it leader pod
 
-		if !(k8sutils.VerifyLeaderPod(instance, lastLeaderPod)) {
+		if !(k8sutils.VerifyLeaderPod(instance)) {
 			// lastLeaderPod is slaving right now Make it the master Pod
 			// We have to bring a manual failover here to make it a leaderPod
 			// clusterFailover should also include the clusterReplicate since we have to map the followers to new leader
-			k8sutils.ClusterFailover(instance, lastLeaderPod)
+			k8sutils.ClusterFailover(instance)
 		}
 
 		// Step 1 Rehard the Cluster
@@ -166,7 +164,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				}
 			}
 		} else {
-			if followerReplicas > 0 {
+			if followerReplicas > 0 && redisFollowerInfo.Status.ReadyReplicas == followerReplicas {
 				reqLogger.Info("All leader are part of the cluster, adding follower/replicas", "Leaders.Count", leaderCount, "Instance.Size", leaderReplicas, "Follower.Replicas", followerReplicas)
 				k8sutils.ExecuteRedisReplicationCommand(instance)
 			} else {
