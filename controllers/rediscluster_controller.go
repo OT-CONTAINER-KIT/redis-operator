@@ -173,7 +173,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	} else {
 		reqLogger.Info("Redis leader count is desired")
-		if k8sutils.CheckRedisClusterState(instance) >= int(totalReplicas)-1 {
+		if int(totalReplicas) > 1 && k8sutils.CheckRedisClusterState(instance) >= int(totalReplicas)-1 {
 			reqLogger.Info("Redis leader is not desired, executing failover operation")
 			err = k8sutils.ExecuteFailoverOperation(instance)
 			if err != nil {
