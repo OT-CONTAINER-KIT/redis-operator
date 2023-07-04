@@ -31,13 +31,7 @@ func HandleRedisFinalizer(cr *redisv1beta1.Redis, cl client.Client) error {
 	logger := finalizerLogger(cr.Namespace, RedisFinalizer)
 	if cr.GetDeletionTimestamp() != nil {
 		if controllerutil.ContainsFinalizer(cr, RedisFinalizer) {
-			if err := finalizeRedisServices(cr); err != nil {
-				return err
-			}
 			if err := finalizeRedisPVC(cr); err != nil {
-				return err
-			}
-			if err := finalizeRedisStatefulSet(cr); err != nil {
 				return err
 			}
 			controllerutil.RemoveFinalizer(cr, RedisFinalizer)
@@ -55,13 +49,7 @@ func HandleRedisClusterFinalizer(cr *redisv1beta1.RedisCluster, cl client.Client
 	logger := finalizerLogger(cr.Namespace, RedisClusterFinalizer)
 	if cr.GetDeletionTimestamp() != nil {
 		if controllerutil.ContainsFinalizer(cr, RedisClusterFinalizer) {
-			if err := finalizeRedisClusterServices(cr); err != nil {
-				return err
-			}
 			if err := finalizeRedisClusterPVC(cr); err != nil {
-				return err
-			}
-			if err := finalizeRedisClusterStatefulSets(cr); err != nil {
 				return err
 			}
 			controllerutil.RemoveFinalizer(cr, RedisClusterFinalizer)
@@ -79,13 +67,7 @@ func HandleRedisReplicationFinalizer(cr *redisv1beta1.RedisReplication, cl clien
 	logger := finalizerLogger(cr.Namespace, RedisReplicationFinalizer)
 	if cr.GetDeletionTimestamp() != nil {
 		if controllerutil.ContainsFinalizer(cr, RedisReplicationFinalizer) {
-			if err := finalizeRedisReplicationServices(cr); err != nil {
-				return err
-			}
 			if err := finalizeRedisReplicationPVC(cr); err != nil {
-				return err
-			}
-			if err := finalizeRedisReplicationStatefulSets(cr); err != nil {
 				return err
 			}
 			controllerutil.RemoveFinalizer(cr, RedisReplicationFinalizer)
@@ -103,13 +85,7 @@ func HandleRedisSentinelFinalizer(cr *redisv1beta1.RedisSentinel, cl client.Clie
 	logger := finalizerLogger(cr.Namespace, RedisSentinelFinalizer)
 	if cr.GetDeletionTimestamp() != nil {
 		if controllerutil.ContainsFinalizer(cr, RedisSentinelFinalizer) {
-			if err := finalizeRedisSentinelServices(cr); err != nil {
-				return err
-			}
 			if err := finalizeRedisSentinelPVC(cr); err != nil {
-				return err
-			}
-			if err := finalizeRedisSentinelStatefulSets(cr); err != nil {
 				return err
 			}
 			controllerutil.RemoveFinalizer(cr, RedisSentinelFinalizer)
