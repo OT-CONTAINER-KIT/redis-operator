@@ -2,8 +2,10 @@ package k8sutils
 
 import (
 	redisv1beta1 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta1"
+	"github.com/banzaicloud/k8s-objectmatcher/patch"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 // RedisClusterSTS is a interface to call Redis Statefulset function
@@ -261,4 +263,63 @@ func (service RedisClusterService) CreateRedisClusterService(cr *redisv1beta1.Re
 		return err
 	}
 	return nil
+}
+
+// CreateRedisClusterNetworkPolicy check and create a NetworkPolicy for Redis Cluster
+func CreateRedisClusterNetworkPolicy(cr *redisv1beta1.RedisCluster) error {
+	err := CreateRedisClusterLeaderNetworkPolicy(cr)
+	if err != nil {
+		return err
+	}
+	err = CreateRedisClusterFollowerNetworkPolicy(cr)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// CreateRedisClusterLeaderNetworkPolicy check and create a NetworkPolicy for Redis Cluster
+func CreateRedisClusterLeaderNetworkPolicy(cr *redisv1beta1.RedisCluster) error {
+	logger := getNetworkPolicyLogger(cr.Namespace, cr.ObjectMeta.Name)
+	networkPolicyMeta := generateObjectMetaInformation(cr.ObjectMeta.Name+"-network-policy", cr.ObjectMeta.Namespace, nil, nil)
+	AddOwnerRefToMeta(networkPolicyMeta, redisClusterAsOwner(cr))
+	serviceNameLeader := cr.ObjectMeta.Name + "-" + "leader"
+	labelsLeader := getRedisLabels(serviceNameLeader, "cluster", "leader", nil)
+	labelSelectors := LabelSelectors(labelsLeader)
+	networkPolicyNew := networkPolicyTemplate(*labelSelectors, ports, networkPolicyMeta, *cr.Spec.NetworkPolicy)
+	client := generateK8sClient()
+	storedNetworkPolicy, err := getNetworkPolicy(client, cr.Namespace, networkPolicyMeta.Name)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(networkPolicyNew); err != nil {
+				logger.Error(err, "Unable to patch network policy with compare annotations")
+			}
+			return createNetworkPolicy(client, cr.Namespace, networkPolicyNew)
+		}
+		return err
+	}
+	return patchNetworkPolicy(client, storedNetworkPolicy, networkPolicyNew, cr.Namespace)
+}
+
+// CreateRedisClusterFollowerNetworkPolicy check and create a NetworkPolicy for Redis Cluster
+func CreateRedisClusterFollowerNetworkPolicy(cr *redisv1beta1.RedisCluster) error {
+	logger := getNetworkPolicyLogger(cr.Namespace, cr.ObjectMeta.Name)
+	networkPolicyMeta := generateObjectMetaInformation(cr.ObjectMeta.Name+"-network-policy", cr.ObjectMeta.Namespace, nil, nil)
+	AddOwnerRefToMeta(networkPolicyMeta, redisClusterAsOwner(cr))
+	serviceNameFollower := cr.ObjectMeta.Name + "-" + "follower"
+	labelsFollower := getRedisLabels(serviceNameFollower, "cluster", "follower", nil)
+	labelSelectors := LabelSelectors(labelsFollower)
+	networkPolicyNew := networkPolicyTemplate(*labelSelectors, ports, networkPolicyMeta, *cr.Spec.NetworkPolicy)
+	client := generateK8sClient()
+	storedNetworkPolicy, err := getNetworkPolicy(client, cr.Namespace, networkPolicyMeta.Name)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(networkPolicyNew); err != nil {
+				logger.Error(err, "Unable to patch network policy with compare annotations")
+			}
+			return createNetworkPolicy(client, cr.Namespace, networkPolicyNew)
+		}
+		return err
+	}
+	return patchNetworkPolicy(client, storedNetworkPolicy, networkPolicyNew, cr.Namespace)
 }

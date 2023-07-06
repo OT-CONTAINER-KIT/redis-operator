@@ -2,6 +2,8 @@ package k8sutils
 
 import (
 	redisv1beta1 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta1"
+	"github.com/banzaicloud/k8s-objectmatcher/patch"
+	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 // CreateReplicationService method will create replication service for Redis
@@ -181,4 +183,27 @@ func generateRedisReplicationInitContainerParams(cr *redisv1beta1.RedisReplicati
 	}
 
 	return initcontainerProp
+}
+
+// func CreateReplicationNetworkPolicy(namespace string, networkPolicyMeta metav1.ObjectMeta, networkPolicy v1beta1.NetworkPolicy) error {
+// CreateRedisClusterNetworkPolicy check and create a NetworkPolicy for Redis Cluster
+func CreateReplicationNetworkPolicy(cr *redisv1beta1.RedisReplication) error {
+	logger := getNetworkPolicyLogger(cr.Namespace, cr.ObjectMeta.Name)
+	networkPolicyMeta := generateObjectMetaInformation(cr.ObjectMeta.Name+"-network-policy", cr.ObjectMeta.Namespace, nil, nil)
+	AddOwnerRefToMeta(networkPolicyMeta, redisReplicationAsOwner(cr))
+	labels := getRedisLabels(cr.ObjectMeta.Name, "replication", "replication", nil)
+	labelSelectors := LabelSelectors(labels)
+	networkPolicyNew := networkPolicyTemplate(*labelSelectors, ports, networkPolicyMeta, *cr.Spec.NetworkPolicy)
+	client := generateK8sClient()
+	storedNetworkPolicy, err := getNetworkPolicy(client, cr.Namespace, networkPolicyMeta.Name)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(networkPolicyNew); err != nil {
+				logger.Error(err, "Unable to patch network policy with compare annotations")
+			}
+			return createNetworkPolicy(client, cr.Namespace, networkPolicyNew)
+		}
+		return err
+	}
+	return patchNetworkPolicy(client, storedNetworkPolicy, networkPolicyNew, cr.Namespace)
 }

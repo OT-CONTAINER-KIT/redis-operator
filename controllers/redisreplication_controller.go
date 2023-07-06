@@ -62,6 +62,12 @@ func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	if err != nil {
 		return ctrl.Result{}, err
 	}
+	if instance.Spec.NetworkPolicy != nil && instance.Spec.NetworkPolicy.Enabled {
+		err = k8sutils.CreateReplicationNetworkPolicy(instance)
+		if err != nil {
+			return ctrl.Result{RequeueAfter: time.Second * 60}, err
+		}
+	}
 
 	// Set Pod distruptiuon Budget Later
 

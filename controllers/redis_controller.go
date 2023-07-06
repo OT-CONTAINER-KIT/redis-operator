@@ -72,6 +72,13 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, err
 	}
 
+	if instance.Spec.NetworkPolicy != nil && instance.Spec.NetworkPolicy.Enabled {
+		err = k8sutils.CreateRedisNetworkPolicy(instance)
+		if err != nil {
+			return ctrl.Result{RequeueAfter: time.Second * 60}, err
+		}
+	}
+
 	reqLogger.Info("Will reconcile redis operator in again 10 seconds")
 	return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 }

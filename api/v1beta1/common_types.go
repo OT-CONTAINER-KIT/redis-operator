@@ -19,6 +19,7 @@ package v1beta1
 import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkv1 "k8s.io/api/networking/v1"
 )
 
 // KubernetesConfig will be the JSON struct for Basic Redis Config
@@ -60,6 +61,13 @@ type Storage struct {
 type AdditionalVolume struct {
 	Volume    []corev1.Volume      `json:"volume,omitempty"`
 	MountPath []corev1.VolumeMount `json:"mountPath,omitempty"`
+}
+
+// NetworkPolicy is the interface to add network policy support in redis
+type NetworkPolicy struct {
+	Enabled bool                                 `json:"enabled,omitempty"`
+	Ingress []networkv1.NetworkPolicyIngressRule `json:"ingress,omitempty"`
+	Egress  []networkv1.NetworkPolicyEgressRule  `json:"egress,omitempty"`
 }
 
 // RedisExporter interface will have the information for redis exporter related stuff

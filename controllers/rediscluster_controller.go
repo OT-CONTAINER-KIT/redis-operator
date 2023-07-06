@@ -81,6 +81,13 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	}
 
+	if instance.Spec.NetworkPolicy != nil && instance.Spec.NetworkPolicy.Enabled {
+		err = k8sutils.CreateRedisClusterNetworkPolicy(instance)
+		if err != nil {
+			return ctrl.Result{RequeueAfter: time.Second * 60}, err
+		}
+	}
+
 	err = k8sutils.ReconcileRedisPodDisruptionBudget(instance, "leader", instance.Spec.RedisLeader.PodDisruptionBudget)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: time.Second * 60}, err
@@ -147,6 +154,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 		return ctrl.Result{RequeueAfter: time.Second * 120}, nil
 	}
+
 	reqLogger.Info("Will reconcile redis cluster operator in again 10 seconds")
 	return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 }

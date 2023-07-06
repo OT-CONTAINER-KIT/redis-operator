@@ -29,6 +29,7 @@ type RedisSentinelSpec struct {
 	Sidecars                      *[]Sidecar     `json:"sidecars,omitempty"`
 	ServiceAccountName            *string        `json:"serviceAccountName,omitempty"`
 	TerminationGracePeriodSeconds *int64         `json:"terminationGracePeriodSeconds,omitempty" protobuf:"varint,4,opt,name=terminationGracePeriodSeconds"`
+	NetworkPolicy                 *NetworkPolicy `json:"networkPolicy,omitempty"`
 }
 
 func (cr *RedisSentinelSpec) GetSentinelCounts(t string) int32 {

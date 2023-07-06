@@ -6,8 +6,10 @@ import (
 	"errors"
 
 	redisv1beta1 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta1"
+	"github.com/banzaicloud/k8s-objectmatcher/patch"
 
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -326,4 +328,29 @@ func getRedisReplicationMasterIP(cr *redisv1beta1.RedisSentinel) string {
 
 	realMasterPodIP := getRedisServerIP(realMasterInfo)
 	return realMasterPodIP
+}
+
+// CreateSentinelNetworkPolicy check and create a NetworkPolicy for Redis Cluster
+func CreateSentinelNetworkPolicy(cr *redisv1beta1.RedisSentinel) error {
+	logger := getNetworkPolicyLogger(cr.Namespace, cr.ObjectMeta.Name)
+	networkPolicyMeta := generateObjectMetaInformation(cr.ObjectMeta.Name+"-network-policy", cr.ObjectMeta.Namespace, nil, nil)
+	AddOwnerRefToMeta(networkPolicyMeta, redisSentinelAsOwner(cr))
+
+	serviceName := cr.ObjectMeta.Name + "-" + "sentinel"
+	labels := getRedisLabels(serviceName, "cluster", "sentinel", nil)
+	labelSelectors := LabelSelectors(labels)
+
+	networkPolicyNew := networkPolicyTemplate(*labelSelectors, sentinelPorts, networkPolicyMeta, *cr.Spec.NetworkPolicy)
+	client := generateK8sClient()
+	storedNetworkPolicy, err := getNetworkPolicy(client, cr.Namespace, networkPolicyMeta.Name)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(networkPolicyNew); err != nil {
+				logger.Error(err, "Unable to patch network policy with compare annotations")
+			}
+			return createNetworkPolicy(client, cr.Namespace, networkPolicyNew)
+		}
+		return err
+	}
+	return patchNetworkPolicy(client, storedNetworkPolicy, networkPolicyNew, cr.Namespace)
 }
