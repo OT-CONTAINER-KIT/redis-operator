@@ -70,6 +70,31 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{RequeueAfter: time.Second * 60}, err
 	}
 
+	// Check if the cluster is downscaled
+	if leaderReplicas < k8sutils.CheckRedisNodeCount(instance, "leader") {
+
+		//  Imp if the last index of leader sts is not leader make it then
+		// check whether the redis is leader or not ?
+		// if not true then make it leader pod
+
+		if !(k8sutils.VerifyLeaderPod(instance)) {
+			// lastLeaderPod is slaving right now Make it the master Pod
+			// We have to bring a manual failover here to make it a leaderPod
+			// clusterFailover should also include the clusterReplicate since we have to map the followers to new leader
+			k8sutils.ClusterFailover(instance)
+		}
+
+		// Step 1 Rehard the Cluster
+		k8sutils.ReshardRedisCluster(instance)
+		// Step 2 Remove the Follower Node
+		k8sutils.RemoveRedisFollowerNodesFromCluster(instance)
+		// Step 3 Remove the Leader Node
+		k8sutils.RemoveRedisNodeFromCluster(instance)
+		// Step 4 Rebalance the cluster
+		k8sutils.RebalanceRedisCluster(instance)
+		return ctrl.Result{RequeueAfter: time.Second * 100}, nil
+	}
+
 	err = k8sutils.CreateRedisLeader(instance)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: time.Second * 60}, err
@@ -134,9 +159,19 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		leaderCount := k8sutils.CheckRedisNodeCount(instance, "leader")
 		if leaderCount != leaderReplicas {
 			reqLogger.Info("Not all leader are part of the cluster...", "Leaders.Count", leaderCount, "Instance.Size", leaderReplicas)
-			k8sutils.ExecuteRedisClusterCommand(instance)
+			if leaderCount <= 2 {
+				k8sutils.ExecuteRedisClusterCommand(instance)
+			} else {
+				if leaderCount < leaderReplicas {
+					// Scale up the cluster
+					// Step 2 : Add Redis Node
+					k8sutils.AddRedisNodeToCluster(instance)
+					// Step 3 Rebalance the cluster using the empty masters
+					k8sutils.RebalanceRedisClusterEmptyMasters(instance)
+				}
+			}
 		} else {
-			if followerReplicas > 0 {
+			if followerReplicas > 0 && redisFollowerInfo.Status.ReadyReplicas == followerReplicas {
 				reqLogger.Info("All leader are part of the cluster, adding follower/replicas", "Leaders.Count", leaderCount, "Instance.Size", leaderReplicas, "Follower.Replicas", followerReplicas)
 				k8sutils.ExecuteRedisReplicationCommand(instance)
 			} else {
@@ -145,7 +180,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	} else {
 		reqLogger.Info("Redis leader count is desired")
-		if k8sutils.CheckRedisClusterState(instance) >= int(totalReplicas)-1 {
+		if int(totalReplicas) > 1 && k8sutils.CheckRedisClusterState(instance) >= int(totalReplicas)-1 {
 			reqLogger.Info("Redis leader is not desired, executing failover operation")
 			err = k8sutils.ExecuteFailoverOperation(instance)
 			if err != nil {
@@ -155,7 +190,12 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{RequeueAfter: time.Second * 120}, nil
 	}
 
-	reqLogger.Info("Will reconcile redis cluster operator in again 10 seconds")
+  // Check If there is No Empty Master Node
+	if k8sutils.CheckRedisNodeCount(instance, "") == totalReplicas {
+		k8sutils.CheckIfEmptyMasters(instance)
+	}
+
+  reqLogger.Info("Will reconcile redis cluster operator in again 10 seconds")
 	return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 }
 

@@ -7,8 +7,7 @@ import (
 
 type RedisSentinelSpec struct {
 	// +kubebuilder:validation:Minimum=1
-	// +kubebuilder:validation:Default=3
-	// +kubebuilder:validation:Not=2
+	// +kubebuilder:default=3
 	Size                *int32                     `json:"clusterSize"`
 	KubernetesConfig    KubernetesConfig           `json:"kubernetesConfig"`
 	RedisExporter       *RedisExporter             `json:"redisExporter,omitempty"`
