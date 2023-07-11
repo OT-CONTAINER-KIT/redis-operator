@@ -56,6 +56,13 @@ type Storage struct {
 	VolumeMount         AdditionalVolume             `json:"volumeMount,omitempty"`
 }
 
+// Node-conf needs to be added only in redis cluster
+type ClusterStorage struct {
+	VolumeClaimTemplate         corev1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
+	NodeConfVolumeClaimTemplate corev1.PersistentVolumeClaim `json:"nodeConfVolumeClaimTemplate,omitempty"`
+	VolumeMount                 AdditionalVolume             `json:"volumeMount,omitempty"`
+}
+
 // Additional Volume is provided by user that is mounted on the pods
 type AdditionalVolume struct {
 	Volume    []corev1.Volume      `json:"volume,omitempty"`

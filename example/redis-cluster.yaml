@@ -6,7 +6,7 @@ metadata:
 spec:
   clusterSize: 3
   clusterVersion: v7
-  persistenceEnabled: false
+  persistenceEnabled: true
   podSecurityContext:
     runAsUser: 1000
     fsGroup: 1000
@@ -60,6 +60,12 @@ spec:
     volumeClaimTemplate:
       spec:
         # storageClassName: standard
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+    nodeConfVolumeClaimTemplate:
+      spec:
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
