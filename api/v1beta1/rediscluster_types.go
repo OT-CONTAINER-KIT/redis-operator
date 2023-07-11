@@ -32,7 +32,7 @@ type RedisClusterSpec struct {
 	// +kubebuilder:default:={livenessProbe:{initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}, readinessProbe:{initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}}
 	RedisFollower      RedisFollower                `json:"redisFollower,omitempty"`
 	RedisExporter      *RedisExporter               `json:"redisExporter,omitempty"`
-	Storage            *Storage                     `json:"storage,omitempty"`
+	Storage            *ClusterStorage              `json:"storage,omitempty"`
 	PodSecurityContext *corev1.PodSecurityContext   `json:"podSecurityContext,omitempty"`
 	PriorityClassName  string                       `json:"priorityClassName,omitempty"`
 	Resources          *corev1.ResourceRequirements `json:"resources,omitempty"`

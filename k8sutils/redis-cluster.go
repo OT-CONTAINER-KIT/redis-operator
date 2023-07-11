@@ -47,6 +47,7 @@ func generateRedisClusterParams(cr *redisv1beta1.RedisCluster, replicas int32, e
 	}
 	if cr.Spec.Storage != nil {
 		res.PersistentVolumeClaim = cr.Spec.Storage.VolumeClaimTemplate
+		res.NodeConfPersistentVolumeClaim = cr.Spec.Storage.NodeConfVolumeClaimTemplate
 	}
 	if externalConfig != nil {
 		res.ExternalConfig = externalConfig
