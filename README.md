@@ -63,6 +63,16 @@ The configuration of Redis setup should be described in [CRD definitions](config
 
 Redis operator requires a Kubernetes cluster of version `>=1.18.0`. If you have just started with Operators, it's highly recommended using the latest version of Kubernetes.
 
+## Image Compatibility
+
+The following table shows the compatibility between the Operator Version, Redis Image, Sentinel Image, and Exporter Image:
+
+| Operator Version | Redis Image | Sentinel Image | Exporter Image |
+|------------------|-------------|----------------|----------------|
+| v0.15.0          | v7.0.11     | v7.0.11        | v1.48.0        |
+| v0.14.0          | v7.0.7      | v7.0.7         | v1.48.0        |
+| v0.13.0          | v6.2.5      | nil            | v1.48.0        |
+
 ## Quickstart
 
 The setup can be done by using helm. If you want to see more example, please go through the [example](./example) folder.
