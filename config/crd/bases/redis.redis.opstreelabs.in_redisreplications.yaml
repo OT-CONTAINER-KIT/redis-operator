@@ -1503,7 +1503,8 @@ spec:
                     type: integer
                 type: object
               redisConfig:
-                description: RedisConfig defines the external configuration of Redis
+                description: RedisConfig defines the external configuration of
+                  Redis. ConfigMap with key 'redis-additional.conf' is expected.
                 properties:
                   additionalRedisConfig:
                     type: string

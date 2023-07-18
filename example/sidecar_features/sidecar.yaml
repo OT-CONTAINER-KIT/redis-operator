@@ -58,3 +58,10 @@ spec:
           configMap:
             name: example-configmap
   terminationGracePeriodSeconds: 20 #custom terimationgraceperiodseconds
+#---
+#apiVersion: v1
+#kind: ConfigMap
+#metadata:
+#  name: redis-external-config
+#data:
+#  redis-additional.conf: |

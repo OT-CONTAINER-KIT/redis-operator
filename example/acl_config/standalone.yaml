@@ -44,3 +44,10 @@ spec:
         resources:
           requests:
             storage: 1Gi
+#---
+#apiVersion: v1
+#kind: ConfigMap
+#metadata:
+#  name: redis-external-config
+#data:
+#  redis-additional.conf: |

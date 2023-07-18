@@ -47,3 +47,11 @@ spec:
       mount:
         - mountPath: /config
           name: example-config
+#---
+#apiVersion: v1
+#kind: ConfigMap
+#metadata:
+#  name: redis-external-config
+#data:
+#  redis-additional.conf: |
+
