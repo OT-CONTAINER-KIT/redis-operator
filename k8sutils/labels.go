@@ -77,18 +77,6 @@ func redisSentinelAsOwner(cr *redisv1beta1.RedisSentinel) metav1.OwnerReference 
 	}
 }
 
-// generateRedisAnnotations generates and returns redis,redis-cluster,redis-replication and redis-sentinel annotations
-func generateRedisAnnotations(cr metav1.ObjectMeta) map[string]string {
-	anots := map[string]string{
-		"redis.opstreelabs.in":       "true",
-		"redis.opstreelabs.instance": cr.GetName(),
-	}
-	for k, v := range cr.GetAnnotations() {
-		anots[k] = v
-	}
-	return filterAnnotations(anots, nil)
-}
-
 // generateStatefulSetsAnots generates and returns statefulsets annotations
 func generateStatefulSetsAnots(stsMeta metav1.ObjectMeta, ignoreAnnots []string) map[string]string {
 	anots := map[string]string{
