@@ -8,7 +8,7 @@ import (
 func CreateReplicationService(cr *redisv1beta1.RedisReplication) error {
 	logger := serviceLogger(cr.Namespace, cr.ObjectMeta.Name)
 	labels := getRedisLabels(cr.ObjectMeta.Name, "replication", "replication", cr.ObjectMeta.Labels)
-	annotations := generateServiceAnots(cr.ObjectMeta, nil)
+	annotations := generateServiceAnots(cr.ObjectMeta, nil, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
 		enableMetrics = true
 	} else {
@@ -20,7 +20,7 @@ func CreateReplicationService(cr *redisv1beta1.RedisReplication) error {
 	}
 	objectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name, cr.Namespace, labels, annotations)
 	headlessObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-headless", cr.Namespace, labels, annotations)
-	additionalObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, additionalServiceAnnotations))
+	additionalObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, additionalServiceAnnotations, cr.Spec.KubernetesConfig.IgnoreAnnotations))
 	err := CreateOrUpdateService(cr.Namespace, headlessObjectMetaInfo, redisReplicationAsOwner(cr), false, true, "ClusterIP")
 	if err != nil {
 		logger.Error(err, "Cannot create replication headless service for Redis")
@@ -48,7 +48,7 @@ func CreateReplicationRedis(cr *redisv1beta1.RedisReplication) error {
 	stateFulName := cr.ObjectMeta.Name
 	logger := statefulSetLogger(cr.Namespace, cr.ObjectMeta.Name)
 	labels := getRedisLabels(cr.ObjectMeta.Name, "replication", "replication", cr.ObjectMeta.Labels)
-	annotations := generateStatefulSetsAnots(cr.ObjectMeta)
+	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, annotations)
 	err := CreateOrUpdateStateFul(cr.Namespace,
 		objectMetaInfo,
@@ -70,6 +70,7 @@ func generateRedisReplicationParams(cr *redisv1beta1.RedisReplication) statefulS
 	res := statefulSetParameters{
 		Replicas:                      &replicas,
 		ClusterMode:                   false,
+		IgnoreAnnotations:             cr.Spec.KubernetesConfig.IgnoreAnnotations,
 		NodeSelector:                  cr.Spec.NodeSelector,
 		PodSecurityContext:            cr.Spec.PodSecurityContext,
 		PriorityClassName:             cr.Spec.PriorityClassName,

@@ -20,7 +20,7 @@ func ReconcileRedisPodDisruptionBudget(cr *redisv1beta1.RedisCluster, role strin
 	logger := pdbLogger(cr.Namespace, pdbName)
 	if pdbParams != nil && pdbParams.Enabled {
 		labels := getRedisLabels(cr.ObjectMeta.Name, "cluster", role, cr.ObjectMeta.GetLabels())
-		annotations := generateStatefulSetsAnots(cr.ObjectMeta)
+		annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 		pdbMeta := generateObjectMetaInformation(pdbName, cr.Namespace, labels, annotations)
 		pdbDef := generatePodDisruptionBudgetDef(cr, role, pdbMeta, cr.Spec.RedisLeader.PodDisruptionBudget)
 		return CreateOrUpdatePodDisruptionBudget(pdbDef)

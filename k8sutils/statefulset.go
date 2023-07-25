@@ -30,6 +30,7 @@ type statefulSetParameters struct {
 	Replicas                      *int32
 	ClusterMode                   bool
 	Metadata                      metav1.ObjectMeta
+	IgnoreAnnotations             []string
 	NodeSelector                  map[string]string
 	PodSecurityContext            *corev1.PodSecurityContext
 	PriorityClassName             string
@@ -220,7 +221,7 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      stsMeta.GetLabels(),
-					Annotations: generateStatefulSetsAnots(stsMeta),
+					Annotations: generateStatefulSetsAnots(stsMeta, params.IgnoreAnnotations),
 				},
 				Spec: corev1.PodSpec{
 					Containers: generateContainerDef(
@@ -252,10 +253,10 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 		statefulset.Spec.Template.Spec.ImagePullSecrets = *params.ImagePullSecrets
 	}
 	if containerParams.PersistenceEnabled != nil && params.ClusterMode {
-		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, createPVCTemplate("node-conf", stsMeta, params.NodeConfPersistentVolumeClaim))
+		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, createPVCTemplate("node-conf", stsMeta, params.IgnoreAnnotations, params.NodeConfPersistentVolumeClaim))
 	}
 	if containerParams.PersistenceEnabled != nil && *containerParams.PersistenceEnabled {
-		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, createPVCTemplate(stsMeta.GetName(), stsMeta, params.PersistentVolumeClaim))
+		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, createPVCTemplate(stsMeta.GetName(), stsMeta, params.IgnoreAnnotations, params.PersistentVolumeClaim))
 	}
 	if params.ExternalConfig != nil {
 		statefulset.Spec.Template.Spec.Volumes = getExternalConfig(*params.ExternalConfig)
@@ -309,13 +310,13 @@ func getExternalConfig(configMapName string) []corev1.Volume {
 }
 
 // createPVCTemplate will create the persistent volume claim template
-func createPVCTemplate(volumeName string, stsMeta metav1.ObjectMeta, storageSpec corev1.PersistentVolumeClaim) corev1.PersistentVolumeClaim {
+func createPVCTemplate(volumeName string, stsMeta metav1.ObjectMeta, ignoreAnnots []string, storageSpec corev1.PersistentVolumeClaim) corev1.PersistentVolumeClaim {
 	pvcTemplate := storageSpec
 	pvcTemplate.CreationTimestamp = metav1.Time{}
 	pvcTemplate.Name = volumeName
 	pvcTemplate.Labels = stsMeta.GetLabels()
 	// We want the same annoations as the StatefulSet here
-	pvcTemplate.Annotations = generateStatefulSetsAnots(stsMeta)
+	pvcTemplate.Annotations = generateStatefulSetsAnots(stsMeta, ignoreAnnots)
 	if storageSpec.Spec.AccessModes == nil {
 		pvcTemplate.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
 	} else {

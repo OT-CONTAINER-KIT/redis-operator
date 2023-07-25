@@ -64,7 +64,7 @@ func (service RedisSentinelSTS) CreateRedisSentinelSetup(cr *redisv1beta1.RedisS
 	stateFulName := cr.ObjectMeta.Name + "-" + service.RedisStateFulType
 	logger := statefulSetLogger(cr.Namespace, stateFulName)
 	labels := getRedisLabels(stateFulName, "cluster", service.RedisStateFulType, cr.ObjectMeta.Labels)
-	annotations := generateStatefulSetsAnots(cr.ObjectMeta)
+	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, annotations)
 	err := CreateOrUpdateStateFul(
 		cr.Namespace,
@@ -88,6 +88,7 @@ func generateRedisSentinelParams(cr *redisv1beta1.RedisSentinel, replicas int32,
 
 	res := statefulSetParameters{
 		Metadata:                      cr.ObjectMeta,
+		IgnoreAnnotations:             cr.Spec.KubernetesConfig.IgnoreAnnotations,
 		Replicas:                      &replicas,
 		ClusterMode:                   false,
 		NodeSelector:                  cr.Spec.NodeSelector,
@@ -193,7 +194,7 @@ func (service RedisSentinelService) CreateRedisSentinelService(cr *redisv1beta1.
 	serviceName := cr.ObjectMeta.Name + "-" + service.RedisServiceRole
 	logger := serviceLogger(cr.Namespace, serviceName)
 	labels := getRedisLabels(serviceName, "cluster", service.RedisServiceRole, cr.ObjectMeta.Labels)
-	annotations := generateServiceAnots(cr.ObjectMeta, nil)
+	annotations := generateServiceAnots(cr.ObjectMeta, nil, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 
 	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
 		enableMetrics = true
@@ -208,7 +209,7 @@ func (service RedisSentinelService) CreateRedisSentinelService(cr *redisv1beta1.
 
 	objectMetaInfo := generateObjectMetaInformation(serviceName, cr.Namespace, labels, annotations)
 	headlessObjectMetaInfo := generateObjectMetaInformation(serviceName+"-headless", cr.Namespace, labels, annotations)
-	additionalObjectMetaInfo := generateObjectMetaInformation(serviceName+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, additionalServiceAnnotations))
+	additionalObjectMetaInfo := generateObjectMetaInformation(serviceName+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, additionalServiceAnnotations, cr.Spec.KubernetesConfig.IgnoreAnnotations))
 
 	err := CreateOrUpdateService(cr.Namespace, headlessObjectMetaInfo, redisSentinelAsOwner(cr), false, true, "ClusterIP")
 	if err != nil {
