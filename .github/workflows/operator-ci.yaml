@@ -1,0 +1,277 @@
+name: CI
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+env:
+  GolangVersion: 1.17
+  ApplicationName: redis-operator
+  QuayImageName: opstree/redis-operator
+  GithubImageName: ot-con"tainer-kit/redis-operator/redis-operator
+  BuildDocs: true
+  AppVersion: "v0.15.0"
+  DOCKERFILE_PATH: '**/Dockerfile'
+
+jobs:
+  gofmt:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GolangVersion }}
+      - name: Check Go Fmt
+        run: |
+          gofmt_files=$(go fmt ./... | wc -l)
+          if [[ ${gofmt_files} > 0 ]]
+          then
+              echo "Please format golang files using:- go fmt ./..."
+              exit 1
+          else
+              echo "All files are formated using gofmt"
+          fi
+
+  govet:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GolangVersion }}
+      - name: Run Go Vet
+        run: go vet ./...
+
+  code_quality_golang_ci_lint:
+    needs: [gofmt, govet]
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GolangVersion }}
+      - name: Install GolangCI-Lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.40.0
+      - name: Run GolangCI-Lint
+        run: ./bin/golangci-lint run --timeout 5m0s ./...
+
+  container_quality_dockerfile_lint:
+    needs: [gofmt, govet]
+    runs-on: ubuntu-20.04
+    steps:
+    - name: Executing dockerlinter
+      run: |
+        #!/bin/bash
+        download_hadolint() {
+            wget https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64
+            chmod +x hadolint-Linux-x86_64
+        }
+        execute_hadolint() {
+            ./hadolint-Linux-x86_64 Dockerfile --ignore DL3007 --ignore DL3018
+        }
+        main() {
+            download_hadolint
+            execute_hadolint
+        }
+        main
+
+  build_go_binary:
+    needs: [code_quality_golang_ci_lint]
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        arch: ['amd64', 'arm64']
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+      - name: Setup Go Environment
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+      - name: Set GOARCH
+        run: echo "GOARCH=${{ matrix.arch }}" >> $GITHUB_ENV
+      - name: Build Go Binary
+        run: go build -o ${{ github.workspace }}/${{ env.APPLICATION_NAME }}
+      - name: Archive Binary
+        run: |
+          mkdir -p ${{ github.workspace }}/compiled/${{ matrix.arch }}
+          zip ${{ github.workspace }}/compiled/${{ matrix.arch }}/${{ env.APPLICATION_NAME }}-${{ matrix.arch }}.zip ${{ env.APPLICATION_NAME }}
+      - name: Publish Build Artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: binaries
+          path: ${{ github.workspace }}/compiled/
+
+  build_container_image:
+    needs: [container_quality_dockerfile_lint]
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        arch: ['amd64', 'arm64']
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ${{ env.DOCKERFILE_PATH }}
+          platforms: linux/${{ matrix.arch }}
+          push: false
+          tags: ${{ env.APPLICATION_NAME }}:${{ github.run_number }}-${{ matrix.arch }}
+
+      - name: Save Docker image
+        run: |
+          mkdir -p ${{ github.workspace }}/image/${{ matrix.arch }}
+          docker save -o ${{ github.workspace }}/image/${{ matrix.arch }}/${{ env.APPLICATION_NAME }}.tar ${{ env.APPLICATION_NAME }}:${{ github.run_number }}-${{ matrix.arch }}
+
+      - name: Publish Build Artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: dropcontainer-${{ matrix.arch }}
+          path: ${{ github.workspace }}/image/${{ matrix.arch }}/
+
+  gosec_scan:
+    needs: [build_go_binary, build_container_image]
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Install and Execute Gosec
+        run: |
+          curl -sfL https://raw.githubusercontent.com/securego/gosec/master/install.sh | sh -s latest
+          ./bin/gosec -fmt=junit-xml -out=./bin/results.xml ./... || true
+        shell: bash
+
+      - name: Publish Unit Test Results
+        uses: actions/upload-artifact@v2
+        with:
+          name: gosec-results
+          path: ./bin/results.xml
+
+  trivy_scan:
+    needs: [build_go_binary, build_container_image]
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Download Artifact amd64
+        uses: actions/download-artifact@v2
+        with:
+          name: dropcontainer-amd64
+          path: ${{ github.workspace }}/dropcontainer-amd64
+
+      - name: Download Artifact arm64
+        uses: actions/download-artifact@v2
+        with:
+          name: dropcontainer-arm64
+          path: ${{ github.workspace }}/dropcontainer-arm64
+
+      - name: Install and Execute Trivy
+        run: |
+          sudo apt-get install wget apt-transport-https gnupg lsb-release -y
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install trivy -y
+          trivy image --input ${{ github.workspace }}/dropcontainer-amd64/${{ env.APPLICATION_NAME }}.tar
+          trivy image --input ${{ github.workspace }}/dropcontainer-arm64/${{ env.APPLICATION_NAME }}.tar
+        env:
+          AMD_IMAGE_PATH: ${{ github.workspace }}/dropcontainer-amd64/${{ env.APPLICATION_NAME }}.tar
+          ARM_IMAGE_PATH: ${{ github.workspace }}/dropcontainer-arm64/${{ env.APPLICATION_NAME }}.tar
+
+  release_quay:
+    needs: [trivy_scan, gosec_scan]
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Login to Quay.io
+        uses: docker/login-action@v1
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_PASSWORD }}
+
+      - name: Build and push Quay image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            quay.io/${{ env.QUAY_IMAGE_NAME }}:latest
+            quay.io/${{ env.QUAY_IMAGE_NAME }}:${{ github.ref_name }}
+            quay.io/${{ env.QUAY_IMAGE_NAME }}:${{ env.APP_VERSION }}
+
+      - name: Build and push Quay image arm64
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          build-args: ARCH=arm64
+          tags: |
+            quay.io/${{ env.QUAY_IMAGE_NAME }}:latest-arm64
+            quay.io/${{ env.QUAY_IMAGE_NAME }}:${{ github.ref_name }}-arm64
+            quay.io/${{ env.QUAY_IMAGE_NAME }}:${{ env.APP_VERSION }}-arm64
+
+  release_github_image:
+    needs: [trivy_scan, gosec_scan]
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Build and push GitHub image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ github.repository_owner }}/${{ env.GITHUB_IMAGE_NAME }}:latest
+            ${{ github.repository_owner }}/${{ env.GITHUB_IMAGE_NAME }}:${{ github.ref_name }}
+            ${{ github.repository_owner }}/${{ env.GITHUB_IMAGE_NAME }}:${{ env.APP_VERSION }}
+
+      - name: Build and push GitHub image arm64
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          build-args: ARCH=arm64
+          tags: |
+            ${{ github.repository_owner }}/${{ env.GITHUB_IMAGE_NAME }}:latest-arm64
+            ${{ github.repository_owner }}/${{ env.GITHUB_IMAGE_NAME }}:${{ github.ref_name }}-arm64
+            ${{ github.repository_owner }}/${{ env.GITHUB_IMAGE_NAME }}:${{ env.APP_VERSION }}-arm64
