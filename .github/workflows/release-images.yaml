@@ -1,0 +1,103 @@
+name: Release container images
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - master
+
+env:
+  ApplicationName: redis-operator
+  QuayImageName: quay.io/opstree/redis-operator
+  AppVersion: "v0.15.0"
+  DOCKERFILE_PATH: '**/Dockerfile'
+
+jobs:
+  setup:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Login to Quay.io
+      uses: docker/login-action@v1
+      with:
+        registry: quay.io
+        username: ${{ secrets.QUAY_USERNAME }}
+        password: ${{ secrets.QUAY_PASSWORD }}
+
+  build_arm64:
+    needs: setup
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check existing AppVersion
+      id: check_version_arm64
+      run: |
+        EXISTS=$(curl -s https://quay.io/api/v1/repository/${{ env.QuayImageName }}/tag/?specificTag=${{ env.AppVersion }}-arm64 | jq '.tags | length')
+        echo "::set-output name=exists::$EXISTS"
+
+    - name: Build and push arm64 image
+      if: steps.check_version_arm64.outputs.exists == '0'
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        file: ${{ env.DOCKERFILE_PATH }}
+        platforms: linux/arm64
+        push: true
+        tags: ${{ env.QuayImageName }}:${{ env.AppVersion }}-arm64
+
+  build_amd64:
+    needs: setup
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check existing AppVersion
+      id: check_version_amd64
+      run: |
+        EXISTS=$(curl -s https://quay.io/api/v1/repository/${{ env.QuayImageName }}/tag/?specificTag=${{ env.AppVersion }}-amd64 | jq '.tags | length')
+        echo "::set-output name=exists::$EXISTS"
+
+    - name: Build and push amd64 image
+      if: steps.check_version_amd64.outputs.exists == '0'
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        file: ${{ env.DOCKERFILE_PATH }}
+        platforms: linux/amd64
+        push: true
+        tags: ${{ env.QuayImageName }}:${{ env.AppVersion }}-amd64
+
+  build_multi_arch:
+    needs: setup
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check existing AppVersion
+      id: check_version_multi_arch
+      run: |
+        EXISTS=$(curl -s https://quay.io/api/v1/repository/${{ env.QuayImageName }}/tag/?specificTag=${{ env.AppVersion }} | jq '.tags | length')
+        echo "::set-output name=exists::$EXISTS"
+
+    - name: Build and push multi-arch image
+      if: steps.check_version_multi_arch.outputs.exists == '0'
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        file: ${{ env.DOCKERFILE_PATH }}
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ env.QuayImageName }}:${{ env.AppVersion }}
+
+    - name: Build and push multi-arch latest image
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        file: ${{ env.DOCKERFILE_PATH }}
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ env.QuayImageName }}:latest

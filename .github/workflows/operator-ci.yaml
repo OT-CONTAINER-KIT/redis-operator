@@ -3,6 +3,9 @@ on:
   pull_request:
     branches:
       - master
+  push:
+    branches:
+      - master
 
 env:
   GolangVersion: 1.17
@@ -136,112 +139,39 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GOSEC_OUTPUT: "junit-xml:/github/workspace/gosec-results.xml"
 
-  trivy_scan:
-    needs: [build_go_binary, build_container_image]
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-    - name: Run Trivy vulnerability scanner for arm64 image
-      uses: aquasecurity/trivy-action@master
-      with:
-        image-ref: ${{ env.QuayImageName }}:arm64
-        format: 'template'
-        template: '@/contrib/sarif.tpl'
-        output: 'trivy-results-arm64.sarif'
-        exit-code: '1'
-        ignore-unfixed: true
-        severity: 'CRITICAL,HIGH'
-    - name: Run Trivy vulnerability scanner for amd64 image
-      uses: aquasecurity/trivy-action@master
-      with:
-        image-ref: ${{ env.QuayImageName }}:amd64
-        format: 'template'
-        template: '@/contrib/sarif.tpl'
-        output: 'trivy-results-amd64.sarif'
-        exit-code: '1'
-        ignore-unfixed: true
-        severity: 'CRITICAL,HIGH'
-    - name: Run Trivy vulnerability scanner for multi-arch image
-      uses: aquasecurity/trivy-action@master
-      with:
-        image-ref: ${{ env.QuayImageName }}:latest
-        format: 'template'
-        template: '@/contrib/sarif.tpl'
-        output: 'trivy-results-latest.sarif'
-        exit-code: '1'
-        ignore-unfixed: true
-        severity: 'CRITICAL,HIGH'
-
-  release_quay:
-    needs: [trivy_scan, gosec_scan]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v2
-
-      - name: Login to Quay.io
-        uses: docker/login-action@v1
-        with:
-          registry: quay.io
-          username: ${{ secrets.QUAY_USERNAME }}
-          password: ${{ secrets.QUAY_PASSWORD }}
-
-      - name: Build and push Quay image
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: |
-            quay.io/${{ env.QUAY_IMAGE_NAME }}:latest
-            quay.io/${{ env.QUAY_IMAGE_NAME }}:${{ github.ref_name }}
-            quay.io/${{ env.QUAY_IMAGE_NAME }}:${{ env.APP_VERSION }}
-
-      - name: Build and push Quay image arm64
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          build-args: ARCH=arm64
-          tags: |
-            quay.io/${{ env.QUAY_IMAGE_NAME }}:latest-arm64
-            quay.io/${{ env.QUAY_IMAGE_NAME }}:${{ github.ref_name }}-arm64
-            quay.io/${{ env.QUAY_IMAGE_NAME }}:${{ env.APP_VERSION }}-arm64
-
-  release_github_image:
-    needs: [trivy_scan, gosec_scan]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v2
-
-      - name: Login to DockerHub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
-
-      - name: Build and push GitHub image
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: |
-            ${{ github.repository_owner }}/${{ env.GITHUB_IMAGE_NAME }}:latest
-            ${{ github.repository_owner }}/${{ env.GITHUB_IMAGE_NAME }}:${{ github.ref_name }}
-            ${{ github.repository_owner }}/${{ env.GITHUB_IMAGE_NAME }}:${{ env.APP_VERSION }}
-
-      - name: Build and push GitHub image arm64
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          build-args: ARCH=arm64
-          tags: |
-            ${{ github.repository_owner }}/${{ env.GITHUB_IMAGE_NAME }}:latest-arm64
-            ${{ github.repository_owner }}/${{ env.GITHUB_IMAGE_NAME }}:${{ github.ref_name }}-arm64
-            ${{ github.repository_owner }}/${{ env.GITHUB_IMAGE_NAME }}:${{ env.APP_VERSION }}-arm64
+  # trivy_scan:
+  #   needs: [build_go_binary, build_container_image]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - name: Checkout
+  #     uses: actions/checkout@v2
+  #   - name: Run Trivy vulnerability scanner for arm64 image
+  #     uses: aquasecurity/trivy-action@master
+  #     with:
+  #       image-ref: ${{ env.QuayImageName }}:${{ github.sha }}-arm64
+  #       format: 'template'
+  #       template: '@/contrib/sarif.tpl'
+  #       output: 'trivy-results-arm64.sarif'
+  #       exit-code: '1'
+  #       ignore-unfixed: true
+  #       severity: 'CRITICAL,HIGH'
+  #   - name: Run Trivy vulnerability scanner for amd64 image
+  #     uses: aquasecurity/trivy-action@master
+  #     with:
+  #       image-ref: ${{ env.QuayImageName }}:${{ github.sha }}-amd64
+  #       format: 'template'
+  #       template: '@/contrib/sarif.tpl'
+  #       output: 'trivy-results-amd64.sarif'
+  #       exit-code: '1'
+  #       ignore-unfixed: true
+  #       severity: 'CRITICAL,HIGH'
+  #   - name: Run Trivy vulnerability scanner for multi-arch image
+  #     uses: aquasecurity/trivy-action@master
+  #     with:
+  #       image-ref: ${{ env.QuayImageName }}:${{ github.sha }}
+  #       format: 'template'
+  #       template: '@/contrib/sarif.tpl'
+  #       output: 'trivy-results-latest.sarif'
+  #       exit-code: '1'
+  #       ignore-unfixed: true
+  #       severity: 'CRITICAL,HIGH'
