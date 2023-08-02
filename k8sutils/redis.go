@@ -179,6 +179,7 @@ func ExecuteRedisReplicationCommand(cr *redisv1beta1.RedisCluster) {
 				cmd := createRedisReplicationCommand(cr, leaderPod, followerPod)
 				redisClient := configureRedisClient(cr, followerPod.PodName)
 				pong, err := redisClient.Ping().Result()
+				redisClient.Close()
 				if err != nil {
 					logger.Error(err, "Failed to ping Redis server", "Follower.Pod", followerPod)
 					continue

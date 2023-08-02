@@ -76,6 +76,7 @@ func getRedisClusterSlots(cr *redisv1beta1.RedisCluster, nodeID string) string {
 	totalSlots := 0
 
 	redisClient := configureRedisClient(cr, cr.ObjectMeta.Name+"-leader-0")
+	defer redisClient.Close()
 	redisClusterInfo, err := redisClient.ClusterNodes().Result()
 	if err != nil {
 		logger.Error(err, "Failed to Get Cluster Info")
@@ -270,6 +271,7 @@ func getAttachedFollowerNodeIDs(cr *redisv1beta1.RedisCluster, masterNodeID stri
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 
 	redisClient := configureRedisClient(cr, cr.ObjectMeta.Name+"-leader-0")
+	defer redisClient.Close()
 	redisClusterInfo, err := redisClient.ClusterNodes().Result()
 	if err != nil {
 		logger.Error(err, "Failed to Get Cluster Info")
