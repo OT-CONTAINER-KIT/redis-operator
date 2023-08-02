@@ -66,21 +66,14 @@ jobs:
     needs: [gofmt, govet]
     runs-on: ubuntu-20.04
     steps:
-    - name: Executing dockerlinter
-      run: |
-        #!/bin/bash
-        download_hadolint() {
-            wget https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64
-            chmod +x hadolint-Linux-x86_64
-        }
-        execute_hadolint() {
-            ./hadolint-Linux-x86_64 Dockerfile --ignore DL3007 --ignore DL3018
-        }
-        main() {
-            download_hadolint
-            execute_hadolint
-        }
-        main
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Execute dockerlinter
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+          ignore: DL3007,DL3018
 
   build_go_binary:
     needs: [code_quality_golang_ci_lint]
