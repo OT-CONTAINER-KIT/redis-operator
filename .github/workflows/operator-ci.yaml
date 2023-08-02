@@ -1,8 +1,5 @@
 name: CI
 on:
-  push:
-    branches:
-      - master
   pull_request:
     branches:
       - master
@@ -11,7 +8,6 @@ env:
   GolangVersion: 1.17
   ApplicationName: redis-operator
   QuayImageName: opstree/redis-operator
-  GithubImageName: ot-con"tainer-kit/redis-operator/redis-operator
   BuildDocs: true
   AppVersion: "v0.15.0"
   DOCKERFILE_PATH: '**/Dockerfile'
@@ -144,33 +140,38 @@ jobs:
     needs: [build_go_binary, build_container_image]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v2
-
-      - name: Download Artifact amd64
-        uses: actions/download-artifact@v2
-        with:
-          name: dropcontainer-amd64
-          path: ${{ github.workspace }}/dropcontainer-amd64
-
-      - name: Download Artifact arm64
-        uses: actions/download-artifact@v2
-        with:
-          name: dropcontainer-arm64
-          path: ${{ github.workspace }}/dropcontainer-arm64
-
-      - name: Install and Execute Trivy
-        run: |
-          sudo apt-get install wget apt-transport-https gnupg lsb-release -y
-          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-          echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
-          sudo apt-get update
-          sudo apt-get install trivy -y
-          trivy image --input ${{ github.workspace }}/dropcontainer-amd64/${{ env.APPLICATION_NAME }}.tar
-          trivy image --input ${{ github.workspace }}/dropcontainer-arm64/${{ env.APPLICATION_NAME }}.tar
-        env:
-          AMD_IMAGE_PATH: ${{ github.workspace }}/dropcontainer-amd64/${{ env.APPLICATION_NAME }}.tar
-          ARM_IMAGE_PATH: ${{ github.workspace }}/dropcontainer-arm64/${{ env.APPLICATION_NAME }}.tar
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Run Trivy vulnerability scanner for arm64 image
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ env.QuayImageName }}:arm64
+        format: 'template'
+        template: '@/contrib/sarif.tpl'
+        output: 'trivy-results-arm64.sarif'
+        exit-code: '1'
+        ignore-unfixed: true
+        severity: 'CRITICAL,HIGH'
+    - name: Run Trivy vulnerability scanner for amd64 image
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ env.QuayImageName }}:amd64
+        format: 'template'
+        template: '@/contrib/sarif.tpl'
+        output: 'trivy-results-amd64.sarif'
+        exit-code: '1'
+        ignore-unfixed: true
+        severity: 'CRITICAL,HIGH'
+    - name: Run Trivy vulnerability scanner for multi-arch image
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ env.QuayImageName }}:latest
+        format: 'template'
+        template: '@/contrib/sarif.tpl'
+        output: 'trivy-results-latest.sarif'
+        exit-code: '1'
+        ignore-unfixed: true
+        severity: 'CRITICAL,HIGH'
 
   release_quay:
     needs: [trivy_scan, gosec_scan]
