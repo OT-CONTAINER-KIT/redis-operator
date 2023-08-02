@@ -96,14 +96,16 @@ jobs:
           mkdir -p ${{ github.workspace }}/compiled/${{ matrix.arch }}
           zip ${{ github.workspace }}/compiled/${{ matrix.arch }}/${{ env.APPLICATION_NAME }}-${{ matrix.arch }}.zip ${{ github.workspace }}/${{ env.APPLICATION_NAME }}
 
-  build_container_image:
+  build_scan_container_image:
     needs: [container_quality_dockerfile_lint]
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v2
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
+
     - name: Build arm64 image
       uses: docker/build-push-action@v2
       with:
@@ -111,6 +113,16 @@ jobs:
         platforms: linux/arm64
         push: false
         tags: ${{ env.QuayImageName }}:arm64
+    - name: Run Trivy vulnerability scanner for arm64
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: '${{ env.QuayImageName }}:arm64'
+        format: 'table'
+        exit-code: '1'
+        ignore-unfixed: true
+        vuln-type: 'os,library'
+        severity: 'CRITICAL,HIGH'
+
     - name: Build amd64 image
       uses: docker/build-push-action@v2
       with:
