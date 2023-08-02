@@ -138,40 +138,4 @@ jobs:
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GOSEC_OUTPUT: "junit-xml:/github/workspace/gosec-results.xml"
-
-  # trivy_scan:
-  #   needs: [build_go_binary, build_container_image]
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #   - name: Checkout
-  #     uses: actions/checkout@v2
-  #   - name: Run Trivy vulnerability scanner for arm64 image
-  #     uses: aquasecurity/trivy-action@master
-  #     with:
-  #       image-ref: ${{ env.QuayImageName }}:${{ github.sha }}-arm64
-  #       format: 'template'
-  #       template: '@/contrib/sarif.tpl'
-  #       output: 'trivy-results-arm64.sarif'
-  #       exit-code: '1'
-  #       ignore-unfixed: true
-  #       severity: 'CRITICAL,HIGH'
-  #   - name: Run Trivy vulnerability scanner for amd64 image
-  #     uses: aquasecurity/trivy-action@master
-  #     with:
-  #       image-ref: ${{ env.QuayImageName }}:${{ github.sha }}-amd64
-  #       format: 'template'
-  #       template: '@/contrib/sarif.tpl'
-  #       output: 'trivy-results-amd64.sarif'
-  #       exit-code: '1'
-  #       ignore-unfixed: true
-  #       severity: 'CRITICAL,HIGH'
-  #   - name: Run Trivy vulnerability scanner for multi-arch image
-  #     uses: aquasecurity/trivy-action@master
-  #     with:
-  #       image-ref: ${{ env.QuayImageName }}:${{ github.sha }}
-  #       format: 'template'
-  #       template: '@/contrib/sarif.tpl'
-  #       output: 'trivy-results-latest.sarif'
-  #       exit-code: '1'
-  #       ignore-unfixed: true
-  #       severity: 'CRITICAL,HIGH'
+          
