@@ -10,7 +10,7 @@ on:
 env:
   GolangVersion: 1.17
   ApplicationName: redis-operator
-  QuayImageName: opstree/redis-operator
+  DockerImagName: docker.io/opstree/redis-operator
   BuildDocs: true
   AppVersion: "v0.15.0"
   DOCKERFILE_PATH: '**/Dockerfile'
@@ -112,11 +112,11 @@ jobs:
         context: .
         platforms: linux/arm64
         push: false
-        tags: ${{ env.QuayImageName }}:arm64
+        tags: ${{ env.DockerImagName }}:arm64
     - name: Run Trivy vulnerability scanner for arm64
       uses: aquasecurity/trivy-action@master
       with:
-        image-ref: '${{ env.QuayImageName }}:arm64'
+        image-ref: '${{ env.DockerImagName }}:arm64'
         format: 'table'
         exit-code: '1'
         ignore-unfixed: true
@@ -129,14 +129,14 @@ jobs:
         context: .
         platforms: linux/amd64
         push: false
-        tags: ${{ env.QuayImageName }}:amd64
+        tags: ${{ env.DockerImagName }}:amd64
     - name: Build multi-arch image
       uses: docker/build-push-action@v2
       with:
         context: .
         platforms: linux/arm64,linux/amd64
         push: false
-        tags: ${{ env.QuayImageName }}:latest
+        tags: ${{ env.DockerImagName }}:latest
 
   gosec_scan:
     needs: [build_go_binary]
