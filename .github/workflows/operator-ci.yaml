@@ -127,7 +127,7 @@ jobs:
         tags: ${{ env.QuayImageName }}:latest
 
   gosec_scan:
-    needs: [build_go_binary, build_container_image]
+    needs: [build_go_binary]
     runs-on: ubuntu-latest
 
     steps:
