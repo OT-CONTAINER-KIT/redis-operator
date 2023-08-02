@@ -18,7 +18,7 @@ env:
 
 jobs:
   gofmt:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Set up Go
@@ -37,7 +37,7 @@ jobs:
           fi
 
   govet:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Set up Go
@@ -49,7 +49,7 @@ jobs:
 
   code_quality_golang_ci_lint:
     needs: [gofmt, govet]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Set up Go
@@ -64,7 +64,7 @@ jobs:
 
   container_quality_dockerfile_lint:
     needs: [gofmt, govet]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -77,7 +77,7 @@ jobs:
 
   build_go_binary:
     needs: [code_quality_golang_ci_lint]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         arch: ['amd64', 'arm64']
@@ -91,64 +91,45 @@ jobs:
       - name: Set GOARCH
         run: echo "GOARCH=${{ matrix.arch }}" >> $GITHUB_ENV
       - name: Build Go Binary
-        run: go build -o ${{ github.workspace }}/${{ env.APPLICATION_NAME }}/${{ env.APPLICATION_NAME }}
+        run: go build -o ${{ github.workspace }}/${{ env.APPLICATION_NAME }}
       - name: Archive Binary
         run: |
           mkdir -p ${{ github.workspace }}/compiled/${{ matrix.arch }}
-          zip ${{ github.workspace }}/compiled/${{ matrix.arch }}/${{ env.APPLICATION_NAME }}-${{ matrix.arch }}.zip ${{ github.workspace }}/${{ env.APPLICATION_NAME }}/${{ env.APPLICATION_NAME }}
-      - name: Publish Build Artifacts
-        uses: actions/upload-artifact@v2
-        with:
-          name: binaries
-          path: ${{ github.workspace }}/compiled/
-
+          zip ${{ github.workspace }}/compiled/${{ matrix.arch }}/${{ env.APPLICATION_NAME }}-${{ matrix.arch }}.zip ${{ github.workspace }}/${{ env.APPLICATION_NAME }}
 
   build_container_image:
     needs: [container_quality_dockerfile_lint]
-    runs-on: ubuntu-20.04
-    strategy:
-      matrix:
-        arch: ['amd64', 'arm64']
-
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v2
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-
-      - name: Login to DockerHub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: ${{ env.DOCKERFILE_PATH }}
-          platforms: linux/${{ matrix.arch }}
-          push: false
-          tags: ${{ env.APPLICATION_NAME }}:${{ github.run_number }}-${{ matrix.arch }}
-
-      - name: Save Docker image
-        run: |
-          mkdir -p ${{ github.workspace }}/image/${{ matrix.arch }}
-          docker save -o ${{ github.workspace }}/image/${{ matrix.arch }}/${{ env.APPLICATION_NAME }}.tar ${{ env.APPLICATION_NAME }}:${{ github.run_number }}-${{ matrix.arch }}
-
-      - name: Publish Build Artifacts
-        uses: actions/upload-artifact@v2
-        with:
-          name: dropcontainer-${{ matrix.arch }}
-          path: ${{ github.workspace }}/image/${{ matrix.arch }}/
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    - name: Build arm64 image
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        platforms: linux/arm64
+        push: false
+        tags: ${{ env.QuayImageName }}:arm64
+    - name: Build amd64 image
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        platforms: linux/amd64
+        push: false
+        tags: ${{ env.QuayImageName }}:amd64
+    - name: Build multi-arch image
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        platforms: linux/arm64,linux/amd64
+        push: false
+        tags: ${{ env.QuayImageName }}:latest
 
   gosec_scan:
     needs: [build_go_binary, build_container_image]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Code
@@ -161,7 +142,7 @@ jobs:
 
   trivy_scan:
     needs: [build_go_binary, build_container_image]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2
@@ -193,7 +174,7 @@ jobs:
 
   release_quay:
     needs: [trivy_scan, gosec_scan]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2
@@ -230,7 +211,7 @@ jobs:
 
   release_github_image:
     needs: [trivy_scan, gosec_scan]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2
