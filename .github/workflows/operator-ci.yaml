@@ -91,16 +91,17 @@ jobs:
       - name: Set GOARCH
         run: echo "GOARCH=${{ matrix.arch }}" >> $GITHUB_ENV
       - name: Build Go Binary
-        run: go build -o ${{ github.workspace }}/${{ env.APPLICATION_NAME }}
+        run: go build -o ${{ github.workspace }}/${{ env.APPLICATION_NAME }}/${{ env.APPLICATION_NAME }}
       - name: Archive Binary
         run: |
           mkdir -p ${{ github.workspace }}/compiled/${{ matrix.arch }}
-          zip ${{ github.workspace }}/compiled/${{ matrix.arch }}/${{ env.APPLICATION_NAME }}-${{ matrix.arch }}.zip ${{ env.APPLICATION_NAME }}
+          zip ${{ github.workspace }}/compiled/${{ matrix.arch }}/${{ env.APPLICATION_NAME }}-${{ matrix.arch }}.zip ${{ github.workspace }}/${{ env.APPLICATION_NAME }}/${{ env.APPLICATION_NAME }}
       - name: Publish Build Artifacts
         uses: actions/upload-artifact@v2
         with:
           name: binaries
           path: ${{ github.workspace }}/compiled/
+
 
   build_container_image:
     needs: [container_quality_dockerfile_lint]
@@ -148,21 +149,15 @@ jobs:
   gosec_scan:
     needs: [build_go_binary, build_container_image]
     runs-on: ubuntu-20.04
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2
-
-      - name: Install and Execute Gosec
-        run: |
-          curl -sfL https://raw.githubusercontent.com/securego/gosec/master/install.sh | sh -s latest
-          ./bin/gosec -fmt=junit-xml -out=./bin/results.xml ./... || true
-        shell: bash
-
-      - name: Publish Unit Test Results
-        uses: actions/upload-artifact@v2
+      - name: Gosec Scan
+        uses: securego/gosec@master
         with:
-          name: gosec-results
-          path: ./bin/results.xml
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GOSEC_OUTPUT: "junit-xml:/github/workspace/gosec-results.xml"
 
   trivy_scan:
     needs: [build_go_binary, build_container_image]
