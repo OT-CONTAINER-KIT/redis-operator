@@ -151,7 +151,7 @@ func finalizeRedisClusterPVC(cr *redisv1beta1.RedisCluster) error {
 	logger := finalizerLogger(cr.Namespace, RedisClusterFinalizer)
 	for _, role := range []string{"leader", "follower"} {
 		for i := 0; i < int(cr.Spec.GetReplicaCounts(role)); i++ {
-			PVCName := cr.Name + "-" + cr.Name + "-" + role + "-" + strconv.Itoa(i)
+			PVCName := cr.Name + "-" + role + "-" + cr.Name + "-" + role + "-" + strconv.Itoa(i)
 			err := generateK8sClient().CoreV1().PersistentVolumeClaims(cr.Namespace).Delete(context.TODO(), PVCName, metav1.DeleteOptions{})
 			if err != nil && !errors.IsNotFound(err) {
 				logger.Error(err, "Could not delete Persistent Volume Claim "+PVCName)
