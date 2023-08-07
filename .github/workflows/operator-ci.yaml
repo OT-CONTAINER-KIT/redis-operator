@@ -1,0 +1,144 @@
+name: CI
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+
+env:
+  GolangVersion: 1.17
+  ApplicationName: redis-operator
+  DockerImagName: docker.io/opstree/redis-operator
+  BuildDocs: true
+  AppVersion: "v0.15.0"
+  DOCKERFILE_PATH: '**/Dockerfile'
+
+jobs:
+  gofmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GolangVersion }}
+      - name: Check Go Fmt
+        run: |
+          gofmt_files=$(go fmt ./... | wc -l)
+          if [[ ${gofmt_files} > 0 ]]
+          then
+              echo "Please format golang files using:- go fmt ./..."
+              exit 1
+          else
+              echo "All files are formated using gofmt"
+          fi
+
+  govet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GolangVersion }}
+      - name: Run Go Vet
+        run: go vet ./...
+
+  code_quality_golang_ci_lint:
+    needs: [gofmt, govet]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GolangVersion }}
+      - name: Install GolangCI-Lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.40.0
+      - name: Run GolangCI-Lint
+        run: ./bin/golangci-lint run --timeout 5m0s ./...
+
+  container_quality_dockerfile_lint:
+    needs: [gofmt, govet]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Execute dockerlinter
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+          ignore: DL3007,DL3018
+
+  build_go_binary:
+    needs: [code_quality_golang_ci_lint]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: ['amd64', 'arm64']
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+      - name: Setup Go Environment
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+      - name: Set GOARCH
+        run: echo "GOARCH=${{ matrix.arch }}" >> $GITHUB_ENV
+      - name: Build Go Binary
+        run: go build -o ${{ github.workspace }}/${{ env.APPLICATION_NAME }}
+      - name: Archive Binary
+        run: |
+          mkdir -p ${{ github.workspace }}/compiled/${{ matrix.arch }}
+          zip ${{ github.workspace }}/compiled/${{ matrix.arch }}/${{ env.APPLICATION_NAME }}-${{ matrix.arch }}.zip ${{ github.workspace }}/${{ env.APPLICATION_NAME }}
+
+  build_scan_container_image:
+    needs: [container_quality_dockerfile_lint]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Build arm64 image
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        platforms: linux/arm64
+        push: false
+        tags: ${{ env.DockerImagName }}:arm64
+
+    - name: Build amd64 image
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        platforms: linux/amd64
+        push: false
+        tags: ${{ env.DockerImagName }}:amd64
+    - name: Build multi-arch image
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        platforms: linux/arm64,linux/amd64
+        push: false
+        tags: ${{ env.DockerImagName }}:latest
+
+  gosec_scan:
+    needs: [build_go_binary]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+      - name: Gosec Scan
+        uses: securego/gosec@master
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GOSEC_OUTPUT: "junit-xml:/github/workspace/gosec-results.xml"
+          
