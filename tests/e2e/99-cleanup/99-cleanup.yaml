@@ -1,0 +1,6 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+    - script: |
+        helm uninstall --namespace=ot-container redis-operator
+        kubectl delete namespace ot-container
