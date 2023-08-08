@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - master
+      - ci-*
 
 env:
   GolangVersion: 1.17
@@ -132,7 +133,6 @@ jobs:
   gosec_scan:
     needs: [build_go_binary]
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2
@@ -141,4 +141,24 @@ jobs:
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GOSEC_OUTPUT: "junit-xml:/github/workspace/gosec-results.xml"
+
+  e2e:
+    needs: [build_go_binary, build_scan_container_image]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Install kuttl
+        run: |
+          mkdir -p ./bin
           
+          curl -L https://github.com/kudobuilder/kuttl/releases/download/v0.15.0/kubectl-kuttl_0.15.0_linux_x86_64 -o ./bin/kuttl
+          
+          chmod +x ./bin/kuttl
+          
+          sudo mv ./bin/kuttl /usr/local/bin/kuttl
+
+      - name: Run e2e test
+        run: |
+          kuttl test

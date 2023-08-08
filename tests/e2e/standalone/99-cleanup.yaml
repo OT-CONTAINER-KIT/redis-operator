@@ -1,0 +1,6 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+delete:
+  - apiVersion: redis.redis.opstreelabs.in/v1beta1
+    kind: Redis
+    name: redis-standalone
