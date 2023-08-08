@@ -1,6 +1,7 @@
 apiVersion: kuttl.dev/v1beta1
 kind: TestSuite
-startKIND: false
+startKIND: true
+kindConfig: "./kind-config.yaml"
 crdDir: "./config/crd/bases"
 testDirs:
 - "./tests/e2e/"
