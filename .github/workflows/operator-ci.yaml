@@ -150,13 +150,10 @@ jobs:
 
       - name: Install kuttl
         run: |
-          mkdir -p ./bin
           
-          curl -L https://github.com/kudobuilder/kuttl/releases/download/v0.15.0/kubectl-kuttl_0.15.0_linux_x86_64 -o ./bin/kuttl
+          curl -L https://github.com/kudobuilder/kuttl/releases/download/v0.15.0/kubectl-kuttl_0.15.0_linux_x86_64 -o /usr/local/bin/kuttl
           
-          chmod +x ./bin/kuttl
-          
-          sudo mv ./bin/kuttl /usr/local/bin/kuttl
+          chmod +x /usr/local/bin/kuttl
 
       - name: Run e2e test
         run: |
