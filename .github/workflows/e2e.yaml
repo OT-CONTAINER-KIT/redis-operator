@@ -30,6 +30,22 @@ jobs:
           push: false
           tags: ${{ env.Image }}
 
+      - name: Create k8s Kind Cluster
+        uses: helm/kind-action@v1.5.0
+
+      - name: Build Docker image
+        run: |
+          docker build -t redis-operator:latest .
+
+      - name: deploy redis-operator to cluster
+        uses: wahyd4/kubectl-helm-action@master
+        with:
+          args: |
+            helm repo add ot-helm https://ot-container-kit.github.io/helm-charts/
+            helm repo update
+            helm install --create-namespace --namespace=ot-container redis-operator ot-helm/redis-operator \
+            --set redisOperator.imageName=redis-operator --set redisOperator.imageTag=latest
+
       - name: Install kuttl
         run: |
           
