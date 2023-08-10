@@ -1,0 +1,12 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestSuite
+startKIND: true
+kindConfig: "./kind-config.yaml"
+crdDir: "./config/crd/bases"
+testDirs:
+- "./tests/e2e/"
+# parallel: 3
+timeout: 1000
+namespace : ot-container
+suppress : 
+  - events
