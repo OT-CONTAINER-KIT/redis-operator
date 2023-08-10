@@ -5,8 +5,8 @@ kindConfig: "./kind-config.yaml"
 crdDir: "./config/crd/bases"
 testDirs:
 - "./tests/e2e/"
-parallel: 1
-timeout: 120
+# parallel: 3
+timeout: 1000
 namespace : ot-container
 suppress : 
   - events

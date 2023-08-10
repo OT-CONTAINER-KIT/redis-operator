@@ -6,6 +6,9 @@ metadata:
 spec:
   # redisConfig:
   #   additionalRedisConfig: redis-external-config
+  podSecurityContext:
+    runAsUser: 1000
+    fsGroup: 1000  
   kubernetesConfig:
     image: quay.io/opstree/redis:v7.0.5
     imagePullPolicy: IfNotPresent
