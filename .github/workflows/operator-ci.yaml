@@ -125,4 +125,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
           GOSEC_OUTPUT: "junit-xml:/github/workspace/gosec-results.xml"
-          
+
