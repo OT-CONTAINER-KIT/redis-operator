@@ -69,6 +69,7 @@ The following table shows the compatibility between the Operator Version, Redis 
 
 | Operator Version | Redis Image | Sentinel Image | Exporter Image |
 |------------------|-------------|----------------|----------------|
+| v0.15.0          | v7.0.12     | v7.0.12        | v1.48.0        |
 | v0.15.0          | v7.0.11     | v7.0.11        | v1.48.0        |
 | v0.14.0          | v7.0.7      | v7.0.7         | v1.48.0        |
 | v0.13.0          | v6.2.5      | nil            | v1.48.0        |
@@ -122,33 +123,6 @@ $ helm upgrade redis-sentinel ot-helm/sentinel \
   --install --namespace ot-operators
 ```
 
-If you used this just for testing and development purpose you can delete the resources associated with it
-
-```shell
-# Delete the Redis standalone setup
-$ helm uninstall redis --namespace ot-operators
-```
-
-```shell
-# Delete the Redis cluster setup
-$ helm uninstall redis-cluster --namespace ot-operators
-```
-
-```shell
-# Delete the Redis replication setup
-$ helm uninstall redis-replication --namespace ot-operators
-```
-
-```shell
-# Delete the Redis sentinel setup
-$ helm uninstall redis-sentinel --namespace ot-operators
-```
-
-```shell
-# Delete the Redis operator 
-$ helm uninstall redis-operator --namespace ot-operators 
-```
-
 If you want to customize the value file by yourself while initializing the helm command, the values files for reference are present [here](https://github.com/OT-CONTAINER-KIT/helm-charts/tree/main/charts/redis-setup).
 
 ## Monitoring with Prometheus
@@ -172,4 +146,6 @@ Please see our [CHANGELOG.md](./CHANGELOG.md) for details.
 
 ## Contact Information
 
-This project is managed by [OpsTree Solutions](http://opstree.com). If you have any queries or suggestions, mail us at [opensource@opstree.com](opensource@opstree.com).
+This project is managed by [OpsTree Solutions](http://opstree.com). For any queries or suggestions, you can reach out to us at [opensource@opstree.com](mailto:opensource@opstree.com).
+
+Join our Slack Channel: [#redis-operator](https://opstree.slack.com/archives/C05MBRB50JG).
