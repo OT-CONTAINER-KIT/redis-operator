@@ -32,13 +32,13 @@ func getRedisPassword(namespace, name, secretKey string) (string, error) {
 }
 
 func secretLogger(namespace string, name string) logr.Logger {
-	reqLogger := log.WithValues("Request.Secret.Namespace", namespace, "Request.Secret.Name", name)
+	reqLogger := log.V(1).WithValues("Request.Secret.Namespace", namespace, "Request.Secret.Name", name)
 	return reqLogger
 }
 
 func getRedisTLSConfig(cr *redisv1beta1.RedisCluster, redisInfo RedisDetails) *tls.Config {
 	if cr.Spec.TLS != nil {
-		reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
+		reqLogger := log.V(1).WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
 		secretName, err := generateK8sClient().CoreV1().Secrets(cr.Namespace).Get(context.TODO(), cr.Spec.TLS.Secret.SecretName, metav1.GetOptions{})
 		if err != nil {
 			reqLogger.Error(err, "Failed in getting TLS secret for redis")
@@ -86,7 +86,7 @@ func getRedisTLSConfig(cr *redisv1beta1.RedisCluster, redisInfo RedisDetails) *t
 
 func getRedisReplicationTLSConfig(cr *redisv1beta1.RedisReplication, redisInfo RedisDetails) *tls.Config {
 	if cr.Spec.TLS != nil {
-		reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
+		reqLogger := log.V(1).WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
 		secretName, err := generateK8sClient().CoreV1().Secrets(cr.Namespace).Get(context.TODO(), cr.Spec.TLS.Secret.SecretName, metav1.GetOptions{})
 		if err != nil {
 			reqLogger.Error(err, "Failed in getting TLS secret for redis")

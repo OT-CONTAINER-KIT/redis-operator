@@ -429,7 +429,7 @@ func checkRedisNodePresence(cr *redisv1beta1.RedisCluster, nodeList [][]string, 
 
 // generateRedisManagerLogger will generate logging interface for Redis operations
 func generateRedisManagerLogger(namespace, name string) logr.Logger {
-	reqLogger := log.WithValues("Request.RedisManager.Namespace", namespace, "Request.RedisManager.Name", name)
+	reqLogger := log.V(1).WithValues("Request.RedisManager.Namespace", namespace, "Request.RedisManager.Name", name)
 	return reqLogger
 }
 
@@ -568,7 +568,7 @@ func CreateMasterSlaveReplication(cr *redisv1beta1.RedisReplication, masterPods 
 
 			redisClient := configureRedisReplicationClient(cr, masterPods[i])
 			defer redisClient.Close()
-			log.Info("Setting the", "pod", masterPods[i], "to slave of", realMasterPod)
+			logger.Info("Setting the", "pod", masterPods[i], "to slave of", realMasterPod)
 			err := redisClient.SlaveOf(realMasterPodIP, "6379").Err()
 			if err != nil {
 				logger.Error(err, "Failed to set", "pod", masterPods[i], "to slave of", realMasterPod)

@@ -126,7 +126,7 @@ func getService(namespace string, service string) (*corev1.Service, error) {
 }
 
 func serviceLogger(namespace string, name string) logr.Logger {
-	reqLogger := log.WithValues("Request.Service.Namespace", namespace, "Request.Service.Name", name)
+	reqLogger := log.V(1).WithValues("Request.Service.Namespace", namespace, "Request.Service.Name", name)
 	return reqLogger
 }
 

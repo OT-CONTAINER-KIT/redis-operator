@@ -177,6 +177,6 @@ func GetPodDisruptionBudget(namespace string, pdb string) (*policyv1.PodDisrupti
 
 // pdbLogger will generate logging interface for PodDisruptionBudgets
 func pdbLogger(namespace string, name string) logr.Logger {
-	reqLogger := log.WithValues("Request.PodDisruptionBudget.Namespace", namespace, "Request.PodDisruptionBudget.Name", name)
+	reqLogger := log.V(1).WithValues("Request.PodDisruptionBudget.Namespace", namespace, "Request.PodDisruptionBudget.Name", name)
 	return reqLogger
 }

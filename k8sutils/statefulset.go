@@ -680,7 +680,7 @@ func GetStatefulSet(namespace string, stateful string) (*appsv1.StatefulSet, err
 
 // statefulSetLogger will generate logging interface for Statfulsets
 func statefulSetLogger(namespace string, name string) logr.Logger {
-	reqLogger := log.WithValues("Request.StatefulSet.Namespace", namespace, "Request.StatefulSet.Name", name)
+	reqLogger := log.V(1).WithValues("Request.StatefulSet.Namespace", namespace, "Request.StatefulSet.Name", name)
 	return reqLogger
 }
 

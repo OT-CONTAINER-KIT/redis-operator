@@ -65,7 +65,7 @@ func ReshardRedisCluster(cr *redisv1beta1.RedisCluster) {
 	logger.Info("Redis cluster reshard command is", "Command", cmd)
 
 	if slot == "0" {
-		log.Info("Skipped the execution of", "Cmd", cmd)
+		logger.Info("Skipped the execution of", "Cmd", cmd)
 		return
 	}
 	executeCommand(cr, cmd, cr.ObjectMeta.Name+"-leader-0")
