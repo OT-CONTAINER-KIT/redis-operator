@@ -93,6 +93,9 @@ func generateRedisReplicationParams(cr *redisv1beta1.RedisReplication) statefulS
 	if cr.Spec.ServiceAccountName != nil {
 		res.ServiceAccountName = cr.Spec.ServiceAccountName
 	}
+	if _, found := cr.ObjectMeta.GetAnnotations()[AnnotationKeyRecreateStatefulset]; found {
+		res.RecreateStatefulSet = true
+	}
 	return res
 }
 
