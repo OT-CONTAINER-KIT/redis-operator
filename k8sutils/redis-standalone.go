@@ -96,7 +96,7 @@ func generateRedisStandaloneParams(cr *redisv1beta2.Redis) statefulSetParameters
 	if cr.Spec.ServiceAccountName != nil {
 		res.ServiceAccountName = cr.Spec.ServiceAccountName
 	}
-	if _, found := cr.ObjectMeta.GetAnnotations()["redis.opstreelabs.in/recreate-statefulset"]; found {
+	if _, found := cr.ObjectMeta.GetAnnotations()[AnnotationKeyRecreateStatefulset]; found {
 		res.RecreateStatefulSet = true
 	}
 	return res

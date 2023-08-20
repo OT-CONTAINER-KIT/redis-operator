@@ -52,7 +52,7 @@ func generateRedisClusterParams(cr *redisv1beta2.RedisCluster, replicas int32, e
 	if externalConfig != nil {
 		res.ExternalConfig = externalConfig
 	}
-	if _, found := cr.ObjectMeta.GetAnnotations()["redis.opstreelabs.in/recreate-statefulset"]; found {
+	if _, found := cr.ObjectMeta.GetAnnotations()[AnnotationKeyRecreateStatefulset]; found {
 		res.RecreateStatefulSet = true
 	}
 	return res
