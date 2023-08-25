@@ -2,6 +2,10 @@
 
 Follow the steps below to restore a Redis backup from Amazon S3, Google Cloud Storage, or Azure Blob.
 
+## Prerequisites
+
+- Credentials and access to an S3 bucket, Google Cloud Storage or azure blob.
+
 ## Steps
 
 ### 1. Set Up the Restore Environment
