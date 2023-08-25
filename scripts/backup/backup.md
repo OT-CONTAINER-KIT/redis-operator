@@ -13,7 +13,7 @@ This guide will walk you through the process of backing up Redis to S3, Google C
 * For **Manual Backups**: Copy the backup-user.bash scrip in Dockerfile.kubectl
 * For **Automated Backups** (using cronjobs/jobs): Use the backup.bash script.
 
-> 🚨 Important: If you're utilizing the backup.bash script, environment variables must be provided as arguments.
+> 🚨 Important: If you're utilizing the backup.bash script, environment variables must be provided.
 
 ### 2. Set Up the Backup Environment
 
@@ -34,5 +34,7 @@ For the job/cron you need to configure env You can achieve it as explained below
 ```bash
 source ./env_vars.env
 ```
+
+> For a more secure approach, utilize Kubernetes secrets to manage and pass your environment variables.
 
 You can refer to the example `env_vars.env` file located at `./scripts/backup/env_vars.env`.
