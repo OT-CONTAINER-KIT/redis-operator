@@ -16,4 +16,5 @@ RUN chmod +x kubectl
 RUN mv kubectl /usr/local/bin/
 
 COPY backup-user.bash /backup
-COPY env_vars.env /backup
+# COPY backup.bash /backup
+# COPY env_vars.env /backup
