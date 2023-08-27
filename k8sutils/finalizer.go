@@ -22,7 +22,7 @@ const (
 
 // finalizeLogger will generate logging interface
 func finalizerLogger(namespace string, name string) logr.Logger {
-	reqLogger := log.V(1).WithValues("Request.Service.Namespace", namespace, "Request.Finalizer.Name", name)
+	reqLogger := log.WithValues("Request.Service.Namespace", namespace, "Request.Finalizer.Name", name)
 	return reqLogger
 }
 

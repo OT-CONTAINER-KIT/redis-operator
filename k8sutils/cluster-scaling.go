@@ -62,10 +62,10 @@ func ReshardRedisCluster(cr *redisv1beta1.RedisCluster) {
 
 	cmd = append(cmd, "--cluster-yes")
 
-	logger.Info("Redis cluster reshard command is", "Command", cmd)
+	logger.V(1).Info("Redis cluster reshard command is", "Command", cmd)
 
 	if slot == "0" {
-		logger.Info("Skipped the execution of", "Cmd", cmd)
+		logger.V(1).Info("Skipped the execution of", "Cmd", cmd)
 		return
 	}
 	executeCommand(cr, cmd, cr.ObjectMeta.Name+"-leader-0")
@@ -106,7 +106,7 @@ func getRedisClusterSlots(cr *redisv1beta1.RedisCluster, nodeID string) string {
 		}
 	}
 
-	logger.Info("Total cluster slots to be transfered from", "node", nodeID, "is", totalSlots)
+	logger.V(1).Info("Total cluster slots to be transfered from", "node", nodeID, "is", totalSlots)
 
 	return strconv.Itoa(totalSlots)
 }
@@ -136,7 +136,7 @@ func getRedisNodeID(cr *redisv1beta1.RedisCluster, pod RedisDetails) string {
 		logger.Error(err, "Redis command failed with this error")
 		return ""
 	}
-	logger.Info("Redis node ID ", "is", output)
+	logger.V(1).Info("Redis node ID ", "is", output)
 	return output
 }
 
@@ -170,7 +170,7 @@ func RebalanceRedisClusterEmptyMasters(cr *redisv1beta1.RedisCluster) {
 
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.ObjectMeta.Name+"-leader-0")...)
 
-	logger.Info("Redis cluster rebalance command is", "Command", cmd)
+	logger.V(1).Info("Redis cluster rebalance command is", "Command", cmd)
 	executeCommand(cr, cmd, cr.ObjectMeta.Name+"-leader-1")
 }
 
@@ -187,7 +187,7 @@ func CheckIfEmptyMasters(cr *redisv1beta1.RedisCluster) {
 		podSlots := getRedisClusterSlots(cr, podNodeID)
 
 		if podSlots == "0" || podSlots == "" {
-			logger.Info("Found Empty Redis Leader Node", "pod", pod)
+			logger.V(1).Info("Found Empty Redis Leader Node", "pod", pod)
 			RebalanceRedisClusterEmptyMasters(cr)
 			break
 		}
@@ -222,7 +222,7 @@ func RebalanceRedisCluster(cr *redisv1beta1.RedisCluster) {
 
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.ObjectMeta.Name+"-leader-0")...)
 
-	logger.Info("Redis cluster rebalance command is", "Command", cmd)
+	logger.V(1).Info("Redis cluster rebalance command is", "Command", cmd)
 	executeCommand(cr, cmd, cr.ObjectMeta.Name+"-leader-1")
 }
 
@@ -262,7 +262,7 @@ func AddRedisNodeToCluster(cr *redisv1beta1.RedisCluster) {
 
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.ObjectMeta.Name+"-leader-0")...)
 
-	logger.Info("Redis cluster add-node command is", "Command", cmd)
+	logger.V(1).Info("Redis cluster add-node command is", "Command", cmd)
 	executeCommand(cr, cmd, cr.ObjectMeta.Name+"-leader-0")
 }
 
@@ -292,7 +292,7 @@ func getAttachedFollowerNodeIDs(cr *redisv1beta1.RedisCluster, masterNodeID stri
 
 	}
 
-	logger.Info("Slaves Nodes attached to", "node", masterNodeID, "are", slaveIDs)
+	logger.V(1).Info("Slaves Nodes attached to", "node", masterNodeID, "are", slaveIDs)
 	return slaveIDs
 }
 
@@ -336,7 +336,7 @@ func RemoveRedisFollowerNodesFromCluster(cr *redisv1beta1.RedisCluster) {
 	for _, followerNodeID := range followerNodeIDs {
 
 		cmd = append(cmd, followerNodeID)
-		logger.Info("Redis cluster follower remove command is", "Command", cmd)
+		logger.V(1).Info("Redis cluster follower remove command is", "Command", cmd)
 		executeCommand(cr, cmd, cr.ObjectMeta.Name+"-leader-0")
 		cmd = cmd[:len(cmd)-1]
 	}
@@ -379,9 +379,9 @@ func RemoveRedisNodeFromCluster(cr *redisv1beta1.RedisCluster) {
 
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.ObjectMeta.Name+"-leader-0")...)
 
-	logger.Info("Redis cluster leader remove command is", "Command", cmd)
+	logger.V(1).Info("Redis cluster leader remove command is", "Command", cmd)
 	if getRedisClusterSlots(cr, removePodNodeID) != "0" {
-		logger.Info("Skipping execution remove leader not empty", "cmd", cmd)
+		logger.V(1).Info("Skipping execution remove leader not empty", "cmd", cmd)
 	}
 	executeCommand(cr, cmd, cr.ObjectMeta.Name+"-leader-0")
 }
@@ -440,6 +440,6 @@ func ClusterFailover(cr *redisv1beta1.RedisCluster) {
 
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, slavePodName)...)
 
-	logger.Info("Redis cluster failover command is", "Command", cmd)
+	logger.V(1).Info("Redis cluster failover command is", "Command", cmd)
 	executeCommand(cr, cmd, slavePodName)
 }

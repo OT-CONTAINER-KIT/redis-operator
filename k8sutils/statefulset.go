@@ -123,7 +123,7 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 		return err
 	}
 	if !patchResult.IsEmpty() {
-		logger.Info("Changes in statefulset Detected, Updating...", "patch", string(patchResult.Patch))
+		logger.V(1).Info("Changes in statefulset Detected, Updating...", "patch", string(patchResult.Patch))
 		if len(newStateful.Spec.VolumeClaimTemplates) >= 1 && len(newStateful.Spec.VolumeClaimTemplates) == len(storedStateful.Spec.VolumeClaimTemplates) {
 			// Field is immutable therefore we MUST keep it as is.
 			if !apiequality.Semantic.DeepEqual(newStateful.Spec.VolumeClaimTemplates[0].Spec, storedStateful.Spec.VolumeClaimTemplates[0].Spec) {
@@ -203,7 +203,7 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 		}
 		return updateStatefulSet(namespace, newStateful, recreateStateFulSet)
 	}
-	logger.Info("Reconciliation Complete, no Changes required.")
+	logger.V(1).Info("Reconciliation Complete, no Changes required.")
 	return nil
 }
 
@@ -633,7 +633,7 @@ func createStatefulSet(namespace string, stateful *appsv1.StatefulSet) error {
 		logger.Error(err, "Redis stateful creation failed")
 		return err
 	}
-	logger.Info("Redis stateful successfully created")
+	logger.V(1).Info("Redis stateful successfully created")
 	return nil
 }
 
@@ -648,7 +648,7 @@ func updateStatefulSet(namespace string, stateful *appsv1.StatefulSet, recreateS
 			for messageCount, cause := range sErr.ErrStatus.Details.Causes {
 				failMsg[messageCount] = cause.Message
 			}
-			logger.Info("recreating StatefulSet because the update operation wasn't possible", "reason", strings.Join(failMsg, ", "))
+			logger.V(1).Info("recreating StatefulSet because the update operation wasn't possible", "reason", strings.Join(failMsg, ", "))
 			propagationPolicy := metav1.DeletePropagationForeground
 			if err := generateK8sClient().AppsV1().StatefulSets(namespace).Delete(context.TODO(), stateful.GetName(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}); err != nil {
 				return errors.Wrap(err, "failed to delete StatefulSet to avoid forbidden action")
@@ -659,7 +659,7 @@ func updateStatefulSet(namespace string, stateful *appsv1.StatefulSet, recreateS
 		logger.Error(err, "Redis statefulset update failed")
 		return err
 	}
-	logger.Info("Redis statefulset successfully updated ")
+	logger.V(1).Info("Redis statefulset successfully updated ")
 	return nil
 }
 
@@ -674,13 +674,13 @@ func GetStatefulSet(namespace string, stateful string) (*appsv1.StatefulSet, err
 		logger.Info("Redis statefulset get action failed")
 		return nil, err
 	}
-	logger.Info("Redis statefulset get action was successful")
+	logger.V(1).Info("Redis statefulset get action was successful")
 	return statefulInfo, nil
 }
 
 // statefulSetLogger will generate logging interface for Statfulsets
 func statefulSetLogger(namespace string, name string) logr.Logger {
-	reqLogger := log.V(1).WithValues("Request.StatefulSet.Namespace", namespace, "Request.StatefulSet.Name", name)
+	reqLogger := log.WithValues("Request.StatefulSet.Namespace", namespace, "Request.StatefulSet.Name", name)
 	return reqLogger
 }
 

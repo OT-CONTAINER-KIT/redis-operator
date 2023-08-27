@@ -94,7 +94,7 @@ func createService(namespace string, service *corev1.Service) error {
 		logger.Error(err, "Redis service creation is failed")
 		return err
 	}
-	logger.Info("Redis service creation is successful")
+	logger.V(1).Info("Redis service creation is successful")
 	return nil
 }
 
@@ -106,7 +106,7 @@ func updateService(namespace string, service *corev1.Service) error {
 		logger.Error(err, "Redis service update failed")
 		return err
 	}
-	logger.Info("Redis service updated successfully")
+	logger.V(1).Info("Redis service updated successfully")
 	return nil
 }
 
@@ -121,12 +121,12 @@ func getService(namespace string, service string) (*corev1.Service, error) {
 		logger.Info("Redis service get action is failed")
 		return nil, err
 	}
-	logger.Info("Redis service get action is successful")
+	logger.V(1).Info("Redis service get action is successful")
 	return serviceInfo, nil
 }
 
 func serviceLogger(namespace string, name string) logr.Logger {
-	reqLogger := log.V(1).WithValues("Request.Service.Namespace", namespace, "Request.Service.Name", name)
+	reqLogger := log.WithValues("Request.Service.Namespace", namespace, "Request.Service.Name", name)
 	return reqLogger
 }
 
@@ -169,7 +169,7 @@ func patchService(storedService *corev1.Service, newService *corev1.Service, nam
 		return err
 	}
 	if !patchResult.IsEmpty() {
-		logger.Info("Changes in service Detected, Updating...", "patch", string(patchResult.Patch))
+		logger.V(1).Info("Changes in service Detected, Updating...", "patch", string(patchResult.Patch))
 
 		for key, value := range storedService.Annotations {
 			if _, present := newService.Annotations[key]; !present {
@@ -180,9 +180,9 @@ func patchService(storedService *corev1.Service, newService *corev1.Service, nam
 			logger.Error(err, "Unable to patch redis service with comparison object")
 			return err
 		}
-		logger.Info("Syncing Redis service with defined properties")
+		logger.V(1).Info("Syncing Redis service with defined properties")
 		return updateService(namespace, newService)
 	}
-	logger.Info("Redis service is already in-sync")
+	logger.V(1).Info("Redis service is already in-sync")
 	return nil
 }
