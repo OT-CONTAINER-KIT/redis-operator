@@ -10,7 +10,7 @@ spec:
     fsGroup: 1000
   pdb:
     enabled: false
-    minAvailable: 2
+    minAvailable: 1
   redisSentinelConfig: 
     redisReplicationName : redis-replication
   kubernetesConfig:
