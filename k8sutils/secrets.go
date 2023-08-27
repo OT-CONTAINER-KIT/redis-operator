@@ -70,7 +70,7 @@ func getRedisTLSConfig(cr *redisv1beta1.RedisCluster, redisInfo RedisDetails) *t
 		tlsCaCertificates = x509.NewCertPool()
 		ok := tlsCaCertificates.AppendCertsFromPEM(tlsCaCertificate)
 		if !ok {
-			reqLogger.Info("Failed to load CA Certificates from Secret")
+			reqLogger.V(1).Info("Failed to load CA Certificates from Secret")
 		}
 
 		return &tls.Config{
@@ -118,7 +118,7 @@ func getRedisReplicationTLSConfig(cr *redisv1beta1.RedisReplication, redisInfo R
 		tlsCaCertificates = x509.NewCertPool()
 		ok := tlsCaCertificates.AppendCertsFromPEM(tlsCaCertificate)
 		if !ok {
-			reqLogger.Info("Failed to load CA Certificates from Secret")
+			reqLogger.V(1).Info("Failed to load CA Certificates from Secret")
 		}
 
 		return &tls.Config{
