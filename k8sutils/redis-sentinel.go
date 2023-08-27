@@ -291,7 +291,7 @@ func getRedisReplicationMasterIP(cr *redisv1beta2.RedisSentinel) string {
 		logger.Error(err, "Failed to Execute Get Request", "replication name", replicationName, "namespace", replicationNamespace)
 		return ""
 	} else {
-		logger.Info("Successfully Execute the Get Request", "replication name", replicationName, "namespace", replicationNamespace)
+		logger.V(1).Info("Successfully Execute the Get Request", "replication name", replicationName, "namespace", replicationNamespace)
 	}
 
 	// Marshal CustomObject to JSON

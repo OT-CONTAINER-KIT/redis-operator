@@ -30,7 +30,7 @@ func ReconcileRedisPodDisruptionBudget(cr *redisv1beta2.RedisCluster, role strin
 		if err == nil {
 			return deletePodDisruptionBudget(cr.Namespace, pdbName)
 		} else if err != nil && errors.IsNotFound(err) {
-			logger.Info("Reconciliation Successful, no PodDisruptionBudget Found.")
+			logger.V(1).Info("Reconciliation Successful, no PodDisruptionBudget Found.")
 			// Its ok if its not found, as we're deleting anyway
 			return nil
 		}
@@ -104,7 +104,7 @@ func patchPodDisruptionBudget(storedPdb *policyv1.PodDisruptionBudget, newPdb *p
 		return err
 	}
 	if !patchResult.IsEmpty() {
-		logger.Info("Changes in PodDisruptionBudget Detected, Updating...",
+		logger.V(1).Info("Changes in PodDisruptionBudget Detected, Updating...",
 			"patch", string(patchResult.Patch),
 			"Current", string(patchResult.Current),
 			"Original", string(patchResult.Original),
@@ -132,7 +132,7 @@ func createPodDisruptionBudget(namespace string, pdb *policyv1.PodDisruptionBudg
 		logger.Error(err, "Redis PodDisruptionBudget creation failed")
 		return err
 	}
-	logger.Info("Redis PodDisruptionBudget creation was successful")
+	logger.V(1).Info("Redis PodDisruptionBudget creation was successful")
 	return nil
 }
 
@@ -144,7 +144,7 @@ func updatePodDisruptionBudget(namespace string, pdb *policyv1.PodDisruptionBudg
 		logger.Error(err, "Redis PodDisruptionBudget update failed")
 		return err
 	}
-	logger.Info("Redis PodDisruptionBudget update was successful", "PDB.Spec", pdb.Spec)
+	logger.V(1).Info("Redis PodDisruptionBudget update was successful", "PDB.Spec", pdb.Spec)
 	return nil
 }
 
@@ -156,7 +156,7 @@ func deletePodDisruptionBudget(namespace string, pdbName string) error {
 		logger.Error(err, "Redis PodDisruption deletion failed")
 		return err
 	}
-	logger.Info("Redis PodDisruption delete was successful")
+	logger.V(1).Info("Redis PodDisruption delete was successful")
 	return nil
 }
 
@@ -171,7 +171,7 @@ func GetPodDisruptionBudget(namespace string, pdb string) (*policyv1.PodDisrupti
 		logger.Info("Redis PodDisruptionBudget get action failed")
 		return nil, err
 	}
-	logger.Info("Redis PodDisruptionBudget get action was successful")
+	logger.V(1).Info("Redis PodDisruptionBudget get action was successful")
 	return pdbInfo, err
 }
 
