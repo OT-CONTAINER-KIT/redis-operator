@@ -50,6 +50,11 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
+	err = k8sutils.ReconcileSentinelPodDisruptionBudget(instance, instance.Spec.PodDisruptionBudget)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	// Create the Service for Redis Sentinel
 	err = k8sutils.CreateRedisSentinelService(instance)
 	if err != nil {
