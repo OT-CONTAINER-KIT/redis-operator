@@ -8,6 +8,9 @@ spec:
   podSecurityContext:
     runAsUser: 1000
     fsGroup: 1000
+  pdb:
+    enabled: false
+    minAvailable: 2
   redisSentinelConfig: 
     redisReplicationName : redis-replication
   kubernetesConfig:

@@ -38,6 +38,29 @@ func ReconcileRedisPodDisruptionBudget(cr *redisv1beta1.RedisCluster, role strin
 	}
 }
 
+func ReconcileSentinelPodDisruptionBudget(cr *redisv1beta1.RedisSentinel, pdbParams *redisv1beta1.RedisPodDisruptionBudget) error {
+	pdbName := cr.ObjectMeta.Name + "-sentinel"
+	logger := pdbLogger(cr.Namespace, pdbName)
+	if pdbParams != nil && pdbParams.Enabled {
+		labels := getRedisLabels(cr.ObjectMeta.Name, "sentinel", "sentinel", cr.ObjectMeta.GetLabels())
+		annotations := generateStatefulSetsAnots(cr.ObjectMeta)
+		pdbMeta := generateObjectMetaInformation(pdbName, cr.Namespace, labels, annotations)
+		pdbDef := generateSentinelPodDisruptionBudgetDef(cr, "sentinel", pdbMeta, pdbParams)
+		return CreateOrUpdatePodDisruptionBudget(pdbDef)
+	} else {
+		// Check if one exists, and delete it.
+		_, err := GetPodDisruptionBudget(cr.Namespace, pdbName)
+		if err == nil {
+			return deletePodDisruptionBudget(cr.Namespace, pdbName)
+		} else if err != nil && errors.IsNotFound(err) {
+			logger.V(1).Info("Reconciliation Successful, no PodDisruptionBudget Found.")
+			// Its ok if its not found, as we're deleting anyway
+			return nil
+		}
+		return err
+	}
+}
+
 // generatePodDisruptionBudgetDef will create a PodDisruptionBudget definition
 func generatePodDisruptionBudgetDef(cr *redisv1beta1.RedisCluster, role string, pdbMeta metav1.ObjectMeta, pdbParams *redisv1beta1.RedisPodDisruptionBudget) *policyv1.PodDisruptionBudget {
 	lblSelector := LabelSelectors(map[string]string{
@@ -62,6 +85,33 @@ func generatePodDisruptionBudgetDef(cr *redisv1beta1.RedisCluster, role string, 
 		pdbTemplate.Spec.MinAvailable = &intstr.IntOrString{Type: intstr.Int, IntVal: int32((*cr.Spec.Size / 2) + 1)}
 	}
 	AddOwnerRefToObject(pdbTemplate, redisClusterAsOwner(cr))
+	return pdbTemplate
+}
+
+// generatePodDisruptionBudgetDef will create a PodDisruptionBudget definition
+func generateSentinelPodDisruptionBudgetDef(cr *redisv1beta1.RedisSentinel, role string, pdbMeta metav1.ObjectMeta, pdbParams *redisv1beta1.RedisPodDisruptionBudget) *policyv1.PodDisruptionBudget {
+	lblSelector := LabelSelectors(map[string]string{
+		"app":  fmt.Sprintf("%s-%s", cr.ObjectMeta.Name, role),
+		"role": role,
+	})
+	pdbTemplate := &policyv1.PodDisruptionBudget{
+		TypeMeta:   generateMetaInformation("PodDisruptionBudget", "policy/v1"),
+		ObjectMeta: pdbMeta,
+		Spec: policyv1.PodDisruptionBudgetSpec{
+			Selector: lblSelector,
+		},
+	}
+	if pdbParams.MinAvailable != nil {
+		pdbTemplate.Spec.MinAvailable = &intstr.IntOrString{Type: intstr.Int, IntVal: int32(*pdbParams.MinAvailable)}
+	}
+	if pdbParams.MaxUnavailable != nil {
+		pdbTemplate.Spec.MaxUnavailable = &intstr.IntOrString{Type: intstr.Int, IntVal: int32(*pdbParams.MaxUnavailable)}
+	}
+	// If we don't have a value for either, assume quorum: (N/2)+1
+	if pdbTemplate.Spec.MaxUnavailable == nil && pdbTemplate.Spec.MinAvailable == nil {
+		pdbTemplate.Spec.MinAvailable = &intstr.IntOrString{Type: intstr.Int, IntVal: int32((*cr.Spec.Size / 2) + 1)}
+	}
+	AddOwnerRefToObject(pdbTemplate, redisSentinelAsOwner(cr))
 	return pdbTemplate
 }
 
