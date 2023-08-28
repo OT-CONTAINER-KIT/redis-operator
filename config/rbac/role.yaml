@@ -11,6 +11,10 @@ rules:
   - redisclusters
   - redis
   - rediscluster
+  - redisreplication
+  - redisreplications
+  - redissentinel
+  - redissentinels
   verbs:
   - create
   - delete
