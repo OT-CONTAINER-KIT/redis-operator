@@ -46,14 +46,13 @@ type ExistingPasswordSecret struct {
 
 // Storage is the inteface to add pvc and pv support in redis
 type Storage struct {
-	common.Storage `json:",inline"`
+	CommonAttributes common.Storage `json:",inline"`
 }
 
 // Node-conf needs to be added only in redis cluster
 type ClusterStorage struct {
-	VolumeClaimTemplate         corev1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
 	NodeConfVolumeClaimTemplate corev1.PersistentVolumeClaim `json:"nodeConfVolumeClaimTemplate,omitempty"`
-	common.AdditionalVolume     `json:",inline"`
+	CommonAttributes            common.Storage               `json:",inline"`
 }
 
 // RedisExporter interface will have the information for redis exporter related stuff

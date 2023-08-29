@@ -25,7 +25,7 @@ func (src *Redis) ConvertTo(dstRaw conversion.Hub) error {
 	}
 	// Storage
 	if src.Spec.Storage != nil {
-		dst.Spec.Storage.Storage = src.Spec.Storage.Storage
+		dst.Spec.Storage.CommonAttributes = src.Spec.Storage.CommonAttributes
 	}
 	// NodeSelector
 	if src.Spec.NodeSelector != nil {
@@ -97,14 +97,14 @@ func (dst *Redis) ConvertFrom(srcRaw conversion.Hub) error {
 	}
 	// Storage
 	if src.Spec.Storage != nil {
-		dst.Spec.Storage.Storage = src.Spec.Storage.Storage
+		dst.Spec.Storage.CommonAttributes = src.Spec.Storage.CommonAttributes
 	}
 	// NodeSelector
 	if src.Spec.NodeSelector != nil {
 		dst.Spec.NodeSelector = src.Spec.NodeSelector
 	}
 	//  PodSecurityContext >> SecurityContext
-	if src.Spec.SecurityContext != nil {
+	if src.Spec.PodSecurityContext != nil {
 		dst.Spec.SecurityContext = src.Spec.PodSecurityContext
 	}
 	// PriorityClassName
