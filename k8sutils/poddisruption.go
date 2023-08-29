@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/go-logr/logr"
@@ -14,14 +15,14 @@ import (
 )
 
 // CreateRedisLeaderPodDisruptionBudget check and create a PodDisruptionBudget for Leaders
-func ReconcileRedisPodDisruptionBudget(cr *redisv1beta2.RedisCluster, role string, pdbParams *redisv1beta2.RedisPodDisruptionBudget) error {
+func ReconcileRedisPodDisruptionBudget(cr *redisv1beta2.RedisCluster, role string, pdbParams *commonapi.RedisPodDisruptionBudget) error {
 	pdbName := cr.ObjectMeta.Name + "-" + role
 	logger := pdbLogger(cr.Namespace, pdbName)
 	if pdbParams != nil && pdbParams.Enabled {
 		labels := getRedisLabels(cr.ObjectMeta.Name, "cluster", role, cr.ObjectMeta.GetLabels())
 		annotations := generateStatefulSetsAnots(cr.ObjectMeta)
 		pdbMeta := generateObjectMetaInformation(pdbName, cr.Namespace, labels, annotations)
-		pdbDef := generatePodDisruptionBudgetDef(cr, role, pdbMeta, cr.Spec.RedisLeader.PodDisruptionBudget)
+		pdbDef := generatePodDisruptionBudgetDef(cr, role, pdbMeta, cr.Spec.RedisLeader.CommonAttributes.PodDisruptionBudget)
 		return CreateOrUpdatePodDisruptionBudget(pdbDef)
 	} else {
 		// Check if one exists, and delete it.
@@ -38,7 +39,7 @@ func ReconcileRedisPodDisruptionBudget(cr *redisv1beta2.RedisCluster, role strin
 }
 
 // generatePodDisruptionBudgetDef will create a PodDisruptionBudget definition
-func generatePodDisruptionBudgetDef(cr *redisv1beta2.RedisCluster, role string, pdbMeta metav1.ObjectMeta, pdbParams *redisv1beta2.RedisPodDisruptionBudget) *policyv1.PodDisruptionBudget {
+func generatePodDisruptionBudgetDef(cr *redisv1beta2.RedisCluster, role string, pdbMeta metav1.ObjectMeta, pdbParams *commonapi.RedisPodDisruptionBudget) *policyv1.PodDisruptionBudget {
 	lblSelector := LabelSelectors(map[string]string{
 		"app":  fmt.Sprintf("%s-%s", cr.ObjectMeta.Name, role),
 		"role": role,

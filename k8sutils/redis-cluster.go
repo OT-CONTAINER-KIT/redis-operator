@@ -1,6 +1,7 @@
 package k8sutils
 
 import (
+	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -12,8 +13,8 @@ type RedisClusterSTS struct {
 	SecurityContext               *corev1.SecurityContext
 	Affinity                      *corev1.Affinity `json:"affinity,omitempty"`
 	TerminationGracePeriodSeconds *int64           `json:"terminationGracePeriodSeconds,omitempty" protobuf:"varint,4,opt,name=terminationGracePeriodSeconds"`
-	ReadinessProbe                *redisv1beta2.Probe
-	LivenessProbe                 *redisv1beta2.Probe
+	ReadinessProbe                *commonapi.Probe
+	LivenessProbe                 *commonapi.Probe
 	NodeSelector                  map[string]string
 	Tolerations                   *[]corev1.Toleration
 }
@@ -45,7 +46,7 @@ func generateRedisClusterParams(cr *redisv1beta2.RedisCluster, replicas int32, e
 		res.ImagePullSecrets = cr.Spec.KubernetesConfig.ImagePullSecrets
 	}
 	if cr.Spec.Storage != nil {
-		res.PersistentVolumeClaim = cr.Spec.Storage.VolumeClaimTemplate
+		res.PersistentVolumeClaim = cr.Spec.Storage.CommonAttributes.VolumeClaimTemplate
 		res.NodeConfPersistentVolumeClaim = cr.Spec.Storage.NodeConfVolumeClaimTemplate
 	}
 	if externalConfig != nil {
@@ -76,8 +77,8 @@ func generateRedisClusterInitContainerParams(cr *redisv1beta2.RedisCluster) init
 		}
 
 		if cr.Spec.Storage != nil {
-			initcontainerProp.AdditionalVolume = cr.Spec.Storage.VolumeMount.Volume
-			initcontainerProp.AdditionalMountPath = cr.Spec.Storage.VolumeMount.MountPath
+			initcontainerProp.AdditionalVolume = cr.Spec.Storage.CommonAttributes.VolumeMount.Volume
+			initcontainerProp.AdditionalMountPath = cr.Spec.Storage.CommonAttributes.VolumeMount.MountPath
 		}
 		if cr.Spec.Storage != nil {
 			initcontainerProp.PersistenceEnabled = &trueProperty
@@ -89,7 +90,7 @@ func generateRedisClusterInitContainerParams(cr *redisv1beta2.RedisCluster) init
 }
 
 // generateRedisClusterContainerParams generates Redis container information
-func generateRedisClusterContainerParams(cr *redisv1beta2.RedisCluster, securityContext *corev1.SecurityContext, readinessProbeDef *redisv1beta2.Probe, livenessProbeDef *redisv1beta2.Probe) containerParameters {
+func generateRedisClusterContainerParams(cr *redisv1beta2.RedisCluster, securityContext *corev1.SecurityContext, readinessProbeDef *commonapi.Probe, livenessProbeDef *commonapi.Probe) containerParameters {
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{
@@ -100,8 +101,8 @@ func generateRedisClusterContainerParams(cr *redisv1beta2.RedisCluster, security
 		SecurityContext: securityContext,
 	}
 	if cr.Spec.Storage != nil {
-		containerProp.AdditionalVolume = cr.Spec.Storage.VolumeMount.Volume
-		containerProp.AdditionalMountPath = cr.Spec.Storage.VolumeMount.MountPath
+		containerProp.AdditionalVolume = cr.Spec.Storage.CommonAttributes.VolumeMount.Volume
+		containerProp.AdditionalMountPath = cr.Spec.Storage.CommonAttributes.VolumeMount.MountPath
 	}
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
 		containerProp.EnabledPassword = &trueProperty
@@ -149,15 +150,15 @@ func CreateRedisLeader(cr *redisv1beta2.RedisCluster) error {
 	prop := RedisClusterSTS{
 		RedisStateFulType:             "leader",
 		SecurityContext:               cr.Spec.RedisLeader.SecurityContext,
-		Affinity:                      cr.Spec.RedisLeader.Affinity,
+		Affinity:                      cr.Spec.RedisLeader.CommonAttributes.Affinity,
 		TerminationGracePeriodSeconds: cr.Spec.RedisLeader.TerminationGracePeriodSeconds,
-		NodeSelector:                  cr.Spec.RedisLeader.NodeSelector,
-		Tolerations:                   cr.Spec.RedisLeader.Tolerations,
-		ReadinessProbe:                cr.Spec.RedisLeader.ReadinessProbe,
-		LivenessProbe:                 cr.Spec.RedisLeader.LivenessProbe,
+		NodeSelector:                  cr.Spec.RedisLeader.CommonAttributes.NodeSelector,
+		Tolerations:                   cr.Spec.RedisLeader.CommonAttributes.Tolerations,
+		ReadinessProbe:                cr.Spec.RedisLeader.CommonAttributes.ReadinessProbe,
+		LivenessProbe:                 cr.Spec.RedisLeader.CommonAttributes.LivenessProbe,
 	}
-	if cr.Spec.RedisLeader.RedisConfig != nil {
-		prop.ExternalConfig = cr.Spec.RedisLeader.RedisConfig.AdditionalRedisConfig
+	if cr.Spec.RedisLeader.CommonAttributes.RedisConfig != nil {
+		prop.ExternalConfig = cr.Spec.RedisLeader.CommonAttributes.RedisConfig.AdditionalRedisConfig
 	}
 	return prop.CreateRedisClusterSetup(cr)
 }
@@ -167,15 +168,15 @@ func CreateRedisFollower(cr *redisv1beta2.RedisCluster) error {
 	prop := RedisClusterSTS{
 		RedisStateFulType:             "follower",
 		SecurityContext:               cr.Spec.RedisFollower.SecurityContext,
-		Affinity:                      cr.Spec.RedisFollower.Affinity,
+		Affinity:                      cr.Spec.RedisFollower.CommonAttributes.Affinity,
 		TerminationGracePeriodSeconds: cr.Spec.RedisFollower.TerminationGracePeriodSeconds,
-		NodeSelector:                  cr.Spec.RedisFollower.NodeSelector,
-		Tolerations:                   cr.Spec.RedisFollower.Tolerations,
-		ReadinessProbe:                cr.Spec.RedisFollower.ReadinessProbe,
-		LivenessProbe:                 cr.Spec.RedisFollower.LivenessProbe,
+		NodeSelector:                  cr.Spec.RedisFollower.CommonAttributes.NodeSelector,
+		Tolerations:                   cr.Spec.RedisFollower.CommonAttributes.Tolerations,
+		ReadinessProbe:                cr.Spec.RedisFollower.CommonAttributes.ReadinessProbe,
+		LivenessProbe:                 cr.Spec.RedisFollower.CommonAttributes.LivenessProbe,
 	}
-	if cr.Spec.RedisFollower.RedisConfig != nil {
-		prop.ExternalConfig = cr.Spec.RedisFollower.RedisConfig.AdditionalRedisConfig
+	if cr.Spec.RedisFollower.CommonAttributes.RedisConfig != nil {
+		prop.ExternalConfig = cr.Spec.RedisFollower.CommonAttributes.RedisConfig.AdditionalRedisConfig
 	}
 	return prop.CreateRedisClusterSetup(cr)
 }

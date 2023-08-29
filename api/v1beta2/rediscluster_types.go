@@ -73,13 +73,6 @@ type RedisFollower struct {
 type RedisClusterStatus struct {
 }
 
-// RedisPodDisruptionBudget configure a PodDisruptionBudget on the resource (leader/follower)
-type RedisPodDisruptionBudget struct {
-	Enabled        bool   `json:"enabled,omitempty"`
-	MinAvailable   *int32 `json:"minAvailable,omitempty"`
-	MaxUnavailable *int32 `json:"maxUnavailable,omitempty"`
-}
-
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 //+kubebuilder:storageversion

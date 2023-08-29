@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/go-logr/logr"
@@ -63,8 +64,8 @@ type containerParameters struct {
 	PersistenceEnabled           *bool
 	TLSConfig                    *redisv1beta2.TLSConfig
 	ACLConfig                    *redisv1beta2.ACLConfig
-	ReadinessProbe               *redisv1beta2.Probe
-	LivenessProbe                *redisv1beta2.Probe
+	ReadinessProbe               *commonapi.Probe
+	LivenessProbe                *commonapi.Probe
 	AdditionalEnvVariable        *[]corev1.EnvVar
 	AdditionalVolume             []corev1.Volume
 	AdditionalMountPath          []corev1.VolumeMount
@@ -532,7 +533,7 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, ext
 }
 
 // getProbeInfo generate probe for Redis StatefulSet
-func getProbeInfo(probe *redisv1beta2.Probe) *corev1.Probe {
+func getProbeInfo(probe *commonapi.Probe) *corev1.Probe {
 	return &corev1.Probe{
 		InitialDelaySeconds: probe.InitialDelaySeconds,
 		PeriodSeconds:       probe.PeriodSeconds,
