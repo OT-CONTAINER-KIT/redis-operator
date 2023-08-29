@@ -282,7 +282,7 @@ func getRedisReplicationMasterIP(cr *redisv1beta2.RedisSentinel) string {
 	// Get Request on Dynamic Client
 	customObject, err := generateK8sDynamicClient().Resource(schema.GroupVersionResource{
 		Group:    "redis.redis.opstreelabs.in",
-		Version:  "v1beta1",
+		Version:  "v1beta2",
 		Resource: "redisreplications",
 	}).Namespace(replicationNamespace).Get(context.TODO(), replicationName, v1.GetOptions{})
 
