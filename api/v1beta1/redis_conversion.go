@@ -9,6 +9,71 @@ import (
 func (src *Redis) ConvertTo(dstRaw conversion.Hub) error {
 	dst := dstRaw.(*redisv1beta2.Redis)
 
+	// ObjectMeta
+	dst.ObjectMeta = src.ObjectMeta
+
+	// KubernetesConfig
+	dst.Spec.KubernetesConfig.KubernetesConfig = src.Spec.KubernetesConfig.KubernetesConfig
+
+	// RedisExporter
+	if src.Spec.RedisExporter != nil {
+		dst.Spec.RedisExporter.RedisExporter = src.Spec.RedisExporter.RedisExporter
+	}
+	// RedisConfig
+	if src.Spec.RedisConfig != nil {
+		dst.Spec.RedisConfig.RedisConfig = src.Spec.RedisConfig.RedisConfig
+	}
+	// Storage
+	if src.Spec.Storage != nil {
+		dst.Spec.Storage.Storage = src.Spec.Storage.Storage
+	}
+	// NodeSelector
+	if src.Spec.NodeSelector != nil {
+		dst.Spec.NodeSelector = src.Spec.NodeSelector
+	}
+	// SecurityContext >> PodSecurityContext
+	if src.Spec.SecurityContext != nil {
+		dst.Spec.PodSecurityContext = src.Spec.SecurityContext
+	}
+	// PriorityClassName
+	if src.Spec.PriorityClassName != "" {
+		dst.Spec.PriorityClassName = src.Spec.PriorityClassName
+	}
+	// Affinity
+	if src.Spec.Affinity != nil {
+		dst.Spec.Affinity = src.Spec.Affinity
+	}
+	// Tolerations
+	if src.Spec.Tolerations != nil {
+		dst.Spec.Tolerations = src.Spec.Tolerations
+	}
+	// TLS
+	if src.Spec.TLS != nil {
+		dst.Spec.TLS.TLSConfig = src.Spec.TLS.TLSConfig
+	}
+	// ReadinessProbe
+	if src.Spec.ReadinessProbe != nil {
+		dst.Spec.ReadinessProbe.Probe = src.Spec.ReadinessProbe.Probe
+	}
+	// LivenessProbe
+	if src.Spec.LivenessProbe != nil {
+		dst.Spec.LivenessProbe.Probe = src.Spec.LivenessProbe.Probe
+	}
+	// Sidecars
+	if src.Spec.Sidecars != nil {
+		sidecars := make([]redisv1beta2.Sidecar, len(*src.Spec.Sidecars))
+		for i, sidecar := range *src.Spec.Sidecars {
+			sidecars[i] = redisv1beta2.Sidecar{
+				Sidecar: sidecar.Sidecar,
+			}
+		}
+		dst.Spec.Sidecars = &sidecars
+	}
+	// ServiceAccountName
+	if src.Spec.ServiceAccountName != nil {
+		dst.Spec.ServiceAccountName = src.Spec.ServiceAccountName
+	}
+
 	return nil
 }
 
@@ -16,5 +81,69 @@ func (src *Redis) ConvertTo(dstRaw conversion.Hub) error {
 func (dst *Redis) ConvertFrom(srcRaw conversion.Hub) error {
 	src := srcRaw.(*redisv1beta2.Redis)
 
+	// ObjectMeta
+	dst.ObjectMeta = src.ObjectMeta
+
+	// KubernetesConfig
+	dst.Spec.KubernetesConfig.KubernetesConfig = src.Spec.KubernetesConfig.KubernetesConfig
+
+	// RedisExporter
+	if src.Spec.RedisExporter != nil {
+		dst.Spec.RedisExporter.RedisExporter = src.Spec.RedisExporter.RedisExporter
+	}
+	// RedisConfig
+	if src.Spec.RedisConfig != nil {
+		dst.Spec.RedisConfig.RedisConfig = src.Spec.RedisConfig.RedisConfig
+	}
+	// Storage
+	if src.Spec.Storage != nil {
+		dst.Spec.Storage.Storage = src.Spec.Storage.Storage
+	}
+	// NodeSelector
+	if src.Spec.NodeSelector != nil {
+		dst.Spec.NodeSelector = src.Spec.NodeSelector
+	}
+	//  PodSecurityContext >> SecurityContext
+	if src.Spec.SecurityContext != nil {
+		dst.Spec.SecurityContext = src.Spec.PodSecurityContext
+	}
+	// PriorityClassName
+	if src.Spec.PriorityClassName != "" {
+		dst.Spec.PriorityClassName = src.Spec.PriorityClassName
+	}
+	// Affinity
+	if src.Spec.Affinity != nil {
+		dst.Spec.Affinity = src.Spec.Affinity
+	}
+	// Tolerations
+	if src.Spec.Tolerations != nil {
+		dst.Spec.Tolerations = src.Spec.Tolerations
+	}
+	// TLS
+	if src.Spec.TLS != nil {
+		dst.Spec.TLS.TLSConfig = src.Spec.TLS.TLSConfig
+	}
+	// ReadinessProbe
+	if src.Spec.ReadinessProbe != nil {
+		dst.Spec.ReadinessProbe.Probe = src.Spec.ReadinessProbe.Probe
+	}
+	// LivenessProbe
+	if src.Spec.LivenessProbe != nil {
+		dst.Spec.LivenessProbe.Probe = src.Spec.LivenessProbe.Probe
+	}
+	// Sidecars
+	if src.Spec.Sidecars != nil {
+		sidecars := make([]Sidecar, len(*src.Spec.Sidecars))
+		for i, sidecar := range *src.Spec.Sidecars {
+			sidecars[i] = Sidecar{
+				Sidecar: sidecar.Sidecar,
+			}
+		}
+		dst.Spec.Sidecars = &sidecars
+	}
+	// ServiceAccountName
+	if src.Spec.ServiceAccountName != nil {
+		dst.Spec.ServiceAccountName = src.Spec.ServiceAccountName
+	}
 	return nil
 }
