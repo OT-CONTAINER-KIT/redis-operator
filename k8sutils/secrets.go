@@ -6,8 +6,7 @@ import (
 	"crypto/x509"
 	"strings"
 
-	redisv1beta1 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta1"
-
+	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -36,7 +35,7 @@ func secretLogger(namespace string, name string) logr.Logger {
 	return reqLogger
 }
 
-func getRedisTLSConfig(cr *redisv1beta1.RedisCluster, redisInfo RedisDetails) *tls.Config {
+func getRedisTLSConfig(cr *redisv1beta2.RedisCluster, redisInfo RedisDetails) *tls.Config {
 	if cr.Spec.TLS != nil {
 		reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
 		secretName, err := generateK8sClient().CoreV1().Secrets(cr.Namespace).Get(context.TODO(), cr.Spec.TLS.Secret.SecretName, metav1.GetOptions{})
@@ -84,7 +83,7 @@ func getRedisTLSConfig(cr *redisv1beta1.RedisCluster, redisInfo RedisDetails) *t
 	return nil
 }
 
-func getRedisReplicationTLSConfig(cr *redisv1beta1.RedisReplication, redisInfo RedisDetails) *tls.Config {
+func getRedisReplicationTLSConfig(cr *redisv1beta2.RedisReplication, redisInfo RedisDetails) *tls.Config {
 	if cr.Spec.TLS != nil {
 		reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
 		secretName, err := generateK8sClient().CoreV1().Secrets(cr.Namespace).Get(context.TODO(), cr.Spec.TLS.Secret.SecretName, metav1.GetOptions{})

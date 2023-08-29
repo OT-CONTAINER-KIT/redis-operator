@@ -1,8 +1,7 @@
 package k8sutils
 
 import (
-	redisv1beta1 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta1"
-
+	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -30,7 +29,7 @@ func AddOwnerRefToObject(obj metav1.Object, ownerRef metav1.OwnerReference) {
 }
 
 // redisAsOwner generates and returns object refernece
-func redisAsOwner(cr *redisv1beta1.Redis) metav1.OwnerReference {
+func redisAsOwner(cr *redisv1beta2.Redis) metav1.OwnerReference {
 	trueVar := true
 	return metav1.OwnerReference{
 		APIVersion: cr.APIVersion,
@@ -42,7 +41,7 @@ func redisAsOwner(cr *redisv1beta1.Redis) metav1.OwnerReference {
 }
 
 // redisClusterAsOwner generates and returns object refernece
-func redisClusterAsOwner(cr *redisv1beta1.RedisCluster) metav1.OwnerReference {
+func redisClusterAsOwner(cr *redisv1beta2.RedisCluster) metav1.OwnerReference {
 	trueVar := true
 	return metav1.OwnerReference{
 		APIVersion: cr.APIVersion,
@@ -54,7 +53,7 @@ func redisClusterAsOwner(cr *redisv1beta1.RedisCluster) metav1.OwnerReference {
 }
 
 // redisReplicationAsOwner generates and returns object refernece
-func redisReplicationAsOwner(cr *redisv1beta1.RedisReplication) metav1.OwnerReference {
+func redisReplicationAsOwner(cr *redisv1beta2.RedisReplication) metav1.OwnerReference {
 	trueVar := true
 	return metav1.OwnerReference{
 		APIVersion: cr.APIVersion,
@@ -66,7 +65,7 @@ func redisReplicationAsOwner(cr *redisv1beta1.RedisReplication) metav1.OwnerRefe
 }
 
 // RedisSentinelAsOwner generates and returns object refernece
-func redisSentinelAsOwner(cr *redisv1beta1.RedisSentinel) metav1.OwnerReference {
+func redisSentinelAsOwner(cr *redisv1beta2.RedisSentinel) metav1.OwnerReference {
 	trueVar := true
 	return metav1.OwnerReference{
 		APIVersion: cr.APIVersion,

@@ -1,15 +1,13 @@
 package k8sutils
 
-import (
-	redisv1beta1 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta1"
-)
+import redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 
 var (
 	enableMetrics bool
 )
 
 // CreateStandaloneService method will create standalone service for Redis
-func CreateStandaloneService(cr *redisv1beta1.Redis) error {
+func CreateStandaloneService(cr *redisv1beta2.Redis) error {
 	logger := serviceLogger(cr.Namespace, cr.ObjectMeta.Name)
 	labels := getRedisLabels(cr.ObjectMeta.Name, "standalone", "standalone", cr.ObjectMeta.Labels)
 	annotations := generateServiceAnots(cr.ObjectMeta, nil)
@@ -48,7 +46,7 @@ func CreateStandaloneService(cr *redisv1beta1.Redis) error {
 }
 
 // CreateStandaloneRedis will create a standalone redis setup
-func CreateStandaloneRedis(cr *redisv1beta1.Redis) error {
+func CreateStandaloneRedis(cr *redisv1beta2.Redis) error {
 	logger := statefulSetLogger(cr.Namespace, cr.ObjectMeta.Name)
 	labels := getRedisLabels(cr.ObjectMeta.Name, "standalone", "standalone", cr.ObjectMeta.Labels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta)
@@ -69,7 +67,7 @@ func CreateStandaloneRedis(cr *redisv1beta1.Redis) error {
 }
 
 // generateRedisStandalone generates Redis standalone information
-func generateRedisStandaloneParams(cr *redisv1beta1.Redis) statefulSetParameters {
+func generateRedisStandaloneParams(cr *redisv1beta2.Redis) statefulSetParameters {
 	replicas := int32(1)
 	res := statefulSetParameters{
 		Replicas:                      &replicas,
@@ -105,7 +103,7 @@ func generateRedisStandaloneParams(cr *redisv1beta1.Redis) statefulSetParameters
 }
 
 // generateRedisStandaloneContainerParams generates Redis container information
-func generateRedisStandaloneContainerParams(cr *redisv1beta1.Redis) containerParameters {
+func generateRedisStandaloneContainerParams(cr *redisv1beta2.Redis) containerParameters {
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{
@@ -160,7 +158,7 @@ func generateRedisStandaloneContainerParams(cr *redisv1beta1.Redis) containerPar
 }
 
 // generateRedisStandaloneInitContainerParams generates Redis initcontainer information
-func generateRedisStandaloneInitContainerParams(cr *redisv1beta1.Redis) initContainerParameters {
+func generateRedisStandaloneInitContainerParams(cr *redisv1beta2.Redis) initContainerParameters {
 	trueProperty := true
 	initcontainerProp := initContainerParameters{}
 
