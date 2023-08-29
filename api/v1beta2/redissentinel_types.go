@@ -57,6 +57,7 @@ type RedisSentinelStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+//+kubebuilder:storageversion
 
 // Redis is the Schema for the redis API
 type RedisSentinel struct {
