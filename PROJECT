@@ -19,6 +19,9 @@ resources:
   kind: Redis
   path: redis-operator/api/v1beta2
   version: v1beta2
+  webhooks:
+    conversion: true
+    webhookVersion: v1
 - api:
     crdVersion: v1
     namespaced: true
@@ -28,6 +31,9 @@ resources:
   kind: RedisCluster
   path: redis-operator/api/v1beta2
   version: v1beta2
+  webhooks:
+    conversion: true
+    webhookVersion: v1
 - api:
     crdVersion: v1
   controller: true
@@ -36,6 +42,9 @@ resources:
   kind: RedisReplication
   path: redis-operator/api/v1beta2
   version: v1beta2
+  webhooks:
+    conversion: true
+    webhookVersion: v1
 - api:
     crdVersion: v1
   controller: true
@@ -44,6 +53,9 @@ resources:
   kind: RedisSentinel
   path: redis-operator/api/v1beta2
   version: v1beta2
+  webhooks:
+    conversion: true
+    webhookVersion: v1
 - api:
     crdVersion: v1
     namespaced: true
