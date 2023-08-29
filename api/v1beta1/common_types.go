@@ -17,19 +17,12 @@ limitations under the License.
 package v1beta1
 
 import (
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
+	common "github.com/OT-CONTAINER-KIT/redis-operator/api"
 )
 
 // KubernetesConfig will be the JSON struct for Basic Redis Config
 type KubernetesConfig struct {
-	Image                  string                           `json:"image"`
-	ImagePullPolicy        corev1.PullPolicy                `json:"imagePullPolicy,omitempty"`
-	Resources              *corev1.ResourceRequirements     `json:"resources,omitempty"`
-	ExistingPasswordSecret *ExistingPasswordSecret          `json:"redisSecret,omitempty"`
-	ImagePullSecrets       *[]corev1.LocalObjectReference   `json:"imagePullSecrets,omitempty"`
-	UpdateStrategy         appsv1.StatefulSetUpdateStrategy `json:"updateStrategy,omitempty"`
-	Service                *ServiceConfig                   `json:"service,omitempty"`
+	common.KubernetesConfig `json:",inline"`
 }
 
 // ServiceConfig define the type of service to be created and its annotations
@@ -41,7 +34,7 @@ type ServiceConfig struct {
 
 // RedisConfig defines the external configuration of Redis
 type RedisConfig struct {
-	AdditionalRedisConfig *string `json:"additionalRedisConfig,omitempty"`
+	common.RedisConfig `json:",inline"`
 }
 
 // ExistingPasswordSecret is the struct to access the existing secret
@@ -52,58 +45,25 @@ type ExistingPasswordSecret struct {
 
 // Storage is the inteface to add pvc and pv support in redis
 type Storage struct {
-	VolumeClaimTemplate corev1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
-	VolumeMount         AdditionalVolume             `json:"volumeMount,omitempty"`
-}
-
-// Additional Volume is provided by user that is mounted on the pods
-type AdditionalVolume struct {
-	Volume    []corev1.Volume      `json:"volume,omitempty"`
-	MountPath []corev1.VolumeMount `json:"mountPath,omitempty"`
+	common.Storage `json:",inline"`
 }
 
 // RedisExporter interface will have the information for redis exporter related stuff
 type RedisExporter struct {
-	Enabled         bool                         `json:"enabled,omitempty"`
-	Image           string                       `json:"image"`
-	Resources       *corev1.ResourceRequirements `json:"resources,omitempty"`
-	ImagePullPolicy corev1.PullPolicy            `json:"imagePullPolicy,omitempty"`
-	EnvVars         *[]corev1.EnvVar             `json:"env,omitempty"`
+	common.RedisExporter `json:",inline"`
 }
 
 // TLS Configuration for redis instances
 type TLSConfig struct {
-	CaKeyFile   string `json:"ca,omitempty"`
-	CertKeyFile string `json:"cert,omitempty"`
-	KeyFile     string `json:"key,omitempty"`
-	// Reference to secret which contains the certificates
-	Secret corev1.SecretVolumeSource `json:"secret"`
+	common.TLSConfig `json:",inline"`
 }
 
 // Probe is a interface for ReadinessProbe and LivenessProbe
 type Probe struct {
-	// +kubebuilder:validation:Minimum=1
-	// +kubebuilder:default=1
-	InitialDelaySeconds int32 `json:"initialDelaySeconds,omitempty" protobuf:"varint,2,opt,name=initialDelaySeconds"`
-	// +kubebuilder:validation:Minimum=1
-	// +kubebuilder:default=1
-	TimeoutSeconds int32 `json:"timeoutSeconds,omitempty" protobuf:"varint,3,opt,name=timeoutSeconds"`
-	// +kubebuilder:validation:Minimum=1
-	// +kubebuilder:default=10
-	PeriodSeconds int32 `json:"periodSeconds,omitempty" protobuf:"varint,4,opt,name=periodSeconds"`
-	// +kubebuilder:validation:Minimum=1
-	// +kubebuilder:default=1
-	SuccessThreshold int32 `json:"successThreshold,omitempty" protobuf:"varint,5,opt,name=successThreshold"`
-	// +kubebuilder:validation:Minimum=1
-	// +kubebuilder:default=3
-	FailureThreshold int32 `json:"failureThreshold,omitempty" protobuf:"varint,6,opt,name=failureThreshold"`
+	common.Probe `json:",inline"`
 }
 
 // Sidecar for each Redis pods
 type Sidecar struct {
-	Name            string                       `json:"name"`
-	Image           string                       `json:"image"`
-	ImagePullPolicy corev1.PullPolicy            `json:"imagePullPolicy,omitempty"`
-	Resources       *corev1.ResourceRequirements `json:"resources,omitempty"`
-	EnvVars         *[]corev1.EnvVar             `json:"env,omitempty"`
+	common.Sidecar `json:",inline"`
 }
