@@ -33,6 +33,8 @@ import (
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/controllers"
+
+	redisv1beta1 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -45,6 +47,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(redisv1beta2.AddToScheme(scheme))
+	utilruntime.Must(redisv1beta1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
