@@ -38,7 +38,7 @@ func ReconcileRedisPodDisruptionBudget(cr *redisv1beta2.RedisCluster, role strin
 	}
 }
 
-func ReconcileSentinelPodDisruptionBudget(cr *redisv1beta1.RedisSentinel, pdbParams *redisv1beta1.RedisPodDisruptionBudget) error {
+func ReconcileSentinelPodDisruptionBudget(cr *redisv1beta2.RedisSentinel, pdbParams *commonapi.RedisPodDisruptionBudget) error {
 	pdbName := cr.ObjectMeta.Name + "-sentinel"
 	logger := pdbLogger(cr.Namespace, pdbName)
 	if pdbParams != nil && pdbParams.Enabled {
@@ -89,7 +89,7 @@ func generatePodDisruptionBudgetDef(cr *redisv1beta2.RedisCluster, role string, 
 }
 
 // generatePodDisruptionBudgetDef will create a PodDisruptionBudget definition
-func generateSentinelPodDisruptionBudgetDef(cr *redisv1beta1.RedisSentinel, role string, pdbMeta metav1.ObjectMeta, pdbParams *redisv1beta1.RedisPodDisruptionBudget) *policyv1.PodDisruptionBudget {
+func generateSentinelPodDisruptionBudgetDef(cr *redisv1beta2.RedisSentinel, role string, pdbMeta metav1.ObjectMeta, pdbParams *commonapi.RedisPodDisruptionBudget) *policyv1.PodDisruptionBudget {
 	lblSelector := LabelSelectors(map[string]string{
 		"app":  fmt.Sprintf("%s-%s", cr.ObjectMeta.Name, role),
 		"role": role,
