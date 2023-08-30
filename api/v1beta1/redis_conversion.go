@@ -61,8 +61,8 @@ func (src *Redis) ConvertTo(dstRaw conversion.Hub) error {
 	// Sidecars
 	if src.Spec.Sidecars != nil {
 		sidecars := make([]redisv1beta2.Sidecar, len(*src.Spec.Sidecars))
-		for i, sidecar := range *src.Spec.Sidecars {
-			sidecars[i] = redisv1beta2.Sidecar{
+		for index, sidecar := range *src.Spec.Sidecars {
+			sidecars[index] = redisv1beta2.Sidecar{
 				Sidecar: sidecar.Sidecar,
 			}
 		}
@@ -132,8 +132,8 @@ func (dst *Redis) ConvertFrom(srcRaw conversion.Hub) error {
 	// Sidecars
 	if src.Spec.Sidecars != nil {
 		sidecars := make([]Sidecar, len(*src.Spec.Sidecars))
-		for i, sidecar := range *src.Spec.Sidecars {
-			sidecars[i] = Sidecar{
+		for index, sidecar := range *src.Spec.Sidecars {
+			sidecars[index] = Sidecar{
 				Sidecar: sidecar.Sidecar,
 			}
 		}
