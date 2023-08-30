@@ -61,12 +61,13 @@ func (src *RedisReplication) ConvertTo(dstRaw conversion.Hub) error {
 		dst.Spec.LivenessProbe.Probe = src.Spec.LivenessProbe.Probe
 	}
 	// Sidecars
+	// Sidecars
 	if src.Spec.Sidecars != nil {
-		sidecars := make([]redisv1beta2.Sidecar, len(*src.Spec.Sidecars))
-		for index, sidecar := range *src.Spec.Sidecars {
-			sidecars[index] = redisv1beta2.Sidecar{
+		var sidecars []redisv1beta2.Sidecar
+		for _, sidecar := range *src.Spec.Sidecars {
+			sidecars = append(sidecars, redisv1beta2.Sidecar{
 				Sidecar: sidecar.Sidecar,
-			}
+			})
 		}
 		dst.Spec.Sidecars = &sidecars
 	}
@@ -135,14 +136,15 @@ func (dst *RedisReplication) ConvertFrom(srcRaw conversion.Hub) error {
 	}
 	// Sidecars
 	if src.Spec.Sidecars != nil {
-		sidecars := make([]Sidecar, len(*src.Spec.Sidecars))
-		for index, sidecar := range *src.Spec.Sidecars {
-			sidecars[index] = Sidecar{
+		var sidecars []Sidecar
+		for _, sidecar := range *src.Spec.Sidecars {
+			sidecars = append(sidecars, Sidecar{
 				Sidecar: sidecar.Sidecar,
-			}
+			})
 		}
 		dst.Spec.Sidecars = &sidecars
 	}
+
 	// ServiceAccountName
 	if src.Spec.ServiceAccountName != nil {
 		dst.Spec.ServiceAccountName = src.Spec.ServiceAccountName
