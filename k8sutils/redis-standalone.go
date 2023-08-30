@@ -84,7 +84,7 @@ func generateRedisStandaloneParams(cr *redisv1beta2.Redis) statefulSetParameters
 		res.ImagePullSecrets = cr.Spec.KubernetesConfig.ImagePullSecrets
 	}
 	if cr.Spec.Storage != nil {
-		res.PersistentVolumeClaim = cr.Spec.Storage.VolumeClaimTemplate
+		res.PersistentVolumeClaim = cr.Spec.Storage.CommonAttributes.VolumeClaimTemplate
 	}
 	if cr.Spec.RedisConfig != nil {
 		res.ExternalConfig = cr.Spec.RedisConfig.AdditionalRedisConfig
@@ -115,8 +115,8 @@ func generateRedisStandaloneContainerParams(cr *redisv1beta2.Redis) containerPar
 	}
 
 	if cr.Spec.Storage != nil {
-		containerProp.AdditionalVolume = cr.Spec.Storage.VolumeMount.Volume
-		containerProp.AdditionalMountPath = cr.Spec.Storage.VolumeMount.MountPath
+		containerProp.AdditionalVolume = cr.Spec.Storage.CommonAttributes.VolumeMount.Volume
+		containerProp.AdditionalMountPath = cr.Spec.Storage.CommonAttributes.VolumeMount.MountPath
 	}
 
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
@@ -140,10 +140,10 @@ func generateRedisStandaloneContainerParams(cr *redisv1beta2.Redis) containerPar
 
 	}
 	if cr.Spec.ReadinessProbe != nil {
-		containerProp.ReadinessProbe = cr.Spec.ReadinessProbe
+		containerProp.ReadinessProbe = &cr.Spec.ReadinessProbe.Probe
 	}
 	if cr.Spec.LivenessProbe != nil {
-		containerProp.LivenessProbe = cr.Spec.LivenessProbe
+		containerProp.LivenessProbe = &cr.Spec.LivenessProbe.Probe
 	}
 	if cr.Spec.Storage != nil {
 		containerProp.PersistenceEnabled = &trueProperty
@@ -177,8 +177,8 @@ func generateRedisStandaloneInitContainerParams(cr *redisv1beta2.Redis) initCont
 		}
 
 		if cr.Spec.Storage != nil {
-			initcontainerProp.AdditionalVolume = cr.Spec.Storage.VolumeMount.Volume
-			initcontainerProp.AdditionalMountPath = cr.Spec.Storage.VolumeMount.MountPath
+			initcontainerProp.AdditionalVolume = cr.Spec.Storage.CommonAttributes.VolumeMount.Volume
+			initcontainerProp.AdditionalMountPath = cr.Spec.Storage.CommonAttributes.VolumeMount.MountPath
 		}
 		if cr.Spec.Storage != nil {
 			initcontainerProp.PersistenceEnabled = &trueProperty
