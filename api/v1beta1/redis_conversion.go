@@ -14,7 +14,6 @@ func (src *Redis) ConvertTo(dstRaw conversion.Hub) error {
 
 	// KubernetesConfig
 	dst.Spec.KubernetesConfig.KubernetesConfig = src.Spec.KubernetesConfig.KubernetesConfig
-
 	// RedisExporter
 	if src.Spec.RedisExporter != nil {
 		dst.Spec.RedisExporter.RedisExporter = src.Spec.RedisExporter.RedisExporter
@@ -86,7 +85,6 @@ func (dst *Redis) ConvertFrom(srcRaw conversion.Hub) error {
 
 	// KubernetesConfig
 	dst.Spec.KubernetesConfig.KubernetesConfig = src.Spec.KubernetesConfig.KubernetesConfig
-
 	// RedisExporter
 	if src.Spec.RedisExporter != nil {
 		dst.Spec.RedisExporter.RedisExporter = src.Spec.RedisExporter.RedisExporter

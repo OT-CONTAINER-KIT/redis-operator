@@ -14,10 +14,8 @@ func (src *RedisReplication) ConvertTo(dstRaw conversion.Hub) error {
 
 	// Size
 	dst.Spec.Size = src.Spec.Size
-
 	// KubernetesConfig
 	dst.Spec.KubernetesConfig.KubernetesConfig = src.Spec.KubernetesConfig.KubernetesConfig
-
 	// RedisExporter
 	if src.Spec.RedisExporter != nil {
 		dst.Spec.RedisExporter.RedisExporter = src.Spec.RedisExporter.RedisExporter
@@ -89,10 +87,8 @@ func (dst *RedisReplication) ConvertFrom(srcRaw conversion.Hub) error {
 
 	// Size
 	dst.Spec.Size = src.Spec.Size
-
 	// KubernetesConfig
 	dst.Spec.KubernetesConfig.KubernetesConfig = src.Spec.KubernetesConfig.KubernetesConfig
-
 	// RedisExporter
 	if src.Spec.RedisExporter != nil {
 		dst.Spec.RedisExporter.RedisExporter = src.Spec.RedisExporter.RedisExporter

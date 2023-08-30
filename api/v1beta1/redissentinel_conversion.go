@@ -14,10 +14,8 @@ func (src *RedisSentinel) ConvertTo(dstRaw conversion.Hub) error {
 
 	// Size
 	dst.Spec.Size = src.Spec.Size
-
 	// KubernetesConfig
 	dst.Spec.KubernetesConfig.KubernetesConfig = src.Spec.KubernetesConfig.KubernetesConfig
-
 	// RedisSentinelConfig
 	if src.Spec.RedisSentinelConfig != nil {
 		dst.Spec.RedisSentinelConfig.RedisSentinelConfig = src.Spec.RedisSentinelConfig.RedisSentinelConfig
@@ -81,10 +79,8 @@ func (dst *RedisSentinel) ConvertFrom(srcRaw conversion.Hub) error {
 
 	// Size
 	dst.Spec.Size = src.Spec.Size
-
 	// KubernetesConfig
 	dst.Spec.KubernetesConfig.KubernetesConfig = src.Spec.KubernetesConfig.KubernetesConfig
-
 	// RedisSentinelConfig
 	if src.Spec.RedisSentinelConfig != nil {
 		dst.Spec.RedisSentinelConfig.RedisSentinelConfig = src.Spec.RedisSentinelConfig.RedisSentinelConfig
