@@ -31,8 +31,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	redisv1beta1 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta1"
+	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/controllers"
+
+	redisv1beta1 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -44,6 +46,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
+	utilruntime.Must(redisv1beta2.AddToScheme(scheme))
 	utilruntime.Must(redisv1beta1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
@@ -117,6 +120,22 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RedisSentinel")
+		os.Exit(1)
+	}
+	if err = (&redisv1beta2.Redis{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "Redis")
+		os.Exit(1)
+	}
+	if err = (&redisv1beta2.RedisCluster{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "RedisCluster")
+		os.Exit(1)
+	}
+	if err = (&redisv1beta2.RedisReplication{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "RedisReplication")
+		os.Exit(1)
+	}
+	if err = (&redisv1beta2.RedisSentinel{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "RedisSentinel")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

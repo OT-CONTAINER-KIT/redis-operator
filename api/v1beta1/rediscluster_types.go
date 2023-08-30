@@ -17,6 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	common "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -32,13 +33,11 @@ type RedisClusterSpec struct {
 	// +kubebuilder:default:={livenessProbe:{initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}, readinessProbe:{initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}}
 	RedisFollower      RedisFollower                `json:"redisFollower,omitempty"`
 	RedisExporter      *RedisExporter               `json:"redisExporter,omitempty"`
-	Storage            *ClusterStorage              `json:"storage,omitempty"`
-	PodSecurityContext *corev1.PodSecurityContext   `json:"podSecurityContext,omitempty"`
+	Storage            *Storage                     `json:"storage,omitempty"`
+	SecurityContext    *corev1.PodSecurityContext   `json:"securityContext,omitempty"`
 	PriorityClassName  string                       `json:"priorityClassName,omitempty"`
 	Resources          *corev1.ResourceRequirements `json:"resources,omitempty"`
 	TLS                *TLSConfig                   `json:"TLS,omitempty"`
-	ACL                *ACLConfig                   `json:"acl,omitempty"`
-	InitContainer      *InitContainer               `json:"initContainer,omitempty"`
 	Sidecars           *[]Sidecar                   `json:"sidecars,omitempty"`
 	ServiceAccountName *string                      `json:"serviceAccountName,omitempty"`
 	PersistenceEnabled *bool                        `json:"persistenceEnabled,omitempty"`
@@ -46,62 +45,33 @@ type RedisClusterSpec struct {
 
 func (cr *RedisClusterSpec) GetReplicaCounts(t string) int32 {
 	replica := cr.Size
-	if t == "leader" && cr.RedisLeader.Replicas != nil {
-		replica = cr.RedisLeader.Replicas
-	} else if t == "follower" && cr.RedisFollower.Replicas != nil {
-		replica = cr.RedisFollower.Replicas
+	if t == "leader" && cr.RedisLeader.CommonAttributes.Replicas != nil {
+		replica = cr.RedisLeader.CommonAttributes.Replicas
+	} else if t == "follower" && cr.RedisFollower.CommonAttributes.Replicas != nil {
+		replica = cr.RedisFollower.CommonAttributes.Replicas
 	}
 	return *replica
 }
 
 // RedisLeader interface will have the redis leader configuration
 type RedisLeader struct {
-	Replicas            *int32                    `json:"replicas,omitempty"`
-	RedisConfig         *RedisConfig              `json:"redisConfig,omitempty"`
-	SecurityContext     *corev1.SecurityContext   `json:"securityContext,omitempty"`
-	Affinity            *corev1.Affinity          `json:"affinity,omitempty"`
-	PodDisruptionBudget *RedisPodDisruptionBudget `json:"pdb,omitempty"`
-	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
-	ReadinessProbe *Probe `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
-	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
-	LivenessProbe                 *Probe               `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
-	Tolerations                   *[]corev1.Toleration `json:"tolerations,omitempty"`
-	NodeSelector                  map[string]string    `json:"nodeSelector,omitempty"`
-	TerminationGracePeriodSeconds *int64               `json:"terminationGracePeriodSeconds,omitempty" protobuf:"varint,4,opt,name=terminationGracePeriodSeconds"`
+	CommonAttributes common.RedisLeader `json:",inline"`
 }
 
 // RedisFollower interface will have the redis follower configuration
 type RedisFollower struct {
-	Replicas            *int32                    `json:"replicas,omitempty"`
-	RedisConfig         *RedisConfig              `json:"redisConfig,omitempty"`
-	SecurityContext     *corev1.SecurityContext   `json:"securityContext,omitempty"`
-	Affinity            *corev1.Affinity          `json:"affinity,omitempty"`
-	PodDisruptionBudget *RedisPodDisruptionBudget `json:"pdb,omitempty"`
-	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
-	ReadinessProbe *Probe `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
-	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
-	LivenessProbe                 *Probe               `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
-	Tolerations                   *[]corev1.Toleration `json:"tolerations,omitempty"`
-	NodeSelector                  map[string]string    `json:"nodeSelector,omitempty"`
-	TerminationGracePeriodSeconds *int64               `json:"terminationGracePeriodSeconds,omitempty" protobuf:"varint,4,opt,name=terminationGracePeriodSeconds"`
+	CommonAttributes common.RedisFollower `json:",inline"`
 }
 
 // RedisClusterStatus defines the observed state of RedisCluster
 type RedisClusterStatus struct {
 }
 
-// RedisPodDisruptionBudget configure a PodDisruptionBudget on the resource (leader/follower)
-type RedisPodDisruptionBudget struct {
-	Enabled        bool   `json:"enabled,omitempty"`
-	MinAvailable   *int32 `json:"minAvailable,omitempty"`
-	MaxUnavailable *int32 `json:"maxUnavailable,omitempty"`
-}
-
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="ClusterSize",type=integer,JSONPath=`.spec.clusterSize`,description=Current cluster node count
-// +kubebuilder:printcolumn:name="LeaderReplicas",type=integer,JSONPath=`.spec.redisLeader.replicas`,description=Overridden Leader replica count
-// +kubebuilder:printcolumn:name="FollowerReplicas",type=integer,JSONPath=`.spec.redisFollower.replicas`,description=Overridden Follower replica count
+// +kubebuilder:printcolumn:name="LeaderReplicas",type=integer,JSONPath=`.spec.redisLeader.CommonAttributes.Replicas`,description=Overridden Leader replica count
+// +kubebuilder:printcolumn:name="FollowerReplicas",type=integer,JSONPath=`.spec.redisFollower.CommonAttributes.Replicas`,description=Overridden Follower replica count
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`,description=Age of Cluster
 // RedisCluster is the Schema for the redisclusters API
 type RedisCluster struct {

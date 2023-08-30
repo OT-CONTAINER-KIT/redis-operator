@@ -4,12 +4,12 @@ import (
 	"strconv"
 	"strings"
 
-	redisv1beta1 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta1"
+	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/go-redis/redis"
 )
 
 // Reshard the redis Cluster
-func ReshardRedisCluster(cr *redisv1beta1.RedisCluster) {
+func ReshardRedisCluster(cr *redisv1beta2.RedisCluster) {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 	var cmd []string
 	currentRedisCount := CheckRedisNodeCount(cr, "leader")
@@ -71,7 +71,7 @@ func ReshardRedisCluster(cr *redisv1beta1.RedisCluster) {
 	executeCommand(cr, cmd, cr.ObjectMeta.Name+"-leader-0")
 }
 
-func getRedisClusterSlots(cr *redisv1beta1.RedisCluster, nodeID string) string {
+func getRedisClusterSlots(cr *redisv1beta2.RedisCluster, nodeID string) string {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 	totalSlots := 0
 
@@ -112,7 +112,7 @@ func getRedisClusterSlots(cr *redisv1beta1.RedisCluster, nodeID string) string {
 }
 
 // getRedisNodeID would return nodeID of a redis node by passing pod
-func getRedisNodeID(cr *redisv1beta1.RedisCluster, pod RedisDetails) string {
+func getRedisNodeID(cr *redisv1beta2.RedisCluster, pod RedisDetails) string {
 	var client *redis.Client
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 	client = configureRedisClient(cr, pod.PodName)
@@ -141,7 +141,7 @@ func getRedisNodeID(cr *redisv1beta1.RedisCluster, pod RedisDetails) string {
 }
 
 // Rebalance the Redis CLuster using the Empty Master Nodes
-func RebalanceRedisClusterEmptyMasters(cr *redisv1beta1.RedisCluster) {
+func RebalanceRedisClusterEmptyMasters(cr *redisv1beta2.RedisCluster) {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 	// cmd = redis-cli --cluster rebalance <redis>:<port> --cluster-use-empty-masters -a <pass>
 	var cmd []string
@@ -174,7 +174,7 @@ func RebalanceRedisClusterEmptyMasters(cr *redisv1beta1.RedisCluster) {
 	executeCommand(cr, cmd, cr.ObjectMeta.Name+"-leader-1")
 }
 
-func CheckIfEmptyMasters(cr *redisv1beta1.RedisCluster) {
+func CheckIfEmptyMasters(cr *redisv1beta2.RedisCluster) {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 	totalRedisLeaderNodes := CheckRedisNodeCount(cr, "leader")
 
@@ -195,7 +195,7 @@ func CheckIfEmptyMasters(cr *redisv1beta1.RedisCluster) {
 }
 
 // Rebalance Redis Cluster Would Rebalance the Redis Cluster without using the empty masters
-func RebalanceRedisCluster(cr *redisv1beta1.RedisCluster) {
+func RebalanceRedisCluster(cr *redisv1beta2.RedisCluster) {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 	// cmd = redis-cli --cluster rebalance <redis>:<port> -a <pass>
 	var cmd []string
@@ -227,7 +227,7 @@ func RebalanceRedisCluster(cr *redisv1beta1.RedisCluster) {
 }
 
 // Add redis cluster node would add a node to the existing redis cluster using redis-cli
-func AddRedisNodeToCluster(cr *redisv1beta1.RedisCluster) {
+func AddRedisNodeToCluster(cr *redisv1beta2.RedisCluster) {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 	var cmd []string
 	activeRedisNode := CheckRedisNodeCount(cr, "leader")
@@ -267,7 +267,7 @@ func AddRedisNodeToCluster(cr *redisv1beta1.RedisCluster) {
 }
 
 // getAttachedFollowerNodeIDs would return a slice of redis followers attached to a redis leader
-func getAttachedFollowerNodeIDs(cr *redisv1beta1.RedisCluster, masterNodeID string) []string {
+func getAttachedFollowerNodeIDs(cr *redisv1beta2.RedisCluster, masterNodeID string) []string {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 
 	redisClient := configureRedisClient(cr, cr.ObjectMeta.Name+"-leader-0")
@@ -297,7 +297,7 @@ func getAttachedFollowerNodeIDs(cr *redisv1beta1.RedisCluster, masterNodeID stri
 }
 
 // Remove redis follower node would remove all follower nodes of last leader node using redis-cli
-func RemoveRedisFollowerNodesFromCluster(cr *redisv1beta1.RedisCluster) {
+func RemoveRedisFollowerNodesFromCluster(cr *redisv1beta2.RedisCluster) {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 	var cmd []string
 	currentRedisCount := CheckRedisNodeCount(cr, "leader")
@@ -343,7 +343,7 @@ func RemoveRedisFollowerNodesFromCluster(cr *redisv1beta1.RedisCluster) {
 }
 
 // Remove redis cluster node would remove last node to the existing redis cluster using redis-cli
-func RemoveRedisNodeFromCluster(cr *redisv1beta1.RedisCluster) {
+func RemoveRedisNodeFromCluster(cr *redisv1beta2.RedisCluster) {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 	var cmd []string
 	currentRedisCount := CheckRedisNodeCount(cr, "leader")
@@ -387,7 +387,7 @@ func RemoveRedisNodeFromCluster(cr *redisv1beta1.RedisCluster) {
 }
 
 // verifyLeaderPod return true if the pod is leader/master
-func VerifyLeaderPod(cr *redisv1beta1.RedisCluster) bool {
+func VerifyLeaderPod(cr *redisv1beta2.RedisCluster) bool {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 	podName := cr.Name + "-leader-" + strconv.Itoa(int(CheckRedisNodeCount(cr, "leader"))-1)
 
@@ -410,7 +410,7 @@ func VerifyLeaderPod(cr *redisv1beta1.RedisCluster) bool {
 	return false
 }
 
-func ClusterFailover(cr *redisv1beta1.RedisCluster) {
+func ClusterFailover(cr *redisv1beta2.RedisCluster) {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 	slavePodName := cr.Name + "-leader-" + strconv.Itoa(int(CheckRedisNodeCount(cr, "leader"))-1)
 	// cmd = redis-cli cluster failover  -a <pass>

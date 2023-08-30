@@ -21,15 +21,13 @@ import (
 	"strconv"
 	"time"
 
+	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/k8sutils"
-
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	redisv1beta1 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta1"
 )
 
 // RedisClusterReconciler reconciles a RedisCluster object
@@ -43,7 +41,7 @@ type RedisClusterReconciler struct {
 func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	reqLogger := r.Log.WithValues("Request.Namespace", req.Namespace, "Request.Name", req.Name)
 	reqLogger.Info("Reconciling opstree redis Cluster controller")
-	instance := &redisv1beta1.RedisCluster{}
+	instance := &redisv1beta2.RedisCluster{}
 
 	err := r.Client.Get(context.TODO(), req.NamespacedName, instance)
 	if err != nil {
@@ -106,7 +104,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	}
 
-	err = k8sutils.ReconcileRedisPodDisruptionBudget(instance, "leader", instance.Spec.RedisLeader.PodDisruptionBudget)
+	err = k8sutils.ReconcileRedisPodDisruptionBudget(instance, "leader", instance.Spec.RedisLeader.CommonAttributes.PodDisruptionBudget)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: time.Second * 60}, err
 	}
@@ -128,7 +126,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				return ctrl.Result{RequeueAfter: time.Second * 60}, err
 			}
 		}
-		err = k8sutils.ReconcileRedisPodDisruptionBudget(instance, "follower", instance.Spec.RedisFollower.PodDisruptionBudget)
+		err = k8sutils.ReconcileRedisPodDisruptionBudget(instance, "follower", instance.Spec.RedisFollower.CommonAttributes.PodDisruptionBudget)
 		if err != nil {
 			return ctrl.Result{RequeueAfter: time.Second * 60}, err
 		}
@@ -194,6 +192,6 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 // SetupWithManager sets up the controller with the Manager.
 func (r *RedisClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&redisv1beta1.RedisCluster{}).
+		For(&redisv1beta2.RedisCluster{}).
 		Complete(r)
 }

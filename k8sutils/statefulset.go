@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	redisv1beta1 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta1"
-
+	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api"
+	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -43,7 +43,7 @@ type statefulSetParameters struct {
 	ServiceAccountName            *string
 	UpdateStrategy                appsv1.StatefulSetUpdateStrategy
 	RecreateStatefulSet           bool
-	InitContainers                *[]redisv1beta1.InitContainer
+	InitContainers                *[]redisv1beta2.InitContainer
 	TerminationGracePeriodSeconds *int64
 }
 
@@ -62,10 +62,10 @@ type containerParameters struct {
 	SecretName                   *string
 	SecretKey                    *string
 	PersistenceEnabled           *bool
-	TLSConfig                    *redisv1beta1.TLSConfig
-	ACLConfig                    *redisv1beta1.ACLConfig
-	ReadinessProbe               *redisv1beta1.Probe
-	LivenessProbe                *redisv1beta1.Probe
+	TLSConfig                    *redisv1beta2.TLSConfig
+	ACLConfig                    *redisv1beta2.ACLConfig
+	ReadinessProbe               *commonapi.Probe
+	LivenessProbe                *commonapi.Probe
 	AdditionalEnvVariable        *[]corev1.EnvVar
 	AdditionalVolume             []corev1.Volume
 	AdditionalMountPath          []corev1.VolumeMount
@@ -86,7 +86,7 @@ type initContainerParameters struct {
 }
 
 // CreateOrUpdateStateFul method will create or update Redis service
-func CreateOrUpdateStateFul(namespace string, stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, initcontainerParams initContainerParameters, containerParams containerParameters, sidecars *[]redisv1beta1.Sidecar) error {
+func CreateOrUpdateStateFul(namespace string, stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, initcontainerParams initContainerParameters, containerParams containerParameters, sidecars *[]redisv1beta2.Sidecar) error {
 	logger := statefulSetLogger(namespace, stsMeta.Name)
 	storedStateful, err := GetStatefulSet(namespace, stsMeta.Name)
 	statefulSetDef := generateStatefulSetsDef(stsMeta, params, ownerDef, initcontainerParams, containerParams, getSidecars(sidecars))
@@ -208,7 +208,7 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 }
 
 // generateStatefulSetsDef generates the statefulsets definition of Redis
-func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, initcontainerParams initContainerParameters, containerParams containerParameters, sidecars []redisv1beta1.Sidecar) *appsv1.StatefulSet {
+func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, initcontainerParams initContainerParameters, containerParams containerParameters, sidecars []redisv1beta2.Sidecar) *appsv1.StatefulSet {
 	statefulset := &appsv1.StatefulSet{
 		TypeMeta:   generateMetaInformation("StatefulSet", "apps/v1"),
 		ObjectMeta: stsMeta,
@@ -332,7 +332,7 @@ func createPVCTemplate(volumeName string, stsMeta metav1.ObjectMeta, storageSpec
 }
 
 // generateContainerDef generates container definition for Redis
-func generateContainerDef(name string, containerParams containerParameters, clusterMode, enableMetrics bool, externalConfig *string, mountpath []corev1.VolumeMount, sidecars []redisv1beta1.Sidecar) []corev1.Container {
+func generateContainerDef(name string, containerParams containerParameters, clusterMode, enableMetrics bool, externalConfig *string, mountpath []corev1.VolumeMount, sidecars []redisv1beta2.Sidecar) []corev1.Container {
 	containerDefinition := []corev1.Container{
 		{
 			Name:            name,
@@ -416,7 +416,7 @@ func generateInitContainerDef(name string, initcontainerParams initContainerPara
 	return initcontainerDefinition
 }
 
-func GenerateTLSEnvironmentVariables(tlsconfig *redisv1beta1.TLSConfig) []corev1.EnvVar {
+func GenerateTLSEnvironmentVariables(tlsconfig *redisv1beta2.TLSConfig) []corev1.EnvVar {
 	var envVars []corev1.EnvVar
 	root := "/tls/"
 
@@ -487,7 +487,7 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 }
 
 // getVolumeMount gives information about persistence mount
-func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, externalConfig *string, mountpath []corev1.VolumeMount, tlsConfig *redisv1beta1.TLSConfig, aclConfig *redisv1beta1.ACLConfig) []corev1.VolumeMount {
+func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, externalConfig *string, mountpath []corev1.VolumeMount, tlsConfig *redisv1beta2.TLSConfig, aclConfig *redisv1beta2.ACLConfig) []corev1.VolumeMount {
 	var VolumeMounts []corev1.VolumeMount
 
 	if persistenceEnabled != nil && clusterMode {
@@ -533,7 +533,7 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, ext
 }
 
 // getProbeInfo generate probe for Redis StatefulSet
-func getProbeInfo(probe *redisv1beta1.Probe) *corev1.Probe {
+func getProbeInfo(probe *commonapi.Probe) *corev1.Probe {
 	return &corev1.Probe{
 		InitialDelaySeconds: probe.InitialDelaySeconds,
 		PeriodSeconds:       probe.PeriodSeconds,
@@ -552,7 +552,7 @@ func getProbeInfo(probe *redisv1beta1.Probe) *corev1.Probe {
 }
 
 // getEnvironmentVariables returns all the required Environment Variables
-func getEnvironmentVariables(role string, enabledMetric bool, enabledPassword *bool, secretName *string, secretKey *string, persistenceEnabled *bool, exporterEnvVar *[]corev1.EnvVar, tlsConfig *redisv1beta1.TLSConfig, aclConfig *redisv1beta1.ACLConfig) []corev1.EnvVar {
+func getEnvironmentVariables(role string, enabledMetric bool, enabledPassword *bool, secretName *string, secretKey *string, persistenceEnabled *bool, exporterEnvVar *[]corev1.EnvVar, tlsConfig *redisv1beta2.TLSConfig, aclConfig *redisv1beta2.ACLConfig) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{Name: "SERVER_MODE", Value: role},
 		{Name: "SETUP_MODE", Value: role},
@@ -684,9 +684,9 @@ func statefulSetLogger(namespace string, name string) logr.Logger {
 	return reqLogger
 }
 
-func getSidecars(sidecars *[]redisv1beta1.Sidecar) []redisv1beta1.Sidecar {
+func getSidecars(sidecars *[]redisv1beta2.Sidecar) []redisv1beta2.Sidecar {
 	if sidecars == nil {
-		return []redisv1beta1.Sidecar{}
+		return []redisv1beta2.Sidecar{}
 	}
 	return *sidecars
 }

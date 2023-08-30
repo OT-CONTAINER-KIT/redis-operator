@@ -1,9 +1,24 @@
+
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: redis-operator
+  creationTimestamp: null
+  name: manager-role
 rules:
+- nonResourceURLs:
+  - '*'
+  verbs:
+  - get
+- resources:
+  - configmaps
+  - events
+  - namespace
+  - persistentvolumeclaims
+  - pods
+  - pods/exec
+  - secrets
+  - services
 - apiGroups:
   - redis.redis.opstreelabs.in
   resources:
@@ -24,38 +39,12 @@ rules:
   - update
   - watch
 - apiGroups:
-  - redis.redis.opstreelabs.in
+  - apiextensions.k8s.io
   resources:
-  - redis/finalizers
-  - rediscluster/finalizers
+  - customresourcedefinitions
   verbs:
-  - update
-- apiGroups:
-  - redis.redis.opstreelabs.in
-  resources:
-  - redis/status
-  - rediscluster/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  - pods/exec
-  - pods
-  - services
-  - configmaps
-  - persistentvolumes
-  - persistentvolumeclaims
-  verbs:
-  - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - apps
@@ -70,7 +59,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - "coordination.k8s.io"
+  - coordination.k8s.io
   resources:
   - leases
   verbs:
@@ -82,14 +71,53 @@ rules:
   - update
   - watch
 - apiGroups:
-    - "policy"
+  - policy
   resources:
-    - poddisruptionbudgets
+  - poddisruptionbudgets
   verbs:
-    - create
-    - delete
-    - get
-    - list
-    - patch
-    - update
-    - watch
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - redis.redis.opstreelabs.in
+  resources:
+  - redis
+  - rediscluster
+  - redisclusters
+  - redisreplication
+  - redisreplications
+  - rediss
+  - redissentinel
+  - redissentinels
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - redis.redis.opstreelabs.in
+  resources:
+  - redis/finalizers
+  - rediscluster/finalizers
+  - redisreplication/finalizers
+  - redissentinel/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - redis.redis.opstreelabs.in
+  resources:
+  - redis/status
+  - rediscluster/status
+  - redisreplication/status
+  - redissentinel/status
+  verbs:
+  - get
+  - patch
+  - update

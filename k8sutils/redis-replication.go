@@ -1,11 +1,9 @@
 package k8sutils
 
-import (
-	redisv1beta1 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta1"
-)
+import redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 
 // CreateReplicationService method will create replication service for Redis
-func CreateReplicationService(cr *redisv1beta1.RedisReplication) error {
+func CreateReplicationService(cr *redisv1beta2.RedisReplication) error {
 	logger := serviceLogger(cr.Namespace, cr.ObjectMeta.Name)
 	labels := getRedisLabels(cr.ObjectMeta.Name, "replication", "replication", cr.ObjectMeta.Labels)
 	annotations := generateServiceAnots(cr.ObjectMeta, nil)
@@ -44,7 +42,7 @@ func CreateReplicationService(cr *redisv1beta1.RedisReplication) error {
 }
 
 // CreateReplicationRedis will create a replication redis setup
-func CreateReplicationRedis(cr *redisv1beta1.RedisReplication) error {
+func CreateReplicationRedis(cr *redisv1beta2.RedisReplication) error {
 	stateFulName := cr.ObjectMeta.Name
 	logger := statefulSetLogger(cr.Namespace, cr.ObjectMeta.Name)
 	labels := getRedisLabels(cr.ObjectMeta.Name, "replication", "replication", cr.ObjectMeta.Labels)
@@ -65,7 +63,7 @@ func CreateReplicationRedis(cr *redisv1beta1.RedisReplication) error {
 	return nil
 }
 
-func generateRedisReplicationParams(cr *redisv1beta1.RedisReplication) statefulSetParameters {
+func generateRedisReplicationParams(cr *redisv1beta2.RedisReplication) statefulSetParameters {
 	replicas := cr.Spec.GetReplicationCounts("Replication")
 	res := statefulSetParameters{
 		Replicas:                      &replicas,
@@ -82,7 +80,7 @@ func generateRedisReplicationParams(cr *redisv1beta1.RedisReplication) statefulS
 		res.ImagePullSecrets = cr.Spec.KubernetesConfig.ImagePullSecrets
 	}
 	if cr.Spec.Storage != nil {
-		res.PersistentVolumeClaim = cr.Spec.Storage.VolumeClaimTemplate
+		res.PersistentVolumeClaim = cr.Spec.Storage.CommonAttributes.VolumeClaimTemplate
 	}
 	if cr.Spec.RedisConfig != nil {
 		res.ExternalConfig = cr.Spec.RedisConfig.AdditionalRedisConfig
@@ -100,7 +98,7 @@ func generateRedisReplicationParams(cr *redisv1beta1.RedisReplication) statefulS
 }
 
 // generateRedisReplicationContainerParams generates Redis container information
-func generateRedisReplicationContainerParams(cr *redisv1beta1.RedisReplication) containerParameters {
+func generateRedisReplicationContainerParams(cr *redisv1beta2.RedisReplication) containerParameters {
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{
@@ -112,8 +110,8 @@ func generateRedisReplicationContainerParams(cr *redisv1beta1.RedisReplication) 
 	}
 
 	if cr.Spec.Storage != nil {
-		containerProp.AdditionalVolume = cr.Spec.Storage.VolumeMount.Volume
-		containerProp.AdditionalMountPath = cr.Spec.Storage.VolumeMount.MountPath
+		containerProp.AdditionalVolume = cr.Spec.Storage.CommonAttributes.VolumeMount.Volume
+		containerProp.AdditionalMountPath = cr.Spec.Storage.CommonAttributes.VolumeMount.MountPath
 	}
 
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
@@ -137,10 +135,10 @@ func generateRedisReplicationContainerParams(cr *redisv1beta1.RedisReplication) 
 
 	}
 	if cr.Spec.ReadinessProbe != nil {
-		containerProp.ReadinessProbe = cr.Spec.ReadinessProbe
+		containerProp.ReadinessProbe = &cr.Spec.ReadinessProbe.Probe
 	}
 	if cr.Spec.LivenessProbe != nil {
-		containerProp.LivenessProbe = cr.Spec.LivenessProbe
+		containerProp.LivenessProbe = &cr.Spec.LivenessProbe.Probe
 	}
 	if cr.Spec.Storage != nil {
 		containerProp.PersistenceEnabled = &trueProperty
@@ -155,7 +153,7 @@ func generateRedisReplicationContainerParams(cr *redisv1beta1.RedisReplication) 
 }
 
 // generateRedisReplicationInitContainerParams generates Redis Replication initcontainer information
-func generateRedisReplicationInitContainerParams(cr *redisv1beta1.RedisReplication) initContainerParameters {
+func generateRedisReplicationInitContainerParams(cr *redisv1beta2.RedisReplication) initContainerParameters {
 	trueProperty := true
 	initcontainerProp := initContainerParameters{}
 
@@ -174,8 +172,8 @@ func generateRedisReplicationInitContainerParams(cr *redisv1beta1.RedisReplicati
 		}
 
 		if cr.Spec.Storage != nil {
-			initcontainerProp.AdditionalVolume = cr.Spec.Storage.VolumeMount.Volume
-			initcontainerProp.AdditionalMountPath = cr.Spec.Storage.VolumeMount.MountPath
+			initcontainerProp.AdditionalVolume = cr.Spec.Storage.CommonAttributes.VolumeMount.Volume
+			initcontainerProp.AdditionalMountPath = cr.Spec.Storage.CommonAttributes.VolumeMount.MountPath
 		}
 		if cr.Spec.Storage != nil {
 			initcontainerProp.PersistenceEnabled = &trueProperty

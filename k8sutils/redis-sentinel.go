@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 
-	redisv1beta1 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta1"
-
+	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api"
+	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -18,8 +18,8 @@ type RedisSentinelSTS struct {
 	ExternalConfig                *string
 	Affinity                      *corev1.Affinity `json:"affinity,omitempty"`
 	TerminationGracePeriodSeconds *int64           `json:"terminationGracePeriodSeconds,omitempty" protobuf:"varint,4,opt,name=terminationGracePeriodSeconds"`
-	ReadinessProbe                *redisv1beta1.Probe
-	LivenessProbe                 *redisv1beta1.Probe
+	ReadinessProbe                *commonapi.Probe
+	LivenessProbe                 *commonapi.Probe
 }
 
 // RedisSentinelService is a interface to call Redis Service function
@@ -28,16 +28,16 @@ type RedisSentinelService struct {
 }
 
 type RedisReplicationObject struct {
-	RedisReplication *redisv1beta1.RedisReplication
+	RedisReplication *redisv1beta2.RedisReplication
 }
 
 // Redis Sentinel Create the Redis Sentinel Setup
-func CreateRedisSentinel(cr *redisv1beta1.RedisSentinel) error {
+func CreateRedisSentinel(cr *redisv1beta2.RedisSentinel) error {
 	prop := RedisSentinelSTS{
 		RedisStateFulType:             "sentinel",
 		Affinity:                      cr.Spec.Affinity,
-		ReadinessProbe:                cr.Spec.ReadinessProbe,
-		LivenessProbe:                 cr.Spec.LivenessProbe,
+		ReadinessProbe:                &cr.Spec.ReadinessProbe.Probe,
+		LivenessProbe:                 &cr.Spec.LivenessProbe.Probe,
 		TerminationGracePeriodSeconds: cr.Spec.TerminationGracePeriodSeconds,
 	}
 
@@ -50,7 +50,7 @@ func CreateRedisSentinel(cr *redisv1beta1.RedisSentinel) error {
 }
 
 // Create RedisSentinel Service
-func CreateRedisSentinelService(cr *redisv1beta1.RedisSentinel) error {
+func CreateRedisSentinelService(cr *redisv1beta2.RedisSentinel) error {
 
 	prop := RedisSentinelService{
 		RedisServiceRole: "sentinel",
@@ -59,7 +59,7 @@ func CreateRedisSentinelService(cr *redisv1beta1.RedisSentinel) error {
 }
 
 // Create Redis Sentinel Cluster Setup
-func (service RedisSentinelSTS) CreateRedisSentinelSetup(cr *redisv1beta1.RedisSentinel) error {
+func (service RedisSentinelSTS) CreateRedisSentinelSetup(cr *redisv1beta2.RedisSentinel) error {
 
 	stateFulName := cr.ObjectMeta.Name + "-" + service.RedisStateFulType
 	logger := statefulSetLogger(cr.Namespace, stateFulName)
@@ -84,7 +84,7 @@ func (service RedisSentinelSTS) CreateRedisSentinelSetup(cr *redisv1beta1.RedisS
 }
 
 // Create Redis Sentile Params for the statefulset
-func generateRedisSentinelParams(cr *redisv1beta1.RedisSentinel, replicas int32, externalConfig *string, affinity *corev1.Affinity) statefulSetParameters {
+func generateRedisSentinelParams(cr *redisv1beta2.RedisSentinel, replicas int32, externalConfig *string, affinity *corev1.Affinity) statefulSetParameters {
 
 	res := statefulSetParameters{
 		Metadata:                      cr.ObjectMeta,
@@ -114,7 +114,7 @@ func generateRedisSentinelParams(cr *redisv1beta1.RedisSentinel, replicas int32,
 }
 
 // generateRedisSentinelInitContainerParams generates Redis sentinel initcontainer information
-func generateRedisSentinelInitContainerParams(cr *redisv1beta1.RedisSentinel) initContainerParameters {
+func generateRedisSentinelInitContainerParams(cr *redisv1beta2.RedisSentinel) initContainerParameters {
 
 	initcontainerProp := initContainerParameters{}
 
@@ -138,7 +138,7 @@ func generateRedisSentinelInitContainerParams(cr *redisv1beta1.RedisSentinel) in
 }
 
 // Create Redis Sentinel Statefulset Container Params
-func generateRedisSentinelContainerParams(cr *redisv1beta1.RedisSentinel, readinessProbeDef *redisv1beta1.Probe, livenessProbeDef *redisv1beta1.Probe) containerParameters {
+func generateRedisSentinelContainerParams(cr *redisv1beta2.RedisSentinel, readinessProbeDef *commonapi.Probe, livenessProbeDef *commonapi.Probe) containerParameters {
 
 	trueProperty := true
 	falseProperty := false
@@ -184,12 +184,12 @@ func generateRedisSentinelContainerParams(cr *redisv1beta1.RedisSentinel, readin
 }
 
 // Get the Count of the Sentinel
-func (service RedisSentinelSTS) getSentinelCount(cr *redisv1beta1.RedisSentinel) int32 {
+func (service RedisSentinelSTS) getSentinelCount(cr *redisv1beta2.RedisSentinel) int32 {
 	return cr.Spec.GetSentinelCounts(service.RedisStateFulType)
 }
 
 // Create the Service for redis sentinel
-func (service RedisSentinelService) CreateRedisSentinelService(cr *redisv1beta1.RedisSentinel) error {
+func (service RedisSentinelService) CreateRedisSentinelService(cr *redisv1beta2.RedisSentinel) error {
 	serviceName := cr.ObjectMeta.Name + "-" + service.RedisServiceRole
 	logger := serviceLogger(cr.Namespace, serviceName)
 	labels := getRedisLabels(serviceName, "cluster", service.RedisServiceRole, cr.ObjectMeta.Labels)
@@ -234,7 +234,7 @@ func (service RedisSentinelService) CreateRedisSentinelService(cr *redisv1beta1.
 
 }
 
-func getSentinelEnvVariable(cr *redisv1beta1.RedisSentinel) *[]corev1.EnvVar {
+func getSentinelEnvVariable(cr *redisv1beta2.RedisSentinel) *[]corev1.EnvVar {
 
 	envVar := &[]corev1.EnvVar{
 		{
@@ -271,19 +271,19 @@ func getSentinelEnvVariable(cr *redisv1beta1.RedisSentinel) *[]corev1.EnvVar {
 
 }
 
-func getRedisReplicationMasterIP(cr *redisv1beta1.RedisSentinel) string {
+func getRedisReplicationMasterIP(cr *redisv1beta2.RedisSentinel) string {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 
 	replicationName := cr.Spec.RedisSentinelConfig.RedisReplicationName
 	replicationNamespace := cr.Namespace
 
-	var replicationInstance redisv1beta1.RedisReplication
+	var replicationInstance redisv1beta2.RedisReplication
 	var realMasterPod string
 
 	// Get Request on Dynamic Client
 	customObject, err := generateK8sDynamicClient().Resource(schema.GroupVersionResource{
 		Group:    "redis.redis.opstreelabs.in",
-		Version:  "v1beta1",
+		Version:  "v1beta2",
 		Resource: "redisreplications",
 	}).Namespace(replicationNamespace).Get(context.TODO(), replicationName, v1.GetOptions{})
 
