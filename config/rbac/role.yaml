@@ -13,23 +13,12 @@ rules:
 - resources:
   - configmaps
   - events
-  - namespace
+  - namespaces
   - persistentvolumeclaims
   - pods
   - pods/exec
   - secrets
   - services
-- apiGroups:
-  - redis.redis.opstreelabs.in
-  resources:
-  - rediss
-  - redisclusters
-  - redis
-  - rediscluster
-  - redisreplication
-  - redisreplications
-  - redissentinel
-  - redissentinels
   verbs:
   - create
   - delete

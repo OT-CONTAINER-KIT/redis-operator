@@ -22,11 +22,11 @@ spec:
       name: ClusterSize
       type: integer
     - description: Overridden Leader replica count
-      jsonPath: .spec.redisLeader.replicas
+      jsonPath: .spec.redisLeader.CommonAttributes.Replicas
       name: LeaderReplicas
       type: integer
     - description: Overridden Follower replica count
-      jsonPath: .spec.redisFollower.replicas
+      jsonPath: .spec.redisFollower.CommonAttributes.Replicas
       name: FollowerReplicas
       type: integer
     - description: Age of Cluster
@@ -4729,11 +4729,11 @@ spec:
       name: ClusterSize
       type: integer
     - description: Overridden Leader replica count
-      jsonPath: .spec.redisLeader.replicas
+      jsonPath: .spec.redisLeader.CommonAttributes.Replicas
       name: LeaderReplicas
       type: integer
     - description: Overridden Follower replica count
-      jsonPath: .spec.redisFollower.replicas
+      jsonPath: .spec.redisFollower.CommonAttributes.Replicas
       name: FollowerReplicas
       type: integer
     - description: Age of Cluster
