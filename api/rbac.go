@@ -1,4 +1,4 @@
-package v1beta2
+package api
 
 // +kubebuilder:rbac:groups=redis.redis.opstreelabs.in,resources=rediss;redisclusters;redisreplications;redis;rediscluster;redissentinel;redissentinels;redisreplication,verbs=create;delete;get;list;patch;update;watch
 // +kubebuilder:rbac:urls=*,verbs=get
