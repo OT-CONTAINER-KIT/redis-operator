@@ -20,6 +20,14 @@ Fixes #ISSUE
 
 **Checklist**
 
-- [ ] Testing has been performed
-- [ ] No functionality is broken
-- [ ] Documentation updated
+- [ ] Tests have been added/modified and all tests pass.
+- [ ] Functionality/bugs have been confirmed to be unchanged or fixed.
+- [ ] I have performed a self-review of my own code.
+- [ ] Documentation has been updated or added where necessary.
+
+**Additional Context**
+
+<!-- 
+    Is there anything else you'd like reviewers to know? 
+    For example, any other related issues or testing carried out.
+-->
