@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 
+	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,8 +18,8 @@ type RedisSentinelSTS struct {
 	ExternalConfig                *string
 	Affinity                      *corev1.Affinity `json:"affinity,omitempty"`
 	TerminationGracePeriodSeconds *int64           `json:"terminationGracePeriodSeconds,omitempty" protobuf:"varint,4,opt,name=terminationGracePeriodSeconds"`
-	ReadinessProbe                *redisv1beta2.Probe
-	LivenessProbe                 *redisv1beta2.Probe
+	ReadinessProbe                *commonapi.Probe
+	LivenessProbe                 *commonapi.Probe
 }
 
 // RedisSentinelService is a interface to call Redis Service function
@@ -35,8 +36,8 @@ func CreateRedisSentinel(cr *redisv1beta2.RedisSentinel) error {
 	prop := RedisSentinelSTS{
 		RedisStateFulType:             "sentinel",
 		Affinity:                      cr.Spec.Affinity,
-		ReadinessProbe:                cr.Spec.ReadinessProbe,
-		LivenessProbe:                 cr.Spec.LivenessProbe,
+		ReadinessProbe:                &cr.Spec.ReadinessProbe.Probe,
+		LivenessProbe:                 &cr.Spec.LivenessProbe.Probe,
 		TerminationGracePeriodSeconds: cr.Spec.TerminationGracePeriodSeconds,
 	}
 
@@ -137,7 +138,7 @@ func generateRedisSentinelInitContainerParams(cr *redisv1beta2.RedisSentinel) in
 }
 
 // Create Redis Sentinel Statefulset Container Params
-func generateRedisSentinelContainerParams(cr *redisv1beta2.RedisSentinel, readinessProbeDef *redisv1beta2.Probe, livenessProbeDef *redisv1beta2.Probe) containerParameters {
+func generateRedisSentinelContainerParams(cr *redisv1beta2.RedisSentinel, readinessProbeDef *commonapi.Probe, livenessProbeDef *commonapi.Probe) containerParameters {
 
 	trueProperty := true
 	falseProperty := false

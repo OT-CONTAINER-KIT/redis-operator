@@ -139,3 +139,21 @@ type RedisPodDisruptionBudget struct {
 	MinAvailable   *int32 `json:"minAvailable,omitempty"`
 	MaxUnavailable *int32 `json:"maxUnavailable,omitempty"`
 }
+
+// +k8s:deepcopy-gen=true
+type RedisSentinelConfig struct {
+	AdditionalSentinelConfig *string `json:"additionalSentinelConfig,omitempty"`
+	RedisReplicationName     string  `json:"redisReplicationName"`
+	// +kubebuilder:default:=myMaster
+	MasterGroupName string `json:"masterGroupName,omitempty"`
+	// +kubebuilder:default:="6379"
+	RedisPort string `json:"redisPort,omitempty"`
+	// +kubebuilder:default:="2"
+	Quorum string `json:"quorum,omitempty"`
+	// +kubebuilder:default:="1"
+	ParallelSyncs string `json:"parallelSyncs,omitempty"`
+	// +kubebuilder:default:="180000"
+	FailoverTimeout string `json:"failoverTimeout,omitempty"`
+	// +kubebuilder:default:="30000"
+	DownAfterMilliseconds string `json:"downAfterMilliseconds,omitempty"`
+}
