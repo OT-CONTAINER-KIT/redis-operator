@@ -5,7 +5,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 )
 
-// ConvertTo converts this RedisCluster to the Hub version (vbeta1).
+// ConvertTo converts this RedisCluster to the Hub version (v1beta2).
 func (src *RedisCluster) ConvertTo(dstRaw conversion.Hub) error {
 	dst := dstRaw.(*redisv1beta2.RedisCluster)
 
@@ -52,7 +52,6 @@ func (src *RedisCluster) ConvertTo(dstRaw conversion.Hub) error {
 		dst.Spec.TLS.TLSConfig = src.Spec.TLS.TLSConfig
 	}
 	// Sidecars
-	// Sidecars
 	if src.Spec.Sidecars != nil {
 		var sidecars []redisv1beta2.Sidecar
 		for _, sidecar := range *src.Spec.Sidecars {
@@ -75,7 +74,7 @@ func (src *RedisCluster) ConvertTo(dstRaw conversion.Hub) error {
 	return nil
 }
 
-// ConvertFrom converts from the Hub version (vbeta1) to this version.
+// ConvertFrom converts from the Hub version (vbeta2) to this version.
 func (dst *RedisCluster) ConvertFrom(srcRaw conversion.Hub) error {
 	src := srcRaw.(*redisv1beta2.RedisCluster)
 
