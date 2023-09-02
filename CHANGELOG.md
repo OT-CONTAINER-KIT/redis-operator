@@ -1,3 +1,56 @@
+### v0.15.0 
+##### July 17, 2023 Latest
+
+#### :beetle: Bug Fixes
+
+- Fix Linter Issue #479
+- Fix exporter ports enabled even when exporters disabled #484
+- Corrected scenario "go-get-tool" in makefile #499
+- Operator Crash when persistence is false/Disabled #519 -- Breaking Change
+- call of func checkAttachedSlave for 1 Master Replication #523
+- Only created /node-conf VolumeMount for clusters #532
+- Redis Sentinel Exporter ports in Env Vars #533
+- Init Container tried to mount invalid volume name #538
+- Cluster leader failover loop if there is only a single leader #542
+
+#### :tada: Features
+
+- Add RedisExporter for sentinel #440
+- Add InitContainer Field #458
+- ACL redis via secret #486
+- Adding Custom TerminationGracePeriodSeconds and additional fields for Sidecar #487
+- Enable Support for Backup and Restore via script #489
+- Support Scaling for Redis Cluster #531 -- Breaking Change
+
+#### :tada: Refactors
+
+- Fixed StatefulSet(sentinel) Label for Service(Selector) #442
+- Declare Module Correctly On sentinel #478
+- Manage (Pod and Container) security Context explicitly #518
+- Add watchnamespace function as per operator hub #520
+- Remove sentinel default validation not effect #535
+- Remove sentinel cluster size validation no effect #536
+
+### v0.14.0 
+##### Feburary 13, 2023
+
+#### :beetle: Bug Fixes
+
+- Added check for persistent volume nil condition
+- Fix crash with go panic
+- Fix memory address bug and nil pointer
+- CR annotations fixes w.r.t. to stateful set
+- Fix issues with ARM64 support
+
+#### :tada: Features
+
+- Added serviceType functionality for redis standalone and cluster
+- Added feature for additional volume mounts
+- Added nodeSelectory and tolerations for redis cluster
+- Added recreation logic for redis stateful sets
+- Added replication mode support for the redis cluster
+- Added sentinel support for replication failover
+
 ### v0.13.0
 ##### November 10, 2022
 
