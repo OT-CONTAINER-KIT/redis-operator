@@ -5,7 +5,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 )
 
-// ConvertTo converts this RedisSentinel to the Hub version (vbeta1).
+// ConvertTo converts this RedisSentinel to the Hub version (vbeta2).
 func (src *RedisSentinel) ConvertTo(dstRaw conversion.Hub) error {
 	dst := dstRaw.(*redisv1beta2.RedisSentinel)
 
@@ -72,7 +72,7 @@ func (src *RedisSentinel) ConvertTo(dstRaw conversion.Hub) error {
 	return nil
 }
 
-// ConvertFrom converts from the Hub version (vbeta1) to this version.
+// ConvertFrom converts from the Hub version (vbeta2) to this version.
 func (dst *RedisSentinel) ConvertFrom(srcRaw conversion.Hub) error {
 	src := srcRaw.(*redisv1beta2.RedisSentinel)
 

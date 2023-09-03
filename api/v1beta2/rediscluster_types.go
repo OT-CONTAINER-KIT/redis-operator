@@ -75,7 +75,7 @@ type RedisClusterStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-//+kubebuilder:storageversion
+// +kubebuilder:storageversion
 // +kubebuilder:printcolumn:name="ClusterSize",type=integer,JSONPath=`.spec.clusterSize`,description=Current cluster node count
 // +kubebuilder:printcolumn:name="LeaderReplicas",type=integer,JSONPath=`.spec.redisLeader.CommonAttributes.Replicas`,description=Overridden Leader replica count
 // +kubebuilder:printcolumn:name="FollowerReplicas",type=integer,JSONPath=`.spec.redisFollower.CommonAttributes.Replicas`,description=Overridden Follower replica count
