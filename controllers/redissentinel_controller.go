@@ -33,6 +33,12 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 		return ctrl.Result{}, err
 	}
+
+	if _, found := instance.ObjectMeta.GetAnnotations()["redissentinel.opstreelabs.in/skip-reconcile"]; found {
+		reqLogger.Info("Found annotations redissentinel.opstreelabs.in/skip-reconcile, so skipping reconcile")
+		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+	}
+
 	// Get total Sentinel Replicas
 	// sentinelReplicas := instance.Spec.GetSentinelCounts("sentinel")
 
