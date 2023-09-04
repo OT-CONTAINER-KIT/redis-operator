@@ -3,7 +3,7 @@
 
 #### :beetle: Bug Fixes
 
-- Fix Linter Issue #479
+- Fix Linter Issue #479 
 - Fix exporter ports enabled even when exporters disabled #484
 - Corrected scenario "go-get-tool" in makefile #499
 - Operator Crash when persistence is false/Disabled #519 -- Breaking Change
