@@ -5,7 +5,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 )
 
-// ConvertTo converts this RedisReplication to the Hub version (vbeta1).
+// ConvertTo converts this RedisReplication to the Hub version (vbeta2).
 func (src *RedisReplication) ConvertTo(dstRaw conversion.Hub) error {
 	dst := dstRaw.(*redisv1beta2.RedisReplication)
 
@@ -79,7 +79,7 @@ func (src *RedisReplication) ConvertTo(dstRaw conversion.Hub) error {
 	return nil
 }
 
-// ConvertFrom converts from the Hub version (vbeta1) to this version.
+// ConvertFrom converts from the Hub version (vbeta2) to this version.
 func (dst *RedisReplication) ConvertFrom(srcRaw conversion.Hub) error {
 	src := srcRaw.(*redisv1beta2.RedisReplication)
 

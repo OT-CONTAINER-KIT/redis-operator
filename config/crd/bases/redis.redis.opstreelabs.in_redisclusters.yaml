@@ -22,11 +22,11 @@ spec:
       name: ClusterSize
       type: integer
     - description: Overridden Leader replica count
-      jsonPath: .spec.redisLeader.replicas
+      jsonPath: .spec.redisLeader.CommonAttributes.Replicas
       name: LeaderReplicas
       type: integer
     - description: Overridden Follower replica count
-      jsonPath: .spec.redisFollower.replicas
+      jsonPath: .spec.redisFollower.CommonAttributes.Replicas
       name: FollowerReplicas
       type: integer
     - description: Age of Cluster
@@ -4729,11 +4729,11 @@ spec:
       name: ClusterSize
       type: integer
     - description: Overridden Leader replica count
-      jsonPath: .spec.redisLeader.replicas
+      jsonPath: .spec.redisLeader.CommonAttributes.Replicas
       name: LeaderReplicas
       type: integer
     - description: Overridden Follower replica count
-      jsonPath: .spec.redisFollower.replicas
+      jsonPath: .spec.redisFollower.CommonAttributes.Replicas
       name: FollowerReplicas
       type: integer
     - description: Age of Cluster
@@ -8138,6 +8138,9 @@ spec:
               storage:
                 description: Node-conf needs to be added only in redis cluster
                 properties:
+                  nodeConfVolume:
+                    default: false
+                    type: boolean
                   nodeConfVolumeClaimTemplate:
                     description: PersistentVolumeClaim is a user's request for and
                       claim to a persistent volume

@@ -51,6 +51,8 @@ type Storage struct {
 
 // Node-conf needs to be added only in redis cluster
 type ClusterStorage struct {
+	// +kubebuilder:default=false
+	NodeConfVolume              bool                         `json:"nodeConfVolume,omitempty"`
 	NodeConfVolumeClaimTemplate corev1.PersistentVolumeClaim `json:"nodeConfVolumeClaimTemplate,omitempty"`
 	CommonAttributes            common.Storage               `json:",inline"`
 }

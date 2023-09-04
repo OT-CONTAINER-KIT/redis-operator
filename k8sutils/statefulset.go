@@ -29,6 +29,7 @@ const (
 type statefulSetParameters struct {
 	Replicas                      *int32
 	ClusterMode                   bool
+	NodeConfVolume                bool
 	Metadata                      metav1.ObjectMeta
 	NodeSelector                  map[string]string
 	PodSecurityContext            *corev1.PodSecurityContext
@@ -227,6 +228,7 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 						stsMeta.GetName(),
 						containerParams,
 						params.ClusterMode,
+						params.NodeConfVolume,
 						params.EnableMetrics,
 						params.ExternalConfig,
 						containerParams.AdditionalMountPath,
@@ -251,7 +253,7 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 	if params.ImagePullSecrets != nil {
 		statefulset.Spec.Template.Spec.ImagePullSecrets = *params.ImagePullSecrets
 	}
-	if containerParams.PersistenceEnabled != nil && params.ClusterMode {
+	if containerParams.PersistenceEnabled != nil && params.ClusterMode && params.NodeConfVolume {
 		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, createPVCTemplate("node-conf", stsMeta, params.NodeConfPersistentVolumeClaim))
 	}
 	if containerParams.PersistenceEnabled != nil && *containerParams.PersistenceEnabled {
@@ -332,7 +334,7 @@ func createPVCTemplate(volumeName string, stsMeta metav1.ObjectMeta, storageSpec
 }
 
 // generateContainerDef generates container definition for Redis
-func generateContainerDef(name string, containerParams containerParameters, clusterMode, enableMetrics bool, externalConfig *string, mountpath []corev1.VolumeMount, sidecars []redisv1beta2.Sidecar) []corev1.Container {
+func generateContainerDef(name string, containerParams containerParameters, clusterMode, nodeConfVolume, enableMetrics bool, externalConfig *string, mountpath []corev1.VolumeMount, sidecars []redisv1beta2.Sidecar) []corev1.Container {
 	containerDefinition := []corev1.Container{
 		{
 			Name:            name,
@@ -352,7 +354,7 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 			),
 			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe),
 			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe),
-			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, clusterMode, externalConfig, mountpath, containerParams.TLSConfig, containerParams.ACLConfig),
+			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, clusterMode, nodeConfVolume, externalConfig, mountpath, containerParams.TLSConfig, containerParams.ACLConfig),
 		},
 	}
 
@@ -401,7 +403,7 @@ func generateInitContainerDef(name string, initcontainerParams initContainerPara
 			ImagePullPolicy: initcontainerParams.ImagePullPolicy,
 			Command:         initcontainerParams.Command,
 			Args:            initcontainerParams.Arguments,
-			VolumeMounts:    getVolumeMount(name, initcontainerParams.PersistenceEnabled, false, nil, mountpath, nil, nil),
+			VolumeMounts:    getVolumeMount(name, initcontainerParams.PersistenceEnabled, false, false, nil, mountpath, nil, nil),
 		},
 	}
 
@@ -471,7 +473,7 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 			params.TLSConfig,
 			params.ACLConfig,
 		),
-		VolumeMounts: getVolumeMount("", nil, false, nil, params.AdditionalMountPath, params.TLSConfig, params.ACLConfig), // We need/want the tls-certs but we DON'T need the PVC (if one is available)
+		VolumeMounts: getVolumeMount("", nil, false, false, nil, params.AdditionalMountPath, params.TLSConfig, params.ACLConfig), // We need/want the tls-certs but we DON'T need the PVC (if one is available)
 		Ports: []corev1.ContainerPort{
 			{
 				Name:          redisExporterPortName,
@@ -487,10 +489,10 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 }
 
 // getVolumeMount gives information about persistence mount
-func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, externalConfig *string, mountpath []corev1.VolumeMount, tlsConfig *redisv1beta2.TLSConfig, aclConfig *redisv1beta2.ACLConfig) []corev1.VolumeMount {
+func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nodeConfVolume bool, externalConfig *string, mountpath []corev1.VolumeMount, tlsConfig *redisv1beta2.TLSConfig, aclConfig *redisv1beta2.ACLConfig) []corev1.VolumeMount {
 	var VolumeMounts []corev1.VolumeMount
 
-	if persistenceEnabled != nil && clusterMode {
+	if persistenceEnabled != nil && clusterMode && nodeConfVolume {
 		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
 			Name:      "node-conf",
 			MountPath: "/node-conf",
