@@ -109,7 +109,9 @@ func generateRedisSentinelParams(cr *redisv1beta2.RedisSentinel, replicas int32,
 	}
 	if cr.Spec.RedisExporter != nil {
 		res.EnableMetrics = cr.Spec.RedisExporter.Enabled
-
+	}
+	if _, found := cr.ObjectMeta.GetAnnotations()[AnnotationKeyRecreateStatefulset]; found {
+		res.RecreateStatefulSet = true
 	}
 	return res
 }
