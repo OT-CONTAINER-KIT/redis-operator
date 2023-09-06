@@ -17,4 +17,4 @@ COPY restore.bash /app
 RUN chmod +x /app/restore.bash
 
 # Set the entrypoint
-ENTRYPOINT ["/app/restore.bash"]
+# ENTRYPOINT ["/app/restore.bash"]

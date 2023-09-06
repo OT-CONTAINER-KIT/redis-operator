@@ -18,6 +18,6 @@ Follow the steps below to restore a Redis backup from Amazon S3, Google Cloud St
 
 - For a more secure approach, utilize Kubernetes secrets to manage and pass your environment variables.
 
-- The template for the necessary environment variables can be found at `./restore/env_vars.bash`.
+- The template for the necessary environment variables can be found at `./restore/env_vars.env`.
 
 > Note : You have to pass image in the init container to backup the redis data. Since dump.rbd file should be loaded before the redis server starts.
