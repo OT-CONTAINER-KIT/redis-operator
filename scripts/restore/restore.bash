@@ -7,6 +7,12 @@ POD=$(hostname)
 NAMESPACE=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
 DATA_DIR=${DATA_DIR:-"/data"}
 
+# Check if the pod name ends with 'follower-[index]'
+if [[ $POD =~ -follower-[0-9]+$ ]]; then
+    echo "Pod name ends with 'follower-[index]', exiting with status code 0."
+    exit 0
+fi
+
 # Set the RESTIC_REPOSITORY based on the BACKUP_DESTINATION
 case "$BACKUP_DESTINATION" in
     "aws_s3"|"AWS_S3")
@@ -42,6 +48,6 @@ restic -r "$RESTIC_REPOSITORY" restore "${SNAPSHOT_ID}" --target "/"
 mv "/tmp/${POD}.rdb" "${DATA_DIR}/dump.rdb"
 
 # Change the ownership of the restored file
-chown redis:redis "${DATA_DIR}/dump.rdb"
+# chown redis:redis "${DATA_DIR}/dump.rdb"
 
 echo "Restore completed successfully for pod ${POD}"

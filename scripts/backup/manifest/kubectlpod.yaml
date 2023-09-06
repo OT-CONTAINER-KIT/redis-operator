@@ -7,5 +7,5 @@ spec:
   serviceAccountName: internal-kubectl
   containers:
   - name: kubectl-container
-    image: shubham192001/backup-pod:latest
+    image: shubham192001/backup-user:latest
     command: ["sleep", "3600"]
