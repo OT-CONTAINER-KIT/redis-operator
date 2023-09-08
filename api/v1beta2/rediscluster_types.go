@@ -18,6 +18,7 @@ package v1beta2
 
 import (
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api"
+	status "github.com/OT-CONTAINER-KIT/redis-operator/api/status"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -71,15 +72,24 @@ type RedisFollower struct {
 
 // RedisClusterStatus defines the observed state of RedisCluster
 type RedisClusterStatus struct {
+	State  status.RedisClusterState `json:"state,omitempty"`
+	Reason string                   `json:"reason,omitempty"`
+	// +kubebuilder:default=0
+	ReadyLeaderReplicas int32 `json:"readyLeaderReplicas,omitempty"`
+	// +kubebuilder:default=0
+	ReadyFollowerReplicas int32 `json:"readyFollowerReplicas,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
 // +kubebuilder:printcolumn:name="ClusterSize",type=integer,JSONPath=`.spec.clusterSize`,description=Current cluster node count
-// +kubebuilder:printcolumn:name="LeaderReplicas",type=integer,JSONPath=`.spec.redisLeader.CommonAttributes.Replicas`,description=Overridden Leader replica count
-// +kubebuilder:printcolumn:name="FollowerReplicas",type=integer,JSONPath=`.spec.redisFollower.CommonAttributes.Replicas`,description=Overridden Follower replica count
-// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`,description=Age of Cluster
+// +kubebuilder:printcolumn:name="ReadyLeaderReplicas",type="integer",JSONPath=".status.readyLeaderReplicas",description="Number of ready leader replicas"
+// +kubebuilder:printcolumn:name="ReadyFollowerReplicas",type="integer",JSONPath=".status.readyFollowerReplicas",description="Number of ready follower replicas"
+// +kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.state",description="The current state of the Redis Cluster",priority=1
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`,description="Age of Cluster",priority=1
+// +kubebuilder:printcolumn:name="Reason",type="string",JSONPath=".status.reason",description="The reason for the current state",priority=1
+
 // RedisCluster is the Schema for the redisclusters API
 type RedisCluster struct {
 	metav1.TypeMeta   `json:",inline"`
