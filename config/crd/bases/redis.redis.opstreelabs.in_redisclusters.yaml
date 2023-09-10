@@ -8138,6 +8138,9 @@ spec:
               storage:
                 description: Node-conf needs to be added only in redis cluster
                 properties:
+                  nodeConfVolume:
+                    default: false
+                    type: boolean
                   nodeConfVolumeClaimTemplate:
                     description: PersistentVolumeClaim is a user's request for and
                       claim to a persistent volume

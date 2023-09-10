@@ -68,6 +68,7 @@ func generateRedisReplicationParams(cr *redisv1beta2.RedisReplication) statefulS
 	res := statefulSetParameters{
 		Replicas:                      &replicas,
 		ClusterMode:                   false,
+		NodeConfVolume:                false,
 		NodeSelector:                  cr.Spec.NodeSelector,
 		PodSecurityContext:            cr.Spec.PodSecurityContext,
 		PriorityClassName:             cr.Spec.PriorityClassName,
