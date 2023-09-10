@@ -47,24 +47,24 @@ type RedisClusterSpec struct {
 
 func (cr *RedisClusterSpec) GetReplicaCounts(t string) int32 {
 	replica := cr.Size
-	if t == "leader" && cr.RedisLeader.CommonAttributes.Replicas != nil {
-		replica = cr.RedisLeader.CommonAttributes.Replicas
-	} else if t == "follower" && cr.RedisFollower.CommonAttributes.Replicas != nil {
-		replica = cr.RedisFollower.CommonAttributes.Replicas
+	if t == "leader" && cr.RedisLeader.Replicas != nil {
+		replica = cr.RedisLeader.Replicas
+	} else if t == "follower" && cr.RedisFollower.Replicas != nil {
+		replica = cr.RedisFollower.Replicas
 	}
 	return *replica
 }
 
 // RedisLeader interface will have the redis leader configuration
 type RedisLeader struct {
-	CommonAttributes              common.RedisLeader      `json:",inline"`
+	common.RedisLeader            `json:",inline"`
 	SecurityContext               *corev1.SecurityContext `json:"securityContext,omitempty"`
 	TerminationGracePeriodSeconds *int64                  `json:"terminationGracePeriodSeconds,omitempty" protobuf:"varint,4,opt,name=terminationGracePeriodSeconds"`
 }
 
 // RedisFollower interface will have the redis follower configuration
 type RedisFollower struct {
-	CommonAttributes              common.RedisFollower    `json:",inline"`
+	common.RedisFollower          `json:",inline"`
 	SecurityContext               *corev1.SecurityContext `json:"securityContext,omitempty"`
 	TerminationGracePeriodSeconds *int64                  `json:"terminationGracePeriodSeconds,omitempty" protobuf:"varint,4,opt,name=terminationGracePeriodSeconds"`
 }

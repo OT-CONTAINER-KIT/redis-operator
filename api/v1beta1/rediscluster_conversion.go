@@ -9,7 +9,6 @@ import (
 
 func (src *RedisCluster) ConvertTo(dstRaw conversion.Hub) error {
 	dst := dstRaw.(*redisv1beta2.RedisCluster)
-
 	// ObjectMeta
 	dst.ObjectMeta = src.ObjectMeta
 
@@ -24,9 +23,58 @@ func (src *RedisCluster) ConvertTo(dstRaw conversion.Hub) error {
 		dst.Spec.ClusterVersion = src.Spec.ClusterVersion
 	}
 	// RedisLeader
-	dst.Spec.RedisLeader.CommonAttributes = src.Spec.RedisLeader.CommonAttributes
+	dst.Spec.RedisLeader = redisv1beta2.RedisLeader{}
+	if src.Spec.RedisLeader.Replicas != nil {
+		dst.Spec.RedisLeader.Replicas = src.Spec.RedisLeader.Replicas
+	}
+	if src.Spec.RedisLeader.RedisConfig != nil {
+		dst.Spec.RedisLeader.RedisConfig = src.Spec.RedisLeader.RedisConfig
+	}
+	if src.Spec.RedisLeader.Affinity != nil {
+		dst.Spec.RedisLeader.Affinity = src.Spec.RedisLeader.Affinity
+	}
+	if src.Spec.RedisLeader.PodDisruptionBudget != nil {
+		dst.Spec.RedisLeader.PodDisruptionBudget = src.Spec.RedisLeader.PodDisruptionBudget
+	}
+	if src.Spec.RedisLeader.ReadinessProbe != nil {
+		dst.Spec.RedisLeader.ReadinessProbe = src.Spec.RedisLeader.ReadinessProbe
+	}
+	if src.Spec.RedisLeader.LivenessProbe != nil {
+		dst.Spec.RedisLeader.LivenessProbe = src.Spec.RedisLeader.LivenessProbe
+	}
+	if src.Spec.RedisLeader.Tolerations != nil {
+		dst.Spec.RedisLeader.Tolerations = src.Spec.RedisLeader.Tolerations
+	}
+	if src.Spec.RedisLeader.NodeSelector != nil {
+		dst.Spec.RedisLeader.NodeSelector = src.Spec.RedisLeader.NodeSelector
+	}
+
 	// RedisFollower
-	dst.Spec.RedisFollower.CommonAttributes = src.Spec.RedisFollower.CommonAttributes
+	dst.Spec.RedisFollower = redisv1beta2.RedisFollower{}
+	if src.Spec.RedisFollower.Replicas != nil {
+		dst.Spec.RedisFollower.Replicas = src.Spec.RedisFollower.Replicas
+	}
+	if src.Spec.RedisFollower.RedisConfig != nil {
+		dst.Spec.RedisFollower.RedisConfig = src.Spec.RedisFollower.RedisConfig
+	}
+	if src.Spec.RedisFollower.Affinity != nil {
+		dst.Spec.RedisFollower.Affinity = src.Spec.RedisFollower.Affinity
+	}
+	if src.Spec.RedisFollower.PodDisruptionBudget != nil {
+		dst.Spec.RedisFollower.PodDisruptionBudget = src.Spec.RedisFollower.PodDisruptionBudget
+	}
+	if src.Spec.RedisFollower.ReadinessProbe != nil {
+		dst.Spec.RedisFollower.ReadinessProbe = src.Spec.RedisFollower.ReadinessProbe
+	}
+	if src.Spec.RedisFollower.LivenessProbe != nil {
+		dst.Spec.RedisFollower.LivenessProbe = src.Spec.RedisFollower.LivenessProbe
+	}
+	if src.Spec.RedisFollower.Tolerations != nil {
+		dst.Spec.RedisFollower.Tolerations = src.Spec.RedisFollower.Tolerations
+	}
+	if src.Spec.RedisFollower.NodeSelector != nil {
+		dst.Spec.RedisFollower.NodeSelector = src.Spec.RedisFollower.NodeSelector
+	}
 	// RedisExporter
 	if src.Spec.RedisExporter != nil {
 		dst.Spec.RedisExporter = &redisv1beta2.RedisExporter{}
@@ -95,9 +143,58 @@ func (dst *RedisCluster) ConvertFrom(srcRaw conversion.Hub) error {
 		dst.Spec.ClusterVersion = src.Spec.ClusterVersion
 	}
 	// RedisLeader
-	dst.Spec.RedisLeader.CommonAttributes = src.Spec.RedisLeader.CommonAttributes
+	dst.Spec.RedisLeader = RedisLeader{}
+	if src.Spec.RedisLeader.Replicas != nil {
+		dst.Spec.RedisLeader.Replicas = src.Spec.RedisLeader.Replicas
+	}
+	if src.Spec.RedisLeader.RedisConfig != nil {
+		dst.Spec.RedisLeader.RedisConfig = src.Spec.RedisLeader.RedisConfig
+	}
+	if src.Spec.RedisLeader.Affinity != nil {
+		dst.Spec.RedisLeader.Affinity = src.Spec.RedisLeader.Affinity
+	}
+	if src.Spec.RedisLeader.PodDisruptionBudget != nil {
+		dst.Spec.RedisLeader.PodDisruptionBudget = src.Spec.RedisLeader.PodDisruptionBudget
+	}
+	if src.Spec.RedisLeader.ReadinessProbe != nil {
+		dst.Spec.RedisLeader.ReadinessProbe = src.Spec.RedisLeader.ReadinessProbe
+	}
+	if src.Spec.RedisLeader.LivenessProbe != nil {
+		dst.Spec.RedisLeader.LivenessProbe = src.Spec.RedisLeader.LivenessProbe
+	}
+	if src.Spec.RedisLeader.Tolerations != nil {
+		dst.Spec.RedisLeader.Tolerations = src.Spec.RedisLeader.Tolerations
+	}
+	if src.Spec.RedisLeader.NodeSelector != nil {
+		dst.Spec.RedisLeader.NodeSelector = src.Spec.RedisLeader.NodeSelector
+	}
+
 	// RedisFollower
-	dst.Spec.RedisFollower.CommonAttributes = src.Spec.RedisFollower.CommonAttributes
+	dst.Spec.RedisFollower = RedisFollower{}
+	if src.Spec.RedisFollower.Replicas != nil {
+		dst.Spec.RedisFollower.Replicas = src.Spec.RedisFollower.Replicas
+	}
+	if src.Spec.RedisFollower.RedisConfig != nil {
+		dst.Spec.RedisFollower.RedisConfig = src.Spec.RedisFollower.RedisConfig
+	}
+	if src.Spec.RedisFollower.Affinity != nil {
+		dst.Spec.RedisFollower.Affinity = src.Spec.RedisFollower.Affinity
+	}
+	if src.Spec.RedisFollower.PodDisruptionBudget != nil {
+		dst.Spec.RedisFollower.PodDisruptionBudget = src.Spec.RedisFollower.PodDisruptionBudget
+	}
+	if src.Spec.RedisFollower.ReadinessProbe != nil {
+		dst.Spec.RedisFollower.ReadinessProbe = src.Spec.RedisFollower.ReadinessProbe
+	}
+	if src.Spec.RedisFollower.LivenessProbe != nil {
+		dst.Spec.RedisFollower.LivenessProbe = src.Spec.RedisFollower.LivenessProbe
+	}
+	if src.Spec.RedisFollower.Tolerations != nil {
+		dst.Spec.RedisFollower.Tolerations = src.Spec.RedisFollower.Tolerations
+	}
+	if src.Spec.RedisFollower.NodeSelector != nil {
+		dst.Spec.RedisFollower.NodeSelector = src.Spec.RedisFollower.NodeSelector
+	}
 	// RedisExporter
 	if src.Spec.RedisExporter != nil {
 		dst.Spec.RedisExporter = &RedisExporter{}
