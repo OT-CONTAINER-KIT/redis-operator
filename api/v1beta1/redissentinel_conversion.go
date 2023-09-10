@@ -18,6 +18,7 @@ func (src *RedisSentinel) ConvertTo(dstRaw conversion.Hub) error {
 	dst.Spec.KubernetesConfig.KubernetesConfig = src.Spec.KubernetesConfig.KubernetesConfig
 	// RedisSentinelConfig
 	if src.Spec.RedisSentinelConfig != nil {
+		dst.Spec.RedisSentinelConfig = &redisv1beta2.RedisSentinelConfig{}
 		dst.Spec.RedisSentinelConfig.RedisSentinelConfig = src.Spec.RedisSentinelConfig.RedisSentinelConfig
 	}
 	// NodeSelector
@@ -42,17 +43,19 @@ func (src *RedisSentinel) ConvertTo(dstRaw conversion.Hub) error {
 	}
 	// TLS
 	if src.Spec.TLS != nil {
+		dst.Spec.TLS = &redisv1beta2.TLSConfig{}
 		dst.Spec.TLS.TLSConfig = src.Spec.TLS.TLSConfig
 	}
 	// ReadinessProbe
 	if src.Spec.ReadinessProbe != nil {
+		dst.Spec.ReadinessProbe = &redisv1beta2.Probe{}
 		dst.Spec.ReadinessProbe.Probe = src.Spec.ReadinessProbe.Probe
 	}
 	// LivenessProbe
 	if src.Spec.LivenessProbe != nil {
+		dst.Spec.ReadinessProbe = &redisv1beta2.Probe{}
 		dst.Spec.LivenessProbe.Probe = src.Spec.LivenessProbe.Probe
 	}
-	// Sidecars
 	// Sidecars
 	if src.Spec.Sidecars != nil {
 		var sidecars []redisv1beta2.Sidecar
@@ -63,12 +66,10 @@ func (src *RedisSentinel) ConvertTo(dstRaw conversion.Hub) error {
 		}
 		dst.Spec.Sidecars = &sidecars
 	}
-
 	// ServiceAccountName
 	if src.Spec.ServiceAccountName != nil {
 		dst.Spec.ServiceAccountName = src.Spec.ServiceAccountName
 	}
-
 	return nil
 }
 
@@ -85,6 +86,7 @@ func (dst *RedisSentinel) ConvertFrom(srcRaw conversion.Hub) error {
 	dst.Spec.KubernetesConfig.KubernetesConfig = src.Spec.KubernetesConfig.KubernetesConfig
 	// RedisSentinelConfig
 	if src.Spec.RedisSentinelConfig != nil {
+		dst.Spec.RedisSentinelConfig = &RedisSentinelConfig{}
 		dst.Spec.RedisSentinelConfig.RedisSentinelConfig = src.Spec.RedisSentinelConfig.RedisSentinelConfig
 	}
 	// NodeSelector
@@ -109,14 +111,17 @@ func (dst *RedisSentinel) ConvertFrom(srcRaw conversion.Hub) error {
 	}
 	// TLS
 	if src.Spec.TLS != nil {
+		dst.Spec.TLS = &TLSConfig{}
 		dst.Spec.TLS.TLSConfig = src.Spec.TLS.TLSConfig
 	}
 	// ReadinessProbe
 	if src.Spec.ReadinessProbe != nil {
+		dst.Spec.ReadinessProbe = &Probe{}
 		dst.Spec.ReadinessProbe.Probe = src.Spec.ReadinessProbe.Probe
 	}
 	// LivenessProbe
 	if src.Spec.LivenessProbe != nil {
+		dst.Spec.ReadinessProbe = &Probe{}
 		dst.Spec.LivenessProbe.Probe = src.Spec.LivenessProbe.Probe
 	}
 	// Sidecars
@@ -129,7 +134,6 @@ func (dst *RedisSentinel) ConvertFrom(srcRaw conversion.Hub) error {
 		}
 		dst.Spec.Sidecars = &sidecars
 	}
-
 	// ServiceAccountName
 	if src.Spec.ServiceAccountName != nil {
 		dst.Spec.ServiceAccountName = src.Spec.ServiceAccountName

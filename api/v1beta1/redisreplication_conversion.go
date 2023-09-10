@@ -18,15 +18,19 @@ func (src *RedisReplication) ConvertTo(dstRaw conversion.Hub) error {
 	dst.Spec.KubernetesConfig.KubernetesConfig = src.Spec.KubernetesConfig.KubernetesConfig
 	// RedisExporter
 	if src.Spec.RedisExporter != nil {
+		dst.Spec.RedisExporter = &redisv1beta2.RedisExporter{}
 		dst.Spec.RedisExporter.RedisExporter = src.Spec.RedisExporter.RedisExporter
 	}
 	// RedisConfig
 	if src.Spec.RedisConfig != nil {
+		dst.Spec.RedisConfig = &redisv1beta2.RedisConfig{}
 		dst.Spec.RedisConfig.RedisConfig = src.Spec.RedisConfig.RedisConfig
 	}
 	// Storage
 	if src.Spec.Storage != nil {
-		dst.Spec.Storage.CommonAttributes = src.Spec.Storage.CommonAttributes
+		dst.Spec.Storage = &redisv1beta2.Storage{}
+		dst.Spec.Storage.VolumeClaimTemplate = src.Spec.Storage.VolumeClaimTemplate
+		dst.Spec.Storage.VolumeMount = src.Spec.Storage.VolumeMount
 	}
 	// NodeSelector
 	if src.Spec.NodeSelector != nil {
@@ -50,17 +54,19 @@ func (src *RedisReplication) ConvertTo(dstRaw conversion.Hub) error {
 	}
 	// TLS
 	if src.Spec.TLS != nil {
+		dst.Spec.TLS = &redisv1beta2.TLSConfig{}
 		dst.Spec.TLS.TLSConfig = src.Spec.TLS.TLSConfig
 	}
 	// ReadinessProbe
 	if src.Spec.ReadinessProbe != nil {
+		dst.Spec.ReadinessProbe = &redisv1beta2.Probe{}
 		dst.Spec.ReadinessProbe.Probe = src.Spec.ReadinessProbe.Probe
 	}
 	// LivenessProbe
 	if src.Spec.LivenessProbe != nil {
+		dst.Spec.LivenessProbe = &redisv1beta2.Probe{}
 		dst.Spec.LivenessProbe.Probe = src.Spec.LivenessProbe.Probe
 	}
-	// Sidecars
 	// Sidecars
 	if src.Spec.Sidecars != nil {
 		var sidecars []redisv1beta2.Sidecar
@@ -75,7 +81,6 @@ func (src *RedisReplication) ConvertTo(dstRaw conversion.Hub) error {
 	if src.Spec.ServiceAccountName != nil {
 		dst.Spec.ServiceAccountName = src.Spec.ServiceAccountName
 	}
-
 	return nil
 }
 
@@ -92,15 +97,19 @@ func (dst *RedisReplication) ConvertFrom(srcRaw conversion.Hub) error {
 	dst.Spec.KubernetesConfig.KubernetesConfig = src.Spec.KubernetesConfig.KubernetesConfig
 	// RedisExporter
 	if src.Spec.RedisExporter != nil {
+		dst.Spec.RedisExporter = &RedisExporter{}
 		dst.Spec.RedisExporter.RedisExporter = src.Spec.RedisExporter.RedisExporter
 	}
 	// RedisConfig
 	if src.Spec.RedisConfig != nil {
+		dst.Spec.RedisConfig = &RedisConfig{}
 		dst.Spec.RedisConfig.RedisConfig = src.Spec.RedisConfig.RedisConfig
 	}
 	// Storage
 	if src.Spec.Storage != nil {
-		dst.Spec.Storage.CommonAttributes = src.Spec.Storage.CommonAttributes
+		dst.Spec.Storage = &Storage{}
+		dst.Spec.Storage.VolumeClaimTemplate = src.Spec.Storage.VolumeClaimTemplate
+		dst.Spec.Storage.VolumeMount = src.Spec.Storage.VolumeMount
 	}
 	// NodeSelector
 	if src.Spec.NodeSelector != nil {
@@ -124,14 +133,17 @@ func (dst *RedisReplication) ConvertFrom(srcRaw conversion.Hub) error {
 	}
 	// TLS
 	if src.Spec.TLS != nil {
+		dst.Spec.TLS = &TLSConfig{}
 		dst.Spec.TLS.TLSConfig = src.Spec.TLS.TLSConfig
 	}
 	// ReadinessProbe
 	if src.Spec.ReadinessProbe != nil {
+		dst.Spec.ReadinessProbe = &Probe{}
 		dst.Spec.ReadinessProbe.Probe = src.Spec.ReadinessProbe.Probe
 	}
 	// LivenessProbe
 	if src.Spec.LivenessProbe != nil {
+		dst.Spec.ReadinessProbe = &Probe{}
 		dst.Spec.LivenessProbe.Probe = src.Spec.LivenessProbe.Probe
 	}
 	// Sidecars
@@ -144,7 +156,6 @@ func (dst *RedisReplication) ConvertFrom(srcRaw conversion.Hub) error {
 		}
 		dst.Spec.Sidecars = &sidecars
 	}
-
 	// ServiceAccountName
 	if src.Spec.ServiceAccountName != nil {
 		dst.Spec.ServiceAccountName = src.Spec.ServiceAccountName

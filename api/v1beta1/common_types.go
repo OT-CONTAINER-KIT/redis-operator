@@ -45,7 +45,7 @@ type ExistingPasswordSecret struct {
 
 // Storage is the inteface to add pvc and pv support in redis
 type Storage struct {
-	CommonAttributes common.Storage `json:",inline"`
+	common.Storage `json:",inline"`
 }
 
 // RedisExporter interface will have the information for redis exporter related stuff

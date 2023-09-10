@@ -47,7 +47,7 @@ func generateRedisClusterParams(cr *redisv1beta2.RedisCluster, replicas int32, e
 		res.ImagePullSecrets = cr.Spec.KubernetesConfig.ImagePullSecrets
 	}
 	if cr.Spec.Storage != nil {
-		res.PersistentVolumeClaim = cr.Spec.Storage.CommonAttributes.VolumeClaimTemplate
+		res.PersistentVolumeClaim = cr.Spec.Storage.VolumeClaimTemplate
 		res.NodeConfPersistentVolumeClaim = cr.Spec.Storage.NodeConfVolumeClaimTemplate
 	}
 	if externalConfig != nil {
@@ -78,8 +78,8 @@ func generateRedisClusterInitContainerParams(cr *redisv1beta2.RedisCluster) init
 		}
 
 		if cr.Spec.Storage != nil {
-			initcontainerProp.AdditionalVolume = cr.Spec.Storage.CommonAttributes.VolumeMount.Volume
-			initcontainerProp.AdditionalMountPath = cr.Spec.Storage.CommonAttributes.VolumeMount.MountPath
+			initcontainerProp.AdditionalVolume = cr.Spec.Storage.VolumeMount.Volume
+			initcontainerProp.AdditionalMountPath = cr.Spec.Storage.VolumeMount.MountPath
 		}
 		if cr.Spec.Storage != nil {
 			initcontainerProp.PersistenceEnabled = &trueProperty
@@ -102,8 +102,8 @@ func generateRedisClusterContainerParams(cr *redisv1beta2.RedisCluster, security
 		SecurityContext: securityContext,
 	}
 	if cr.Spec.Storage != nil {
-		containerProp.AdditionalVolume = cr.Spec.Storage.CommonAttributes.VolumeMount.Volume
-		containerProp.AdditionalMountPath = cr.Spec.Storage.CommonAttributes.VolumeMount.MountPath
+		containerProp.AdditionalVolume = cr.Spec.Storage.VolumeMount.Volume
+		containerProp.AdditionalMountPath = cr.Spec.Storage.VolumeMount.MountPath
 	}
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
 		containerProp.EnabledPassword = &trueProperty
