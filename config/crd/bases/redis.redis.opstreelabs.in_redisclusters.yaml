@@ -4728,18 +4728,29 @@ spec:
       jsonPath: .spec.clusterSize
       name: ClusterSize
       type: integer
-    - description: Overridden Leader replica count
-      jsonPath: .spec.redisLeader.CommonAttributes.Replicas
-      name: LeaderReplicas
+    - description: Number of ready leader replicas
+      jsonPath: .status.readyLeaderReplicas
+      name: ReadyLeaderReplicas
       type: integer
-    - description: Overridden Follower replica count
-      jsonPath: .spec.redisFollower.CommonAttributes.Replicas
-      name: FollowerReplicas
+    - description: Number of ready follower replicas
+      jsonPath: .status.readyFollowerReplicas
+      name: ReadyFollowerReplicas
       type: integer
+    - description: The current state of the Redis Cluster
+      jsonPath: .status.state
+      name: State
+      priority: 1
+      type: string
     - description: Age of Cluster
       jsonPath: .metadata.creationTimestamp
       name: Age
+      priority: 1
       type: date
+    - description: The reason for the current state
+      jsonPath: .status.reason
+      name: Reason
+      priority: 1
+      type: string
     name: v1beta2
     schema:
       openAPIV3Schema:
@@ -10354,6 +10365,19 @@ spec:
             type: object
           status:
             description: RedisClusterStatus defines the observed state of RedisCluster
+            properties:
+              readyFollowerReplicas:
+                default: 0
+                format: int32
+                type: integer
+              readyLeaderReplicas:
+                default: 0
+                format: int32
+                type: integer
+              reason:
+                type: string
+              state:
+                type: string
             type: object
         required:
         - spec
