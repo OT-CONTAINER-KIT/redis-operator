@@ -5,7 +5,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 )
 
-// ConvertTo converts this RedisCluster to the Hub version (vbeta1).
+// ConvertTo converts this RedisCluster to the Hub version (v1beta2) from the current version (v1beta1)
 func (src *RedisCluster) ConvertTo(dstRaw conversion.Hub) error {
 	dst := dstRaw.(*redisv1beta2.RedisCluster)
 
@@ -28,9 +28,10 @@ func (src *RedisCluster) ConvertTo(dstRaw conversion.Hub) error {
 	dst.Spec.RedisFollower.CommonAttributes = src.Spec.RedisFollower.CommonAttributes
 	// RedisExporter
 	if src.Spec.RedisExporter != nil {
+		dst.Spec.RedisExporter = &redisv1beta2.RedisExporter{}
 		dst.Spec.RedisExporter.RedisExporter = src.Spec.RedisExporter.RedisExporter
 	}
-	// Storage
+	// Storage-v1bet1 >> ClusterStorage-v1beta2
 	if src.Spec.Storage != nil {
 		// Note : Add the Check the creation of node-conf later
 		dst.Spec.Storage = &redisv1beta2.ClusterStorage{}
@@ -51,9 +52,9 @@ func (src *RedisCluster) ConvertTo(dstRaw conversion.Hub) error {
 	}
 	// TLS
 	if src.Spec.TLS != nil {
+		dst.Spec.TLS = &redisv1beta2.TLSConfig{}
 		dst.Spec.TLS.TLSConfig = src.Spec.TLS.TLSConfig
 	}
-	// Sidecars
 	// Sidecars
 	if src.Spec.Sidecars != nil {
 		var sidecars []redisv1beta2.Sidecar
@@ -64,7 +65,6 @@ func (src *RedisCluster) ConvertTo(dstRaw conversion.Hub) error {
 		}
 		dst.Spec.Sidecars = &sidecars
 	}
-
 	// ServiceAccountName
 	if src.Spec.ServiceAccountName != nil {
 		dst.Spec.ServiceAccountName = src.Spec.ServiceAccountName
@@ -73,7 +73,6 @@ func (src *RedisCluster) ConvertTo(dstRaw conversion.Hub) error {
 	if src.Spec.PersistenceEnabled != nil {
 		dst.Spec.PersistenceEnabled = src.Spec.PersistenceEnabled
 	}
-
 	return nil
 }
 
@@ -100,9 +99,10 @@ func (dst *RedisCluster) ConvertFrom(srcRaw conversion.Hub) error {
 	dst.Spec.RedisFollower.CommonAttributes = src.Spec.RedisFollower.CommonAttributes
 	// RedisExporter
 	if src.Spec.RedisExporter != nil {
+		dst.Spec.RedisExporter = &RedisExporter{}
 		dst.Spec.RedisExporter.RedisExporter = src.Spec.RedisExporter.RedisExporter
 	}
-	// Cluster Storage
+	// ClusterStorage(v1beta2) >> Storage(v1beta1)
 	if src.Spec.Storage != nil {
 		dst.Spec.Storage = &Storage{}
 		dst.Spec.Storage.VolumeClaimTemplate = src.Spec.Storage.VolumeClaimTemplate
@@ -122,6 +122,7 @@ func (dst *RedisCluster) ConvertFrom(srcRaw conversion.Hub) error {
 	}
 	// TLS
 	if src.Spec.TLS != nil {
+		dst.Spec.TLS = &TLSConfig{}
 		dst.Spec.TLS.TLSConfig = src.Spec.TLS.TLSConfig
 	}
 	// Sidecars
@@ -134,7 +135,6 @@ func (dst *RedisCluster) ConvertFrom(srcRaw conversion.Hub) error {
 		}
 		dst.Spec.Sidecars = &sidecars
 	}
-
 	// ServiceAccountName
 	if src.Spec.ServiceAccountName != nil {
 		dst.Spec.ServiceAccountName = src.Spec.ServiceAccountName

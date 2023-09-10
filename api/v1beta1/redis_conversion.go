@@ -24,6 +24,7 @@ func (src *Redis) ConvertTo(dstRaw conversion.Hub) error {
 	}
 	// RedisConfig
 	if src.Spec.RedisConfig != nil {
+		dst.Spec.RedisConfig = &redisv1beta2.RedisConfig{}
 		dst.Spec.RedisConfig.RedisConfig = src.Spec.RedisConfig.RedisConfig
 	}
 	// Storage
@@ -54,6 +55,7 @@ func (src *Redis) ConvertTo(dstRaw conversion.Hub) error {
 	}
 	// TLS
 	if src.Spec.TLS != nil {
+		dst.Spec.TLS = &redisv1beta2.TLSConfig{}
 		dst.Spec.TLS.TLSConfig = src.Spec.TLS.TLSConfig
 	}
 	// ReadinessProbe
@@ -103,6 +105,7 @@ func (dst *Redis) ConvertFrom(srcRaw conversion.Hub) error {
 	}
 	// RedisConfig
 	if src.Spec.RedisConfig != nil {
+		dst.Spec.RedisConfig = &RedisConfig{}
 		dst.Spec.RedisConfig.RedisConfig = src.Spec.RedisConfig.RedisConfig
 	}
 	// Storage
@@ -133,6 +136,7 @@ func (dst *Redis) ConvertFrom(srcRaw conversion.Hub) error {
 	}
 	// TLS
 	if src.Spec.TLS != nil {
+		dst.Spec.TLS = &TLSConfig{}
 		dst.Spec.TLS.TLSConfig = src.Spec.TLS.TLSConfig
 	}
 	// ReadinessProbe
@@ -155,7 +159,6 @@ func (dst *Redis) ConvertFrom(srcRaw conversion.Hub) error {
 		}
 		dst.Spec.Sidecars = &sidecars
 	}
-
 	// ServiceAccountName
 	if src.Spec.ServiceAccountName != nil {
 		dst.Spec.ServiceAccountName = src.Spec.ServiceAccountName
