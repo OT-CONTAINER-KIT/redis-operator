@@ -26,7 +26,9 @@ func (src *RedisReplication) ConvertTo(dstRaw conversion.Hub) error {
 	}
 	// Storage
 	if src.Spec.Storage != nil {
-		dst.Spec.Storage.CommonAttributes = src.Spec.Storage.CommonAttributes
+		dst.Spec.Storage = &redisv1beta2.Storage{}
+		dst.Spec.Storage.VolumeClaimTemplate = src.Spec.Storage.VolumeClaimTemplate
+		dst.Spec.Storage.VolumeMount = src.Spec.Storage.VolumeMount
 	}
 	// NodeSelector
 	if src.Spec.NodeSelector != nil {
@@ -100,7 +102,9 @@ func (dst *RedisReplication) ConvertFrom(srcRaw conversion.Hub) error {
 	}
 	// Storage
 	if src.Spec.Storage != nil {
-		dst.Spec.Storage.CommonAttributes = src.Spec.Storage.CommonAttributes
+		dst.Spec.Storage = &Storage{}
+		dst.Spec.Storage.VolumeClaimTemplate = src.Spec.Storage.VolumeClaimTemplate
+		dst.Spec.Storage.VolumeMount = src.Spec.Storage.VolumeMount
 	}
 	// NodeSelector
 	if src.Spec.NodeSelector != nil {

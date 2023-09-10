@@ -33,7 +33,9 @@ func (src *RedisCluster) ConvertTo(dstRaw conversion.Hub) error {
 	// Storage
 	if src.Spec.Storage != nil {
 		// Note : Add the Check the creation of node-conf later
-		dst.Spec.Storage.CommonAttributes = src.Spec.Storage.CommonAttributes
+		dst.Spec.Storage = &redisv1beta2.ClusterStorage{}
+		dst.Spec.Storage.VolumeClaimTemplate = src.Spec.Storage.VolumeClaimTemplate
+		dst.Spec.Storage.VolumeMount = src.Spec.Storage.VolumeMount
 	}
 	// SecurityContext >> PodSecurityContext
 	if src.Spec.SecurityContext != nil {
@@ -100,9 +102,11 @@ func (dst *RedisCluster) ConvertFrom(srcRaw conversion.Hub) error {
 	if src.Spec.RedisExporter != nil {
 		dst.Spec.RedisExporter.RedisExporter = src.Spec.RedisExporter.RedisExporter
 	}
-	// Storage
+	// Cluster Storage
 	if src.Spec.Storage != nil {
-		dst.Spec.Storage.CommonAttributes = src.Spec.Storage.CommonAttributes
+		dst.Spec.Storage = &Storage{}
+		dst.Spec.Storage.VolumeClaimTemplate = src.Spec.Storage.VolumeClaimTemplate
+		dst.Spec.Storage.VolumeMount = src.Spec.Storage.VolumeMount
 	}
 	//  PodSecurityContext >> SecurityContext
 	if src.Spec.PodSecurityContext != nil {
