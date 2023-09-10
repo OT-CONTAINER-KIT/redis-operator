@@ -151,15 +151,15 @@ func CreateRedisLeader(cr *redisv1beta2.RedisCluster) error {
 	prop := RedisClusterSTS{
 		RedisStateFulType:             "leader",
 		SecurityContext:               cr.Spec.RedisLeader.SecurityContext,
-		Affinity:                      cr.Spec.RedisLeader.CommonAttributes.Affinity,
+		Affinity:                      cr.Spec.RedisLeader.Affinity,
 		TerminationGracePeriodSeconds: cr.Spec.RedisLeader.TerminationGracePeriodSeconds,
-		NodeSelector:                  cr.Spec.RedisLeader.CommonAttributes.NodeSelector,
-		Tolerations:                   cr.Spec.RedisLeader.CommonAttributes.Tolerations,
-		ReadinessProbe:                cr.Spec.RedisLeader.CommonAttributes.ReadinessProbe,
-		LivenessProbe:                 cr.Spec.RedisLeader.CommonAttributes.LivenessProbe,
+		NodeSelector:                  cr.Spec.RedisLeader.NodeSelector,
+		Tolerations:                   cr.Spec.RedisLeader.Tolerations,
+		ReadinessProbe:                cr.Spec.RedisLeader.ReadinessProbe,
+		LivenessProbe:                 cr.Spec.RedisLeader.LivenessProbe,
 	}
-	if cr.Spec.RedisLeader.CommonAttributes.RedisConfig != nil {
-		prop.ExternalConfig = cr.Spec.RedisLeader.CommonAttributes.RedisConfig.AdditionalRedisConfig
+	if cr.Spec.RedisLeader.RedisConfig != nil {
+		prop.ExternalConfig = cr.Spec.RedisLeader.RedisConfig.AdditionalRedisConfig
 	}
 	return prop.CreateRedisClusterSetup(cr)
 }
@@ -169,15 +169,15 @@ func CreateRedisFollower(cr *redisv1beta2.RedisCluster) error {
 	prop := RedisClusterSTS{
 		RedisStateFulType:             "follower",
 		SecurityContext:               cr.Spec.RedisFollower.SecurityContext,
-		Affinity:                      cr.Spec.RedisFollower.CommonAttributes.Affinity,
+		Affinity:                      cr.Spec.RedisFollower.Affinity,
 		TerminationGracePeriodSeconds: cr.Spec.RedisFollower.TerminationGracePeriodSeconds,
-		NodeSelector:                  cr.Spec.RedisFollower.CommonAttributes.NodeSelector,
-		Tolerations:                   cr.Spec.RedisFollower.CommonAttributes.Tolerations,
-		ReadinessProbe:                cr.Spec.RedisFollower.CommonAttributes.ReadinessProbe,
-		LivenessProbe:                 cr.Spec.RedisFollower.CommonAttributes.LivenessProbe,
+		NodeSelector:                  cr.Spec.RedisFollower.NodeSelector,
+		Tolerations:                   cr.Spec.RedisFollower.Tolerations,
+		ReadinessProbe:                cr.Spec.RedisFollower.ReadinessProbe,
+		LivenessProbe:                 cr.Spec.RedisFollower.LivenessProbe,
 	}
-	if cr.Spec.RedisFollower.CommonAttributes.RedisConfig != nil {
-		prop.ExternalConfig = cr.Spec.RedisFollower.CommonAttributes.RedisConfig.AdditionalRedisConfig
+	if cr.Spec.RedisFollower.RedisConfig != nil {
+		prop.ExternalConfig = cr.Spec.RedisFollower.RedisConfig.AdditionalRedisConfig
 	}
 	return prop.CreateRedisClusterSetup(cr)
 }
