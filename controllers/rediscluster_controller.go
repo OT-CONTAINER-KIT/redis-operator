@@ -126,9 +126,11 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if int32(redisLeaderInfo.Status.ReadyReplicas) == leaderReplicas {
 
 		// Mark the cluster status as initializing if there are no follower nodes
-		err = k8sutils.UpdateRedisClusterStatus(instance, status.RedisClusterInitializing, status.InitializingClusterFollowerReason, leaderReplicas, 0)
-		if err != nil {
-			return ctrl.Result{RequeueAfter: time.Second * 10}, err
+		if instance.Status.ReadyLeaderReplicas == 0 && instance.Status.ReadyFollowerReplicas == 0 {
+			err = k8sutils.UpdateRedisClusterStatus(instance, status.RedisClusterInitializing, status.InitializingClusterFollowerReason, leaderReplicas, 0)
+			if err != nil {
+				return ctrl.Result{RequeueAfter: time.Second * 10}, err
+			}
 		}
 
 		err = k8sutils.CreateRedisFollower(instance)
@@ -164,9 +166,11 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// Mark the cluster status as bootstrapping if all the leader and follower nodes are ready
 	if int32(redisLeaderInfo.Status.ReadyReplicas) == leaderReplicas && int32(redisFollowerInfo.Status.ReadyReplicas) == followerReplicas {
-		err = k8sutils.UpdateRedisClusterStatus(instance, status.RedisClusterBootstrap, status.BootstrapClusterReason, leaderReplicas, followerReplicas)
-		if err != nil {
-			return ctrl.Result{RequeueAfter: time.Second * 10}, err
+		if instance.Status.ReadyLeaderReplicas == leaderReplicas && instance.Status.ReadyFollowerReplicas == 0 {
+			err = k8sutils.UpdateRedisClusterStatus(instance, status.RedisClusterBootstrap, status.BootstrapClusterReason, leaderReplicas, followerReplicas)
+			if err != nil {
+				return ctrl.Result{RequeueAfter: time.Second * 10}, err
+			}
 		}
 	}
 
@@ -211,10 +215,15 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		k8sutils.CheckIfEmptyMasters(instance)
 	}
 	reqLogger.Info("Will reconcile redis cluster operator in again 10 seconds")
-	err = k8sutils.UpdateRedisClusterStatus(instance, status.RedisClusterReady, status.ReadyClusterReason, leaderReplicas, followerReplicas)
-	if err != nil {
-		return ctrl.Result{RequeueAfter: time.Second * 10}, err
+
+	// Mark the cluster status as ready if all the leader and follower nodes are ready
+	if instance.Status.ReadyLeaderReplicas == leaderReplicas && instance.Status.ReadyFollowerReplicas == followerReplicas {
+		err = k8sutils.UpdateRedisClusterStatus(instance, status.RedisClusterReady, status.ReadyClusterReason, leaderReplicas, followerReplicas)
+		if err != nil {
+			return ctrl.Result{RequeueAfter: time.Second * 10}, err
+		}
 	}
+
 	return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 }
 
