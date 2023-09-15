@@ -27,7 +27,7 @@ spec:
     #   - name: regcred
   initContainer:
     enabled: true
-    image: shubham192001/restore:latest
+    image: quay.io/opstree/redis-operator-restore:latest
     imagePullPolicy: Always
     command: ["/bin/bash", "-c", "/app/restore.bash"]
     resources:
@@ -63,21 +63,6 @@ spec:
           secretKeyRef:
             name: env-secrets
             key: RESTIC_CACHE_DIR
-      - name: DEFAULT_REDIS_HOST
-        valueFrom:
-          secretKeyRef:
-            name: env-secrets
-            key: DEFAULT_REDIS_HOST
-      - name: DEFAULT_REDIS_PORT
-        valueFrom:
-          secretKeyRef:
-            name: env-secrets
-            key: DEFAULT_REDIS_PORT
-      - name: DEFAULT_REDIS_PASSWORD
-        valueFrom:
-          secretKeyRef:
-            name: env-secrets
-            key: DEFAULT_REDIS_PASSWORD
       - name: BACKUP_DESTINATION
         valueFrom:
           secretKeyRef:
@@ -138,6 +123,7 @@ spec:
         resources:
           requests:
             storage: 1Gi
+    nodeConfVolume: true
     nodeConfVolumeClaimTemplate:
       spec:
         accessModes: ["ReadWriteOnce"]
