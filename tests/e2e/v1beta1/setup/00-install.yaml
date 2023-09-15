@@ -1,8 +1,7 @@
 apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 apply : 
-  - standalone.yaml
   - cluster.yaml
 assert :
-  - ready-standalone.yaml
   - ready-cluster.yaml
+  - ready-cluster-sts.yaml

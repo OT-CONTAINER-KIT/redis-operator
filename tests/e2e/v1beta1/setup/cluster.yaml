@@ -1,33 +1,35 @@
----
 apiVersion: redis.redis.opstreelabs.in/v1beta1
-kind: Redis
+kind: RedisCluster
 metadata:
-  name: redis-standalone
+  name: redis-cluster-v1beta1
 spec:
-  podSecurityContext:
+  clusterSize: 3
+  clusterVersion: v7
+  persistenceEnabled: true
+  securityContext:
     runAsUser: 1000
-    fsGroup: 1000  
+    fsGroup: 1000
   kubernetesConfig:
-    image: quay.io/opstree/redis:v7.0.12
+    image: quay.io/opstree/redis:v7.0.7
     imagePullPolicy: IfNotPresent
     resources:
       requests:
-        cpu: 10m
-        memory: 10Mi
+        cpu: 101m
+        memory: 128Mi
       limits:
-        cpu: 10m
-        memory: 10Mi
+        cpu: 101m
+        memory: 128Mi
   redisExporter:
-    enabled: false
+    enabled: true
     image: quay.io/opstree/redis-exporter:v1.44.0
     imagePullPolicy: Always
     resources:
       requests:
-        cpu: 10m
-        memory: 10Mi
+        cpu: 100m
+        memory: 128Mi
       limits:
-        cpu: 10m
-        memory: 12Mi
+        cpu: 100m
+        memory: 128Mi
   storage:
     volumeClaimTemplate:
       spec:

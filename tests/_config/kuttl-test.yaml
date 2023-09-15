@@ -1,0 +1,8 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestSuite
+startKIND: false
+kindConfig: "./kind-config.yaml"
+parallel: 1
+timeout: 300
+suppress : 
+  - events
