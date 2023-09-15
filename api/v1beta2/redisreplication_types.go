@@ -27,6 +27,7 @@ type RedisReplicationSpec struct {
 	Sidecars                      *[]Sidecar     `json:"sidecars,omitempty"`
 	ServiceAccountName            *string        `json:"serviceAccountName,omitempty"`
 	TerminationGracePeriodSeconds *int64         `json:"terminationGracePeriodSeconds,omitempty" protobuf:"varint,4,opt,name=terminationGracePeriodSeconds"`
+	EnvVars         *[]corev1.EnvVar            	`json:"env,omitempty"`
 }
 
 func (cr *RedisReplicationSpec) GetReplicationCounts(t string) int32 {
