@@ -2,50 +2,14 @@
 
 set -e  # Exit on error
 
-# Set default variables
-DEFAULT_CLUSTER_NAME="redis-cluster"
-DEFAULT_CLUSTER_NAMESPACE="default"
-DEFAULT_REDIS_PORT="6379"
-DEFAULT_REDIS_PASSWORD=""
-
-# Prompt the user for input or use default values
-read -p "Enter redis cluster name [$DEFAULT_CLUSTER_NAME]: " CLUSTER_NAME
-CLUSTER_NAME=${CLUSTER_NAME:-$DEFAULT_CLUSTER_NAME}
-
-read -p "Enter redis cluster namespace [$DEFAULT_CLUSTER_NAMESPACE]: " CLUSTER_NAMESPACE
-CLUSTER_NAMESPACE=${CLUSTER_NAMESPACE:-$DEFAULT_CLUSTER_NAMESPACE}
-
-read -p "Enter Redis port [$DEFAULT_REDIS_PORT]: " REDIS_PORT
-REDIS_PORT=${REDIS_PORT:-$DEFAULT_REDIS_PORT}
-
-read -p "Enter Redis password [$DEFAULT_REDIS_PASSWORD]: " REDIS_PASSWORD
-REDIS_PASSWORD=${REDIS_PASSWORD:-$DEFAULT_REDIS_PASSWORD}
-
-# Prompt the user for their preferred backup destination (AWS S3, Azure Blob Storage, or Google Cloud Storage)
-echo "Select a backup destination:"
-echo "1. AWS S3"
-echo "2. Azure Blob Storage"
-echo "3. Google Cloud Storage"
-read -p "Enter your choice (1, 2, or 3): " BACKUP_DESTINATION
-
 case "$BACKUP_DESTINATION" in
-    1)
-        read -p "Enter AWS S3 bucket name : " AWS_S3_BUCKET
-        read -p "Enter AWS S3 bucket region : " AWS_DEFAULT_REGION
-        read -p "Enter AWS access key : " AWS_ACCESS_KEY_ID
-        read -p "Enter AWS secret access key : " AWS_SECRET_ACCESS_KEY
+    "aws_s3"|"AWS_S3")
         RESTIC_REPOSITORY="s3:s3.${AWS_DEFAULT_REGION}.amazonaws.com/${AWS_S3_BUCKET}/${CLUSTER_NAME}-${CLUSTER_NAMESPACE}"
         ;;
-    2)
-        read -p "Enter Azure Blob Storage container name : " AZURE_CONTAINER
-        read -p "Enter Azure storage account name : " AZURE_ACCOUNT_NAME
-        read -p "Enter Azure storage account key : " AZURE_ACCOUNT_KEY
+    "azure_blob"|"AZURE_BLOB")
         RESTIC_REPOSITORY="azure:${AZURE_CONTAINER}:${CLUSTER_NAME}-${CLUSTER_NAMESPACE}"
         ;;
-    3)
-        read -p "Enter Google Cloud Storage bucket name: " GCP_BUCKET
-        read -p "Enter Google Cloud Project ID: " GCP_PROJECT_ID
-        read -p "Enter path to Google Cloud key file: " GCP_KEY_FILE
+    "google_cloud"|"GOOGLE_CLOUD")
         RESTIC_REPOSITORY="gs:${GCP_BUCKET}/${CLUSTER_NAME}-${CLUSTER_NAMESPACE}"
         ;;
     *)
@@ -83,13 +47,14 @@ check_total_masters_from_redis() {
 
 initialize_repository() {
     # To set the password of the repo you must pass it the env Variable  RESTIC_PASSWORD
-    if  ! restic -r "$RESTIC_REPOSITORY" snapshots &>/dev/null ; then
+    if ! restic -r "$RESTIC_REPOSITORY" snapshots &>/dev/null ; then
         echo "Initializing restic repository..."
         restic init --repo "$RESTIC_REPOSITORY"
     else
         echo "Restic repository already initialized."
     fi
 }
+
 
 perform_redis_backup(){
     # Start performing backup
@@ -117,6 +82,7 @@ perform_redis_backup(){
         rm "/tmp/${POD}.rdb"
     done
 }
+
 
 check_total_leaders_from_cr
 check_total_masters_from_redis

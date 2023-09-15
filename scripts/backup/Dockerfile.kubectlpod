@@ -15,6 +15,11 @@ RUN curl -LO "https://dl.k8s.io/$(cat stable.txt)/bin/linux/amd64/kubectl"
 RUN chmod +x kubectl
 RUN mv kubectl /usr/local/bin/
 
-COPY backup-user.bash /backup
-# COPY backup.bash /backup
+# COPY backup-user.bash /backup/backup-user.bash
+# COPY backup.bash /backup/backup.bash
+COPY backup-v0.15.1.bash /backup/backup.bash
+
+# Make the script executable
+RUN chmod +x /backup/backup.bash
+# RUN chmod +x /backup/backup-user.bash
 # COPY env_vars.env /backup

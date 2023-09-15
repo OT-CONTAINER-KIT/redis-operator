@@ -1,0 +1,20 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: redis-operator-backup-job
+  namespace: default
+spec:
+  template:
+    metadata:
+      name: redis-operator-backup-pod
+    spec:
+      serviceAccountName: backup-service-account
+      containers:
+      - name: redis-operator-backup-container
+        image: "quay.io/opstree/redis-operator-backup:v0.15.1"
+        command: ["/bin/bash", "-c", "/backup/backup.bash"]
+        imagePullPolicy: Always
+        envFrom:
+        - secretRef:
+            name: env-secrets
+      restartPolicy: Never

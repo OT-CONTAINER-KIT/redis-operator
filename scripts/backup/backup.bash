@@ -23,7 +23,7 @@ REDIS_HOST="${CLUSTER_NAME}-leader-0.${CLUSTER_NAME}-leader-headless.${CLUSTER_N
 
 # Check the Total Leader Present in Redis Cluster using cr and redis-cli
 TOTAL_LEADERS=$(kubectl get redisclusters.redis.redis.opstreelabs.in "${CLUSTER_NAME}" -n "${CLUSTER_NAMESPACE}" -o jsonpath='{.spec.redisLeader.replicas}')
-MASTERS_IP=$(redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" -a "$REDIS_PASSWORD" cluster nodes --no-auth-warning | grep "master" | awk '{print $2}' | cut -d "@" -f1)
+MASTERS_IP=($(redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" -a "$REDIS_PASSWORD" --no-auth-warning cluster nodes | grep "master" | awk '{print $2}' | cut -d "@" -f1))
 
 check_total_leaders_from_cr() {
   # Check if TOTAL_LEADERS is 0 or nil
@@ -33,11 +33,14 @@ check_total_leaders_from_cr() {
   fi
 }
 
-check_total_masters_from_redis() {
-  # IF the total master by the redis custom-resource and the redis-cli doesn't match throw an error
-  if [[ "${TOTAL_LEADERS}" -ne "${#MASTERS_IP[@]}" ]]; then
-    echo "Error: Total number of leaders (${TOTAL_LEADERS}) is not equal to total number of masters (${#MASTERS_IP[@]})!"
-    exit 1
+check_total_leaders_from_cr() {
+  if [[ -z "$TOTAL_LEADERS" || "$TOTAL_LEADERS" == 0 ]]; then
+    TOTAL_LEADERS=$(kubectl get redisclusters.redis.redis.opstreelabs.in "${CLUSTER_NAME}" -n "${CLUSTER_NAMESPACE}" -o jsonpath='{.spec.clusterSize}')
+    # After setting, check again if it's still zero or empty
+    if [[ -z "$TOTAL_LEADERS" || "$TOTAL_LEADERS" == 0 ]]; then
+      echo "Error: Total number of leader pods is 0"
+      exit 1
+    fi
   fi
 }
 
@@ -73,7 +76,7 @@ perform_redis_backup(){
         redis-cli -h "$IP" -p "$PORT" -a "$REDIS_PASSWORD" --rdb "/tmp/${POD}.rdb"
 
         # Upload the file to the selected backup destination using restic
-        restic -r "$RESTIC_REPOSITORY" backup "/tmp/${POD}.rdb" --host"${CLUSTER_NAME}_${CLUSTER_NAMESPACE}" --tag "${POD}" --tag "redis"
+        restic -r "$RESTIC_REPOSITORY" backup "/tmp/${POD}.rdb" --host "${CLUSTER_NAME}_${CLUSTER_NAMESPACE}" --tag "${POD}" --tag "redis"
 
         # Clean up the local file
         rm "/tmp/${POD}.rdb"
