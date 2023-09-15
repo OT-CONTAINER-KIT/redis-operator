@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: redis-cluster-leader
+  name: redis-cluster-v1beta2-leader
 status:
   replicas: 3
   readyReplicas: 3
@@ -11,7 +11,7 @@ status:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: redis-cluster-follower
+  name: redis-cluster-v1beta2-follower
 status:
   replicas: 3
   readyReplicas: 3

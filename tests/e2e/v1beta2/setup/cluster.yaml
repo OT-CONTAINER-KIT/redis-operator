@@ -1,7 +1,7 @@
-apiVersion: redis.redis.opstreelabs.in/v1beta1
+apiVersion: redis.redis.opstreelabs.in/v1beta2
 kind: RedisCluster
 metadata:
-  name: redis-cluster
+  name: redis-cluster-v1beta2
 spec:
   clusterSize: 3
   clusterVersion: v7
@@ -10,7 +10,7 @@ spec:
     runAsUser: 1000
     fsGroup: 1000
   kubernetesConfig:
-    image: quay.io/opstree/redis:v7.0.12
+    image: quay.io/opstree/redis:v7.0.11
     imagePullPolicy: IfNotPresent
     resources:
       requests:
@@ -20,7 +20,7 @@ spec:
         cpu: 101m
         memory: 128Mi
   redisExporter:
-    enabled: false
+    enabled: true
     image: quay.io/opstree/redis-exporter:v1.44.0
     imagePullPolicy: Always
     resources:
@@ -38,6 +38,7 @@ spec:
         resources:
           requests:
             storage: 1Gi
+    nodeConfVolume: true
     nodeConfVolumeClaimTemplate:
       spec:
         accessModes: ["ReadWriteOnce"]

@@ -71,6 +71,7 @@ type RedisFollower struct {
 }
 
 // RedisClusterStatus defines the observed state of RedisCluster
+// +kubebuilder:subresource:status
 type RedisClusterStatus struct {
 	State  status.RedisClusterState `json:"state,omitempty"`
 	Reason string                   `json:"reason,omitempty"`
