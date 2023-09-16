@@ -6,7 +6,7 @@ metadata:
 spec:
   clusterSize: 3
   kubernetesConfig:
-    image: quay.io/opstree/redis:v7.0.5
+    image: quay.io/opstree/redis:v7.0.11
     imagePullPolicy: IfNotPresent
     imagePullSecrets:
       - name: regcred
