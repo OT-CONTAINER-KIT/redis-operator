@@ -9,7 +9,7 @@ on:
 env:
   ApplicationName: redis-operator
   QuayImageName: quay.io/opstree/redis-operator
-  AppVersion: "v0.15.0"
+  AppVersion: "v0.15.1"
   DOCKERFILE_PATH: '**/Dockerfile'
 
 jobs:
@@ -30,69 +30,11 @@ jobs:
         username: ${{ secrets.QUAY_USERNAME }}
         password: ${{ secrets.ACCESS_TOKEN }}
 
-  build_arm64:
-    needs: setup
-    if: github.event.pull_request.merged == true
-    runs-on: ubuntu-latest
-    steps:
-    - name: Check existing AppVersion
-      id: check_version_arm64
-      run: |
-        EXISTS=$(curl -s https://quay.io/api/v1/repository/${{ env.QuayImageName }}/tag/?specificTag=${{ env.AppVersion }}-arm64 | jq '.tags | length')
-        echo "::set-output name=exists::$EXISTS"
-
-    - name: Build and push arm64 image
-      if: steps.check_version_arm64.outputs.exists == '0'
-      uses: docker/build-push-action@v2
-      with:
-        context: .
-        file: ${{ env.DOCKERFILE_PATH }}
-        platforms: linux/arm64
-        push: true
-        tags: ${{ env.QuayImageName }}:${{ env.AppVersion }}-arm64
-
-  build_amd64:
-    needs: setup
-    if: github.event.pull_request.merged == true
-    runs-on: ubuntu-latest
-    steps:
-    - name: Check existing AppVersion
-      id: check_version_amd64
-      run: |
-        EXISTS=$(curl -s https://quay.io/api/v1/repository/${{ env.QuayImageName }}/tag/?specificTag=${{ env.AppVersion }}-amd64 | jq '.tags | length')
-        echo "::set-output name=exists::$EXISTS"
-
-    - name: Build and push amd64 image
-      if: steps.check_version_amd64.outputs.exists == '0'
-      uses: docker/build-push-action@v2
-      with:
-        context: .
-        file: ${{ env.DOCKERFILE_PATH }}
-        platforms: linux/amd64
-        push: true
-        tags: ${{ env.QuayImageName }}:${{ env.AppVersion }}-amd64
-
   build_multi_arch:
     needs: setup
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
-    - name: Check existing AppVersion
-      id: check_version_multi_arch
-      run: |
-        EXISTS=$(curl -s https://quay.io/api/v1/repository/${{ env.QuayImageName }}/tag/?specificTag=${{ env.AppVersion }} | jq '.tags | length')
-        echo "::set-output name=exists::$EXISTS"
-
-    - name: Build and push multi-arch image
-      if: steps.check_version_multi_arch.outputs.exists == '0'
-      uses: docker/build-push-action@v2
-      with:
-        context: .
-        file: ${{ env.DOCKERFILE_PATH }}
-        platforms: linux/amd64,linux/arm64
-        push: true
-        tags: ${{ env.QuayImageName }}:${{ env.AppVersion }}
-
     - name: Build and push multi-arch latest image
       uses: docker/build-push-action@v2
       with:
@@ -100,34 +42,17 @@ jobs:
         file: ${{ env.DOCKERFILE_PATH }}
         platforms: linux/amd64,linux/arm64
         push: true
-        tags: ${{ env.QuayImageName }}:latest
+        tags: ${{ env.QuayImageName }}:{{ env.AppVersion }}, ${{ env.QuayImageName }}:latest
 
   trivy_scan:
-    needs: [build_arm64, build_amd64, build_multi_arch]
+    needs: [build_multi_arch]
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v2
     - name: Run Trivy vulnerability scanner for arm64 image
       uses: aquasecurity/trivy-action@master
-      with:
-        image-ref: ${{ env.QuayImageName }}:${{ env.AppVersion }}-arm64
-        format: 'template'
-        template: '@/contrib/sarif.tpl'
-        output: 'trivy-results-arm64.sarif'
-        exit-code: '1'
-        ignore-unfixed: true
-        severity: 'CRITICAL,HIGH'
-    - name: Run Trivy vulnerability scanner for amd64 image
-      uses: aquasecurity/trivy-action@master
-      with:
-        image-ref: ${{ env.QuayImageName }}:${{ env.AppVersion }}-amd64
-        format: 'template'
-        template: '@/contrib/sarif.tpl'
-        output: 'trivy-results-amd64.sarif'
-        exit-code: '1'
-        ignore-unfixed: true
-        severity: 'CRITICAL,HIGH'
+      
     - name: Run Trivy vulnerability scanner for multi-arch image
       uses: aquasecurity/trivy-action@master
       with:
