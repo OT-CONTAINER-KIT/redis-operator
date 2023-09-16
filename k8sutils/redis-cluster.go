@@ -101,6 +101,9 @@ func generateRedisClusterContainerParams(cr *redisv1beta2.RedisCluster, security
 		Resources:       cr.Spec.KubernetesConfig.Resources,
 		SecurityContext: securityContext,
 	}
+	if cr.Spec.EnvVars != nil {
+		containerProp.EnvVars = cr.Spec.EnvVars
+	}
 	if cr.Spec.Storage != nil {
 		containerProp.AdditionalVolume = cr.Spec.Storage.VolumeMount.Volume
 		containerProp.AdditionalMountPath = cr.Spec.Storage.VolumeMount.MountPath

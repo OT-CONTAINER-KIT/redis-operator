@@ -557,7 +557,9 @@ func getProbeInfo(probe *commonapi.Probe) *corev1.Probe {
 }
 
 // getEnvironmentVariables returns all the required Environment Variables
-func getEnvironmentVariables(role string, enabledMetric bool, enabledPassword *bool, secretName *string, secretKey *string, persistenceEnabled *bool, exporterEnvVar *[]corev1.EnvVar, tlsConfig *redisv1beta2.TLSConfig, aclConfig *redisv1beta2.ACLConfig, additionalEnvVars *[]corev1.EnvVar) []corev1.EnvVar {
+func getEnvironmentVariables(role string, enabledMetric bool, enabledPassword *bool, secretName *string,
+	secretKey *string, persistenceEnabled *bool, exporterEnvVar *[]corev1.EnvVar, tlsConfig *redisv1beta2.TLSConfig,
+	aclConfig *redisv1beta2.ACLConfig, envVar *[]corev1.EnvVar) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{Name: "SERVER_MODE", Value: role},
 		{Name: "SETUP_MODE", Value: role},
@@ -625,8 +627,8 @@ func getEnvironmentVariables(role string, enabledMetric bool, enabledPassword *b
 		envVars = append(envVars, *exporterEnvVar...)
 	}
 
-	if additionalEnvVars != nil {
-		envVars = append(envVars, *additionalEnvVars...)
+	if envVar != nil {
+		envVars = append(envVars, *envVar...)
 	}
 
 	sort.SliceStable(envVars, func(i, j int) bool {
