@@ -70,6 +70,7 @@ type containerParameters struct {
 	AdditionalEnvVariable        *[]corev1.EnvVar
 	AdditionalVolume             []corev1.Volume
 	AdditionalMountPath          []corev1.VolumeMount
+	EnvVars                      *[]corev1.EnvVar
 }
 
 type initContainerParameters struct {
@@ -351,6 +352,7 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 				containerParams.RedisExporterEnv,
 				containerParams.TLSConfig,
 				containerParams.ACLConfig,
+				containerParams.EnvVars,
 			),
 			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe),
 			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe),
@@ -472,6 +474,7 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 			params.RedisExporterEnv,
 			params.TLSConfig,
 			params.ACLConfig,
+			params.EnvVars,
 		),
 		VolumeMounts: getVolumeMount("", nil, false, false, nil, params.AdditionalMountPath, params.TLSConfig, params.ACLConfig), // We need/want the tls-certs but we DON'T need the PVC (if one is available)
 		Ports: []corev1.ContainerPort{
@@ -554,7 +557,9 @@ func getProbeInfo(probe *commonapi.Probe) *corev1.Probe {
 }
 
 // getEnvironmentVariables returns all the required Environment Variables
-func getEnvironmentVariables(role string, enabledMetric bool, enabledPassword *bool, secretName *string, secretKey *string, persistenceEnabled *bool, exporterEnvVar *[]corev1.EnvVar, tlsConfig *redisv1beta2.TLSConfig, aclConfig *redisv1beta2.ACLConfig) []corev1.EnvVar {
+func getEnvironmentVariables(role string, enabledMetric bool, enabledPassword *bool, secretName *string,
+	secretKey *string, persistenceEnabled *bool, exporterEnvVar *[]corev1.EnvVar, tlsConfig *redisv1beta2.TLSConfig,
+	aclConfig *redisv1beta2.ACLConfig, envVar *[]corev1.EnvVar) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{Name: "SERVER_MODE", Value: role},
 		{Name: "SETUP_MODE", Value: role},
@@ -621,6 +626,11 @@ func getEnvironmentVariables(role string, enabledMetric bool, enabledPassword *b
 	if exporterEnvVar != nil {
 		envVars = append(envVars, *exporterEnvVar...)
 	}
+
+	if envVar != nil {
+		envVars = append(envVars, *envVar...)
+	}
+
 	sort.SliceStable(envVars, func(i, j int) bool {
 		return envVars[i].Name < envVars[j].Name
 	})

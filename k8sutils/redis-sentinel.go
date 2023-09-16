@@ -153,6 +153,9 @@ func generateRedisSentinelContainerParams(cr *redisv1beta2.RedisSentinel, readin
 		SecurityContext:       cr.Spec.SecurityContext,
 		AdditionalEnvVariable: getSentinelEnvVariable(cr),
 	}
+	if cr.Spec.EnvVars != nil {
+		containerProp.EnvVars = cr.Spec.EnvVars
+	}
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
 		containerProp.EnabledPassword = &trueProperty
 		containerProp.SecretName = cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name
