@@ -34,7 +34,6 @@ jobs:
           else
               echo "All files are formated using gofmt"
           fi
-
   govet:
     runs-on: ubuntu-latest
     steps:
@@ -95,7 +94,6 @@ jobs:
         run: |
           mkdir -p ${{ github.workspace }}/compiled/${{ matrix.arch }}
           zip ${{ github.workspace }}/compiled/${{ matrix.arch }}/${{ env.APPLICATION_NAME }}-${{ matrix.arch }}.zip ${{ github.workspace }}/${{ env.APPLICATION_NAME }}
-
   build_scan_container_image:
     needs: [container_quality_dockerfile_lint]
     runs-on: ubuntu-latest
@@ -125,5 +123,6 @@ jobs:
         uses: securego/gosec@master
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
           GOSEC_OUTPUT: "junit-xml:/github/workspace/gosec-results.xml"
           
