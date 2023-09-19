@@ -7,8 +7,8 @@ const (
 	InitializingStandaloneReason string = "RedisStandalone is initializing"
 	BootstrapStandaloneReason    string = "RedisStandalone is bootstrapping"
 )
-
-// Status Field of the Redis Standalone
+ 
+// Status Field of the Redis Standalone 
 const (
 	RedisStandaloneReady        RedisStandaloneState = "Ready"
 	RedisStandaloneInitializing RedisStandaloneState = "Initializing"

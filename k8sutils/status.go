@@ -47,11 +47,10 @@ func UpdateRedisClusterStatus(cr *redisv1beta2.RedisCluster, status status.Redis
 	return nil
 }
 
-
 func UpdateRedisStandaloneStatus(cr *redisv1beta2.Redis, status status.RedisStandaloneState, resaon string) error {
 	logger := statusLogger(cr.Namespace, cr.Name)
 	cr.Status.State = status
-	cr.Status.Reason = resaon 
+	cr.Status.Reason = resaon
 
 	client := generateK8sDynamicClient()
 	gvr := schema.GroupVersionResource{
@@ -67,6 +66,58 @@ func UpdateRedisStandaloneStatus(cr *redisv1beta2.Redis, status status.RedisStan
 	unstructuredRedisStandalone := &unstructured.Unstructured{Object: unstructuredObj}
 
 	_, err = client.Resource(gvr).Namespace(cr.Namespace).UpdateStatus(context.TODO(), unstructuredRedisStandalone, metav1.UpdateOptions{})
+	if err != nil {
+		logger.Error(err, "Failed to update status")
+		return err
+	}
+	return nil
+}
+
+func UpdateRedisSentinelStatus(cr *redisv1beta2.RedisSentinel, status status.RedisSentinelState, resaon string) error {
+	logger := statusLogger(cr.Namespace, cr.Name)
+	cr.Status.State = status
+	cr.Status.Reason = resaon
+
+	client := generateK8sDynamicClient()
+	gvr := schema.GroupVersionResource{
+		Group:    "redis.redis.opstreelabs.in",
+		Version:  "v1beta2",
+		Resource: "Redissentinel",
+	}
+	unstructuredObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(cr)
+	if err != nil {
+		logger.Error(err, "Failed to convert CR to unstructured object")
+		return err
+	}
+	unstructuredRedisSentinel := &unstructured.Unstructured{Object: unstructuredObj}
+
+	_, err = client.Resource(gvr).Namespace(cr.Namespace).UpdateStatus(context.TODO(), unstructuredRedisSentinel, metav1.UpdateOptions{})
+	if err != nil {
+		logger.Error(err, "Failed to update status")
+		return err
+	}
+	return nil
+}
+
+func UpdateRedisReplicationStatus(cr *redisv1beta2.RedisReplication, status status.RedisReplicationState, resaon string) error {
+	logger := statusLogger(cr.Namespace, cr.Name)
+	cr.Status.State = status
+	cr.Status.Reason = resaon
+
+	client := generateK8sDynamicClient()
+	gvr := schema.GroupVersionResource{
+		Group:    "redis.redis.opstreelabs.in",
+		Version:  "v1beta2",
+		Resource: "Redisreplication",
+	}
+	unstructuredObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(cr)
+	if err != nil {
+		logger.Error(err, "Failed to convert CR to unstructured object")
+		return err
+	}
+	unstructuredRedisReplication := &unstructured.Unstructured{Object: unstructuredObj}
+
+	_, err = client.Resource(gvr).Namespace(cr.Namespace).UpdateStatus(context.TODO(), unstructuredRedisReplication, metav1.UpdateOptions{})
 	if err != nil {
 		logger.Error(err, "Failed to update status")
 		return err

@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/OT-CONTAINER-KIT/redis-operator/api/status"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/k8sutils"
 	"github.com/go-logr/logr"
@@ -52,6 +53,13 @@ func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, err
 	}
 
+	if instance.Status.State != status.RedisReplicationReady {
+		err = k8sutils.UpdateRedisReplicationStatus(instance, status.RedisReplicationInitializing, status.InitializingReplicationReason)
+		if err != nil {
+			return ctrl.Result{RequeueAfter: time.Second * 10}, err
+		}
+	}
+
 	err = k8sutils.CreateReplicationRedis(instance)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -76,6 +84,13 @@ func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	reqLogger.Info("Creating redis replication by executing replication creation commands", "Replication.Ready", strconv.Itoa(int(redisReplicationInfo.Status.ReadyReplicas)))
 
+	if instance.Status.State != status.RedisReplicationInitializing {
+		err = k8sutils.UpdateRedisReplicationStatus(instance, status.RedisReplicationBootstrap, status.BootstrapClusterReason)
+		if err != nil {
+			return ctrl.Result{RequeueAfter: time.Second * 10}, err
+		}
+	}
+
 	if len(k8sutils.GetRedisNodesByRole(instance, "master")) > int(leaderReplicas) {
 
 		masterNodes := k8sutils.GetRedisNodesByRole(instance, "master")
@@ -85,6 +100,13 @@ func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			return ctrl.Result{RequeueAfter: time.Second * 60}, err
 		}
 
+	}
+
+	if instance.Status.State != status.RedisReplicationReady && k8sutils.CheckRedisReplicationReady(instance) {
+		err = k8sutils.UpdateRedisReplicationStatus(instance, status.RedisReplicationReady, status.ReadyReplicationReason)
+		if err != nil {
+			return ctrl.Result{RequeueAfter: time.Second * 10}, err
+		}
 	}
 
 	reqLogger.Info("Will reconcile redis operator in again 10 seconds")

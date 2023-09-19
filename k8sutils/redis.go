@@ -582,17 +582,55 @@ func CreateMasterSlaveReplication(cr *redisv1beta2.RedisReplication, masterPods 
 func CheckRedisStandaloneReady(cr *redisv1beta2.Redis) bool {
 	objName := cr.Name
 	objNamespace := cr.Namespace
-	pod, err := generateK8sClient().CoreV1().Pods(objNamespace).Get(context.Background(), objName, metav1.GetOptions{})
+	client := generateK8sClient()
+	sts, err := client.AppsV1().StatefulSets(objNamespace).Get(context.Background(), objName, metav1.GetOptions{})
 	if err != nil {
 		// Handle error
 		return false
 	}
 
 	// Check if the pod status is Running and all containers are ready
-	if pod.Status.Phase == corev1.PodRunning && pod.Status.Conditions[0].Status == corev1.ConditionTrue {
+	desiredReplica := 1
+
+	if sts.Status.ReadyReplicas == int32(desiredReplica) {
 		return true
 	}
 
 	return false
 
+}
+
+func CheckRedisSentinelReady(cr *redisv1beta2.RedisSentinel) bool {
+	objName := cr.Name
+	objNamespace := cr.Namespace
+	client := generateK8sClient()
+	sts, err := client.AppsV1().StatefulSets(objNamespace).Get(context.Background(), objName, metav1.GetOptions{})
+	if err != nil {
+		// Handle error
+		return false
+	}
+
+	if sts.Status.ReadyReplicas == *cr.Spec.Size {
+		return true
+	}
+
+	return false
+
+}
+
+func CheckRedisReplicationReady(cr *redisv1beta2.RedisReplication) bool {
+	objName := cr.Name
+	objNamespace := cr.Namespace
+	client := generateK8sClient()
+	sts, err := client.AppsV1().StatefulSets(objNamespace).Get(context.Background(), objName, metav1.GetOptions{})
+	if err != nil {
+		// Handle error
+		return false
+	}
+
+	if sts.Status.ReadyReplicas == *cr.Spec.Size {
+		return true
+	}
+
+	return false
 }

@@ -61,7 +61,7 @@ func CreateRedisSentinelService(cr *redisv1beta2.RedisSentinel) error {
 // Create Redis Sentinel Cluster Setup
 func (service RedisSentinelSTS) CreateRedisSentinelSetup(cr *redisv1beta2.RedisSentinel) error {
 
-	stateFulName := cr.ObjectMeta.Name + "-" + service.RedisStateFulType
+	stateFulName := cr.ObjectMeta.Name + "-" + service.RedisStateFulType 
 	logger := statefulSetLogger(cr.Namespace, stateFulName)
 	labels := getRedisLabels(stateFulName, "cluster", service.RedisStateFulType, cr.ObjectMeta.Labels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta)

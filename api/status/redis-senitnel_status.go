@@ -1,16 +1,16 @@
 package status
 
-type RedisSenitnelState string
+type RedisSentinelState string
 
 const (
-	ReadySenitnelReason                string = "RedisSenitnel is ready"
-	BootstrapSenitnelReason            string = "RedisSenitnel is bootstrapping"
+	ReadySentinelReason        string = "RedisSenitnel is ready"
+	InitializingSentinelReason string = "RedisSentinel is initializing"
+	BootstrapSentinelReason    string = "RedisSenitnel is bootstrapping"
 )
 
 // Status Field of the Redis Senitnel
 const (
-	RedisSenitnelReady        RedisSenitnelState = "Ready"
-	RedisSenitnelInitializing RedisSenitnelState = "Initializing"
-	RedisSenitnelBootstrap    RedisSenitnelState = "Bootstrap"
-	// RedisSenitnelFailed       RedisSenitnelState = "Failed"
+	RedisSenitnelReady        RedisSentinelState = "Ready"
+	RedisSentinelInitializing RedisSentinelState = "Initializing"
+	RedisSentinelBootstrap    RedisSentinelState = "Bootstrap"
 )
