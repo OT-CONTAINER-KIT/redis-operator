@@ -578,3 +578,21 @@ func CreateMasterSlaveReplication(cr *redisv1beta2.RedisReplication, masterPods 
 
 	return nil
 }
+
+func CheckRedisStandaloneReady(cr *redisv1beta2.Redis) bool {
+	objName := cr.Name
+	objNamespace := cr.Namespace
+	pod, err := generateK8sClient().CoreV1().Pods(objNamespace).Get(context.Background(), objName, metav1.GetOptions{})
+	if err != nil {
+		// Handle error
+		return false
+	}
+
+	// Check if the pod status is Running and all containers are ready
+	if pod.Status.Phase == corev1.PodRunning && pod.Status.Conditions[0].Status == corev1.ConditionTrue {
+		return true
+	}
+
+	return false
+
+}
