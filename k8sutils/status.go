@@ -82,7 +82,7 @@ func UpdateRedisSentinelStatus(cr *redisv1beta2.RedisSentinel, status status.Red
 	gvr := schema.GroupVersionResource{
 		Group:    "redis.redis.opstreelabs.in",
 		Version:  "v1beta2",
-		Resource: "Redissentinel",
+		Resource: "redissentinels",
 	}
 	unstructuredObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(cr)
 	if err != nil {
@@ -108,7 +108,7 @@ func UpdateRedisReplicationStatus(cr *redisv1beta2.RedisReplication, status stat
 	gvr := schema.GroupVersionResource{
 		Group:    "redis.redis.opstreelabs.in",
 		Version:  "v1beta2",
-		Resource: "Redisreplication",
+		Resource: "redisreplications",
 	}
 	unstructuredObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(cr)
 	if err != nil {
