@@ -608,7 +608,7 @@ func CheckRedisSentinelReady(cr *redisv1beta2.RedisSentinel) bool {
 	if err != nil {
 		// Handle error
 		return false
-	} 
+	}
 
 	if sts.Status.ReadyReplicas == *cr.Spec.Size {
 		return true

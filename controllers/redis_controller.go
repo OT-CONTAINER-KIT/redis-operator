@@ -16,7 +16,7 @@ limitations under the License.
 
 package controllers
 
-import ( 
+import (
 	"context"
 	"time"
 
@@ -67,7 +67,7 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		if err != nil {
 			return ctrl.Result{RequeueAfter: time.Second * 10}, err
 		}
-	} 
+	}
 
 	err = k8sutils.CreateStandaloneRedis(instance)
 	if err != nil {

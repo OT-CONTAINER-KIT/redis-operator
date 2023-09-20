@@ -43,8 +43,8 @@ type RedisSentinelConfig struct {
 }
 
 type RedisSentinelStatus struct {
-	State status.RedisSentinelState `json:"state,omitempty"`
-	Reason string                      `json:"reason,omitempty"`
+	State  status.RedisSentinelState `json:"state,omitempty"`
+	Reason string                    `json:"reason,omitempty"`
 }
 
 // +kubebuilder:object:root=true
