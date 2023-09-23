@@ -4,5 +4,7 @@ startKIND: false
 kindConfig: "./kind-config.yaml"
 parallel: 1
 timeout: 300
+testDirs:
+  - ./tests/e2e
 suppress : 
   - events

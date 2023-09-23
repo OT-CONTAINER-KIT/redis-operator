@@ -1,11 +1,11 @@
 name: CI
 on:
-  pull_request:
-    branches:
-      - master
-  push:
-    branches:
-      - master
+#  pull_request:
+#    branches:
+#      - master
+#  push:
+#    branches:
+#      - master
 
 env:
   GolangVersion: 1.17

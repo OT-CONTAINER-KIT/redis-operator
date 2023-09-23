@@ -1,10 +1,10 @@
 name: Release container images
 
 on:
-  pull_request:
-    types: [closed]
-    branches:
-      - master
+#  pull_request:
+#    types: [closed]
+#    branches:
+#      - master
 
 env:
   ApplicationName: redis-operator
