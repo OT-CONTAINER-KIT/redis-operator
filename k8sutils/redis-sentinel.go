@@ -41,7 +41,7 @@ func CreateRedisSentinel(cr *redisv1beta2.RedisSentinel) error {
 		TerminationGracePeriodSeconds: cr.Spec.TerminationGracePeriodSeconds,
 	}
 
-	if cr.Spec.RedisSentinelConfig.AdditionalSentinelConfig != nil {
+	if cr.Spec.RedisSentinelConfig != nil && cr.Spec.RedisSentinelConfig.AdditionalSentinelConfig != nil {
 		prop.ExternalConfig = cr.Spec.RedisSentinelConfig.AdditionalSentinelConfig
 	}
 
@@ -241,6 +241,10 @@ func (service RedisSentinelService) CreateRedisSentinelService(cr *redisv1beta2.
 }
 
 func getSentinelEnvVariable(cr *redisv1beta2.RedisSentinel) *[]corev1.EnvVar {
+
+	if cr.Spec.RedisSentinelConfig == nil {
+		return &[]corev1.EnvVar{}
+	}
 
 	envVar := &[]corev1.EnvVar{
 		{
