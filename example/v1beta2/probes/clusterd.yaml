@@ -11,7 +11,7 @@ spec:
     fsGroup: 1000
   persistenceEnabled: true
   kubernetesConfig:
-    image: quay.io/opstree/redis:v7.0.11
+    image: quay.io/opstree/redis:v7.0.12
   redisExporter:
     enabled: false
     image: quay.io/opstree/redis-exporter:v1.44.0
