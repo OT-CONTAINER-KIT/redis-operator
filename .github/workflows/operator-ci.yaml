@@ -45,6 +45,18 @@ jobs:
       - name: Run Go Vet
         run: go vet ./...
 
+  gotest:
+    name: Go Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GolangVersion }}
+      - name: Run Go Tests
+        run: go test ./...
+        
   code_quality_golang_ci_lint:
     needs: [gofmt, govet]
     runs-on: ubuntu-latest
