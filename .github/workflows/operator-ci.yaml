@@ -6,7 +6,6 @@ on:
   push:
     branches:
       - master
-      - golang-ci-lint-action
 
 env:
   GolangVersion: 1.17
