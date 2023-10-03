@@ -201,31 +201,31 @@ func TestGenerateServiceAnots(t *testing.T) {
 func TestGetRedisLabels(t *testing.T) {
 	tests := []struct {
 		name      string
-		setupType SetupType
+		setupType setupType
 		role      string
 		input     map[string]string
 		expected  map[string]string
 	}{
 		{
 			name:      "test-redis",
-			setupType: Cluster,
+			setupType: cluster,
 			role:      "master",
 			input:     map[string]string{"custom-label": "custom-value"},
 			expected: map[string]string{
 				"app":              "test-redis",
-				"redis_setup_type": string(Cluster),
+				"redis_setup_type": string(cluster),
 				"role":             "master",
 				"custom-label":     "custom-value",
 			},
 		},
 		{
 			name:      "test-redis",
-			setupType: Standalone,
+			setupType: standalone,
 			role:      "master",
 			input:     map[string]string{},
 			expected: map[string]string{
 				"app":              "test-redis",
-				"redis_setup_type": string(Standalone),
+				"redis_setup_type": string(standalone),
 				"role":             "master",
 			},
 		},

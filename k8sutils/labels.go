@@ -5,13 +5,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type SetupType string
+type setupType string
 
 const (
-	Standalone  SetupType = "standalone"
-	Replication SetupType = "replication"
-	Cluster     SetupType = "cluster"
-	Sentinel    SetupType = "sentinel"
+	standalone  setupType = "standalone"
+	replication setupType = "replication"
+	cluster     setupType = "cluster"
+	sentinel    setupType = "sentinel"
 )
 
 // generateMetaInformation generates the meta information
@@ -128,10 +128,10 @@ func LabelSelectors(labels map[string]string) *metav1.LabelSelector {
 	return &metav1.LabelSelector{MatchLabels: labels}
 }
 
-func getRedisLabels(name string, setupType SetupType, role string, labels map[string]string) map[string]string {
+func getRedisLabels(name string, st setupType, role string, labels map[string]string) map[string]string {
 	lbls := map[string]string{
 		"app":              name,
-		"redis_setup_type": string(setupType),
+		"redis_setup_type": string(st),
 		"role":             role,
 	}
 	for k, v := range labels {
