@@ -209,7 +209,7 @@ func (service RedisClusterSTS) getReplicaCount(cr *redisv1beta2.RedisCluster) in
 func (service RedisClusterSTS) CreateRedisClusterSetup(cr *redisv1beta2.RedisCluster) error {
 	stateFulName := cr.ObjectMeta.Name + "-" + service.RedisStateFulType
 	logger := statefulSetLogger(cr.Namespace, stateFulName)
-	labels := getRedisLabels(stateFulName, "cluster", service.RedisStateFulType, cr.ObjectMeta.Labels)
+	labels := getRedisLabels(stateFulName, Cluster, service.RedisStateFulType, cr.ObjectMeta.Labels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta)
 	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, annotations)
 	err := CreateOrUpdateStateFul(
@@ -232,7 +232,7 @@ func (service RedisClusterSTS) CreateRedisClusterSetup(cr *redisv1beta2.RedisClu
 func (service RedisClusterService) CreateRedisClusterService(cr *redisv1beta2.RedisCluster) error {
 	serviceName := cr.ObjectMeta.Name + "-" + service.RedisServiceRole
 	logger := serviceLogger(cr.Namespace, serviceName)
-	labels := getRedisLabels(serviceName, "cluster", service.RedisServiceRole, cr.ObjectMeta.Labels)
+	labels := getRedisLabels(serviceName, Cluster, service.RedisServiceRole, cr.ObjectMeta.Labels)
 	annotations := generateServiceAnots(cr.ObjectMeta, nil)
 	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
 		enableMetrics = true

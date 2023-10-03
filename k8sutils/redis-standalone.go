@@ -9,7 +9,7 @@ var (
 // CreateStandaloneService method will create standalone service for Redis
 func CreateStandaloneService(cr *redisv1beta2.Redis) error {
 	logger := serviceLogger(cr.Namespace, cr.ObjectMeta.Name)
-	labels := getRedisLabels(cr.ObjectMeta.Name, "standalone", "standalone", cr.ObjectMeta.Labels)
+	labels := getRedisLabels(cr.ObjectMeta.Name, Standalone, "standalone", cr.ObjectMeta.Labels)
 	annotations := generateServiceAnots(cr.ObjectMeta, nil)
 	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
 		enableMetrics = true
@@ -48,7 +48,7 @@ func CreateStandaloneService(cr *redisv1beta2.Redis) error {
 // CreateStandaloneRedis will create a standalone redis setup
 func CreateStandaloneRedis(cr *redisv1beta2.Redis) error {
 	logger := statefulSetLogger(cr.Namespace, cr.ObjectMeta.Name)
-	labels := getRedisLabels(cr.ObjectMeta.Name, "standalone", "standalone", cr.ObjectMeta.Labels)
+	labels := getRedisLabels(cr.ObjectMeta.Name, Standalone, "standalone", cr.ObjectMeta.Labels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta)
 	objectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name, cr.Namespace, labels, annotations)
 	err := CreateOrUpdateStateFul(cr.Namespace,

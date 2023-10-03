@@ -5,7 +5,7 @@ import redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 // CreateReplicationService method will create replication service for Redis
 func CreateReplicationService(cr *redisv1beta2.RedisReplication) error {
 	logger := serviceLogger(cr.Namespace, cr.ObjectMeta.Name)
-	labels := getRedisLabels(cr.ObjectMeta.Name, "replication", "replication", cr.ObjectMeta.Labels)
+	labels := getRedisLabels(cr.ObjectMeta.Name, Replication, "replication", cr.ObjectMeta.Labels)
 	annotations := generateServiceAnots(cr.ObjectMeta, nil)
 	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
 		enableMetrics = true
@@ -45,7 +45,7 @@ func CreateReplicationService(cr *redisv1beta2.RedisReplication) error {
 func CreateReplicationRedis(cr *redisv1beta2.RedisReplication) error {
 	stateFulName := cr.ObjectMeta.Name
 	logger := statefulSetLogger(cr.Namespace, cr.ObjectMeta.Name)
-	labels := getRedisLabels(cr.ObjectMeta.Name, "replication", "replication", cr.ObjectMeta.Labels)
+	labels := getRedisLabels(cr.ObjectMeta.Name, Replication, "replication", cr.ObjectMeta.Labels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta)
 	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, annotations)
 	err := CreateOrUpdateStateFul(cr.Namespace,
