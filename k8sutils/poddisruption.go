@@ -19,7 +19,7 @@ func ReconcileRedisPodDisruptionBudget(cr *redisv1beta2.RedisCluster, role strin
 	pdbName := cr.ObjectMeta.Name + "-" + role
 	logger := pdbLogger(cr.Namespace, pdbName)
 	if pdbParams != nil && pdbParams.Enabled {
-		labels := getRedisLabels(cr.ObjectMeta.Name, "cluster", role, cr.ObjectMeta.GetLabels())
+		labels := getRedisLabels(cr.ObjectMeta.Name, cluster, role, cr.ObjectMeta.GetLabels())
 		annotations := generateStatefulSetsAnots(cr.ObjectMeta)
 		pdbMeta := generateObjectMetaInformation(pdbName, cr.Namespace, labels, annotations)
 		pdbDef := generatePodDisruptionBudgetDef(cr, role, pdbMeta, cr.Spec.RedisLeader.PodDisruptionBudget)
@@ -42,7 +42,7 @@ func ReconcileSentinelPodDisruptionBudget(cr *redisv1beta2.RedisSentinel, pdbPar
 	pdbName := cr.ObjectMeta.Name + "-sentinel"
 	logger := pdbLogger(cr.Namespace, pdbName)
 	if pdbParams != nil && pdbParams.Enabled {
-		labels := getRedisLabels(cr.ObjectMeta.Name, "sentinel", "sentinel", cr.ObjectMeta.GetLabels())
+		labels := getRedisLabels(cr.ObjectMeta.Name, sentinel, "sentinel", cr.ObjectMeta.GetLabels())
 		annotations := generateStatefulSetsAnots(cr.ObjectMeta)
 		pdbMeta := generateObjectMetaInformation(pdbName, cr.Namespace, labels, annotations)
 		pdbDef := generateSentinelPodDisruptionBudgetDef(cr, "sentinel", pdbMeta, pdbParams)
