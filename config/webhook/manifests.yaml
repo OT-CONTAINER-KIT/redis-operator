@@ -1,0 +1,100 @@
+
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-redis-redis-opstreelabs-in-v1beta2-redis
+  failurePolicy: Ignore
+  matchPolicy: Exact
+  name: redis-validation-v1beta2.redis.redis.opstreelabs.in
+  rules:
+  - apiGroups:
+    - redis.redis.opstreelabs.in
+    apiVersions:
+    - v1beta2
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+    resources:
+    - rediss
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-redis-redis-opstreelabs-in-v1beta2-rediscluster
+  failurePolicy: Ignore
+  matchPolicy: Exact
+  name: rediscluster-validation-v1beta2.redis.redis.opstreelabs.in
+  rules:
+  - apiGroups:
+    - redis.redis.opstreelabs.in
+    apiVersions:
+    - v1beta2
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+    resources:
+    - redisclusters
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-redis-redis-opstreelabs-in-v1beta2-redisreplication
+  failurePolicy: Ignore
+  matchPolicy: Exact
+  name: redisreplication-validation-v1beta2.redis.redis.opstreelabs.in
+  rules:
+  - apiGroups:
+    - redis.redis.opstreelabs.in
+    apiVersions:
+    - v1beta2
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+    resources:
+    - redisreplications
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-redis-redis-opstreelabs-in-v1beta2-redissentinel
+  failurePolicy: Ignore
+  matchPolicy: Exact
+  name: redissentinel-validation-v1beta2.redis.redis.opstreelabs.in
+  rules:
+  - apiGroups:
+    - redis.redis.opstreelabs.in
+    apiVersions:
+    - v1beta2
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+    resources:
+    - redissentinels
+  sideEffects: None

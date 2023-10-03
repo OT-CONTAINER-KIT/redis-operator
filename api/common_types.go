@@ -3,6 +3,7 @@ package api
 import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
 // KubernetesConfig will be the JSON struct for Basic Redis Config
@@ -15,6 +16,23 @@ type KubernetesConfig struct {
 	ImagePullSecrets       *[]corev1.LocalObjectReference   `json:"imagePullSecrets,omitempty"`
 	UpdateStrategy         appsv1.StatefulSetUpdateStrategy `json:"updateStrategy,omitempty"`
 	Service                *ServiceConfig                   `json:"service,omitempty"`
+}
+
+func CheckCommonKubernetesConfig(kc KubernetesConfig) field.ErrorList {
+	var (
+		errs field.ErrorList
+	)
+
+	if kc.ExistingPasswordSecret != nil {
+		if kc.ExistingPasswordSecret.Name == nil {
+			errs = append(errs, field.Required(field.NewPath("spec").Child("kubernetesConfig").Child("redisSecret").Child("name"), "name is required"))
+		}
+		if kc.ExistingPasswordSecret.Key == nil {
+			errs = append(errs, field.Required(field.NewPath("spec").Child("kubernetesConfig").Child("redisSecret").Child("key"), "key is required"))
+		}
+	}
+
+	return errs
 }
 
 // ServiceConfig define the type of service to be created and its annotations
@@ -40,6 +58,20 @@ type RedisExporter struct {
 	Resources       *corev1.ResourceRequirements `json:"resources,omitempty"`
 	ImagePullPolicy corev1.PullPolicy            `json:"imagePullPolicy,omitempty"`
 	EnvVars         *[]corev1.EnvVar             `json:"env,omitempty"`
+}
+
+func CheckCommonRedisExporter(re RedisExporter) field.ErrorList {
+	var (
+		errs field.ErrorList
+	)
+
+	if re.Enabled {
+		if re.Image == "" {
+			errs = append(errs, field.Required(field.NewPath("spec").Child("redisExporter").Child("image"), "image is required"))
+		}
+	}
+
+	return errs
 }
 
 // RedisConfig defines the external configuration of Redis
