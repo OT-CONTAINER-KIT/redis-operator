@@ -288,7 +288,7 @@ func TestRedisClusterAsOwner(t *testing.T) {
 		Kind:       "RedisCluster",
 		Name:       "test-redis-cluster",
 		UID:        "abcdef",
-		Controller: pointer.BoolPtr(true),
+		Controller: pointer.Bool(true),
 	}
 
 	result := redisClusterAsOwner(clusterObj)
@@ -342,7 +342,7 @@ func TestRedisSentinelAsOwner(t *testing.T) {
 		Kind:       "RedisSentinel",
 		Name:       "test-redis-sentinel",
 		UID:        "mnopqr",
-		Controller: pointer.BoolPtr(true),
+		Controller: pointer.Bool(true),
 	}
 
 	result := redisSentinelAsOwner(sentinelObj)
