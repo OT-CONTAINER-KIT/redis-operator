@@ -382,7 +382,7 @@ func executeCommand(cr *redisv1beta2.RedisCluster, cmd []string, podName string)
 		return
 	}
 
-	err = exec.Stream(remotecommand.StreamOptions{
+	err = exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
 		Stdout: &execOut,
 		Stderr: &execErr,
 		Tty:    false,
