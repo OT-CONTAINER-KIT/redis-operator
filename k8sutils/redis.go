@@ -255,7 +255,7 @@ func executeFailoverCommand(cr *redisv1beta2.RedisCluster, role string) error {
 		if err != nil {
 			logger.Error(err, "Redis command failed with this error")
 			flushcommand := redis.NewStringCmd("flushall")
-			err := client.Process(flushcommand)
+			err = client.Process(flushcommand)
 			if err != nil {
 				logger.Error(err, "Redis flush command failed with this error")
 				return err

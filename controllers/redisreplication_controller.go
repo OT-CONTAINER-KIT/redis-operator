@@ -44,11 +44,11 @@ func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	followerReplicas := instance.Spec.GetReplicationCounts("replication") - leaderReplicas
 	totalReplicas := leaderReplicas + followerReplicas
 
-	if err := k8sutils.HandleRedisReplicationFinalizer(instance, r.Client); err != nil {
+	if err = k8sutils.HandleRedisReplicationFinalizer(instance, r.Client); err != nil {
 		return ctrl.Result{}, err
 	}
 
-	if err := k8sutils.AddRedisReplicationFinalizer(instance, r.Client); err != nil {
+	if err = k8sutils.AddRedisReplicationFinalizer(instance, r.Client); err != nil {
 		return ctrl.Result{}, err
 	}
 
