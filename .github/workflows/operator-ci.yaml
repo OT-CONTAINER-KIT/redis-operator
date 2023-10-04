@@ -63,14 +63,14 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GolangVersion }}
-      - name: Install GolangCI-Lint
-        run: |
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.40.0
       - name: Run GolangCI-Lint
-        run: ./bin/golangci-lint run --timeout 5m0s ./...
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: v1.54.0
+          args: --timeout=5m0s ./...
 
   container_quality_dockerfile_lint:
     needs: [gofmt, govet]
