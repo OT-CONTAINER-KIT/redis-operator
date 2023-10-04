@@ -315,7 +315,7 @@ func TestRedisReplicationAsOwner(t *testing.T) {
 		Kind:       "RedisReplication",
 		Name:       "test-redis-replication",
 		UID:        "ghijkl",
-		Controller: pointer.BoolPtr(true),
+		Controller: pointer.Bool(true),
 	}
 
 	result := redisReplicationAsOwner(replicationObj)
