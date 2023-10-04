@@ -120,7 +120,7 @@ func CreateOrUpdatePodDisruptionBudget(pdbDef *policyv1.PodDisruptionBudget) err
 	logger := pdbLogger(pdbDef.Namespace, pdbDef.Name)
 	storedPDB, err := GetPodDisruptionBudget(pdbDef.Namespace, pdbDef.Name)
 	if err != nil {
-		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(pdbDef); err != nil {
+		if err = patch.DefaultAnnotator.SetLastAppliedAnnotation(pdbDef); err != nil {
 			logger.Error(err, "Unable to patch redis PodDisruptionBudget with comparison object")
 			return err
 		}
