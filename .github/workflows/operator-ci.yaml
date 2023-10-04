@@ -8,7 +8,7 @@ on:
       - master
 
 env:
-  GolangVersion: 1.17
+  GolangVersion: 1.21
   ApplicationName: redis-operator
   DockerImagName: docker.io/opstree/redis-operator
   BuildDocs: true
