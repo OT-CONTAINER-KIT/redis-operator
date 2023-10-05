@@ -11,7 +11,7 @@ import (
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/go-logr/logr"
-	"github.com/go-redis/redis"
+	redis "github.com/redis/go-redis/v9"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -87,13 +87,13 @@ func CreateMultipleLeaderRedisCommand(cr *redisv1beta2.RedisCluster) []string {
 }
 
 // ExecuteRedisClusterCommand will execute redis cluster creation command
-func ExecuteRedisClusterCommand(cr *redisv1beta2.RedisCluster) {
+func ExecuteRedisClusterCommand(ctx context.Context, cr *redisv1beta2.RedisCluster) {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 	var cmd []string
 	replicas := cr.Spec.GetReplicaCounts("leader")
 	switch int(replicas) {
 	case 1:
-		err := executeFailoverCommand(cr, "leader")
+		err := executeFailoverCommand(ctx, cr, "leader")
 		if err != nil {
 			logger.Error(err, "error executing failover command")
 		}
@@ -154,14 +154,14 @@ func createRedisReplicationCommand(cr *redisv1beta2.RedisCluster, leaderPod Redi
 }
 
 // ExecuteRedisReplicationCommand will execute the replication command
-func ExecuteRedisReplicationCommand(cr *redisv1beta2.RedisCluster) {
+func ExecuteRedisReplicationCommand(ctx context.Context, cr *redisv1beta2.RedisCluster) {
 	var podIP string
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 	followerCounts := cr.Spec.GetReplicaCounts("follower")
 	leaderCounts := cr.Spec.GetReplicaCounts("leader")
 	followerPerLeader := followerCounts / leaderCounts
 
-	nodes := checkRedisCluster(cr)
+	nodes := checkRedisCluster(ctx, cr)
 	for followerIdx := 0; followerIdx <= int(followerCounts)-1; {
 		for i := 0; i < int(followerPerLeader) && followerIdx <= int(followerCounts)-1; i++ {
 			followerPod := RedisDetails{
@@ -177,7 +177,7 @@ func ExecuteRedisReplicationCommand(cr *redisv1beta2.RedisCluster) {
 				logger.V(1).Info("Adding node to cluster.", "Node.IP", podIP, "Follower.Pod", followerPod)
 				cmd := createRedisReplicationCommand(cr, leaderPod, followerPod)
 				redisClient := configureRedisClient(cr, followerPod.PodName)
-				pong, err := redisClient.Ping().Result()
+				pong, err := redisClient.Ping(ctx).Result()
 				redisClient.Close()
 				if err != nil {
 					logger.Error(err, "Failed to ping Redis server", "Follower.Pod", followerPod)
@@ -198,13 +198,13 @@ func ExecuteRedisReplicationCommand(cr *redisv1beta2.RedisCluster) {
 }
 
 // checkRedisCluster will check the redis cluster have sufficient nodes or not
-func checkRedisCluster(cr *redisv1beta2.RedisCluster) [][]string {
+func checkRedisCluster(ctx context.Context, cr *redisv1beta2.RedisCluster) [][]string {
 	var client *redis.Client
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 	client = configureRedisClient(cr, cr.ObjectMeta.Name+"-leader-0")
 	defer client.Close()
-	cmd := redis.NewStringCmd("cluster", "nodes")
-	err := client.Process(cmd)
+	cmd := redis.NewStringCmd(ctx, "cluster", "nodes")
+	err := client.Process(ctx, cmd)
 	if err != nil {
 		logger.Error(err, "Redis command failed with this error")
 	}
@@ -226,14 +226,14 @@ func checkRedisCluster(cr *redisv1beta2.RedisCluster) [][]string {
 }
 
 // ExecuteFailoverOperation will execute redis failover operations
-func ExecuteFailoverOperation(cr *redisv1beta2.RedisCluster) error {
+func ExecuteFailoverOperation(ctx context.Context, cr *redisv1beta2.RedisCluster) error {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
-	err := executeFailoverCommand(cr, "leader")
+	err := executeFailoverCommand(ctx, cr, "leader")
 	if err != nil {
 		logger.Error(err, "Redis command failed for leader nodes")
 		return err
 	}
-	err = executeFailoverCommand(cr, "follower")
+	err = executeFailoverCommand(ctx, cr, "follower")
 	if err != nil {
 		logger.Error(err, "Redis command failed for follower nodes")
 		return err
@@ -242,7 +242,7 @@ func ExecuteFailoverOperation(cr *redisv1beta2.RedisCluster) error {
 }
 
 // executeFailoverCommand will execute failover command
-func executeFailoverCommand(cr *redisv1beta2.RedisCluster, role string) error {
+func executeFailoverCommand(ctx context.Context, cr *redisv1beta2.RedisCluster, role string) error {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 	replicas := cr.Spec.GetReplicaCounts(role)
 	podName := fmt.Sprintf("%s-%s-", cr.ObjectMeta.Name, role)
@@ -250,18 +250,18 @@ func executeFailoverCommand(cr *redisv1beta2.RedisCluster, role string) error {
 		logger.V(1).Info("Executing redis failover operations", "Redis Node", podName+strconv.Itoa(podCount))
 		client := configureRedisClient(cr, podName+strconv.Itoa(podCount))
 		defer client.Close()
-		cmd := redis.NewStringCmd("cluster", "reset")
-		err := client.Process(cmd)
+		cmd := redis.NewStringCmd(ctx, "cluster", "reset")
+		err := client.Process(ctx, cmd)
 		if err != nil {
 			logger.Error(err, "Redis command failed with this error")
-			flushcommand := redis.NewStringCmd("flushall")
-			err = client.Process(flushcommand)
+			flushcommand := redis.NewStringCmd(ctx, "flushall")
+			err = client.Process(ctx, flushcommand)
 			if err != nil {
 				logger.Error(err, "Redis flush command failed with this error")
 				return err
 			}
 		}
-		err = client.Process(cmd)
+		err = client.Process(ctx, cmd)
 		if err != nil {
 			logger.Error(err, "Redis command failed with this error")
 			return err
@@ -277,10 +277,10 @@ func executeFailoverCommand(cr *redisv1beta2.RedisCluster, role string) error {
 }
 
 // CheckRedisNodeCount will check the count of redis nodes
-func CheckRedisNodeCount(cr *redisv1beta2.RedisCluster, nodeType string) int32 {
+func CheckRedisNodeCount(ctx context.Context, cr *redisv1beta2.RedisCluster, nodeType string) int32 {
 	var redisNodeType string
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
-	clusterNodes := checkRedisCluster(cr)
+	clusterNodes := checkRedisCluster(ctx, cr)
 	count := len(clusterNodes)
 
 	switch nodeType {
@@ -306,9 +306,9 @@ func CheckRedisNodeCount(cr *redisv1beta2.RedisCluster, nodeType string) int32 {
 }
 
 // CheckRedisClusterState will check the redis cluster state
-func CheckRedisClusterState(cr *redisv1beta2.RedisCluster) int {
+func CheckRedisClusterState(ctx context.Context, cr *redisv1beta2.RedisCluster) int {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
-	clusterNodes := checkRedisCluster(cr)
+	clusterNodes := checkRedisCluster(ctx, cr)
 	count := 0
 
 	for _, node := range clusterNodes {
@@ -464,7 +464,7 @@ func configureRedisReplicationClient(cr *redisv1beta2.RedisReplication, podName 
 }
 
 // Get Redis nodes by it's role i.e. master, slave and sentinel
-func GetRedisNodesByRole(cr *redisv1beta2.RedisReplication, redisRole string) []string {
+func GetRedisNodesByRole(ctx context.Context, cr *redisv1beta2.RedisReplication, redisRole string) []string {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 	statefulset, err := GetStatefulSet(cr.Namespace, cr.Name)
 	if err != nil {
@@ -477,7 +477,7 @@ func GetRedisNodesByRole(cr *redisv1beta2.RedisReplication, redisRole string) []
 	for i := 0; i < int(replicas); i++ {
 
 		podName := statefulset.Name + "-" + strconv.Itoa(i)
-		podRole := checkRedisServerRole(cr, podName)
+		podRole := checkRedisServerRole(ctx, cr, podName)
 		if podRole == redisRole {
 			pods = append(pods, podName)
 		}
@@ -487,12 +487,12 @@ func GetRedisNodesByRole(cr *redisv1beta2.RedisReplication, redisRole string) []
 }
 
 // Check the Redis Server Role i.e. master, slave and sentinel
-func checkRedisServerRole(cr *redisv1beta2.RedisReplication, podName string) string {
+func checkRedisServerRole(ctx context.Context, cr *redisv1beta2.RedisReplication, podName string) string {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 
 	redisClient := configureRedisReplicationClient(cr, podName)
 	defer redisClient.Close()
-	info, err := redisClient.Info("replication").Result()
+	info, err := redisClient.Info(ctx, "replication").Result()
 	if err != nil {
 		logger.Error(err, "Failed to Get the role Info of the", "redis pod", podName)
 	}
@@ -510,7 +510,7 @@ func checkRedisServerRole(cr *redisv1beta2.RedisReplication, podName string) str
 }
 
 // checkAttachedSlave would return redis pod name which has slave
-func checkAttachedSlave(cr *redisv1beta2.RedisReplication, masterPods []string) string {
+func checkAttachedSlave(ctx context.Context, cr *redisv1beta2.RedisReplication, masterPods []string) string {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 
 	for _, podName := range masterPods {
@@ -518,7 +518,7 @@ func checkAttachedSlave(cr *redisv1beta2.RedisReplication, masterPods []string) 
 		connected_slaves := ""
 		redisClient := configureRedisReplicationClient(cr, podName)
 		defer redisClient.Close()
-		info, err := redisClient.Info("replication").Result()
+		info, err := redisClient.Info(ctx, "replication").Result()
 		if err != nil {
 			logger.Error(err, "Failed to Get the connected slaves Info of the", "redis pod", podName)
 		}
@@ -543,11 +543,11 @@ func checkAttachedSlave(cr *redisv1beta2.RedisReplication, masterPods []string) 
 
 }
 
-func CreateMasterSlaveReplication(cr *redisv1beta2.RedisReplication, masterPods []string, slavePods []string) error {
+func CreateMasterSlaveReplication(ctx context.Context, cr *redisv1beta2.RedisReplication, masterPods []string, slavePods []string) error {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 
 	var realMasterPod string
-	realMasterPod = checkAttachedSlave(cr, masterPods)
+	realMasterPod = checkAttachedSlave(ctx, cr, masterPods)
 
 	if len(slavePods) < 1 {
 		realMasterPod = masterPods[0]
@@ -568,7 +568,7 @@ func CreateMasterSlaveReplication(cr *redisv1beta2.RedisReplication, masterPods 
 			redisClient := configureRedisReplicationClient(cr, masterPods[i])
 			defer redisClient.Close()
 			logger.V(1).Info("Setting the", "pod", masterPods[i], "to slave of", realMasterPod)
-			err := redisClient.SlaveOf(realMasterPodIP, "6379").Err()
+			err := redisClient.SlaveOf(ctx, realMasterPodIP, "6379").Err()
 			if err != nil {
 				logger.Error(err, "Failed to set", "pod", masterPods[i], "to slave of", realMasterPod)
 				return err

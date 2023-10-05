@@ -5,10 +5,10 @@ go 1.21
 require (
 	github.com/banzaicloud/k8s-objectmatcher v1.7.0
 	github.com/go-logr/logr v1.2.4
-	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.27.10
 	github.com/pkg/errors v0.9.1
+	github.com/redis/go-redis/v9 v9.2.1
 	github.com/stretchr/testify v1.8.4
 	k8s.io/api v0.28.2
 	k8s.io/apimachinery v0.28.2
@@ -22,6 +22,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/emicklei/go-restful/v3 v3.9.0 // indirect
 	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
