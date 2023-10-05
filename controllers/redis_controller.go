@@ -20,6 +20,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/OT-CONTAINER-KIT/redis-operator/api/status"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/k8sutils"
 	"github.com/go-logr/logr"
@@ -61,6 +62,13 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, err
 	}
 
+	if instance.Status.State != status.RedisStandaloneReady {
+		err = k8sutils.UpdateRedisStandaloneStatus(instance, status.RedisStandaloneInitializing, status.InitializingStandaloneReason)
+		if err != nil {
+			return ctrl.Result{RequeueAfter: time.Second * 10}, err
+		}
+	}
+
 	err = k8sutils.CreateStandaloneRedis(instance)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -68,6 +76,13 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	err = k8sutils.CreateStandaloneService(instance)
 	if err != nil {
 		return ctrl.Result{}, err
+	}
+
+	if instance.Status.State != status.RedisStandaloneReady && k8sutils.CheckRedisStandaloneReady(instance) {
+		err = k8sutils.UpdateRedisStandaloneStatus(instance, status.RedisStandaloneReady, status.ReadyStandaloneReason)
+		if err != nil {
+			return ctrl.Result{RequeueAfter: time.Second * 10}, err
+		}
 	}
 
 	reqLogger.Info("Will reconcile redis operator in again 10 seconds")

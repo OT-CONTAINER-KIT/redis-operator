@@ -3691,6 +3691,11 @@ spec:
             - kubernetesConfig
             type: object
           status:
+            properties:
+              reason:
+                type: string
+              state:
+                type: string
             type: object
         required:
         - spec
