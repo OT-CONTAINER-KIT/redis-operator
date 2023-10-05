@@ -76,19 +76,19 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		// check whether the redis is leader or not ?
 		// if not true then make it leader pod
 
-		if !(k8sutils.VerifyLeaderPod(instance)) {
+		if !(k8sutils.VerifyLeaderPod(ctx, instance)) {
 			// lastLeaderPod is slaving right now Make it the master Pod
 			// We have to bring a manual failover here to make it a leaderPod
 			// clusterFailover should also include the clusterReplicate since we have to map the followers to new leader
-			k8sutils.ClusterFailover(instance)
+			k8sutils.ClusterFailover(ctx, instance)
 		}
 
 		// Step 1 Rehard the Cluster
 		k8sutils.ReshardRedisCluster(instance)
 		// Step 2 Remove the Follower Node
-		k8sutils.RemoveRedisFollowerNodesFromCluster(instance)
+		k8sutils.RemoveRedisFollowerNodesFromCluster(ctx, instance)
 		// Step 3 Remove the Leader Node
-		k8sutils.RemoveRedisNodeFromCluster(instance)
+		k8sutils.RemoveRedisNodeFromCluster(ctx, instance)
 		// Step 4 Rebalance the cluster
 		k8sutils.RebalanceRedisCluster(instance)
 		return ctrl.Result{RequeueAfter: time.Second * 100}, nil
@@ -175,17 +175,17 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	reqLogger.Info("Creating redis cluster by executing cluster creation commands", "Leaders.Ready", strconv.Itoa(int(redisLeaderInfo.Status.ReadyReplicas)), "Followers.Ready", strconv.Itoa(int(redisFollowerInfo.Status.ReadyReplicas)))
-	if k8sutils.CheckRedisNodeCount(instance, "") != totalReplicas {
-		leaderCount := k8sutils.CheckRedisNodeCount(instance, "leader")
+	if k8sutils.CheckRedisNodeCount(ctx, instance, "") != totalReplicas {
+		leaderCount := k8sutils.CheckRedisNodeCount(ctx, instance, "leader")
 		if leaderCount != leaderReplicas {
 			reqLogger.Info("Not all leader are part of the cluster...", "Leaders.Count", leaderCount, "Instance.Size", leaderReplicas)
 			if leaderCount <= 2 {
-				k8sutils.ExecuteRedisClusterCommand(instance)
+				k8sutils.ExecuteRedisClusterCommand(ctx, instance)
 			} else {
 				if leaderCount < leaderReplicas {
 					// Scale up the cluster
 					// Step 2 : Add Redis Node
-					k8sutils.AddRedisNodeToCluster(instance)
+					k8sutils.AddRedisNodeToCluster(ctx, instance)
 					// Step 3 Rebalance the cluster using the empty masters
 					k8sutils.RebalanceRedisClusterEmptyMasters(instance)
 				}
@@ -193,16 +193,16 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		} else {
 			if followerReplicas > 0 && redisFollowerInfo.Status.ReadyReplicas == followerReplicas {
 				reqLogger.Info("All leader are part of the cluster, adding follower/replicas", "Leaders.Count", leaderCount, "Instance.Size", leaderReplicas, "Follower.Replicas", followerReplicas)
-				k8sutils.ExecuteRedisReplicationCommand(instance)
+				k8sutils.ExecuteRedisReplicationCommand(ctx, instance)
 			} else {
 				reqLogger.Info("no follower/replicas configured, skipping replication configuration", "Leaders.Count", leaderCount, "Leader.Size", leaderReplicas, "Follower.Replicas", followerReplicas)
 			}
 		}
 	} else {
 		reqLogger.Info("Redis leader count is desired")
-		if int(totalReplicas) > 1 && k8sutils.CheckRedisClusterState(instance) >= int(totalReplicas)-1 {
+		if int(totalReplicas) > 1 && k8sutils.CheckRedisClusterState(ctx, instance) >= int(totalReplicas)-1 {
 			reqLogger.Info("Redis leader is not desired, executing failover operation")
-			err = k8sutils.ExecuteFailoverOperation(instance)
+			err = k8sutils.ExecuteFailoverOperation(ctx, instance)
 			if err != nil {
 				return ctrl.Result{RequeueAfter: time.Second * 10}, err
 			}
@@ -211,8 +211,8 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// Check If there is No Empty Master Node
-	if k8sutils.CheckRedisNodeCount(instance, "") == totalReplicas {
-		k8sutils.CheckIfEmptyMasters(instance)
+	if k8sutils.CheckRedisNodeCount(ctx, instance, "") == totalReplicas {
+		k8sutils.CheckIfEmptyMasters(ctx, instance)
 	}
 	reqLogger.Info("Will reconcile redis cluster operator in again 10 seconds")
 

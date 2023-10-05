@@ -32,7 +32,7 @@ type RedisReplicationObject struct {
 }
 
 // Redis Sentinel Create the Redis Sentinel Setup
-func CreateRedisSentinel(cr *redisv1beta2.RedisSentinel) error {
+func CreateRedisSentinel(ctx context.Context, cr *redisv1beta2.RedisSentinel) error {
 	prop := RedisSentinelSTS{
 		RedisStateFulType:             "sentinel",
 		Affinity:                      cr.Spec.Affinity,
@@ -45,7 +45,7 @@ func CreateRedisSentinel(cr *redisv1beta2.RedisSentinel) error {
 		prop.ExternalConfig = cr.Spec.RedisSentinelConfig.AdditionalSentinelConfig
 	}
 
-	return prop.CreateRedisSentinelSetup(cr)
+	return prop.CreateRedisSentinelSetup(ctx, cr)
 
 }
 
@@ -59,7 +59,7 @@ func CreateRedisSentinelService(cr *redisv1beta2.RedisSentinel) error {
 }
 
 // Create Redis Sentinel Cluster Setup
-func (service RedisSentinelSTS) CreateRedisSentinelSetup(cr *redisv1beta2.RedisSentinel) error {
+func (service RedisSentinelSTS) CreateRedisSentinelSetup(ctx context.Context, cr *redisv1beta2.RedisSentinel) error {
 
 	stateFulName := cr.ObjectMeta.Name + "-" + service.RedisStateFulType
 	logger := statefulSetLogger(cr.Namespace, stateFulName)
@@ -72,7 +72,7 @@ func (service RedisSentinelSTS) CreateRedisSentinelSetup(cr *redisv1beta2.RedisS
 		generateRedisSentinelParams(cr, service.getSentinelCount(cr), service.ExternalConfig, service.Affinity),
 		redisSentinelAsOwner(cr),
 		generateRedisSentinelInitContainerParams(cr),
-		generateRedisSentinelContainerParams(cr, service.ReadinessProbe, service.LivenessProbe),
+		generateRedisSentinelContainerParams(ctx, cr, service.ReadinessProbe, service.LivenessProbe),
 		cr.Spec.Sidecars,
 	)
 
@@ -141,7 +141,7 @@ func generateRedisSentinelInitContainerParams(cr *redisv1beta2.RedisSentinel) in
 }
 
 // Create Redis Sentinel Statefulset Container Params
-func generateRedisSentinelContainerParams(cr *redisv1beta2.RedisSentinel, readinessProbeDef *commonapi.Probe, livenessProbeDef *commonapi.Probe) containerParameters {
+func generateRedisSentinelContainerParams(ctx context.Context, cr *redisv1beta2.RedisSentinel, readinessProbeDef *commonapi.Probe, livenessProbeDef *commonapi.Probe) containerParameters {
 
 	trueProperty := true
 	falseProperty := false
@@ -151,7 +151,7 @@ func generateRedisSentinelContainerParams(cr *redisv1beta2.RedisSentinel, readin
 		ImagePullPolicy:       cr.Spec.KubernetesConfig.ImagePullPolicy,
 		Resources:             cr.Spec.KubernetesConfig.Resources,
 		SecurityContext:       cr.Spec.SecurityContext,
-		AdditionalEnvVariable: getSentinelEnvVariable(cr),
+		AdditionalEnvVariable: getSentinelEnvVariable(ctx, cr),
 	}
 	if cr.Spec.EnvVars != nil {
 		containerProp.EnvVars = cr.Spec.EnvVars
@@ -240,7 +240,7 @@ func (service RedisSentinelService) CreateRedisSentinelService(cr *redisv1beta2.
 
 }
 
-func getSentinelEnvVariable(cr *redisv1beta2.RedisSentinel) *[]corev1.EnvVar {
+func getSentinelEnvVariable(ctx context.Context, cr *redisv1beta2.RedisSentinel) *[]corev1.EnvVar {
 
 	if cr.Spec.RedisSentinelConfig == nil {
 		return &[]corev1.EnvVar{}
@@ -253,7 +253,7 @@ func getSentinelEnvVariable(cr *redisv1beta2.RedisSentinel) *[]corev1.EnvVar {
 		},
 		{
 			Name:  "IP",
-			Value: getRedisReplicationMasterIP(cr),
+			Value: getRedisReplicationMasterIP(ctx, cr),
 		},
 		{
 			Name:  "PORT",
@@ -281,7 +281,7 @@ func getSentinelEnvVariable(cr *redisv1beta2.RedisSentinel) *[]corev1.EnvVar {
 
 }
 
-func getRedisReplicationMasterIP(cr *redisv1beta2.RedisSentinel) string {
+func getRedisReplicationMasterIP(ctx context.Context, cr *redisv1beta2.RedisSentinel) string {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 
 	replicationName := cr.Spec.RedisSentinelConfig.RedisReplicationName
@@ -317,7 +317,7 @@ func getRedisReplicationMasterIP(cr *redisv1beta2.RedisSentinel) string {
 		return ""
 	}
 
-	masterPods := GetRedisNodesByRole(&replicationInstance, "master")
+	masterPods := GetRedisNodesByRole(ctx, &replicationInstance, "master")
 
 	if len(masterPods) == 0 {
 		realMasterPod = ""
@@ -326,7 +326,7 @@ func getRedisReplicationMasterIP(cr *redisv1beta2.RedisSentinel) string {
 	} else if len(masterPods) == 1 {
 		realMasterPod = masterPods[0]
 	} else {
-		realMasterPod = checkAttachedSlave(&replicationInstance, masterPods)
+		realMasterPod = checkAttachedSlave(ctx, &replicationInstance, masterPods)
 	}
 
 	realMasterInfo := RedisDetails{
