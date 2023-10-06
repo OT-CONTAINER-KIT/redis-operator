@@ -1,0 +1,42 @@
+name: E2E tests
+
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+
+jobs:
+  test:
+    name: e2e - ${{ matrix.testpath }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        testpath:
+        - ./e2e/v1beta2/setup
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Build Dockerfile
+      run: docker build . --file Dockerfile --tag redis-operator:e2e
+
+    - name: Install kuttl
+      run: |
+        curl -L https://github.com/kudobuilder/kuttl/releases/download/v0.15.0/kubectl-kuttl_0.15.0_linux_x86_64 -o /usr/local/bin/kuttl
+        chmod +x /usr/local/bin/kuttl
+
+    - name: Create k8s Kind Cluster
+      uses: helm/kind-action@v1.5.0
+      with:
+        cluster_name: e2e - ${{ matrix.testpath }}
+        config: tests/_config/kind-config.yaml
+
+    - name: Load Docker image into Kind
+      run: kind load docker-image redis-operator:e2e
+
+    - name: Run kuttl test
+      run: kuttl test ${{ matrix.testpath }} --config tests/_config/kuttl-test.yaml
