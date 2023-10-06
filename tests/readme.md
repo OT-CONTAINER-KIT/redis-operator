@@ -38,5 +38,5 @@ Please refer to the repository's README for detailed instructions on installing 
 Execute the kuttl test using the following command:
 
 ```bash
-kubectl kuttl test redis-operator/tests/e2e/v1beta2 --config /redis-operator/tests/_config/kuttl-test.yaml --timeout 10m
+kubectl kuttl test redis-operator/tests/e2e/v1beta2 --config /redis-operator/tests/_config/kuttl-test.yaml --timeout 600
 ```
