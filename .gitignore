@@ -26,3 +26,4 @@ testbin/*
 .vscode
 
 docs/build
+kubeconfig
