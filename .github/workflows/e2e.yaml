@@ -15,7 +15,7 @@ jobs:
     strategy:
       matrix:
         testpath:
-        - .tests/e2e/v1beta2/setup
+        - ./tests/e2e/v1beta2/setup
 
     steps:
     - name: Checkout code
