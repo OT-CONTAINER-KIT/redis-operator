@@ -13,8 +13,6 @@ Ensure you have the following tools installed:
 
 ## **Steps**
 
-### **1. Set Up a 3-node Kind Cluster**
-
 ## Steps to Follow
 
 ### 1. Set Up a 3-node Kind Cluster
@@ -22,7 +20,7 @@ Ensure you have the following tools installed:
 Create a 3-node kind cluster using the provided configuration:
 
 ```bash
-kind create cluster --config /redis-operator/tests/_config/kind-example-config.yaml
+kind create cluster --config /redis-operator/tests/_config/kind-config.yaml
 ```
 
 ### 2. Install the Redis Operator
