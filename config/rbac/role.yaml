@@ -10,7 +10,9 @@ rules:
   - '*'
   verbs:
   - get
-- resources:
+- apiGroups:
+  - ""
+  resources:
   - configmaps
   - events
   - namespaces
