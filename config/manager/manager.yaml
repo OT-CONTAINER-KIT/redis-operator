@@ -32,7 +32,7 @@ spec:
         - --leader-elect
         - -zap-log-level=info
         image: redis-operator:e2e
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         name: manager
         securityContext:
           allowPrivilegeEscalation: false
