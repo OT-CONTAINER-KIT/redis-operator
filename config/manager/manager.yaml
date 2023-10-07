@@ -35,8 +35,8 @@ spec:
         - --leader-elect
         - -zap-log-level=info
         - -enable-webhooks=false
-        image: redis-operator:e2e
-        imagePullPolicy: IfNotPresent
+        image: controller
+        imagePullPolicy: Never
         name: manager
         securityContext:
           allowPrivilegeEscalation: false
