@@ -137,7 +137,7 @@ func CreateOrUpdateService(namespace string, serviceMeta metav1.ObjectMeta, owne
 	storedService, err := getService(namespace, serviceMeta.Name)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(serviceDef); err != nil {
+			if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(serviceDef); err != nil { //nolint
 				logger.Error(err, "Unable to patch redis service with compare annotations")
 			}
 			return createService(namespace, serviceDef)
