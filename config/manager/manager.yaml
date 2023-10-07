@@ -35,7 +35,7 @@ spec:
         - --leader-elect
         - -zap-log-level=info
         - -enable-webhooks=false
-        image: redis-operator:e2e
+        image: quay.io/opstree/redis-operator:v0.15.0
         imagePullPolicy: IfNotPresent
         name: manager
         securityContext:
