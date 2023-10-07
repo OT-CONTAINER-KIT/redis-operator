@@ -48,37 +48,38 @@ spec:
                     description: Reference to secret which contains the certificates
                     properties:
                       defaultMode:
-                        description: 'Optional: mode bits used to set permissions
-                          on created files by default. Must be an octal value between
-                          0000 and 0777 or a decimal value between 0 and 511. YAML
-                          accepts both octal and decimal values, JSON requires decimal
-                          values for mode bits. Defaults to 0644. Directories within
-                          the path are not affected by this setting. This might be
-                          in conflict with other options that affect the file mode,
-                          like fsGroup, and the result can be other mode bits set.'
+                        description: 'defaultMode is Optional: mode bits used to set
+                          permissions on created files by default. Must be an octal
+                          value between 0000 and 0777 or a decimal value between 0
+                          and 511. YAML accepts both octal and decimal values, JSON
+                          requires decimal values for mode bits. Defaults to 0644.
+                          Directories within the path are not affected by this setting.
+                          This might be in conflict with other options that affect
+                          the file mode, like fsGroup, and the result can be other
+                          mode bits set.'
                         format: int32
                         type: integer
                       items:
-                        description: If unspecified, each key-value pair in the Data
-                          field of the referenced Secret will be projected into the
-                          volume as a file whose name is the key and content is the
-                          value. If specified, the listed keys will be projected into
-                          the specified paths, and unlisted keys will not be present.
-                          If a key is specified which is not present in the Secret,
-                          the volume setup will error unless it is marked optional.
-                          Paths must be relative and may not contain the '..' path
-                          or start with '..'.
+                        description: items If unspecified, each key-value pair in
+                          the Data field of the referenced Secret will be projected
+                          into the volume as a file whose name is the key and content
+                          is the value. If specified, the listed keys will be projected
+                          into the specified paths, and unlisted keys will not be
+                          present. If a key is specified which is not present in the
+                          Secret, the volume setup will error unless it is marked
+                          optional. Paths must be relative and may not contain the
+                          '..' path or start with '..'.
                         items:
                           description: Maps a string key to a path within a volume.
                           properties:
                             key:
-                              description: The key to project.
+                              description: key is the key to project.
                               type: string
                             mode:
-                              description: 'Optional: mode bits used to set permissions
-                                on this file. Must be an octal value between 0000
-                                and 0777 or a decimal value between 0 and 511. YAML
-                                accepts both octal and decimal values, JSON requires
+                              description: 'mode is Optional: mode bits used to set
+                                permissions on this file. Must be an octal value between
+                                0000 and 0777 or a decimal value between 0 and 511.
+                                YAML accepts both octal and decimal values, JSON requires
                                 decimal values for mode bits. If not specified, the
                                 volume defaultMode will be used. This might be in
                                 conflict with other options that affect the file mode,
@@ -87,10 +88,10 @@ spec:
                               format: int32
                               type: integer
                             path:
-                              description: The relative path of the file to map the
-                                key to. May not be an absolute path. May not contain
-                                the path element '..'. May not start with the string
-                                '..'.
+                              description: path is the relative path of the file to
+                                map the key to. May not be an absolute path. May not
+                                contain the path element '..'. May not start with
+                                the string '..'.
                               type: string
                           required:
                           - key
@@ -98,12 +99,12 @@ spec:
                           type: object
                         type: array
                       optional:
-                        description: Specify whether the Secret or its keys must be
-                          defined
+                        description: optional field specify whether the Secret or
+                          its keys must be defined
                         type: boolean
                       secretName:
-                        description: 'Name of the secret in the pod''s namespace to
-                          use. More info: https://kubernetes.io/docs/concepts/storage/volumes#secret'
+                        description: 'secretName is the name of the secret in the
+                          pod''s namespace to use. More info: https://kubernetes.io/docs/concepts/storage/volumes#secret'
                         type: string
                     type: object
                 required:
@@ -398,9 +399,7 @@ spec:
                                     field and the ones listed in the namespaces field.
                                     null selector and null or empty namespaces list
                                     means "this pod's namespace". An empty selector
-                                    ({}) matches all namespaces. This field is beta-level
-                                    and is only honored when PodAffinityNamespaceSelector
-                                    feature is enabled.
+                                    ({}) matches all namespaces.
                                   properties:
                                     matchExpressions:
                                       description: matchExpressions is a list of label
@@ -455,7 +454,7 @@ spec:
                                     term is applied to the union of the namespaces
                                     listed in this field and the ones selected by
                                     namespaceSelector. null or empty namespaces list
-                                    and null namespaceSelector means "this pod's namespace"
+                                    and null namespaceSelector means "this pod's namespace".
                                   items:
                                     type: string
                                   type: array
@@ -554,8 +553,6 @@ spec:
                                 the ones listed in the namespaces field. null selector
                                 and null or empty namespaces list means "this pod's
                                 namespace". An empty selector ({}) matches all namespaces.
-                                This field is beta-level and is only honored when
-                                PodAffinityNamespaceSelector feature is enabled.
                               properties:
                                 matchExpressions:
                                   description: matchExpressions is a list of label
@@ -606,7 +603,7 @@ spec:
                                 to the union of the namespaces listed in this field
                                 and the ones selected by namespaceSelector. null or
                                 empty namespaces list and null namespaceSelector means
-                                "this pod's namespace"
+                                "this pod's namespace".
                               items:
                                 type: string
                               type: array
@@ -707,9 +704,7 @@ spec:
                                     field and the ones listed in the namespaces field.
                                     null selector and null or empty namespaces list
                                     means "this pod's namespace". An empty selector
-                                    ({}) matches all namespaces. This field is beta-level
-                                    and is only honored when PodAffinityNamespaceSelector
-                                    feature is enabled.
+                                    ({}) matches all namespaces.
                                   properties:
                                     matchExpressions:
                                       description: matchExpressions is a list of label
@@ -764,7 +759,7 @@ spec:
                                     term is applied to the union of the namespaces
                                     listed in this field and the ones selected by
                                     namespaceSelector. null or empty namespaces list
-                                    and null namespaceSelector means "this pod's namespace"
+                                    and null namespaceSelector means "this pod's namespace".
                                   items:
                                     type: string
                                   type: array
@@ -863,8 +858,6 @@ spec:
                                 the ones listed in the namespaces field. null selector
                                 and null or empty namespaces list means "this pod's
                                 namespace". An empty selector ({}) matches all namespaces.
-                                This field is beta-level and is only honored when
-                                PodAffinityNamespaceSelector feature is enabled.
                               properties:
                                 matchExpressions:
                                   description: matchExpressions is a list of label
@@ -915,7 +908,7 @@ spec:
                                 to the union of the namespaces listed in this field
                                 and the ones selected by namespaceSelector. null or
                                 empty namespaces list and null namespaceSelector means
-                                "this pod's namespace"
+                                "this pod's namespace".
                               items:
                                 type: string
                               type: array
@@ -972,6 +965,28 @@ spec:
                     description: ResourceRequirements describes the compute resource
                       requirements.
                     properties:
+                      claims:
+                        description: "Claims lists the names of resources, defined
+                          in spec.resourceClaims, that are used by this container.
+                          \n This is an alpha field and requires enabling the DynamicResourceAllocation
+                          feature gate. \n This field is immutable. It can only be
+                          set for containers."
+                        items:
+                          description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                          properties:
+                            name:
+                              description: Name must match the name of one entry in
+                                pod.spec.resourceClaims of the Pod where this field
+                                is used. It makes that resource available inside a
+                                container.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - name
+                        x-kubernetes-list-type: map
                       limits:
                         additionalProperties:
                           anyOf:
@@ -992,7 +1007,8 @@ spec:
                         description: 'Requests describes the minimum amount of compute
                           resources required. If Requests is omitted for a container,
                           it defaults to Limits if that is explicitly specified, otherwise
-                          to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                          to an implementation-defined value. Requests cannot exceed
+                          Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                         type: object
                     type: object
                   service:
@@ -1020,10 +1036,29 @@ spec:
                         description: RollingUpdate is used to communicate parameters
                           when Type is RollingUpdateStatefulSetStrategyType.
                         properties:
+                          maxUnavailable:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: 'The maximum number of pods that can be unavailable
+                              during the update. Value can be an absolute number (ex:
+                              5) or a percentage of desired pods (ex: 10%). Absolute
+                              number is calculated from percentage by rounding up.
+                              This can not be 0. Defaults to 1. This field is alpha-level
+                              and is only honored by servers that enable the MaxUnavailableStatefulSet
+                              feature. The field applies to all pods in the range
+                              0 to Replicas-1. That means if there is any unavailable
+                              pod in the range 0 to Replicas-1, it will be counted
+                              towards MaxUnavailable.'
+                            x-kubernetes-int-or-string: true
                           partition:
                             description: Partition indicates the ordinal at which
-                              the StatefulSet should be partitioned. Default value
-                              is 0.
+                              the StatefulSet should be partitioned for updates. During
+                              a rolling update, all pods from ordinal Replicas-1 to
+                              Partition are updated. All pods from ordinal Partition-1
+                              to 0 remain untouched. This is helpful in being able
+                              to do a canary based deployment. The default value is
+                              0.
                             format: int32
                             type: integer
                         type: object
@@ -1240,7 +1275,8 @@ spec:
                           in a file on the node should be used. The profile must be
                           preconfigured on the node to work. Must be a descending
                           path, relative to the kubelet's configured seccomp profile
-                          location. Must only be set if type is "Localhost".
+                          location. Must be set if type is "Localhost". Must NOT be
+                          set for any other type.
                         type: string
                       type:
                         description: "type indicates which kind of seccomp profile
@@ -1254,9 +1290,14 @@ spec:
                     type: object
                   supplementalGroups:
                     description: A list of groups applied to the first process run
-                      in each container, in addition to the container's primary GID.  If
-                      unspecified, no groups will be added to any container. Note
-                      that this field cannot be set when spec.os.name is windows.
+                      in each container, in addition to the container's primary GID,
+                      the fsGroup (if specified), and group memberships defined in
+                      the container image for the uid of the container process. If
+                      unspecified, no additional groups are added to any container.
+                      Note that group memberships defined in the container image for
+                      the uid of the container process are still effective, even if
+                      they are not included in this list. Note that this field cannot
+                      be set when spec.os.name is windows.
                     items:
                       format: int64
                       type: integer
@@ -1299,14 +1340,11 @@ spec:
                         type: string
                       hostProcess:
                         description: HostProcess determines if a container should
-                          be run as a 'Host Process' container. This field is alpha-level
-                          and will only be honored by components that enable the WindowsHostProcessContainers
-                          feature flag. Setting this field without the feature flag
-                          will result in errors when validating the Pod. All of a
-                          Pod's containers must have the same effective HostProcess
-                          value (it is not allowed to have a mix of HostProcess containers
-                          and non-HostProcess containers).  In addition, if HostProcess
-                          is true then HostNetwork must also be set to true.
+                          be run as a 'Host Process' container. All of a Pod's containers
+                          must have the same effective HostProcess value (it is not
+                          allowed to have a mix of HostProcess containers and non-HostProcess
+                          containers). In addition, if HostProcess is true then HostNetwork
+                          must also be set to true.
                         type: boolean
                       runAsUserName:
                         description: The UserName in Windows to run the entrypoint
@@ -1448,6 +1486,28 @@ spec:
                       description: ResourceRequirements describes the compute resource
                         requirements.
                       properties:
+                        claims:
+                          description: "Claims lists the names of resources, defined
+                            in spec.resourceClaims, that are used by this container.
+                            \n This is an alpha field and requires enabling the DynamicResourceAllocation
+                            feature gate. \n This field is immutable. It can only
+                            be set for containers."
+                          items:
+                            description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                            properties:
+                              name:
+                                description: Name must match the name of one entry
+                                  in pod.spec.resourceClaims of the Pod where this
+                                  field is used. It makes that resource available
+                                  inside a container.
+                                type: string
+                            required:
+                            - name
+                            type: object
+                          type: array
+                          x-kubernetes-list-map-keys:
+                          - name
+                          x-kubernetes-list-type: map
                         limits:
                           additionalProperties:
                             anyOf:
@@ -1468,8 +1528,8 @@ spec:
                           description: 'Requests describes the minimum amount of compute
                             resources required. If Requests is omitted for a container,
                             it defaults to Limits if that is explicitly specified,
-                            otherwise to an implementation-defined value. More info:
-                            https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                            otherwise to an implementation-defined value. Requests
+                            cannot exceed Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                           type: object
                       type: object
                   required:
@@ -1561,37 +1621,38 @@ spec:
                     description: Reference to secret which contains the certificates
                     properties:
                       defaultMode:
-                        description: 'Optional: mode bits used to set permissions
-                          on created files by default. Must be an octal value between
-                          0000 and 0777 or a decimal value between 0 and 511. YAML
-                          accepts both octal and decimal values, JSON requires decimal
-                          values for mode bits. Defaults to 0644. Directories within
-                          the path are not affected by this setting. This might be
-                          in conflict with other options that affect the file mode,
-                          like fsGroup, and the result can be other mode bits set.'
+                        description: 'defaultMode is Optional: mode bits used to set
+                          permissions on created files by default. Must be an octal
+                          value between 0000 and 0777 or a decimal value between 0
+                          and 511. YAML accepts both octal and decimal values, JSON
+                          requires decimal values for mode bits. Defaults to 0644.
+                          Directories within the path are not affected by this setting.
+                          This might be in conflict with other options that affect
+                          the file mode, like fsGroup, and the result can be other
+                          mode bits set.'
                         format: int32
                         type: integer
                       items:
-                        description: If unspecified, each key-value pair in the Data
-                          field of the referenced Secret will be projected into the
-                          volume as a file whose name is the key and content is the
-                          value. If specified, the listed keys will be projected into
-                          the specified paths, and unlisted keys will not be present.
-                          If a key is specified which is not present in the Secret,
-                          the volume setup will error unless it is marked optional.
-                          Paths must be relative and may not contain the '..' path
-                          or start with '..'.
+                        description: items If unspecified, each key-value pair in
+                          the Data field of the referenced Secret will be projected
+                          into the volume as a file whose name is the key and content
+                          is the value. If specified, the listed keys will be projected
+                          into the specified paths, and unlisted keys will not be
+                          present. If a key is specified which is not present in the
+                          Secret, the volume setup will error unless it is marked
+                          optional. Paths must be relative and may not contain the
+                          '..' path or start with '..'.
                         items:
                           description: Maps a string key to a path within a volume.
                           properties:
                             key:
-                              description: The key to project.
+                              description: key is the key to project.
                               type: string
                             mode:
-                              description: 'Optional: mode bits used to set permissions
-                                on this file. Must be an octal value between 0000
-                                and 0777 or a decimal value between 0 and 511. YAML
-                                accepts both octal and decimal values, JSON requires
+                              description: 'mode is Optional: mode bits used to set
+                                permissions on this file. Must be an octal value between
+                                0000 and 0777 or a decimal value between 0 and 511.
+                                YAML accepts both octal and decimal values, JSON requires
                                 decimal values for mode bits. If not specified, the
                                 volume defaultMode will be used. This might be in
                                 conflict with other options that affect the file mode,
@@ -1600,10 +1661,10 @@ spec:
                               format: int32
                               type: integer
                             path:
-                              description: The relative path of the file to map the
-                                key to. May not be an absolute path. May not contain
-                                the path element '..'. May not start with the string
-                                '..'.
+                              description: path is the relative path of the file to
+                                map the key to. May not be an absolute path. May not
+                                contain the path element '..'. May not start with
+                                the string '..'.
                               type: string
                           required:
                           - key
@@ -1611,12 +1672,12 @@ spec:
                           type: object
                         type: array
                       optional:
-                        description: Specify whether the Secret or its keys must be
-                          defined
+                        description: optional field specify whether the Secret or
+                          its keys must be defined
                         type: boolean
                       secretName:
-                        description: 'Name of the secret in the pod''s namespace to
-                          use. More info: https://kubernetes.io/docs/concepts/storage/volumes#secret'
+                        description: 'secretName is the name of the secret in the
+                          pod''s namespace to use. More info: https://kubernetes.io/docs/concepts/storage/volumes#secret'
                         type: string
                     type: object
                 required:
@@ -1911,9 +1972,7 @@ spec:
                                     field and the ones listed in the namespaces field.
                                     null selector and null or empty namespaces list
                                     means "this pod's namespace". An empty selector
-                                    ({}) matches all namespaces. This field is beta-level
-                                    and is only honored when PodAffinityNamespaceSelector
-                                    feature is enabled.
+                                    ({}) matches all namespaces.
                                   properties:
                                     matchExpressions:
                                       description: matchExpressions is a list of label
@@ -1968,7 +2027,7 @@ spec:
                                     term is applied to the union of the namespaces
                                     listed in this field and the ones selected by
                                     namespaceSelector. null or empty namespaces list
-                                    and null namespaceSelector means "this pod's namespace"
+                                    and null namespaceSelector means "this pod's namespace".
                                   items:
                                     type: string
                                   type: array
@@ -2067,8 +2126,6 @@ spec:
                                 the ones listed in the namespaces field. null selector
                                 and null or empty namespaces list means "this pod's
                                 namespace". An empty selector ({}) matches all namespaces.
-                                This field is beta-level and is only honored when
-                                PodAffinityNamespaceSelector feature is enabled.
                               properties:
                                 matchExpressions:
                                   description: matchExpressions is a list of label
@@ -2119,7 +2176,7 @@ spec:
                                 to the union of the namespaces listed in this field
                                 and the ones selected by namespaceSelector. null or
                                 empty namespaces list and null namespaceSelector means
-                                "this pod's namespace"
+                                "this pod's namespace".
                               items:
                                 type: string
                               type: array
@@ -2220,9 +2277,7 @@ spec:
                                     field and the ones listed in the namespaces field.
                                     null selector and null or empty namespaces list
                                     means "this pod's namespace". An empty selector
-                                    ({}) matches all namespaces. This field is beta-level
-                                    and is only honored when PodAffinityNamespaceSelector
-                                    feature is enabled.
+                                    ({}) matches all namespaces.
                                   properties:
                                     matchExpressions:
                                       description: matchExpressions is a list of label
@@ -2277,7 +2332,7 @@ spec:
                                     term is applied to the union of the namespaces
                                     listed in this field and the ones selected by
                                     namespaceSelector. null or empty namespaces list
-                                    and null namespaceSelector means "this pod's namespace"
+                                    and null namespaceSelector means "this pod's namespace".
                                   items:
                                     type: string
                                   type: array
@@ -2376,8 +2431,6 @@ spec:
                                 the ones listed in the namespaces field. null selector
                                 and null or empty namespaces list means "this pod's
                                 namespace". An empty selector ({}) matches all namespaces.
-                                This field is beta-level and is only honored when
-                                PodAffinityNamespaceSelector feature is enabled.
                               properties:
                                 matchExpressions:
                                   description: matchExpressions is a list of label
@@ -2428,7 +2481,7 @@ spec:
                                 to the union of the namespaces listed in this field
                                 and the ones selected by namespaceSelector. null or
                                 empty namespaces list and null namespaceSelector means
-                                "this pod's namespace"
+                                "this pod's namespace".
                               items:
                                 type: string
                               type: array
@@ -2688,6 +2741,28 @@ spec:
                     description: ResourceRequirements describes the compute resource
                       requirements.
                     properties:
+                      claims:
+                        description: "Claims lists the names of resources, defined
+                          in spec.resourceClaims, that are used by this container.
+                          \n This is an alpha field and requires enabling the DynamicResourceAllocation
+                          feature gate. \n This field is immutable. It can only be
+                          set for containers."
+                        items:
+                          description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                          properties:
+                            name:
+                              description: Name must match the name of one entry in
+                                pod.spec.resourceClaims of the Pod where this field
+                                is used. It makes that resource available inside a
+                                container.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - name
+                        x-kubernetes-list-type: map
                       limits:
                         additionalProperties:
                           anyOf:
@@ -2708,7 +2783,8 @@ spec:
                         description: 'Requests describes the minimum amount of compute
                           resources required. If Requests is omitted for a container,
                           it defaults to Limits if that is explicitly specified, otherwise
-                          to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                          to an implementation-defined value. Requests cannot exceed
+                          Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                         type: object
                     type: object
                 required:
@@ -2748,6 +2824,28 @@ spec:
                     description: ResourceRequirements describes the compute resource
                       requirements.
                     properties:
+                      claims:
+                        description: "Claims lists the names of resources, defined
+                          in spec.resourceClaims, that are used by this container.
+                          \n This is an alpha field and requires enabling the DynamicResourceAllocation
+                          feature gate. \n This field is immutable. It can only be
+                          set for containers."
+                        items:
+                          description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                          properties:
+                            name:
+                              description: Name must match the name of one entry in
+                                pod.spec.resourceClaims of the Pod where this field
+                                is used. It makes that resource available inside a
+                                container.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - name
+                        x-kubernetes-list-type: map
                       limits:
                         additionalProperties:
                           anyOf:
@@ -2768,7 +2866,8 @@ spec:
                         description: 'Requests describes the minimum amount of compute
                           resources required. If Requests is omitted for a container,
                           it defaults to Limits if that is explicitly specified, otherwise
-                          to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                          to an implementation-defined value. Requests cannot exceed
+                          Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                         type: object
                     type: object
                   service:
@@ -2796,10 +2895,29 @@ spec:
                         description: RollingUpdate is used to communicate parameters
                           when Type is RollingUpdateStatefulSetStrategyType.
                         properties:
+                          maxUnavailable:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: 'The maximum number of pods that can be unavailable
+                              during the update. Value can be an absolute number (ex:
+                              5) or a percentage of desired pods (ex: 10%). Absolute
+                              number is calculated from percentage by rounding up.
+                              This can not be 0. Defaults to 1. This field is alpha-level
+                              and is only honored by servers that enable the MaxUnavailableStatefulSet
+                              feature. The field applies to all pods in the range
+                              0 to Replicas-1. That means if there is any unavailable
+                              pod in the range 0 to Replicas-1, it will be counted
+                              towards MaxUnavailable.'
+                            x-kubernetes-int-or-string: true
                           partition:
                             description: Partition indicates the ordinal at which
-                              the StatefulSet should be partitioned. Default value
-                              is 0.
+                              the StatefulSet should be partitioned for updates. During
+                              a rolling update, all pods from ordinal Replicas-1 to
+                              Partition are updated. All pods from ordinal Partition-1
+                              to 0 remain untouched. This is helpful in being able
+                              to do a canary based deployment. The default value is
+                              0.
                             format: int32
                             type: integer
                         type: object
@@ -2952,7 +3070,8 @@ spec:
                           in a file on the node should be used. The profile must be
                           preconfigured on the node to work. Must be a descending
                           path, relative to the kubelet's configured seccomp profile
-                          location. Must only be set if type is "Localhost".
+                          location. Must be set if type is "Localhost". Must NOT be
+                          set for any other type.
                         type: string
                       type:
                         description: "type indicates which kind of seccomp profile
@@ -2966,9 +3085,14 @@ spec:
                     type: object
                   supplementalGroups:
                     description: A list of groups applied to the first process run
-                      in each container, in addition to the container's primary GID.  If
-                      unspecified, no groups will be added to any container. Note
-                      that this field cannot be set when spec.os.name is windows.
+                      in each container, in addition to the container's primary GID,
+                      the fsGroup (if specified), and group memberships defined in
+                      the container image for the uid of the container process. If
+                      unspecified, no additional groups are added to any container.
+                      Note that group memberships defined in the container image for
+                      the uid of the container process are still effective, even if
+                      they are not included in this list. Note that this field cannot
+                      be set when spec.os.name is windows.
                     items:
                       format: int64
                       type: integer
@@ -3011,14 +3135,11 @@ spec:
                         type: string
                       hostProcess:
                         description: HostProcess determines if a container should
-                          be run as a 'Host Process' container. This field is alpha-level
-                          and will only be honored by components that enable the WindowsHostProcessContainers
-                          feature flag. Setting this field without the feature flag
-                          will result in errors when validating the Pod. All of a
-                          Pod's containers must have the same effective HostProcess
-                          value (it is not allowed to have a mix of HostProcess containers
-                          and non-HostProcess containers).  In addition, if HostProcess
-                          is true then HostNetwork must also be set to true.
+                          be run as a 'Host Process' container. All of a Pod's containers
+                          must have the same effective HostProcess value (it is not
+                          allowed to have a mix of HostProcess containers and non-HostProcess
+                          containers). In addition, if HostProcess is true then HostNetwork
+                          must also be set to true.
                         type: boolean
                       runAsUserName:
                         description: The UserName in Windows to run the entrypoint
@@ -3191,6 +3312,28 @@ spec:
                     description: ResourceRequirements describes the compute resource
                       requirements.
                     properties:
+                      claims:
+                        description: "Claims lists the names of resources, defined
+                          in spec.resourceClaims, that are used by this container.
+                          \n This is an alpha field and requires enabling the DynamicResourceAllocation
+                          feature gate. \n This field is immutable. It can only be
+                          set for containers."
+                        items:
+                          description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                          properties:
+                            name:
+                              description: Name must match the name of one entry in
+                                pod.spec.resourceClaims of the Pod where this field
+                                is used. It makes that resource available inside a
+                                container.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - name
+                        x-kubernetes-list-type: map
                       limits:
                         additionalProperties:
                           anyOf:
@@ -3211,7 +3354,8 @@ spec:
                         description: 'Requests describes the minimum amount of compute
                           resources required. If Requests is omitted for a container,
                           it defaults to Limits if that is explicitly specified, otherwise
-                          to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                          to an implementation-defined value. Requests cannot exceed
+                          Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                         type: object
                     type: object
                 required:
@@ -3357,7 +3501,8 @@ spec:
                           in a file on the node should be used. The profile must be
                           preconfigured on the node to work. Must be a descending
                           path, relative to the kubelet's configured seccomp profile
-                          location. Must only be set if type is "Localhost".
+                          location. Must be set if type is "Localhost". Must NOT be
+                          set for any other type.
                         type: string
                       type:
                         description: "type indicates which kind of seccomp profile
@@ -3388,14 +3533,11 @@ spec:
                         type: string
                       hostProcess:
                         description: HostProcess determines if a container should
-                          be run as a 'Host Process' container. This field is alpha-level
-                          and will only be honored by components that enable the WindowsHostProcessContainers
-                          feature flag. Setting this field without the feature flag
-                          will result in errors when validating the Pod. All of a
-                          Pod's containers must have the same effective HostProcess
-                          value (it is not allowed to have a mix of HostProcess containers
-                          and non-HostProcess containers).  In addition, if HostProcess
-                          is true then HostNetwork must also be set to true.
+                          be run as a 'Host Process' container. All of a Pod's containers
+                          must have the same effective HostProcess value (it is not
+                          allowed to have a mix of HostProcess containers and non-HostProcess
+                          containers). In addition, if HostProcess is true then HostNetwork
+                          must also be set to true.
                         type: boolean
                       runAsUserName:
                         description: The UserName in Windows to run the entrypoint
@@ -3615,6 +3757,28 @@ spec:
                       description: ResourceRequirements describes the compute resource
                         requirements.
                       properties:
+                        claims:
+                          description: "Claims lists the names of resources, defined
+                            in spec.resourceClaims, that are used by this container.
+                            \n This is an alpha field and requires enabling the DynamicResourceAllocation
+                            feature gate. \n This field is immutable. It can only
+                            be set for containers."
+                          items:
+                            description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                            properties:
+                              name:
+                                description: Name must match the name of one entry
+                                  in pod.spec.resourceClaims of the Pod where this
+                                  field is used. It makes that resource available
+                                  inside a container.
+                                type: string
+                            required:
+                            - name
+                            type: object
+                          type: array
+                          x-kubernetes-list-map-keys:
+                          - name
+                          x-kubernetes-list-type: map
                         limits:
                           additionalProperties:
                             anyOf:
@@ -3635,8 +3799,8 @@ spec:
                           description: 'Requests describes the minimum amount of compute
                             resources required. If Requests is omitted for a container,
                             it defaults to Limits if that is explicitly specified,
-                            otherwise to an implementation-defined value. More info:
-                            https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                            otherwise to an implementation-defined value. Requests
+                            cannot exceed Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                           type: object
                       type: object
                   required:
