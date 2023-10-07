@@ -46,6 +46,12 @@ jobs:
         kubectl cluster-info --context kind-kind
         kind load docker-image redis-operator:e2e --name kind
 
+    - name: Check images
+      run: |
+        docker exec kind-control-plane docker images
+        docker exec kind-worker docker images
+        docker exec kind-worker2 docker images
+
     - name: Install Redis Operator
       run: |
         make deploy
