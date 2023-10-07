@@ -46,12 +46,6 @@ jobs:
         kubectl cluster-info --context kind-kind
         kind load docker-image redis-operator:e2e --name kind
 
-    - name: Check images
-      run: |
-        docker exec kind-control-plane docker images
-        docker exec kind-worker docker images
-        docker exec kind-worker2 docker images
-
     - name: Install Redis Operator
       run: |
         make deploy
@@ -60,7 +54,12 @@ jobs:
       run: |
         kubectl get namespace
         kubectl get pod -n redis-operator-system
-        kubectl logs -n redis-operator-system redis-operator-redis-operator-5c5c576c69-vlpxd -c manager
+        kubectl get deployments.apps -n redis-operator-system redis-operator-redis-operator -oyaml 
+
+    - name: Wait for Redis Operator to be ready
+      run: |
+        kubectl wait --for=condition=available --timeout=300s deployment/redis-operator-redis-operator -n redis-operator-system
+
 
     - name: Run kuttl test
       run: kuttl test ${{ matrix.testpath }} --config tests/_config/kuttl-test.yaml
