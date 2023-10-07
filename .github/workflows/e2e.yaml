@@ -48,7 +48,7 @@ jobs:
 
     - name: Install Redis Operator
       run: |
-        make deploy
+        make deploy VERSION=e2e
 
     - name: Run kuttl test
       run: kuttl test ${{ matrix.testpath }} --config tests/_config/kuttl-test.yaml
