@@ -50,5 +50,10 @@ jobs:
       run: |
         make deploy IMG=redis-operator:e2e
 
+    - name: Logs
+      run: |
+        kubectl get pod -n redis-operator-system
+        k logs -n redis-operator-system redis-operator-redis-operator-5c5c576c69-vlpxd -c manager
+
     - name: Run kuttl test
       run: kuttl test ${{ matrix.testpath }} --config tests/_config/kuttl-test.yaml
