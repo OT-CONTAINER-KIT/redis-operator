@@ -59,7 +59,12 @@ jobs:
     - name: Wait for Redis Operator to be ready
       run: |
         kubectl wait --for=condition=available --timeout=300s deployment/redis-operator-redis-operator -n redis-operator-system
-
+  
+    - name: Logs 2
+      run: |
+        kubectl get namespace
+        kubectl get pod -n redis-operator-system
+        kubectl get deployments.apps -n redis-operator-system redis-operator-redis-operator -oyaml 
 
     - name: Run kuttl test
       run: kuttl test ${{ matrix.testpath }} --config tests/_config/kuttl-test.yaml
