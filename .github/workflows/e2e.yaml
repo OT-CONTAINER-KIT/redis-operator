@@ -46,9 +46,9 @@ jobs:
         kubectl cluster-info --context kind-kind
         kind load docker-image redis-operator:e2e --name kind
 
-    # - name: Install Redis Operator
-    #   run: |
-    #     make deploy
+    - name: Install Redis Operator
+      run: |
+        make deploy
 
     - name: Run kuttl test
       run: kuttl test ${{ matrix.testpath }} --config tests/_config/kuttl-test.yaml
