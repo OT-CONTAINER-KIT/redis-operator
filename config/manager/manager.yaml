@@ -34,6 +34,7 @@ spec:
         args:
         - --leader-elect
         - -zap-log-level=info
+        - -enable-webhooks=false
         image: redis-operator:e2e
         imagePullPolicy: IfNotPresent
         name: manager
