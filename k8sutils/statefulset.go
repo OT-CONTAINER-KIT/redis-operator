@@ -46,6 +46,7 @@ type statefulSetParameters struct {
 	RecreateStatefulSet           bool
 	InitContainers                *[]redisv1beta2.InitContainer
 	TerminationGracePeriodSeconds *int64
+	IgnoreAnnotations             []string
 }
 
 // containerParameters will define container input params
@@ -221,7 +222,7 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      stsMeta.GetLabels(),
-					Annotations: generateStatefulSetsAnots(stsMeta),
+					Annotations: generateStatefulSetsAnots(stsMeta, params.IgnoreAnnotations),
 				},
 				Spec: corev1.PodSpec{
 					Containers: generateContainerDef(
@@ -317,7 +318,7 @@ func createPVCTemplate(volumeName string, stsMeta metav1.ObjectMeta, storageSpec
 	pvcTemplate.Name = volumeName
 	pvcTemplate.Labels = stsMeta.GetLabels()
 	// We want the same annoations as the StatefulSet here
-	pvcTemplate.Annotations = generateStatefulSetsAnots(stsMeta)
+	pvcTemplate.Annotations = generateStatefulSetsAnots(stsMeta, nil)
 	if storageSpec.Spec.AccessModes == nil {
 		pvcTemplate.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
 	} else {

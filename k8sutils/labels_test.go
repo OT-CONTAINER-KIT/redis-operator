@@ -101,6 +101,7 @@ func TestAddOwnerRefToObject(t *testing.T) {
 func Test_generateStatefulSetsAnots(t *testing.T) {
 	type args struct {
 		stsMeta metav1.ObjectMeta
+		ignore  []string
 	}
 	tests := []struct {
 		name string
@@ -128,10 +129,33 @@ func Test_generateStatefulSetsAnots(t *testing.T) {
 				"redis.opstreelabs.instance":   "sts",
 			},
 		},
+		{
+			name: "generateStatefulSetsAnots_with_ignore",
+			args: args{
+				stsMeta: metav1.ObjectMeta{
+					Name:      "sts",
+					Namespace: "default",
+					Annotations: map[string]string{
+						"app.kubernetes.io/name":       "redis",
+						"operator.redis.com/redis":     "redis",
+						"operator.redis.com/redis-uid": "1234567890",
+						"a":                            "b",
+					},
+				},
+				ignore: []string{"a"},
+			},
+			want: map[string]string{
+				"app.kubernetes.io/name":       "redis",
+				"operator.redis.com/redis":     "redis",
+				"operator.redis.com/redis-uid": "1234567890",
+				"redis.opstreelabs.in":         "true",
+				"redis.opstreelabs.instance":   "sts",
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := generateStatefulSetsAnots(tt.args.stsMeta); !reflect.DeepEqual(got, tt.want) {
+			if got := generateStatefulSetsAnots(tt.args.stsMeta, tt.args.ignore); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("generateStatefulSetsAnots() = %v, want %v", got, tt.want)
 			}
 		})

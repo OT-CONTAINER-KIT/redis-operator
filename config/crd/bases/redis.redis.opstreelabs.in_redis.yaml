@@ -932,6 +932,10 @@ spec:
                 description: KubernetesConfig will be the JSON struct for Basic Redis
                   Config
                 properties:
+                  ignoreAnnotations:
+                    items:
+                      type: string
+                    type: array
                   image:
                     type: string
                   imagePullPolicy:
@@ -5100,6 +5104,10 @@ spec:
                 description: KubernetesConfig will be the JSON struct for Basic Redis
                   Config
                 properties:
+                  ignoreAnnotations:
+                    items:
+                      type: string
+                    type: array
                   image:
                     type: string
                   imagePullPolicy:
