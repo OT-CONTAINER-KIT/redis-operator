@@ -1,0 +1,30 @@
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: Redis
+metadata:
+  name: redis-standalone-v1beta2
+  annotations:
+    need-ignore-key: "need-ignore-value"
+spec:
+  podSecurityContext:
+    runAsUser: 1000
+    fsGroup: 1000  
+  kubernetesConfig:
+    ignoreAnnotations:
+      - "need-ignore-key"
+    image: quay.io/opstree/redis:v7.0.12
+    imagePullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 101m
+        memory: 128Mi
+      limits:
+        cpu: 101m
+        memory: 128Mi
+  storage:
+    volumeClaimTemplate:
+      spec:
+        # storageClassName: standard
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
