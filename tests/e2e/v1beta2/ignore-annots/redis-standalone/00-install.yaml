@@ -4,5 +4,7 @@ apply:
   - standalone.yaml
 assert:
   - ready-sts.yaml
+  - ready-pvc.yaml
+  - ready-standalone.yaml
 error:
   - ignore-annots-sts.yaml
