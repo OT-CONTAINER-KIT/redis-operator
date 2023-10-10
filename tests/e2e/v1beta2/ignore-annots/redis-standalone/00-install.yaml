@@ -1,6 +1,8 @@
 apiVersion: kuttl.dev/v1beta1
 kind: TestStep
-apply : 
+apply:
   - standalone.yaml
-assert :
+assert:
   - ready-sts.yaml
+error:
+  - ignore-annots-sts.yaml

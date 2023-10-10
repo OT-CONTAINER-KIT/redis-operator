@@ -6,11 +6,7 @@ spec:
   template:
     metadata:
       annotations:
-        redis.opstreelabs.in: "true"
-        redis.opstreelabs.instance: redis-cluster-v1beta2
-status:
-  replicas: 3
-  readyReplicas: 3
+        need-ignore-key: "need-ignore-value"
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -20,8 +16,4 @@ spec:
   template:
     metadata:
       annotations:
-        redis.opstreelabs.in: "true"
-        redis.opstreelabs.instance: redis-cluster-v1beta2
-status:
-  replicas: 3
-  readyReplicas: 3
+        need-ignore-key: "need-ignore-value"

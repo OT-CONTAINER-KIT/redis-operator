@@ -1,0 +1,9 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-standalone-v1beta2
+spec:
+  template:
+    metadata:
+      annotations:
+        need-ignore-key: "need-ignore-value"

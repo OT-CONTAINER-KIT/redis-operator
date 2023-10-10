@@ -1,6 +1,8 @@
 apiVersion: kuttl.dev/v1beta1
 kind: TestStep
-apply : 
+apply:
   - cluster.yaml
-assert :
+assert:
   - ready-cluster-sts.yaml
+error:
+  - ignore-annots-sts.yaml
