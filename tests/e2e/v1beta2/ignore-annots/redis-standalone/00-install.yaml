@@ -3,6 +3,5 @@ kind: TestStep
 apply : 
   - standalone.yaml
 assert :
-  # - ready-standalone.yaml
   - ready-sts.yaml
   - ready-pvc.yaml
