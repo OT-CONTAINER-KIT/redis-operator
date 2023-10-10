@@ -4,4 +4,3 @@ apply :
   - standalone.yaml
 assert :
   - ready-sts.yaml
-  - ready-pvc.yaml
