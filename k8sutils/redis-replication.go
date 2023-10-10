@@ -46,7 +46,7 @@ func CreateReplicationRedis(cr *redisv1beta2.RedisReplication) error {
 	stateFulName := cr.ObjectMeta.Name
 	logger := statefulSetLogger(cr.Namespace, cr.ObjectMeta.Name)
 	labels := getRedisLabels(cr.ObjectMeta.Name, replication, "replication", cr.ObjectMeta.Labels)
-	annotations := generateStatefulSetsAnots(cr.ObjectMeta)
+	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, annotations)
 	err := CreateOrUpdateStateFul(cr.Namespace,
 		objectMetaInfo,
@@ -76,6 +76,7 @@ func generateRedisReplicationParams(cr *redisv1beta2.RedisReplication) statefulS
 		Tolerations:                   cr.Spec.Tolerations,
 		TerminationGracePeriodSeconds: cr.Spec.TerminationGracePeriodSeconds,
 		UpdateStrategy:                cr.Spec.KubernetesConfig.UpdateStrategy,
+		IgnoreAnnotations:             cr.Spec.KubernetesConfig.IgnoreAnnotations,
 	}
 	if cr.Spec.KubernetesConfig.ImagePullSecrets != nil {
 		res.ImagePullSecrets = cr.Spec.KubernetesConfig.ImagePullSecrets

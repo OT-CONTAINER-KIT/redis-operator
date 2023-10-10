@@ -15,6 +15,7 @@ type KubernetesConfig struct {
 	ImagePullSecrets       *[]corev1.LocalObjectReference   `json:"imagePullSecrets,omitempty"`
 	UpdateStrategy         appsv1.StatefulSetUpdateStrategy `json:"updateStrategy,omitempty"`
 	Service                *ServiceConfig                   `json:"service,omitempty"`
+	IgnoreAnnotations      []string                         `json:"ignoreAnnotations,omitempty"`
 }
 
 // ServiceConfig define the type of service to be created and its annotations

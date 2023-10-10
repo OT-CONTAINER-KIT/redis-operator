@@ -5,6 +5,7 @@ kindConfig: "./kind-config.yaml"
 parallel: 1
 timeout: 300
 testDirs:
-- tests/e2e/v1beta2/setup
-suppress : 
+  - tests/e2e/v1beta2/setup
+  - tests/e2e/v1beta2/ignore-annots
+suppress :
   - events

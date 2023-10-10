@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-cluster-v1beta2-leader
+spec:
+  template:
+    metadata:
+      annotations:
+        redis.opstreelabs.in: "true"
+        redis.opstreelabs.instance: redis-cluster-v1beta2
+status:
+  replicas: 3
+  readyReplicas: 3
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-cluster-v1beta2-follower
+spec:
+  template:
+    metadata:
+      annotations:
+        redis.opstreelabs.in: "true"
+        redis.opstreelabs.instance: redis-cluster-v1beta2
+status:
+  replicas: 3
+  readyReplicas: 3

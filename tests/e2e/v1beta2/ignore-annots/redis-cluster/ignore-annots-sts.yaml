@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-cluster-v1beta2-leader
+  annotations:
+    need-ignore-key: "need-ignore-value"
+spec:
+  template:
+    metadata:
+      annotations:
+        need-ignore-key: "need-ignore-value"
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-cluster-v1beta2-follower
+  annotations:
+    need-ignore-key: "need-ignore-value"
+spec:
+  template:
+    metadata:
+      annotations:
+        need-ignore-key: "need-ignore-value"
