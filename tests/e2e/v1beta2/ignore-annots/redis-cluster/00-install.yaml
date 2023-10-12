@@ -3,8 +3,8 @@ kind: TestStep
 apply:
   - cluster.yaml
 assert:
-  - ready-cluster-sts.yaml
   - ready-cluster.yaml
+  - ready-sts.yaml
   - ready-pvc.yaml
 error:
   - ignore-annots-sts.yaml
