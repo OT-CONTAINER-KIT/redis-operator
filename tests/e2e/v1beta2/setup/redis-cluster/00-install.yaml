@@ -4,5 +4,5 @@ apply :
   - cluster.yaml
 assert :
   - ready-cluster.yaml
-  - ready-cluster-sts.yaml
+  - ready-sts.yaml
   - ready-pvc.yaml

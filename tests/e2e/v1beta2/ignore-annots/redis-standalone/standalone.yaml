@@ -11,8 +11,8 @@ spec:
   kubernetesConfig:
     ignoreAnnotations:
       - "need-ignore-key"
-    image: quay.io/opstree/redis:v7.0.12
-    imagePullPolicy: IfNotPresent
+    image: quay.io/opstree/redis:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: 101m
