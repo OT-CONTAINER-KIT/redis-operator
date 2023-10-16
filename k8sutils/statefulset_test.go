@@ -222,12 +222,10 @@ func TestGetEnvironmentVariables(t *testing.T) {
 	tests := []struct {
 		name                string
 		role                string
-		enabledMetric       bool
 		enabledPassword     *bool
 		secretName          *string
 		secretKey           *string
 		persistenceEnabled  *bool
-		exporterEnvVar      *[]corev1.EnvVar
 		tlsConfig           *redisv1beta2.TLSConfig
 		aclConfig           *redisv1beta2.ACLConfig
 		envVar              *[]corev1.EnvVar
@@ -236,14 +234,10 @@ func TestGetEnvironmentVariables(t *testing.T) {
 		{
 			name:               "Test with role sentinel, metrics true, password true, persistence true, exporter env, tls enabled, acl enabled and env var",
 			role:               "sentinel",
-			enabledMetric:      true,
 			enabledPassword:    pointer.Bool(true),
 			secretName:         pointer.String("test-secret"),
 			secretKey:          pointer.String("test-key"),
 			persistenceEnabled: pointer.Bool(true),
-			exporterEnvVar: &[]corev1.EnvVar{
-				{Name: "TEST_EXPORTER_ENV", Value: "exporter-value"},
-			},
 			tlsConfig: &redisv1beta2.TLSConfig{
 				TLSConfig: common.TLSConfig{
 					CaKeyFile:   "test_ca.crt",
@@ -266,10 +260,6 @@ func TestGetEnvironmentVariables(t *testing.T) {
 				{Name: "ACL_MODE", Value: "true"},
 				{Name: "PERSISTENCE_ENABLED", Value: "true"},
 				{Name: "REDIS_ADDR", Value: "redis://localhost:26379"},
-				{Name: "REDIS_EXPORTER_SKIP_TLS_VERIFICATION", Value: "true"},
-				{Name: "REDIS_EXPORTER_TLS_CA_CERT_FILE", Value: "/tls/ca.crt"},
-				{Name: "REDIS_EXPORTER_TLS_CLIENT_CERT_FILE", Value: "/tls/tls.crt"},
-				{Name: "REDIS_EXPORTER_TLS_CLIENT_KEY_FILE", Value: "/tls/tls.key"},
 				{Name: "TLS_MODE", Value: "true"},
 				{Name: "REDIS_TLS_CA_KEY", Value: path.Join("/tls/", "test_ca.crt")},
 				{Name: "REDIS_TLS_CERT", Value: path.Join("/tls/", "test_tls.crt")},
@@ -285,18 +275,15 @@ func TestGetEnvironmentVariables(t *testing.T) {
 				{Name: "SERVER_MODE", Value: "sentinel"},
 				{Name: "SETUP_MODE", Value: "sentinel"},
 				{Name: "TEST_ENV", Value: "test-value"},
-				{Name: "TEST_EXPORTER_ENV", Value: "exporter-value"},
 			},
 		},
 		{
 			name:               "Test with role redis, metrics false, password nil, persistence nil, exporter nil, tls nil, acl nil and nil env var",
 			role:               "redis",
-			enabledMetric:      false,
 			enabledPassword:    nil,
 			secretName:         nil,
 			secretKey:          nil,
 			persistenceEnabled: nil,
-			exporterEnvVar:     nil,
 			tlsConfig:          nil,
 			aclConfig:          nil,
 			envVar:             nil,
@@ -309,12 +296,10 @@ func TestGetEnvironmentVariables(t *testing.T) {
 		{
 			name:               "Test with role redis, metrics false, password nil, persistence false, exporter nil, tls nil, acl nil and nil env var",
 			role:               "sentinel",
-			enabledMetric:      false,
 			enabledPassword:    nil,
 			secretName:         nil,
 			secretKey:          nil,
 			persistenceEnabled: pointer.Bool(false),
-			exporterEnvVar:     nil,
 			tlsConfig:          nil,
 			aclConfig:          nil,
 			envVar:             nil,
@@ -327,16 +312,12 @@ func TestGetEnvironmentVariables(t *testing.T) {
 		{
 			name:               "Test with role cluster, metrics true, password true, persistence true, exporter env, tls nil, acl enabled and env var",
 			role:               "cluster",
-			enabledMetric:      true,
 			enabledPassword:    pointer.Bool(true),
 			secretName:         pointer.String("test-secret"),
 			secretKey:          pointer.String("test-key"),
 			persistenceEnabled: pointer.Bool(true),
-			exporterEnvVar: &[]corev1.EnvVar{
-				{Name: "TEST_EXPORTER_ENV", Value: "exporter-value"},
-			},
-			tlsConfig: nil,
-			aclConfig: &redisv1beta2.ACLConfig{},
+			tlsConfig:          nil,
+			aclConfig:          &redisv1beta2.ACLConfig{},
 			envVar: &[]corev1.EnvVar{
 				{Name: "TEST_ENV", Value: "test-value"},
 			},
@@ -355,36 +336,70 @@ func TestGetEnvironmentVariables(t *testing.T) {
 				{Name: "SERVER_MODE", Value: "cluster"},
 				{Name: "SETUP_MODE", Value: "cluster"},
 				{Name: "TEST_ENV", Value: "test-value"},
-				{Name: "TEST_EXPORTER_ENV", Value: "exporter-value"},
 			},
 		},
 		{
 			name:               "Test with cluster role and only metrics enabled",
 			role:               "cluster",
-			enabledMetric:      true,
 			enabledPassword:    nil,
 			secretName:         nil,
 			secretKey:          nil,
 			persistenceEnabled: nil,
-			exporterEnvVar: &[]corev1.EnvVar{
-				{Name: "TEST_EXPORTER_ENV", Value: "exporter-value"},
-			},
-			tlsConfig: nil,
-			aclConfig: nil,
-			envVar:    nil,
+			tlsConfig:          nil,
+			aclConfig:          nil,
+			envVar:             nil,
 			expectedEnvironment: []corev1.EnvVar{
 				{Name: "REDIS_ADDR", Value: "redis://localhost:6379"},
 				{Name: "SERVER_MODE", Value: "cluster"},
 				{Name: "SETUP_MODE", Value: "cluster"},
-				{Name: "TEST_EXPORTER_ENV", Value: "exporter-value"},
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actualEnvironment := getEnvironmentVariables(tt.role, tt.enabledMetric, tt.enabledPassword, tt.secretName,
-				tt.secretKey, tt.persistenceEnabled, tt.exporterEnvVar, tt.tlsConfig, tt.aclConfig, tt.envVar)
+			actualEnvironment := getEnvironmentVariables(tt.role, tt.enabledPassword, tt.secretName,
+				tt.secretKey, tt.persistenceEnabled, tt.tlsConfig, tt.aclConfig, tt.envVar)
+
+			assert.ElementsMatch(t, tt.expectedEnvironment, actualEnvironment)
+		})
+	}
+}
+
+func Test_getExporterEnvironmentVariables(t *testing.T) {
+	tests := []struct {
+		name                string
+		tlsConfig           *redisv1beta2.TLSConfig
+		envVar              *[]corev1.EnvVar
+		expectedEnvironment []corev1.EnvVar
+	}{
+		{
+			name: "Test with tls enabled and env var",
+			tlsConfig: &redisv1beta2.TLSConfig{
+				TLSConfig: common.TLSConfig{
+					CaKeyFile:   "test_ca.crt",
+					CertKeyFile: "test_tls.crt",
+					KeyFile:     "test_tls.key",
+					Secret: corev1.SecretVolumeSource{
+						SecretName: "tls-secret",
+					},
+				},
+			},
+			envVar: &[]corev1.EnvVar{
+				{Name: "TEST_ENV", Value: "test-value"},
+			},
+			expectedEnvironment: []corev1.EnvVar{
+				{Name: "REDIS_EXPORTER_TLS_CLIENT_KEY_FILE", Value: "/tls/tls.key"},
+				{Name: "REDIS_EXPORTER_TLS_CLIENT_CERT_FILE", Value: "/tls/tls.crt"},
+				{Name: "REDIS_EXPORTER_TLS_CA_CERT_FILE", Value: "/tls/ca.crt"},
+				{Name: "REDIS_EXPORTER_SKIP_TLS_VERIFICATION", Value: "true"},
+				{Name: "TEST_ENV", Value: "test-value"},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actualEnvironment := getExporterEnvironmentVariables(tt.tlsConfig, tt.envVar)
 
 			assert.ElementsMatch(t, tt.expectedEnvironment, actualEnvironment)
 		})
