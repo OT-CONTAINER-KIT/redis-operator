@@ -344,12 +344,10 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 			SecurityContext: containerParams.SecurityContext,
 			Env: getEnvironmentVariables(
 				containerParams.Role,
-				false,
 				containerParams.EnabledPassword,
 				containerParams.SecretName,
 				containerParams.SecretKey,
 				containerParams.PersistenceEnabled,
-				containerParams.RedisExporterEnv,
 				containerParams.TLSConfig,
 				containerParams.ACLConfig,
 				containerParams.EnvVars,
@@ -464,19 +462,8 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 		Name:            redisExporterContainer,
 		Image:           params.RedisExporterImage,
 		ImagePullPolicy: params.RedisExporterImagePullPolicy,
-		Env: getEnvironmentVariables(
-			params.Role,
-			true,
-			params.EnabledPassword,
-			params.SecretName,
-			params.SecretKey,
-			params.PersistenceEnabled,
-			params.RedisExporterEnv,
-			params.TLSConfig,
-			params.ACLConfig,
-			params.EnvVars,
-		),
-		VolumeMounts: getVolumeMount("", nil, false, false, nil, params.AdditionalMountPath, params.TLSConfig, params.ACLConfig), // We need/want the tls-certs but we DON'T need the PVC (if one is available)
+		Env:             getExporterEnvironmentVariables(params.TLSConfig, params.RedisExporterEnv),
+		VolumeMounts:    getVolumeMount("", nil, false, false, nil, params.AdditionalMountPath, params.TLSConfig, params.ACLConfig), // We need/want the tls-certs but we DON'T need the PVC (if one is available)
 		Ports: []corev1.ContainerPort{
 			{
 				Name:          redisExporterPortName,
@@ -489,6 +476,32 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 		exporterDefinition.Resources = *params.RedisExporterResources
 	}
 	return exporterDefinition
+}
+
+func getExporterEnvironmentVariables(tlsConfig *redisv1beta2.TLSConfig, env *[]corev1.EnvVar) []corev1.EnvVar {
+	var envVars []corev1.EnvVar
+	if tlsConfig != nil {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  "REDIS_EXPORTER_TLS_CLIENT_KEY_FILE",
+			Value: "/tls/tls.key",
+		})
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  "REDIS_EXPORTER_TLS_CLIENT_CERT_FILE",
+			Value: "/tls/tls.crt",
+		})
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  "REDIS_EXPORTER_TLS_CA_CERT_FILE",
+			Value: "/tls/ca.crt",
+		})
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  "REDIS_EXPORTER_SKIP_TLS_VERIFICATION",
+			Value: "true",
+		})
+	}
+	if env != nil {
+		envVars = append(envVars, *env...)
+	}
+	return envVars
 }
 
 // getVolumeMount gives information about persistence mount
@@ -557,8 +570,8 @@ func getProbeInfo(probe *commonapi.Probe) *corev1.Probe {
 }
 
 // getEnvironmentVariables returns all the required Environment Variables
-func getEnvironmentVariables(role string, enabledMetric bool, enabledPassword *bool, secretName *string,
-	secretKey *string, persistenceEnabled *bool, exporterEnvVar *[]corev1.EnvVar, tlsConfig *redisv1beta2.TLSConfig,
+func getEnvironmentVariables(role string, enabledPassword *bool, secretName *string,
+	secretKey *string, persistenceEnabled *bool, tlsConfig *redisv1beta2.TLSConfig,
 	aclConfig *redisv1beta2.ACLConfig, envVar *[]corev1.EnvVar) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{Name: "SERVER_MODE", Value: role},
@@ -574,24 +587,6 @@ func getEnvironmentVariables(role string, enabledMetric bool, enabledPassword *b
 
 	if tlsConfig != nil {
 		envVars = append(envVars, GenerateTLSEnvironmentVariables(tlsConfig)...)
-		if enabledMetric {
-			envVars = append(envVars, corev1.EnvVar{
-				Name:  "REDIS_EXPORTER_TLS_CLIENT_KEY_FILE",
-				Value: "/tls/tls.key",
-			})
-			envVars = append(envVars, corev1.EnvVar{
-				Name:  "REDIS_EXPORTER_TLS_CLIENT_CERT_FILE",
-				Value: "/tls/tls.crt",
-			})
-			envVars = append(envVars, corev1.EnvVar{
-				Name:  "REDIS_EXPORTER_TLS_CA_CERT_FILE",
-				Value: "/tls/ca.crt",
-			})
-			envVars = append(envVars, corev1.EnvVar{
-				Name:  "REDIS_EXPORTER_SKIP_TLS_VERIFICATION",
-				Value: "true",
-			})
-		}
 	}
 
 	if aclConfig != nil {
@@ -621,10 +616,6 @@ func getEnvironmentVariables(role string, enabledMetric bool, enabledPassword *b
 	}
 	if persistenceEnabled != nil && *persistenceEnabled {
 		envVars = append(envVars, corev1.EnvVar{Name: "PERSISTENCE_ENABLED", Value: "true"})
-	}
-
-	if exporterEnvVar != nil {
-		envVars = append(envVars, *exporterEnvVar...)
 	}
 
 	if envVar != nil {
