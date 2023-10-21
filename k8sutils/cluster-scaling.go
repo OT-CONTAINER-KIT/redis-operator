@@ -108,7 +108,7 @@ func getRedisClusterSlots(ctx context.Context, cr *redisv1beta2.RedisCluster, no
 		}
 	}
 
-	logger.V(1).Info("Total cluster slots to be transfered from", "node", nodeID, "is", totalSlots)
+	logger.V(1).Info("Total cluster slots to be transferred from", "node", nodeID, "is", totalSlots)
 
 	return strconv.Itoa(totalSlots)
 }
