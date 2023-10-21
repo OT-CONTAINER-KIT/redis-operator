@@ -54,8 +54,14 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ env.GolangVersion }}
-      - name: Run Go Tests
-        run: go test ./...
+      - name: Run Go Tests with coverage
+        run: go test ./... -coverprofile=coverage.txt -covermode=atomic
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v2
+        with:
+          file: ./coverage.txt
+          fail_ci_if_error: true
+          verbose: true
         
   code_quality_golang_ci_lint:
     needs: [gofmt, govet]
