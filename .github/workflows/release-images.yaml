@@ -7,9 +7,9 @@ on:
       - master
 
 env:
-  ApplicationName: redis-operator
+  APPLICATION_NAME: redis-operator
   QuayImageName: quay.io/opstree/redis-operator
-  AppVersion: "v0.15.1"
+  APP_VERSION: "v0.15.1"
   DOCKERFILE_PATH: '**/Dockerfile'
 
 jobs:
@@ -42,7 +42,7 @@ jobs:
         file: ${{ env.DOCKERFILE_PATH }}
         platforms: linux/amd64,linux/arm64
         push: true
-        tags: ${{ env.QuayImageName }}:{{ env.AppVersion }}, ${{ env.QuayImageName }}:latest
+        tags: ${{ env.QuayImageName }}:{{ env.APP_VERSION }}, ${{ env.QuayImageName }}:latest
 
   trivy_scan:
     needs: [build_multi_arch]
@@ -56,7 +56,7 @@ jobs:
     - name: Run Trivy vulnerability scanner for multi-arch image
       uses: aquasecurity/trivy-action@master
       with:
-        image-ref: ${{ env.QuayImageName }}:${{ env.AppVersion }}
+        image-ref: ${{ env.QuayImageName }}:${{ env.APP_VERSION }}
         format: 'template'
         template: '@/contrib/sarif.tpl'
         output: 'trivy-results-latest.sarif'

@@ -1,5 +1,5 @@
 # Current Operator version
-VERSION ?= 0.15.0
+VERSION ?= 0.15.1
 # Default bundle image tag
 BUNDLE_IMG ?= controller-bundle:$(VERSION)
 # Options for 'bundle-build'
@@ -120,3 +120,16 @@ bundle: manifests kustomize
 .PHONY: bundle-build
 bundle-build:
 	docker buildx build --platform="linux/arm64,linux/amd64" -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+
+# Generate bundle manifests and metadata, then validate generated files.
+.PHONY: codegen
+codegen: generate manifests ## Rebuild all generated code
+
+# Verify that codegen is up to date.
+.PHONY: verify-codegen
+verify-codegen: codegen
+	@echo Checking codegen is up to date... >&2
+	@git --no-pager diff -- .
+	@echo 'If this test fails, it is because the git diff is non-empty after running "make codegen".' >&2
+	@echo 'To correct this, locally run "make codegen", commit the changes, and re-run tests.' >&2
+	@git diff --quiet --exit-code -- .

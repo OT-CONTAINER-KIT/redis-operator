@@ -8,11 +8,11 @@ on:
       - master
 
 env:
-  GolangVersion: 1.21
-  ApplicationName: redis-operator
+  GOLANG_VERSION: 1.21
+  APPLICATION_NAME: redis-operator
   DockerImagName: docker.io/opstree/redis-operator
   BuildDocs: true
-  AppVersion: "v0.15.0"
+  AppVersion: "v0.15.2"
   DOCKERFILE_PATH: '**/Dockerfile'
 
 jobs:
@@ -21,9 +21,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GolangVersion }}
+          go-version: ${{ env.GOLANG_VERSION }}
       - name: Check Go Fmt
         run: |
           gofmt_files=$(go fmt ./... | wc -l)
@@ -39,9 +39,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GolangVersion }}
+          go-version: ${{ env.GOLANG_VERSION }}
       - name: Run Go Vet
         run: go vet ./...
 
@@ -51,9 +51,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GolangVersion }}
+          go-version: ${{ env.GOLANG_VERSION }}
       - name: Run Go Tests with coverage
         run: go test ./... -coverprofile=coverage.txt -covermode=atomic
       - name: Upload coverage to Codecov
@@ -64,14 +64,14 @@ jobs:
           verbose: true
         
   code_quality_golang_ci_lint:
-    needs: [gofmt, govet]
+    needs: [gofmt, govet, gotest]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GolangVersion }}
+          go-version: ${{ env.GOLANG_VERSION }}
       - name: Run GolangCI-Lint
         uses: golangci/golangci-lint-action@v3
         with:
@@ -79,7 +79,7 @@ jobs:
           args: --timeout=5m0s ./...
 
   container_quality_dockerfile_lint:
-    needs: [gofmt, govet]
+    needs: [gofmt, govet, gotest]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -101,7 +101,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v2
       - name: Setup Go Environment
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Set GOARCH
