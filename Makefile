@@ -127,7 +127,7 @@ codegen: generate manifests ## Rebuild all generated code
 
 # Verify that codegen is up to date.
 .PHONY: verify-codegen
-verify-codegen:
+verify-codegen: codegen
 	@echo Checking codegen is up to date... >&2
 	@git --no-pager diff -- .
 	@echo 'If this test fails, it is because the git diff is non-empty after running "make codegen".' >&2
