@@ -11,7 +11,6 @@ metadata:
     redis_setup_type: cluster
     role: leader
   name: redis-cluster-v1beta2-leader-additional
-  namespace: default
   ownerReferences:
     - apiVersion: redis.redis.opstreelabs.in/v1beta2
       controller: true
@@ -44,7 +43,6 @@ metadata:
     redis_setup_type: cluster
     role: leader
   name: redis-cluster-v1beta2-leader
-  namespace: default
   ownerReferences:
     - apiVersion: redis.redis.opstreelabs.in/v1beta2
       controller: true
@@ -81,7 +79,6 @@ metadata:
     redis_setup_type: cluster
     role: leader
   name: redis-cluster-v1beta2-leader-headless
-  namespace: default
   ownerReferences:
     - apiVersion: redis.redis.opstreelabs.in/v1beta2
       controller: true
@@ -115,7 +112,6 @@ metadata:
     redis_setup_type: cluster
     role: follower
   name: redis-cluster-v1beta2-follower
-  namespace: default
   ownerReferences:
     - apiVersion: redis.redis.opstreelabs.in/v1beta2
       controller: true
@@ -152,7 +148,6 @@ metadata:
     redis_setup_type: cluster
     role: follower
   name: redis-cluster-v1beta2-follower-additional
-  namespace: default
   ownerReferences:
     - apiVersion: redis.redis.opstreelabs.in/v1beta2
       controller: true
@@ -185,7 +180,6 @@ metadata:
     redis_setup_type: cluster
     role: follower
   name: redis-cluster-v1beta2-follower-headless
-  namespace: default
   ownerReferences:
     - apiVersion: redis.redis.opstreelabs.in/v1beta2
       controller: true
