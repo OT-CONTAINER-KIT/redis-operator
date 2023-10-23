@@ -6,3 +6,4 @@ assert :
   # - ready-standalone.yaml
   - ready-sts.yaml
   - ready-pvc.yaml
+  - ready-svc.yaml
