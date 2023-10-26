@@ -159,7 +159,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{RequeueAfter: time.Second * 120}, nil
 	}
 
-	if int32(redisLeaderInfo.Status.ReadyReplicas) != leaderReplicas && int32(redisFollowerInfo.Status.ReadyReplicas) != followerReplicas {
+	if !(redisLeaderInfo.Status.ReadyReplicas == leaderReplicas && redisFollowerInfo.Status.ReadyReplicas == followerReplicas) {
 		reqLogger.Info("Redis leader and follower nodes are not ready yet", "Ready.Replicas", strconv.Itoa(int(redisLeaderInfo.Status.ReadyReplicas)), "Expected.Replicas", leaderReplicas)
 		return ctrl.Result{RequeueAfter: time.Second * 120}, nil
 	}
