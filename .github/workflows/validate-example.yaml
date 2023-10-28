@@ -9,7 +9,7 @@ on:
       - master
 
 jobs:
-  validate:
+  validate-examples:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
@@ -35,7 +35,7 @@ jobs:
     - name: Apply CRD and Validate CR
       run: |
         for crd in $(find ./config/crd/bases -type f -name '*.yaml'); do
-          kubectl apply -f $crd
+          kubectl create -f $crd
         done
         for example in $(find ./example -type f -name '*.yaml'); do
           kubectl apply --dry-run=server -f $example
