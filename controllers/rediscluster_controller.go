@@ -165,12 +165,10 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// Mark the cluster status as bootstrapping if all the leader and follower nodes are ready
-	if int32(redisLeaderInfo.Status.ReadyReplicas) == leaderReplicas && int32(redisFollowerInfo.Status.ReadyReplicas) == followerReplicas {
-		if instance.Status.ReadyLeaderReplicas == leaderReplicas && instance.Status.ReadyFollowerReplicas == 0 {
-			err = k8sutils.UpdateRedisClusterStatus(instance, status.RedisClusterBootstrap, status.BootstrapClusterReason, leaderReplicas, followerReplicas)
-			if err != nil {
-				return ctrl.Result{RequeueAfter: time.Second * 10}, err
-			}
+	if instance.Status.ReadyLeaderReplicas == leaderReplicas && instance.Status.ReadyFollowerReplicas == 0 {
+		err = k8sutils.UpdateRedisClusterStatus(instance, status.RedisClusterBootstrap, status.BootstrapClusterReason, leaderReplicas, followerReplicas)
+		if err != nil {
+			return ctrl.Result{RequeueAfter: time.Second * 10}, err
 		}
 	}
 
@@ -199,7 +197,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			}
 		}
 	} else {
-		reqLogger.Info("Redis leader count is desired")
+		reqLogger.Info("The total replica count of the Redis cluster is desired", "Total.Replicas", totalReplicas)
 		if int(totalReplicas) > 1 && k8sutils.CheckRedisClusterState(ctx, instance) >= int(totalReplicas)-1 {
 			reqLogger.Info("Redis leader is not desired, executing failover operation")
 			err = k8sutils.ExecuteFailoverOperation(ctx, instance)
