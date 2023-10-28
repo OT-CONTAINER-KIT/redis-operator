@@ -1,0 +1,42 @@
+name: Validate Examples against CRD
+
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install yamllint
+      run: sudo apt-get install -y yamllint
+
+    - name: Lint YAML files
+      run: find ./example -name '*.yaml' -exec yamllint {} \;
+
+    - name: Install kubectl
+      run: |
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        chmod +x kubectl
+        sudo mv kubectl /usr/local/bin/
+
+    - name: Create k8s Kind Cluster
+      uses: helm/kind-action@v1.5.0
+      with:
+        cluster_name: kind
+
+    - name: Apply CRD and Validate CR
+      run: |
+        for crd in $(find ./config/crd/bases -type f -name '*.yaml'); do
+          kubectl apply -f $crd
+        done
+        for example in $(find ./example -type f -name '*.yaml'); do
+          kubectl apply --dry-run=server -f $example
+        done
