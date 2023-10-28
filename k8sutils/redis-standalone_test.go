@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	common "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -94,5 +95,135 @@ func Test_generateRedisStandaloneParams(t *testing.T) {
 	}
 
 	actual := generateRedisStandaloneParams(input)
+	assert.EqualValues(t, expected, actual, "Expected %+v, got %+v", expected, actual)
+}
+
+func Test_generateRedisStandaloneContainerParams(t *testing.T) {
+	path := filepath.Join("..", "tests", "testdata", "redis-standalone.yaml")
+	expected := containerParameters{
+		Image:           "quay.io/opstree/redis:v7.0.12",
+		ImagePullPolicy: corev1.PullPolicy("IfNotPresent"),
+		Resources: &corev1.ResourceRequirements{
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("101m"),
+				corev1.ResourceMemory: resource.MustParse("128Mi"),
+			},
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("101m"),
+				corev1.ResourceMemory: resource.MustParse("128Mi"),
+			},
+		},
+		SecurityContext: &corev1.SecurityContext{
+			RunAsUser:              pointer.Int64(1000),
+			RunAsGroup:             pointer.Int64(1000),
+			RunAsNonRoot:           pointer.Bool(true),
+			ReadOnlyRootFilesystem: pointer.Bool(true),
+			Capabilities: &corev1.Capabilities{
+				Drop: []corev1.Capability{"ALL"},
+				Add:  []corev1.Capability{"NET_BIND_SERVICE"},
+			},
+		},
+		RedisExporterImage:           "quay.io/opstree/redis-exporter:v1.44.0",
+		RedisExporterImagePullPolicy: corev1.PullPolicy("Always"),
+		RedisExporterResources: &corev1.ResourceRequirements{
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("100m"),
+				corev1.ResourceMemory: resource.MustParse("128Mi"),
+			},
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("100m"),
+				corev1.ResourceMemory: resource.MustParse("128Mi"),
+			},
+		},
+		RedisExporterEnv: &[]corev1.EnvVar{
+			{
+				Name:  "REDIS_EXPORTER_INCL_SYSTEM_METRICS",
+				Value: "true",
+			},
+			{
+				Name: "UI_PROPERTIES_FILE_NAME",
+				ValueFrom: &corev1.EnvVarSource{
+					ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "game-demo",
+						},
+						Key: "ui_properties_file_name",
+					},
+				},
+			},
+			{
+				Name: "SECRET_USERNAME",
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "mysecret",
+						},
+						Key: "username",
+					},
+				},
+			},
+		},
+		Role:               "standalone",
+		EnabledPassword:    pointer.Bool(true),
+		SecretName:         pointer.String("redis-secret"),
+		SecretKey:          pointer.String("password"),
+		PersistenceEnabled: pointer.Bool(true),
+		TLSConfig: &redisv1beta2.TLSConfig{
+			TLSConfig: common.TLSConfig{
+				CaKeyFile:   "ca.key",
+				CertKeyFile: "tls.crt",
+				KeyFile:     "tls.key",
+				Secret: corev1.SecretVolumeSource{
+					SecretName: "redis-tls-cert",
+				},
+			},
+		},
+		ACLConfig: &redisv1beta2.ACLConfig{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: "acl-secret",
+			},
+		},
+		EnvVars: &[]corev1.EnvVar{
+			{
+				Name:  "CUSTOM_ENV_VAR_1",
+				Value: "custom_value_1",
+			},
+			{
+				Name:  "CUSTOM_ENV_VAR_2",
+				Value: "custom_value_2",
+			},
+		},
+		AdditionalVolume: []corev1.Volume{
+			{
+				Name: "example-config",
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "example-configmap",
+						},
+					},
+				},
+			},
+		},
+		AdditionalMountPath: []corev1.VolumeMount{
+			{
+				MountPath: "/config",
+				Name:      "example-config",
+			},
+		},
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("Failed to read file %s: %v", path, err)
+	}
+
+	input := &redisv1beta2.Redis{}
+	err = yaml.UnmarshalStrict(data, input)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal file %s: %v", path, err)
+	}
+
+	actual := generateRedisStandaloneContainerParams(input)
 	assert.EqualValues(t, expected, actual, "Expected %+v, got %+v", expected, actual)
 }

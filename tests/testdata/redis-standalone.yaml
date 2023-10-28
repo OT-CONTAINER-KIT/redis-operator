@@ -12,7 +12,15 @@ spec:
     additionalRedisConfig: redis-external-config
   podSecurityContext:
     runAsUser: 1000
-    fsGroup: 1000  
+    fsGroup: 1000
+  securityContext:
+    runAsUser: 1000
+    runAsGroup: 1000
+    runAsNonRoot: true
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: ["ALL"]
+      add: ["NET_BIND_SERVICE"]
   kubernetesConfig:
     image: quay.io/opstree/redis:v7.0.12
     imagePullPolicy: IfNotPresent
@@ -41,20 +49,19 @@ spec:
       limits:
         cpu: 100m
         memory: 128Mi
-# Environment Variables for Redis Exporter
-    # env:
-    # - name: REDIS_EXPORTER_INCL_SYSTEM_METRICS
-    #   value: "true"
-    # - name: UI_PROPERTIES_FILE_NAME
-    #   valueFrom:
-    #     configMapKeyRef:
-    #       name: game-demo
-    #       key: ui_properties_file_name
-    # - name: SECRET_USERNAME
-    #   valueFrom:
-    #     secretKeyRef:
-    #       name: mysecret
-    #       key: username
+    env:
+    - name: REDIS_EXPORTER_INCL_SYSTEM_METRICS
+      value: "true"
+    - name: UI_PROPERTIES_FILE_NAME
+      valueFrom:
+        configMapKeyRef:
+          name: game-demo
+          key: ui_properties_file_name
+    - name: SECRET_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: mysecret
+          key: username
   storage:
     volumeClaimTemplate:
       spec:
@@ -63,6 +70,14 @@ spec:
         resources:
           requests:
             storage: 1Gi
+    volumeMount:
+      volume:
+        - name: example-config
+          configMap:
+            name: example-configmap
+      mountPath:
+        - mountPath: /config
+          name: example-config
   nodeSelector:
     node-role.kubernetes.io/infra: worker
   priorityClassName: high-priority
@@ -84,3 +99,17 @@ spec:
     effect: "NoExecute"
   serviceAccountName: redis-sa
   terminationGracePeriodSeconds: 30
+  acl:
+    secret: 
+      secretName:  acl-secret
+  TLS:
+    ca: ca.key
+    cert: tls.crt
+    key: tls.key
+    secret:
+      secretName: redis-tls-cert
+  env:
+  - name: CUSTOM_ENV_VAR_1
+    value: "custom_value_1"
+  - name: CUSTOM_ENV_VAR_2
+    value: "custom_value_2"  
