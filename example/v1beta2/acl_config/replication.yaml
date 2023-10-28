@@ -27,7 +27,7 @@ spec:
     #   - name: regcred
   acl:
     secret : 
-      name: acl-secret
+      secretName: acl-secret
     
   redisExporter:
     enabled: false

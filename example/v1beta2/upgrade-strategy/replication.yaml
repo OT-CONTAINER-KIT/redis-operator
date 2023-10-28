@@ -8,7 +8,6 @@ spec:
   kubernetesConfig:
     image: quay.io/opstree/redis:v7.0.12
     imagePullPolicy: IfNotPresent
-    type: OnDelete
     # type: RollingUpdate
   podSecurityContext:
     runAsUser: 1000

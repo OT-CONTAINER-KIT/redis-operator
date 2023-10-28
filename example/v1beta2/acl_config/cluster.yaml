@@ -27,7 +27,7 @@ spec:
     #   - name: regcred
   acl:
     secret : 
-      name: acl-secret
+      secretName: acl-secret
   redisExporter:
     enabled: true
     image: quay.io/opstree/redis-exporter:v1.44.0
