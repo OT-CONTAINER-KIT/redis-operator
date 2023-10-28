@@ -40,7 +40,7 @@ jobs:
 
     - name: Validate CRD Installation
       run: |
-        CRDs=("Redis" "RedisSentinel" "RedisCluster" "RedisReplication")
+        CRDs=("redis" "redissentinels" "redisclusters" "redisreplications")
         for crd in "${CRDs[@]}"; do
           kubectl get crd $crd.redis.redis.opstreelabs.in || exit 1
         done
