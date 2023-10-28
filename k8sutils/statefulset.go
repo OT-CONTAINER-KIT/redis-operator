@@ -44,7 +44,6 @@ type statefulSetParameters struct {
 	ServiceAccountName            *string
 	UpdateStrategy                appsv1.StatefulSetUpdateStrategy
 	RecreateStatefulSet           bool
-	InitContainers                *[]redisv1beta2.InitContainer
 	TerminationGracePeriodSeconds *int64
 	IgnoreAnnotations             []string
 }

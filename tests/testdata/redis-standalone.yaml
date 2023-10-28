@@ -1,0 +1,86 @@
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: Redis
+metadata:
+  name: redis-standalone
+  namespace: redis
+  labels:
+    app: redis-standalone
+  annotations:
+    opstreelabs.in/redis: "true"
+spec:
+  redisConfig:
+    additionalRedisConfig: redis-external-config
+  podSecurityContext:
+    runAsUser: 1000
+    fsGroup: 1000  
+  kubernetesConfig:
+    image: quay.io/opstree/redis:v7.0.12
+    imagePullPolicy: IfNotPresent
+    imagePullSecrets:
+      - name: mysecret
+    resources:
+      requests:
+        cpu: 101m
+        memory: 128Mi
+      limits:
+        cpu: 101m
+        memory: 128Mi
+    redisSecret:
+      name: redis-secret
+      key: password
+    ignoreAnnotations:
+    - "opstreelabs.in/ignore"
+  redisExporter:
+    enabled: true
+    image: quay.io/opstree/redis-exporter:v1.44.0
+    imagePullPolicy: Always
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+# Environment Variables for Redis Exporter
+    # env:
+    # - name: REDIS_EXPORTER_INCL_SYSTEM_METRICS
+    #   value: "true"
+    # - name: UI_PROPERTIES_FILE_NAME
+    #   valueFrom:
+    #     configMapKeyRef:
+    #       name: game-demo
+    #       key: ui_properties_file_name
+    # - name: SECRET_USERNAME
+    #   valueFrom:
+    #     secretKeyRef:
+    #       name: mysecret
+    #       key: username
+  storage:
+    volumeClaimTemplate:
+      spec:
+        storageClassName: standard
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+  nodeSelector:
+    node-role.kubernetes.io/infra: worker
+  priorityClassName: high-priority
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-role.kubernetes.io/infra
+            operator: In
+            values:
+            - worker
+  tolerations:
+  - key: "node-role.kubernetes.io/infra"
+    operator: "Exists"
+    effect: "NoSchedule"
+  - key: "node-role.kubernetes.io/infra"
+    operator: "Exists"
+    effect: "NoExecute"
+  serviceAccountName: redis-sa
+  terminationGracePeriodSeconds: 30
