@@ -227,3 +227,82 @@ func Test_generateRedisStandaloneContainerParams(t *testing.T) {
 	actual := generateRedisStandaloneContainerParams(input)
 	assert.EqualValues(t, expected, actual, "Expected %+v, got %+v", expected, actual)
 }
+
+func Test_generateRedisStandaloneInitContainerParams(t *testing.T) {
+	path := filepath.Join("..", "tests", "testdata", "redis-standalone.yaml")
+	expected := initContainerParameters{
+		Enabled:         pointer.Bool(true),
+		Image:           "quay.io/opstree/redis-operator-restore:latest",
+		ImagePullPolicy: corev1.PullPolicy("Always"),
+		Resources: &corev1.ResourceRequirements{
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("100m"),
+				corev1.ResourceMemory: resource.MustParse("128Mi"),
+			},
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("100m"),
+				corev1.ResourceMemory: resource.MustParse("128Mi"),
+			},
+		},
+		Role:               "standalone",
+		Command:            []string{"/bin/bash", "-c", "/app/restore.bash"},
+		Arguments:          []string{"--restore-from", "redis-standalone-restore"},
+		PersistenceEnabled: pointer.Bool(true),
+		AdditionalEnvVariable: &[]corev1.EnvVar{
+			{
+				Name: "CLUSTER_NAME",
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "env-secrets",
+						},
+						Key: "CLUSTER_NAME",
+					},
+				},
+			},
+			{
+				Name: "CLUSTER_NAMESPACE",
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "env-secrets",
+						},
+						Key: "CLUSTER_NAMESPACE",
+					},
+				},
+			},
+		},
+		AdditionalVolume: []corev1.Volume{
+			{
+				Name: "example-config",
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "example-configmap",
+						},
+					},
+				},
+			},
+		},
+		AdditionalMountPath: []corev1.VolumeMount{
+			{
+				MountPath: "/config",
+				Name:      "example-config",
+			},
+		},
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("Failed to read file %s: %v", path, err)
+	}
+
+	input := &redisv1beta2.Redis{}
+	err = yaml.UnmarshalStrict(data, input)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal file %s: %v", path, err)
+	}
+
+	actual := generateRedisStandaloneInitContainerParams(input)
+	assert.EqualValues(t, expected, actual, "Expected %+v, got %+v", expected, actual)
+}

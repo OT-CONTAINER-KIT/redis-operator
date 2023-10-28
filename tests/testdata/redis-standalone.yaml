@@ -1,3 +1,4 @@
+---
 apiVersion: redis.redis.opstreelabs.in/v1beta2
 kind: Redis
 metadata:
@@ -37,7 +38,7 @@ spec:
       name: redis-secret
       key: password
     ignoreAnnotations:
-    - "opstreelabs.in/ignore"
+      - "opstreelabs.in/ignore"
   redisExporter:
     enabled: true
     image: quay.io/opstree/redis-exporter:v1.44.0
@@ -50,18 +51,18 @@ spec:
         cpu: 100m
         memory: 128Mi
     env:
-    - name: REDIS_EXPORTER_INCL_SYSTEM_METRICS
-      value: "true"
-    - name: UI_PROPERTIES_FILE_NAME
-      valueFrom:
-        configMapKeyRef:
-          name: game-demo
-          key: ui_properties_file_name
-    - name: SECRET_USERNAME
-      valueFrom:
-        secretKeyRef:
-          name: mysecret
-          key: username
+      - name: REDIS_EXPORTER_INCL_SYSTEM_METRICS
+        value: "true"
+      - name: UI_PROPERTIES_FILE_NAME
+        valueFrom:
+          configMapKeyRef:
+            name: game-demo
+            key: ui_properties_file_name
+      - name: SECRET_USERNAME
+        valueFrom:
+          secretKeyRef:
+            name: mysecret
+            key: username
   storage:
     volumeClaimTemplate:
       spec:
@@ -85,23 +86,23 @@ spec:
     nodeAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
         nodeSelectorTerms:
-        - matchExpressions:
-          - key: node-role.kubernetes.io/infra
-            operator: In
-            values:
-            - worker
+          - matchExpressions:
+              - key: node-role.kubernetes.io/infra
+                operator: In
+                values:
+                  - worker
   tolerations:
-  - key: "node-role.kubernetes.io/infra"
-    operator: "Exists"
-    effect: "NoSchedule"
-  - key: "node-role.kubernetes.io/infra"
-    operator: "Exists"
-    effect: "NoExecute"
+    - key: "node-role.kubernetes.io/infra"
+      operator: "Exists"
+      effect: "NoSchedule"
+    - key: "node-role.kubernetes.io/infra"
+      operator: "Exists"
+      effect: "NoExecute"
   serviceAccountName: redis-sa
   terminationGracePeriodSeconds: 30
   acl:
-    secret: 
-      secretName:  acl-secret
+    secret:
+      secretName: acl-secret
   TLS:
     ca: ca.key
     cert: tls.crt
@@ -109,7 +110,31 @@ spec:
     secret:
       secretName: redis-tls-cert
   env:
-  - name: CUSTOM_ENV_VAR_1
-    value: "custom_value_1"
-  - name: CUSTOM_ENV_VAR_2
-    value: "custom_value_2"  
+    - name: CUSTOM_ENV_VAR_1
+      value: "custom_value_1"
+    - name: CUSTOM_ENV_VAR_2
+      value: "custom_value_2"
+  initContainer:
+    enabled: true
+    image: quay.io/opstree/redis-operator-restore:latest
+    imagePullPolicy: Always
+    command: ["/bin/bash", "-c", "/app/restore.bash"]
+    args: ["--restore-from", "redis-standalone-restore"]
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+    env:
+      - name: CLUSTER_NAME
+        valueFrom:
+          secretKeyRef:
+            name: env-secrets
+            key: CLUSTER_NAME
+      - name: CLUSTER_NAMESPACE
+        valueFrom:
+          secretKeyRef:
+            name: env-secrets
+            key: CLUSTER_NAMESPACE
