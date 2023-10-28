@@ -29,7 +29,7 @@ spec:
     enabled: false
     image: quay.io/opstree/redis-exporter:v1.44.0
     # nodeSelector: {}
-  # podSecurityContext: {}
-  # priorityClassName: ""
-  # affinity: {}
-  # Tolerations: []
+    # podSecurityContext: {}
+    # priorityClassName: ""
+    # affinity: {}
+    # Tolerations: []

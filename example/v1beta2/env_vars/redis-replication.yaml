@@ -24,7 +24,7 @@ spec:
       name: redis-secret
       key: password
       # imagePullSecrets:
-    #   - name: regcred
+      #   - name: regcred
   env:
     - name: CUSTOM_ENV_VAR_1
       value: "custom_value_1"

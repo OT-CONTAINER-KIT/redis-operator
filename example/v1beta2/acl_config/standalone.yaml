@@ -17,10 +17,10 @@ spec:
         cpu: 101m
         memory: 128Mi
         # redisSecret:
-    #   name: redis-secret
-    #   key: password
-    # imagePullSecrets:
-    #   - name: regcred
+        #   name: redis-secret
+        #   key: password
+        # imagePullSecrets:
+        #   - name: regcred
   acl:
     secret:
       secretName: acl-secret

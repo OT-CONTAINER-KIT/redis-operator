@@ -22,9 +22,9 @@ spec:
         memory: 128Mi
         # redisSecret:
         #   name: redis-secret
-    #   key: password
-    # imagePullSecrets:
-    #   - name: regcred
+        #   key: password
+        # imagePullSecrets:
+        #   - name: regcred
   redisExporter:
     enabled: false
     image: quay.io/opstree/redis-exporter:v1.44.0
@@ -39,23 +39,23 @@ spec:
         # Environment Variables for Redis Exporter
         # env:
         # - name: REDIS_EXPORTER_INCL_SYSTEM_METRICS
-    #   value: "true"
-    # - name: UI_PROPERTIES_FILE_NAME
-    #   valueFrom:
-    #     configMapKeyRef:
-    #       name: game-demo
-    #       key: ui_properties_file_name
-    # - name: SECRET_USERNAME
-    #   valueFrom:
-    #     secretKeyRef:
-    #       name: mysecret
-    #       key: username
-    #  redisLeader:
+        #   value: "true"
+        # - name: UI_PROPERTIES_FILE_NAME
+        #   valueFrom:
+        #     configMapKeyRef:
+        #       name: game-demo
+        #       key: ui_properties_file_name
+        # - name: SECRET_USERNAME
+        #   valueFrom:
+        #     secretKeyRef:
+        #       name: mysecret
+        #       key: username
+        #  redisLeader:
+        #    redisConfig:
+        #      additionalRedisConfig: redis-external-config
+    #  redisFollower:
     #    redisConfig:
-#      additionalRedisConfig: redis-external-config
-#  redisFollower:
-#    redisConfig:
-#      additionalRedisConfig: redis-external-config
+    #      additionalRedisConfig: redis-external-config
   storage:
     volumeClaimTemplate:
       spec:
@@ -73,6 +73,6 @@ spec:
             storage: 1Gi
             # nodeSelector:
             #   kubernetes.io/hostname: minikube
-  # priorityClassName:
-  # Affinity:
-  # Tolerations: []
+            # priorityClassName:
+            # Affinity:
+            # Tolerations: []

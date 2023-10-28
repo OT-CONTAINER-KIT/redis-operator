@@ -25,11 +25,11 @@ spec:
       value: "custom_value_1"
     - name: CUSTOM_ENV_VAR_2
       value: "custom_value_2"
-    # redisSecret:
-    #   name: redis-secret
-    #   key: password
-    # imagePullSecrets:
-    #   - name: regcred
+      # redisSecret:
+      #   name: redis-secret
+      #   key: password
+      # imagePullSecrets:
+      #   - name: regcred
   storage:
     volumeClaimTemplate:
       spec:

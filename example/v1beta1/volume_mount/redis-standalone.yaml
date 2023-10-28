@@ -17,10 +17,10 @@ spec:
         cpu: 101m
         memory: 128Mi
         # redisSecret:
-    #   name: redis-secret
-    #   key: password
-    # imagePullSecrets:
-    #   - name: regcred
+        #   name: redis-secret
+        #   key: password
+        # imagePullSecrets:
+        #   - name: regcred
   redisExporter:
     enabled: false
     image: quay.io/opstree/redis-exporter:v1.44.0
