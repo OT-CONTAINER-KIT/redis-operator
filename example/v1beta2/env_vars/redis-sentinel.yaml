@@ -25,6 +25,6 @@ spec:
         memory: 128Mi
   env:
     - name: CUSTOM_ENV_VAR_1
-    value: "custom_value_1"
-  - name: CUSTOM_ENV_VAR_2
-    value: "custom_value_2"
+      value: "custom_value_1"
+    - name: CUSTOM_ENV_VAR_2
+      value: "custom_value_2"

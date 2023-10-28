@@ -19,7 +19,7 @@ jobs:
       run: sudo apt-get install -y yamllint
 
     - name: Lint YAML files
-      run: find ./example -name '*.yaml' -exec yamllint {} \;
+      run: yamllint --strict ./example
 
     - name: Install kubectl
       run: |

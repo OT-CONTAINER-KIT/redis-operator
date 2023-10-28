@@ -10,9 +10,9 @@ metadata:
 spec:
   ports:
     - name: redis-client
-    port: 6379
-    protocol: TCP
-    targetPort: 6379
+      port: 6379
+      protocol: TCP
+      targetPort: 6379
   selector:
     app: redis-replication
     redis_setup_type: replication

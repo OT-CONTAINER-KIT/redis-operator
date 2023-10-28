@@ -39,10 +39,10 @@ spec:
       command: ["/bin/sh", "-c", "sleep 50000"]
       mountPath:
         - name: test
-        mountPath: /home
+          mountPath: /home
       ports:
         - name: port
-        containerPort: 9000
+          containerPort: 9000
 
   storage:
     volumeClaimTemplate:
