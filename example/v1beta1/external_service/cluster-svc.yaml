@@ -8,7 +8,6 @@ metadata:
     role: leader
   name: redis-cluster-leaders
 spec:
-  clusterIP: 10.102.152.77
   ports:
   - name: redis-client
     port: 6379
@@ -30,7 +29,6 @@ metadata:
     role: follower
   name: redis-cluster-followers
 spec:
-  clusterIP: 10.108.109.134
   ports:
   - name: redis-client
     port: 6379
