@@ -104,10 +104,10 @@ spec:
             #       key: username
             #  redisLeader:
             #    redisConfig:
-    #      additionalRedisConfig: redis-external-config
-    #  redisFollower:
-    #    redisConfig:
-    #      additionalRedisConfig: redis-external-config
+            #      additionalRedisConfig: redis-external-config
+            #  redisFollower:
+            #    redisConfig:
+            #      additionalRedisConfig: redis-external-config
 
   redisLeader:
     redisConfig:
