@@ -165,7 +165,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// Mark the cluster status as bootstrapping if all the leader and follower nodes are ready
-	if instance.Status.ReadyLeaderReplicas == leaderReplicas && instance.Status.ReadyFollowerReplicas == 0 {
+	if instance.Status.ReadyLeaderReplicas != leaderReplicas || instance.Status.ReadyFollowerReplicas != followerReplicas {
 		err = k8sutils.UpdateRedisClusterStatus(instance, status.RedisClusterBootstrap, status.BootstrapClusterReason, leaderReplicas, followerReplicas)
 		if err != nil {
 			return ctrl.Result{RequeueAfter: time.Second * 10}, err
@@ -196,18 +196,18 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				reqLogger.Info("no follower/replicas configured, skipping replication configuration", "Leaders.Count", leaderCount, "Leader.Size", leaderReplicas, "Follower.Replicas", followerReplicas)
 			}
 		}
-	} else {
-		reqLogger.Info("The total replica count of the Redis cluster is desired", "Total.Replicas", totalReplicas)
-		if int(totalReplicas) > 1 && k8sutils.CheckRedisClusterState(ctx, instance) >= int(totalReplicas)-1 {
-			reqLogger.Info("Redis leader is not desired, executing failover operation")
-			err = k8sutils.ExecuteFailoverOperation(ctx, instance)
-			if err != nil {
-				return ctrl.Result{RequeueAfter: time.Second * 10}, err
-			}
-		}
-		return ctrl.Result{RequeueAfter: time.Second * 120}, nil
+		reqLogger.Info("Cluster is bootstrapping, will reconcile redis cluster operator in again 10 seconds")
+		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 	}
 
+	reqLogger.Info("The total replica count of the Redis cluster is desired", "Total.Replicas", totalReplicas)
+	if int(totalReplicas) > 1 && k8sutils.CheckRedisClusterState(ctx, instance) >= int(totalReplicas)-1 {
+		reqLogger.Info("Redis leader is not desired, executing failover operation")
+		err = k8sutils.ExecuteFailoverOperation(ctx, instance)
+		if err != nil {
+			return ctrl.Result{RequeueAfter: time.Second * 10}, err
+		}
+	}
 	// Check If there is No Empty Master Node
 	if k8sutils.CheckRedisNodeCount(ctx, instance, "") == totalReplicas {
 		k8sutils.CheckIfEmptyMasters(ctx, instance)
