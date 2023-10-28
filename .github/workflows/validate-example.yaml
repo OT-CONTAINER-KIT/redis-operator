@@ -32,11 +32,21 @@ jobs:
       with:
         cluster_name: kind
 
-    - name: Apply CRD and Validate CR
+    - name: Apply CRD
       run: |
         for crd in $(find ./config/crd/bases -type f -name '*.yaml'); do
           kubectl create -f $crd
         done
+
+    - name: Validate CRD Installation
+      run: |
+        CRDs=("Redis" "RedisSentinel" "RedisCluster" "RedisReplication")
+        for crd in "${CRDs[@]}"; do
+          kubectl get crd $crd.redis.redis.opstreelabs.in || exit 1
+        done
+
+    - name: Validate CR
+      run: |
         for example in $(find ./example -type f -name '*.yaml'); do
           kubectl apply --dry-run=server -f $example
         done
