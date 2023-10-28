@@ -1,4 +1,4 @@
-name: Validate Examples against CRD
+name: Validate Examples
 
 on:
   pull_request:
