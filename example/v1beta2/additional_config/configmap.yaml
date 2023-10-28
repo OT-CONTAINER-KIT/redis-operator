@@ -6,5 +6,5 @@ metadata:
 data:
   redis-additional.conf: |
     tcp-keepalive 400
-    slowlog-max-len 158 
+    slowlog-max-len 158
     stream-node-max-bytes 2048

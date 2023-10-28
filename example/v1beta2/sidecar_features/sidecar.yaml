@@ -16,7 +16,7 @@ spec:
       limits:
         cpu: 101m
         memory: 128Mi
-    # redisSecret:
+        # redisSecret:
     #   name: redis-secret
     #   key: password
     # imagePullSecrets:
@@ -38,10 +38,10 @@ spec:
       imagePullPolicy: Always
       command: ["/bin/sh", "-c", "sleep 50000"]
       mountPath:
-      - name: test
+        - name: test
         mountPath: /home
       ports:
-      - name: port
+        - name: port
         containerPort: 9000
 
   storage:
@@ -57,4 +57,4 @@ spec:
         - name: test
           configMap:
             name: example-configmap
-  terminationGracePeriodSeconds: 20 #custom terimationgraceperiodseconds
+  terminationGracePeriodSeconds: 20  # custom terimationgraceperiodseconds

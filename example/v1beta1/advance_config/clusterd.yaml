@@ -32,7 +32,7 @@ spec:
         resources:
           requests:
             storage: 1Gi
-  # nodeSelector: {}
+            # nodeSelector: {}
   # securityContext: {}
   # priorityClassName: ""
   # affinity: {}

@@ -1,3 +1,4 @@
+# yamllint disable-line rule:line-length
 # Examples of creating a valid TLS certificate can be found at ./config/certmanager via Cert-manager
 ---
 apiVersion: redis.redis.opstreelabs.in/v1beta2

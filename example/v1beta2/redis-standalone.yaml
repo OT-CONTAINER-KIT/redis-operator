@@ -8,7 +8,7 @@ spec:
   #   additionalRedisConfig: redis-external-config
   podSecurityContext:
     runAsUser: 1000
-    fsGroup: 1000  
+    fsGroup: 1000
   kubernetesConfig:
     image: quay.io/opstree/redis:v7.0.12
     imagePullPolicy: IfNotPresent
@@ -19,8 +19,8 @@ spec:
       limits:
         cpu: 101m
         memory: 128Mi
-    # redisSecret:
-    #   name: redis-secret
+        # redisSecret:
+        #   name: redis-secret
     #   key: password
     # imagePullSecrets:
     #   - name: regcred
@@ -35,9 +35,9 @@ spec:
       limits:
         cpu: 100m
         memory: 128Mi
-# Environment Variables for Redis Exporter
-    # env:
-    # - name: REDIS_EXPORTER_INCL_SYSTEM_METRICS
+        # Environment Variables for Redis Exporter
+        # env:
+        # - name: REDIS_EXPORTER_INCL_SYSTEM_METRICS
     #   value: "true"
     # - name: UI_PROPERTIES_FILE_NAME
     #   valueFrom:
@@ -57,8 +57,8 @@ spec:
         resources:
           requests:
             storage: 1Gi
-  # nodeSelector:
-  #   kubernetes.io/hostname: minikube
+            # nodeSelector:
+            #   kubernetes.io/hostname: minikube
   # podSecurityContext: {}
   # priorityClassName:
   # affinity:

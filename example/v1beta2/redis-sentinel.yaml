@@ -11,10 +11,10 @@ spec:
   pdb:
     enabled: false
     minAvailable: 1
-  redisSentinelConfig: 
-    redisReplicationName : redis-replication
+  redisSentinelConfig:
+    redisReplicationName: redis-replication
   kubernetesConfig:
-    image: quay.io/opstree/redis-sentinel:v7.0.12 
+    image: quay.io/opstree/redis-sentinel:v7.0.12
     imagePullPolicy: IfNotPresent
     resources:
       requests:

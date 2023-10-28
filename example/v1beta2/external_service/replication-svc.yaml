@@ -9,7 +9,7 @@ metadata:
   name: redis-replication
 spec:
   ports:
-  - name: redis-client
+    - name: redis-client
     port: 6379
     protocol: TCP
     targetPort: 6379
@@ -17,5 +17,5 @@ spec:
     app: redis-replication
     redis_setup_type: replication
     role: replication
-# type: LoadBalancer
+    # type: LoadBalancer
   type: NodePort

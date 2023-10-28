@@ -38,7 +38,7 @@ spec:
                   operator: In
                   values:
                     - redis-cluster-follower
-                    - redis-cluster-leader               
+                    - redis-cluster-leader
             topologyKey: "kubernetes.io/hostname"
   storage:
     volumeClaimTemplate:

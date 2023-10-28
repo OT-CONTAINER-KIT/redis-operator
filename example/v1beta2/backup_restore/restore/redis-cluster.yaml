@@ -20,7 +20,7 @@ spec:
       limits:
         cpu: 101m
         memory: 128Mi
-    # redisSecret:
+        # redisSecret:
     #   name: redis-secret
     #   key: password
     # imagePullSecrets:
@@ -88,8 +88,8 @@ spec:
           secretKeyRef:
             name: env-secrets
             key: AWS_SECRET_ACCESS_KEY
-# Environment Variables for Redis Exporter
-    # env:
+            # Environment Variables for Redis Exporter
+            # env:
     # - name: REDIS_EXPORTER_INCL_SYSTEM_METRICS
     #   value: "true"
     # - name: UI_PROPERTIES_FILE_NAME
@@ -102,7 +102,7 @@ spec:
     #     secretKeyRef:
     #       name: mysecret
     #       key: username
-#  redisLeader:
+    #  redisLeader:
 #    redisConfig:
 #      additionalRedisConfig: redis-external-config
 #  redisFollower:
@@ -130,7 +130,7 @@ spec:
         resources:
           requests:
             storage: 1Gi
-  # nodeSelector:
+            # nodeSelector:
   #   kubernetes.io/hostname: minikube
   # priorityClassName:
   # Affinity:

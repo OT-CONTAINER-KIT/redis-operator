@@ -1,7 +1,8 @@
+---
 apiVersion: redis.redis.opstreelabs.in/v1beta2
 kind: RedisReplication
 metadata:
-  name:  redis-replication
+  name: redis-replication
 spec:
   clusterSize: 3
   # redisConfig:
@@ -16,7 +17,7 @@ spec:
       limits:
         cpu: 101m
         memory: 128Mi
-    # redisSecret:
+        # redisSecret:
     #   name: redis-secret
     #   key: password
     # imagePullSecrets:
