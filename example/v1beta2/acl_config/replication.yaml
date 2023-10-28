@@ -2,7 +2,7 @@
 apiVersion: redis.redis.opstreelabs.in/v1beta2
 kind: RedisReplication
 metadata:
-  name:  redis-replication
+  name: redis-replication
 spec:
   clusterSize: 3
   podSecurityContext:
@@ -10,7 +10,7 @@ spec:
     fsGroup: 1000
   # redisConfig:
   #   additionalRedisConfig: redis-external-config
-  kubernetesConfig: 
+  kubernetesConfig:
     image: quay.io/opstree/redis:v7.0.12
     imagePullPolicy: IfNotPresent
     resources:
@@ -20,15 +20,15 @@ spec:
       limits:
         cpu: 101m
         memory: 128Mi
-    # redisSecret:
-    #   name: redis-secret
-    #   key: password
-    # imagePullSecrets:
-    #   - name: regcred
+        # redisSecret:
+        #   name: redis-secret
+        #   key: password
+        # imagePullSecrets:
+        #   - name: regcred
   acl:
-    secret : 
-      name: acl-secret
-    
+    secret:
+      secretName: acl-secret
+
   redisExporter:
     enabled: false
     image: quay.io/opstree/redis-exporter:v1.44.0

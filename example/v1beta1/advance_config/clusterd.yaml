@@ -32,8 +32,8 @@ spec:
         resources:
           requests:
             storage: 1Gi
-  # nodeSelector: {}
-  # securityContext: {}
-  # priorityClassName: ""
-  # affinity: {}
-  # Tolerations: []
+            # nodeSelector: {}
+            # securityContext: {}
+            # priorityClassName: ""
+            # affinity: {}
+            # Tolerations: []

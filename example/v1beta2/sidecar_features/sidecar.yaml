@@ -16,11 +16,11 @@ spec:
       limits:
         cpu: 101m
         memory: 128Mi
-    # redisSecret:
-    #   name: redis-secret
-    #   key: password
-    # imagePullSecrets:
-    #   - name: regcred
+        # redisSecret:
+        #   name: redis-secret
+        #   key: password
+        # imagePullSecrets:
+        #   - name: regcred
   redisExporter:
     enabled: false
     image: quay.io/opstree/redis-exporter:v1.44.0
@@ -38,11 +38,11 @@ spec:
       imagePullPolicy: Always
       command: ["/bin/sh", "-c", "sleep 50000"]
       mountPath:
-      - name: test
-        mountPath: /home
+        - name: test
+          mountPath: /home
       ports:
-      - name: port
-        containerPort: 9000
+        - name: port
+          containerPort: 9000
 
   storage:
     volumeClaimTemplate:
@@ -57,4 +57,4 @@ spec:
         - name: test
           configMap:
             name: example-configmap
-  terminationGracePeriodSeconds: 20 #custom terimationgraceperiodseconds
+  terminationGracePeriodSeconds: 20  # custom terimationgraceperiodseconds

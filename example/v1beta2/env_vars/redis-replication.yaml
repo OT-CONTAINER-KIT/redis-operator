@@ -2,7 +2,7 @@
 apiVersion: redis.redis.opstreelabs.in/v1beta2
 kind: RedisReplication
 metadata:
-  name:  redis-replication
+  name: redis-replication
 spec:
   clusterSize: 3
   podSecurityContext:
@@ -10,7 +10,7 @@ spec:
     fsGroup: 1000
   # redisConfig:
   #   additionalRedisConfig: redis-external-config
-  kubernetesConfig: 
+  kubernetesConfig:
     image: quay.io/opstree/redis:v7.0.12
     imagePullPolicy: IfNotPresent
     resources:
@@ -23,13 +23,13 @@ spec:
     redisSecret:
       name: redis-secret
       key: password
-    # imagePullSecrets:
-    #   - name: regcred
+      # imagePullSecrets:
+      #   - name: regcred
   env:
-  - name: CUSTOM_ENV_VAR_1
-    value: "custom_value_1"
-  - name: CUSTOM_ENV_VAR_2
-    value: "custom_value_2"   
+    - name: CUSTOM_ENV_VAR_1
+      value: "custom_value_1"
+    - name: CUSTOM_ENV_VAR_2
+      value: "custom_value_2"
   storage:
     volumeClaimTemplate:
       spec:

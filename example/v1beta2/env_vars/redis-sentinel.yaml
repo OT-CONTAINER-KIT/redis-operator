@@ -11,10 +11,10 @@ spec:
   pdb:
     enabled: false
     minAvailable: 1
-  redisSentinelConfig: 
-    redisReplicationName : redis-replication
+  redisSentinelConfig:
+    redisReplicationName: redis-replication
   kubernetesConfig:
-    image: quay.io/opstree/redis-sentinel:v7.0.12 
+    image: quay.io/opstree/redis-sentinel:v7.0.12
     imagePullPolicy: IfNotPresent
     resources:
       requests:
@@ -24,7 +24,7 @@ spec:
         cpu: 101m
         memory: 128Mi
   env:
-  - name: CUSTOM_ENV_VAR_1
-    value: "custom_value_1"
-  - name: CUSTOM_ENV_VAR_2
-    value: "custom_value_2"   
+    - name: CUSTOM_ENV_VAR_1
+      value: "custom_value_1"
+    - name: CUSTOM_ENV_VAR_2
+      value: "custom_value_2"

@@ -1,3 +1,4 @@
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -6,4 +7,3 @@ metadata:
     app: myapplication
 data:
   my-key: my-value
-  

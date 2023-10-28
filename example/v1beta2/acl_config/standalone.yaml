@@ -16,14 +16,14 @@ spec:
       limits:
         cpu: 101m
         memory: 128Mi
-    # redisSecret:
-    #   name: redis-secret
-    #   key: password
-    # imagePullSecrets:
-    #   - name: regcred
+        # redisSecret:
+        #   name: redis-secret
+        #   key: password
+        # imagePullSecrets:
+        #   - name: regcred
   acl:
-    secret: 
-      name:  acl-secret
+    secret:
+      secretName: acl-secret
 
   redisExporter:
     enabled: false

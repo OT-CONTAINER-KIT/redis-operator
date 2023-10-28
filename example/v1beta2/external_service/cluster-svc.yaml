@@ -8,17 +8,16 @@ metadata:
     role: leader
   name: redis-cluster-leaders
 spec:
-  clusterIP: 10.102.152.77
   ports:
-  - name: redis-client
-    port: 6379
-    protocol: TCP
-    targetPort: 6379
+    - name: redis-client
+      port: 6379
+      protocol: TCP
+      targetPort: 6379
   selector:
     app: redis-cluster-leader
     redis_setup_type: cluster
     role: leader
-# type: LoadBalancer
+    # type: LoadBalancer
   type: NodePort
 ---
 apiVersion: v1
@@ -30,15 +29,14 @@ metadata:
     role: follower
   name: redis-cluster-followers
 spec:
-  clusterIP: 10.108.109.134
   ports:
-  - name: redis-client
-    port: 6379
-    protocol: TCP
-    targetPort: 6379
+    - name: redis-client
+      port: 6379
+      protocol: TCP
+      targetPort: 6379
   selector:
     app: redis-cluster-follower
     redis_setup_type: cluster
     role: follower
-# type: LoadBalancer
+    # type: LoadBalancer
   type: NodePort

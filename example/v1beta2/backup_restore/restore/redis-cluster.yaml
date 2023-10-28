@@ -20,11 +20,11 @@ spec:
       limits:
         cpu: 101m
         memory: 128Mi
-    # redisSecret:
-    #   name: redis-secret
-    #   key: password
-    # imagePullSecrets:
-    #   - name: regcred
+        # redisSecret:
+        #   name: redis-secret
+        #   key: password
+        # imagePullSecrets:
+        #   - name: regcred
   initContainer:
     enabled: true
     image: quay.io/opstree/redis-operator-restore:latest
@@ -88,26 +88,26 @@ spec:
           secretKeyRef:
             name: env-secrets
             key: AWS_SECRET_ACCESS_KEY
-# Environment Variables for Redis Exporter
-    # env:
-    # - name: REDIS_EXPORTER_INCL_SYSTEM_METRICS
-    #   value: "true"
-    # - name: UI_PROPERTIES_FILE_NAME
-    #   valueFrom:
-    #     configMapKeyRef:
-    #       name: game-demo
-    #       key: ui_properties_file_name
-    # - name: SECRET_USERNAME
-    #   valueFrom:
-    #     secretKeyRef:
-    #       name: mysecret
-    #       key: username
-#  redisLeader:
-#    redisConfig:
-#      additionalRedisConfig: redis-external-config
-#  redisFollower:
-#    redisConfig:
-#      additionalRedisConfig: redis-external-config
+            # Environment Variables for Redis Exporter
+            # env:
+            # - name: REDIS_EXPORTER_INCL_SYSTEM_METRICS
+            #   value: "true"
+            # - name: UI_PROPERTIES_FILE_NAME
+            #   valueFrom:
+            #     configMapKeyRef:
+            #       name: game-demo
+            #       key: ui_properties_file_name
+            # - name: SECRET_USERNAME
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: mysecret
+            #       key: username
+            #  redisLeader:
+            #    redisConfig:
+            #      additionalRedisConfig: redis-external-config
+            #  redisFollower:
+            #    redisConfig:
+            #      additionalRedisConfig: redis-external-config
 
   redisLeader:
     redisConfig:
@@ -130,8 +130,8 @@ spec:
         resources:
           requests:
             storage: 1Gi
-  # nodeSelector:
-  #   kubernetes.io/hostname: minikube
-  # priorityClassName:
-  # Affinity:
-  # Tolerations: []
+            # nodeSelector:
+            #   kubernetes.io/hostname: minikube
+            # priorityClassName:
+            # Affinity:
+            # Tolerations: []

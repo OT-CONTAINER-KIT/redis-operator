@@ -9,13 +9,13 @@ metadata:
   name: redis-standalone
 spec:
   ports:
-  - name: redis-client
-    port: 6379
-    protocol: TCP
-    targetPort: 6379
+    - name: redis-client
+      port: 6379
+      protocol: TCP
+      targetPort: 6379
   selector:
     app: redis-standalone
     redis_setup_type: standalone
     role: standalone
-# type: LoadBalancer
+    # type: LoadBalancer
   type: NodePort

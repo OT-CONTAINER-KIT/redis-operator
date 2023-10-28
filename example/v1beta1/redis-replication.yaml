@@ -2,7 +2,7 @@
 apiVersion: redis.redis.opstreelabs.in/v1beta1
 kind: RedisReplication
 metadata:
-  name:  redis-replication
+  name: redis-replication
 spec:
   clusterSize: 3
   securityContext:
@@ -10,7 +10,7 @@ spec:
     fsGroup: 1000
   # redisConfig:
   #   additionalRedisConfig: redis-external-config
-  kubernetesConfig: 
+  kubernetesConfig:
     image: quay.io/opstree/redis:v7.0.5
     imagePullPolicy: IfNotPresent
     resources:
@@ -20,11 +20,11 @@ spec:
       limits:
         cpu: 101m
         memory: 128Mi
-    # redisSecret:
-    #   name: redis-secret
-    #   key: password
-    # imagePullSecrets:
-    #   - name: regcred
+        # redisSecret:
+        #   name: redis-secret
+        #   key: password
+        # imagePullSecrets:
+        #   - name: regcred
   redisExporter:
     enabled: false
     image: quay.io/opstree/redis-exporter:v1.44.0
@@ -36,20 +36,20 @@ spec:
       limits:
         cpu: 100m
         memory: 128Mi
-# Environment Variables for Redis Exporter
-    # env:
-    # - name: REDIS_EXPORTER_INCL_SYSTEM_METRICS
-    #   value: "true"
-    # - name: UI_PROPERTIES_FILE_NAME
-    #   valueFrom:
-    #     configMapKeyRef:
-    #       name: game-demo
-    #       key: ui_properties_file_name
-    # - name: SECRET_USERNAME
-    #   valueFrom:
-    #     secretKeyRef:
-    #       name: mysecret
-    #       key: username
+        # Environment Variables for Redis Exporter
+        # env:
+        # - name: REDIS_EXPORTER_INCL_SYSTEM_METRICS
+        #   value: "true"
+        # - name: UI_PROPERTIES_FILE_NAME
+        #   valueFrom:
+        #     configMapKeyRef:
+        #       name: game-demo
+        #       key: ui_properties_file_name
+        # - name: SECRET_USERNAME
+        #   valueFrom:
+        #     secretKeyRef:
+        #       name: mysecret
+        #       key: username
   storage:
     volumeClaimTemplate:
       spec:

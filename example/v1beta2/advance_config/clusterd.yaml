@@ -38,8 +38,8 @@ spec:
         resources:
           requests:
             storage: 1Gi
-  # nodeSelector: {}
-  # podSecurityContext: {}
-  # priorityClassName: ""
-  # affinity: {}
-  # Tolerations: []
+            # nodeSelector: {}
+            # podSecurityContext: {}
+            # priorityClassName: ""
+            # affinity: {}
+            # Tolerations: []

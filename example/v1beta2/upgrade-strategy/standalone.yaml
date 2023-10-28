@@ -9,7 +9,7 @@ spec:
     imagePullPolicy: IfNotPresent
     updateStrategy:
       type: OnDelete
-#      type: RollingUpdate
+      #      type: RollingUpdate
   podSecurityContext:
     runAsUser: 1000
     fsGroup: 1000

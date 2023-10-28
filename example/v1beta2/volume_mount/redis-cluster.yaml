@@ -1,3 +1,4 @@
+---
 apiVersion: redis.redis.opstreelabs.in/v1beta2
 kind: RedisCluster
 metadata:
@@ -22,8 +23,8 @@ spec:
     redisSecret:
       name: redis-secret
       key: password
-    # imagePullSecrets:
-    #   - name: regcred
+      # imagePullSecrets:
+      #   - name: regcred
   redisExporter:
     enabled: false
     image: quay.io/opstree/redis-exporter:v1.44.0
@@ -49,11 +50,11 @@ spec:
         resources:
           requests:
             storage: 1Gi
-    volumemount:
+    volumeMount:
       volume:
         - name: example-config
           configMap:
             name: example-configmap
-      mount:
+      mountPath:
         - mountPath: /config
           name: example-config
