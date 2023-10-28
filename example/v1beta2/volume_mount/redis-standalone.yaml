@@ -39,11 +39,11 @@ spec:
         resources:
           requests:
             storage: 1Gi
-    volumemount:
+    volumeMount:
       volume:
         - name: example-config
           configMap:
             name: example-configmap
-      mount:
+      mountPath:
         - mountPath: /config
           name: example-config
