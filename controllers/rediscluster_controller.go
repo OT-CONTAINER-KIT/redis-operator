@@ -196,17 +196,28 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				k8sutils.ExecuteRedisClusterCommand(ctx, instance)
 			} else {
 				if leaderCount < leaderReplicas {
+					leaderStatusCount := instance.Status.ReadyLeaderReplicas
+					followerStatusCount := instance.Status.ReadyFollowerReplicas
 					// Scale up the cluster
-					// Step 2 : Add Redis Node
+					// Step 1 : Add Redis Leader Node; Change the status of the cluster to scaling up leader; don't update the leader and follower count
+					k8sutils.UpdateRedisClusterStatus(instance, status.RedisClusterScalingUp, status.ScalingUpLeaderClusterReason, leaderStatusCount, followerStatusCount)
 					k8sutils.AddRedisNodeToCluster(ctx, instance)
-					// Step 3 Rebalance the cluster using the empty masters
+					// Step 2 : Rebalance the cluster using the empty masters; Change the status of the cluster to rebalancing; update the leader count only
+					k8sutils.UpdateRedisClusterStatus(instance, status.RedisClusterRebalancing, status.RebalanceClusterReason, leaderStatusCount+1, followerStatusCount)
 					k8sutils.RebalanceRedisClusterEmptyMasters(instance)
 				}
 			}
 		} else {
 			if followerReplicas > 0 && redisFollowerInfo.Status.ReadyReplicas == followerReplicas {
+				// Add the follower nodes to the cluster
+				// Step 1 : Add Redis Follower Nodes; Change the status of the cluster to scaling up follower; don't update the leader and follower count
+				// Step 2 : Update the follower count after adding the follower nodes
+				leaderStatusCount := instance.Status.ReadyLeaderReplicas
+				followerStatusCount := instance.Status.ReadyFollowerReplicas
 				reqLogger.Info("All leader are part of the cluster, adding follower/replicas", "Leaders.Count", leaderCount, "Instance.Size", leaderReplicas, "Follower.Replicas", followerReplicas)
+				k8sutils.UpdateRedisClusterStatus(instance, status.RedisClusterScalingUp, status.ScalingUpFollowerClusterReason, leaderStatusCount, followerStatusCount)
 				k8sutils.ExecuteRedisReplicationCommand(ctx, instance)
+				k8sutils.UpdateRedisClusterStatus(instance, status.RedisClusterRebalancing, status.BootstrapClusterReason, leaderStatusCount, followerReplicas)
 			} else {
 				reqLogger.Info("no follower/replicas configured, skipping replication configuration", "Leaders.Count", leaderCount, "Leader.Size", leaderReplicas, "Follower.Replicas", followerReplicas)
 			}
