@@ -136,7 +136,7 @@ verify-codegen: codegen
 
 .PHONY: install-kuttl
 install-kuttl:
-    curl -L https://github.com/kudobuilder/kuttl/releases/download/v0.15.0/kubectl-kuttl_0.15.0_linux_x86_64 -o $(shell pwd)/bin/kuttl
+	curl -L https://github.com/kudobuilder/kuttl/releases/download/v0.15.0/kubectl-kuttl_0.15.0_linux_x86_64 -o $(shell pwd)/bin/kuttl
 	chmod +x $(shell pwd)/bin/kuttl
 
 .PHONY: e2e-kind-setup
