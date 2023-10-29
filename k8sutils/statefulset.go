@@ -313,7 +313,6 @@ func getExternalConfig(configMapName string) []corev1.Volume {
 // createPVCTemplate will create the persistent volume claim template
 func createPVCTemplate(volumeName string, stsMeta metav1.ObjectMeta, storageSpec corev1.PersistentVolumeClaim) corev1.PersistentVolumeClaim {
 	pvcTemplate := storageSpec
-	pvcTemplate.CreationTimestamp = metav1.Time{}
 	pvcTemplate.Name = volumeName
 	pvcTemplate.Labels = stsMeta.GetLabels()
 	// We want the same annoations as the StatefulSet here
