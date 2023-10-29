@@ -71,7 +71,8 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// Check if the cluster is downscaled
 	if leaderReplicas < instance.Status.ReadyLeaderReplicas {
-
+		leaderStatusCount := instance.Status.ReadyLeaderReplicas
+		followerStatusCount := instance.Status.ReadyFollowerReplicas
 		//  Imp if the last index of leader sts is not leader make it then
 		// check whether the redis is leader or not ?
 		// if not true then make it leader pod
@@ -84,12 +85,20 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 
 		// Step 1 Rehard the Cluster
+		// Change the status of the cluster to resharding don't update the leader and follower count
+		k8sutils.UpdateRedisClusterStatus(instance, status.RedisClusterResharding, status.ReshardingClusterReason, leaderStatusCount, followerStatusCount)
 		k8sutils.ReshardRedisCluster(instance)
 		// Step 2 Remove the Follower Node
+		// Change the status of the cluster to scaling down follower update follower count
+		k8sutils.UpdateRedisClusterStatus(instance, status.RedisClusterScalingDown, status.ScalingDownFollowerClusterReason, leaderStatusCount, followerStatusCount-1)
 		k8sutils.RemoveRedisFollowerNodesFromCluster(ctx, instance)
 		// Step 3 Remove the Leader Node
+		// Change the status of the cluster to scaling down leader update leader count
+		k8sutils.UpdateRedisClusterStatus(instance, status.RedisClusterScalingDown, status.ScalingDownLeaderClusterReason, leaderStatusCount-1, followerStatusCount-1)
 		k8sutils.RemoveRedisNodeFromCluster(ctx, instance)
 		// Step 4 Rebalance the cluster
+		// Change the status of the cluster to rebalancing
+		k8sutils.UpdateRedisClusterStatus(instance, status.RedisClusterRebalancing, status.RebalanceClusterReason, leaderStatusCount-1, followerStatusCount-1)
 		k8sutils.RebalanceRedisCluster(instance)
 		return ctrl.Result{RequeueAfter: time.Second * 100}, nil
 	}
