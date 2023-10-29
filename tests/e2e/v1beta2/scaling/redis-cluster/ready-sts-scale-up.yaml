@@ -19,5 +19,5 @@ metadata:
     redis_setup_type: cluster
     role: follower
 status:
-  replicas: 9
-  readyReplicas: 9
+  replicas: 6
+  readyReplicas: 6

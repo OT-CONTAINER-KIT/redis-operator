@@ -4,4 +4,4 @@ metadata:
   name: redis-cluster-v1beta2
 status:
   readyLeaderReplicas: 6
-  readyFollowerReplicas: 9
+  readyFollowerReplicas: 6

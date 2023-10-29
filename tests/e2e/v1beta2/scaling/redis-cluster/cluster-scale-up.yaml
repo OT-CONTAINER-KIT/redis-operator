@@ -7,7 +7,7 @@ spec:
   redisLeader:
     replicas: 6
   redisFollower:
-    replicas: 9
+    replicas: 6
   clusterVersion: v7
   persistenceEnabled: true
   podSecurityContext:
