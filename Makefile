@@ -133,3 +133,19 @@ verify-codegen: codegen
 	@echo 'If this test fails, it is because the git diff is non-empty after running "make codegen".' >&2
 	@echo 'To correct this, locally run "make codegen", commit the changes, and re-run tests.' >&2
 	@git diff --quiet --exit-code -- .
+
+.PHONY: install-kuttl
+install-kuttl:
+	curl -L https://github.com/kudobuilder/kuttl/releases/download/v0.15.0/kubectl-kuttl_0.15.0_linux_x86_64 -o $(shell pwd)/bin/kuttl
+	chmod +x $(shell pwd)/bin/kuttl
+
+.PHONY: e2e-kind-setup
+e2e-kind-setup: 
+	docker build -t redis-operator:e2e -f Dockerfile .
+	kind create cluster --config tests/_config/kind-config.yaml
+	kind load docker-image redis-operator:e2e --name kind
+	make deploy IMG=redis-operator:e2e
+
+.PHONY: e2e-test
+e2e-test: e2e-kind-setup install-kuttl
+	$(shell pwd)/bin/kuttl test --config tests/_config/kuttl-test.yaml
