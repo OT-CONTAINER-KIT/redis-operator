@@ -218,7 +218,7 @@ func GetPodDisruptionBudget(namespace string, pdb string) (*policyv1.PodDisrupti
 	}
 	pdbInfo, err := generateK8sClient().PolicyV1().PodDisruptionBudgets(namespace).Get(context.TODO(), pdb, getOpts)
 	if err != nil {
-		logger.Info("Redis PodDisruptionBudget get action failed")
+		logger.V(1).Info("Redis PodDisruptionBudget get action failed")
 		return nil, err
 	}
 	logger.V(1).Info("Redis PodDisruptionBudget get action was successful")
