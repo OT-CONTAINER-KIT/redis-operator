@@ -672,7 +672,7 @@ func GetStatefulSet(namespace string, stateful string) (*appsv1.StatefulSet, err
 	}
 	statefulInfo, err := generateK8sClient().AppsV1().StatefulSets(namespace).Get(context.TODO(), stateful, getOpts)
 	if err != nil {
-		logger.Info("Redis statefulset get action failed")
+		logger.V(1).Info("Redis statefulset get action failed")
 		return nil, err
 	}
 	logger.V(1).Info("Redis statefulset get action was successful")
