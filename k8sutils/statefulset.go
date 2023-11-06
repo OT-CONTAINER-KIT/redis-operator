@@ -30,7 +30,6 @@ type statefulSetParameters struct {
 	Replicas                      *int32
 	ClusterMode                   bool
 	NodeConfVolume                bool
-	Metadata                      metav1.ObjectMeta
 	NodeSelector                  map[string]string
 	PodSecurityContext            *corev1.PodSecurityContext
 	PriorityClassName             string

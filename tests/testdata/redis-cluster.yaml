@@ -1,0 +1,177 @@
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: Redis
+metadata:
+  name: redis-cluster
+  namespace: redis
+  labels:
+    app: redis-cluster
+  annotations:
+    opstreelabs.in/redis: "true"
+spec:
+  clusterSize: 3
+  kubernetesConfig:
+    image: quay.io/opstree/redis:v7.0.12
+    imagePullPolicy: IfNotPresent
+    imagePullSecrets:
+      - name: mysecret
+    resources:
+      requests:
+        cpu: 101m
+        memory: 128Mi
+      limits:
+        cpu: 101m
+        memory: 128Mi
+    redisSecret:
+      name: redis-secret
+      key: password
+    ignoreAnnotations:
+      - "opstreelabs.in/ignore"
+  podSecurityContext:
+    runAsUser: 1000
+    fsGroup: 1000
+  redisLeader:
+    securityContext:
+      runAsUser: 1000
+      runAsGroup: 1000
+      runAsNonRoot: true
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop: [ "ALL" ]
+        add: [ "NET_BIND_SERVICE" ]
+    replicas: 3
+    redisConfig:
+      additionalRedisConfig: redis-external-config-leader
+    tolerations:
+      - key: "node-role.kubernetes.io/infra"
+        operator: "Exists"
+        effect: "NoSchedule"
+      - key: "node-role.kubernetes.io/infra"
+        operator: "Exists"
+        effect: "NoExecute"
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: node-role.kubernetes.io/infra
+                  operator: In
+                  values:
+                    - redisLeader
+  redisFollower:
+    securityContext:
+      runAsUser: 1000
+      runAsGroup: 1000
+      runAsNonRoot: true
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop: [ "ALL" ]
+        add: [ "NET_BIND_SERVICE" ]
+    replicas: 3
+    redisConfig:
+      additionalRedisConfig: redis-external-config-follower
+    tolerations:
+      - key: "node-role.kubernetes.io/infra"
+        operator: "Exists"
+        effect: "NoSchedule"
+      - key: "node-role.kubernetes.io/infra"
+        operator: "Exists"
+        effect: "NoExecute"
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: node-role.kubernetes.io/infra
+                  operator: In
+                  values:
+                    - redisFollower
+  redisExporter:
+    enabled: true
+    image: quay.io/opstree/redis-exporter:v1.44.0
+    imagePullPolicy: Always
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+    env:
+      - name: REDIS_EXPORTER_INCL_SYSTEM_METRICS
+        value: "true"
+      - name: UI_PROPERTIES_FILE_NAME
+        valueFrom:
+          configMapKeyRef:
+            name: game-demo
+            key: ui_properties_file_name
+      - name: SECRET_USERNAME
+        valueFrom:
+          secretKeyRef:
+            name: mysecret
+            key: username
+  persistenceEnabled: true
+  storage:
+    nodeConfVolume: true
+    nodeConfVolumeClaimTemplate:
+      spec:
+        storageClassName: standard
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+    volumeClaimTemplate:
+      spec:
+        storageClassName: standard
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+    volumeMount:
+      volume:
+        - name: example-config
+          configMap:
+            name: example-configmap
+      mountPath:
+        - mountPath: /config
+          name: example-config
+  priorityClassName: high-priority
+  serviceAccountName: redis-sa
+  acl:
+    secret:
+      secretName: acl-secret
+  TLS:
+    ca: ca.key
+    cert: tls.crt
+    key: tls.key
+    secret:
+      secretName: redis-tls-cert
+  env:
+    - name: CUSTOM_ENV_VAR_1
+      value: "custom_value_1"
+    - name: CUSTOM_ENV_VAR_2
+      value: "custom_value_2"
+  initContainer:
+    enabled: true
+    image: quay.io/opstree/redis-operator-restore:latest
+    imagePullPolicy: Always
+    command: ["/bin/bash", "-c", "/app/restore.bash"]
+    args: ["--restore-from", "redis-cluster-restore"]
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+    env:
+      - name: CLUSTER_NAME
+        valueFrom:
+          secretKeyRef:
+            name: env-secrets
+            key: CLUSTER_NAME
+      - name: CLUSTER_NAMESPACE
+        valueFrom:
+          secretKeyRef:
+            name: env-secrets
+            key: CLUSTER_NAMESPACE
