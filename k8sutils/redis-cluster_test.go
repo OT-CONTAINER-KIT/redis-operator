@@ -1,7 +1,6 @@
 package k8sutils
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"path/filepath"
 	"testing"
@@ -19,16 +18,6 @@ func Test_generateRedisClusterParams(t *testing.T) {
 	path := filepath.Join("..", "tests", "testdata", "redis-cluster.yaml")
 
 	expectedLeaderSTS := statefulSetParameters{
-		Metadata: metav1.ObjectMeta{
-			Name:      "redis-cluster",
-			Namespace: "redis",
-			Labels: map[string]string{
-				"app": "redis-cluster",
-			},
-			Annotations: map[string]string{
-				"opstreelabs.in/redis": "true",
-			},
-		},
 		Replicas:       pointer.Int32(3),
 		ClusterMode:    true,
 		NodeConfVolume: true,
@@ -95,16 +84,6 @@ func Test_generateRedisClusterParams(t *testing.T) {
 		IgnoreAnnotations:  []string{"opstreelabs.in/ignore"},
 	}
 	expectedFollowerSTS := statefulSetParameters{
-		Metadata: metav1.ObjectMeta{
-			Name:      "redis-cluster",
-			Namespace: "redis",
-			Labels: map[string]string{
-				"app": "redis-cluster",
-			},
-			Annotations: map[string]string{
-				"opstreelabs.in/redis": "true",
-			},
-		},
 		Replicas:       pointer.Int32(3),
 		ClusterMode:    true,
 		NodeConfVolume: true,

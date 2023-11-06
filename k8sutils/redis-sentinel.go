@@ -87,7 +87,6 @@ func (service RedisSentinelSTS) CreateRedisSentinelSetup(ctx context.Context, cr
 func generateRedisSentinelParams(cr *redisv1beta2.RedisSentinel, replicas int32, externalConfig *string, affinity *corev1.Affinity) statefulSetParameters {
 
 	res := statefulSetParameters{
-		Metadata:                      cr.ObjectMeta,
 		Replicas:                      &replicas,
 		ClusterMode:                   false,
 		NodeConfVolume:                false,

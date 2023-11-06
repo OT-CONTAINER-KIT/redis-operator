@@ -2,7 +2,6 @@ package k8sutils
 
 import (
 	"context"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"path/filepath"
 	"testing"
@@ -19,16 +18,6 @@ import (
 func Test_generateRedisSentinelParams(t *testing.T) {
 	path := filepath.Join("..", "tests", "testdata", "redis-sentinel.yaml")
 	expected := statefulSetParameters{
-		Metadata: metav1.ObjectMeta{
-			Name:      "redis-sentinel",
-			Namespace: "redis",
-			Labels: map[string]string{
-				"app": "redis-sentinel",
-			},
-			Annotations: map[string]string{
-				"opstreelabs.in/redis": "true",
-			},
-		},
 		Replicas:       pointer.Int32(3),
 		ClusterMode:    false,
 		NodeConfVolume: false,
