@@ -9,8 +9,8 @@ on:
 env:
   APPLICATION_NAME: redis-operator
   QuayImageName: quay.io/opstree/redis-operator
-  APP_VERSION: "v0.15.1"
-  DOCKERFILE_PATH: '**/Dockerfile'
+  APP_VERSION: "v0.15.2"
+  DOCKERFILE_PATH: './Dockerfile'
 
 jobs:
   setup:
@@ -28,7 +28,7 @@ jobs:
       with:
         registry: quay.io
         username: ${{ secrets.QUAY_USERNAME }}
-        password: ${{ secrets.ACCESS_TOKEN }}
+        password: ${{ secrets.QUAY_PASSWORD }}
 
   build_multi_arch:
     needs: setup
