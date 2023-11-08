@@ -8,30 +8,24 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+type K8sConfigProvider = func() (*rest.Config, error)
+
 // generateK8sClient create client for kubernetes
-func generateK8sClient() *kubernetes.Clientset {
-	config, err := generateK8sConfig()
+func generateK8sClient(configProvider K8sConfigProvider) (kubernetes.Interface, error) {
+	config, err := configProvider()
 	if err != nil {
-		panic(err.Error())
+		return nil, err
 	}
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		panic(err.Error())
-	}
-	return clientset
+	return kubernetes.NewForConfig(config)
 }
 
 // generateK8sClient create Dynamic client for kubernetes
-func generateK8sDynamicClient() dynamic.Interface {
-	config, err := generateK8sConfig()
+func generateK8sDynamicClient(configProvider K8sConfigProvider) (dynamic.Interface, error) {
+	config, err := configProvider()
 	if err != nil {
-		panic(err.Error())
+		return nil, err
 	}
-	dynamicClientset, err := dynamic.NewForConfig(config)
-	if err != nil {
-		panic(err.Error())
-	}
-	return dynamicClientset
+	return dynamic.NewForConfig(config)
 }
 
 // generateK8sConfig will load the kube config file

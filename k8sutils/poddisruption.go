@@ -177,7 +177,12 @@ func patchPodDisruptionBudget(storedPdb *policyv1.PodDisruptionBudget, newPdb *p
 // createPodDisruptionBudget is a method to create PodDisruptionBudgets in Kubernetes
 func createPodDisruptionBudget(namespace string, pdb *policyv1.PodDisruptionBudget) error {
 	logger := pdbLogger(namespace, pdb.Name)
-	_, err := generateK8sClient().PolicyV1().PodDisruptionBudgets(namespace).Create(context.TODO(), pdb, metav1.CreateOptions{})
+	client, err := generateK8sClient(generateK8sConfig)
+	if err != nil {
+		logger.Error(err, "Could not generate kubernetes client")
+		return err
+	}
+	_, err = client.PolicyV1().PodDisruptionBudgets(namespace).Create(context.TODO(), pdb, metav1.CreateOptions{})
 	if err != nil {
 		logger.Error(err, "Redis PodDisruptionBudget creation failed")
 		return err
@@ -189,7 +194,12 @@ func createPodDisruptionBudget(namespace string, pdb *policyv1.PodDisruptionBudg
 // updatePodDisruptionBudget is a method to update PodDisruptionBudgets in Kubernetes
 func updatePodDisruptionBudget(namespace string, pdb *policyv1.PodDisruptionBudget) error {
 	logger := pdbLogger(namespace, pdb.Name)
-	_, err := generateK8sClient().PolicyV1().PodDisruptionBudgets(namespace).Update(context.TODO(), pdb, metav1.UpdateOptions{})
+	client, err := generateK8sClient(generateK8sConfig)
+	if err != nil {
+		logger.Error(err, "Could not generate kubernetes client")
+		return err
+	}
+	_, err = client.PolicyV1().PodDisruptionBudgets(namespace).Update(context.TODO(), pdb, metav1.UpdateOptions{})
 	if err != nil {
 		logger.Error(err, "Redis PodDisruptionBudget update failed")
 		return err
@@ -201,7 +211,12 @@ func updatePodDisruptionBudget(namespace string, pdb *policyv1.PodDisruptionBudg
 // deletePodDisruptionBudget is a method to delete PodDisruptionBudgets in Kubernetes
 func deletePodDisruptionBudget(namespace string, pdbName string) error {
 	logger := pdbLogger(namespace, pdbName)
-	err := generateK8sClient().PolicyV1().PodDisruptionBudgets(namespace).Delete(context.TODO(), pdbName, metav1.DeleteOptions{})
+	client, err := generateK8sClient(generateK8sConfig)
+	if err != nil {
+		logger.Error(err, "Could not generate kubernetes client")
+		return err
+	}
+	err = client.PolicyV1().PodDisruptionBudgets(namespace).Delete(context.TODO(), pdbName, metav1.DeleteOptions{})
 	if err != nil {
 		logger.Error(err, "Redis PodDisruption deletion failed")
 		return err
@@ -213,10 +228,15 @@ func deletePodDisruptionBudget(namespace string, pdbName string) error {
 // GetPodDisruptionBudget is a method to get PodDisruptionBudgets in Kubernetes
 func GetPodDisruptionBudget(namespace string, pdb string) (*policyv1.PodDisruptionBudget, error) {
 	logger := pdbLogger(namespace, pdb)
+	client, err := generateK8sClient(generateK8sConfig)
+	if err != nil {
+		logger.Error(err, "Could not generate kubernetes client")
+		return nil, err
+	}
 	getOpts := metav1.GetOptions{
 		TypeMeta: generateMetaInformation("PodDisruptionBudget", "policy/v1"),
 	}
-	pdbInfo, err := generateK8sClient().PolicyV1().PodDisruptionBudgets(namespace).Get(context.TODO(), pdb, getOpts)
+	pdbInfo, err := client.PolicyV1().PodDisruptionBudgets(namespace).Get(context.TODO(), pdb, getOpts)
 	if err != nil {
 		logger.V(1).Info("Redis PodDisruptionBudget get action failed")
 		return nil, err

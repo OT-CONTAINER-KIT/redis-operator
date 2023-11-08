@@ -283,6 +283,11 @@ func getSentinelEnvVariable(ctx context.Context, cr *redisv1beta2.RedisSentinel)
 
 func getRedisReplicationMasterIP(ctx context.Context, cr *redisv1beta2.RedisSentinel) string {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
+	dClient, err := generateK8sDynamicClient(generateK8sConfig)
+	if err != nil {
+		logger.Error(err, "Failed to generate dynamic client")
+		return ""
+	}
 
 	replicationName := cr.Spec.RedisSentinelConfig.RedisReplicationName
 	replicationNamespace := cr.Namespace
@@ -291,7 +296,7 @@ func getRedisReplicationMasterIP(ctx context.Context, cr *redisv1beta2.RedisSent
 	var realMasterPod string
 
 	// Get Request on Dynamic Client
-	customObject, err := generateK8sDynamicClient().Resource(schema.GroupVersionResource{
+	customObject, err := dClient.Resource(schema.GroupVersionResource{
 		Group:    "redis.redis.opstreelabs.in",
 		Version:  "v1beta2",
 		Resource: "redisreplications",

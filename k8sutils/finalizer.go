@@ -137,7 +137,12 @@ func AddRedisSentinelFinalizer(cr *redisv1beta2.RedisSentinel, cl client.Client)
 func finalizeRedisPVC(cr *redisv1beta2.Redis) error {
 	logger := finalizerLogger(cr.Namespace, RedisFinalizer)
 	PVCName := cr.Name + "-" + cr.Name + "-0"
-	err := generateK8sClient().CoreV1().PersistentVolumeClaims(cr.Namespace).Delete(context.TODO(), PVCName, metav1.DeleteOptions{})
+	client, err := generateK8sClient(generateK8sConfig)
+	if err != nil {
+		logger.Error(err, "Could not generate kubernetes client")
+		return err
+	}
+	err = client.CoreV1().PersistentVolumeClaims(cr.Namespace).Delete(context.TODO(), PVCName, metav1.DeleteOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		logger.Error(err, "Could not delete Persistent Volume Claim "+PVCName)
 		return err
@@ -148,10 +153,15 @@ func finalizeRedisPVC(cr *redisv1beta2.Redis) error {
 // finalizeRedisClusterPVC delete PVCs
 func finalizeRedisClusterPVC(cr *redisv1beta2.RedisCluster) error {
 	logger := finalizerLogger(cr.Namespace, RedisClusterFinalizer)
+	client, err := generateK8sClient(generateK8sConfig)
+	if err != nil {
+		logger.Error(err, "Could not generate kubernetes client")
+		return err
+	}
 	for _, role := range []string{"leader", "follower"} {
 		for i := 0; i < int(cr.Spec.GetReplicaCounts(role)); i++ {
 			PVCName := cr.Name + "-" + cr.Name + "-" + role + "-" + strconv.Itoa(i)
-			err := generateK8sClient().CoreV1().PersistentVolumeClaims(cr.Namespace).Delete(context.TODO(), PVCName, metav1.DeleteOptions{})
+			err := client.CoreV1().PersistentVolumeClaims(cr.Namespace).Delete(context.TODO(), PVCName, metav1.DeleteOptions{})
 			if err != nil && !errors.IsNotFound(err) {
 				logger.Error(err, "Could not delete Persistent Volume Claim "+PVCName)
 				return err
@@ -160,7 +170,7 @@ func finalizeRedisClusterPVC(cr *redisv1beta2.RedisCluster) error {
 		if cr.Spec.Storage.NodeConfVolume {
 			for i := 0; i < int(cr.Spec.GetReplicaCounts(role)); i++ {
 				PVCName := "node-conf" + cr.Name + "-" + role + "-" + strconv.Itoa(i)
-				err := generateK8sClient().CoreV1().PersistentVolumeClaims(cr.Namespace).Delete(context.TODO(), PVCName, metav1.DeleteOptions{})
+				err := client.CoreV1().PersistentVolumeClaims(cr.Namespace).Delete(context.TODO(), PVCName, metav1.DeleteOptions{})
 				if err != nil && !errors.IsNotFound(err) {
 					logger.Error(err, "Could not delete Persistent Volume Claim "+PVCName)
 					return err
@@ -175,9 +185,14 @@ func finalizeRedisClusterPVC(cr *redisv1beta2.RedisCluster) error {
 // finalizeRedisReplicationPVC delete PVCs
 func finalizeRedisReplicationPVC(cr *redisv1beta2.RedisReplication) error {
 	logger := finalizerLogger(cr.Namespace, RedisReplicationFinalizer)
+	client, err := generateK8sClient(generateK8sConfig)
+	if err != nil {
+		logger.Error(err, "Could not generate kubernetes client")
+		return err
+	}
 	for i := 0; i < int(cr.Spec.GetReplicationCounts("replication")); i++ {
 		PVCName := cr.Name + "-" + cr.Name + "-" + strconv.Itoa(i)
-		err := generateK8sClient().CoreV1().PersistentVolumeClaims(cr.Namespace).Delete(context.TODO(), PVCName, metav1.DeleteOptions{})
+		err := client.CoreV1().PersistentVolumeClaims(cr.Namespace).Delete(context.TODO(), PVCName, metav1.DeleteOptions{})
 		if err != nil && !errors.IsNotFound(err) {
 			logger.Error(err, "Could not delete Persistent Volume Claim "+PVCName)
 			return err
