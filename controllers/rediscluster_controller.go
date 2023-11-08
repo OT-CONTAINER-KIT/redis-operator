@@ -120,7 +120,10 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	redisLeaderInfo, err := k8sutils.GetStatefulSet(instance.Namespace, instance.ObjectMeta.Name+"-leader")
 	if err != nil {
-		return ctrl.Result{RequeueAfter: time.Second * 60}, err
+		if errors.IsNotFound(err) {
+			return ctrl.Result{RequeueAfter: time.Second * 60}, nil
+		}
+		return ctrl.Result{}, err
 	}
 
 	if int32(redisLeaderInfo.Status.ReadyReplicas) == leaderReplicas {
@@ -151,7 +154,10 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 	redisFollowerInfo, err := k8sutils.GetStatefulSet(instance.Namespace, instance.ObjectMeta.Name+"-follower")
 	if err != nil {
-		return ctrl.Result{RequeueAfter: time.Second * 60}, err
+		if errors.IsNotFound(err) {
+			return ctrl.Result{RequeueAfter: time.Second * 60}, nil
+		}
+		return ctrl.Result{}, err
 	}
 
 	if leaderReplicas == 0 {
