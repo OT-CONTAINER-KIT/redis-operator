@@ -177,7 +177,7 @@ func patchPodDisruptionBudget(storedPdb *policyv1.PodDisruptionBudget, newPdb *p
 // createPodDisruptionBudget is a method to create PodDisruptionBudgets in Kubernetes
 func createPodDisruptionBudget(namespace string, pdb *policyv1.PodDisruptionBudget) error {
 	logger := pdbLogger(namespace, pdb.Name)
-	client, err := generateK8sClient(generateK8sConfig)
+	client, err := GenerateK8sClient(GenerateK8sConfig)
 	if err != nil {
 		logger.Error(err, "Could not generate kubernetes client")
 		return err
@@ -194,7 +194,7 @@ func createPodDisruptionBudget(namespace string, pdb *policyv1.PodDisruptionBudg
 // updatePodDisruptionBudget is a method to update PodDisruptionBudgets in Kubernetes
 func updatePodDisruptionBudget(namespace string, pdb *policyv1.PodDisruptionBudget) error {
 	logger := pdbLogger(namespace, pdb.Name)
-	client, err := generateK8sClient(generateK8sConfig)
+	client, err := GenerateK8sClient(GenerateK8sConfig)
 	if err != nil {
 		logger.Error(err, "Could not generate kubernetes client")
 		return err
@@ -211,7 +211,7 @@ func updatePodDisruptionBudget(namespace string, pdb *policyv1.PodDisruptionBudg
 // deletePodDisruptionBudget is a method to delete PodDisruptionBudgets in Kubernetes
 func deletePodDisruptionBudget(namespace string, pdbName string) error {
 	logger := pdbLogger(namespace, pdbName)
-	client, err := generateK8sClient(generateK8sConfig)
+	client, err := GenerateK8sClient(GenerateK8sConfig)
 	if err != nil {
 		logger.Error(err, "Could not generate kubernetes client")
 		return err
@@ -228,7 +228,7 @@ func deletePodDisruptionBudget(namespace string, pdbName string) error {
 // GetPodDisruptionBudget is a method to get PodDisruptionBudgets in Kubernetes
 func GetPodDisruptionBudget(namespace string, pdb string) (*policyv1.PodDisruptionBudget, error) {
 	logger := pdbLogger(namespace, pdb)
-	client, err := generateK8sClient(generateK8sConfig)
+	client, err := GenerateK8sClient(GenerateK8sConfig)
 	if err != nil {
 		logger.Error(err, "Could not generate kubernetes client")
 		return nil, err

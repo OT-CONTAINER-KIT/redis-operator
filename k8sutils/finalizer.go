@@ -149,7 +149,7 @@ func finalizeRedisPVC(client kubernetes.Interface, logger mocks.LoggerInterface,
 // finalizeRedisClusterPVC delete PVCs
 func finalizeRedisClusterPVC(cr *redisv1beta2.RedisCluster) error {
 	logger := finalizerLogger(cr.Namespace, RedisClusterFinalizer)
-	client, err := generateK8sClient(generateK8sConfig)
+	client, err := GenerateK8sClient(GenerateK8sConfig)
 	if err != nil {
 		logger.Error(err, "Could not generate kubernetes client")
 		return err
@@ -181,7 +181,7 @@ func finalizeRedisClusterPVC(cr *redisv1beta2.RedisCluster) error {
 // finalizeRedisReplicationPVC delete PVCs
 func finalizeRedisReplicationPVC(cr *redisv1beta2.RedisReplication) error {
 	logger := finalizerLogger(cr.Namespace, RedisReplicationFinalizer)
-	client, err := generateK8sClient(generateK8sConfig)
+	client, err := GenerateK8sClient(GenerateK8sConfig)
 	if err != nil {
 		logger.Error(err, "Could not generate kubernetes client")
 		return err

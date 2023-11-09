@@ -27,7 +27,7 @@ type RedisDetails struct {
 // getRedisServerIP will return the IP of redis service
 func getRedisServerIP(redisInfo RedisDetails) string {
 	logger := generateRedisManagerLogger(redisInfo.Namespace, redisInfo.PodName)
-	client, err := generateK8sClient(generateK8sConfig)
+	client, err := GenerateK8sClient(GenerateK8sConfig)
 	if err != nil {
 		logger.Error(err, "Error in getting k8s client")
 		return ""
@@ -363,12 +363,12 @@ func executeCommand(cr *redisv1beta2.RedisCluster, cmd []string, podName string)
 		execErr bytes.Buffer
 	)
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
-	client, err := generateK8sClient(generateK8sConfig)
+	client, err := GenerateK8sClient(GenerateK8sConfig)
 	if err != nil {
 		logger.Error(err, "Could not generate kubernetes client")
 		return
 	}
-	config, err := generateK8sConfig()
+	config, err := GenerateK8sConfig()
 	if err != nil {
 		logger.Error(err, "Could not find pod to execute")
 		return
@@ -407,7 +407,7 @@ func executeCommand(cr *redisv1beta2.RedisCluster, cmd []string, podName string)
 // getContainerID will return the id of container from pod
 func getContainerID(cr *redisv1beta2.RedisCluster, podName string) (int, *corev1.Pod) {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
-	client, err := generateK8sClient(generateK8sConfig)
+	client, err := GenerateK8sClient(GenerateK8sConfig)
 	if err != nil {
 		logger.Error(err, "Could not generate kubernetes client")
 		return -1, nil

@@ -89,7 +89,7 @@ func generateServiceType(k8sServiceType string) corev1.ServiceType {
 // createService is a method to create service is Kubernetes
 func createService(namespace string, service *corev1.Service) error {
 	logger := serviceLogger(namespace, service.Name)
-	client, err := generateK8sClient(generateK8sConfig)
+	client, err := GenerateK8sClient(GenerateK8sConfig)
 	if err != nil {
 		logger.Error(err, "Could not generate kubernetes client")
 		return err
@@ -106,7 +106,7 @@ func createService(namespace string, service *corev1.Service) error {
 // updateService is a method to update service is Kubernetes
 func updateService(namespace string, service *corev1.Service) error {
 	logger := serviceLogger(namespace, service.Name)
-	client, err := generateK8sClient(generateK8sConfig)
+	client, err := GenerateK8sClient(GenerateK8sConfig)
 	if err != nil {
 		logger.Error(err, "Could not generate kubernetes client")
 		return err
@@ -123,7 +123,7 @@ func updateService(namespace string, service *corev1.Service) error {
 // getService is a method to get service is Kubernetes
 func getService(namespace string, service string) (*corev1.Service, error) {
 	logger := serviceLogger(namespace, service)
-	client, err := generateK8sClient(generateK8sConfig)
+	client, err := GenerateK8sClient(GenerateK8sConfig)
 	if err != nil {
 		logger.Error(err, "Could not generate kubernetes client")
 		return nil, err

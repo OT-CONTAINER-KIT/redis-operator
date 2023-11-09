@@ -17,7 +17,7 @@ var log = logf.Log.WithName("controller_redis")
 // getRedisPassword method will return the redis password
 func getRedisPassword(namespace, name, secretKey string) (string, error) {
 	logger := secretLogger(namespace, name)
-	client, err := generateK8sClient(generateK8sConfig)
+	client, err := GenerateK8sClient(GenerateK8sConfig)
 	if err != nil {
 		logger.Error(err, "Could not generate kubernetes client")
 		return "", err
@@ -41,7 +41,7 @@ func secretLogger(namespace string, name string) logr.Logger {
 }
 
 func getRedisTLSConfig(cr *redisv1beta2.RedisCluster, redisInfo RedisDetails) *tls.Config {
-	client, err := generateK8sClient(generateK8sConfig)
+	client, err := GenerateK8sClient(GenerateK8sConfig)
 	if err != nil {
 		return nil
 	}
@@ -93,7 +93,7 @@ func getRedisTLSConfig(cr *redisv1beta2.RedisCluster, redisInfo RedisDetails) *t
 }
 
 func getRedisReplicationTLSConfig(cr *redisv1beta2.RedisReplication, redisInfo RedisDetails) *tls.Config {
-	client, err := generateK8sClient(generateK8sConfig)
+	client, err := GenerateK8sClient(GenerateK8sConfig)
 	if err != nil {
 		return nil
 	}

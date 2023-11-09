@@ -35,11 +35,11 @@ func TestGenerateK8sClient(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := generateK8sClient(tt.configProvider)
+			client, err := GenerateK8sClient(tt.configProvider)
 			if tt.wantErr {
-				assert.Error(t, err, "generateK8sClient() should return an error for invalid config")
+				assert.Error(t, err, "GenerateK8sClient() should return an error for invalid config")
 			} else {
-				assert.NoError(t, err, "generateK8sClient() should not return an error for valid config")
+				assert.NoError(t, err, "GenerateK8sClient() should not return an error for valid config")
 				assert.NotNil(t, client, "expected a non-nil Kubernetes client")
 			}
 		})
@@ -66,11 +66,11 @@ func TestGenerateK8sDynamicClient(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := generateK8sDynamicClient(tt.configProvider)
+			client, err := GenerateK8sDynamicClient(tt.configProvider)
 			if tt.wantErr {
-				assert.Error(t, err, "generateK8sDynamicClient() should return an error for invalid config")
+				assert.Error(t, err, "GenerateK8sDynamicClient() should return an error for invalid config")
 			} else {
-				assert.NoError(t, err, "generateK8sDynamicClient() should not return an error for valid config")
+				assert.NoError(t, err, "GenerateK8sDynamicClient() should not return an error for valid config")
 				assert.NotNil(t, client, "expected a non-nil Kubernetes client")
 			}
 		})

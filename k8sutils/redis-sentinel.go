@@ -283,7 +283,7 @@ func getSentinelEnvVariable(ctx context.Context, cr *redisv1beta2.RedisSentinel)
 
 func getRedisReplicationMasterIP(ctx context.Context, cr *redisv1beta2.RedisSentinel) string {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
-	dClient, err := generateK8sDynamicClient(generateK8sConfig)
+	dClient, err := GenerateK8sDynamicClient(GenerateK8sConfig)
 	if err != nil {
 		logger.Error(err, "Failed to generate dynamic client")
 		return ""

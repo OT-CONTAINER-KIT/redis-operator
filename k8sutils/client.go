@@ -10,8 +10,8 @@ import (
 
 type K8sConfigProvider = func() (*rest.Config, error)
 
-// generateK8sClient create client for kubernetes
-func generateK8sClient(configProvider K8sConfigProvider) (kubernetes.Interface, error) {
+// GenerateK8sClient create client for kubernetes
+func GenerateK8sClient(configProvider K8sConfigProvider) (kubernetes.Interface, error) {
 	config, err := configProvider()
 	if err != nil {
 		return nil, err
@@ -19,8 +19,8 @@ func generateK8sClient(configProvider K8sConfigProvider) (kubernetes.Interface, 
 	return kubernetes.NewForConfig(config)
 }
 
-// generateK8sClient create Dynamic client for kubernetes
-func generateK8sDynamicClient(configProvider K8sConfigProvider) (dynamic.Interface, error) {
+// GenerateK8sClient create Dynamic client for kubernetes
+func GenerateK8sDynamicClient(configProvider K8sConfigProvider) (dynamic.Interface, error) {
 	config, err := configProvider()
 	if err != nil {
 		return nil, err
@@ -28,8 +28,8 @@ func generateK8sDynamicClient(configProvider K8sConfigProvider) (dynamic.Interfa
 	return dynamic.NewForConfig(config)
 }
 
-// generateK8sConfig will load the kube config file
-func generateK8sConfig() (*rest.Config, error) {
+// GenerateK8sConfig will load the kube config file
+func GenerateK8sConfig() (*rest.Config, error) {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	// if you want to change the loading rules (which files in which order), you can do so here
 	configOverrides := &clientcmd.ConfigOverrides{}

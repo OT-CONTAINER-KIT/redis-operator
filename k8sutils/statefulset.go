@@ -107,7 +107,7 @@ func CreateOrUpdateStateFul(namespace string, stsMeta metav1.ObjectMeta, params 
 // patchStateFulSet will patch Redis Kubernetes StateFulSet
 func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.StatefulSet, namespace string, recreateStateFulSet bool) error {
 	logger := statefulSetLogger(namespace, storedStateful.Name)
-	client, err := generateK8sClient(generateK8sConfig)
+	client, err := GenerateK8sClient(GenerateK8sConfig)
 	if err != nil {
 		logger.Error(err, "Could not generate kubernetes client")
 		return err
@@ -633,7 +633,7 @@ func getEnvironmentVariables(role string, enabledPassword *bool, secretName *str
 // createStatefulSet is a method to create statefulset in Kubernetes
 func createStatefulSet(namespace string, stateful *appsv1.StatefulSet) error {
 	logger := statefulSetLogger(namespace, stateful.Name)
-	client, err := generateK8sClient(generateK8sConfig)
+	client, err := GenerateK8sClient(GenerateK8sConfig)
 	if err != nil {
 		logger.Error(err, "Could not generate kubernetes client")
 		return err
@@ -650,7 +650,7 @@ func createStatefulSet(namespace string, stateful *appsv1.StatefulSet) error {
 // updateStatefulSet is a method to update statefulset in Kubernetes
 func updateStatefulSet(namespace string, stateful *appsv1.StatefulSet, recreateStateFulSet bool) error {
 	logger := statefulSetLogger(namespace, stateful.Name)
-	client, err := generateK8sClient(generateK8sConfig)
+	client, err := GenerateK8sClient(GenerateK8sConfig)
 	if err != nil {
 		logger.Error(err, "Could not generate kubernetes client")
 		return err
@@ -681,7 +681,7 @@ func updateStatefulSet(namespace string, stateful *appsv1.StatefulSet, recreateS
 // GetStateFulSet is a method to get statefulset in Kubernetes
 func GetStatefulSet(namespace string, stateful string) (*appsv1.StatefulSet, error) {
 	logger := statefulSetLogger(namespace, stateful)
-	client, err := generateK8sClient(generateK8sConfig)
+	client, err := GenerateK8sClient(GenerateK8sConfig)
 	if err != nil {
 		logger.Error(err, "Could not generate kubernetes client")
 		return nil, err
