@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
-	"github.com/OT-CONTAINER-KIT/redis-operator/mocks"
+	mockLog "github.com/OT-CONTAINER-KIT/redis-operator/mocks/log"
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -136,7 +136,7 @@ func AddRedisSentinelFinalizer(cr *redisv1beta2.RedisSentinel, cl client.Client)
 }
 
 // finalizeRedisPVC delete PVC
-func finalizeRedisPVC(client kubernetes.Interface, logger mocks.LoggerInterface, cr *redisv1beta2.Redis) error {
+func finalizeRedisPVC(client kubernetes.Interface, logger mockLog.LoggerInterface, cr *redisv1beta2.Redis) error {
 	PVCName := fmt.Sprintf("%s-%s-0", cr.Name, cr.Name)
 	err := client.CoreV1().PersistentVolumeClaims(cr.Namespace).Delete(context.TODO(), PVCName, metav1.DeleteOptions{})
 	if err != nil && !errors.IsNotFound(err) {
