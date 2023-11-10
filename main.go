@@ -124,26 +124,31 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&controllers.RedisClusterReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("RedisCluster"),
-		Scheme: mgr.GetScheme(),
+		Client:     mgr.GetClient(),
+		K8sClient:  k8sclient,
+		Dk8sClinet: dk8sClinet,
+		Log:        ctrl.Log.WithName("controllers").WithName("RedisCluster"),
+		Scheme:     mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RedisCluster")
 		os.Exit(1)
 	}
 	if err = (&controllers.RedisReplicationReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("RedisReplication"),
-		Scheme: mgr.GetScheme(),
+		Client:     mgr.GetClient(),
+		K8sClient:  k8sclient,
+		Dk8sClinet: dk8sClinet,
+		Log:        ctrl.Log.WithName("controllers").WithName("RedisReplication"),
+		Scheme:     mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RedisReplication")
 		os.Exit(1)
 	}
-
 	if err = (&controllers.RedisSentinelReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("RedisSentinel"),
-		Scheme: mgr.GetScheme(),
+		Client:     mgr.GetClient(),
+		K8sClient:  k8sclient,
+		Dk8sClinet: dk8sClinet,
+		Log:        ctrl.Log.WithName("controllers").WithName("RedisSentinel"),
+		Scheme:     mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RedisSentinel")
 		os.Exit(1)
