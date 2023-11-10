@@ -11,6 +11,7 @@ linters:
     - errcheck 
     - tagliatelle
     - ineffassign
+    - staticcheck
     
 # Exclude the files that are causing the errors
 issues:
