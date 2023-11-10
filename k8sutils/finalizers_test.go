@@ -287,13 +287,13 @@ func helperToRuntimeObjects(pvcs []*corev1.PersistentVolumeClaim) []runtime.Obje
 	return objs
 }
 
-func helperRedisClusterPVCs(clusterName string, namespace string) []*v1.PersistentVolumeClaim {
-	var pvcs []*v1.PersistentVolumeClaim
+func helperRedisClusterPVCs(clusterName string, namespace string) []*corev1.PersistentVolumeClaim {
+	var pvcs []*corev1.PersistentVolumeClaim
 	roles := []string{"leader", "follower"}
 	for _, role := range roles {
 		for i := 0; i < 3; i++ {
 			clusterPVCName := fmt.Sprintf("%s-%s-%s-%d", clusterName, clusterName, role, i)
-			clusterPVC := &v1.PersistentVolumeClaim{
+			clusterPVC := &corev1.PersistentVolumeClaim{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      clusterPVCName,
 					Namespace: namespace,
