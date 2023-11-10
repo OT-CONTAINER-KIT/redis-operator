@@ -65,7 +65,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	followerReplicas := instance.Spec.GetReplicaCounts("follower")
 	totalReplicas := leaderReplicas + followerReplicas
 
-	if err = k8sutils.HandleRedisClusterFinalizer(instance, r.Client); err != nil {
+	if err = k8sutils.HandleRedisClusterFinalizer(r.Client, r.K8sClient, r.Log, instance); err != nil {
 		return ctrl.Result{RequeueAfter: time.Second * 60}, err
 	}
 
