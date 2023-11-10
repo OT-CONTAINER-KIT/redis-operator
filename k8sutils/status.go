@@ -27,6 +27,10 @@ func UpdateRedisClusterStatus(cr *redisv1beta2.RedisCluster, status status.Redis
 	cr.Status.ReadyFollowerReplicas = readyFollowerReplicas
 
 	client, err := GenerateK8sDynamicClient(GenerateK8sConfig)
+	if err != nil {
+		logger.Error(err, "Failed to generate k8s dynamic client")
+		return err
+	}
 	gvr := schema.GroupVersionResource{
 		Group:    "redis.redis.opstreelabs.in",
 		Version:  "v1beta2",
