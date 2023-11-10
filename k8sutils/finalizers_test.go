@@ -9,7 +9,6 @@ import (
 	"github.com/go-logr/logr/testr"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -301,7 +300,7 @@ func helperRedisClusterPVCs(clusterName string, namespace string) []*corev1.Pers
 			}
 			pvcs = append(pvcs, clusterPVC)
 			nodeConfPVCName := fmt.Sprintf("node-conf-%s-%s-%d", clusterName, role, i)
-			nodeConfPVC := &v1.PersistentVolumeClaim{
+			nodeConfPVC := &corev1.PersistentVolumeClaim{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      nodeConfPVCName,
 					Namespace: namespace,
