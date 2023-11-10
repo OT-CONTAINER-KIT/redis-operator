@@ -27,6 +27,8 @@ import (
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -34,8 +36,10 @@ import (
 // RedisClusterReconciler reconciles a RedisCluster object
 type RedisClusterReconciler struct {
 	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
+	K8sClient  kubernetes.Interface
+	Dk8sClinet dynamic.Interface
+	Log        logr.Logger
+	Scheme     *runtime.Scheme
 }
 
 // Reconcile is part of the main kubernetes reconciliation loop
