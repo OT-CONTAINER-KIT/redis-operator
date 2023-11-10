@@ -334,14 +334,14 @@ func configureRedisClient(client kubernetes.Interface, logger logr.Logger, cr *r
 			Addr:      getRedisServerIP(redisInfo) + ":6379",
 			Password:  pass,
 			DB:        0,
-			TLSConfig: getRedisTLSConfig(cr, redisInfo),
+			TLSConfig: getRedisTLSConfig(client, logger, cr, redisInfo),
 		})
 	} else {
 		redisClient = redis.NewClient(&redis.Options{
 			Addr:      getRedisServerIP(redisInfo) + ":6379",
 			Password:  "",
 			DB:        0,
-			TLSConfig: getRedisTLSConfig(cr, redisInfo),
+			TLSConfig: getRedisTLSConfig(client, logger, cr, redisInfo),
 		})
 	}
 	return redisClient
@@ -455,14 +455,14 @@ func configureRedisReplicationClient(client kubernetes.Interface, logger logr.Lo
 			Addr:      getRedisServerIP(redisInfo) + ":6379",
 			Password:  pass,
 			DB:        0,
-			TLSConfig: getRedisReplicationTLSConfig(cr, redisInfo),
+			TLSConfig: getRedisReplicationTLSConfig(client, logger, cr, redisInfo),
 		})
 	} else {
 		redisClient = redis.NewClient(&redis.Options{
 			Addr:      getRedisServerIP(redisInfo) + ":6379",
 			Password:  "",
 			DB:        0,
-			TLSConfig: getRedisReplicationTLSConfig(cr, redisInfo),
+			TLSConfig: getRedisReplicationTLSConfig(client, logger, cr, redisInfo),
 		})
 	}
 	return redisClient

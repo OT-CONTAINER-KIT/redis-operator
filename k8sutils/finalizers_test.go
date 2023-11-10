@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	// "time"
+
 	"github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/go-logr/logr/testr"
 	"github.com/stretchr/testify/assert"
@@ -12,8 +14,12 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	// "k8s.io/apimachinery/pkg/types"
+	// utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	k8sClientFake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/utils/pointer"
+	// ctrlClientFake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 // func TestHandleRedisFinalizer(t *testing.T) {

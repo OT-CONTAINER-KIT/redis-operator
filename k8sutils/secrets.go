@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"strings"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
@@ -30,110 +31,89 @@ func getRedisPassword(client kubernetes.Interface, logger logr.Logger, namespace
 	return "", nil
 }
 
-func secretLogger(namespace string, name string) logr.Logger {
-	reqLogger := log.WithValues("Request.Secret.Namespace", namespace, "Request.Secret.Name", name)
-	return reqLogger
-}
-
-func getRedisTLSConfig(cr *redisv1beta2.RedisCluster, redisInfo RedisDetails) *tls.Config {
-	client, err := GenerateK8sClient(GenerateK8sConfig)
-	if err != nil {
-		return nil
-	}
+func getRedisTLSConfig(client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster, redisInfo RedisDetails) *tls.Config {
 	if cr.Spec.TLS != nil {
-		reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
-		secretName, err := client.CoreV1().Secrets(cr.Namespace).Get(context.TODO(), cr.Spec.TLS.Secret.SecretName, metav1.GetOptions{})
+		secret, err := client.CoreV1().Secrets(cr.Namespace).Get(context.TODO(), cr.Spec.TLS.Secret.SecretName, metav1.GetOptions{})
 		if err != nil {
-			reqLogger.Error(err, "Failed in getting TLS secret for redis")
+			logger.Error(err, "Failed in getting TLS secret for redis cluster")
+			logger.V(1).Error(err, "Failed in getting TLS secret for redis cluster", "secretName", cr.Spec.TLS.Secret.SecretName, "namespace", cr.Namespace, "redisClusterName", cr.Name)
+			return nil
 		}
 
-		var (
-			tlsClientCert         []byte
-			tlsClientKey          []byte
-			tlsCaCertificate      []byte
-			tlsCaCertificates     *x509.CertPool
-			tlsClientCertificates []tls.Certificate
-		)
-		for key, value := range secretName.Data {
-			if key == cr.Spec.TLS.CaKeyFile || key == "ca.crt" {
-				tlsCaCertificate = value
-			} else if key == cr.Spec.TLS.CertKeyFile || key == "tls.crt" {
-				tlsClientCert = value
-			} else if key == cr.Spec.TLS.KeyFile || key == "tls.key" {
-				tlsClientKey = value
-			}
+		tlsClientCert, certExists := secret.Data["tls.crt"]
+		tlsClientKey, keyExists := secret.Data["tls.key"]
+		tlsCaCertificate, caExists := secret.Data["ca.crt"]
+
+		if !certExists || !keyExists || !caExists {
+			logger.Error(errors.New("required TLS keys are missing in the secret"), "Missing TLS keys in the secret")
+			return nil
 		}
 
 		cert, err := tls.X509KeyPair(tlsClientCert, tlsClientKey)
 		if err != nil {
-			reqLogger.Error(err, "Couldn't load TLS client key pair")
+			logger.Error(err, "Couldn't load TLS client key pair")
+			logger.V(1).Error(err, "Couldn't load TLS client key pair", "secretName", cr.Spec.TLS.Secret.SecretName, "namespace", cr.Namespace, "redisClusterName", cr.Name)
+			return nil
 		}
-		tlsClientCertificates = append(tlsClientCertificates, cert)
 
-		tlsCaCertificates = x509.NewCertPool()
+		tlsCaCertificates := x509.NewCertPool()
 		ok := tlsCaCertificates.AppendCertsFromPEM(tlsCaCertificate)
 		if !ok {
-			reqLogger.V(1).Info("Failed to load CA Certificates from Secret")
+			logger.Error(errors.New("failed to load CA Certificates from secret"), "Invalid CA Certificates")
+			logger.V(1).Error(err, "Invalid CA Certificates", "secretName", cr.Spec.TLS.Secret.SecretName, "namespace", cr.Namespace, "redisClusterName", cr.Name)
+			return nil
 		}
 
 		return &tls.Config{
-			Certificates: tlsClientCertificates,
+			Certificates: []tls.Certificate{cert},
 			ServerName:   redisInfo.PodName,
 			RootCAs:      tlsCaCertificates,
-			MinVersion:   2,
-			ClientAuth:   0,
+			MinVersion:   tls.VersionTLS12,
+			ClientAuth:   tls.NoClientCert,
 		}
 	}
 	return nil
 }
 
-func getRedisReplicationTLSConfig(cr *redisv1beta2.RedisReplication, redisInfo RedisDetails) *tls.Config {
-	client, err := GenerateK8sClient(GenerateK8sConfig)
-	if err != nil {
-		return nil
-	}
+func getRedisReplicationTLSConfig(client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication, redisInfo RedisDetails) *tls.Config {
 	if cr.Spec.TLS != nil {
-		reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
-		secretName, err := client.CoreV1().Secrets(cr.Namespace).Get(context.TODO(), cr.Spec.TLS.Secret.SecretName, metav1.GetOptions{})
+		secret, err := client.CoreV1().Secrets(cr.Namespace).Get(context.TODO(), cr.Spec.TLS.Secret.SecretName, metav1.GetOptions{})
 		if err != nil {
-			reqLogger.Error(err, "Failed in getting TLS secret for redis")
+			logger.Error(err, "Failed in getting TLS secret for redis replication")
+			logger.V(1).Error(err, "Failed in getting TLS secret for redis replication", "secretName", cr.Spec.TLS.Secret.SecretName, "namespace", cr.Namespace, "redisReplicationName", cr.Name)
+			return nil
 		}
 
-		var (
-			tlsClientCert         []byte
-			tlsClientKey          []byte
-			tlsCaCertificate      []byte
-			tlsCaCertificates     *x509.CertPool
-			tlsClientCertificates []tls.Certificate
-		)
-		for key, value := range secretName.Data {
-			if key == cr.Spec.TLS.CaKeyFile || key == "ca.crt" {
-				tlsCaCertificate = value
-			} else if key == cr.Spec.TLS.CertKeyFile || key == "tls.crt" {
-				tlsClientCert = value
-			} else if key == cr.Spec.TLS.KeyFile || key == "tls.key" {
-				tlsClientKey = value
-			}
+		tlsClientCert, certExists := secret.Data["tls.crt"]
+		tlsClientKey, keyExists := secret.Data["tls.key"]
+		tlsCaCertificate, caExists := secret.Data["ca.crt"]
+
+		if !certExists || !keyExists || !caExists {
+			logger.Error(errors.New("required TLS keys are missing in the secret"), "Missing TLS keys in the secret")
+			return nil
 		}
 
 		cert, err := tls.X509KeyPair(tlsClientCert, tlsClientKey)
 		if err != nil {
-			reqLogger.Error(err, "Couldn't load TLS client key pair")
+			logger.Error(err, "Couldn't load TLS client key pair")
+			logger.V(1).Error(err, "Couldn't load TLS client key pair", "secretName", cr.Spec.TLS.Secret.SecretName, "namespace", cr.Namespace, "redisReplicationName", cr.Name)
+			return nil
 		}
-		tlsClientCertificates = append(tlsClientCertificates, cert)
 
-		tlsCaCertificates = x509.NewCertPool()
+		tlsCaCertificates := x509.NewCertPool()
 		ok := tlsCaCertificates.AppendCertsFromPEM(tlsCaCertificate)
 		if !ok {
-			reqLogger.V(1).Info("Failed to load CA Certificates from Secret")
+			logger.Error(errors.New("failed to load CA Certificates from secret"), "Invalid CA Certificates")
+			logger.V(1).Error(err, "Invalid CA Certificates", "secretName", cr.Spec.TLS.Secret.SecretName, "namespace", cr.Namespace, "redisReplicationName", cr.Name)
+			return nil
 		}
 
 		return &tls.Config{
-			Certificates: tlsClientCertificates,
+			Certificates: []tls.Certificate{cert},
 			ServerName:   redisInfo.PodName,
 			RootCAs:      tlsCaCertificates,
-			MinVersion:   2,
-			ClientAuth:   0,
+			MinVersion:   tls.VersionTLS12,
+			ClientAuth:   tls.NoClientCert,
 		}
 	}
 	return nil
