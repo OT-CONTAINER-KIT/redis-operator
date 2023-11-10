@@ -10,6 +10,8 @@ import (
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -17,8 +19,10 @@ import (
 // RedisReplicationReconciler reconciles a RedisReplication object
 type RedisReplicationReconciler struct {
 	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
+	K8sClient  kubernetes.Interface
+	Dk8sClinet dynamic.Interface
+	Log        logr.Logger
+	Scheme     *runtime.Scheme
 }
 
 func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -44,7 +48,7 @@ func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	followerReplicas := instance.Spec.GetReplicationCounts("replication") - leaderReplicas
 	totalReplicas := leaderReplicas + followerReplicas
 
-	if err = k8sutils.HandleRedisReplicationFinalizer(instance, r.Client); err != nil {
+	if err = k8sutils.HandleRedisReplicationFinalizer(r.Client, r.K8sClient, r.Log, instance); err != nil {
 		return ctrl.Result{}, err
 	}
 
