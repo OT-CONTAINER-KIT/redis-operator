@@ -73,9 +73,9 @@ jobs:
         with:
           go-version: ${{ env.GOLANG_VERSION }}
           
-      # Add a step to clean up the Go module cache
-      - name: Clean up Go module cache
-        run: go clean -modcache
+      # Populate the Go module cache by downloading dependencies
+      - name: Download Go modules
+        run: go mod download
       
       # Add a step to check the available disk space
       - name: Check disk space
