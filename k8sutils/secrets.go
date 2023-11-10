@@ -17,7 +17,12 @@ var log = logf.Log.WithName("controller_redis")
 // getRedisPassword method will return the redis password
 func getRedisPassword(namespace, name, secretKey string) (string, error) {
 	logger := secretLogger(namespace, name)
-	secretName, err := generateK8sClient().CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	client, err := GenerateK8sClient(GenerateK8sConfig)
+	if err != nil {
+		logger.Error(err, "Could not generate kubernetes client")
+		return "", err
+	}
+	secretName, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		logger.Error(err, "Failed in getting existing secret for redis")
 		return "", err
@@ -36,9 +41,13 @@ func secretLogger(namespace string, name string) logr.Logger {
 }
 
 func getRedisTLSConfig(cr *redisv1beta2.RedisCluster, redisInfo RedisDetails) *tls.Config {
+	client, err := GenerateK8sClient(GenerateK8sConfig)
+	if err != nil {
+		return nil
+	}
 	if cr.Spec.TLS != nil {
 		reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
-		secretName, err := generateK8sClient().CoreV1().Secrets(cr.Namespace).Get(context.TODO(), cr.Spec.TLS.Secret.SecretName, metav1.GetOptions{})
+		secretName, err := client.CoreV1().Secrets(cr.Namespace).Get(context.TODO(), cr.Spec.TLS.Secret.SecretName, metav1.GetOptions{})
 		if err != nil {
 			reqLogger.Error(err, "Failed in getting TLS secret for redis")
 		}
@@ -84,9 +93,13 @@ func getRedisTLSConfig(cr *redisv1beta2.RedisCluster, redisInfo RedisDetails) *t
 }
 
 func getRedisReplicationTLSConfig(cr *redisv1beta2.RedisReplication, redisInfo RedisDetails) *tls.Config {
+	client, err := GenerateK8sClient(GenerateK8sConfig)
+	if err != nil {
+		return nil
+	}
 	if cr.Spec.TLS != nil {
 		reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.ObjectMeta.Name)
-		secretName, err := generateK8sClient().CoreV1().Secrets(cr.Namespace).Get(context.TODO(), cr.Spec.TLS.Secret.SecretName, metav1.GetOptions{})
+		secretName, err := client.CoreV1().Secrets(cr.Namespace).Get(context.TODO(), cr.Spec.TLS.Secret.SecretName, metav1.GetOptions{})
 		if err != nil {
 			reqLogger.Error(err, "Failed in getting TLS secret for redis")
 		}

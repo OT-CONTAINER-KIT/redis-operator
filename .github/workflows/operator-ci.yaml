@@ -64,7 +64,7 @@ jobs:
           verbose: true
         
   code_quality_golang_ci_lint:
-    needs: [gofmt, govet, gotest]
+    needs: [gofmt, govet]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -72,14 +72,24 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GOLANG_VERSION }}
+          
+      - name: Download Go modules
+        run: go mod download
+      
+      - name: Check disk space
+        run: df -h
+      
+      - name: List Go module cache
+        run: ls -la $(go env GOPATH)/pkg/mod
+      
       - name: Run GolangCI-Lint
         uses: golangci/golangci-lint-action@v3
         with:
           version: v1.54.0
-          args: --timeout=5m0s ./...
+          args: --timeout=5m0s ./... --verbose --out-format=github-actions
 
   container_quality_dockerfile_lint:
-    needs: [gofmt, govet, gotest]
+    needs: [gofmt, govet]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

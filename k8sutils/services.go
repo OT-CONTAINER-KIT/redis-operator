@@ -89,7 +89,12 @@ func generateServiceType(k8sServiceType string) corev1.ServiceType {
 // createService is a method to create service is Kubernetes
 func createService(namespace string, service *corev1.Service) error {
 	logger := serviceLogger(namespace, service.Name)
-	_, err := generateK8sClient().CoreV1().Services(namespace).Create(context.TODO(), service, metav1.CreateOptions{})
+	client, err := GenerateK8sClient(GenerateK8sConfig)
+	if err != nil {
+		logger.Error(err, "Could not generate kubernetes client")
+		return err
+	}
+	_, err = client.CoreV1().Services(namespace).Create(context.TODO(), service, metav1.CreateOptions{})
 	if err != nil {
 		logger.Error(err, "Redis service creation is failed")
 		return err
@@ -101,7 +106,12 @@ func createService(namespace string, service *corev1.Service) error {
 // updateService is a method to update service is Kubernetes
 func updateService(namespace string, service *corev1.Service) error {
 	logger := serviceLogger(namespace, service.Name)
-	_, err := generateK8sClient().CoreV1().Services(namespace).Update(context.TODO(), service, metav1.UpdateOptions{})
+	client, err := GenerateK8sClient(GenerateK8sConfig)
+	if err != nil {
+		logger.Error(err, "Could not generate kubernetes client")
+		return err
+	}
+	_, err = client.CoreV1().Services(namespace).Update(context.TODO(), service, metav1.UpdateOptions{})
 	if err != nil {
 		logger.Error(err, "Redis service update failed")
 		return err
@@ -113,10 +123,15 @@ func updateService(namespace string, service *corev1.Service) error {
 // getService is a method to get service is Kubernetes
 func getService(namespace string, service string) (*corev1.Service, error) {
 	logger := serviceLogger(namespace, service)
+	client, err := GenerateK8sClient(GenerateK8sConfig)
+	if err != nil {
+		logger.Error(err, "Could not generate kubernetes client")
+		return nil, err
+	}
 	getOpts := metav1.GetOptions{
 		TypeMeta: generateMetaInformation("Service", "v1"),
 	}
-	serviceInfo, err := generateK8sClient().CoreV1().Services(namespace).Get(context.TODO(), service, getOpts)
+	serviceInfo, err := client.CoreV1().Services(namespace).Get(context.TODO(), service, getOpts)
 	if err != nil {
 		logger.V(1).Info("Redis service get action is failed")
 		return nil, err
