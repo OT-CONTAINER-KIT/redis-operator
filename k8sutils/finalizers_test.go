@@ -12,6 +12,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sClientFake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/utils/pointer"
 )
 
 // func TestHandleRedisFinalizer(t *testing.T) {
@@ -116,6 +117,90 @@ func TestFinalizeRedisPVC(t *testing.T) {
 				pvcName := fmt.Sprintf("%s-%s-0", cr.Name, cr.Name)
 				_, err = k8sClient.CoreV1().PersistentVolumeClaims(cr.Namespace).Get(context.TODO(), pvcName, metav1.GetOptions{})
 				assert.True(t, k8serrors.IsNotFound(err))
+			}
+		})
+	}
+}
+
+func TestFinalizeRedisReplicationPVC(t *testing.T) {
+	tests := []struct {
+		name             string
+		existingPVCs     []*corev1.PersistentVolumeClaim
+		redisReplication *v1beta2.RedisReplication
+		expectError      bool
+	}{
+		{
+			name: "Successful deletion of Redis Replication PVCs",
+			redisReplication: &v1beta2.RedisReplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "redis-replication",
+					Namespace: "redis",
+				},
+				Spec: v1beta2.RedisReplicationSpec{
+					Size: pointer.Int32(3),
+				},
+			},
+			existingPVCs: []*corev1.PersistentVolumeClaim{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "redis-replication-redis-replication-0",
+						Namespace: "redis",
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "redis-replication-redis-replication-1",
+						Namespace: "redis",
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "redis-replication-redis-replication-2",
+						Namespace: "redis",
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name:         "PVC does not exist and no error should be returned",
+			existingPVCs: nil,
+			redisReplication: &v1beta2.RedisReplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "redis-replication",
+					Namespace: "redis",
+				},
+				Spec: v1beta2.RedisReplicationSpec{
+					Size: pointer.Int32(3),
+				},
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			logger := testr.New(t)
+			var k8sClient *k8sClientFake.Clientset
+			if tc.existingPVCs != nil {
+				k8sClient = k8sClientFake.NewSimpleClientset(tc.existingPVCs[0].DeepCopyObject(), tc.existingPVCs[1].DeepCopyObject(), tc.existingPVCs[2].DeepCopyObject())
+			} else {
+				k8sClient = k8sClientFake.NewSimpleClientset()
+			}
+
+			err := finalizeRedisReplicationPVC(k8sClient, logger, tc.redisReplication)
+			if tc.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			// Verify PVCs are deleted
+			if !tc.expectError {
+				for _, pvc := range tc.existingPVCs {
+					_, err := k8sClient.CoreV1().PersistentVolumeClaims(pvc.Namespace).Get(context.TODO(), pvc.Name, metav1.GetOptions{})
+					assert.True(t, k8serrors.IsNotFound(err))
+				}
 			}
 		})
 	}
