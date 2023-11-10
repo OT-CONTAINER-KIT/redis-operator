@@ -89,7 +89,7 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         with:
           version: v1.54.0
-          args: --timeout=5m0s ./...
+          args: --timeout=5m0s ./... --verbose --out-format=github-actions
 
   container_quality_dockerfile_lint:
     needs: [gofmt, govet]
