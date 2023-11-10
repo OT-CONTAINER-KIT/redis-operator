@@ -202,8 +202,7 @@ func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Inter
 
 // checkRedisCluster will check the redis cluster have sufficient nodes or not
 func checkRedisCluster(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster) [][]string {
-	var redisClient *redis.Client
-	redisClient = configureRedisClient(client, logger, cr, cr.ObjectMeta.Name+"-leader-0")
+	redisClient := configureRedisClient(client, logger, cr, cr.ObjectMeta.Name+"-leader-0")
 	defer redisClient.Close()
 	cmd := redis.NewStringCmd(ctx, "cluster", "nodes")
 	err := redisClient.Process(ctx, cmd)

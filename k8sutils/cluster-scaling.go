@@ -115,8 +115,7 @@ func getRedisClusterSlots(ctx context.Context, client kubernetes.Interface, logg
 
 // getRedisNodeID would return nodeID of a redis node by passing pod
 func getRedisNodeID(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster, pod RedisDetails) string {
-	var redisClient *redis.Client
-	redisClient = configureRedisClient(client, logger, cr, pod.PodName)
+	redisClient := configureRedisClient(client, logger, cr, pod.PodName)
 	defer redisClient.Close()
 
 	pong, err := redisClient.Ping(ctx).Result()
