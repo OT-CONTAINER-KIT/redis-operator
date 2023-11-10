@@ -7,9 +7,11 @@ import (
 
 	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/kubernetes"
 )
 
 // RedisSentinelSTS is a interface to call Redis Statefulset function
@@ -32,7 +34,7 @@ type RedisReplicationObject struct {
 }
 
 // Redis Sentinel Create the Redis Sentinel Setup
-func CreateRedisSentinel(ctx context.Context, cr *redisv1beta2.RedisSentinel) error {
+func CreateRedisSentinel(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisSentinel) error {
 	prop := RedisSentinelSTS{
 		RedisStateFulType:             "sentinel",
 		Affinity:                      cr.Spec.Affinity,
@@ -45,7 +47,7 @@ func CreateRedisSentinel(ctx context.Context, cr *redisv1beta2.RedisSentinel) er
 		prop.ExternalConfig = cr.Spec.RedisSentinelConfig.AdditionalSentinelConfig
 	}
 
-	return prop.CreateRedisSentinelSetup(ctx, cr)
+	return prop.CreateRedisSentinelSetup(ctx, client, logger, cr)
 
 }
 
@@ -59,10 +61,8 @@ func CreateRedisSentinelService(cr *redisv1beta2.RedisSentinel) error {
 }
 
 // Create Redis Sentinel Cluster Setup
-func (service RedisSentinelSTS) CreateRedisSentinelSetup(ctx context.Context, cr *redisv1beta2.RedisSentinel) error {
-
+func (service RedisSentinelSTS) CreateRedisSentinelSetup(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisSentinel) error {
 	stateFulName := cr.ObjectMeta.Name + "-" + service.RedisStateFulType
-	logger := statefulSetLogger(cr.Namespace, stateFulName)
 	labels := getRedisLabels(stateFulName, sentinel, service.RedisStateFulType, cr.ObjectMeta.Labels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, annotations)
@@ -72,7 +72,7 @@ func (service RedisSentinelSTS) CreateRedisSentinelSetup(ctx context.Context, cr
 		generateRedisSentinelParams(cr, service.getSentinelCount(cr), service.ExternalConfig, service.Affinity),
 		redisSentinelAsOwner(cr),
 		generateRedisSentinelInitContainerParams(cr),
-		generateRedisSentinelContainerParams(ctx, cr, service.ReadinessProbe, service.LivenessProbe),
+		generateRedisSentinelContainerParams(ctx, client, logger, cr, service.ReadinessProbe, service.LivenessProbe),
 		cr.Spec.Sidecars,
 	)
 
@@ -141,8 +141,7 @@ func generateRedisSentinelInitContainerParams(cr *redisv1beta2.RedisSentinel) in
 }
 
 // Create Redis Sentinel Statefulset Container Params
-func generateRedisSentinelContainerParams(ctx context.Context, cr *redisv1beta2.RedisSentinel, readinessProbeDef *commonapi.Probe, livenessProbeDef *commonapi.Probe) containerParameters {
-
+func generateRedisSentinelContainerParams(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisSentinel, readinessProbeDef *commonapi.Probe, livenessProbeDef *commonapi.Probe) containerParameters {
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{
@@ -151,7 +150,7 @@ func generateRedisSentinelContainerParams(ctx context.Context, cr *redisv1beta2.
 		ImagePullPolicy:       cr.Spec.KubernetesConfig.ImagePullPolicy,
 		Resources:             cr.Spec.KubernetesConfig.Resources,
 		SecurityContext:       cr.Spec.SecurityContext,
-		AdditionalEnvVariable: getSentinelEnvVariable(ctx, cr),
+		AdditionalEnvVariable: getSentinelEnvVariable(ctx, client, logger, cr),
 	}
 	if cr.Spec.EnvVars != nil {
 		containerProp.EnvVars = cr.Spec.EnvVars
@@ -240,8 +239,7 @@ func (service RedisSentinelService) CreateRedisSentinelService(cr *redisv1beta2.
 
 }
 
-func getSentinelEnvVariable(ctx context.Context, cr *redisv1beta2.RedisSentinel) *[]corev1.EnvVar {
-
+func getSentinelEnvVariable(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisSentinel) *[]corev1.EnvVar {
 	if cr.Spec.RedisSentinelConfig == nil {
 		return &[]corev1.EnvVar{}
 	}
@@ -253,7 +251,7 @@ func getSentinelEnvVariable(ctx context.Context, cr *redisv1beta2.RedisSentinel)
 		},
 		{
 			Name:  "IP",
-			Value: getRedisReplicationMasterIP(ctx, cr),
+			Value: getRedisReplicationMasterIP(ctx, client, logger, cr),
 		},
 		{
 			Name:  "PORT",
@@ -281,8 +279,7 @@ func getSentinelEnvVariable(ctx context.Context, cr *redisv1beta2.RedisSentinel)
 
 }
 
-func getRedisReplicationMasterIP(ctx context.Context, cr *redisv1beta2.RedisSentinel) string {
-	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
+func getRedisReplicationMasterIP(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisSentinel) string {
 	dClient, err := GenerateK8sDynamicClient(GenerateK8sConfig)
 	if err != nil {
 		logger.Error(err, "Failed to generate dynamic client")
@@ -322,7 +319,7 @@ func getRedisReplicationMasterIP(ctx context.Context, cr *redisv1beta2.RedisSent
 		return ""
 	}
 
-	masterPods := GetRedisNodesByRole(ctx, &replicationInstance, "master")
+	masterPods := GetRedisNodesByRole(ctx, client, logger, &replicationInstance, "master")
 
 	if len(masterPods) == 0 {
 		realMasterPod = ""
@@ -331,7 +328,7 @@ func getRedisReplicationMasterIP(ctx context.Context, cr *redisv1beta2.RedisSent
 	} else if len(masterPods) == 1 {
 		realMasterPod = masterPods[0]
 	} else {
-		realMasterPod = checkAttachedSlave(ctx, &replicationInstance, masterPods)
+		realMasterPod = checkAttachedSlave(ctx, client, logger, &replicationInstance, masterPods)
 	}
 
 	realMasterInfo := RedisDetails{

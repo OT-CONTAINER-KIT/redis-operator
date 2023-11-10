@@ -8,6 +8,7 @@ import (
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -182,7 +183,7 @@ func Test_generateRedisSentinelContainerParams(t *testing.T) {
 		t.Fatalf("Failed to unmarshal file %s: %v", path, err)
 	}
 
-	actual := generateRedisSentinelContainerParams(context.TODO(), input, nil, nil)
+	actual := generateRedisSentinelContainerParams(context.TODO(), nil, logr.Logger{}, input, nil, nil)
 	assert.EqualValues(t, expected, actual, "Expected %+v, got %+v", expected, actual)
 }
 

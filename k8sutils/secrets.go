@@ -9,19 +9,14 @@ import (
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var log = logf.Log.WithName("controller_redis")
 
-// getRedisPassword method will return the redis password
-func getRedisPassword(namespace, name, secretKey string) (string, error) {
-	logger := secretLogger(namespace, name)
-	client, err := GenerateK8sClient(GenerateK8sConfig)
-	if err != nil {
-		logger.Error(err, "Could not generate kubernetes client")
-		return "", err
-	}
+// getRedisPassword method will return the redis password from the secret
+func getRedisPassword(client kubernetes.Interface, logger logr.Logger, namespace, name, secretKey string) (string, error) {
 	secretName, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		logger.Error(err, "Failed in getting existing secret for redis")

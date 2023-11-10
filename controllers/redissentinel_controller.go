@@ -55,7 +55,7 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	// Create Redis Sentinel
-	err = k8sutils.CreateRedisSentinel(ctx, instance)
+	err = k8sutils.CreateRedisSentinel(ctx, r.K8sClient, r.Log, instance)
 	if err != nil {
 		return ctrl.Result{}, err
 	}

@@ -14,6 +14,7 @@ import (
 	redis "github.com/redis/go-redis/v9"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/remotecommand"
 )
@@ -92,13 +93,12 @@ func CreateMultipleLeaderRedisCommand(cr *redisv1beta2.RedisCluster) []string {
 }
 
 // ExecuteRedisClusterCommand will execute redis cluster creation command
-func ExecuteRedisClusterCommand(ctx context.Context, cr *redisv1beta2.RedisCluster) {
-	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
+func ExecuteRedisClusterCommand(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster) {
 	var cmd []string
 	replicas := cr.Spec.GetReplicaCounts("leader")
 	switch int(replicas) {
 	case 1:
-		err := executeFailoverCommand(ctx, cr, "leader")
+		err := executeFailoverCommand(ctx, client, logger, cr, "leader")
 		if err != nil {
 			logger.Error(err, "error executing failover command")
 		}
@@ -108,7 +108,7 @@ func ExecuteRedisClusterCommand(ctx context.Context, cr *redisv1beta2.RedisClust
 	}
 
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+		pass, err := getRedisPassword(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
 		if err != nil {
 			logger.Error(err, "Error in getting redis password")
 		}
@@ -133,8 +133,7 @@ func getRedisTLSArgs(tlsConfig *redisv1beta2.TLSConfig, clientHost string) []str
 }
 
 // createRedisReplicationCommand will create redis replication creation command
-func createRedisReplicationCommand(cr *redisv1beta2.RedisCluster, leaderPod RedisDetails, followerPod RedisDetails) []string {
-	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
+func createRedisReplicationCommand(client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster, leaderPod RedisDetails, followerPod RedisDetails) []string {
 	cmd := []string{"redis-cli", "--cluster", "add-node"}
 	if *cr.Spec.ClusterVersion == "v7" {
 		cmd = append(cmd, getRedisHostname(followerPod, cr, "follower")+":6379")
@@ -146,7 +145,7 @@ func createRedisReplicationCommand(cr *redisv1beta2.RedisCluster, leaderPod Redi
 	cmd = append(cmd, "--cluster-slave")
 
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+		pass, err := getRedisPassword(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
 		if err != nil {
 			logger.Error(err, "Error in getting redis password")
 		}
@@ -159,14 +158,13 @@ func createRedisReplicationCommand(cr *redisv1beta2.RedisCluster, leaderPod Redi
 }
 
 // ExecuteRedisReplicationCommand will execute the replication command
-func ExecuteRedisReplicationCommand(ctx context.Context, cr *redisv1beta2.RedisCluster) {
+func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster) {
 	var podIP string
-	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 	followerCounts := cr.Spec.GetReplicaCounts("follower")
 	leaderCounts := cr.Spec.GetReplicaCounts("leader")
 	followerPerLeader := followerCounts / leaderCounts
 
-	nodes := checkRedisCluster(ctx, cr)
+	nodes := checkRedisCluster(ctx, client, logger, cr)
 	for followerIdx := 0; followerIdx <= int(followerCounts)-1; {
 		for i := 0; i < int(followerPerLeader) && followerIdx <= int(followerCounts)-1; i++ {
 			followerPod := RedisDetails{
@@ -180,8 +178,8 @@ func ExecuteRedisReplicationCommand(ctx context.Context, cr *redisv1beta2.RedisC
 			podIP = getRedisServerIP(followerPod)
 			if !checkRedisNodePresence(cr, nodes, podIP) {
 				logger.V(1).Info("Adding node to cluster.", "Node.IP", podIP, "Follower.Pod", followerPod)
-				cmd := createRedisReplicationCommand(cr, leaderPod, followerPod)
-				redisClient := configureRedisClient(cr, followerPod.PodName)
+				cmd := createRedisReplicationCommand(client, logger, cr, leaderPod, followerPod)
+				redisClient := configureRedisClient(client, logger, cr, followerPod.PodName)
 				pong, err := redisClient.Ping(ctx).Result()
 				redisClient.Close()
 				if err != nil {
@@ -203,13 +201,12 @@ func ExecuteRedisReplicationCommand(ctx context.Context, cr *redisv1beta2.RedisC
 }
 
 // checkRedisCluster will check the redis cluster have sufficient nodes or not
-func checkRedisCluster(ctx context.Context, cr *redisv1beta2.RedisCluster) [][]string {
-	var client *redis.Client
-	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
-	client = configureRedisClient(cr, cr.ObjectMeta.Name+"-leader-0")
-	defer client.Close()
+func checkRedisCluster(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster) [][]string {
+	var redisClient *redis.Client
+	redisClient = configureRedisClient(client, logger, cr, cr.ObjectMeta.Name+"-leader-0")
+	defer redisClient.Close()
 	cmd := redis.NewStringCmd(ctx, "cluster", "nodes")
-	err := client.Process(ctx, cmd)
+	err := redisClient.Process(ctx, cmd)
 	if err != nil {
 		logger.Error(err, "Redis command failed with this error")
 	}
@@ -231,14 +228,13 @@ func checkRedisCluster(ctx context.Context, cr *redisv1beta2.RedisCluster) [][]s
 }
 
 // ExecuteFailoverOperation will execute redis failover operations
-func ExecuteFailoverOperation(ctx context.Context, cr *redisv1beta2.RedisCluster) error {
-	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
-	err := executeFailoverCommand(ctx, cr, "leader")
+func ExecuteFailoverOperation(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster) error {
+	err := executeFailoverCommand(ctx, client, logger, cr, "leader")
 	if err != nil {
 		logger.Error(err, "Redis command failed for leader nodes")
 		return err
 	}
-	err = executeFailoverCommand(ctx, cr, "follower")
+	err = executeFailoverCommand(ctx, client, logger, cr, "follower")
 	if err != nil {
 		logger.Error(err, "Redis command failed for follower nodes")
 		return err
@@ -247,13 +243,12 @@ func ExecuteFailoverOperation(ctx context.Context, cr *redisv1beta2.RedisCluster
 }
 
 // executeFailoverCommand will execute failover command
-func executeFailoverCommand(ctx context.Context, cr *redisv1beta2.RedisCluster, role string) error {
-	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
+func executeFailoverCommand(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster, role string) error {
 	replicas := cr.Spec.GetReplicaCounts(role)
 	podName := fmt.Sprintf("%s-%s-", cr.ObjectMeta.Name, role)
 	for podCount := 0; podCount <= int(replicas)-1; podCount++ {
 		logger.V(1).Info("Executing redis failover operations", "Redis Node", podName+strconv.Itoa(podCount))
-		client := configureRedisClient(cr, podName+strconv.Itoa(podCount))
+		client := configureRedisClient(client, logger, cr, podName+strconv.Itoa(podCount))
 		defer client.Close()
 		cmd := redis.NewStringCmd(ctx, "cluster", "reset")
 		err := client.Process(ctx, cmd)
@@ -282,10 +277,9 @@ func executeFailoverCommand(ctx context.Context, cr *redisv1beta2.RedisCluster, 
 }
 
 // CheckRedisNodeCount will check the count of redis nodes
-func CheckRedisNodeCount(ctx context.Context, cr *redisv1beta2.RedisCluster, nodeType string) int32 {
+func CheckRedisNodeCount(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster, nodeType string) int32 {
 	var redisNodeType string
-	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
-	clusterNodes := checkRedisCluster(ctx, cr)
+	clusterNodes := checkRedisCluster(ctx, client, logger, cr)
 	count := len(clusterNodes)
 
 	switch nodeType {
@@ -311,11 +305,9 @@ func CheckRedisNodeCount(ctx context.Context, cr *redisv1beta2.RedisCluster, nod
 }
 
 // CheckRedisClusterState will check the redis cluster state
-func CheckRedisClusterState(ctx context.Context, cr *redisv1beta2.RedisCluster) int {
-	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
-	clusterNodes := checkRedisCluster(ctx, cr)
+func CheckRedisClusterState(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster) int {
+	clusterNodes := checkRedisCluster(ctx, client, logger, cr)
 	count := 0
-
 	for _, node := range clusterNodes {
 		if strings.Contains(node[2], "fail") || strings.Contains(node[7], "disconnected") {
 			count++
@@ -326,34 +318,33 @@ func CheckRedisClusterState(ctx context.Context, cr *redisv1beta2.RedisCluster) 
 }
 
 // configureRedisClient will configure the Redis Client
-func configureRedisClient(cr *redisv1beta2.RedisCluster, podName string) *redis.Client {
-	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
+func configureRedisClient(client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster, podName string) *redis.Client {
 	redisInfo := RedisDetails{
 		PodName:   podName,
 		Namespace: cr.Namespace,
 	}
-	var client *redis.Client
+	var redisClient *redis.Client
 
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+		pass, err := getRedisPassword(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
 		if err != nil {
 			logger.Error(err, "Error in getting redis password")
 		}
-		client = redis.NewClient(&redis.Options{
+		redisClient = redis.NewClient(&redis.Options{
 			Addr:      getRedisServerIP(redisInfo) + ":6379",
 			Password:  pass,
 			DB:        0,
 			TLSConfig: getRedisTLSConfig(cr, redisInfo),
 		})
 	} else {
-		client = redis.NewClient(&redis.Options{
+		redisClient = redis.NewClient(&redis.Options{
 			Addr:      getRedisServerIP(redisInfo) + ":6379",
 			Password:  "",
 			DB:        0,
 			TLSConfig: getRedisTLSConfig(cr, redisInfo),
 		})
 	}
-	return client
+	return redisClient
 }
 
 // executeCommand will execute the commands in pod
@@ -448,39 +439,37 @@ func generateRedisManagerLogger(namespace, name string) logr.Logger {
 }
 
 // configureRedisClient will configure the Redis Client
-func configureRedisReplicationClient(cr *redisv1beta2.RedisReplication, podName string) *redis.Client {
-	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
+func configureRedisReplicationClient(client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication, podName string) *redis.Client {
 	redisInfo := RedisDetails{
 		PodName:   podName,
 		Namespace: cr.Namespace,
 	}
-	var client *redis.Client
+	var redisClient *redis.Client
 
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+		pass, err := getRedisPassword(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
 		if err != nil {
 			logger.Error(err, "Error in getting redis password")
 		}
-		client = redis.NewClient(&redis.Options{
+		redisClient = redis.NewClient(&redis.Options{
 			Addr:      getRedisServerIP(redisInfo) + ":6379",
 			Password:  pass,
 			DB:        0,
 			TLSConfig: getRedisReplicationTLSConfig(cr, redisInfo),
 		})
 	} else {
-		client = redis.NewClient(&redis.Options{
+		redisClient = redis.NewClient(&redis.Options{
 			Addr:      getRedisServerIP(redisInfo) + ":6379",
 			Password:  "",
 			DB:        0,
 			TLSConfig: getRedisReplicationTLSConfig(cr, redisInfo),
 		})
 	}
-	return client
+	return redisClient
 }
 
 // Get Redis nodes by it's role i.e. master, slave and sentinel
-func GetRedisNodesByRole(ctx context.Context, cr *redisv1beta2.RedisReplication, redisRole string) []string {
-	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
+func GetRedisNodesByRole(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication, redisRole string) []string {
 	statefulset, err := GetStatefulSet(cr.Namespace, cr.Name)
 	if err != nil {
 		logger.Error(err, "Failed to Get the Statefulset of the", "custom resource", cr.Name, "in namespace", cr.Namespace)
@@ -492,7 +481,7 @@ func GetRedisNodesByRole(ctx context.Context, cr *redisv1beta2.RedisReplication,
 	for i := 0; i < int(replicas); i++ {
 
 		podName := statefulset.Name + "-" + strconv.Itoa(i)
-		podRole := checkRedisServerRole(ctx, cr, podName)
+		podRole := checkRedisServerRole(ctx, client, logger, cr, podName)
 		if podRole == redisRole {
 			pods = append(pods, podName)
 		}
@@ -502,10 +491,8 @@ func GetRedisNodesByRole(ctx context.Context, cr *redisv1beta2.RedisReplication,
 }
 
 // Check the Redis Server Role i.e. master, slave and sentinel
-func checkRedisServerRole(ctx context.Context, cr *redisv1beta2.RedisReplication, podName string) string {
-	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
-
-	redisClient := configureRedisReplicationClient(cr, podName)
+func checkRedisServerRole(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication, podName string) string {
+	redisClient := configureRedisReplicationClient(client, logger, cr, podName)
 	defer redisClient.Close()
 	info, err := redisClient.Info(ctx, "replication").Result()
 	if err != nil {
@@ -525,13 +512,10 @@ func checkRedisServerRole(ctx context.Context, cr *redisv1beta2.RedisReplication
 }
 
 // checkAttachedSlave would return redis pod name which has slave
-func checkAttachedSlave(ctx context.Context, cr *redisv1beta2.RedisReplication, masterPods []string) string {
-	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
-
+func checkAttachedSlave(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication, masterPods []string) string {
 	for _, podName := range masterPods {
-
 		connected_slaves := ""
-		redisClient := configureRedisReplicationClient(cr, podName)
+		redisClient := configureRedisReplicationClient(client, logger, cr, podName)
 		defer redisClient.Close()
 		info, err := redisClient.Info(ctx, "replication").Result()
 		if err != nil {
@@ -558,11 +542,9 @@ func checkAttachedSlave(ctx context.Context, cr *redisv1beta2.RedisReplication, 
 
 }
 
-func CreateMasterSlaveReplication(ctx context.Context, cr *redisv1beta2.RedisReplication, masterPods []string, slavePods []string) error {
-	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
-
+func CreateMasterSlaveReplication(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication, masterPods []string, slavePods []string) error {
 	var realMasterPod string
-	realMasterPod = checkAttachedSlave(ctx, cr, masterPods)
+	realMasterPod = checkAttachedSlave(ctx, client, logger, cr, masterPods)
 
 	if len(slavePods) < 1 {
 		realMasterPod = masterPods[0]
@@ -580,7 +562,7 @@ func CreateMasterSlaveReplication(ctx context.Context, cr *redisv1beta2.RedisRep
 	for i := 0; i < len(masterPods); i++ {
 		if masterPods[i] != realMasterPod {
 
-			redisClient := configureRedisReplicationClient(cr, masterPods[i])
+			redisClient := configureRedisReplicationClient(client, logger, cr, masterPods[i])
 			defer redisClient.Close()
 			logger.V(1).Info("Setting the", "pod", masterPods[i], "to slave of", realMasterPod)
 			err := redisClient.SlaveOf(ctx, realMasterPodIP, "6379").Err()
