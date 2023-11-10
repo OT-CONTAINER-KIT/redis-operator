@@ -73,15 +73,12 @@ jobs:
         with:
           go-version: ${{ env.GOLANG_VERSION }}
           
-      # Populate the Go module cache by downloading dependencies
       - name: Download Go modules
         run: go mod download
       
-      # Add a step to check the available disk space
       - name: Check disk space
         run: df -h
       
-      # List files in the Go module cache directory
       - name: List Go module cache
         run: ls -la $(go env GOPATH)/pkg/mod
       

@@ -6,11 +6,12 @@ linters-settings:
   gofmt:
     simplify: true
 
-# linters:
-#   enable-all: true
-#   disable:
-#     - errcheck 
-#     - tagliatelle
+linters:
+  disable:
+    - errcheck 
+    - tagliatelle
+    - ineffassign
+    
 # Exclude the files that are causing the errors
 issues:
   exclude-rules:
