@@ -336,6 +336,6 @@ func getRedisReplicationMasterIP(ctx context.Context, client kubernetes.Interfac
 		Namespace: replicationNamespace,
 	}
 
-	realMasterPodIP := getRedisServerIP(realMasterInfo)
+	realMasterPodIP := getRedisServerIP(client, logger, realMasterInfo)
 	return realMasterPodIP
 }

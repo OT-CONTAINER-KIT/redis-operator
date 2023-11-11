@@ -8,6 +8,11 @@ import (
 	"testing"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	"github.com/go-logr/logr/testr"
+	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sClientFake "k8s.io/client-go/kubernetes/fake"
 )
 
 func TestCheckRedisNodePresence(t *testing.T) {
@@ -37,4 +42,149 @@ func TestCheckRedisNodePresence(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetRedisServerIP(t *testing.T) {
+	tests := []struct {
+		name        string
+		setup       func() *k8sClientFake.Clientset
+		redisInfo   RedisDetails
+		expectedIP  string
+		expectEmpty bool
+	}{
+		{
+			name: "Successfully retrieve IPv4 address",
+			setup: func() *k8sClientFake.Clientset {
+				return k8sClientFake.NewSimpleClientset(&corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "redis-pod",
+						Namespace: "default",
+					},
+					Status: corev1.PodStatus{
+						PodIP: "192.168.1.1",
+					},
+				})
+			},
+			redisInfo: RedisDetails{
+				PodName:   "redis-pod",
+				Namespace: "default",
+			},
+			expectedIP:  "192.168.1.1",
+			expectEmpty: false,
+		},
+		{
+			name: "Successfully retrieve IPv6 address",
+			setup: func() *k8sClientFake.Clientset {
+				return k8sClientFake.NewSimpleClientset(&corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "redis-pod",
+						Namespace: "default",
+					},
+					Status: corev1.PodStatus{
+						PodIP: "2001:0db8:85a3:0000:0000:8a2e:0370:7334",
+					},
+				})
+			},
+			redisInfo: RedisDetails{
+				PodName:   "redis-pod",
+				Namespace: "default",
+			},
+			expectedIP:  "[2001:0db8:85a3:0000:0000:8a2e:0370:7334]",
+			expectEmpty: false,
+		},
+		{
+			name: "Error retrieving pod results in empty IP",
+			setup: func() *k8sClientFake.Clientset {
+				client := k8sClientFake.NewSimpleClientset()
+				return client
+			},
+			redisInfo: RedisDetails{
+				PodName:   "nonexistent-pod",
+				Namespace: "default",
+			},
+			expectEmpty: true,
+		},
+		{
+			name: "Empty results in empty IP",
+			setup: func() *k8sClientFake.Clientset {
+				return k8sClientFake.NewSimpleClientset(&corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "redis-pod",
+						Namespace: "default",
+					},
+					Status: corev1.PodStatus{
+						PodIP: "",
+					},
+				})
+			},
+			redisInfo: RedisDetails{
+				PodName:   "redis-pod",
+				Namespace: "default",
+			},
+			expectEmpty: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := tt.setup()
+			logger := testr.New(t)
+			redisIP := getRedisServerIP(client, logger, tt.redisInfo)
+
+			if tt.expectEmpty {
+				assert.Empty(t, redisIP, "Expected an empty IP address")
+			} else {
+				assert.Equal(t, tt.expectedIP, redisIP, "Expected and actual IP do not match")
+			}
+		})
+	}
+}
+
+func TestGetRedisHostname(t *testing.T) {
+	tests := []struct {
+		name         string
+		redisInfo    RedisDetails
+		redisCluster *redisv1beta2.RedisCluster
+		role         string
+		expected     string
+	}{
+		{
+			name: "standard configuration",
+			redisInfo: RedisDetails{
+				PodName:   "redis-pod",
+				Namespace: "default",
+			},
+			redisCluster: &redisv1beta2.RedisCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "mycluster",
+					Namespace: "default",
+				},
+			},
+			role:     "master",
+			expected: "redis-pod.mycluster-master-headless.default.svc",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fqdn := getRedisHostname(tt.redisInfo, tt.redisCluster, tt.role)
+			assert.Equal(t, tt.expected, fqdn, "FQDN should match the expected output")
+		})
+	}
+}
+
+func TestCreateSingleLeaderRedisCommand(t *testing.T) {
+	logger := testr.New(t)
+	cr := &redisv1beta2.RedisCluster{}
+	cmd := CreateSingleLeaderRedisCommand(logger, cr)
+
+	assert.Equal(t, "redis-cli", cmd[0])
+	assert.Equal(t, "CLUSTER", cmd[1])
+	assert.Equal(t, "ADDSLOTS", cmd[2])
+
+	expectedLength := 16384 + 3
+
+	assert.Equal(t, expectedLength, len(cmd))
+	assert.Equal(t, "0", cmd[3])
+	assert.Equal(t, "16383", cmd[expectedLength-1])
 }
