@@ -239,7 +239,7 @@ func TestCreateMultipleLeaderRedisCommand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client := mock_utils.CreateFakeClientWithPodIPs(tt.redisCluster)
+			client := mock_utils.CreateFakeClientWithPodIPs_LeaderPods(tt.redisCluster)
 			logger := testr.New(t)
 
 			cmd := CreateMultipleLeaderRedisCommand(client, logger, tt.redisCluster)
@@ -277,72 +277,81 @@ func TestGetRedisTLSArgs(t *testing.T) {
 	}
 }
 
-// func TestCreateRedisReplicationCommand(t *testing.T) {
-// 	tests := []struct {
-// 		name            string
-// 		redisCluster    *redisv1beta2.RedisCluster
-// 		leaderPod       RedisDetails
-// 		followerPod     RedisDetails
-// 		expectedCommand []string
-// 	}{
-// 		{
-// 			name: "Test case with cluster version v7",
-// 			redisCluster: &redisv1beta2.RedisCluster{
-// 				ObjectMeta: metav1.ObjectMeta{
-// 					Name:      "redis-cluster",
-// 					Namespace: "default",
-// 				},
-// 				Spec: redisv1beta2.RedisClusterSpec{
-// 					Size:           pointer.Int32(3),
-// 					ClusterVersion: pointer.String("v7"),
-// 				},
-// 			},
-// 			leaderPod: RedisDetails{
-// 				PodName:   "redis-cluster-leader-0",
-// 				Namespace: "default",
-// 			},
-// 			followerPod: RedisDetails{
-// 				PodName:   "redis-cluster-follower-0",
-// 				Namespace: "default",
-// 			},
-// 			expectedCommand: []string{},
-// 		},
-// 		{
-// 			name: "Test case without cluster version v7",
-// 			redisCluster: &redisv1beta2.RedisCluster{
-// 				ObjectMeta: metav1.ObjectMeta{
-// 					Name:      "mycluster",
-// 					Namespace: "default",
-// 				},
-// 				Spec: redisv1beta2.RedisClusterSpec{
-// 					Size: pointer.Int32(3),
-// 				},
-// 			},
-// 			leaderPod: RedisDetails{
-// 				PodName:   "redis-cluster-leader-0",
-// 				Namespace: "default",
-// 			},
-// 			followerPod: RedisDetails{
-// 				PodName:   "redis-cluster-follower-0",
-// 				Namespace: "default",
-// 			},
-// 			expectedCommand: []string{},
-// 		},
-// 	}
+func TestCreateRedisReplicationCommand(t *testing.T) {
+	tests := []struct {
+		name            string
+		redisCluster    *redisv1beta2.RedisCluster
+		leaderPod       RedisDetails
+		followerPod     RedisDetails
+		expectedCommand []string
+	}{
+		{
+			name: "Test case with cluster version v7",
+			redisCluster: &redisv1beta2.RedisCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "redis-cluster",
+					Namespace: "default",
+				},
+				Spec: redisv1beta2.RedisClusterSpec{
+					Size:           pointer.Int32(3),
+					ClusterVersion: pointer.String("v7"),
+				},
+			},
+			leaderPod: RedisDetails{
+				PodName:   "redis-cluster-leader-0",
+				Namespace: "default",
+			},
+			followerPod: RedisDetails{
+				PodName:   "redis-cluster-follower-0",
+				Namespace: "default",
+			},
+			expectedCommand: []string{
+				"redis-cli", "--cluster", "add-node",
+				"redis-cluster-follower-0.redis-cluster-follower-headless.default.svc:6379",
+				"redis-cluster-leader-0.redis-cluster-leader-headless.default.svc:6379",
+				"--cluster-slave",
+			},
+		},
+		{
+			name: "Test case without cluster version v7",
+			redisCluster: &redisv1beta2.RedisCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "redis-cluster",
+					Namespace: "default",
+				},
+				Spec: redisv1beta2.RedisClusterSpec{
+					Size: pointer.Int32(3),
+				},
+			},
+			leaderPod: RedisDetails{
+				PodName:   "redis-cluster-leader-0",
+				Namespace: "default",
+			},
+			followerPod: RedisDetails{
+				PodName:   "redis-cluster-follower-0",
+				Namespace: "default",
+			},
+			expectedCommand: []string{
+				"redis-cli", "--cluster", "add-node",
+				"192.168.2.1:6379",
+				"192.168.1.1:6379",
+				"--cluster-slave",
+			},
+		},
+	}
 
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			client := mock_utils.CreateFakeClientWithPodIPs(tt.redisCluster)
-// 			logger := testr.New(t)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := mock_utils.CreateFakeClientWithPodIPs(tt.redisCluster)
+			logger := testr.New(t)
 
-// 			// Call the function under test
-// 			cmd := createRedisReplicationCommand(client, logger, tt.redisCluster, tt.leaderPod, tt.followerPod)
+			cmd := createRedisReplicationCommand(client, logger, tt.redisCluster, tt.leaderPod, tt.followerPod)
 
-// 			// Assert the command is as expected using testify
-// 			assert.Equal(t, tt.expectedCommand, cmd)
-// 		})
-// 	}
-// }
+			// Assert the command is as expected using testify
+			assert.Equal(t, tt.expectedCommand, cmd)
+		})
+	}
+}
 
 func TestGetContainerID(t *testing.T) {
 	tests := []struct {
