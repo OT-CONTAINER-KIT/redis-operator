@@ -120,7 +120,7 @@ func ExecuteRedisClusterCommand(ctx context.Context, client kubernetes.Interface
 	}
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.ObjectMeta.Name+"-leader-0")...)
 	logger.V(1).Info("Redis cluster creation command is", "Command", cmd)
-	executeCommand(cr, cmd, cr.ObjectMeta.Name+"-leader-0")
+	executeCommand(client, logger, cr, cmd, cr.ObjectMeta.Name+"-leader-0")
 }
 
 func getRedisTLSArgs(tlsConfig *redisv1beta2.TLSConfig, clientHost string) []string {
@@ -197,7 +197,7 @@ func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Inter
 					continue
 				}
 				if pong == "PONG" {
-					executeCommand(cr, cmd, cr.ObjectMeta.Name+"-leader-0")
+					executeCommand(client, logger, cr, cmd, cr.ObjectMeta.Name+"-leader-0")
 				} else {
 					logger.V(1).Info("Skipping execution of command due to failed Redis ping", "Follower.Pod", followerPod)
 				}
@@ -357,23 +357,17 @@ func configureRedisClient(client kubernetes.Interface, logger logr.Logger, cr *r
 }
 
 // executeCommand will execute the commands in pod
-func executeCommand(cr *redisv1beta2.RedisCluster, cmd []string, podName string) {
+func executeCommand(client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster, cmd []string, podName string) {
 	var (
 		execOut bytes.Buffer
 		execErr bytes.Buffer
 	)
-	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
-	client, err := GenerateK8sClient(GenerateK8sConfig)
-	if err != nil {
-		logger.Error(err, "Could not generate kubernetes client")
-		return
-	}
 	config, err := GenerateK8sConfig()
 	if err != nil {
 		logger.Error(err, "Could not find pod to execute")
 		return
 	}
-	targetContainer, pod := getContainerID(cr, podName)
+	targetContainer, pod := getContainerID(client, logger, cr, podName)
 	if targetContainer < 0 {
 		logger.Error(err, "Could not find pod to execute")
 		return
@@ -405,26 +399,30 @@ func executeCommand(cr *redisv1beta2.RedisCluster, cmd []string, podName string)
 }
 
 // getContainerID will return the id of container from pod
-func getContainerID(cr *redisv1beta2.RedisCluster, podName string) (int, *corev1.Pod) {
-	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
-	client, err := GenerateK8sClient(GenerateK8sConfig)
-	if err != nil {
-		logger.Error(err, "Could not generate kubernetes client")
-		return -1, nil
-	}
+func getContainerID(client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster, podName string) (int, *corev1.Pod) {
 	pod, err := client.CoreV1().Pods(cr.Namespace).Get(context.TODO(), podName, metav1.GetOptions{})
 	if err != nil {
-		logger.Error(err, "Could not get pod info")
+		logger.Error(err, "Could not get pod info", "Pod Name", podName, "Namespace", cr.Namespace)
+		return -1, nil
 	}
+
+	logger.Info("Pod info retrieved successfully", "Pod Name", podName, "Namespace", cr.Namespace)
 
 	targetContainer := -1
 	for containerID, tr := range pod.Spec.Containers {
-		logger.V(1).Info("Pod Counted successfully", "Count", containerID, "Container Name", tr.Name)
+		logger.V(1).Info("Inspecting container", "Pod Name", podName, "Container ID", containerID, "Container Name", tr.Name)
 		if tr.Name == cr.ObjectMeta.Name+"-leader" {
 			targetContainer = containerID
+			logger.Info("Leader container found", "Container ID", containerID, "Container Name", tr.Name)
 			break
 		}
 	}
+
+	if targetContainer == -1 {
+		logger.Info("Leader container not found in pod", "Pod Name", podName)
+		return -1, nil
+	}
+
 	return targetContainer, pod
 }
 

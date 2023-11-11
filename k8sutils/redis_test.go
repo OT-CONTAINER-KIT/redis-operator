@@ -1,4 +1,3 @@
-// checkRedisNodePresence
 package k8sutils
 
 import (
@@ -218,7 +217,7 @@ func TestCreateMultipleLeaderRedisCommand(t *testing.T) {
 			},
 		},
 		{
-			name: "Multiple leaders cluster not v7",
+			name: "Multiple leaders cluster without version v7",
 			redisCluster: &redisv1beta2.RedisCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "mycluster",
@@ -274,6 +273,164 @@ func TestGetRedisTLSArgs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd := getRedisTLSArgs(tt.tlsConfig, tt.clientHost)
 			assert.Equal(t, tt.expected, cmd, "Expected command arguments do not match")
+		})
+	}
+}
+
+// func TestCreateRedisReplicationCommand(t *testing.T) {
+// 	tests := []struct {
+// 		name            string
+// 		redisCluster    *redisv1beta2.RedisCluster
+// 		leaderPod       RedisDetails
+// 		followerPod     RedisDetails
+// 		expectedCommand []string
+// 	}{
+// 		{
+// 			name: "Test case with cluster version v7",
+// 			redisCluster: &redisv1beta2.RedisCluster{
+// 				ObjectMeta: metav1.ObjectMeta{
+// 					Name:      "redis-cluster",
+// 					Namespace: "default",
+// 				},
+// 				Spec: redisv1beta2.RedisClusterSpec{
+// 					Size:           pointer.Int32(3),
+// 					ClusterVersion: pointer.String("v7"),
+// 				},
+// 			},
+// 			leaderPod: RedisDetails{
+// 				PodName:   "redis-cluster-leader-0",
+// 				Namespace: "default",
+// 			},
+// 			followerPod: RedisDetails{
+// 				PodName:   "redis-cluster-follower-0",
+// 				Namespace: "default",
+// 			},
+// 			expectedCommand: []string{},
+// 		},
+// 		{
+// 			name: "Test case without cluster version v7",
+// 			redisCluster: &redisv1beta2.RedisCluster{
+// 				ObjectMeta: metav1.ObjectMeta{
+// 					Name:      "mycluster",
+// 					Namespace: "default",
+// 				},
+// 				Spec: redisv1beta2.RedisClusterSpec{
+// 					Size: pointer.Int32(3),
+// 				},
+// 			},
+// 			leaderPod: RedisDetails{
+// 				PodName:   "redis-cluster-leader-0",
+// 				Namespace: "default",
+// 			},
+// 			followerPod: RedisDetails{
+// 				PodName:   "redis-cluster-follower-0",
+// 				Namespace: "default",
+// 			},
+// 			expectedCommand: []string{},
+// 		},
+// 	}
+
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			client := mock_utils.CreateFakeClientWithPodIPs(tt.redisCluster)
+// 			logger := testr.New(t)
+
+// 			// Call the function under test
+// 			cmd := createRedisReplicationCommand(client, logger, tt.redisCluster, tt.leaderPod, tt.followerPod)
+
+// 			// Assert the command is as expected using testify
+// 			assert.Equal(t, tt.expectedCommand, cmd)
+// 		})
+// 	}
+// }
+
+func TestGetContainerID(t *testing.T) {
+	tests := []struct {
+		name         string
+		setupPod     *corev1.Pod
+		redisCluster *redisv1beta2.RedisCluster
+		expectedID   int
+		expectError  bool
+	}{
+		{
+			name: "Successful retrieval of leader container",
+			setupPod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "redis-cluster-leader-0",
+					Namespace: "default",
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name: "redis-cluster-leader",
+						},
+						{
+							Name: "another-container",
+						},
+					},
+				},
+			},
+			redisCluster: &redisv1beta2.RedisCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "redis-cluster",
+					Namespace: "default",
+				},
+			},
+			expectedID:  0,
+			expectError: false,
+		},
+		{
+			name:     "Pod not found",
+			setupPod: &corev1.Pod{},
+			redisCluster: &redisv1beta2.RedisCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "redis-cluster",
+					Namespace: "default",
+				},
+			},
+			expectedID:  -1,
+			expectError: true,
+		},
+		{
+			name: "Leader container not found in the pod",
+			setupPod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "redis-cluster-leader-0",
+					Namespace: "default",
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name: "non-leader-container",
+						},
+					},
+				},
+			},
+			redisCluster: &redisv1beta2.RedisCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "redis-cluster",
+					Namespace: "default",
+				},
+			},
+			expectedID:  -1,
+			expectError: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := k8sClientFake.NewSimpleClientset(test.setupPod)
+			logger := testr.New(t)
+			id, pod := getContainerID(client, logger, test.redisCluster, test.setupPod.Name)
+			if test.expectError {
+				assert.Nil(t, pod, "Expected no pod but got one")
+				assert.Equal(t, test.expectedID, id, "Expected ID does not match")
+			} else {
+				assert.NotNil(t, pod, "Expected a pod but got none")
+				assert.Equal(t, test.expectedID, id, "Expected ID does not match")
+				assert.Equal(t, test.setupPod.Name, pod.GetName(), "Pod names do not match")
+				assert.Equal(t, test.setupPod.Namespace, pod.GetNamespace(), "Pod namespaces do not match")
+			}
 		})
 	}
 }
