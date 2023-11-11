@@ -49,7 +49,6 @@ func CreateFakeClientWithPodIPs(cr *redisv1beta2.RedisCluster) *fake.Clientset {
 	}
 	for i := 0; i < int(followerReplicas); i++ {
 		podName := cr.ObjectMeta.Name + "-follower-" + strconv.Itoa(i)
-		// Adjust the index to place follower pods after leader pods
 		pods[i+int(leaderReplicas)] = &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      podName,
@@ -62,4 +61,47 @@ func CreateFakeClientWithPodIPs(cr *redisv1beta2.RedisCluster) *fake.Clientset {
 	}
 
 	return fake.NewSimpleClientset(pods...)
+}
+
+func CreateFakeClientWithSecrets(cr *redisv1beta2.RedisCluster, secretName, secretKey, secretValue string) *fake.Clientset {
+	leaderReplicas := cr.Spec.GetReplicaCounts("leader")
+	followerReplicas := cr.Spec.GetReplicaCounts("follower")
+	pods := make([]runtime.Object, leaderReplicas+followerReplicas)
+
+	for i := 0; i < int(leaderReplicas); i++ {
+		podName := cr.ObjectMeta.Name + "-leader-" + strconv.Itoa(i)
+		pods[i] = &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      podName,
+				Namespace: cr.Namespace,
+			},
+			Status: corev1.PodStatus{
+				PodIP: fmt.Sprintf("192.168.1.%d", i+1),
+			},
+		}
+	}
+	for i := 0; i < int(followerReplicas); i++ {
+		podName := cr.ObjectMeta.Name + "-follower-" + strconv.Itoa(i)
+		pods[i+int(leaderReplicas)] = &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      podName,
+				Namespace: cr.Namespace,
+			},
+			Status: corev1.PodStatus{
+				PodIP: fmt.Sprintf("192.168.2.%d", i+1),
+			},
+		}
+	}
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: cr.Namespace,
+		},
+		Data: map[string][]byte{
+			secretKey: []byte(secretValue),
+		},
+	}
+
+	return fake.NewSimpleClientset(append(pods, secret)...)
 }
