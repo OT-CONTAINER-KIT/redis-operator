@@ -248,3 +248,32 @@ func TestCreateMultipleLeaderRedisCommand(t *testing.T) {
 		})
 	}
 }
+
+func TestGetRedisTLSArgs(t *testing.T) {
+	tests := []struct {
+		name       string
+		tlsConfig  *redisv1beta2.TLSConfig
+		clientHost string
+		expected   []string
+	}{
+		{
+			name:       "with TLS configuration",
+			tlsConfig:  &redisv1beta2.TLSConfig{},
+			clientHost: "redis-host",
+			expected:   []string{"--tls", "--cacert", "/tls/ca.crt", "-h", "redis-host"},
+		},
+		{
+			name:       "without TLS configuration",
+			tlsConfig:  nil,
+			clientHost: "redis-host",
+			expected:   []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := getRedisTLSArgs(tt.tlsConfig, tt.clientHost)
+			assert.Equal(t, tt.expected, cmd, "Expected command arguments do not match")
+		})
+	}
+}
