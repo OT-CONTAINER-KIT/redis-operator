@@ -138,25 +138,32 @@ func getRedisTLSArgs(tlsConfig *redisv1beta2.TLSConfig, clientHost string) []str
 // createRedisReplicationCommand will create redis replication creation command
 func createRedisReplicationCommand(client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster, leaderPod RedisDetails, followerPod RedisDetails) []string {
 	cmd := []string{"redis-cli", "--cluster", "add-node"}
-	if *cr.Spec.ClusterVersion == "v7" {
-		cmd = append(cmd, getRedisHostname(followerPod, cr, "follower")+":6379")
-		cmd = append(cmd, getRedisHostname(leaderPod, cr, "leader")+":6379")
+	var followerAddress, leaderAddress string
+
+	if cr.Spec.ClusterVersion != nil && *cr.Spec.ClusterVersion == "v7" {
+		followerAddress = getRedisHostname(followerPod, cr, "follower") + ":6379"
+		leaderAddress = getRedisHostname(leaderPod, cr, "leader") + ":6379"
 	} else {
-		cmd = append(cmd, getRedisServerIP(client, logger, followerPod)+":6379")
-		cmd = append(cmd, getRedisServerIP(client, logger, leaderPod)+":6379")
+		followerAddress = getRedisServerIP(client, logger, followerPod) + ":6379"
+		leaderAddress = getRedisServerIP(client, logger, leaderPod) + ":6379"
 	}
-	cmd = append(cmd, "--cluster-slave")
+
+	cmd = append(cmd, followerAddress, leaderAddress, "--cluster-slave")
 
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
 		pass, err := getRedisPassword(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
 		if err != nil {
-			logger.Error(err, "Error in getting redis password")
+			logger.Error(err, "Failed to retrieve Redis password", "Secret", *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name)
 		}
-		cmd = append(cmd, "-a")
-		cmd = append(cmd, pass)
+		cmd = append(cmd, "-a", pass)
 	}
+
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, leaderPod.PodName)...)
-	logger.V(2).Info("Redis replication creation command is", "Command", cmd)
+
+	logger.V(1).Info("Generated Redis replication command",
+		"FollowerAddress", followerAddress, "LeaderAddress", leaderAddress,
+		"Command", cmd)
+
 	return cmd
 }
 
