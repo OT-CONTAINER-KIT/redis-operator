@@ -8,11 +8,13 @@ import (
 	"testing"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	mock_utils "github.com/OT-CONTAINER-KIT/redis-operator/mocks/utils"
 	"github.com/go-logr/logr/testr"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sClientFake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/utils/pointer"
 )
 
 func TestCheckRedisNodePresence(t *testing.T) {
@@ -187,4 +189,62 @@ func TestCreateSingleLeaderRedisCommand(t *testing.T) {
 	assert.Equal(t, expectedLength, len(cmd))
 	assert.Equal(t, "0", cmd[3])
 	assert.Equal(t, "16383", cmd[expectedLength-1])
+}
+
+func TestCreateMultipleLeaderRedisCommand(t *testing.T) {
+	tests := []struct {
+		name             string
+		redisCluster     *redisv1beta2.RedisCluster
+		expectedCommands []string
+	}{
+		{
+			name: "Multiple leaders cluster version v7",
+			redisCluster: &redisv1beta2.RedisCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "mycluster",
+					Namespace: "default",
+				},
+				Spec: redisv1beta2.RedisClusterSpec{
+					Size:           pointer.Int32(3),
+					ClusterVersion: pointer.String("v7"),
+				},
+			},
+			expectedCommands: []string{
+				"redis-cli", "--cluster", "create",
+				"mycluster-leader-0.mycluster-leader-headless.default.svc:6379",
+				"mycluster-leader-1.mycluster-leader-headless.default.svc:6379",
+				"mycluster-leader-2.mycluster-leader-headless.default.svc:6379",
+				"--cluster-yes",
+			},
+		},
+		{
+			name: "Multiple leaders cluster not v7",
+			redisCluster: &redisv1beta2.RedisCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "mycluster",
+					Namespace: "default",
+				},
+				Spec: redisv1beta2.RedisClusterSpec{
+					Size: pointer.Int32(3),
+				},
+			},
+			expectedCommands: []string{
+				"redis-cli", "--cluster", "create",
+				"192.168.1.1:6379",
+				"192.168.1.2:6379",
+				"192.168.1.3:6379",
+				"--cluster-yes",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := mock_utils.CreateFakeClientWithPodIPs(tt.redisCluster)
+			logger := testr.New(t)
+
+			cmd := CreateMultipleLeaderRedisCommand(client, logger, tt.redisCluster)
+			assert.Equal(t, tt.expectedCommands, cmd)
+		})
+	}
 }

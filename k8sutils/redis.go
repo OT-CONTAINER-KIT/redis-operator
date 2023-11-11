@@ -82,7 +82,7 @@ func CreateMultipleLeaderRedisCommand(client kubernetes.Interface, logger logr.L
 	for podCount := 0; podCount < int(replicas); podCount++ {
 		podName := cr.ObjectMeta.Name + "-leader-" + strconv.Itoa(podCount)
 		var address string
-		if *cr.Spec.ClusterVersion == "v7" {
+		if cr.Spec.ClusterVersion != nil && *cr.Spec.ClusterVersion == "v7" {
 			address = getRedisHostname(RedisDetails{PodName: podName, Namespace: cr.Namespace}, cr, "leader") + ":6379"
 		} else {
 			address = getRedisServerIP(client, logger, RedisDetails{PodName: podName, Namespace: cr.Namespace}) + ":6379"
@@ -91,7 +91,7 @@ func CreateMultipleLeaderRedisCommand(client kubernetes.Interface, logger logr.L
 	}
 	cmd = append(cmd, "--cluster-yes")
 
-	logger.V(1).Info("Redis cluster creation command", "CommandBase", cmd[:3], "ClusterVersion", *cr.Spec.ClusterVersion, "Replicas", replicas)
+	logger.V(1).Info("Redis cluster creation command", "CommandBase", cmd[:3], "Replicas", replicas)
 	return cmd
 }
 
