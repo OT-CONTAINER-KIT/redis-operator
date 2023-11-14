@@ -146,7 +146,7 @@ func finalizeRedisPVC(client kubernetes.Interface, logger logr.Logger, cr *redis
 func finalizeRedisClusterPVC(client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster) error {
 	for _, role := range []string{"leader", "follower"} {
 		for i := 0; i < int(cr.Spec.GetReplicaCounts(role)); i++ {
-			PVCName := fmt.Sprintf("%s-%s-%s-%d", cr.Name, cr.Name, role, i)
+			PVCName := fmt.Sprintf("%s-%s-%s-%s-%d", cr.Name, role, cr.Name, role, i)
 			err := client.CoreV1().PersistentVolumeClaims(cr.Namespace).Delete(context.TODO(), PVCName, metav1.DeleteOptions{})
 			if err != nil && !errors.IsNotFound(err) {
 				logger.Error(err, "Could not delete Persistent Volume Claim "+PVCName)
