@@ -297,7 +297,7 @@ func helperRedisClusterPVCs(clusterName string, namespace string) []*corev1.Pers
 	roles := []string{"leader", "follower"}
 	for _, role := range roles {
 		for i := 0; i < 3; i++ {
-			clusterPVCName := fmt.Sprintf("%s-%s-%s-%d", clusterName, clusterName, role, i)
+			clusterPVCName := fmt.Sprintf("%s-%s-%s-%s-%d", clusterName, role, clusterName, role, i)
 			clusterPVC := &corev1.PersistentVolumeClaim{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      clusterPVCName,
