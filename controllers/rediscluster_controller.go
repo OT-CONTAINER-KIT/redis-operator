@@ -75,30 +75,36 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// Check if the cluster is downscaled
 	if leaderReplicas < instance.Status.ReadyLeaderReplicas {
-		reqLogger.Info("Redis cluster is downscaling", "Ready.ReadyLeaderReplicas", instance.Status.ReadyLeaderReplicas, "Expected.ReadyLeaderReplicas", leaderReplicas)
+		reqLogger.Info("Redis cluster is downscaling...", "Ready.ReadyLeaderReplicas", instance.Status.ReadyLeaderReplicas, "Expected.ReadyLeaderReplicas", leaderReplicas)
 
-		//  Imp if the last index of leader sts is not leader make it then
-		// check whether the redis is leader or not ?
-		// if not true then make it leader pod
+		// loop count times to remove the latest leader/follower pod
+		count := instance.Status.ReadyLeaderReplicas - leaderReplicas
+		for i := int32(0); i < count; i++ {
+			reqLogger.Info("Redis cluster is downscaling", "The times of loop", i)
 
-		if !(k8sutils.VerifyLeaderPod(ctx, r.K8sClient, r.Log, instance)) {
-			// lastLeaderPod is slaving right now Make it the master Pod
-			// We have to bring a manual failover here to make it a leaderPod
-			// clusterFailover should also include the clusterReplicate since we have to map the followers to new leader
-			k8sutils.ClusterFailover(ctx, r.K8sClient, r.Log, instance)
+			//  Imp if the last index of leader sts is not leader make it then
+			// check whether the redis is leader or not ?
+			// if not true then make it leader pod
+			if !(k8sutils.VerifyLeaderPod(ctx, r.K8sClient, r.Log, instance)) {
+				// lastLeaderPod is slaving right now Make it the master Pod
+				// We have to bring a manual failover here to make it a leaderPod
+				// clusterFailover should also include the clusterReplicate since we have to map the followers to new leader
+				k8sutils.ClusterFailover(ctx, r.K8sClient, r.Log, instance)
+			}
+			// Step 1 Remove the Follower Node
+			k8sutils.RemoveRedisFollowerNodesFromCluster(ctx, r.K8sClient, r.Log, instance)
+			// Step 2 Reshard the Cluster
+			k8sutils.ReshardRedisCluster(r.K8sClient, r.Log, instance, true)
 		}
-		// Step 1 Remove the Follower Node
-		k8sutils.RemoveRedisFollowerNodesFromCluster(ctx, r.K8sClient, r.Log, instance)
-		// Step 2 Rehard the Cluster
-		k8sutils.ReshardRedisCluster(r.K8sClient, r.Log, instance, true)
+		reqLogger.Info("Redis cluster is downscaled... Rebalancing the cluster")
 		// Step 3 Rebalance the cluster
 		k8sutils.RebalanceRedisCluster(r.K8sClient, r.Log, instance)
-
-		err = k8sutils.UpdateRedisClusterStatus(instance, status.RedisClusterReady, status.ReadyClusterReason, instance.Status.ReadyLeaderReplicas-1, instance.Status.ReadyLeaderReplicas-1)
+		reqLogger.Info("Redis cluster is downscaled... Rebalancing the cluster is done")
+		err = k8sutils.UpdateRedisClusterStatus(instance, status.RedisClusterReady, status.ReadyClusterReason, leaderReplicas, leaderReplicas)
 		if err != nil {
 			return ctrl.Result{RequeueAfter: time.Second * 10}, err
 		}
-		return ctrl.Result{RequeueAfter: time.Second * 100}, nil
+		return ctrl.Result{RequeueAfter: time.Second * 60}, nil
 	}
 
 	// Mark the cluster status as initializing if there are no leader or follower nodes
@@ -133,7 +139,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
-	if int32(redisLeaderInfo.Status.ReadyReplicas) == leaderReplicas {
+	if redisLeaderInfo.Status.ReadyReplicas == leaderReplicas {
 
 		// Mark the cluster status as initializing if there are no follower nodes
 		if instance.Status.ReadyLeaderReplicas == 0 && instance.Status.ReadyFollowerReplicas == 0 {
@@ -169,12 +175,12 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	if leaderReplicas == 0 {
 		reqLogger.Info("Redis leaders Cannot be 0", "Ready.Replicas", strconv.Itoa(int(redisLeaderInfo.Status.ReadyReplicas)), "Expected.Replicas", leaderReplicas)
-		return ctrl.Result{RequeueAfter: time.Second * 120}, nil
+		return ctrl.Result{RequeueAfter: time.Second * 60}, nil
 	}
 
 	if !(redisLeaderInfo.Status.ReadyReplicas == leaderReplicas && redisFollowerInfo.Status.ReadyReplicas == followerReplicas) {
 		reqLogger.Info("Redis leader and follower nodes are not ready yet", "Ready.Replicas", strconv.Itoa(int(redisLeaderInfo.Status.ReadyReplicas)), "Expected.Replicas", leaderReplicas)
-		return ctrl.Result{RequeueAfter: time.Second * 120}, nil
+		return ctrl.Result{RequeueAfter: time.Second * 60}, nil
 	}
 
 	// Mark the cluster status as bootstrapping if all the leader and follower nodes are ready
