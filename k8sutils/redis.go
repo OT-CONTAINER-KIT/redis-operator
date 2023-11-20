@@ -406,20 +406,20 @@ func getContainerID(client kubernetes.Interface, logger logr.Logger, cr *redisv1
 		return -1, nil
 	}
 
-	logger.Info("Pod info retrieved successfully", "Pod Name", podName, "Namespace", cr.Namespace)
+	logger.V(1).Info("Pod info retrieved successfully", "Pod Name", podName, "Namespace", cr.Namespace)
 
 	targetContainer := -1
 	for containerID, tr := range pod.Spec.Containers {
 		logger.V(1).Info("Inspecting container", "Pod Name", podName, "Container ID", containerID, "Container Name", tr.Name)
 		if tr.Name == cr.ObjectMeta.Name+"-leader" {
 			targetContainer = containerID
-			logger.Info("Leader container found", "Container ID", containerID, "Container Name", tr.Name)
+			logger.V(1).Info("Leader container found", "Container ID", containerID, "Container Name", tr.Name)
 			break
 		}
 	}
 
 	if targetContainer == -1 {
-		logger.Info("Leader container not found in pod", "Pod Name", podName)
+		logger.V(1).Info("Leader container not found in pod", "Pod Name", podName)
 		return -1, nil
 	}
 
