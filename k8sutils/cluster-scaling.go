@@ -11,8 +11,10 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-// Reshard the redis Cluster
-func ReshardRedisCluster(client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster) {
+// ReshardRedisCluster transfer the slots from the last node to the first node.
+//
+// NOTE: when all slot been transferred, the node become slave of the first master node.
+func ReshardRedisCluster(client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster, remove bool) {
 	ctx := context.TODO()
 	var cmd []string
 	currentRedisCount := CheckRedisNodeCount(ctx, client, logger, cr, "leader")
@@ -72,6 +74,10 @@ func ReshardRedisCluster(client kubernetes.Interface, logger logr.Logger, cr *re
 		return
 	}
 	executeCommand(client, logger, cr, cmd, cr.ObjectMeta.Name+"-leader-0")
+
+	if remove {
+		RemoveRedisNodeFromCluster(ctx, client, logger, cr, removePOD)
+	}
 }
 
 func getRedisClusterSlots(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster, nodeID string) string {
@@ -336,18 +342,18 @@ func RemoveRedisFollowerNodesFromCluster(ctx context.Context, client kubernetes.
 }
 
 // Remove redis cluster node would remove last node to the existing redis cluster using redis-cli
-func RemoveRedisNodeFromCluster(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster) {
+func RemoveRedisNodeFromCluster(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster, removePod RedisDetails) {
 	var cmd []string
-	currentRedisCount := CheckRedisNodeCount(ctx, client, logger, cr, "leader")
+	//currentRedisCount := CheckRedisNodeCount(ctx, client, logger, cr, "leader")
 
 	existingPod := RedisDetails{
 		PodName:   cr.ObjectMeta.Name + "-leader-0",
 		Namespace: cr.Namespace,
 	}
-	removePod := RedisDetails{
-		PodName:   cr.ObjectMeta.Name + "-leader-" + strconv.Itoa(int(currentRedisCount)-1),
-		Namespace: cr.Namespace,
-	}
+	//removePod := RedisDetails{
+	//	PodName:   cr.ObjectMeta.Name + "-leader-" + strconv.Itoa(int(currentRedisCount)-1),
+	//	Namespace: cr.Namespace,
+	//}
 
 	cmd = []string{"redis-cli", "--cluster", "del-node"}
 
