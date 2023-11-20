@@ -3,11 +3,7 @@ kind: RedisCluster
 metadata:
   name: redis-cluster-v1beta2
 spec:
-  clusterSize: 3
-  redisLeader:
-    replicas: 6
-  redisFollower:
-    replicas: 6
+  clusterSize: 6
   clusterVersion: v7
   persistenceEnabled: true
   podSecurityContext:
