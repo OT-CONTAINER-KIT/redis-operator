@@ -82,6 +82,7 @@ type RedisClusterStatus struct {
 	ReadyFollowerReplicas int32 `json:"readyFollowerReplicas,omitempty"`
 }
 
+// +genclient
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion

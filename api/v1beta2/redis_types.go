@@ -66,6 +66,7 @@ type Redis struct {
 	Status RedisStatus `json:"status,omitempty"`
 }
 
+// +genclient
 // +kubebuilder:object:root=true
 
 // RedisList contains a list of Redis

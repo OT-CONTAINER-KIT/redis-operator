@@ -39,6 +39,7 @@ func (cr *RedisReplicationSpec) GetReplicationCounts(t string) int32 {
 type RedisReplicationStatus struct {
 }
 
+// +genclient
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion

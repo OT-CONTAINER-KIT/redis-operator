@@ -57,6 +57,7 @@ type RedisSentinel struct {
 	Status RedisSentinelStatus `json:"status,omitempty"`
 }
 
+// +genclient
 // +kubebuilder:object:root=true
 
 // RedisList contains a list of Redis
