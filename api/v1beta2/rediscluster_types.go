@@ -27,6 +27,9 @@ import (
 type RedisClusterSpec struct {
 	Size             *int32           `json:"clusterSize"`
 	KubernetesConfig KubernetesConfig `json:"kubernetesConfig"`
+	HostNetwork      bool             `json:"hostNetwork,omitempty"`
+	// +kubebuilder:default:=6379
+	Port int32 `json:"port,omitempty"`
 	// +kubebuilder:default:=v7
 	ClusterVersion *string `json:"clusterVersion,omitempty"`
 	// +kubebuilder:default:={livenessProbe:{initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}, readinessProbe:{initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}}

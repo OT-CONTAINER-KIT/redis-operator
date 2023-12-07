@@ -45,6 +45,7 @@ type statefulSetParameters struct {
 	RecreateStatefulSet           bool
 	TerminationGracePeriodSeconds *int64
 	IgnoreAnnotations             []string
+	HostNetwork                   bool
 }
 
 // containerParameters will define container input params
@@ -242,6 +243,7 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 					PriorityClassName:             params.PriorityClassName,
 					Affinity:                      params.Affinity,
 					TerminationGracePeriodSeconds: params.TerminationGracePeriodSeconds,
+					HostNetwork:                   params.HostNetwork,
 				},
 			},
 		},
