@@ -83,9 +83,9 @@ func CreateMultipleLeaderRedisCommand(client kubernetes.Interface, logger logr.L
 		podName := cr.ObjectMeta.Name + "-leader-" + strconv.Itoa(podCount)
 		var address string
 		if cr.Spec.ClusterVersion != nil && *cr.Spec.ClusterVersion == "v7" {
-			address = getRedisHostname(RedisDetails{PodName: podName, Namespace: cr.Namespace}, cr, "leader") + ":6379"
+			address = getRedisHostname(RedisDetails{PodName: podName, Namespace: cr.Namespace}, cr, "leader") + fmt.Sprintf(":%d", cr.Spec.Port)
 		} else {
-			address = getRedisServerIP(client, logger, RedisDetails{PodName: podName, Namespace: cr.Namespace}) + ":6379"
+			address = getRedisServerIP(client, logger, RedisDetails{PodName: podName, Namespace: cr.Namespace}) + fmt.Sprintf(":%d", cr.Spec.Port)
 		}
 		cmd = append(cmd, address)
 	}
@@ -141,11 +141,11 @@ func createRedisReplicationCommand(client kubernetes.Interface, logger logr.Logg
 	var followerAddress, leaderAddress string
 
 	if cr.Spec.ClusterVersion != nil && *cr.Spec.ClusterVersion == "v7" {
-		followerAddress = getRedisHostname(followerPod, cr, "follower") + ":6379"
-		leaderAddress = getRedisHostname(leaderPod, cr, "leader") + ":6379"
+		followerAddress = getRedisHostname(followerPod, cr, "follower") + fmt.Sprintf(":%d", cr.Spec.Port)
+		leaderAddress = getRedisHostname(leaderPod, cr, "leader") + fmt.Sprintf(":%d", cr.Spec.Port)
 	} else {
-		followerAddress = getRedisServerIP(client, logger, followerPod) + ":6379"
-		leaderAddress = getRedisServerIP(client, logger, leaderPod) + ":6379"
+		followerAddress = getRedisServerIP(client, logger, followerPod) + fmt.Sprintf(":%d", cr.Spec.Port)
+		leaderAddress = getRedisServerIP(client, logger, leaderPod) + fmt.Sprintf(":%d", cr.Spec.Port)
 	}
 
 	cmd = append(cmd, followerAddress, leaderAddress, "--cluster-slave")
@@ -340,14 +340,14 @@ func configureRedisClient(client kubernetes.Interface, logger logr.Logger, cr *r
 			logger.Error(err, "Error in getting redis password")
 		}
 		redisClient = redis.NewClient(&redis.Options{
-			Addr:      getRedisServerIP(client, logger, redisInfo) + ":6379",
+			Addr:      getRedisServerIP(client, logger, redisInfo) + fmt.Sprintf(":%d", cr.Spec.Port),
 			Password:  pass,
 			DB:        0,
 			TLSConfig: getRedisTLSConfig(client, logger, cr, redisInfo),
 		})
 	} else {
 		redisClient = redis.NewClient(&redis.Options{
-			Addr:      getRedisServerIP(client, logger, redisInfo) + ":6379",
+			Addr:      getRedisServerIP(client, logger, redisInfo) + fmt.Sprintf(":%d", cr.Spec.Port),
 			Password:  "",
 			DB:        0,
 			TLSConfig: getRedisTLSConfig(client, logger, cr, redisInfo),
