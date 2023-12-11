@@ -27,8 +27,8 @@ jobs:
 
     - name: Install chainsaw
       uses: kyverno/chainsaw/.github/actions/install
-      # with:
-      #   release: v0.0.9
+      with:
+        release: v0.0.9
 
     - name: Check install
       run: chainsaw version
