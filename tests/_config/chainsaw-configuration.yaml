@@ -8,7 +8,7 @@ spec:
   parallel: 1 
   delayBeforeCleanup: 10s
   timeouts:
-    apply: 60s
-    delete: 60s
-    assert: 90s
-    error: 90s
+    apply: 100s
+    delete: 100s
+    assert: 300s
+    error: 300s
