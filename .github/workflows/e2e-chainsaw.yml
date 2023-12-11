@@ -58,5 +58,5 @@ jobs:
       run: |
         kubectl wait --for=condition=available --timeout=300s deployment/redis-operator-redis-operator -n redis-operator-system
   
-    - name: Run kuttl test
+    - name: Run chainsaw test
       run: chainsaw test --test-dir {{ matrix.testpath }} --config tests/_config/chainsaw-configuration.yaml
