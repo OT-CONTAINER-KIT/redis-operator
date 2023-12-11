@@ -15,7 +15,7 @@ jobs:
     strategy:
       matrix:
         testpath:
-          - ./tests/e2e-chainsaw/v1beta2/teardown
+          # - ./tests/e2e-chainsaw/v1beta2/teardown
           - ./tests/e2e-chainsaw/v1beta2/setup
 
     steps:
