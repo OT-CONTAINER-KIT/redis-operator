@@ -1,0 +1,62 @@
+name: E2E chainsaw tests
+
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+
+jobs:
+  test:
+    name: ${{ matrix.testpath }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        testpath:
+          - ./tests/e2e-chainsaw/v1beta2/teardown
+          - ./tests/e2e-chainsaw/v1beta2/setup
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Build Dockerfile
+      run: docker build . --file Dockerfile --tag redis-operator:e2e
+
+    - name: Install chainsaw
+      uses: kyverno/chainsaw/.github/actions/install
+      # with:
+      #   release: v0.0.9
+
+    - name: Check install
+      run: chainsaw version
+    
+    # - name: Install kubectl
+    #   run: |
+    #     curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+    #     chmod +x kubectl
+    #     sudo mv kubectl /usr/local/bin/
+
+    # - name: Create k8s Kind Cluster
+    #   uses: helm/kind-action@v1.5.0
+    #   with:
+    #     config: tests/_config/kind-config.yaml
+    #     cluster_name: kind
+
+    # - name: Load Docker image into Kind
+    #   run: | 
+    #     kubectl cluster-info --context kind-kind
+    #     kind load docker-image redis-operator:e2e --name kind
+
+    # - name: Install Redis Operator
+    #   run: |
+    #     make deploy IMG=redis-operator:e2e
+
+    # - name: Wait for Redis Operator to be ready
+    #   run: |
+    #     kubectl wait --for=condition=available --timeout=300s deployment/redis-operator-redis-operator -n redis-operator-system
+  
+    # - name: Run kuttl test
+    #   run: kuttl test ${{ matrix.testpath }} --config tests/_config/kuttl-test.yaml
