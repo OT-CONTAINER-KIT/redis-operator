@@ -15,20 +15,20 @@ jobs:
     strategy:
       matrix:
         testpath:
-          # - ./tests/e2e-chainsaw/v1beta2/teardown
+          - ./tests/e2e-chainsaw/v1beta2/teardown
           - ./tests/e2e-chainsaw/v1beta2/setup
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    # - name: Build Dockerfile
-    #   run: docker build . --file Dockerfile --tag redis-operator:e2e
+    - name: Build Dockerfile
+      run: docker build . --file Dockerfile --tag redis-operator:e2e
 
     - name: Install chainsaw
-      uses: kyverno/chainsaw/.github/actions/install@v0.0.9
-      # with:
-      #   release: v0.0.8
+      uses: kyverno/chainsaw/.github/actions/install@v0.0.4
+      with:
+        release: v0.0.9
 
     - name: Check install
       run: chainsaw version
