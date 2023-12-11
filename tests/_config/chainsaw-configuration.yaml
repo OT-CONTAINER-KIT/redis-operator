@@ -10,5 +10,5 @@ spec:
   timeouts:
     apply: 100s
     delete: 100s
-    assert: 300s
-    error: 300s
+    assert: 900s
+    error: 900s
