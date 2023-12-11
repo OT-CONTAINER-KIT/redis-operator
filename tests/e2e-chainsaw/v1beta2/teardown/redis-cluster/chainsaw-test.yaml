@@ -1,0 +1,35 @@
+---
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: redis-cluster-teardown
+spec:
+  steps:
+    - name: redis-cluster-install
+      try:
+        - apply:
+            file: cluster.yaml
+        - assert:
+            file: ready-cluster.yaml
+        - assert:
+            file: ready-sts.yaml
+        - assert:
+            file: ready-svc.yaml
+        - assert:
+            file: ready-pvc.yaml
+
+    - name: redis-cluster-uninstall
+      try:
+        - delete:
+            ref:
+              name: redis-cluster-v1beta2
+              kind: RedisCluster
+              apiVersion: redis.redis.opstreelabs.in/v1beta2
+        - error:
+            file: ready-cluster.yaml
+        - error:
+            file: ready-sts.yaml
+        - error:
+            file: ready-svc.yaml
+        - error:
+            file: ready-pvc.yaml
