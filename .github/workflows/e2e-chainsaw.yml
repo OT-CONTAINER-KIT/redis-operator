@@ -22,8 +22,8 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Build Dockerfile
-      run: docker build . --file Dockerfile --tag redis-operator:e2e
+    # - name: Build Dockerfile
+    #   run: docker build . --file Dockerfile --tag redis-operator:e2e
 
     - name: Install chainsaw
       uses: kyverno/chainsaw/.github/actions/install@v0.0.9
