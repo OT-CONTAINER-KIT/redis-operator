@@ -8,9 +8,9 @@ spec:
     - name: redis-cluster-install
       try:
         - apply:
-          file: cluster.yaml
+            file: cluster.yaml
         - assert:
-          file: ready-cluster.yaml
+            file: ready-cluster.yaml
         - assert:
             file: ready-sts.yaml
         - assert:
