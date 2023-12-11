@@ -21,7 +21,10 @@ spec:
     - name: redis-cluster-uninstall
       try:
         - delete:
-            file: cluster.yaml
+            ref:
+              name: redis-cluster-v1beta2
+              kind: RedisCluster
+              apiVersion: redis.redis.opstreelabs.in/v1beta2
         - error:
             file: ready-cluster.yaml
         - error:
