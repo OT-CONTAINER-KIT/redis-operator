@@ -59,4 +59,4 @@ jobs:
     #     kubectl wait --for=condition=available --timeout=300s deployment/redis-operator-redis-operator -n redis-operator-system
   
     # - name: Run kuttl test
-    #   run: kuttl test ${{ matrix.testpath }} --config tests/_config/kuttl-test.yaml
+    #   run: kuttl test {{ matrix.testpath }} --config tests/_config/kuttl-test.yaml
