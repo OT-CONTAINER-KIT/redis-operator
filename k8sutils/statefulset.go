@@ -71,6 +71,7 @@ type containerParameters struct {
 	AdditionalVolume             []corev1.Volume
 	AdditionalMountPath          []corev1.VolumeMount
 	EnvVars                      *[]corev1.EnvVar
+	Port                         int32
 }
 
 type initContainerParameters struct {
@@ -355,6 +356,7 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 				containerParams.TLSConfig,
 				containerParams.ACLConfig,
 				containerParams.EnvVars,
+				containerParams.Port,
 			),
 			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe),
 			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe),
@@ -576,12 +578,12 @@ func getProbeInfo(probe *commonapi.Probe) *corev1.Probe {
 // getEnvironmentVariables returns all the required Environment Variables
 func getEnvironmentVariables(role string, enabledPassword *bool, secretName *string,
 	secretKey *string, persistenceEnabled *bool, tlsConfig *redisv1beta2.TLSConfig,
-	aclConfig *redisv1beta2.ACLConfig, envVar *[]corev1.EnvVar) []corev1.EnvVar {
+	aclConfig *redisv1beta2.ACLConfig, envVar *[]corev1.EnvVar, port int32) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{Name: "SERVER_MODE", Value: role},
 		{Name: "SETUP_MODE", Value: role},
+		{Name: "REDIS_PORT", Value: strconv.Itoa(int(port))},
 	}
-
 	var redisHost string
 	if role == "sentinel" {
 		redisHost = "redis://localhost:" + strconv.Itoa(sentinelPort)
