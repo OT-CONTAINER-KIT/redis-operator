@@ -5796,7 +5796,6 @@ spec:
                 type: object
               port:
                 default: 6379
-                format: int32
                 type: integer
               priorityClassName:
                 type: string

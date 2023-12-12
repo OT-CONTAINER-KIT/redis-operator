@@ -71,7 +71,7 @@ type containerParameters struct {
 	AdditionalVolume             []corev1.Volume
 	AdditionalMountPath          []corev1.VolumeMount
 	EnvVars                      *[]corev1.EnvVar
-	Port                         int32
+	Port                         *int
 }
 
 type initContainerParameters struct {
@@ -578,7 +578,7 @@ func getProbeInfo(probe *commonapi.Probe) *corev1.Probe {
 // getEnvironmentVariables returns all the required Environment Variables
 func getEnvironmentVariables(role string, enabledPassword *bool, secretName *string,
 	secretKey *string, persistenceEnabled *bool, tlsConfig *redisv1beta2.TLSConfig,
-	aclConfig *redisv1beta2.ACLConfig, envVar *[]corev1.EnvVar, port int32) []corev1.EnvVar {
+	aclConfig *redisv1beta2.ACLConfig, envVar *[]corev1.EnvVar, port *int) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{Name: "SERVER_MODE", Value: role},
 		{Name: "SETUP_MODE", Value: role},
@@ -587,20 +587,18 @@ func getEnvironmentVariables(role string, enabledPassword *bool, secretName *str
 	var redisHost string
 	if role == "sentinel" {
 		redisHost = "redis://localhost:" + strconv.Itoa(sentinelPort)
-		if port == 0 {
-			port = sentinelPort
+		if port != nil {
+			envVars = append(envVars, corev1.EnvVar{
+				Name: "SENTINEL_PORT", Value: strconv.Itoa(*port),
+			})
 		}
-		envVars = append(envVars, corev1.EnvVar{
-			Name: "SENTINEL_PORT", Value: strconv.Itoa(int(port)),
-		})
 	} else {
 		redisHost = "redis://localhost:" + strconv.Itoa(redisPort)
-		if port == 0 {
-			port = redisPort
+		if port != nil {
+			envVars = append(envVars, corev1.EnvVar{
+				Name: "REDIS_PORT", Value: strconv.Itoa(*port),
+			})
 		}
-		envVars = append(envVars, corev1.EnvVar{
-			Name: "REDIS_PORT", Value: strconv.Itoa(int(port)),
-		})
 	}
 
 	if tlsConfig != nil {

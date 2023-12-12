@@ -206,7 +206,7 @@ func TestCreateMultipleLeaderRedisCommand(t *testing.T) {
 				Spec: redisv1beta2.RedisClusterSpec{
 					Size:           pointer.Int32(3),
 					ClusterVersion: pointer.String("v7"),
-					Port:           6379,
+					Port:           pointer.Int(6379),
 				},
 			},
 			expectedCommands: []string{
@@ -226,7 +226,7 @@ func TestCreateMultipleLeaderRedisCommand(t *testing.T) {
 				},
 				Spec: redisv1beta2.RedisClusterSpec{
 					Size: pointer.Int32(3),
-					Port: 6379,
+					Port: pointer.Int(6379),
 				},
 			},
 			expectedCommands: []string{
@@ -297,7 +297,7 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 				Spec: redisv1beta2.RedisClusterSpec{
 					Size:           pointer.Int32(3),
 					ClusterVersion: pointer.String("v7"),
-					Port:           6379,
+					Port:           pointer.Int(6379),
 				},
 			},
 			leaderPod: RedisDetails{
@@ -324,7 +324,7 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 				},
 				Spec: redisv1beta2.RedisClusterSpec{
 					Size: pointer.Int32(3),
-					Port: 6379,
+					Port: pointer.Int(6379),
 				},
 			},
 			leaderPod: RedisDetails{

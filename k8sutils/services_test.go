@@ -16,7 +16,7 @@ func TestGenerateServiceDef(t *testing.T) {
 		enableMetrics bool
 		headless      bool
 		serviceType   string
-		port          int32
+		port          int
 		expected      *corev1.Service
 	}{
 		{

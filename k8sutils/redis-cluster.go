@@ -248,12 +248,12 @@ func (service RedisClusterService) CreateRedisClusterService(cr *redisv1beta2.Re
 	objectMetaInfo := generateObjectMetaInformation(serviceName, cr.Namespace, labels, annotations)
 	headlessObjectMetaInfo := generateObjectMetaInformation(serviceName+"-headless", cr.Namespace, labels, annotations)
 	additionalObjectMetaInfo := generateObjectMetaInformation(serviceName+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, additionalServiceAnnotations))
-	err := CreateOrUpdateService(cr.Namespace, headlessObjectMetaInfo, redisClusterAsOwner(cr), false, true, "ClusterIP", cr.Spec.Port)
+	err := CreateOrUpdateService(cr.Namespace, headlessObjectMetaInfo, redisClusterAsOwner(cr), false, true, "ClusterIP", *cr.Spec.Port)
 	if err != nil {
 		logger.Error(err, "Cannot create headless service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err
 	}
-	err = CreateOrUpdateService(cr.Namespace, objectMetaInfo, redisClusterAsOwner(cr), enableMetrics, false, "ClusterIP", cr.Spec.Port)
+	err = CreateOrUpdateService(cr.Namespace, objectMetaInfo, redisClusterAsOwner(cr), enableMetrics, false, "ClusterIP", *cr.Spec.Port)
 	if err != nil {
 		logger.Error(err, "Cannot create service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err
@@ -262,7 +262,7 @@ func (service RedisClusterService) CreateRedisClusterService(cr *redisv1beta2.Re
 	if cr.Spec.KubernetesConfig.Service != nil {
 		additionalServiceType = cr.Spec.KubernetesConfig.Service.ServiceType
 	}
-	err = CreateOrUpdateService(cr.Namespace, additionalObjectMetaInfo, redisClusterAsOwner(cr), false, false, additionalServiceType, cr.Spec.Port)
+	err = CreateOrUpdateService(cr.Namespace, additionalObjectMetaInfo, redisClusterAsOwner(cr), false, false, additionalServiceType, *cr.Spec.Port)
 	if err != nil {
 		logger.Error(err, "Cannot create additional service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err
