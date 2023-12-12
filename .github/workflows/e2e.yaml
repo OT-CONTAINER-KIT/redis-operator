@@ -19,6 +19,7 @@ jobs:
         - ./tests/e2e/v1beta2/teardown
         - ./tests/e2e/v1beta2/ignore-annots
         - ./tests/e2e/v1beta2/scaling
+        - ./tests/e2e/v1beta2/hostnetwork
 
     steps:
     - name: Checkout code
