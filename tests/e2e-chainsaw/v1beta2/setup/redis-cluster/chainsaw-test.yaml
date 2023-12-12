@@ -23,7 +23,7 @@ spec:
          content: |
           kubectl exec --namespace ${NAMESPACE} redis-cluster-v1beta2-leader-0 -- redis-cli -c -p 6379 ping
          check:
-          $stdout: "PONG"
+          ($stdout=="PONG"): true
           
     #   - command:
     #      entrypoint: "kubectl"
