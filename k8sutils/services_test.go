@@ -16,6 +16,7 @@ func TestGenerateServiceDef(t *testing.T) {
 		enableMetrics bool
 		headless      bool
 		serviceType   string
+		port          int32
 		expected      *corev1.Service
 	}{
 		{
@@ -29,6 +30,7 @@ func TestGenerateServiceDef(t *testing.T) {
 			enableMetrics: false,
 			headless:      false,
 			serviceType:   "ClusterIP",
+			port:          sentinelPort,
 			expected: &corev1.Service{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Service",
@@ -69,6 +71,7 @@ func TestGenerateServiceDef(t *testing.T) {
 			enableMetrics: false,
 			headless:      true,
 			serviceType:   "ClusterIP",
+			port:          sentinelPort,
 			expected: &corev1.Service{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Service",
@@ -109,6 +112,7 @@ func TestGenerateServiceDef(t *testing.T) {
 			enableMetrics: false,
 			headless:      false,
 			serviceType:   "ClusterIP",
+			port:          redisPort,
 			expected: &corev1.Service{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Service",
@@ -149,6 +153,7 @@ func TestGenerateServiceDef(t *testing.T) {
 			enableMetrics: false,
 			headless:      true,
 			serviceType:   "ClusterIP",
+			port:          redisPort,
 			expected: &corev1.Service{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Service",
@@ -189,6 +194,7 @@ func TestGenerateServiceDef(t *testing.T) {
 			enableMetrics: true,
 			headless:      false,
 			serviceType:   "ClusterIP",
+			port:          redisPort,
 			expected: &corev1.Service{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Service",
@@ -223,7 +229,7 @@ func TestGenerateServiceDef(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actual := generateServiceDef(tt.serviceMeta, tt.enableMetrics, metav1.OwnerReference{}, tt.headless, tt.serviceType)
+			actual := generateServiceDef(tt.serviceMeta, tt.enableMetrics, metav1.OwnerReference{}, tt.headless, tt.serviceType, tt.port)
 			assert.Equal(t, tt.expected, actual)
 		})
 	}

@@ -3,6 +3,7 @@ package k8sutils
 import (
 	"context"
 	"fmt"
+	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
 	"path"
 	"sort"
 	"strconv"
@@ -582,13 +583,19 @@ func getEnvironmentVariables(role string, enabledPassword *bool, secretName *str
 	envVars := []corev1.EnvVar{
 		{Name: "SERVER_MODE", Value: role},
 		{Name: "SETUP_MODE", Value: role},
-		{Name: "REDIS_PORT", Value: strconv.Itoa(int(port))},
 	}
+
 	var redisHost string
 	if role == "sentinel" {
 		redisHost = "redis://localhost:" + strconv.Itoa(sentinelPort)
+		envVars = append(envVars, corev1.EnvVar{
+			Name: "SENTINEL_PORT", Value: strconv.Itoa(int(util.Coalesce(port, sentinelPort))),
+		})
 	} else {
 		redisHost = "redis://localhost:" + strconv.Itoa(redisPort)
+		envVars = append(envVars, corev1.EnvVar{
+			Name: "REDIS_PORT", Value: strconv.Itoa(int(util.Coalesce(port, redisPort))),
+		})
 	}
 
 	if tlsConfig != nil {

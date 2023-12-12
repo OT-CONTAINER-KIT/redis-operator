@@ -229,6 +229,7 @@ func TestGetEnvironmentVariables(t *testing.T) {
 		tlsConfig           *redisv1beta2.TLSConfig
 		aclConfig           *redisv1beta2.ACLConfig
 		envVar              *[]corev1.EnvVar
+		port                int32
 		expectedEnvironment []corev1.EnvVar
 	}{
 		{
@@ -275,6 +276,7 @@ func TestGetEnvironmentVariables(t *testing.T) {
 				{Name: "SERVER_MODE", Value: "sentinel"},
 				{Name: "SETUP_MODE", Value: "sentinel"},
 				{Name: "TEST_ENV", Value: "test-value"},
+				{Name: "SENTINEL_PORT", Value: "26379"},
 			},
 		},
 		{
@@ -287,10 +289,12 @@ func TestGetEnvironmentVariables(t *testing.T) {
 			tlsConfig:          nil,
 			aclConfig:          nil,
 			envVar:             nil,
+			port:               0,
 			expectedEnvironment: []corev1.EnvVar{
 				{Name: "REDIS_ADDR", Value: "redis://localhost:6379"},
 				{Name: "SERVER_MODE", Value: "redis"},
 				{Name: "SETUP_MODE", Value: "redis"},
+				{Name: "REDIS_PORT", Value: "6379"},
 			},
 		},
 		{
@@ -307,6 +311,7 @@ func TestGetEnvironmentVariables(t *testing.T) {
 				{Name: "REDIS_ADDR", Value: "redis://localhost:26379"},
 				{Name: "SERVER_MODE", Value: "sentinel"},
 				{Name: "SETUP_MODE", Value: "sentinel"},
+				{Name: "SENTINEL_PORT", Value: "26379"},
 			},
 		},
 		{
@@ -321,6 +326,7 @@ func TestGetEnvironmentVariables(t *testing.T) {
 			envVar: &[]corev1.EnvVar{
 				{Name: "TEST_ENV", Value: "test-value"},
 			},
+			port: 6380,
 			expectedEnvironment: []corev1.EnvVar{
 				{Name: "ACL_MODE", Value: "true"},
 				{Name: "PERSISTENCE_ENABLED", Value: "true"},
@@ -336,6 +342,7 @@ func TestGetEnvironmentVariables(t *testing.T) {
 				{Name: "SERVER_MODE", Value: "cluster"},
 				{Name: "SETUP_MODE", Value: "cluster"},
 				{Name: "TEST_ENV", Value: "test-value"},
+				{Name: "REDIS_PORT", Value: "6380"},
 			},
 		},
 		{
@@ -352,6 +359,7 @@ func TestGetEnvironmentVariables(t *testing.T) {
 				{Name: "REDIS_ADDR", Value: "redis://localhost:6379"},
 				{Name: "SERVER_MODE", Value: "cluster"},
 				{Name: "SETUP_MODE", Value: "cluster"},
+				{Name: "REDIS_PORT", Value: "6379"},
 			},
 		},
 	}
@@ -359,7 +367,7 @@ func TestGetEnvironmentVariables(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			actualEnvironment := getEnvironmentVariables(tt.role, tt.enabledPassword, tt.secretName,
-				tt.secretKey, tt.persistenceEnabled, tt.tlsConfig, tt.aclConfig, tt.envVar)
+				tt.secretKey, tt.persistenceEnabled, tt.tlsConfig, tt.aclConfig, tt.envVar, tt.port)
 
 			assert.ElementsMatch(t, tt.expectedEnvironment, actualEnvironment)
 		})
