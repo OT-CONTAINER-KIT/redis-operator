@@ -7,9 +7,11 @@ metadata:
   name: redis-cluster-v1beta2-leader-0
 spec:
   containers:
-    - env:
-      - name: REDIS_PORT
-        value: "6380"
+    - name: redis-cluster-v1beta2-leader
+      env:
+        - name: REDIS_PORT
+          value: "6380"
+    - name: redis-exporter
   hostNetwork: true
 status:
   phase: Running
@@ -23,9 +25,11 @@ metadata:
   name: redis-cluster-v1beta2-leader-1
 spec:
   containers:
-    - env:
-      - name: REDIS_PORT
-        value: "6380"
+    - name: redis-cluster-v1beta2-leader
+      env:
+        - name: REDIS_PORT
+          value: "6380"
+    - name: redis-exporter
   hostNetwork: true
 status:
   phase: Running
@@ -39,9 +43,11 @@ metadata:
   name: redis-cluster-v1beta2-leader-2
 spec:
   containers:
-    - env:
-      - name: REDIS_PORT
-        value: "6380"
+    - name: redis-cluster-v1beta2-leader
+      env:
+        - name: REDIS_PORT
+          value: "6380"
+    - name: redis-exporter
   hostNetwork: true
 status:
   phase: Running
@@ -55,9 +61,11 @@ metadata:
   name: redis-cluster-v1beta2-follower-0
 spec:
   containers:
-    - env:
-      - name: REDIS_PORT
-        value: "6380"
+    - name: redis-cluster-v1beta2-follower
+      env:
+        - name: REDIS_PORT
+          value: "6380"
+    - name: redis-exporter
   hostNetwork: true
 status:
   phase: Running
@@ -71,9 +79,11 @@ metadata:
   name: redis-cluster-v1beta2-follower-1
 spec:
   containers:
-    - env:
-      - name: REDIS_PORT
-        value: "6380"
+    - name: redis-cluster-v1beta2-follower
+      env:
+        - name: REDIS_PORT
+          value: "6380"
+    - name: redis-exporter
   hostNetwork: true
 status:
   phase: Running
@@ -87,9 +97,11 @@ metadata:
   name: redis-cluster-v1beta2-follower-2
 spec:
   containers:
-    - env:
-      - name: REDIS_PORT
-        value: "6380"
+    - name: redis-cluster-v1beta2-follower
+      env:
+        - name: REDIS_PORT
+          value: "6380"
+    - name: redis-exporter
   hostNetwork: true
 status:
   phase: Running
