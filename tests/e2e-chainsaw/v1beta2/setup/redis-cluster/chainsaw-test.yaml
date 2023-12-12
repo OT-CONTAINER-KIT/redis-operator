@@ -19,8 +19,14 @@ spec:
         file: ready-pvc.yaml
   - name: Ping Cluster
     try:
-      - command:
-         entrypoint: "kubectl"
-         args: ["exec", "redis-cluster-v1beta2-leader-0", "--", "redis-cli", "-c", "-p", "6379", "ping"]
+     - script:
+         content: |
+          kubectl exec --namespace ${NAMESPACE} redis-cluster-v1beta2-leader-0 -- redis-cli -c -p 6379 ping
          check:
           $stdout: "PONG"
+          
+    #   - command:
+    #      entrypoint: "kubectl"
+    #      args: ["exec", "redis-cluster-v1beta2-leader-0", "--", "redis-cli", "-c", "-p", "6379", "ping"]
+    #      check:
+    #       $stdout: "PONG"
