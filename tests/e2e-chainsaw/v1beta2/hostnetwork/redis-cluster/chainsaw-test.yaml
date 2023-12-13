@@ -31,14 +31,14 @@ spec:
     try:
       - script:
           content: |
-            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | xargs -I {} redis-cli -h {} -p 6380 ping
+            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 1 | xargs -I {} redis-cli -h {} -p 6380 -c ping
           check:
             ($stdout=='PONG'): true
 
-  # - name: Try saving a key
-  #   try:
-  #     - script:
-  #         content: |
-  #           kubectl get node -o wide | grep 'worker' | awk '{print $6}' | xargs -I {} redis-cli -h {} -p 6380 set foo bar
-  #         check:
-  #           ($stdout=='OK'): true
+  - name: Try saving a key
+    try:
+      - script:
+          content: |
+            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | xargs -I {} redis-cli -h {} -p 6380 -c set foo bar
+          check:
+            ($stdout=='OK'): true
