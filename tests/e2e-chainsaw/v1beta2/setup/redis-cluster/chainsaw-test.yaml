@@ -48,7 +48,7 @@ spec:
      - script:
          timeout: 30s
          content: |
-          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-follower-2 -- redis-cli -c -p 6379 set foo-2 bar-2
+          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-2 -- redis-cli -c -p 6379 set foo-2 bar-2
          check:
           ($stdout=='OK'): true
      - script:
