@@ -26,6 +26,11 @@ spec:
          check:
           ($stdout=='PONG'): true
 
+  - name: Sleep for five minutes
+    try:
+     - sleep:
+         duration: 5m
+
   - name: Try saving a key
     try:
      - script:
