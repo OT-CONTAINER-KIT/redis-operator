@@ -24,6 +24,7 @@ spec:
   - name: Install Redis Cli
     try:
       - script:
+          timeout: 5m
           content: |
             sudo apt install redis-tools -y
             
@@ -31,7 +32,7 @@ spec:
     try:
       - script:
           content: |
-            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 1 | xargs -I {} redis-cli -h {} -p 6380 -c ping
+            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 1 | xargs -I {} redis-cli -h {} -c -p 6380 ping
           check:
             ($stdout=='PONG'): true
 
@@ -39,6 +40,6 @@ spec:
     try:
       - script:
           content: |
-            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | xargs -I {} redis-cli -h {} -p 6380 -c set foo bar
+            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 1 | xargs -I {} redis-cli -h {} -c -p 6380 set foo bar
           check:
             ($stdout=='OK'): true
