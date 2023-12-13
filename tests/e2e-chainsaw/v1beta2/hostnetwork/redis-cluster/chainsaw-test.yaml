@@ -6,7 +6,7 @@ metadata:
   name: redis-cluster-setup
 spec:
   steps:
-  - name: Apply and Assert
+  - name: Setup redis cluster on host network
     try:
     - apply:
         file: cluster.yaml
@@ -21,11 +21,13 @@ spec:
     - assert:
         file: ready-pod.yaml
 
-#  - name: Install Redis Cli
-#    try:
-#      - script:
-#          content: |
-#            sudo apt-get install redis-tools -y
+  - name: Install Redis Cli
+    try:
+      - script:
+          content: |
+            sudo apt install redis-tools -y
+          check: 
+            ($error != null): false
 
   - name: Ping Cluster
     try:
