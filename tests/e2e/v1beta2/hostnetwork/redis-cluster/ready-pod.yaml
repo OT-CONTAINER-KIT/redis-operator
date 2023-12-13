@@ -47,6 +47,14 @@ spec:
       env:
         - name: REDIS_PORT
           value: "6380"
+        - name: PERSISTENCE_ENABLED
+          value: "true"
+        - name: REDIS_ADDR
+          value: "redis://localhost:6379"
+        - name: SERVER_MODE
+          value: "cluster"
+        - name: SETUP_MODE
+          value: "cluster"
     - name: redis-exporter
   hostNetwork: true
 status:
@@ -65,6 +73,14 @@ spec:
       env:
         - name: REDIS_PORT
           value: "6380"
+        - name: PERSISTENCE_ENABLED
+          value: "true"
+        - name: REDIS_ADDR
+          value: "redis://localhost:6379"
+        - name: SERVER_MODE
+          value: "cluster"
+        - name: SETUP_MODE
+          value: "cluster"
     - name: redis-exporter
   hostNetwork: true
 status:
@@ -83,6 +99,14 @@ spec:
       env:
         - name: REDIS_PORT
           value: "6380"
+        - name: PERSISTENCE_ENABLED
+          value: "true"
+        - name: REDIS_ADDR
+          value: "redis://localhost:6379"
+        - name: SERVER_MODE
+          value: "cluster"
+        - name: SETUP_MODE
+          value: "cluster"
     - name: redis-exporter
   hostNetwork: true
 status:
@@ -101,6 +125,14 @@ spec:
       env:
         - name: REDIS_PORT
           value: "6380"
+        - name: PERSISTENCE_ENABLED
+          value: "true"
+        - name: REDIS_ADDR
+          value: "redis://localhost:6379"
+        - name: SERVER_MODE
+          value: "cluster"
+        - name: SETUP_MODE
+          value: "cluster"
     - name: redis-exporter
   hostNetwork: true
 status:
