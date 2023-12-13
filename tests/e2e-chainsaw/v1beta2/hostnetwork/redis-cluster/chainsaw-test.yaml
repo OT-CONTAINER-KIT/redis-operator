@@ -21,11 +21,11 @@ spec:
     - assert:
         file: ready-pod.yaml
 
-  - name: Install Redis Cli
-    try:
-      - script:
-          content: |
-            sudo apt-get install redis-tools -y
+#  - name: Install Redis Cli
+#    try:
+#      - script:
+#          content: |
+#            sudo apt-get install redis-tools -y
 
   - name: Ping Cluster
     try:
