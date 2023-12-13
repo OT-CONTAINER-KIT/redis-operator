@@ -1,0 +1,45 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: host-network
+spec:
+  steps:
+  - name: Setup redis cluster on host network
+    try:
+    - apply:
+        file: cluster.yaml
+    - assert:
+        file: ready-cluster.yaml
+    - assert:
+        file: ready-sts.yaml
+    - assert:
+        file: ready-svc.yaml
+    - assert:
+        file: ready-pvc.yaml
+    - assert:
+        file: ready-pod.yaml
+
+  - name: Install Redis Cli
+    try:
+      - script:
+          timeout: 5m
+          content: |
+            sudo apt install redis-tools -y
+            
+  - name: Ping Cluster
+    try:
+      - script:
+          content: |
+            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 1 | xargs -I {} redis-cli -h {} -c -p 6380 ping
+          check:
+            ($stdout=='PONG'): true
+
+  - name: Try saving a key
+    try:
+      - script:
+          content: |
+            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 1 | xargs -I {} redis-cli -h {} -c -p 6380 set foo bar
+          check:
+            ($stdout=='OK'): true
