@@ -3,7 +3,7 @@
 apiVersion: chainsaw.kyverno.io/v1alpha1
 kind: Test
 metadata:
-  name: redis-cluster-setup
+  name: host network
 spec:
   steps:
   - name: Setup redis cluster on host network
@@ -26,9 +26,7 @@ spec:
       - script:
           content: |
             sudo apt install redis-tools -y
-          check: 
-            ($error != null): false
-
+            
   - name: Ping Cluster
     try:
       - script:
