@@ -23,4 +23,4 @@ spec:
          content: |
           kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-0 -- redis-cli -c -p 6379 ping
          check:
-          ($stdout=="PONG"): true
+          ($stdout=='PONG'): true
