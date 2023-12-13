@@ -2,8 +2,10 @@ package k8sutils
 
 import (
 	"context"
+	"k8s.io/client-go/kubernetes"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api"
@@ -245,4 +247,88 @@ func Test_generateRedisSentinelInitContainerParams(t *testing.T) {
 
 	actual := generateRedisSentinelInitContainerParams(input)
 	assert.EqualValues(t, expected, actual, "Expected %+v, got %+v", expected, actual)
+}
+
+func Test_getSentinelEnvVariable(t *testing.T) {
+	type args struct {
+		ctx    context.Context
+		client kubernetes.Interface
+		logger logr.Logger
+		cr     *redisv1beta2.RedisSentinel
+	}
+	tests := []struct {
+		name string
+		args args
+		want *[]corev1.EnvVar
+	}{
+		{
+			name: "When RedisSentinelConfig is nil",
+			args: args{
+				ctx:    context.TODO(),
+				client: nil,
+				logger: logr.Logger{},
+				cr:     &redisv1beta2.RedisSentinel{},
+			},
+			want: &[]corev1.EnvVar{},
+		},
+		{
+			name: "When RedisSentinelConfig is not nil",
+			args: args{
+				ctx:    context.TODO(),
+				client: nil,
+				logger: logr.Logger{},
+				cr: &redisv1beta2.RedisSentinel{
+					Spec: redisv1beta2.RedisSentinelSpec{
+						RedisSentinelConfig: &redisv1beta2.RedisSentinelConfig{
+							RedisSentinelConfig: common.RedisSentinelConfig{
+								MasterGroupName:       "master",
+								RedisPort:             "6379",
+								Quorum:                "2",
+								DownAfterMilliseconds: "30000",
+								ParallelSyncs:         "1",
+								FailoverTimeout:       "180000",
+							},
+						},
+					},
+				},
+			},
+			want: &[]corev1.EnvVar{
+				{
+					Name:  "MASTER_GROUP_NAME",
+					Value: "master",
+				},
+				{
+					Name:  "IP",
+					Value: "",
+				},
+				{
+					Name:  "PORT",
+					Value: "6379",
+				},
+				{
+					Name:  "QUORUM",
+					Value: "2",
+				},
+				{
+					Name:  "DOWN_AFTER_MILLISECONDS",
+					Value: "30000",
+				},
+				{
+					Name:  "PARALLEL_SYNCS",
+					Value: "1",
+				},
+				{
+					Name:  "FAILOVER_TIMEOUT",
+					Value: "180000",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getSentinelEnvVariable(tt.args.ctx, tt.args.client, tt.args.logger, tt.args.cr); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getSentinelEnvVariable() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
