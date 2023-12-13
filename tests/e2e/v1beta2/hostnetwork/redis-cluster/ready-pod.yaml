@@ -9,8 +9,16 @@ spec:
   containers:
     - name: redis-cluster-v1beta2-leader
       env:
+        - name: PERSISTENCE_ENABLED
+          value: "true"
+        - name: REDIS_ADDR
+          value: "redis://localhost:6379"
         - name: REDIS_PORT
           value: "6380"
+        - name: SERVER_MODE
+          value: "cluster"
+        - name: SETUP_MODE
+          value: "cluster"
     - name: redis-exporter
   hostNetwork: true
 status:
@@ -27,8 +35,16 @@ spec:
   containers:
     - name: redis-cluster-v1beta2-leader
       env:
+        - name: PERSISTENCE_ENABLED
+          value: "true"
+        - name: REDIS_ADDR
+          value: "redis://localhost:6379"
         - name: REDIS_PORT
           value: "6380"
+        - name: SERVER_MODE
+          value: "cluster"
+        - name: SETUP_MODE
+          value: "cluster"
     - name: redis-exporter
   hostNetwork: true
 status:
@@ -45,12 +61,12 @@ spec:
   containers:
     - name: redis-cluster-v1beta2-leader
       env:
-        - name: REDIS_PORT
-          value: "6380"
         - name: PERSISTENCE_ENABLED
           value: "true"
         - name: REDIS_ADDR
           value: "redis://localhost:6379"
+        - name: REDIS_PORT
+          value: "6380"
         - name: SERVER_MODE
           value: "cluster"
         - name: SETUP_MODE
@@ -71,12 +87,12 @@ spec:
   containers:
     - name: redis-cluster-v1beta2-follower
       env:
-        - name: REDIS_PORT
-          value: "6380"
         - name: PERSISTENCE_ENABLED
           value: "true"
         - name: REDIS_ADDR
           value: "redis://localhost:6379"
+        - name: REDIS_PORT
+          value: "6380"
         - name: SERVER_MODE
           value: "cluster"
         - name: SETUP_MODE
@@ -97,12 +113,12 @@ spec:
   containers:
     - name: redis-cluster-v1beta2-follower
       env:
-        - name: REDIS_PORT
-          value: "6380"
         - name: PERSISTENCE_ENABLED
           value: "true"
         - name: REDIS_ADDR
           value: "redis://localhost:6379"
+        - name: REDIS_PORT
+          value: "6380"
         - name: SERVER_MODE
           value: "cluster"
         - name: SETUP_MODE
@@ -123,12 +139,12 @@ spec:
   containers:
     - name: redis-cluster-v1beta2-follower
       env:
-        - name: REDIS_PORT
-          value: "6380"
         - name: PERSISTENCE_ENABLED
           value: "true"
         - name: REDIS_ADDR
           value: "redis://localhost:6379"
+        - name: REDIS_PORT
+          value: "6380"
         - name: SERVER_MODE
           value: "cluster"
         - name: SETUP_MODE
