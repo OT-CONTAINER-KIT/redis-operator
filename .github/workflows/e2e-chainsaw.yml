@@ -17,6 +17,7 @@ jobs:
         testpath:
           - ./tests/e2e-chainsaw/v1beta2/teardown/
           - ./tests/e2e-chainsaw/v1beta2/setup/
+          - ./tests/e2e-chainsaw/v1beta2/hostnetwork/
 
     steps:
     - name: Checkout code
