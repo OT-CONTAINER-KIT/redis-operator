@@ -25,7 +25,7 @@ spec:
     try:
       - script:
           content: |
-             apt-get update && apt-get install -y redis-tools
+            sudo apt-get install redis-tools -y
 
   - name: Ping Cluster
     try:
