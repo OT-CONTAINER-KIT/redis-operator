@@ -27,19 +27,86 @@ spec:
           timeout: 5m
           content: |
             sudo apt install redis-tools -y
-            
-  - name: Ping Cluster
+
+  - name: Sleep for five minutes
+    try:
+     - sleep:
+         duration: 5m      
+
+  - name: Ping Redis Cluster from every node
     try:
       - script:
+          timeout: 30s
           content: |
-            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 1 | xargs -I {} redis-cli -h {} -c -p 6380 ping
+            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 1 | tail -n 1 | xargs -I {} redis-cli -h {} -c -p 6380 ping
+          check:
+            ($stdout=='PONG'): true
+      - script:
+          timeout: 30s
+          content: |
+            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 2 | tail -n 1 | xargs -I {} redis-cli -h {} -c -p 6380 ping
+          check:
+            ($stdout=='PONG'): true
+      - script:
+          timeout: 30s
+          content: |
+            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 3 | tail -n 1 | xargs -I {} redis-cli -h {} -c -p 6380 ping
+          check:
+            ($stdout=='PONG'): true
+      - script:
+          timeout: 30s
+          content: |
+            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 4 | tail -n 1 | xargs -I {} redis-cli -h {} -c -p 6380 ping
+          check:
+            ($stdout=='PONG'): true
+      - script:
+          timeout: 30s
+          content: |
+            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 5 | tail -n 1 | xargs -I {} redis-cli -h {} -c -p 6380 ping
+          check:
+            ($stdout=='PONG'): true
+      - script:
+          timeout: 30s
+          content: |
+            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 6 | tail -n 1 | xargs -I {} redis-cli -h {} -c -p 6380 ping
           check:
             ($stdout=='PONG'): true
 
-  - name: Try saving a key
+  - name: Try saving a key from every node
     try:
       - script:
+          timeout: 30s
           content: |
-            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 1 | xargs -I {} redis-cli -h {} -c -p 6380 set foo bar
+            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 1 | tail -n 1 | xargs -I {} redis-cli -h {} -c -p 6380 set foo-0 bar-0
+          check:
+            ($stdout=='OK'): true
+      - script:
+          timeout: 30s
+          content: |
+            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 2 | tail -n 1 | xargs -I {} redis-cli -h {} -c -p 6380 set foo-1 bar-1
+          check:
+            ($stdout=='OK'): true
+      - script:
+          timeout: 30s
+          content: |
+            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 3 | tail -n 1 | xargs -I {} redis-cli -h {} -c -p 6380 set foo-2 bar-2
+          check:
+            ($stdout=='OK'): true
+      - script:
+          timeout: 30s
+          content: |
+            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 4 | tail -n 1 | xargs -I {} redis-cli -h {} -c -p 6380 set foo-3 bar-3
+          check:
+            ($stdout=='OK'): true
+      - script:
+          timeout: 30s
+          content: |
+            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 5 | tail -n 1 | xargs -I {} redis-cli -h {} -c -p 6380 set foo-4 bar-4
+          check:
+            ($stdout=='OK'): true
+      - script:
+          timeout: 30s
+          content: |
+            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 6 | tail -n 1 | xargs -I {} redis-cli -h {} -c -p 6380 set foo-5 bar-5
           check:
             ($stdout=='OK'): true
