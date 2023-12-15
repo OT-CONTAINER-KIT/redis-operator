@@ -1,6 +1,8 @@
 package k8sutils
 
 import (
+	"strconv"
+
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -111,12 +113,15 @@ func filterAnnotations(anots map[string]string, ignoreAnnots ...string) map[stri
 }
 
 // generateServiceAnots generates and returns service annotations
-func generateServiceAnots(stsMeta metav1.ObjectMeta, additionalSvcAnnotations map[string]string) map[string]string {
+func generateServiceAnots(stsMeta metav1.ObjectMeta, additionalSvcAnnotations map[string]string, epp exporterPortProvider) map[string]string {
 	anots := map[string]string{
 		"redis.opstreelabs.in":       "true",
 		"redis.opstreelabs.instance": stsMeta.GetName(),
 		"prometheus.io/scrape":       "true",
 		"prometheus.io/port":         "9121",
+	}
+	if exporterPort, ok := epp(); ok {
+		anots["prometheus.io/port"] = strconv.Itoa(exporterPort)
 	}
 	for k, v := range stsMeta.GetAnnotations() {
 		anots[k] = v

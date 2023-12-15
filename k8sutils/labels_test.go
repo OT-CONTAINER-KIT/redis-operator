@@ -215,7 +215,7 @@ func TestGenerateServiceAnots(t *testing.T) {
 		"additional-annotation":      "additional-value",
 	}
 
-	resultAnnotations := generateServiceAnots(stsMeta, additionalSvcAnnotations)
+	resultAnnotations := generateServiceAnots(stsMeta, additionalSvcAnnotations, defaultExporterPortProvider)
 
 	if !reflect.DeepEqual(resultAnnotations, expectedAnnotations) {
 		t.Errorf("Expected annotations to be %v but got %v", expectedAnnotations, resultAnnotations)
