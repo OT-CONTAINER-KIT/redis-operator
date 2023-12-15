@@ -477,7 +477,7 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 		Ports: []corev1.ContainerPort{
 			{
 				Name:          redisExporterPortName,
-				ContainerPort: int32(*util.Coalesce(params.Port, pointer.Int(redisExporterPort))),
+				ContainerPort: int32(*util.Coalesce(params.RedisExporterPort, pointer.Int(redisExporterPort))),
 				Protocol:      corev1.ProtocolTCP,
 			},
 		},
@@ -511,7 +511,7 @@ func getExporterEnvironmentVariables(params containerParameters) []corev1.EnvVar
 	if params.Port != nil {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  "REDIS_EXPORTER_WEB_LISTEN_ADDRESS",
-			Value: fmt.Sprintf(":%d", *params.Port),
+			Value: fmt.Sprintf(":%d", *params.RedisExporterPort),
 		})
 	}
 	if params.RedisExporterEnv != nil {
