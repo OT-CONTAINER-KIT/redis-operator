@@ -7,4 +7,9 @@ func (r *RedisCluster) SetDefault() {
 	if r.Spec.Port == nil {
 		r.Spec.Port = pointer.Int(6379)
 	}
+	if r.Spec.RedisExporter != nil {
+		if r.Spec.RedisExporter.Port == nil {
+			r.Spec.RedisExporter.Port = pointer.Int(9121)
+		}
+	}
 }

@@ -1,16 +1,24 @@
 package k8sutils
 
-import redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+import (
+	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
+	"k8s.io/utils/pointer"
+)
 
 // CreateReplicationService method will create replication service for Redis
 func CreateReplicationService(cr *redisv1beta2.RedisReplication) error {
 	logger := serviceLogger(cr.Namespace, cr.ObjectMeta.Name)
 	labels := getRedisLabels(cr.ObjectMeta.Name, replication, "replication", cr.ObjectMeta.Labels)
 	annotations := generateServiceAnots(cr.ObjectMeta, nil)
-	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
-		enableMetrics = true
+	var epp exporterPortProvider
+	if cr.Spec.RedisExporter != nil {
+		epp = func() (port int, enable bool) {
+			defaultP := pointer.Int(redisExporterPort)
+			return *util.Coalesce(cr.Spec.RedisExporter.Port, defaultP), cr.Spec.RedisExporter.Enabled
+		}
 	} else {
-		enableMetrics = false
+		epp = disableMetrics
 	}
 	additionalServiceAnnotations := map[string]string{}
 	if cr.Spec.KubernetesConfig.Service != nil {
@@ -19,12 +27,12 @@ func CreateReplicationService(cr *redisv1beta2.RedisReplication) error {
 	objectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name, cr.Namespace, labels, annotations)
 	headlessObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-headless", cr.Namespace, labels, annotations)
 	additionalObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, additionalServiceAnnotations))
-	err := CreateOrUpdateService(cr.Namespace, headlessObjectMetaInfo, redisReplicationAsOwner(cr), false, true, "ClusterIP", redisPort)
+	err := CreateOrUpdateService(cr.Namespace, headlessObjectMetaInfo, redisReplicationAsOwner(cr), disableMetrics, true, "ClusterIP", redisPort)
 	if err != nil {
 		logger.Error(err, "Cannot create replication headless service for Redis")
 		return err
 	}
-	err = CreateOrUpdateService(cr.Namespace, objectMetaInfo, redisReplicationAsOwner(cr), enableMetrics, false, "ClusterIP", redisPort)
+	err = CreateOrUpdateService(cr.Namespace, objectMetaInfo, redisReplicationAsOwner(cr), epp, false, "ClusterIP", redisPort)
 	if err != nil {
 		logger.Error(err, "Cannot create replication service for Redis")
 		return err
@@ -33,7 +41,7 @@ func CreateReplicationService(cr *redisv1beta2.RedisReplication) error {
 	if cr.Spec.KubernetesConfig.Service != nil {
 		additionalServiceType = cr.Spec.KubernetesConfig.Service.ServiceType
 	}
-	err = CreateOrUpdateService(cr.Namespace, additionalObjectMetaInfo, redisReplicationAsOwner(cr), false, false, additionalServiceType, redisPort)
+	err = CreateOrUpdateService(cr.Namespace, additionalObjectMetaInfo, redisReplicationAsOwner(cr), disableMetrics, false, additionalServiceType, redisPort)
 	if err != nil {
 		logger.Error(err, "Cannot create additional service for Redis Replication")
 		return err
