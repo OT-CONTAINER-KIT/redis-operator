@@ -238,3 +238,41 @@ func TestGenerateServiceDef(t *testing.T) {
 		})
 	}
 }
+
+func TestGenerateServiceType(t *testing.T) {
+	tests := []struct {
+		name         string
+		serviceType  string
+		expectedType corev1.ServiceType
+	}{
+		{
+			name:         "LoadBalancer service type",
+			serviceType:  "LoadBalancer",
+			expectedType: corev1.ServiceTypeLoadBalancer,
+		},
+		{
+			name:         "NodePort service type",
+			serviceType:  "NodePort",
+			expectedType: corev1.ServiceTypeNodePort,
+		},
+		{
+			name:         "ClusterIP service type",
+			serviceType:  "ClusterIP",
+			expectedType: corev1.ServiceTypeClusterIP,
+		},
+		{
+			name:         "Default service type",
+			serviceType:  "InvalidServiceType",
+			expectedType: corev1.ServiceTypeClusterIP,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actualType := generateServiceType(tt.serviceType)
+			if actualType != tt.expectedType {
+				t.Errorf("Expected service type %v, but got %v", tt.expectedType, actualType)
+			}
+		})
+	}
+}
