@@ -112,37 +112,37 @@ spec:
          content: |
           kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-0 -- redis-cli -c -p 6379 ping
          check:
-          ($error!=null): true
+          ($stdout=='NOAUTH Authentication required.'): true
      - script:
          timeout: 10s
          content: |
           kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-1 -- redis-cli -c -p 6379 ping
          check:
-          ($error!=null): true
+          ($stdout=='NOAUTH Authentication required.'): true
      - script:
          timeout: 10s
          content: |
           kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-2 -- redis-cli -c -p 6379 ping
          check:
-          ($error!=null): true
+          ($stdout=='NOAUTH Authentication required.'): true
      - script:
          timeout: 10s
          content: |
           kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-0 -- redis-cli -c -p 6379 ping
          check:
-          ($error!=null): true
+          ($stdout=='NOAUTH Authentication required.'): true
      - script:
          timeout: 10s
          content: |
           kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-1 -- redis-cli -c -p 6379 ping
          check:
-          ($error!=null): true
+          ($stdout=='NOAUTH Authentication required.'): true
      - script:
          timeout: 10s
          content: |
           kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-2 -- redis-cli -c -p 6379 ping
          check:
-          ($error!=null): true
+          ($stdout=='NOAUTH Authentication required.'): true
 
   - name: Try saving a key Without Password
     try:
@@ -151,34 +151,34 @@ spec:
          content: |
           kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-0 -- redis-cli -c -p 6379 set foo-0 bar-0
          check:
-          ($error!=null): true
+          ($stdout=='NOAUTH Authentication required.'): true
      - script:
          timeout: 10s
          content: |
           kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-1 -- redis-cli -c -p 6379 set foo-1 bar-1
          check:
-          ($error!=null): true
+          ($stdout=='NOAUTH Authentication required.'): true
      - script:
          timeout: 10s
          content: |
           kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-2 -- redis-cli -c -p 6379 set foo-2 bar-2
          check:
-          ($error!=null): true
+          ($stdout=='NOAUTH Authentication required.'): true
      - script:
          timeout: 10s
          content: |
           kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-0 -- redis-cli -c -p 6379 set foo-3 bar-3
          check:
-          ($error!=null): true
+          ($stdout=='NOAUTH Authentication required.'): true
      - script:
          timeout: 10s
          content: |
           kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-1 -- redis-cli -c -p 6379 set foo-4 bar-4
          check:
-          ($error!=null): true
+          ($stdout=='NOAUTH Authentication required.'): true
      - script:
          timeout: 10s
          content: |
           kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-2 -- redis-cli -c -p 6379 set foo-5 bar-5
          check:
-          ($error!=null): true
+          ($stdout=='NOAUTH Authentication required.'): true
