@@ -66,7 +66,7 @@ spec:
          check:
           ($stdout=='PONG'): true
 
-  - name: Try saving a key Without Password
+  - name: Try saving a key With Password
     try:
      - script:
          timeout: 10s
@@ -144,7 +144,7 @@ spec:
          check:
           ($error!=null): true
 
-  - name: Try saving a key With Password
+  - name: Try saving a key Without Password
     try:
      - script:
          timeout: 10s
