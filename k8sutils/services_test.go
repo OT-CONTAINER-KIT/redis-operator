@@ -9,11 +9,15 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+var defaultExporterPortProvider exporterPortProvider = func() (int, bool) {
+	return redisExporterPort, true
+}
+
 func TestGenerateServiceDef(t *testing.T) {
 	tests := []struct {
 		name          string
 		serviceMeta   metav1.ObjectMeta
-		enableMetrics bool
+		enableMetrics exporterPortProvider
 		headless      bool
 		serviceType   string
 		port          int
@@ -27,7 +31,7 @@ func TestGenerateServiceDef(t *testing.T) {
 					"role": "sentinel",
 				},
 			},
-			enableMetrics: false,
+			enableMetrics: disableMetrics,
 			headless:      false,
 			serviceType:   "ClusterIP",
 			port:          sentinelPort,
@@ -68,7 +72,7 @@ func TestGenerateServiceDef(t *testing.T) {
 					"role": "sentinel",
 				},
 			},
-			enableMetrics: false,
+			enableMetrics: disableMetrics,
 			headless:      true,
 			serviceType:   "ClusterIP",
 			port:          sentinelPort,
@@ -109,7 +113,7 @@ func TestGenerateServiceDef(t *testing.T) {
 					"role": "redis",
 				},
 			},
-			enableMetrics: false,
+			enableMetrics: disableMetrics,
 			headless:      false,
 			serviceType:   "ClusterIP",
 			port:          redisPort,
@@ -150,7 +154,7 @@ func TestGenerateServiceDef(t *testing.T) {
 					"role": "redis",
 				},
 			},
-			enableMetrics: false,
+			enableMetrics: disableMetrics,
 			headless:      true,
 			serviceType:   "ClusterIP",
 			port:          redisPort,
@@ -191,7 +195,7 @@ func TestGenerateServiceDef(t *testing.T) {
 					"role": "redis",
 				},
 			},
-			enableMetrics: true,
+			enableMetrics: defaultExporterPortProvider,
 			headless:      false,
 			serviceType:   "ClusterIP",
 			port:          redisPort,
@@ -217,7 +221,7 @@ func TestGenerateServiceDef(t *testing.T) {
 							TargetPort: intstr.FromInt(int(redisPort)),
 							Protocol:   corev1.ProtocolTCP,
 						},
-						*enableMetricsPort(),
+						*enableMetricsPort(redisExporterPort),
 					},
 					Selector:  map[string]string{"role": "redis"},
 					ClusterIP: "",
@@ -231,6 +235,44 @@ func TestGenerateServiceDef(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			actual := generateServiceDef(tt.serviceMeta, tt.enableMetrics, metav1.OwnerReference{}, tt.headless, tt.serviceType, tt.port)
 			assert.Equal(t, tt.expected, actual)
+		})
+	}
+}
+
+func TestGenerateServiceType(t *testing.T) {
+	tests := []struct {
+		name         string
+		serviceType  string
+		expectedType corev1.ServiceType
+	}{
+		{
+			name:         "LoadBalancer service type",
+			serviceType:  "LoadBalancer",
+			expectedType: corev1.ServiceTypeLoadBalancer,
+		},
+		{
+			name:         "NodePort service type",
+			serviceType:  "NodePort",
+			expectedType: corev1.ServiceTypeNodePort,
+		},
+		{
+			name:         "ClusterIP service type",
+			serviceType:  "ClusterIP",
+			expectedType: corev1.ServiceTypeClusterIP,
+		},
+		{
+			name:         "Default service type",
+			serviceType:  "InvalidServiceType",
+			expectedType: corev1.ServiceTypeClusterIP,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actualType := generateServiceType(tt.serviceType)
+			if actualType != tt.expectedType {
+				t.Errorf("Expected service type %v, but got %v", tt.expectedType, actualType)
+			}
 		})
 	}
 }

@@ -373,24 +373,27 @@ func TestGetEnvironmentVariables(t *testing.T) {
 func Test_getExporterEnvironmentVariables(t *testing.T) {
 	tests := []struct {
 		name                string
+		params              containerParameters
 		tlsConfig           *redisv1beta2.TLSConfig
 		envVar              *[]corev1.EnvVar
 		expectedEnvironment []corev1.EnvVar
 	}{
 		{
 			name: "Test with tls enabled and env var",
-			tlsConfig: &redisv1beta2.TLSConfig{
-				TLSConfig: common.TLSConfig{
-					CaKeyFile:   "test_ca.crt",
-					CertKeyFile: "test_tls.crt",
-					KeyFile:     "test_tls.key",
-					Secret: corev1.SecretVolumeSource{
-						SecretName: "tls-secret",
+			params: containerParameters{
+				TLSConfig: &redisv1beta2.TLSConfig{
+					TLSConfig: common.TLSConfig{
+						CaKeyFile:   "test_ca.crt",
+						CertKeyFile: "test_tls.crt",
+						KeyFile:     "test_tls.key",
+						Secret: corev1.SecretVolumeSource{
+							SecretName: "tls-secret",
+						},
 					},
 				},
-			},
-			envVar: &[]corev1.EnvVar{
-				{Name: "TEST_ENV", Value: "test-value"},
+				RedisExporterEnv: &[]corev1.EnvVar{
+					{Name: "TEST_ENV", Value: "test-value"},
+				},
 			},
 			expectedEnvironment: []corev1.EnvVar{
 				{Name: "REDIS_EXPORTER_TLS_CLIENT_KEY_FILE", Value: "/tls/tls.key"},
@@ -403,7 +406,7 @@ func Test_getExporterEnvironmentVariables(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actualEnvironment := getExporterEnvironmentVariables(tt.tlsConfig, tt.envVar)
+			actualEnvironment := getExporterEnvironmentVariables(tt.params)
 
 			assert.ElementsMatch(t, tt.expectedEnvironment, actualEnvironment)
 		})

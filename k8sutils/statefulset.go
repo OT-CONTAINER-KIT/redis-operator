@@ -8,6 +8,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
+	"k8s.io/utils/pointer"
+
 	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
@@ -58,6 +61,7 @@ type containerParameters struct {
 	RedisExporterImagePullPolicy corev1.PullPolicy
 	RedisExporterResources       *corev1.ResourceRequirements
 	RedisExporterEnv             *[]corev1.EnvVar
+	RedisExporterPort            *int
 	Role                         string
 	EnabledPassword              *bool
 	SecretName                   *string
@@ -468,12 +472,12 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 		Name:            redisExporterContainer,
 		Image:           params.RedisExporterImage,
 		ImagePullPolicy: params.RedisExporterImagePullPolicy,
-		Env:             getExporterEnvironmentVariables(params.TLSConfig, params.RedisExporterEnv),
+		Env:             getExporterEnvironmentVariables(params),
 		VolumeMounts:    getVolumeMount("", nil, false, false, nil, params.AdditionalMountPath, params.TLSConfig, params.ACLConfig), // We need/want the tls-certs but we DON'T need the PVC (if one is available)
 		Ports: []corev1.ContainerPort{
 			{
 				Name:          redisExporterPortName,
-				ContainerPort: redisExporterPort,
+				ContainerPort: int32(*util.Coalesce(params.RedisExporterPort, pointer.Int(redisExporterPort))),
 				Protocol:      corev1.ProtocolTCP,
 			},
 		},
@@ -484,9 +488,9 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 	return exporterDefinition
 }
 
-func getExporterEnvironmentVariables(tlsConfig *redisv1beta2.TLSConfig, env *[]corev1.EnvVar) []corev1.EnvVar {
+func getExporterEnvironmentVariables(params containerParameters) []corev1.EnvVar {
 	var envVars []corev1.EnvVar
-	if tlsConfig != nil {
+	if params.TLSConfig != nil {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  "REDIS_EXPORTER_TLS_CLIENT_KEY_FILE",
 			Value: "/tls/tls.key",
@@ -504,8 +508,14 @@ func getExporterEnvironmentVariables(tlsConfig *redisv1beta2.TLSConfig, env *[]c
 			Value: "true",
 		})
 	}
-	if env != nil {
-		envVars = append(envVars, *env...)
+	if params.Port != nil {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  "REDIS_EXPORTER_WEB_LISTEN_ADDRESS",
+			Value: fmt.Sprintf(":%d", *params.RedisExporterPort),
+		})
+	}
+	if params.RedisExporterEnv != nil {
+		envVars = append(envVars, *params.RedisExporterEnv...)
 	}
 	return envVars
 }

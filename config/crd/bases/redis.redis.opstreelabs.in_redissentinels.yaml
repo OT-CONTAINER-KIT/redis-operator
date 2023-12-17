@@ -3316,6 +3316,9 @@ spec:
                     description: PullPolicy describes a policy for if/when to pull
                       a container image
                     type: string
+                  port:
+                    default: 9121
+                    type: integer
                   resources:
                     description: ResourceRequirements describes the compute resource
                       requirements.

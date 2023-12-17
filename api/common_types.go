@@ -36,7 +36,9 @@ type ExistingPasswordSecret struct {
 // RedisExporter interface will have the information for redis exporter related stuff
 // +k8s:deepcopy-gen=true
 type RedisExporter struct {
-	Enabled         bool                         `json:"enabled,omitempty"`
+	Enabled bool `json:"enabled,omitempty"`
+	// +kubebuilder:default:=9121
+	Port            *int                         `json:"port,omitempty"`
 	Image           string                       `json:"image"`
 	Resources       *corev1.ResourceRequirements `json:"resources,omitempty"`
 	ImagePullPolicy corev1.PullPolicy            `json:"imagePullPolicy,omitempty"`
