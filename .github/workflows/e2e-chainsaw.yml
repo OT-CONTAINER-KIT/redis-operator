@@ -19,6 +19,7 @@ jobs:
           - ./tests/e2e-chainsaw/v1beta2/setup/
           - ./tests/e2e-chainsaw/v1beta2/hostnetwork/
           - ./tests/e2e-chainsaw/v1beta2/password/
+          - ./tests/e2e-chainsaw/v1beta2/ha-setup/
 
     steps:
     - name: Checkout code
