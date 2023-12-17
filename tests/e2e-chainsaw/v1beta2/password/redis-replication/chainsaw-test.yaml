@@ -59,13 +59,13 @@ spec:
          content: |
           kubectl exec --namespace ${NAMESPACE} redis-replication-1 -- redis-cli -p 6379 -a Opstree@1234 set foo-1 bar-1
          check:
-          ($stdout=='OK'): true
+          ($stdout=='READONLY You can't write against a read only replica.'): true
      - script:
          timeout: 10s
          content: |
           kubectl exec --namespace ${NAMESPACE} redis-replication-2 -- redis-cli -p 6379 -a Opstree@1234 set foo-2 bar-2
          check:
-          ($stdout=='OK'): true
+          ($stdout=='READONLY You can't write against a read only replica.'): true
 
   - name: Ping Replicated Cluster Without Password 
     try:
