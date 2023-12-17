@@ -4,7 +4,7 @@ kind: RedisSentinel
 metadata:
   name: redis-sentinel
 spec:
-  clusterSize: 3
+  clusterSize: 1
   podSecurityContext:
     runAsUser: 1000
     fsGroup: 1000
