@@ -3,7 +3,7 @@
 apiVersion: chainsaw.kyverno.io/v1alpha1
 kind: Test
 metadata:
-  name: redis-HA-setup
+  name: redis-ha-setup
 spec:
   steps:
   - try:
@@ -21,4 +21,21 @@ spec:
         file: ready-sentinel-sts.yaml
     - assert:
         file: ready-sentinel-svc.yaml
+    - create: 
+        file: cli-pod.yaml
+    - assert:
+        file: cli-pod.yaml
 
+  - name: Sleep for five minutes
+    try:
+     - sleep:
+         duration: 5m
+
+  - name: Ping Replicated Cluster from Sentinel
+    try:
+     - script:
+         timeout: 10s
+         content: |
+          kubectl exec --namespace ${NAMESPACE} redis-sentinel-sentinel-0 -- redis-cli -p 6379 ping
+         check:
+          ($stdout=='PONG'): true
