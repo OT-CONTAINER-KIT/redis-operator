@@ -3,7 +3,7 @@
 apiVersion: chainsaw.kyverno.io/v1alpha1
 kind: Test
 metadata:
-  name: redis-ha-setup-unsecured
+  name: redis-ha-setup-partial-secured-sentinel
 spec:
   steps:
   - try:
@@ -40,11 +40,20 @@ spec:
          check:
           ($stdout=='PONG'): true
 
-  - name: Ping Sentinel Service from Cli Pod
+  - name: Ping Sentinel Service from Cli Pod With password
+    try:
+     - script:
+         timeout: 10s
+         content: |
+          kubectl exec --namespace ${NAMESPACE} redis -- redis-cli -h redis-sentinel-sentinel.${NAMESPACE}.svc -p 26379 -a Opstree@1234 ping
+         check:
+          ($stdout=='PONG'): true
+
+  - name: Ping Sentinel Service from Cli Pod Without password
     try:
      - script:
          timeout: 10s
          content: |
           kubectl exec --namespace ${NAMESPACE} redis -- redis-cli -h redis-sentinel-sentinel.${NAMESPACE}.svc -p 26379 ping
          check:
-          ($stdout=='PONG'): true
+          ($stdout=='NOAUTH Authentication required.'): true
