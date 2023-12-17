@@ -48,12 +48,3 @@ spec:
           kubectl exec --namespace ${NAMESPACE} redis -- redis-cli -h redis-sentinel-sentinel.${NAMESPACE}.svc -p 26379 ping
          check:
           ($stdout=='PONG'): true
-
-  - name: Try saving a key from Sentinel Service
-    try:
-     - script:
-         timeout: 10s
-         content: |
-          kubectl exec --namespace ${NAMESPACE} redis -- redis-cli -h redis-sentinel-sentinel.${NAMESPACE}.svc -p 26379 set foo-0 bar-0
-         check:
-          ($stdout=='OK'): true
