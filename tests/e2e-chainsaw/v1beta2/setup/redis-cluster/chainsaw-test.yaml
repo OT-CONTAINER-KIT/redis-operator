@@ -18,6 +18,11 @@ spec:
     - assert:
         file: ready-pvc.yaml
 
+  - name: Sleep for five minutes
+    try:
+     - sleep:
+         duration: 5m
+
   - name: Ping Cluster
     try:
      - script:
@@ -25,13 +30,33 @@ spec:
           kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-0 -- redis-cli -c -p 6379 ping
          check:
           ($stdout=='PONG'): true
+     - script:
+         content: |
+          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-1 -- redis-cli -c -p 6379 ping
+         check:
+          ($stdout=='PONG'): true
+     - script:
+         content: |
+          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-2 -- redis-cli -c -p 6379 ping
+         check:
+          ($stdout=='PONG'): true
+     - script:
+         content: |
+          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-0 -- redis-cli -c -p 6379 ping
+         check:
+          ($stdout=='PONG'): true
+     - script:
+         content: |
+          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-1 -- redis-cli -c -p 6379 ping
+         check:
+          ($stdout=='PONG'): true
+     - script:
+         content: |
+          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-2 -- redis-cli -c -p 6379 ping
+         check:
+          ($stdout=='PONG'): true
 
-  - name: Sleep for five minutes
-    try:
-     - sleep:
-         duration: 5m
-
-  - name: Try saving a key
+  - name: Try saving a key With Password
     try:
      - script:
          timeout: 30s
