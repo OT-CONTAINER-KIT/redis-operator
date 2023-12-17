@@ -3,16 +3,22 @@
 apiVersion: chainsaw.kyverno.io/v1alpha1
 kind: Test
 metadata:
-  name: redis-replication-setup
+  name: redis-HA-setup
 spec:
   steps:
   - try:
     - apply:
         file: replication.yaml
     - assert:
-        file: ready-sts.yaml
+        file: ready-replication-sts.yaml
     - assert:
-        file: ready-svc.yaml
+        file: ready-replication-svc.yaml
     - assert:
-        file: ready-pvc.yaml
+        file: ready-replication-pvc.yaml
+    - apply:
+        file: sentinel.yaml
+    - assert:
+        file: ready-sentinel-sts.yaml
+    - assert:
+        file: ready-sentinel-svc.yaml
 
