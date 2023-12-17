@@ -10,6 +10,7 @@ spec:
     fsGroup: 1000
   redisSentinelConfig:
     redisReplicationName : redis-replication
+    quorum: "1"
   kubernetesConfig:
     image: quay.io/opstree/redis-sentinel:latest
     imagePullPolicy: Always
