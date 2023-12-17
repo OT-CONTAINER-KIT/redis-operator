@@ -31,11 +31,20 @@ spec:
      - sleep:
          duration: 5m
 
-  - name: Ping Replicated Cluster from Sentinel
+  - name: Ping Replicated Service from Cli Pod
     try:
      - script:
          timeout: 10s
          content: |
-          kubectl exec --namespace ${NAMESPACE} redis-sentinel-sentinel-0 -- redis-cli -p 6379 ping
+          kubectl exec --namespace ${NAMESPACE} redis -- redis-cli -h redis-replication.${NAMESPACE}.svc -p 6379 ping
+         check:
+          ($stdout=='PONG'): true
+
+  - name: Ping Sentinel Service from Cli Pod
+    try:
+     - script:
+         timeout: 10s
+         content: |
+          kubectl exec --namespace ${NAMESPACE} redis -- redis-cli -h redis-sentinel.${NAMESPACE}.svc -p 6379 ping
          check:
           ($stdout=='PONG'): true
