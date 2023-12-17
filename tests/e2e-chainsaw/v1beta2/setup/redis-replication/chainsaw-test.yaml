@@ -16,3 +16,44 @@ spec:
     - assert:
         file: ready-pvc.yaml
 
+  - name: Ping Replicated Cluster
+    try:
+     - script:
+         timeout: 10s
+         content: |
+          kubectl exec --namespace ${NAMESPACE} redis-replication-0 -- redis-cli -p 6379 ping
+         check:
+          ($stdout=='PONG'): true
+     - script:
+         timeout: 10s
+         content: |
+          kubectl exec --namespace ${NAMESPACE} redis-replication-1 -- redis-cli -p 6379 ping
+         check:
+          ($stdout=='PONG'): true
+     - script:
+         timeout: 10s
+         content: |
+          kubectl exec --namespace ${NAMESPACE} redis-replication-2 -- redis-cli -p 6379 ping
+         check:
+          ($stdout=='PONG'): true
+
+  - name: Try saving a key
+    try:
+     - script:
+         timeout: 10s
+         content: |
+          kubectl exec --namespace ${NAMESPACE} redis-replication-0 -- redis-cli -p 6379 set foo-0 bar-0
+         check:
+          ($stdout=='OK'): true
+    #  - script:
+    #      timeout: 10s
+    #      content: |
+    #       kubectl exec --namespace ${NAMESPACE} redis-replication-1 -- redis-cli -p 6379 set foo-1 bar-1
+    #      check:
+    #       ($stdout==`READONLY You can't write against a read only replica.`): true
+    #  - script:
+    #      timeout: 10s
+    #      content: |
+    #       kubectl exec --namespace ${NAMESPACE} redis-replication-2 -- redis-cli -p 6379 set foo-2 bar-2
+    #      check:
+    #       ($stdout==`READONLY You can't write against a read only replica.`): true

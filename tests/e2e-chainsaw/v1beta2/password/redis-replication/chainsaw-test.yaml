@@ -1,0 +1,110 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: redis-replication-password
+spec:
+  steps:
+  - try:
+    - apply:
+        file: replication.yaml
+    - apply:
+        file: secret.yaml
+    - assert:
+        file: ready-sts.yaml
+    - assert:
+        file: ready-svc.yaml
+    - assert:
+        file: ready-pvc.yaml
+    - assert:
+        file: secret.yaml
+
+  - name: Sleep for five minutes
+    try:
+     - sleep:
+         duration: 5m   
+
+  - name: Ping Replicated Cluster With Password
+    try:
+     - script:
+         timeout: 10s
+         content: |
+          kubectl exec --namespace ${NAMESPACE} redis-replication-0 -- redis-cli -p 6379 -a Opstree@1234 ping
+         check:
+          ($stdout=='PONG'): true
+     - script:
+         timeout: 10s
+         content: |
+          kubectl exec --namespace ${NAMESPACE} redis-replication-1 -- redis-cli -p 6379 -a Opstree@1234 ping
+         check:
+          ($stdout=='PONG'): true
+     - script:
+         timeout: 10s
+         content: |
+          kubectl exec --namespace ${NAMESPACE} redis-replication-2 -- redis-cli -p 6379 -a Opstree@1234 ping
+         check:
+          ($stdout=='PONG'): true
+
+  - name: Try saving a key With Password
+    try:
+     - script:
+         timeout: 10s
+         content: |
+          kubectl exec --namespace ${NAMESPACE} redis-replication-0 -- redis-cli -p 6379 -a Opstree@1234 set foo-0 bar-0
+         check:
+          ($stdout=='OK'): true
+    #  - script:
+    #      timeout: 10s
+    #      content: |
+    #       kubectl exec --namespace ${NAMESPACE} redis-replication-1 -- redis-cli -p 6379 -a Opstree@1234 set foo-1 bar-1
+    #      check:
+    #       ($stdout=='READONLY You can't write against a read only replica.'): true
+    #  - script:
+    #      timeout: 10s
+    #      content: |
+    #       kubectl exec --namespace ${NAMESPACE} redis-replication-2 -- redis-cli -p 6379 -a Opstree@1234 set foo-2 bar-2
+    #      check:
+    #       ($stdout=='READONLY You can't write against a read only replica.'): true
+
+  - name: Ping Replicated Cluster Without Password 
+    try:
+     - script:
+         timeout: 10s
+         content: |
+          kubectl exec --namespace ${NAMESPACE} redis-replication-0 -- redis-cli -p 6379 ping
+         check:
+          ($stdout=='NOAUTH Authentication required.'): true
+     - script:
+         timeout: 10s
+         content: |
+          kubectl exec --namespace ${NAMESPACE} redis-replication-1 -- redis-cli -p 6379 ping
+         check:
+          ($stdout=='NOAUTH Authentication required.'): true
+     - script:
+         timeout: 10s
+         content: |
+          kubectl exec --namespace ${NAMESPACE} redis-replication-2 -- redis-cli -p 6379 ping
+         check:
+          ($stdout=='NOAUTH Authentication required.'): true
+
+  - name: Try saving a key Without Password
+    try:
+     - script:
+         timeout: 10s
+         content: |
+          kubectl exec --namespace ${NAMESPACE} redis-replication-0 -- redis-cli -p 6379 set foo-0 bar-0
+         check:
+          ($stdout=='NOAUTH Authentication required.'): true
+     - script:
+         timeout: 10s
+         content: |
+          kubectl exec --namespace ${NAMESPACE} redis-replication-1 -- redis-cli -p 6379 set foo-1 bar-1
+         check:
+          ($stdout=='NOAUTH Authentication required.'): true
+     - script:
+         timeout: 10s
+         content: |
+          kubectl exec --namespace ${NAMESPACE} redis-replication-2 -- redis-cli -p 6379 set foo-2 bar-2
+         check:
+          ($stdout=='NOAUTH Authentication required.'): true
