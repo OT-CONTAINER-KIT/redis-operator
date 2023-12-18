@@ -15,6 +15,10 @@ spec:
         file: ready-replication-svc.yaml
     - assert:
         file: ready-replication-pvc.yaml
+    - create:
+        file: secret.yaml
+    - assert:
+        file: secret.yaml
     - apply:
         file: sentinel.yaml
     - assert:
