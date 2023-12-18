@@ -1,4 +1,5 @@
----
+# yaml-language-server: $schema=../../../../../../../../config/crd/bases/redis.redis.opstreelabs.in_redissentinels.yaml
+
 apiVersion: redis.redis.opstreelabs.in/v1beta2
 kind: RedisSentinel
 metadata:
@@ -11,7 +12,10 @@ spec:
   redisSentinelConfig:
     redisReplicationName : redis-replication
     quorum: "1"
-    additionalSentinelConfig: sentinel-external-config
+    redisReplicationPassword:
+      secretKeyRef: 
+        name: redis-replication-secret
+        key: redis-replication-password
   kubernetesConfig:
     image: quay.io/opstree/redis-sentinel:latest
     imagePullPolicy: Always

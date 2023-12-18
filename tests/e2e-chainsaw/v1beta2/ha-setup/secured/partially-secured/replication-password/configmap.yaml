@@ -1,8 +1,0 @@
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: sentinel-external-config
-data:
-  redis-sentinel-additional.conf: |
-    sentinel auth-pass myMaster Opstree@1234
