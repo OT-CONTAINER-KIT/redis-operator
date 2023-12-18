@@ -8,9 +8,9 @@ spec:
   steps:
   - try:
     - create: 
-        file: secret.yaml
+        file: password.yaml
     - assert:
-        file: secret.yaml
+        file: password.yaml
     - apply:
         file: replication.yaml
     - assert:
