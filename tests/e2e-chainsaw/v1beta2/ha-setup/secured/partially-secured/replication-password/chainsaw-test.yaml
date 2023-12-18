@@ -8,9 +8,9 @@ spec:
   steps:
   - try:
     - create: 
-        file: configmap.yaml
+        file: secret.yaml
     - assert:
-        file: configmap.yaml
+        file: secret.yaml
     - apply:
         file: replication.yaml
     - assert:
@@ -19,6 +19,10 @@ spec:
         file: ready-replication-svc.yaml
     - assert:
         file: ready-replication-pvc.yaml
+    - create: 
+        file: configmap.yaml
+    - assert:
+        file: configmap.yaml
     - apply:
         file: sentinel.yaml
     - assert:
