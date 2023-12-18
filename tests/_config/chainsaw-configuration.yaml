@@ -5,7 +5,6 @@ kind: Configuration
 metadata:
   name:  chainsaw-configuration
 spec: 
-  parallel: 1 
   delayBeforeCleanup: 10s
   timeouts:
     apply: 5m

@@ -1,0 +1,63 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: redis-ha-setup-partial-secured-sentinel
+spec:
+  steps:
+  - try:
+    - apply:
+        file: replication.yaml
+    - assert:
+        file: ready-replication-sts.yaml
+    - assert:
+        file: ready-replication-svc.yaml
+    - assert:
+        file: ready-replication-pvc.yaml
+    - create:
+        file: secret.yaml
+    - assert:
+        file: secret.yaml
+    - apply:
+        file: sentinel.yaml
+    - assert:
+        file: ready-sentinel-sts.yaml
+    - assert:
+        file: ready-sentinel-svc.yaml
+    - create: 
+        file: cli-pod.yaml
+    - assert:
+        file: cli-pod.yaml
+
+  - name: Sleep for five minutes
+    try:
+     - sleep:
+         duration: 5m
+
+  - name: Ping Replicated Service from Cli Pod
+    try:
+     - script:
+         timeout: 10s
+         content: |
+          kubectl exec --namespace ${NAMESPACE} redis -- redis-cli -h redis-replication.${NAMESPACE}.svc -p 6379 ping
+         check:
+          ($stdout=='PONG'): true
+
+  - name: Ping Sentinel Service from Cli Pod With password
+    try:
+     - script:
+         timeout: 10s
+         content: |
+          kubectl exec --namespace ${NAMESPACE} redis -- redis-cli -h redis-sentinel-sentinel.${NAMESPACE}.svc -p 26379 -a Opstree@1234 ping
+         check:
+          ($stdout=='PONG'): true
+
+  - name: Ping Sentinel Service from Cli Pod Without password
+    try:
+     - script:
+         timeout: 10s
+         content: |
+          kubectl exec --namespace ${NAMESPACE} redis -- redis-cli -h redis-sentinel-sentinel.${NAMESPACE}.svc -p 26379 ping
+         check:
+          ($stdout=='NOAUTH Authentication required.'): true
