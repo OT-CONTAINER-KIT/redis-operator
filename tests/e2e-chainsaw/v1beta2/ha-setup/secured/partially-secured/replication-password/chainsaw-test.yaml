@@ -21,8 +21,6 @@ spec:
         file: ready-replication-pvc.yaml
     - create: 
         file: password.yaml
-    - assert:
-        file: password.yaml
     - apply:
         file: sentinel.yaml
     - assert:
