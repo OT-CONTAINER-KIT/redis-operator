@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
 	"k8s.io/utils/pointer"
 
@@ -279,6 +280,12 @@ func getSentinelEnvVariable(ctx context.Context, client kubernetes.Interface, lo
 		},
 	}
 
+	if cr.Spec.RedisSentinelConfig != nil && cr.Spec.RedisSentinelConfig.RedisReplicationPassword != nil {
+		*envVar = append(*envVar, corev1.EnvVar{
+			Name:      "MASTER_PASSWORD",
+			ValueFrom: cr.Spec.RedisSentinelConfig.RedisReplicationPassword,
+		})
+	}
 	return envVar
 
 }
