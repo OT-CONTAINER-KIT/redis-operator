@@ -8,9 +8,9 @@ spec:
   steps:
   - try:
     - create: 
-        file: password.yaml
+        file: secret.yaml
     - assert:
-        file: password.yaml
+        file: secret.yaml
     - apply:
         file: replication.yaml
     - assert:
@@ -20,9 +20,9 @@ spec:
     - assert:
         file: ready-replication-pvc.yaml
     - create: 
-        file: configmap.yaml
+        file: password.yaml
     - assert:
-        file: configmap.yaml
+        file: password.yaml
     - apply:
         file: sentinel.yaml
     - assert:
