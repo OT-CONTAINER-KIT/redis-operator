@@ -508,7 +508,7 @@ func getExporterEnvironmentVariables(params containerParameters) []corev1.EnvVar
 			Value: "true",
 		})
 	}
-	if params.Port != nil {
+	if params.RedisExporterPort != nil {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  "REDIS_EXPORTER_WEB_LISTEN_ADDRESS",
 			Value: fmt.Sprintf(":%d", *params.RedisExporterPort),
