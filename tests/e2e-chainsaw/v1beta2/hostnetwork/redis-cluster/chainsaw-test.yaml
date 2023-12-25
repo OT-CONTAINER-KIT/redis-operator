@@ -77,39 +77,40 @@ spec:
       - script:
           timeout: 30s
           content: |
-            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 1 | tail -n 1 | xargs -I {} curl -s -o /dev/null -w '%{http_code}' http://{}:9122
+            # 
+            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 1 | tail -n 1 | xargs -I {} curl -s http://{}:9122/metrics | grep -v '^#' | grep -E '\bredis_up\b' | awk '{print $2}'
           check:
-            ($stdout=='200'): true
+            ($stdout=='1'): true
       - script:
           timeout: 30s
           content: |
-            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 2 | tail -n 1 | xargs -I {} curl -s -o /dev/null -w '%{http_code}' http://{}:9122
+            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 2 | tail -n 1 | xargs -I {} curl -s http://{}:9122/metrics | grep -v '^#' | grep -E '\bredis_up\b' | awk '{print $2}'
           check:
-            ($stdout=='200'): true
+            ($stdout=='1'): true
       - script:
           timeout: 30s
           content: |
-            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 3 | tail -n 1 | xargs -I {} curl -s -o /dev/null -w '%{http_code}' http://{}:9122
+            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 3 | tail -n 1 | xargs -I {} curl -s http://{}:9122/metrics | grep -v '^#' | grep -E '\bredis_up\b' | awk '{print $2}'
           check:
-            ($stdout=='200'): true
+            ($stdout=='1'): true
       - script:
           timeout: 30s
           content: |
-            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 4 | tail -n 1 | xargs -I {} curl -s -o /dev/null -w '%{http_code}' http://{}:9122
+            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 4 | tail -n 1 | xargs -I {} curl -s http://{}:9122/metrics | grep -v '^#' | grep -E '\bredis_up\b' | awk '{print $2}'
           check:
-            ($stdout=='200'): true
+            ($stdout=='1'): true
       - script:
           timeout: 30s
           content: |
-            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 5 | tail -n 1 | xargs -I {} curl -s -o /dev/null -w '%{http_code}' http://{}:9122
+            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 5 | tail -n 1 | xargs -I {} curl -s http://{}:9122/metrics | grep -v '^#' | grep -E '\bredis_up\b' | awk '{print $2}'
           check:
-            ($stdout=='200'): true
+            ($stdout=='1'): true
       - script:
           timeout: 30s
           content: |
-            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 6 | tail -n 1 | xargs -I {} curl -s -o /dev/null -w '%{http_code}' http://{}:9122
+            kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 6 | tail -n 1 | xargs -I {} curl -s http://{}:9122/metrics | grep -v '^#' | grep -E '\bredis_up\b' | awk '{print $2}'
           check:
-            ($stdout=='200'): true
+            ($stdout=='1'): true
 
   - name: Try saving a key from every node
     try:
