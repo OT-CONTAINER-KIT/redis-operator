@@ -40,7 +40,7 @@ This operator only supports versions of redis `=>6`.
 ## Purpose
 
 There are multiple problems that people face while setting up redis setup on Kubernetes, specially cluster type setup. The purpose of creating this opperator is to provide an easy and production ready interface for redis setup that include best-practices, security controls, monitoring, and management.
-
+random
 ## Supported Features
 
 Here the features which are supported by this operator:-
