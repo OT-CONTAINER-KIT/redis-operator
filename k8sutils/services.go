@@ -63,7 +63,6 @@ func generateServiceDef(serviceMeta metav1.ObjectMeta, epp exporterPortProvider,
 	}
 	if len(extra) > 0 {
 		service.Spec.Ports = append(service.Spec.Ports, extra...)
-		service.Spec.PublishNotReadyAddresses = true
 	}
 
 	AddOwnerRefToObject(service, ownerDef)

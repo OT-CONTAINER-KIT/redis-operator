@@ -26,7 +26,7 @@ spec:
     app: redis-cluster-v1beta2-leader
     redis_setup_type: cluster
     role: leader
-  type: ClusterIP
+  type: NodePort
 status:
   loadBalancer: {}
 ---
@@ -163,7 +163,7 @@ spec:
     app: redis-cluster-v1beta2-follower
     redis_setup_type: cluster
     role: follower
-  type: ClusterIP
+  type: NodePort
 status:
   loadBalancer: {}
 ---
@@ -197,5 +197,173 @@ spec:
     redis_setup_type: cluster
     role: follower
   type: ClusterIP
+status:
+  loadBalancer: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: redis-cluster-v1beta2-leader
+    redis_setup_type: cluster
+    role: leader
+    statefulset.kubernetes.io/pod-name: redis-cluster-v1beta2-leader-0
+  name: redis-cluster-v1beta2-leader-0
+spec:
+  ports:
+    - name: redis-client
+      port: 6379
+      protocol: TCP
+      targetPort: 6379
+    - name: redis-bus
+      port: 16379
+      protocol: TCP
+      targetPort: 16379
+  selector:
+    app: redis-cluster-v1beta2-leader
+    redis_setup_type: cluster
+    role: leader
+    statefulset.kubernetes.io/pod-name: redis-cluster-v1beta2-leader-0
+  type: NodePort
+status:
+  loadBalancer: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: redis-cluster-v1beta2-leader
+    redis_setup_type: cluster
+    role: leader
+    statefulset.kubernetes.io/pod-name: redis-cluster-v1beta2-leader-1
+  name: redis-cluster-v1beta2-leader-1
+spec:
+  ports:
+    - name: redis-client
+      port: 6379
+      protocol: TCP
+      targetPort: 6379
+    - name: redis-bus
+      port: 16379
+      protocol: TCP
+      targetPort: 16379
+  selector:
+    app: redis-cluster-v1beta2-leader
+    redis_setup_type: cluster
+    role: leader
+    statefulset.kubernetes.io/pod-name: redis-cluster-v1beta2-leader-1
+  type: NodePort
+status:
+  loadBalancer: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: redis-cluster-v1beta2-leader
+    redis_setup_type: cluster
+    role: leader
+    statefulset.kubernetes.io/pod-name: redis-cluster-v1beta2-leader-2
+  name: redis-cluster-v1beta2-leader-2
+spec:
+  ports:
+    - name: redis-client
+      port: 6379
+      protocol: TCP
+      targetPort: 6379
+    - name: redis-bus
+      port: 16379
+      protocol: TCP
+      targetPort: 16379
+  selector:
+    app: redis-cluster-v1beta2-leader
+    redis_setup_type: cluster
+    role: leader
+    statefulset.kubernetes.io/pod-name: redis-cluster-v1beta2-leader-2
+  type: NodePort
+status:
+  loadBalancer: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: redis-cluster-v1beta2-follower
+    redis_setup_type: cluster
+    role: follower
+    statefulset.kubernetes.io/pod-name: redis-cluster-v1beta2-follower-0
+  name: redis-cluster-v1beta2-follower-0
+spec:
+  ports:
+    - name: redis-client
+      port: 6379
+      protocol: TCP
+      targetPort: 6379
+    - name: redis-bus
+      port: 16379
+      protocol: TCP
+      targetPort: 16379
+  selector:
+    app: redis-cluster-v1beta2-follower
+    redis_setup_type: cluster
+    role: follower
+    statefulset.kubernetes.io/pod-name: redis-cluster-v1beta2-follower-0
+  type: NodePort
+status:
+  loadBalancer: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: redis-cluster-v1beta2-follower
+    redis_setup_type: cluster
+    role: follower
+    statefulset.kubernetes.io/pod-name: redis-cluster-v1beta2-follower-1
+  name: redis-cluster-v1beta2-follower-1
+spec:
+  ports:
+    - name: redis-client
+      port: 6379
+      protocol: TCP
+      targetPort: 6379
+    - name: redis-bus
+      port: 16379
+      protocol: TCP
+      targetPort: 16379
+  selector:
+    app: redis-cluster-v1beta2-follower
+    redis_setup_type: cluster
+    role: follower
+    statefulset.kubernetes.io/pod-name: redis-cluster-v1beta2-follower-1
+  type: NodePort
+status:
+  loadBalancer: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: redis-cluster-v1beta2-follower
+    redis_setup_type: cluster
+    role: follower
+    statefulset.kubernetes.io/pod-name: redis-cluster-v1beta2-follower-2
+  name: redis-cluster-v1beta2-follower-2
+spec:
+  ports:
+    - name: redis-client
+      port: 6379
+      protocol: TCP
+      targetPort: 6379
+    - name: redis-bus
+      port: 16379
+      protocol: TCP
+      targetPort: 16379
+  selector:
+    app: redis-cluster-v1beta2-follower
+    redis_setup_type: cluster
+    role: follower
+    statefulset.kubernetes.io/pod-name: redis-cluster-v1beta2-follower-2
+  type: NodePort
 status:
   loadBalancer: {}
