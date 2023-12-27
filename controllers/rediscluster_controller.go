@@ -116,15 +116,15 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	}
 
-	err = k8sutils.CreateRedisLeader(instance)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
 	if leaderReplicas != 0 {
 		err = k8sutils.CreateRedisLeaderService(instance)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
+	}
+	err = k8sutils.CreateRedisLeader(instance)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
 	err = k8sutils.ReconcileRedisPodDisruptionBudget(instance, "leader", instance.Spec.RedisLeader.PodDisruptionBudget)
@@ -149,17 +149,16 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				return ctrl.Result{}, err
 			}
 		}
-
-		err = k8sutils.CreateRedisFollower(instance)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
 		// if we have followers create their service.
 		if followerReplicas != 0 {
 			err = k8sutils.CreateRedisFollowerService(instance)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
+		}
+		err = k8sutils.CreateRedisFollower(instance)
+		if err != nil {
+			return ctrl.Result{}, err
 		}
 		err = k8sutils.ReconcileRedisPodDisruptionBudget(instance, "follower", instance.Spec.RedisFollower.PodDisruptionBudget)
 		if err != nil {

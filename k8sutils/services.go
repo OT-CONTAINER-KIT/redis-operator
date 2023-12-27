@@ -30,7 +30,7 @@ var disableMetrics exporterPortProvider = func() (int, bool) {
 }
 
 // generateServiceDef generates service definition for Redis
-func generateServiceDef(serviceMeta metav1.ObjectMeta, epp exporterPortProvider, ownerDef metav1.OwnerReference, headless bool, serviceType string, port int) *corev1.Service {
+func generateServiceDef(serviceMeta metav1.ObjectMeta, epp exporterPortProvider, ownerDef metav1.OwnerReference, headless bool, serviceType string, port int, extra ...corev1.ServicePort) *corev1.Service {
 	var PortName string
 	if serviceMeta.Labels["role"] == "sentinel" {
 		PortName = "sentinel-client"
@@ -61,6 +61,10 @@ func generateServiceDef(serviceMeta metav1.ObjectMeta, epp exporterPortProvider,
 		redisExporterService := enableMetricsPort(exporterPort)
 		service.Spec.Ports = append(service.Spec.Ports, *redisExporterService)
 	}
+	if len(extra) > 0 {
+		service.Spec.Ports = append(service.Spec.Ports, extra...)
+	}
+
 	AddOwnerRefToObject(service, ownerDef)
 	return service
 }
@@ -150,9 +154,9 @@ func serviceLogger(namespace string, name string) logr.Logger {
 }
 
 // CreateOrUpdateService method will create or update Redis service
-func CreateOrUpdateService(namespace string, serviceMeta metav1.ObjectMeta, ownerDef metav1.OwnerReference, epp exporterPortProvider, headless bool, serviceType string, port int) error {
+func CreateOrUpdateService(namespace string, serviceMeta metav1.ObjectMeta, ownerDef metav1.OwnerReference, epp exporterPortProvider, headless bool, serviceType string, port int, extra ...corev1.ServicePort) error {
 	logger := serviceLogger(namespace, serviceMeta.Name)
-	serviceDef := generateServiceDef(serviceMeta, epp, ownerDef, headless, serviceType, port)
+	serviceDef := generateServiceDef(serviceMeta, epp, ownerDef, headless, serviceType, port, extra...)
 	storedService, err := getService(namespace, serviceMeta.Name)
 	if err != nil {
 		if errors.IsNotFound(err) {
