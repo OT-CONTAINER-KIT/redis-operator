@@ -13,6 +13,8 @@ spec:
           value: "true"
         - name: REDIS_ADDR
           value: "redis://localhost:6379"
+        - name: REDIS_MAJOR_VERSION
+          value: "v6"
         - name: REDIS_PORT
           value: "6380"
         - name: SERVER_MODE
@@ -39,6 +41,8 @@ spec:
           value: "true"
         - name: REDIS_ADDR
           value: "redis://localhost:6379"
+        - name: REDIS_MAJOR_VERSION
+          value: "v6"
         - name: REDIS_PORT
           value: "6380"
         - name: SERVER_MODE
@@ -65,6 +69,8 @@ spec:
           value: "true"
         - name: REDIS_ADDR
           value: "redis://localhost:6379"
+        - name: REDIS_MAJOR_VERSION
+          value: "v6"
         - name: REDIS_PORT
           value: "6380"
         - name: SERVER_MODE
@@ -91,6 +97,8 @@ spec:
           value: "true"
         - name: REDIS_ADDR
           value: "redis://localhost:6379"
+        - name: REDIS_MAJOR_VERSION
+          value: "v6"
         - name: REDIS_PORT
           value: "6380"
         - name: SERVER_MODE
@@ -117,6 +125,8 @@ spec:
           value: "true"
         - name: REDIS_ADDR
           value: "redis://localhost:6379"
+        - name: REDIS_MAJOR_VERSION
+          value: "v6"
         - name: REDIS_PORT
           value: "6380"
         - name: SERVER_MODE
@@ -143,6 +153,8 @@ spec:
           value: "true"
         - name: REDIS_ADDR
           value: "redis://localhost:6379"
+        - name: REDIS_MAJOR_VERSION
+          value: "v6"
         - name: REDIS_PORT
           value: "6380"
         - name: SERVER_MODE
