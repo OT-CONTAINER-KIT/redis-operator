@@ -1,6 +1,11 @@
 package k8sutils
 
 import (
+	"strconv"
+	"strings"
+
+	"k8s.io/apimachinery/pkg/util/intstr"
+
 	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
@@ -94,7 +99,7 @@ func generateRedisClusterInitContainerParams(cr *redisv1beta2.RedisCluster) init
 }
 
 // generateRedisClusterContainerParams generates Redis container information
-func generateRedisClusterContainerParams(cr *redisv1beta2.RedisCluster, securityContext *corev1.SecurityContext, readinessProbeDef *commonapi.Probe, livenessProbeDef *commonapi.Probe) containerParameters {
+func generateRedisClusterContainerParams(cr *redisv1beta2.RedisCluster, securityContext *corev1.SecurityContext, readinessProbeDef *commonapi.Probe, livenessProbeDef *commonapi.Probe, role string) containerParameters {
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{
@@ -107,6 +112,50 @@ func generateRedisClusterContainerParams(cr *redisv1beta2.RedisCluster, security
 	}
 	if cr.Spec.EnvVars != nil {
 		containerProp.EnvVars = cr.Spec.EnvVars
+	}
+	if cr.Spec.KubernetesConfig.Service != nil && cr.Spec.KubernetesConfig.Service.ServiceType == "NodePort" {
+		envVars := util.Coalesce(containerProp.EnvVars, &[]corev1.EnvVar{})
+		*envVars = append(*envVars, corev1.EnvVar{
+			Name:  "NODEPORT",
+			Value: "true",
+		})
+		*envVars = append(*envVars, corev1.EnvVar{
+			Name: "HOST_IP",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "status.hostIP",
+				},
+			},
+		})
+
+		type ports struct {
+			announcePort    int
+			announceBusPort int
+		}
+		nps := map[string]ports{} // pod name to ports
+		replicas := cr.Spec.GetReplicaCounts(role)
+		for i := 0; i < int(replicas); i++ {
+			svc, err := getService(cr.Namespace, cr.ObjectMeta.Name+"-"+role+"-"+strconv.Itoa(i))
+			if err != nil {
+				log.Error(err, "Cannot get service for Redis", "Setup.Type", role)
+			} else {
+				nps[svc.Name] = ports{
+					announcePort:    int(svc.Spec.Ports[0].NodePort),
+					announceBusPort: int(svc.Spec.Ports[1].NodePort),
+				}
+			}
+		}
+		for name, np := range nps {
+			*envVars = append(*envVars, corev1.EnvVar{
+				Name:  "announce_port_" + strings.ReplaceAll(name, "-", "_"),
+				Value: strconv.Itoa(np.announcePort),
+			})
+			*envVars = append(*envVars, corev1.EnvVar{
+				Name:  "announce_bus_port_" + strings.ReplaceAll(name, "-", "_"),
+				Value: strconv.Itoa(np.announceBusPort),
+			})
+		}
+		containerProp.EnvVars = envVars
 	}
 	if cr.Spec.Storage != nil {
 		containerProp.AdditionalVolume = cr.Spec.Storage.VolumeMount.Volume
@@ -223,7 +272,7 @@ func (service RedisClusterSTS) CreateRedisClusterSetup(cr *redisv1beta2.RedisClu
 		generateRedisClusterParams(cr, service.getReplicaCount(cr), service.ExternalConfig, service),
 		redisClusterAsOwner(cr),
 		generateRedisClusterInitContainerParams(cr),
-		generateRedisClusterContainerParams(cr, service.SecurityContext, service.ReadinessProbe, service.LivenessProbe),
+		generateRedisClusterContainerParams(cr, service.SecurityContext, service.ReadinessProbe, service.LivenessProbe, service.RedisStateFulType),
 		cr.Spec.Sidecars,
 	)
 	if err != nil {
@@ -268,11 +317,49 @@ func (service RedisClusterService) CreateRedisClusterService(cr *redisv1beta2.Re
 	additionalServiceType := "ClusterIP"
 	if cr.Spec.KubernetesConfig.Service != nil {
 		additionalServiceType = cr.Spec.KubernetesConfig.Service.ServiceType
+		if additionalServiceType == "NodePort" {
+			// If NodePort is enabled, we need to create a service for every redis pod.
+			// Then use --cluster-announce-ip --cluster-announce-port --cluster-announce-bus-port to make cluster.
+			err = service.createOrUpdateClusterNodePortService(cr)
+			if err != nil {
+				logger.Error(err, "Cannot create nodeport service for Redis", "Setup.Type", service.RedisServiceRole)
+				return err
+			}
+		}
 	}
 	err = CreateOrUpdateService(cr.Namespace, additionalObjectMetaInfo, redisClusterAsOwner(cr), disableMetrics, false, additionalServiceType, *cr.Spec.Port)
 	if err != nil {
 		logger.Error(err, "Cannot create additional service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err
+	}
+	return nil
+}
+
+func (service RedisClusterService) createOrUpdateClusterNodePortService(cr *redisv1beta2.RedisCluster) error {
+	replicas := cr.Spec.GetReplicaCounts(service.RedisServiceRole)
+
+	for i := 0; i < int(replicas); i++ {
+		serviceName := cr.ObjectMeta.Name + "-" + service.RedisServiceRole + "-" + strconv.Itoa(i)
+		logger := serviceLogger(cr.Namespace, serviceName)
+		labels := getRedisLabels(cr.ObjectMeta.Name+"-"+service.RedisServiceRole, cluster, service.RedisServiceRole, map[string]string{
+			"statefulset.kubernetes.io/pod-name": serviceName,
+		})
+		annotations := generateServiceAnots(cr.ObjectMeta, nil, disableMetrics)
+		objectMetaInfo := generateObjectMetaInformation(serviceName, cr.Namespace, labels, annotations)
+		busPort := corev1.ServicePort{
+			Name:     "redis-bus",
+			Port:     int32(*cr.Spec.Port + 10000),
+			Protocol: corev1.ProtocolTCP,
+			TargetPort: intstr.IntOrString{
+				Type:   intstr.Int,
+				IntVal: int32(*cr.Spec.Port + 10000),
+			},
+		}
+		err := CreateOrUpdateService(cr.Namespace, objectMetaInfo, redisClusterAsOwner(cr), disableMetrics, false, "NodePort", *cr.Spec.Port, busPort)
+		if err != nil {
+			logger.Error(err, "Cannot create nodeport service for Redis", "Setup.Type", service.RedisServiceRole)
+			return err
+		}
 	}
 	return nil
 }

@@ -10,6 +10,8 @@ spec:
     runAsUser: 1000
     fsGroup: 1000
   kubernetesConfig:
+    service:
+      serviceType: NodePort
     image: quay.io/opstree/redis:latest
     imagePullPolicy: Always
     resources:
