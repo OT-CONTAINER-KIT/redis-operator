@@ -12,7 +12,7 @@ spec:
   kubernetesConfig:
     service:
       serviceType: NodePort
-    image: ghcr.io/ksmartdata/ot-redis:vv6.2.5-101
+    image: quay.io/opstree/redis:v6.2.14
     imagePullPolicy: Always
     resources:
       requests:

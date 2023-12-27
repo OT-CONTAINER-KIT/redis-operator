@@ -32,6 +32,7 @@ const (
 type statefulSetParameters struct {
 	Replicas                      *int32
 	ClusterMode                   bool
+	ClusterVersion                *string
 	NodeConfVolume                bool
 	NodeSelector                  map[string]string
 	PodSecurityContext            *corev1.PodSecurityContext
@@ -240,6 +241,7 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 						params.NodeConfVolume,
 						params.EnableMetrics,
 						params.ExternalConfig,
+						params.ClusterVersion,
 						containerParams.AdditionalMountPath,
 						sidecars,
 					),
@@ -344,7 +346,7 @@ func createPVCTemplate(volumeName string, stsMeta metav1.ObjectMeta, storageSpec
 }
 
 // generateContainerDef generates container definition for Redis
-func generateContainerDef(name string, containerParams containerParameters, clusterMode, nodeConfVolume, enableMetrics bool, externalConfig *string, mountpath []corev1.VolumeMount, sidecars []redisv1beta2.Sidecar) []corev1.Container {
+func generateContainerDef(name string, containerParams containerParameters, clusterMode, nodeConfVolume, enableMetrics bool, externalConfig, clusterVersion *string, mountpath []corev1.VolumeMount, sidecars []redisv1beta2.Sidecar) []corev1.Container {
 	containerDefinition := []corev1.Container{
 		{
 			Name:            name,
@@ -361,6 +363,7 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 				containerParams.ACLConfig,
 				containerParams.EnvVars,
 				containerParams.Port,
+				clusterVersion,
 			),
 			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe),
 			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe),
@@ -588,10 +591,17 @@ func getProbeInfo(probe *commonapi.Probe) *corev1.Probe {
 // getEnvironmentVariables returns all the required Environment Variables
 func getEnvironmentVariables(role string, enabledPassword *bool, secretName *string,
 	secretKey *string, persistenceEnabled *bool, tlsConfig *redisv1beta2.TLSConfig,
-	aclConfig *redisv1beta2.ACLConfig, envVar *[]corev1.EnvVar, port *int) []corev1.EnvVar {
+	aclConfig *redisv1beta2.ACLConfig, envVar *[]corev1.EnvVar, port *int, clusterVersion *string) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{Name: "SERVER_MODE", Value: role},
 		{Name: "SETUP_MODE", Value: role},
+	}
+
+	if clusterVersion != nil {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  "REDIS_MAJOR_VERSION",
+			Value: *clusterVersion,
+		})
 	}
 
 	var redisHost string

@@ -230,6 +230,7 @@ func TestGetEnvironmentVariables(t *testing.T) {
 		aclConfig           *redisv1beta2.ACLConfig
 		envVar              *[]corev1.EnvVar
 		port                *int
+		clusterVersion      *string
 		expectedEnvironment []corev1.EnvVar
 	}{
 		{
@@ -257,6 +258,7 @@ func TestGetEnvironmentVariables(t *testing.T) {
 			envVar: &[]corev1.EnvVar{
 				{Name: "TEST_ENV", Value: "test-value"},
 			},
+			clusterVersion: pointer.String("v6"),
 			expectedEnvironment: []corev1.EnvVar{
 				{Name: "ACL_MODE", Value: "true"},
 				{Name: "PERSISTENCE_ENABLED", Value: "true"},
@@ -276,6 +278,7 @@ func TestGetEnvironmentVariables(t *testing.T) {
 				{Name: "SERVER_MODE", Value: "sentinel"},
 				{Name: "SETUP_MODE", Value: "sentinel"},
 				{Name: "TEST_ENV", Value: "test-value"},
+				{Name: "REDIS_MAJOR_VERSION", Value: "v6"},
 			},
 		},
 		{
@@ -289,6 +292,7 @@ func TestGetEnvironmentVariables(t *testing.T) {
 			aclConfig:          nil,
 			envVar:             nil,
 			port:               nil,
+			clusterVersion:     nil,
 			expectedEnvironment: []corev1.EnvVar{
 				{Name: "REDIS_ADDR", Value: "redis://localhost:6379"},
 				{Name: "SERVER_MODE", Value: "redis"},
@@ -363,7 +367,7 @@ func TestGetEnvironmentVariables(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			actualEnvironment := getEnvironmentVariables(tt.role, tt.enabledPassword, tt.secretName,
-				tt.secretKey, tt.persistenceEnabled, tt.tlsConfig, tt.aclConfig, tt.envVar, tt.port)
+				tt.secretKey, tt.persistenceEnabled, tt.tlsConfig, tt.aclConfig, tt.envVar, tt.port, tt.clusterVersion)
 
 			assert.ElementsMatch(t, tt.expectedEnvironment, actualEnvironment)
 		})
