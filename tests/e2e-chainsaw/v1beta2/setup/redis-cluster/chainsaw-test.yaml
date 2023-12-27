@@ -60,32 +60,32 @@ spec:
     try:
       - script:
           content: |
-            kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-0 -- redis-cli --cluster check $(hostname -i):6379 | grep 'All 16384 slots covered.'
+            kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-0 -- redis-cli --cluster check 127.0.0.1:6379 | grep 'All 16384 slots covered.'
           check:
             ($stdout=='All 16384 slots covered.'): true
       - script:
           content: |
-            kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-1 -- redis-cli --cluster check $(hostname -i):6379 | grep 'All 16384 slots covered'
+            kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-1 -- redis-cli --cluster check 127.0.0.1:6379 | grep 'All 16384 slots covered'
           check:
             ($stdout=='All 16384 slots covered.'): true
       - script:
           content: |
-            kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-2 -- redis-cli --cluster check $(hostname -i):6379 | grep 'All 16384 slots covered'
+            kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-2 -- redis-cli --cluster check 127.0.0.1:6379 | grep 'All 16384 slots covered'
           check:
             ($stdout=='All 16384 slots covered.'): true
       - script:
           content: |
-            kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-0 -- redis-cli --cluster check $(hostname -i):6379 | grep 'All 16384 slots covered'
+            kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-0 -- redis-cli --cluster check 127.0.0.1:6379 | grep 'All 16384 slots covered'
           check:
             ($stdout=='All 16384 slots covered.'): true
       - script:
           content: |
-            kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-1 -- redis-cli --cluster check $(hostname -i):6379 | grep 'All 16384 slots covered'
+            kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-1 -- redis-cli --cluster check 127.0.0.1:6379 | grep 'All 16384 slots covered'
           check:
             ($stdout=='All 16384 slots covered.'): true
       - script:
           content: |
-            kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-2 -- redis-cli --cluster check $(hostname -i):6379 | grep 'All 16384 slots covered'
+            kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-2 -- redis-cli --cluster check 127.0.0.1:6379 | grep 'All 16384 slots covered'
           check:
             ($stdout=='All 16384 slots covered.'): true
 
