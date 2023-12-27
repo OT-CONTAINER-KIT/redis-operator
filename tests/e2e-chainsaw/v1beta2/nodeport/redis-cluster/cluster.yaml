@@ -4,7 +4,7 @@ metadata:
   name: redis-cluster-v1beta2
 spec:
   clusterSize: 3
-  clusterVersion: v7
+  clusterVersion: v6
   persistenceEnabled: true
   podSecurityContext:
     runAsUser: 1000
@@ -12,7 +12,7 @@ spec:
   kubernetesConfig:
     service:
       serviceType: NodePort
-    image: quay.io/opstree/redis:latest
+    image: ghcr.io/ksmartdata/ot-redis:vv6.2.5-101
     imagePullPolicy: Always
     resources:
       requests:
