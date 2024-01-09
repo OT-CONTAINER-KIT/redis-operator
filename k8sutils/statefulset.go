@@ -544,7 +544,7 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nod
 
 	if persistenceEnabled != nil && *persistenceEnabled {
 		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
-			Name:      name,
+			Name:      env.GetString(EnvOperatorSTSPVCTemplateName, name),
 			MountPath: "/data",
 		})
 	}
