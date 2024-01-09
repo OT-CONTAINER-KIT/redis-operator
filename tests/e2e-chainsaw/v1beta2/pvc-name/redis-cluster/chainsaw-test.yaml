@@ -20,13 +20,6 @@ spec:
       try:
         - apply:
             file: cluster.yaml
-        - script:
-            content: |
-              sleep 3m
-              # show the operator logs
-              kubectl logs -l control-plane=redis-operator -n redis-operator-system
-              # describe the redis pods, which namespace like chainsaw-<random-string>, use grep to get the namespace
-              kubectl describe pod -l redis_setup_type=cluster -n $(kubectl get ns | grep chainsaw | awk '{print $1}' | head -n 1)
         - assert:
             file: ready-cluster.yaml
         - assert:
@@ -35,6 +28,17 @@ spec:
             file: ready-svc.yaml
         - assert:
             file: ready-pvc.yaml
+      catch:
+        - script:
+            content: |
+              # show the deployment
+              kubectl get deployment redis-operator-redis-operator -n redis-operator-system -o yaml              
+              # show the operator logs
+              kubectl logs -l control-plane=redis-operator -n redis-operator-system
+              # describe the redis pods, which namespace like chainsaw-<random-string>, use grep to get the namespace
+              kubectl describe pod -l redis_setup_type=cluster -n $(kubectl get ns | grep chainsaw | awk '{print $1}' | head -n 1)
+              # show redis log
+              kubectl logs -l redis_setup_type=cluster -n $(kubectl get ns | grep chainsaw | awk '{print $1}' | head -n 1)
 
     - name: redis-cluster-uninstall
       try:
