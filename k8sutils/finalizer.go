@@ -3,6 +3,7 @@ package k8sutils
 import (
 	"context"
 	"fmt"
+	"k8s.io/utils/env"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/go-logr/logr"
@@ -133,7 +134,8 @@ func AddRedisSentinelFinalizer(cr *redisv1beta2.RedisSentinel, cl client.Client)
 
 // finalizeRedisPVC delete PVC
 func finalizeRedisPVC(client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.Redis) error {
-	PVCName := fmt.Sprintf("%s-%s-0", cr.Name, cr.Name)
+	pvcTemplateName := env.GetString(EnvOperatorSTSPVCTemplateName, cr.Name)
+	PVCName := fmt.Sprintf("%s-%s-0", pvcTemplateName, cr.Name)
 	err := client.CoreV1().PersistentVolumeClaims(cr.Namespace).Delete(context.TODO(), PVCName, metav1.DeleteOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		logger.Error(err, "Could not delete Persistent Volume Claim", "PVCName", PVCName)
@@ -146,7 +148,8 @@ func finalizeRedisPVC(client kubernetes.Interface, logger logr.Logger, cr *redis
 func finalizeRedisClusterPVC(client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster) error {
 	for _, role := range []string{"leader", "follower"} {
 		for i := 0; i < int(cr.Spec.GetReplicaCounts(role)); i++ {
-			PVCName := fmt.Sprintf("%s-%s-%s-%s-%d", cr.Name, role, cr.Name, role, i)
+			pvcTemplateName := env.GetString(EnvOperatorSTSPVCTemplateName, cr.Name+"-"+role)
+			PVCName := fmt.Sprintf("%s-%s-%s-%d", pvcTemplateName, cr.Name, role, i)
 			err := client.CoreV1().PersistentVolumeClaims(cr.Namespace).Delete(context.TODO(), PVCName, metav1.DeleteOptions{})
 			if err != nil && !errors.IsNotFound(err) {
 				logger.Error(err, "Could not delete Persistent Volume Claim "+PVCName)
@@ -171,7 +174,8 @@ func finalizeRedisClusterPVC(client kubernetes.Interface, logger logr.Logger, cr
 // finalizeRedisReplicationPVC delete PVCs
 func finalizeRedisReplicationPVC(client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication) error {
 	for i := 0; i < int(cr.Spec.GetReplicationCounts("replication")); i++ {
-		PVCName := fmt.Sprintf("%s-%s-%d", cr.Name, cr.Name, i)
+		pvcTemplateName := env.GetString(EnvOperatorSTSPVCTemplateName, cr.Name)
+		PVCName := fmt.Sprintf("%s-%s-%d", pvcTemplateName, cr.Name, i)
 		err := client.CoreV1().PersistentVolumeClaims(cr.Namespace).Delete(context.TODO(), PVCName, metav1.DeleteOptions{})
 		if err != nil && !errors.IsNotFound(err) {
 			logger.Error(err, "Could not delete Persistent Volume Claim "+PVCName)
