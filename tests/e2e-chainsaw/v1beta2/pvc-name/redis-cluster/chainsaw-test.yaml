@@ -22,7 +22,7 @@ spec:
             file: cluster.yaml
         - script:
             content: |
-              sleep 5m
+              sleep 3m
               # show the operator logs
               kubectl logs -l control-plane=redis-operator -n redis-operator-system
               # describe the redis pods, which namespace like chainsaw-<random-string>, use grep to get the namespace
