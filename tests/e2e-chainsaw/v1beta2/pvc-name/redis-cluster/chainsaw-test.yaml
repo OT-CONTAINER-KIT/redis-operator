@@ -17,14 +17,12 @@ spec:
               kubectl get po -n redis-operator-system -l control-plane=redis-operator
               kubectl wait --for=condition=available --timeout=300s deployment/redis-operator-redis-operator -n redis-operator-system
               kubectl get po -n redis-operator-system -l control-plane=redis-operator
-              # wait new pod ready, old pod be deleted
-              sleep 30
-              kubectl logs -l control-plane=redis-operator -n redis-operator-system
         - sleep:
             duration: 1m
         - script:
             content: |
               kubectl logs -l control-plane=redis-operator -n redis-operator-system
+              kubectl get po -n redis-operator-system -l control-plane=redis-operator
 
     - name: redis-cluster-install
       try:
