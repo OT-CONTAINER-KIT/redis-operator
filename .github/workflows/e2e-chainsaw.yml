@@ -21,6 +21,7 @@ jobs:
           - ./tests/e2e-chainsaw/v1beta2/password/
           - ./tests/e2e-chainsaw/v1beta2/ha-setup/
           - ./tests/e2e-chainsaw/v1beta2/nodeport/
+          - ./tests/e2e-chainsaw/v1beta2/pvc-name/
 
     steps:
     - name: Checkout code
