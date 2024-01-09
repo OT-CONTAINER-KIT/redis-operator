@@ -37,6 +37,11 @@ spec:
               kubectl logs -l control-plane=redis-operator -n redis-operator-system
               # describe the redis pods, which namespace like chainsaw-<random-string>, use grep to get the namespace
               kubectl describe pod -l redis_setup_type=cluster -n $(kubectl get ns | grep chainsaw | awk '{print $1}' | head -n 1)
+              kubectl get pods -l redis_setup_type=cluster -n $(kubectl get ns | grep chainsaw | awk '{print $1}' | head -n 1)
+              # get sts
+              kubectl describe sts redis-cluster-v1beta2-leader -n $(kubectl get ns | grep chainsaw | awk '{print $1}' | head -n 1)
+              kubectl describe sts redis-cluster-v1beta2-follower -n $(kubectl get ns | grep chainsaw | awk '{print $1}' | head -n 1)
+              kubectl get pvc -n $(kubectl get ns | grep chainsaw | awk '{print $1}' | head -n 1)
               # show redis log
               kubectl logs -l redis_setup_type=cluster -n $(kubectl get ns | grep chainsaw | awk '{print $1}' | head -n 1)
 
