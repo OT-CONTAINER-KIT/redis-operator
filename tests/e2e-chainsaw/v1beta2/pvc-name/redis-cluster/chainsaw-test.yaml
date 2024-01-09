@@ -9,7 +9,7 @@ spec:
       try:
         - script:
             content: |
-              kubectl patch deployment redis-operator-redis-operator --namespace redis-operator-system --type json -p='[{"op": "add", "path": "/spec/template/spec/containers/0/env", "value": [{"name": "OPERATOR_STS_PVC_TEMPLATE_NAME", "value": "data"}]}]'
+              kubectl patch deployment redis-operator-redis-operator --namespace redis-operator-system --type json -p='[{"op": "add", "path": "/spec/template/spec/containers/0/env/-", "value": {"name": "OPERATOR_STS_PVC_TEMPLATE_NAME", "value": "data"}}]'
               kubectl wait --for=condition=available --timeout=300s deployment/redis-operator-redis-operator -n redis-operator-system
 
     - name: redis-cluster-install
@@ -45,5 +45,5 @@ spec:
       try:
         - script:
             content: |
-              kubectl patch deployment redis-operator-redis-operator --namespace redis-operator-system --type json -p='[{"op": "remove", "path": "/spec/template/spec/containers/0/env"}]'
+              kubectl patch deployment redis-operator-redis-operator --namespace redis-operator-system --type json -p='[{"op": "remove", "path": "/spec/template/spec/containers/0/env/1"}]'
               kubectl wait --for=condition=available --timeout=300s deployment/redis-operator-redis-operator -n redis-operator-system
