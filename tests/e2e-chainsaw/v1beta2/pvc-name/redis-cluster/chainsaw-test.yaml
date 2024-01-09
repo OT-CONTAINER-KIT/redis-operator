@@ -10,19 +10,8 @@ spec:
         - script:
             content: |
               kubectl patch deployment redis-operator-redis-operator --namespace redis-operator-system --type json -p='[{"op": "add", "path": "/spec/template/spec/containers/0/env/-", "value": {"name": "OPERATOR_STS_PVC_TEMPLATE_NAME", "value": "data"}}]'
-              # show the deployment
-              kubectl get deployment redis-operator-redis-operator -n redis-operator-system -o yaml
-              # show the operator logs
-              kubectl logs -l control-plane=redis-operator -n redis-operator-system
-              kubectl get po -n redis-operator-system -l control-plane=redis-operator
-              kubectl wait --for=condition=available --timeout=300s deployment/redis-operator-redis-operator -n redis-operator-system
-              kubectl get po -n redis-operator-system -l control-plane=redis-operator
         - sleep:
             duration: 1m
-        - script:
-            content: |
-              kubectl logs -l control-plane=redis-operator -n redis-operator-system
-              kubectl get po -n redis-operator-system -l control-plane=redis-operator
 
     - name: redis-cluster-install
       try:
@@ -36,23 +25,6 @@ spec:
             file: ready-svc.yaml
         - assert:
             file: ready-pvc.yaml
-      catch:
-        - script:
-            content: |
-              # show the deployment
-              kubectl get deployment redis-operator-redis-operator -n redis-operator-system -o yaml
-              kubectl get po -n redis-operator-system -l control-plane=redis-operator
-              # show the operator logs
-              kubectl logs -l control-plane=redis-operator -n redis-operator-system
-              # describe the redis pods, which namespace like chainsaw-<random-string>, use grep to get the namespace
-              kubectl describe pod -l redis_setup_type=cluster -n $(kubectl get ns | grep chainsaw | awk '{print $1}' | head -n 1)
-              kubectl get pods -l redis_setup_type=cluster -n $(kubectl get ns | grep chainsaw | awk '{print $1}' | head -n 1)
-              # get sts
-              kubectl describe sts redis-cluster-v1beta2-leader -n $(kubectl get ns | grep chainsaw | awk '{print $1}' | head -n 1)
-              kubectl describe sts redis-cluster-v1beta2-follower -n $(kubectl get ns | grep chainsaw | awk '{print $1}' | head -n 1)
-              kubectl get pvc -n $(kubectl get ns | grep chainsaw | awk '{print $1}' | head -n 1)
-              # show redis log
-              kubectl logs -l redis_setup_type=cluster -n $(kubectl get ns | grep chainsaw | awk '{print $1}' | head -n 1)
 
     - name: redis-cluster-uninstall
       try:
