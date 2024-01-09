@@ -20,6 +20,11 @@ spec:
               # wait new pod ready, old pod be deleted
               sleep 30
               kubectl logs -l control-plane=redis-operator -n redis-operator-system
+        - sleep:
+            duration: 1m
+        - script:
+            content: |
+              kubectl logs -l control-plane=redis-operator -n redis-operator-system
 
     - name: redis-cluster-install
       try:
