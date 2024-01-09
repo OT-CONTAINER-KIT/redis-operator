@@ -14,7 +14,12 @@ spec:
               kubectl get deployment redis-operator-redis-operator -n redis-operator-system -o yaml
               # show the operator logs
               kubectl logs -l control-plane=redis-operator -n redis-operator-system
+              kubectl get po -n redis-operator-system -l control-plane=redis-operator
               kubectl wait --for=condition=available --timeout=300s deployment/redis-operator-redis-operator -n redis-operator-system
+              kubectl get po -n redis-operator-system -l control-plane=redis-operator
+              # wait new pod ready, old pod be deleted
+              sleep 30
+              kubectl logs -l control-plane=redis-operator -n redis-operator-system
 
     - name: redis-cluster-install
       try:
@@ -32,7 +37,8 @@ spec:
         - script:
             content: |
               # show the deployment
-              kubectl get deployment redis-operator-redis-operator -n redis-operator-system -o yaml              
+              kubectl get deployment redis-operator-redis-operator -n redis-operator-system -o yaml
+              kubectl get po -n redis-operator-system -l control-plane=redis-operator
               # show the operator logs
               kubectl logs -l control-plane=redis-operator -n redis-operator-system
               # describe the redis pods, which namespace like chainsaw-<random-string>, use grep to get the namespace
