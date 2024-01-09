@@ -9,7 +9,7 @@ spec:
       try:
         - script:
             content: |
-              kubectl patch deployment redis-operator-redis-operator --namespace redis-operator-system --type json -p='[{"op": "add", "path": "/spec/template/spec/containers/0/env/-", "value": {"name": "OPERATOR_STS_PVC_TEMPLATE_NAME", "value": "/"data/""}}]'
+              kubectl patch deployment redis-operator-redis-operator --namespace redis-operator-system --type json -p='[{"op": "add", "path": "/spec/template/spec/containers/0/env/-", "value": {"name": "OPERATOR_STS_PVC_TEMPLATE_NAME", "value": "data"}}]'
               # show the deployment
               kubectl get deployment redis-operator-redis-operator -n redis-operator-system -o yaml
               # show the operator logs
@@ -20,6 +20,13 @@ spec:
       try:
         - apply:
             file: cluster.yaml
+        - script:
+            content: |
+              sleep 1m
+              # show the operator logs
+              kubectl logs -l control-plane=redis-operator -n redis-operator-system
+              # describe the redis pods, which namespace like chainsaw-<random-string>, use grep to get the namespace
+              kubectl describe pod -l redis_setup_type=cluster -n $(kubectl get ns | grep chainsaw | awk '{print $1}' | head -n 1)
         - assert:
             file: ready-cluster.yaml
         - assert:
