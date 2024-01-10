@@ -523,9 +523,26 @@ func getExporterEnvironmentVariables(params containerParameters) []corev1.EnvVar
 			Value: fmt.Sprintf("redis://localhost:%d", *params.Port),
 		})
 	}
+	if params.EnabledPassword != nil && *params.EnabledPassword {
+		envVars = append(envVars, corev1.EnvVar{
+			Name: "REDIS_PASSWORD",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: *params.SecretName,
+					},
+					Key: *params.SecretKey,
+				},
+			},
+		})
+	}
 	if params.RedisExporterEnv != nil {
 		envVars = append(envVars, *params.RedisExporterEnv...)
 	}
+
+	sort.SliceStable(envVars, func(i, j int) bool {
+		return envVars[i].Name < envVars[j].Name
+	})
 	return envVars
 }
 

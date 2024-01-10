@@ -117,6 +117,7 @@ func generateRedisReplicationContainerParams(cr *redisv1beta2.RedisReplication) 
 		ImagePullPolicy: cr.Spec.KubernetesConfig.ImagePullPolicy,
 		Resources:       cr.Spec.KubernetesConfig.Resources,
 		SecurityContext: cr.Spec.SecurityContext,
+		Port:            pointer.Int(6379),
 	}
 	if cr.Spec.EnvVars != nil {
 		containerProp.EnvVars = cr.Spec.EnvVars
