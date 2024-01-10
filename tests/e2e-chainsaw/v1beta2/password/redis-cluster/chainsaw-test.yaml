@@ -32,37 +32,37 @@ spec:
      - script:
          timeout: 10s
          content: |
-          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-0 -- redis-cli -c -p 6379 -a Opstree@1234 ping
+          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-0 -- redis-cli -c -p 6379 -a Opstree1234 ping
          check:
           ($stdout=='PONG'): true
      - script:
          timeout: 10s
          content: |
-          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-1 -- redis-cli -c -p 6379 -a Opstree@1234 ping
+          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-1 -- redis-cli -c -p 6379 -a Opstree1234 ping
          check:
           ($stdout=='PONG'): true
      - script:
          timeout: 10s
          content: |
-          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-2 -- redis-cli -c -p 6379 -a Opstree@1234 ping
+          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-2 -- redis-cli -c -p 6379 -a Opstree1234 ping
          check:
           ($stdout=='PONG'): true
      - script:
          timeout: 10s
          content: |
-          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-0 -- redis-cli -c -p 6379 -a Opstree@1234 ping
+          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-0 -- redis-cli -c -p 6379 -a Opstree1234 ping
          check:
           ($stdout=='PONG'): true
      - script:
          timeout: 10s
          content: |
-          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-1 -- redis-cli -c -p 6379 -a Opstree@1234 ping
+          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-1 -- redis-cli -c -p 6379 -a Opstree1234 ping
          check:
           ($stdout=='PONG'): true
      - script:
          timeout: 10s
          content: |
-          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-2 -- redis-cli -c -p 6379 -a Opstree@1234 ping
+          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-2 -- redis-cli -c -p 6379 -a Opstree1234 ping
          check:
           ($stdout=='PONG'): true
 
@@ -71,37 +71,37 @@ spec:
      - script:
          timeout: 10s
          content: |
-          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-0 -- redis-cli -c -p 6379 -a Opstree@1234 set foo-0 bar-0
+          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-0 -- redis-cli -c -p 6379 -a Opstree1234 set foo-0 bar-0
          check:
           ($stdout=='OK'): true
      - script:
          timeout: 10s
          content: |
-          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-1 -- redis-cli -c -p 6379 -a Opstree@1234 set foo-1 bar-1
+          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-1 -- redis-cli -c -p 6379 -a Opstree1234 set foo-1 bar-1
          check:
           ($stdout=='OK'): true
      - script:
          timeout: 10s
          content: |
-          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-2 -- redis-cli -c -p 6379 -a Opstree@1234 set foo-2 bar-2
+          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-2 -- redis-cli -c -p 6379 -a Opstree1234 set foo-2 bar-2
          check:
           ($stdout=='OK'): true
      - script:
          timeout: 10s
          content: |
-          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-0 -- redis-cli -c -p 6379 -a Opstree@1234 set foo-3 bar-3
+          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-0 -- redis-cli -c -p 6379 -a Opstree1234 set foo-3 bar-3
          check:
           ($stdout=='OK'): true
      - script:
          timeout: 10s
          content: |
-          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-1 -- redis-cli -c -p 6379 -a Opstree@1234 set foo-4 bar-4
+          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-1 -- redis-cli -c -p 6379 -a Opstree1234 set foo-4 bar-4
          check:
           ($stdout=='OK'): true
      - script:
          timeout: 10s
          content: |
-          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-2 -- redis-cli -c -p 6379 -a Opstree@1234 set foo-5 bar-5
+          kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-2 -- redis-cli -c -p 6379 -a Opstree1234 set foo-5 bar-5
          check:
           ($stdout=='OK'): true
 
@@ -182,3 +182,42 @@ spec:
           kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-2 -- redis-cli -c -p 6379 set foo-5 bar-5
          check:
           ($stdout=='NOAUTH Authentication required.'): true
+
+  - name: Test Redis Exporter
+    try:
+      - script:
+          timeout: 30s
+          content: |
+            kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-0 -- wget -qO- http://localhost:9121/metrics | grep -v '^#' | grep -E '\bredis_up\b' | awk '{print $2}'
+          check:
+            ($stdout=='1'): true
+      - script:
+          timeout: 30s
+          content: |
+            kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-1 -- wget -qO- http://localhost:9121/metrics | grep -v '^#' | grep -E '\bredis_up\b' | awk '{print $2}'
+          check:
+            ($stdout=='1'): true
+      - script:
+          timeout: 30s
+          content: |
+            kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-2 -- wget -qO- http://localhost:9121/metrics | grep -v '^#' | grep -E '\bredis_up\b' | awk '{print $2}'
+          check:
+            ($stdout=='1'): true
+      - script:
+          timeout: 30s
+          content: |
+            kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-0 -- wget -qO- http://localhost:9121/metrics | grep -v '^#' | grep -E '\bredis_up\b' | awk '{print $2}'
+          check:
+            ($stdout=='1'): true
+      - script:
+          timeout: 30s
+          content: |
+            kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-1 -- wget -qO- http://localhost:9121/metrics | grep -v '^#' | grep -E '\bredis_up\b' | awk '{print $2}'
+          check:
+            ($stdout=='1'): true
+      - script:
+          timeout: 30s
+          content: |
+            kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-2 -- wget -qO- http://localhost:9121/metrics | grep -v '^#' | grep -E '\bredis_up\b' | awk '{print $2}'
+          check:
+            ($stdout=='1'): true

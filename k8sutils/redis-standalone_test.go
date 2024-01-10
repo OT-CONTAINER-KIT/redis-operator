@@ -102,6 +102,7 @@ func Test_generateRedisStandaloneContainerParams(t *testing.T) {
 	path := filepath.Join("..", "tests", "testdata", "redis-standalone.yaml")
 	expected := containerParameters{
 		Image:           "quay.io/opstree/redis:v7.0.12",
+		Port:            pointer.Int(6379),
 		ImagePullPolicy: corev1.PullPolicy("IfNotPresent"),
 		Resources: &corev1.ResourceRequirements{
 			Requests: corev1.ResourceList{
