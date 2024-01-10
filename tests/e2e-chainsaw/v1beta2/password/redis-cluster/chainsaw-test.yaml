@@ -206,18 +206,18 @@ spec:
       - script:
           timeout: 30s
           content: |
-            kubeclt exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-0 -- wget -qO- http://localhost:9121/metrics | grep -v '^#' | grep -E '\bredis_up\b' | awk '{print $2}'
+            kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-0 -- wget -qO- http://localhost:9121/metrics | grep -v '^#' | grep -E '\bredis_up\b' | awk '{print $2}'
           check:
             ($stdout=='1'): true
       - script:
           timeout: 30s
           content: |
-            kubeclt exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-1 -- wget -qO- http://localhost:9121/metrics | grep -v '^#' | grep -E '\bredis_up\b' | awk '{print $2}'
+            kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-1 -- wget -qO- http://localhost:9121/metrics | grep -v '^#' | grep -E '\bredis_up\b' | awk '{print $2}'
           check:
             ($stdout=='1'): true
       - script:
           timeout: 30s
           content: |
-            kubeclt exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-2 -- wget -qO- http://localhost:9121/metrics | grep -v '^#' | grep -E '\bredis_up\b' | awk '{print $2}'
+            kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-2 -- wget -qO- http://localhost:9121/metrics | grep -v '^#' | grep -E '\bredis_up\b' | awk '{print $2}'
           check:
             ($stdout=='1'): true

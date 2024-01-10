@@ -55,6 +55,10 @@ spec:
       port: 6379
       protocol: TCP
       targetPort: 6379
+    - name: redis-exporter
+      port: 9121
+      protocol: TCP
+      targetPort: 9121
   selector:
     app: redis-standalone-v1beta2
     redis_setup_type: standalone
