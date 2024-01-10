@@ -153,7 +153,8 @@ The operator deployment can be done via `helm` cli, we just need to define the c
 
 ```shell
 $ helm upgrade redis-operator ot-helm/redis-operator \
-  --install --namespace ot-operators --set redisOperator.imageName=<custom-url> \
+  --install --create-namespace --namespace ot-operators \
+  --set redisOperator.imageName=<custom-url> \
   --set redisOperator.imageTag=<customTag>
 ```
 
