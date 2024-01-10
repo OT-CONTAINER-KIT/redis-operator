@@ -3,6 +3,7 @@ package k8sutils
 import (
 	"context"
 	"fmt"
+	"k8s.io/utils/env"
 	"path"
 	"sort"
 	"strconv"
@@ -269,7 +270,8 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, createPVCTemplate("node-conf", stsMeta, params.NodeConfPersistentVolumeClaim))
 	}
 	if containerParams.PersistenceEnabled != nil && *containerParams.PersistenceEnabled {
-		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, createPVCTemplate(stsMeta.GetName(), stsMeta, params.PersistentVolumeClaim))
+		pvcTplName := env.GetString(EnvOperatorSTSPVCTemplateName, stsMeta.GetName())
+		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, createPVCTemplate(pvcTplName, stsMeta, params.PersistentVolumeClaim))
 	}
 	if params.ExternalConfig != nil {
 		statefulset.Spec.Template.Spec.Volumes = getExternalConfig(*params.ExternalConfig)
@@ -328,7 +330,7 @@ func createPVCTemplate(volumeName string, stsMeta metav1.ObjectMeta, storageSpec
 	pvcTemplate.CreationTimestamp = metav1.Time{}
 	pvcTemplate.Name = volumeName
 	pvcTemplate.Labels = stsMeta.GetLabels()
-	// We want the same annoations as the StatefulSet here
+	// We want the same annotation as the StatefulSet here
 	pvcTemplate.Annotations = generateStatefulSetsAnots(stsMeta, nil)
 	if storageSpec.Spec.AccessModes == nil {
 		pvcTemplate.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
@@ -559,7 +561,7 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nod
 
 	if persistenceEnabled != nil && *persistenceEnabled {
 		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
-			Name:      name,
+			Name:      env.GetString(EnvOperatorSTSPVCTemplateName, name),
 			MountPath: "/data",
 		})
 	}
