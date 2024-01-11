@@ -12,7 +12,7 @@
 
 ## Local Kubernetes Cluster
 
-For development and testing of operator on local system, we need to set up a [Minikube](https://minikube.sigs.k8s.io/docs/start/) or local Kubernetes cluster. 
+For development and testing of operator on local system, we need to set up a [Minikube](https://minikube.sigs.k8s.io/docs/start/) or local Kubernetes cluster.
 
 Minikube is a single node Kubernetes cluster that generally gets used for the development and testing on Kubernetes. For creating a Minkube cluster we need to simply run:
 
@@ -28,7 +28,7 @@ $ minikube start --vm-driver virtualbox
 ⌛  Waiting for image downloads to complete ...
 ✨  Preparing Kubernetes environment ...
 🚜  Pulling images required by Kubernetes v1.14.1 ...
-🚀  Launching Kubernetes v1.14.1 using kubeadm ... 
+🚀  Launching Kubernetes v1.14.1 using kubeadm ...
 ⌛  Waiting for pods: apiserver proxy etcd scheduler controller dns
 🔑  Configuring cluster permissions ...
 🤔  Verifying component health .....
@@ -146,7 +146,8 @@ The operator deployment can be done via `helm` cli, we just need to define the c
 
 ```shell
 $ helm upgrade redis-operator ot-helm/redis-operator \
-  --install --namespace ot-operators --set redisOperator.imageName=<custom-url> \
+  --install --create-namespace --namespace ot-operators \
+  --set redisOperator.imageName=<custom-url> \
   --set redisOperator.imageTag=<customTag>
 ```
 
@@ -155,8 +156,8 @@ $ helm upgrade redis-operator ot-helm/redis-operator \
 $ helm upgrade redis ot-helm/redis --namespace ot-operators
 
 # For deploying cluster redis
-$ helm upgrade redis-cluster ot-helm/redis-cluster \n 
-  --set redisCluster.clusterSize=3 --install --namespace ot-operators \ 
+$ helm upgrade redis-cluster ot-helm/redis-cluster \n
+  --set redisCluster.clusterSize=3 --install --namespace ot-operators \
   --set pdb.enabled=false --set redisCluster.tag=v7.0.5-beta
 ```
 

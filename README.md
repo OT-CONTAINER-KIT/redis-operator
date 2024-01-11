@@ -87,7 +87,8 @@ $ helm repo add ot-helm https://ot-container-kit.github.io/helm-charts/
 
 ```shell
 # Deploy the redis-operator
-$ helm upgrade redis-operator ot-helm/redis-operator --install --namespace ot-operators
+$ helm upgrade redis-operator ot-helm/redis-operator \
+  --install --create-namespace --namespace ot-operators
 ```
 
 After deployment, verify the installation of operator
