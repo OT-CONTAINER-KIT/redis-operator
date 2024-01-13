@@ -476,8 +476,8 @@ func configureRedisReplicationClient(client kubernetes.Interface, logger logr.Lo
 }
 
 // Get Redis nodes by it's role i.e. master, slave and sentinel
-func GetRedisNodesByRole(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication, redisRole string) []string {
-	statefulset, err := GetStatefulSet(cr.Namespace, cr.Name)
+func GetRedisNodesByRole(ctx context.Context, cl kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication, redisRole string) []string {
+	statefulset, err := GetStatefulSet(cr.Namespace, cr.Name, cl)
 	if err != nil {
 		logger.Error(err, "Failed to Get the Statefulset of the", "custom resource", cr.Name, "in namespace", cr.Namespace)
 	}
@@ -488,7 +488,7 @@ func GetRedisNodesByRole(ctx context.Context, client kubernetes.Interface, logge
 	for i := 0; i < int(replicas); i++ {
 
 		podName := statefulset.Name + "-" + strconv.Itoa(i)
-		podRole := checkRedisServerRole(ctx, client, logger, cr, podName)
+		podRole := checkRedisServerRole(ctx, cl, logger, cr, podName)
 		if podRole == redisRole {
 			pods = append(pods, podName)
 		}

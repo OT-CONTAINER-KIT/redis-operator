@@ -37,7 +37,7 @@ type RedisReplicationObject struct {
 }
 
 // Redis Sentinel Create the Redis Sentinel Setup
-func CreateRedisSentinel(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisSentinel) error {
+func CreateRedisSentinel(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisSentinel, cl kubernetes.Interface) error {
 	prop := RedisSentinelSTS{
 		RedisStateFulType:             "sentinel",
 		Affinity:                      cr.Spec.Affinity,
@@ -50,21 +50,21 @@ func CreateRedisSentinel(ctx context.Context, client kubernetes.Interface, logge
 		prop.ExternalConfig = cr.Spec.RedisSentinelConfig.AdditionalSentinelConfig
 	}
 
-	return prop.CreateRedisSentinelSetup(ctx, client, logger, cr)
+	return prop.CreateRedisSentinelSetup(ctx, client, logger, cr, cl)
 
 }
 
 // Create RedisSentinel Service
-func CreateRedisSentinelService(cr *redisv1beta2.RedisSentinel) error {
+func CreateRedisSentinelService(cr *redisv1beta2.RedisSentinel, cl kubernetes.Interface) error {
 
 	prop := RedisSentinelService{
 		RedisServiceRole: "sentinel",
 	}
-	return prop.CreateRedisSentinelService(cr)
+	return prop.CreateRedisSentinelService(cr, cl)
 }
 
 // Create Redis Sentinel Cluster Setup
-func (service RedisSentinelSTS) CreateRedisSentinelSetup(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisSentinel) error {
+func (service RedisSentinelSTS) CreateRedisSentinelSetup(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisSentinel, cl kubernetes.Interface) error {
 	stateFulName := cr.ObjectMeta.Name + "-" + service.RedisStateFulType
 	labels := getRedisLabels(stateFulName, sentinel, service.RedisStateFulType, cr.ObjectMeta.Labels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
@@ -77,6 +77,7 @@ func (service RedisSentinelSTS) CreateRedisSentinelSetup(ctx context.Context, cl
 		generateRedisSentinelInitContainerParams(cr),
 		generateRedisSentinelContainerParams(ctx, client, logger, cr, service.ReadinessProbe, service.LivenessProbe),
 		cr.Spec.Sidecars,
+		cl,
 	)
 
 	if err != nil {
@@ -197,7 +198,7 @@ func (service RedisSentinelSTS) getSentinelCount(cr *redisv1beta2.RedisSentinel)
 }
 
 // Create the Service for redis sentinel
-func (service RedisSentinelService) CreateRedisSentinelService(cr *redisv1beta2.RedisSentinel) error {
+func (service RedisSentinelService) CreateRedisSentinelService(cr *redisv1beta2.RedisSentinel, cl kubernetes.Interface) error {
 	serviceName := cr.ObjectMeta.Name + "-" + service.RedisServiceRole
 	logger := serviceLogger(cr.Namespace, serviceName)
 	labels := getRedisLabels(serviceName, sentinel, service.RedisServiceRole, cr.ObjectMeta.Labels)
@@ -220,12 +221,12 @@ func (service RedisSentinelService) CreateRedisSentinelService(cr *redisv1beta2.
 	headlessObjectMetaInfo := generateObjectMetaInformation(serviceName+"-headless", cr.Namespace, labels, annotations)
 	additionalObjectMetaInfo := generateObjectMetaInformation(serviceName+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, additionalServiceAnnotations, epp))
 
-	err := CreateOrUpdateService(cr.Namespace, headlessObjectMetaInfo, redisSentinelAsOwner(cr), disableMetrics, true, "ClusterIP", sentinelPort)
+	err := CreateOrUpdateService(cr.Namespace, headlessObjectMetaInfo, redisSentinelAsOwner(cr), disableMetrics, true, "ClusterIP", sentinelPort, cl)
 	if err != nil {
 		logger.Error(err, "Cannot create headless service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err
 	}
-	err = CreateOrUpdateService(cr.Namespace, objectMetaInfo, redisSentinelAsOwner(cr), epp, false, "ClusterIP", sentinelPort)
+	err = CreateOrUpdateService(cr.Namespace, objectMetaInfo, redisSentinelAsOwner(cr), epp, false, "ClusterIP", sentinelPort, cl)
 	if err != nil {
 		logger.Error(err, "Cannot create service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err
@@ -235,7 +236,7 @@ func (service RedisSentinelService) CreateRedisSentinelService(cr *redisv1beta2.
 	if cr.Spec.KubernetesConfig.Service != nil {
 		additionalServiceType = cr.Spec.KubernetesConfig.Service.ServiceType
 	}
-	err = CreateOrUpdateService(cr.Namespace, additionalObjectMetaInfo, redisSentinelAsOwner(cr), disableMetrics, false, additionalServiceType, sentinelPort)
+	err = CreateOrUpdateService(cr.Namespace, additionalObjectMetaInfo, redisSentinelAsOwner(cr), disableMetrics, false, additionalServiceType, sentinelPort, cl)
 	if err != nil {
 		logger.Error(err, "Cannot create additional service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err

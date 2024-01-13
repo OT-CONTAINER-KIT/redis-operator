@@ -3,13 +3,14 @@ package k8sutils
 import (
 	"context"
 	"fmt"
-	"k8s.io/utils/env"
 	"path"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/utils/env"
 	"k8s.io/utils/pointer"
 
 	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api"
@@ -95,9 +96,9 @@ type initContainerParameters struct {
 }
 
 // CreateOrUpdateStateFul method will create or update Redis service
-func CreateOrUpdateStateFul(namespace string, stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, initcontainerParams initContainerParameters, containerParams containerParameters, sidecars *[]redisv1beta2.Sidecar) error {
+func CreateOrUpdateStateFul(namespace string, stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, initcontainerParams initContainerParameters, containerParams containerParameters, sidecars *[]redisv1beta2.Sidecar, cl kubernetes.Interface) error {
 	logger := statefulSetLogger(namespace, stsMeta.Name)
-	storedStateful, err := GetStatefulSet(namespace, stsMeta.Name)
+	storedStateful, err := GetStatefulSet(namespace, stsMeta.Name, cl)
 	statefulSetDef := generateStatefulSetsDef(stsMeta, params, ownerDef, initcontainerParams, containerParams, getSidecars(sidecars))
 	if err != nil {
 		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(statefulSetDef); err != nil { //nolint
@@ -105,21 +106,16 @@ func CreateOrUpdateStateFul(namespace string, stsMeta metav1.ObjectMeta, params 
 			return err
 		}
 		if apierrors.IsNotFound(err) {
-			return createStatefulSet(namespace, statefulSetDef)
+			return createStatefulSet(namespace, statefulSetDef, cl)
 		}
 		return err
 	}
-	return patchStatefulSet(storedStateful, statefulSetDef, namespace, params.RecreateStatefulSet)
+	return patchStatefulSet(storedStateful, statefulSetDef, namespace, params.RecreateStatefulSet, cl)
 }
 
 // patchStateFulSet will patch Redis Kubernetes StateFulSet
-func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.StatefulSet, namespace string, recreateStateFulSet bool) error {
+func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.StatefulSet, namespace string, recreateStateFulSet bool, cl kubernetes.Interface) error {
 	logger := statefulSetLogger(namespace, storedStateful.Name)
-	client, err := GenerateK8sClient(GenerateK8sConfig)
-	if err != nil {
-		logger.Error(err, "Could not generate kubernetes client")
-		return err
-	}
 	// We want to try and keep this atomic as possible.
 	newStateful.ResourceVersion = storedStateful.ResourceVersion
 	newStateful.CreationTimestamp = storedStateful.CreationTimestamp
@@ -167,7 +163,7 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 								},
 							),
 						}
-						pvcs, err := client.CoreV1().PersistentVolumeClaims(storedStateful.Namespace).List(context.Background(), listOpt)
+						pvcs, err := cl.CoreV1().PersistentVolumeClaims(storedStateful.Namespace).List(context.Background(), listOpt)
 						if err != nil {
 							return err
 						}
@@ -178,7 +174,7 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 							if realCapacity != stateCapacity {
 								realUpdate = true
 								pvc.Spec.Resources.Requests = newStateful.Spec.VolumeClaimTemplates[0].Spec.Resources.Requests
-								_, err = client.CoreV1().PersistentVolumeClaims(storedStateful.Namespace).Update(context.Background(), &pvc, metav1.UpdateOptions{})
+								_, err = cl.CoreV1().PersistentVolumeClaims(storedStateful.Namespace).Update(context.Background(), &pvc, metav1.UpdateOptions{})
 								if err != nil {
 									if !updateFailed {
 										updateFailed = true
@@ -213,7 +209,7 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 			logger.Error(err, "Unable to patch redis statefulset with comparison object")
 			return err
 		}
-		return updateStatefulSet(namespace, newStateful, recreateStateFulSet)
+		return updateStatefulSet(namespace, newStateful, recreateStateFulSet, cl)
 	}
 	logger.V(1).Info("Reconciliation Complete, no Changes required.")
 	return nil
@@ -690,14 +686,9 @@ func getEnvironmentVariables(role string, enabledPassword *bool, secretName *str
 }
 
 // createStatefulSet is a method to create statefulset in Kubernetes
-func createStatefulSet(namespace string, stateful *appsv1.StatefulSet) error {
-	logger := statefulSetLogger(namespace, stateful.Name)
-	client, err := GenerateK8sClient(GenerateK8sConfig)
-	if err != nil {
-		logger.Error(err, "Could not generate kubernetes client")
-		return err
-	}
-	_, err = client.AppsV1().StatefulSets(namespace).Create(context.TODO(), stateful, metav1.CreateOptions{})
+func createStatefulSet(namespace string, stateful *appsv1.StatefulSet, cl kubernetes.Interface) error {
+	logger := statefulSetLogger(stateful.Namespace, stateful.Name)
+	_, err := cl.AppsV1().StatefulSets(namespace).Create(context.TODO(), stateful, metav1.CreateOptions{})
 	if err != nil {
 		logger.Error(err, "Redis stateful creation failed")
 		return err
@@ -707,14 +698,9 @@ func createStatefulSet(namespace string, stateful *appsv1.StatefulSet) error {
 }
 
 // updateStatefulSet is a method to update statefulset in Kubernetes
-func updateStatefulSet(namespace string, stateful *appsv1.StatefulSet, recreateStateFulSet bool) error {
+func updateStatefulSet(namespace string, stateful *appsv1.StatefulSet, recreateStateFulSet bool, cl kubernetes.Interface) error {
 	logger := statefulSetLogger(namespace, stateful.Name)
-	client, err := GenerateK8sClient(GenerateK8sConfig)
-	if err != nil {
-		logger.Error(err, "Could not generate kubernetes client")
-		return err
-	}
-	_, err = client.AppsV1().StatefulSets(namespace).Update(context.TODO(), stateful, metav1.UpdateOptions{})
+	_, err := cl.AppsV1().StatefulSets(namespace).Update(context.TODO(), stateful, metav1.UpdateOptions{})
 	if recreateStateFulSet {
 		sErr, ok := err.(*apierrors.StatusError)
 		if ok && sErr.ErrStatus.Code == 422 && sErr.ErrStatus.Reason == metav1.StatusReasonInvalid {
@@ -724,7 +710,7 @@ func updateStatefulSet(namespace string, stateful *appsv1.StatefulSet, recreateS
 			}
 			logger.V(1).Info("recreating StatefulSet because the update operation wasn't possible", "reason", strings.Join(failMsg, ", "))
 			propagationPolicy := metav1.DeletePropagationForeground
-			if err := client.AppsV1().StatefulSets(namespace).Delete(context.TODO(), stateful.GetName(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}); err != nil { //nolint
+			if err := cl.AppsV1().StatefulSets(namespace).Delete(context.TODO(), stateful.GetName(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}); err != nil { //nolint
 				return errors.Wrap(err, "failed to delete StatefulSet to avoid forbidden action")
 			}
 		}
@@ -738,17 +724,12 @@ func updateStatefulSet(namespace string, stateful *appsv1.StatefulSet, recreateS
 }
 
 // GetStateFulSet is a method to get statefulset in Kubernetes
-func GetStatefulSet(namespace string, stateful string) (*appsv1.StatefulSet, error) {
+func GetStatefulSet(namespace string, stateful string, cl kubernetes.Interface) (*appsv1.StatefulSet, error) {
 	logger := statefulSetLogger(namespace, stateful)
-	client, err := GenerateK8sClient(GenerateK8sConfig)
-	if err != nil {
-		logger.Error(err, "Could not generate kubernetes client")
-		return nil, err
-	}
 	getOpts := metav1.GetOptions{
 		TypeMeta: generateMetaInformation("StatefulSet", "apps/v1"),
 	}
-	statefulInfo, err := client.AppsV1().StatefulSets(namespace).Get(context.TODO(), stateful, getOpts)
+	statefulInfo, err := cl.AppsV1().StatefulSets(namespace).Get(context.TODO(), stateful, getOpts)
 	if err != nil {
 		logger.V(1).Info("Redis statefulset get action failed")
 		return nil, err

@@ -35,7 +35,7 @@ Please refer to the repository's README for detailed instructions on installing 
 
 Execute the kuttl test using the following command:
 
-To run all default tests ( _config/kuttl-test.yaml is the default config file )
+To run all default tests ( \_config/kuttl-test.yaml is the default config file )
 
 ```bash
 kubectl kuttl test --config tests/_config/kuttl-test.yaml

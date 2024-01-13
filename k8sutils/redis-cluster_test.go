@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"k8s.io/client-go/kubernetes/fake"
+
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/stretchr/testify/assert"
@@ -427,10 +429,10 @@ func Test_generateRedisClusterContainerParams(t *testing.T) {
 		t.Fatalf("Failed to unmarshal file %s: %v", path, err)
 	}
 
-	actualLeaderContainer := generateRedisClusterContainerParams(input, input.Spec.RedisLeader.SecurityContext, input.Spec.RedisLeader.ReadinessProbe, input.Spec.RedisLeader.LivenessProbe, "leader")
+	actualLeaderContainer := generateRedisClusterContainerParams(input, input.Spec.RedisLeader.SecurityContext, input.Spec.RedisLeader.ReadinessProbe, input.Spec.RedisLeader.LivenessProbe, "leader", fake.NewSimpleClientset())
 	assert.EqualValues(t, expectedLeaderContainer, actualLeaderContainer, "Expected %+v, got %+v", expectedLeaderContainer, actualLeaderContainer)
 
-	actualFollowerContainer := generateRedisClusterContainerParams(input, input.Spec.RedisFollower.SecurityContext, input.Spec.RedisFollower.ReadinessProbe, input.Spec.RedisFollower.LivenessProbe, "follower")
+	actualFollowerContainer := generateRedisClusterContainerParams(input, input.Spec.RedisFollower.SecurityContext, input.Spec.RedisFollower.ReadinessProbe, input.Spec.RedisFollower.LivenessProbe, "follower", fake.NewSimpleClientset())
 	assert.EqualValues(t, expectedFollowerContainer, actualFollowerContainer, "Expected %+v, got %+v", expectedFollowerContainer, actualFollowerContainer)
 }
 
