@@ -117,22 +117,22 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	if leaderReplicas != 0 {
-		err = k8sutils.CreateRedisLeaderService(instance)
+		err = k8sutils.CreateRedisLeaderService(instance, r.K8sClient)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
 	}
-	err = k8sutils.CreateRedisLeader(instance)
+	err = k8sutils.CreateRedisLeader(instance, r.K8sClient)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	err = k8sutils.ReconcileRedisPodDisruptionBudget(instance, "leader", instance.Spec.RedisLeader.PodDisruptionBudget)
+	err = k8sutils.ReconcileRedisPodDisruptionBudget(instance, "leader", instance.Spec.RedisLeader.PodDisruptionBudget, r.K8sClient)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	redisLeaderInfo, err := k8sutils.GetStatefulSet(instance.Namespace, instance.ObjectMeta.Name+"-leader")
+	redisLeaderInfo, err := k8sutils.GetStatefulSet(instance.Namespace, instance.ObjectMeta.Name+"-leader", r.K8sClient)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return ctrl.Result{RequeueAfter: time.Second * 60}, nil
@@ -151,21 +151,21 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 		// if we have followers create their service.
 		if followerReplicas != 0 {
-			err = k8sutils.CreateRedisFollowerService(instance)
+			err = k8sutils.CreateRedisFollowerService(instance, r.K8sClient)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
 		}
-		err = k8sutils.CreateRedisFollower(instance)
+		err = k8sutils.CreateRedisFollower(instance, r.K8sClient)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-		err = k8sutils.ReconcileRedisPodDisruptionBudget(instance, "follower", instance.Spec.RedisFollower.PodDisruptionBudget)
+		err = k8sutils.ReconcileRedisPodDisruptionBudget(instance, "follower", instance.Spec.RedisFollower.PodDisruptionBudget, r.K8sClient)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
 	}
-	redisFollowerInfo, err := k8sutils.GetStatefulSet(instance.Namespace, instance.ObjectMeta.Name+"-follower")
+	redisFollowerInfo, err := k8sutils.GetStatefulSet(instance.Namespace, instance.ObjectMeta.Name+"-follower", r.K8sClient)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return ctrl.Result{RequeueAfter: time.Second * 60}, nil

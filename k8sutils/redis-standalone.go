@@ -3,6 +3,7 @@ package k8sutils
 import (
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/pointer"
 )
 
@@ -11,7 +12,7 @@ import (
 //)
 
 // CreateStandaloneService method will create standalone service for Redis
-func CreateStandaloneService(cr *redisv1beta2.Redis) error {
+func CreateStandaloneService(cr *redisv1beta2.Redis, cl kubernetes.Interface) error {
 	logger := serviceLogger(cr.Namespace, cr.ObjectMeta.Name)
 	labels := getRedisLabels(cr.ObjectMeta.Name, standalone, "standalone", cr.ObjectMeta.Labels)
 	var epp exporterPortProvider
@@ -31,12 +32,12 @@ func CreateStandaloneService(cr *redisv1beta2.Redis) error {
 	objectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name, cr.Namespace, labels, annotations)
 	headlessObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-headless", cr.Namespace, labels, annotations)
 	additionalObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, additionalServiceAnnotations, epp))
-	err := CreateOrUpdateService(cr.Namespace, headlessObjectMetaInfo, redisAsOwner(cr), disableMetrics, true, "ClusterIP", redisPort)
+	err := CreateOrUpdateService(cr.Namespace, headlessObjectMetaInfo, redisAsOwner(cr), disableMetrics, true, "ClusterIP", redisPort, cl)
 	if err != nil {
 		logger.Error(err, "Cannot create standalone headless service for Redis")
 		return err
 	}
-	err = CreateOrUpdateService(cr.Namespace, objectMetaInfo, redisAsOwner(cr), epp, false, "ClusterIP", redisPort)
+	err = CreateOrUpdateService(cr.Namespace, objectMetaInfo, redisAsOwner(cr), epp, false, "ClusterIP", redisPort, cl)
 	if err != nil {
 		logger.Error(err, "Cannot create standalone service for Redis")
 		return err
@@ -45,7 +46,7 @@ func CreateStandaloneService(cr *redisv1beta2.Redis) error {
 	if cr.Spec.KubernetesConfig.Service != nil {
 		additionalServiceType = cr.Spec.KubernetesConfig.Service.ServiceType
 	}
-	err = CreateOrUpdateService(cr.Namespace, additionalObjectMetaInfo, redisAsOwner(cr), disableMetrics, false, additionalServiceType, redisPort)
+	err = CreateOrUpdateService(cr.Namespace, additionalObjectMetaInfo, redisAsOwner(cr), disableMetrics, false, additionalServiceType, redisPort, cl)
 	if err != nil {
 		logger.Error(err, "Cannot create additional service for Redis")
 		return err
@@ -54,7 +55,7 @@ func CreateStandaloneService(cr *redisv1beta2.Redis) error {
 }
 
 // CreateStandaloneRedis will create a standalone redis setup
-func CreateStandaloneRedis(cr *redisv1beta2.Redis) error {
+func CreateStandaloneRedis(cr *redisv1beta2.Redis, cl kubernetes.Interface) error {
 	logger := statefulSetLogger(cr.Namespace, cr.ObjectMeta.Name)
 	labels := getRedisLabels(cr.ObjectMeta.Name, standalone, "standalone", cr.ObjectMeta.Labels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
@@ -66,6 +67,7 @@ func CreateStandaloneRedis(cr *redisv1beta2.Redis) error {
 		generateRedisStandaloneInitContainerParams(cr),
 		generateRedisStandaloneContainerParams(cr),
 		cr.Spec.Sidecars,
+		cl,
 	)
 	if err != nil {
 		logger.Error(err, "Cannot create standalone statefulset for Redis")

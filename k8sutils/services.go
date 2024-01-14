@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -95,14 +96,9 @@ func generateServiceType(k8sServiceType string) corev1.ServiceType {
 }
 
 // createService is a method to create service is Kubernetes
-func createService(namespace string, service *corev1.Service) error {
+func createService(namespace string, service *corev1.Service, cl kubernetes.Interface) error {
 	logger := serviceLogger(namespace, service.Name)
-	client, err := GenerateK8sClient(GenerateK8sConfig)
-	if err != nil {
-		logger.Error(err, "Could not generate kubernetes client")
-		return err
-	}
-	_, err = client.CoreV1().Services(namespace).Create(context.TODO(), service, metav1.CreateOptions{})
+	_, err := cl.CoreV1().Services(namespace).Create(context.TODO(), service, metav1.CreateOptions{})
 	if err != nil {
 		logger.Error(err, "Redis service creation is failed")
 		return err
@@ -112,14 +108,9 @@ func createService(namespace string, service *corev1.Service) error {
 }
 
 // updateService is a method to update service is Kubernetes
-func updateService(namespace string, service *corev1.Service) error {
+func updateService(namespace string, service *corev1.Service, cl kubernetes.Interface) error {
 	logger := serviceLogger(namespace, service.Name)
-	client, err := GenerateK8sClient(GenerateK8sConfig)
-	if err != nil {
-		logger.Error(err, "Could not generate kubernetes client")
-		return err
-	}
-	_, err = client.CoreV1().Services(namespace).Update(context.TODO(), service, metav1.UpdateOptions{})
+	_, err := cl.CoreV1().Services(namespace).Update(context.TODO(), service, metav1.UpdateOptions{})
 	if err != nil {
 		logger.Error(err, "Redis service update failed")
 		return err
@@ -129,17 +120,12 @@ func updateService(namespace string, service *corev1.Service) error {
 }
 
 // getService is a method to get service is Kubernetes
-func getService(namespace string, service string) (*corev1.Service, error) {
+func getService(namespace string, service string, cl kubernetes.Interface) (*corev1.Service, error) {
 	logger := serviceLogger(namespace, service)
-	client, err := GenerateK8sClient(GenerateK8sConfig)
-	if err != nil {
-		logger.Error(err, "Could not generate kubernetes client")
-		return nil, err
-	}
 	getOpts := metav1.GetOptions{
 		TypeMeta: generateMetaInformation("Service", "v1"),
 	}
-	serviceInfo, err := client.CoreV1().Services(namespace).Get(context.TODO(), service, getOpts)
+	serviceInfo, err := cl.CoreV1().Services(namespace).Get(context.TODO(), service, getOpts)
 	if err != nil {
 		logger.V(1).Info("Redis service get action is failed")
 		return nil, err
@@ -154,24 +140,24 @@ func serviceLogger(namespace string, name string) logr.Logger {
 }
 
 // CreateOrUpdateService method will create or update Redis service
-func CreateOrUpdateService(namespace string, serviceMeta metav1.ObjectMeta, ownerDef metav1.OwnerReference, epp exporterPortProvider, headless bool, serviceType string, port int, extra ...corev1.ServicePort) error {
+func CreateOrUpdateService(namespace string, serviceMeta metav1.ObjectMeta, ownerDef metav1.OwnerReference, epp exporterPortProvider, headless bool, serviceType string, port int, cl kubernetes.Interface, extra ...corev1.ServicePort) error {
 	logger := serviceLogger(namespace, serviceMeta.Name)
 	serviceDef := generateServiceDef(serviceMeta, epp, ownerDef, headless, serviceType, port, extra...)
-	storedService, err := getService(namespace, serviceMeta.Name)
+	storedService, err := getService(namespace, serviceMeta.Name, cl)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(serviceDef); err != nil { //nolint
 				logger.Error(err, "Unable to patch redis service with compare annotations")
 			}
-			return createService(namespace, serviceDef)
+			return createService(namespace, serviceDef, cl)
 		}
 		return err
 	}
-	return patchService(storedService, serviceDef, namespace)
+	return patchService(storedService, serviceDef, namespace, cl)
 }
 
 // patchService will patch Redis Kubernetes service
-func patchService(storedService *corev1.Service, newService *corev1.Service, namespace string) error {
+func patchService(storedService *corev1.Service, newService *corev1.Service, namespace string, cl kubernetes.Interface) error {
 	logger := serviceLogger(namespace, storedService.Name)
 	// We want to try and keep this atomic as possible.
 	newService.ResourceVersion = storedService.ResourceVersion
@@ -204,7 +190,7 @@ func patchService(storedService *corev1.Service, newService *corev1.Service, nam
 			return err
 		}
 		logger.V(1).Info("Syncing Redis service with defined properties")
-		return updateService(namespace, newService)
+		return updateService(namespace, newService, cl)
 	}
 	logger.V(1).Info("Redis service is already in-sync")
 	return nil

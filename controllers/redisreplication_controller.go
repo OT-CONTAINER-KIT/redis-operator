@@ -56,18 +56,18 @@ func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, err
 	}
 
-	err = k8sutils.CreateReplicationRedis(instance)
+	err = k8sutils.CreateReplicationRedis(instance, r.K8sClient)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	err = k8sutils.CreateReplicationService(instance)
+	err = k8sutils.CreateReplicationService(instance, r.K8sClient)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
 	// Set Pod distruptiuon Budget Later
 
-	redisReplicationInfo, err := k8sutils.GetStatefulSet(instance.Namespace, instance.ObjectMeta.Name)
+	redisReplicationInfo, err := k8sutils.GetStatefulSet(instance.Namespace, instance.ObjectMeta.Name, r.K8sClient)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: time.Second * 60}, err
 	}
