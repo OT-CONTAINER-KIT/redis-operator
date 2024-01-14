@@ -149,3 +149,7 @@ e2e-kind-setup:
 .PHONY: e2e-test
 e2e-test: e2e-kind-setup install-kuttl
 	$(shell pwd)/bin/kuttl test --config tests/_config/kuttl-test.yaml
+
+.PHONY: integration-test-setup
+integration-test-setup:
+	./hack/integrationSetup.sh
