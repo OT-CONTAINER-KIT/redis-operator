@@ -13,7 +13,7 @@ env:
   DockerImagName: docker.io/opstree/redis-operator
   BuildDocs: true
   AppVersion: "v0.15.2"
-  DOCKERFILE_PATH: '**/Dockerfile'
+  DOCKERFILE_PATH: "**/Dockerfile"
 
 jobs:
   gofmt:
@@ -54,6 +54,8 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GOLANG_VERSION }}
+      - name: Install integration test dependencies
+        run: make integration-test-setup
       - name: Run Go Tests with coverage
         run: go test ./... -coverprofile=coverage.txt -covermode=atomic
       - name: Upload coverage to Codecov
@@ -62,7 +64,7 @@ jobs:
           file: ./coverage.txt
           fail_ci_if_error: false
           verbose: true
-        
+
   code_quality_golang_ci_lint:
     needs: [gofmt, govet]
     runs-on: ubuntu-latest
@@ -72,16 +74,16 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GOLANG_VERSION }}
-          
+
       - name: Download Go modules
         run: go mod download
-      
+
       - name: Check disk space
         run: df -h
-      
+
       - name: List Go module cache
         run: ls -la $(go env GOPATH)/pkg/mod
-      
+
       - name: Run GolangCI-Lint
         uses: golangci/golangci-lint-action@v3
         with:
@@ -105,7 +107,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        arch: ['amd64', 'arm64']
+        arch: ["amd64", "arm64"]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2
@@ -125,19 +127,19 @@ jobs:
     needs: [container_quality_dockerfile_lint]
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v2
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
 
-    - name: Build multi-arch image
-      uses: docker/build-push-action@v2
-      with:
-        context: .
-        platforms: linux/arm64,linux/amd64
-        push: false
-        tags: ${{ env.DockerImagName }}:latest
+      - name: Build multi-arch image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          platforms: linux/arm64,linux/amd64
+          push: false
+          tags: ${{ env.DockerImagName }}:latest
 
   gosec_scan:
     needs: [build_go_binary]
@@ -152,4 +154,3 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
           GOSEC_OUTPUT: "junit-xml:/github/workspace/gosec-results.xml"
-          
