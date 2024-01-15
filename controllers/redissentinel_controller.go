@@ -19,7 +19,7 @@ import (
 type RedisSentinelReconciler struct {
 	client.Client
 	K8sClient  kubernetes.Interface
-	Dk8sClinet dynamic.Interface
+	Dk8sClient dynamic.Interface
 	Log        logr.Logger
 	Scheme     *runtime.Scheme
 }

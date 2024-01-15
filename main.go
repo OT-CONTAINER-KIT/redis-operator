@@ -107,7 +107,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	dk8sClinet, err := k8sutils.GenerateK8sDynamicClient(k8sutils.GenerateK8sConfig)
+	dk8sClient, err := k8sutils.GenerateK8sDynamicClient(k8sutils.GenerateK8sConfig)
 	if err != nil {
 		setupLog.Error(err, "unable to create k8s dynamic client")
 		os.Exit(1)
@@ -116,7 +116,7 @@ func main() {
 	if err = (&controllers.RedisReconciler{
 		Client:     mgr.GetClient(),
 		K8sClient:  k8sclient,
-		Dk8sClinet: dk8sClinet,
+		Dk8sClient: dk8sClient,
 		Log:        ctrl.Log.WithName("controllers").WithName("Redis"),
 		Scheme:     mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
@@ -126,7 +126,7 @@ func main() {
 	if err = (&controllers.RedisClusterReconciler{
 		Client:     mgr.GetClient(),
 		K8sClient:  k8sclient,
-		Dk8sClinet: dk8sClinet,
+		Dk8sClient: dk8sClient,
 		Log:        ctrl.Log.WithName("controllers").WithName("RedisCluster"),
 		Scheme:     mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
@@ -136,7 +136,7 @@ func main() {
 	if err = (&controllers.RedisReplicationReconciler{
 		Client:     mgr.GetClient(),
 		K8sClient:  k8sclient,
-		Dk8sClinet: dk8sClinet,
+		Dk8sClient: dk8sClient,
 		Log:        ctrl.Log.WithName("controllers").WithName("RedisReplication"),
 		Scheme:     mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
@@ -146,7 +146,7 @@ func main() {
 	if err = (&controllers.RedisSentinelReconciler{
 		Client:     mgr.GetClient(),
 		K8sClient:  k8sclient,
-		Dk8sClinet: dk8sClinet,
+		Dk8sClient: dk8sClient,
 		Log:        ctrl.Log.WithName("controllers").WithName("RedisSentinel"),
 		Scheme:     mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
