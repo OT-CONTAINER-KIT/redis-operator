@@ -2,11 +2,13 @@ package k8sutils
 
 import (
 	"context"
-	"k8s.io/client-go/kubernetes"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"k8s.io/client-go/dynamic/fake"
+	"k8s.io/client-go/kubernetes"
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
@@ -14,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/utils/pointer"
 )
@@ -185,7 +188,7 @@ func Test_generateRedisSentinelContainerParams(t *testing.T) {
 		t.Fatalf("Failed to unmarshal file %s: %v", path, err)
 	}
 
-	actual := generateRedisSentinelContainerParams(context.TODO(), nil, logr.Logger{}, input, nil, nil)
+	actual := generateRedisSentinelContainerParams(context.TODO(), nil, logr.Logger{}, input, nil, nil, nil)
 	assert.EqualValues(t, expected, actual, "Expected %+v, got %+v", expected, actual)
 }
 
@@ -326,7 +329,7 @@ func Test_getSentinelEnvVariable(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getSentinelEnvVariable(tt.args.ctx, tt.args.client, tt.args.logger, tt.args.cr); !reflect.DeepEqual(got, tt.want) {
+			if got := getSentinelEnvVariable(tt.args.ctx, tt.args.client, tt.args.logger, tt.args.cr, fake.NewSimpleDynamicClient(&runtime.Scheme{})); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("getSentinelEnvVariable() = %v, want %v", got, tt.want)
 			}
 		})
