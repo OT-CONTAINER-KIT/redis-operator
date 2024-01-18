@@ -1,6 +1,7 @@
 package k8sutils
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -34,6 +35,7 @@ type RedisClusterService struct {
 
 // generateRedisClusterParams generates Redis cluster information
 func generateRedisClusterParams(cr *redisv1beta2.RedisCluster, replicas int32, externalConfig *string, params RedisClusterSTS) statefulSetParameters {
+	fmt.Println(cr.Spec.Storage.NodeConfVolume)
 	res := statefulSetParameters{
 		Replicas:                      &replicas,
 		ClusterMode:                   true,
