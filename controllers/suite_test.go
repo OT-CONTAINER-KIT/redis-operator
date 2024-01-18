@@ -41,6 +41,13 @@ import (
 var k8sClient client.Client
 var testEnv *envtest.Environment
 
+const (
+	ns = "default"
+
+	timeout  = time.Second * 10
+	interval = time.Millisecond * 250
+)
+
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 

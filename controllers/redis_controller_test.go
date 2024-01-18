@@ -3,7 +3,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 
@@ -15,13 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-)
-
-const (
-	ns = "default"
-
-	timeout  = time.Second * 5
-	interval = time.Millisecond * 250
 )
 
 var _ = Describe("Redis standalone test", func() {
