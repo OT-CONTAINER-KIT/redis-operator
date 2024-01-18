@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 )
 
 // statusLogger will generate logging interface for status
@@ -19,18 +20,13 @@ func statusLogger(namespace string, name string) logr.Logger {
 }
 
 // UpdateRedisClusterStatus will update the status of the RedisCluster
-func UpdateRedisClusterStatus(cr *redisv1beta2.RedisCluster, status status.RedisClusterState, resaon string, readyLeaderReplicas, readyFollowerReplicas int32) error {
+func UpdateRedisClusterStatus(cr *redisv1beta2.RedisCluster, status status.RedisClusterState, resaon string, readyLeaderReplicas, readyFollowerReplicas int32, dcl dynamic.Interface) error {
 	logger := statusLogger(cr.Namespace, cr.Name)
 	cr.Status.State = status
 	cr.Status.Reason = resaon
 	cr.Status.ReadyLeaderReplicas = readyLeaderReplicas
 	cr.Status.ReadyFollowerReplicas = readyFollowerReplicas
 
-	client, err := GenerateK8sDynamicClient(GenerateK8sConfig)
-	if err != nil {
-		logger.Error(err, "Failed to generate k8s dynamic client")
-		return err
-	}
 	gvr := schema.GroupVersionResource{
 		Group:    "redis.redis.opstreelabs.in",
 		Version:  "v1beta2",
@@ -43,7 +39,7 @@ func UpdateRedisClusterStatus(cr *redisv1beta2.RedisCluster, status status.Redis
 	}
 	unstructuredRedisCluster := &unstructured.Unstructured{Object: unstructuredObj}
 
-	_, err = client.Resource(gvr).Namespace(cr.Namespace).UpdateStatus(context.TODO(), unstructuredRedisCluster, metav1.UpdateOptions{})
+	_, err = dcl.Resource(gvr).Namespace(cr.Namespace).UpdateStatus(context.TODO(), unstructuredRedisCluster, metav1.UpdateOptions{})
 	if err != nil {
 		logger.Error(err, "Failed to update status")
 		return err
