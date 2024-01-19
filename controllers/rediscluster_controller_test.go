@@ -21,14 +21,12 @@ var _ = Describe("Redis cluster test", func() {
 		redisClusterCR     redisv1beta2.RedisCluster
 		redisClusterCRName string
 		size               int32
-		// version            string
 		// Used to create unique name for each test
 		testCount int
 	)
 
 	JustBeforeEach(func() {
 		size = 3
-		// version = "v7"
 		redisClusterCR = redisv1beta2.RedisCluster{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "redis.redis.opstreelabs.in/v1beta2",
@@ -39,8 +37,7 @@ var _ = Describe("Redis cluster test", func() {
 				Namespace: ns,
 			},
 			Spec: redisv1beta2.RedisClusterSpec{
-				Size: &size,
-				// ClusterVersion: &version,
+				Size:    &size,
 				Storage: &redisv1beta2.ClusterStorage{},
 			},
 		}
@@ -54,7 +51,6 @@ var _ = Describe("Redis cluster test", func() {
 
 	Context("When creating a redis cluster CR", func() {
 		It("should create a statefulset", func() {
-
 			sts := &appsv1.StatefulSet{}
 			Eventually(func() error {
 				return k8sClient.Get(context.TODO(), types.NamespacedName{
