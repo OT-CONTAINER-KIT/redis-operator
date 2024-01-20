@@ -110,6 +110,14 @@ var _ = BeforeSuite(func() {
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
+	err = (&RedisReplicationReconciler{
+		Client:     k8sManager.GetClient(),
+		K8sClient:  k8sClient,
+		Dk8sClient: dk8sClient,
+		Scheme:     k8sManager.GetScheme(),
+	}).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
 	go func() {
 		defer GinkgoRecover()
 		err = k8sManager.Start(ctrl.SetupSignalHandler())
