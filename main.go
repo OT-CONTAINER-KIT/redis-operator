@@ -114,7 +114,6 @@ func main() {
 	}
 
 	if err = (&controllers.RedisReconciler{
-		Client:     mgr.GetClient(),
 		K8sClient:  k8sclient,
 		Dk8sClient: dk8sClient,
 		Log:        ctrl.Log.WithName("controllers").WithName("Redis"),
@@ -124,7 +123,6 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&controllers.RedisClusterReconciler{
-		Client:     mgr.GetClient(),
 		K8sClient:  k8sclient,
 		Dk8sClient: dk8sClient,
 		Log:        ctrl.Log.WithName("controllers").WithName("RedisCluster"),
@@ -134,7 +132,6 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&controllers.RedisReplicationReconciler{
-		Client:     mgr.GetClient(),
 		K8sClient:  k8sclient,
 		Dk8sClient: dk8sClient,
 		Log:        ctrl.Log.WithName("controllers").WithName("RedisReplication"),
@@ -144,7 +141,6 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&controllers.RedisSentinelReconciler{
-		Client:     mgr.GetClient(),
 		K8sClient:  k8sclient,
 		Dk8sClient: dk8sClient,
 		Log:        ctrl.Log.WithName("controllers").WithName("RedisSentinel"),
