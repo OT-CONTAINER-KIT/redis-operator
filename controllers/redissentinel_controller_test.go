@@ -48,23 +48,6 @@ var _ = Describe("Redis sentinel test", func() {
 
 	Context("When creating a redis sentinel CR", func() {
 		It("should create a statefulset", func() {
-
-			// Eventually(func() int {
-			// 	list := &appsv1.StatefulSetList{}
-			// 	// list := &redisv1beta2.RedisClusterList{}
-			// 	// list := &corev1.PodList{}
-			// 	// list := &corev1.ServiceList{}
-
-			// 	err := k8sClient.List(context.TODO(), list)
-			// 	if err != nil {
-			// 		return -1
-			// 	}
-			// 	for _, v := range list.Items {
-			// 		fmt.Println(v.Name)
-			// 	}
-			// 	return len(list.Items)
-			// }, timeout, interval).Should(Equal(3))
-
 			sts := &appsv1.StatefulSet{}
 			Eventually(func() error {
 				return k8sClient.Get(context.TODO(), types.NamespacedName{
