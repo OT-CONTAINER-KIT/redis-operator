@@ -66,7 +66,7 @@ func getRedisTLSConfig(client kubernetes.Interface, logger logr.Logger, cr *redi
 
 		return &tls.Config{
 			Certificates: []tls.Certificate{cert},
-			ServerName:   redisInfo.PodName,
+			ServerName:   redisInfo.PodName + "." + redisInfo.Namespace,
 			RootCAs:      tlsCaCertificates,
 			MinVersion:   tls.VersionTLS12,
 			ClientAuth:   tls.NoClientCert,
