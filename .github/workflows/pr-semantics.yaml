@@ -54,21 +54,12 @@ jobs:
           # Configure which scopes are allowed.
           scopes: |
             api
+            config
             client
-            commands
             config
             data
-            discovery
-            internal
-            report
-            resource
-            runner
-            operations
-            processors
             test
             utils
-            validation
-            version
             docs
             release
             testdata
