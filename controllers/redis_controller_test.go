@@ -44,10 +44,11 @@ var _ = Describe("Redis standalone test", func() {
 	})
 
 	Context("When creating a redis standalone CR", func() {
-		It("should create a statefulset", func() {
-			var sts *appsv1.StatefulSet
+		It("should create a statefulset, service", func() {
+			sts := &appsv1.StatefulSet{}
+			svc := &corev1.Service{}
+
 			Eventually(func() error {
-				sts = &appsv1.StatefulSet{}
 				return k8sClient.Get(context.TODO(), types.NamespacedName{
 					Name:      redisCRName,
 					Namespace: ns,
@@ -62,12 +63,8 @@ var _ = Describe("Redis standalone test", func() {
 
 			Expect(*sts.Spec.Replicas).To(BeEquivalentTo(1))
 			Expect(sts.Spec.ServiceName).To(Equal(redisCRName + "-headless"))
-		})
 
-		It("should create a service", func() {
-			var svc *corev1.Service
 			Eventually(func() error {
-				svc = &corev1.Service{}
 				return k8sClient.Get(context.TODO(), types.NamespacedName{
 					Name:      redisCR.Name,
 					Namespace: ns,
@@ -79,12 +76,8 @@ var _ = Describe("Redis standalone test", func() {
 				"redis_setup_type": "standalone",
 				"role":             "standalone",
 			}))
-		})
 
-		It("should create a headless service", func() {
-			var svc *corev1.Service
 			Eventually(func() error {
-				svc = &corev1.Service{}
 				return k8sClient.Get(context.TODO(), types.NamespacedName{
 					Name:      redisCR.Name + "-headless",
 					Namespace: ns,
@@ -96,12 +89,7 @@ var _ = Describe("Redis standalone test", func() {
 				"redis_setup_type": "standalone",
 				"role":             "standalone",
 			}))
-		})
-
-		It("should create additional service", func() {
-			var svc *corev1.Service
 			Eventually(func() error {
-				svc = &corev1.Service{}
 				return k8sClient.Get(context.TODO(), types.NamespacedName{
 					Name:      redisCR.Name + "-additional",
 					Namespace: ns,

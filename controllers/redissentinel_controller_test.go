@@ -47,8 +47,10 @@ var _ = Describe("Redis sentinel test", func() {
 	})
 
 	Context("When creating a redis sentinel CR", func() {
-		It("should create a statefulset", func() {
+		It("should create a statefulset, service", func() {
 			sts := &appsv1.StatefulSet{}
+			svc := &corev1.Service{}
+
 			Eventually(func() error {
 				return k8sClient.Get(context.TODO(), types.NamespacedName{
 					Name:      redisSentinelCRName + "-sentinel",
@@ -58,10 +60,7 @@ var _ = Describe("Redis sentinel test", func() {
 
 			Expect(*sts.Spec.Replicas).To(BeEquivalentTo(3))
 			Expect(sts.Spec.ServiceName).To(Equal(redisSentinelCRName + "-sentinel-headless"))
-		})
 
-		It("should create a service", func() {
-			svc := &corev1.Service{}
 			Eventually(func() error {
 				return k8sClient.Get(context.TODO(), types.NamespacedName{
 					Name:      redisSentinelCRName + "-sentinel",
@@ -74,10 +73,7 @@ var _ = Describe("Redis sentinel test", func() {
 				"redis_setup_type": "sentinel",
 				"role":             "sentinel",
 			}))
-		})
 
-		It("should create a headless service", func() {
-			svc := &corev1.Service{}
 			Eventually(func() error {
 				return k8sClient.Get(context.TODO(), types.NamespacedName{
 					Name:      redisSentinelCRName + "-sentinel-headless",
@@ -90,10 +86,7 @@ var _ = Describe("Redis sentinel test", func() {
 				"redis_setup_type": "sentinel",
 				"role":             "sentinel",
 			}))
-		})
 
-		It("should create additional service", func() {
-			svc := &corev1.Service{}
 			Eventually(func() error {
 				return k8sClient.Get(context.TODO(), types.NamespacedName{
 					Name:      redisSentinelCRName + "-sentinel-additional",
