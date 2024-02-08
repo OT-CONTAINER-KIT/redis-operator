@@ -50,8 +50,10 @@ var _ = Describe("Redis cluster test", func() {
 	})
 
 	Context("When creating a redis cluster CR", func() {
-		It("should create a statefulset", func() {
+		It("should create a statefulset, service", func() {
 			sts := &appsv1.StatefulSet{}
+			svc := &corev1.Service{}
+
 			Eventually(func() error {
 				return k8sClient.Get(context.TODO(), types.NamespacedName{
 					Name:      redisClusterCRName + "-leader",
@@ -67,10 +69,7 @@ var _ = Describe("Redis cluster test", func() {
 
 			Expect(*sts.Spec.Replicas).To(BeEquivalentTo(3))
 			Expect(sts.Spec.ServiceName).To(Equal(redisClusterCRName + "-leader-headless"))
-		})
 
-		It("should create a service", func() {
-			svc := &corev1.Service{}
 			Eventually(func() error {
 				return k8sClient.Get(context.TODO(), types.NamespacedName{
 					Name:      redisClusterCRName + "-leader",
@@ -83,10 +82,7 @@ var _ = Describe("Redis cluster test", func() {
 				"redis_setup_type": "cluster",
 				"role":             "leader",
 			}))
-		})
 
-		It("should create a headless service", func() {
-			svc := &corev1.Service{}
 			Eventually(func() error {
 				return k8sClient.Get(context.TODO(), types.NamespacedName{
 					Name:      redisClusterCRName + "-leader-headless",
@@ -99,10 +95,6 @@ var _ = Describe("Redis cluster test", func() {
 				"redis_setup_type": "cluster",
 				"role":             "leader",
 			}))
-		})
-
-		It("should create additional service", func() {
-			svc := &corev1.Service{}
 			Eventually(func() error {
 				return k8sClient.Get(context.TODO(), types.NamespacedName{
 					Name:      redisClusterCRName + "-leader-additional",
