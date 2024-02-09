@@ -54,6 +54,7 @@ type RedisConfig struct {
 // Storage is the inteface to add pvc and pv support in redis
 // +k8s:deepcopy-gen=true
 type Storage struct {
+	KeepAfterDelete     bool                         `json:"keepAfterDelete,omitempty"`
 	VolumeClaimTemplate corev1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
 	VolumeMount         AdditionalVolume             `json:"volumeMount,omitempty"`
 }

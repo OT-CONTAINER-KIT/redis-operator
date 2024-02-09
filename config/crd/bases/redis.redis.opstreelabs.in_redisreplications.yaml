@@ -1687,6 +1687,8 @@ spec:
                 description: Storage is the inteface to add pvc and pv support in
                   redis
                 properties:
+                  keepAfterDelete:
+                    type: boolean
                   volumeClaimTemplate:
                     description: PersistentVolumeClaim is a user's request for and
                       claim to a persistent volume
@@ -6103,6 +6105,8 @@ spec:
                 description: Storage is the inteface to add pvc and pv support in
                   redis
                 properties:
+                  keepAfterDelete:
+                    type: boolean
                   volumeClaimTemplate:
                     description: PersistentVolumeClaim is a user's request for and
                       claim to a persistent volume

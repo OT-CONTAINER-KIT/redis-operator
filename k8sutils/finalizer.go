@@ -31,8 +31,10 @@ func finalizerLogger(namespace string, name string) logr.Logger {
 func HandleRedisFinalizer(ctrlclient client.Client, k8sClient kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.Redis) error {
 	if cr.GetDeletionTimestamp() != nil {
 		if controllerutil.ContainsFinalizer(cr, RedisFinalizer) {
-			if err := finalizeRedisPVC(k8sClient, logger, cr); err != nil {
-				return err
+			if !cr.Spec.Storage.KeepAfterDelete {
+				if err := finalizeRedisPVC(k8sClient, logger, cr); err != nil {
+					return err
+				}
 			}
 			controllerutil.RemoveFinalizer(cr, RedisFinalizer)
 			if err := ctrlclient.Update(context.TODO(), cr); err != nil {
@@ -48,8 +50,10 @@ func HandleRedisFinalizer(ctrlclient client.Client, k8sClient kubernetes.Interfa
 func HandleRedisClusterFinalizer(ctrlclient client.Client, k8sClient kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster) error {
 	if cr.GetDeletionTimestamp() != nil {
 		if controllerutil.ContainsFinalizer(cr, RedisClusterFinalizer) {
-			if err := finalizeRedisClusterPVC(k8sClient, logger, cr); err != nil {
-				return err
+			if !cr.Spec.Storage.KeepAfterDelete {
+				if err := finalizeRedisClusterPVC(k8sClient, logger, cr); err != nil {
+					return err
+				}
 			}
 			controllerutil.RemoveFinalizer(cr, RedisClusterFinalizer)
 			if err := ctrlclient.Update(context.TODO(), cr); err != nil {
@@ -65,8 +69,10 @@ func HandleRedisClusterFinalizer(ctrlclient client.Client, k8sClient kubernetes.
 func HandleRedisReplicationFinalizer(ctrlclient client.Client, k8sClient kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication) error {
 	if cr.GetDeletionTimestamp() != nil {
 		if controllerutil.ContainsFinalizer(cr, RedisReplicationFinalizer) {
-			if err := finalizeRedisReplicationPVC(k8sClient, logger, cr); err != nil {
-				return err
+			if !cr.Spec.Storage.KeepAfterDelete {
+				if err := finalizeRedisReplicationPVC(k8sClient, logger, cr); err != nil {
+					return err
+				}
 			}
 			controllerutil.RemoveFinalizer(cr, RedisReplicationFinalizer)
 			if err := ctrlclient.Update(context.TODO(), cr); err != nil {
