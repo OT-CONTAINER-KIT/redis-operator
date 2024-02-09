@@ -21,7 +21,7 @@ spec:
     try:
       - delete:
           ref:
-            name: redis-replication-v1beta2
+            name: redis-replication
             kind: RedisReplication
             apiVersion: redis.redis.opstreelabs.in/v1beta2
       - error:
