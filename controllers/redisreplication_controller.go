@@ -91,6 +91,7 @@ func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			return ctrl.Result{RequeueAfter: time.Second * 60}, err
 		}
 	}
+
 	realMaster = k8sutils.GetRedisReplicationRealMaster(ctx, r.K8sClient, r.Log, instance, masterNodes)
 	if err = r.UpdateRedisReplicationMaster(ctx, instance, realMaster); err != nil {
 		return ctrl.Result{}, err
