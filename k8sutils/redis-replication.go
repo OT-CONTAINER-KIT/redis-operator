@@ -6,6 +6,7 @@ import (
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
 	"github.com/go-logr/logr"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
@@ -31,6 +32,7 @@ func CreateReplicationService(cr *redisv1beta2.RedisReplication, cl kubernetes.I
 	}
 	objectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name, cr.Namespace, labels, annotations)
 	headlessObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-headless", cr.Namespace, labels, annotations)
+	masterObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-master", cr.Namespace, labels, annotations)
 	additionalObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, additionalServiceAnnotations, epp))
 	err := CreateOrUpdateService(cr.Namespace, headlessObjectMetaInfo, redisReplicationAsOwner(cr), disableMetrics, true, "ClusterIP", redisPort, cl)
 	if err != nil {
@@ -50,6 +52,10 @@ func CreateReplicationService(cr *redisv1beta2.RedisReplication, cl kubernetes.I
 	if err != nil {
 		logger.Error(err, "Cannot create additional service for Redis Replication")
 		return err
+	}
+	err = CreateOrUpdateService(cr.Namespace, masterObjectMetaInfo, redisReplicationAsOwner(cr), disableMetrics, false, additionalServiceType, redisPort, cl)
+	if err != nil {
+		logger.Error(err, "Cannot create additional service for Redis Replication")
 	}
 	return nil
 }
@@ -217,4 +223,49 @@ func IsRedisReplicationReady(ctx context.Context, logger logr.Logger, client kub
 		return false
 	}
 	return true
+}
+
+func updatePodLabel(ctx context.Context, cl kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication, role string, nodes []string) error {
+	for _, node := range nodes {
+		pod, err := cl.CoreV1().Pods(cr.Namespace).Get(context.TODO(), node, metav1.GetOptions{})
+		if err != nil {
+			logger.Error(err, "Cannot get redis replication pod")
+			return err
+		}
+		// set Label redis-role
+		metav1.SetMetaDataLabel(&pod.ObjectMeta, "redis-role", role)
+		// update Label
+		_, err = cl.CoreV1().Pods(cr.Namespace).Update(context.TODO(), pod, metav1.UpdateOptions{})
+		if err != nil {
+			logger.Error(err, "Cannot update redis replication pod")
+			return err
+		}
+	}
+	return nil
+}
+
+func UpdateRoleLabelPod(ctx context.Context, cl kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication) error {
+	// find realMaster, and label this pod: 'redis-role=master'
+	role := "master"
+	masterPods := GetRedisNodesByRole(ctx, cl, logger, cr, role)
+	realMaster := checkAttachedSlave(ctx, cl, logger, cr, masterPods)
+	err := updatePodLabel(ctx, cl, logger, cr, role, []string{realMaster})
+	if err != nil {
+		return err
+	}
+
+	// when configuring one size replication
+	if cr.Spec.Size == pointer.Int32(1) {
+		err = updatePodLabel(ctx, cl, logger, cr, role, masterPods)
+		if err != nil {
+			return err
+		}
+	}
+
+	role = "slave"
+	err = updatePodLabel(ctx, cl, logger, cr, role, GetRedisNodesByRole(ctx, cl, logger, cr, role))
+	if err != nil {
+		return err
+	}
+	return nil
 }
