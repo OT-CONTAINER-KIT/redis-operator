@@ -33,6 +33,7 @@ func CreateReplicationService(cr *redisv1beta2.RedisReplication, cl kubernetes.I
 	objectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name, cr.Namespace, labels, annotations)
 	headlessObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-headless", cr.Namespace, labels, annotations)
 	masterObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-master", cr.Namespace, labels, annotations)
+	slaveObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-readReplica", cr.Namespace, labels, annotations)
 	additionalObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, additionalServiceAnnotations, epp))
 	err := CreateOrUpdateService(cr.Namespace, headlessObjectMetaInfo, redisReplicationAsOwner(cr), disableMetrics, true, "ClusterIP", redisPort, cl)
 	if err != nil {
@@ -54,6 +55,10 @@ func CreateReplicationService(cr *redisv1beta2.RedisReplication, cl kubernetes.I
 		return err
 	}
 	err = CreateOrUpdateService(cr.Namespace, masterObjectMetaInfo, redisReplicationAsOwner(cr), disableMetrics, false, additionalServiceType, redisPort, cl)
+	if err != nil {
+		logger.Error(err, "Cannot create additional service for Redis Replication")
+	}
+	err = CreateOrUpdateService(cr.Namespace, slaveObjectMetaInfo, redisReplicationAsOwner(cr), disableMetrics, false, additionalServiceType, redisPort, cl)
 	if err != nil {
 		logger.Error(err, "Cannot create additional service for Redis Replication")
 	}
