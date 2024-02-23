@@ -232,6 +232,90 @@ func TestGenerateServiceDef(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Test redis-replication-leader with ClusterIP service type and metrics enabled",
+			serviceMeta: metav1.ObjectMeta{
+				Name: "test-redis-replication-leader",
+				Labels: map[string]string{
+					"redis-role": "master",
+				},
+			},
+			enableMetrics: defaultExporterPortProvider,
+			headless:      false,
+			serviceType:   "ClusterIP",
+			port:          redisPort,
+			expected: &corev1.Service{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Service",
+					APIVersion: "v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-redis-replication-leader",
+					Labels: map[string]string{
+						"redis-role": "master",
+					},
+					OwnerReferences: []metav1.OwnerReference{
+						{},
+					},
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{
+							Name:       "redis-client",
+							Port:       redisPort,
+							TargetPort: intstr.FromInt(int(redisPort)),
+							Protocol:   corev1.ProtocolTCP,
+						},
+						*enableMetricsPort(redisExporterPort),
+					},
+					Selector:  map[string]string{"redis-role": "master"},
+					ClusterIP: "",
+					Type:      corev1.ServiceTypeClusterIP,
+				},
+			},
+		},
+		{
+			name: "Test redis-replication-follower with ClusterIP service type and metrics enabled",
+			serviceMeta: metav1.ObjectMeta{
+				Name: "test-redis-replication-follower",
+				Labels: map[string]string{
+					"redis-role": "slave",
+				},
+			},
+			enableMetrics: defaultExporterPortProvider,
+			headless:      false,
+			serviceType:   "ClusterIP",
+			port:          redisPort,
+			expected: &corev1.Service{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Service",
+					APIVersion: "v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-redis-replication-follower",
+					Labels: map[string]string{
+						"redis-role": "slave",
+					},
+					OwnerReferences: []metav1.OwnerReference{
+						{},
+					},
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{
+							Name:       "redis-client",
+							Port:       redisPort,
+							TargetPort: intstr.FromInt(int(redisPort)),
+							Protocol:   corev1.ProtocolTCP,
+						},
+						*enableMetricsPort(redisExporterPort),
+					},
+					Selector:  map[string]string{"redis-role": "slave"},
+					ClusterIP: "",
+					Type:      corev1.ServiceTypeClusterIP,
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
