@@ -43,10 +43,7 @@ func generateServiceDef(serviceMeta metav1.ObjectMeta, epp exporterPortProvider,
 	if serviceMeta.GetName() == "redis-replication-follower" {
 		selectorLabels["redis-role"] = "slave"
 	}
-	if serviceMeta.GetName() == "redis-replication-master" {
-		selectorLabels["redis-role"] = "master"
-	}
-	if serviceMeta.GetName() == "redis-replication-readReplica" {
+	if serviceMeta.GetName() == "redis-replication-follower" {
 		selectorLabels["redis-role"] = "slave"
 	}
 	service := &corev1.Service{
