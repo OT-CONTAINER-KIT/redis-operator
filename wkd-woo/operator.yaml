@@ -1,0 +1,16 @@
+---
+redisOperator:
+  name: redis-operator
+  imageName: wkdwoo/redis-operator
+  imageTag: "replication-endpoint"
+  imagePullPolicy: IfNotPresent
+
+  podAnnotations: {}
+  podLabels:
+    duty: operator
+
+  extraArgs: []
+
+  watch_namespace: "redis-operator"
+  env: []
+  webhook: false
