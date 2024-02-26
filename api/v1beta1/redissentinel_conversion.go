@@ -121,7 +121,7 @@ func (dst *RedisSentinel) ConvertFrom(srcRaw conversion.Hub) error {
 	}
 	// LivenessProbe
 	if src.Spec.LivenessProbe != nil {
-		dst.Spec.ReadinessProbe = &Probe{}
+		dst.Spec.LivenessProbe = &Probe{}
 		dst.Spec.LivenessProbe.Probe = src.Spec.LivenessProbe.Probe
 	}
 	// Sidecars
