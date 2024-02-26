@@ -229,6 +229,47 @@ func TestGenerateServiceDef(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Test replication-master with ClusterIP service type",
+			serviceMeta: metav1.ObjectMeta{
+				Name: "test-redis-replication-master",
+				Labels: map[string]string{
+					"redis-role": "master",
+				},
+			},
+			enableMetrics: disableMetrics,
+			headless:      false,
+			serviceType:   "ClusterIP",
+			port:          redisPort,
+			expected: &corev1.Service{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Service",
+					APIVersion: "v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-redis-replication-master",
+					Labels: map[string]string{
+						"redis-role": "master",
+					},
+					OwnerReferences: []metav1.OwnerReference{
+						{},
+					},
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{
+							Name:       "redis-client",
+							Port:       redisPort,
+							TargetPort: intstr.FromInt(int(redisPort)),
+							Protocol:   corev1.ProtocolTCP,
+						},
+					},
+					Selector:  map[string]string{"redis-role": "master"},
+					ClusterIP: "",
+					Type:      corev1.ServiceTypeClusterIP,
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
