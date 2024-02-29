@@ -222,9 +222,10 @@ func TestGetEnvironmentVariables(t *testing.T) {
 	tests := []struct {
 		name                string
 		role                string
-		enabledPassword     *bool
+		enableAuth          *bool
 		secretName          *string
-		secretKey           *string
+		secretUsernameKey   *string
+		secretPasswordKey   *string
 		persistenceEnabled  *bool
 		tlsConfig           *redisv1beta2.TLSConfig
 		aclConfig           *redisv1beta2.ACLConfig
@@ -234,11 +235,12 @@ func TestGetEnvironmentVariables(t *testing.T) {
 		expectedEnvironment []corev1.EnvVar
 	}{
 		{
-			name:               "Test with role sentinel, metrics true, password true, persistence true, exporter env, tls enabled, acl enabled and env var",
+			name:               "Test with role sentinel, metrics true, auth true, username true, password true, persistence true, exporter env, tls enabled, acl enabled and env var",
 			role:               "sentinel",
-			enabledPassword:    pointer.Bool(true),
+			enableAuth:         pointer.Bool(true),
 			secretName:         pointer.String("test-secret"),
-			secretKey:          pointer.String("test-key"),
+			secretUsernameKey:  pointer.String("test-username-key"),
+			secretPasswordKey:  pointer.String("test-password-key"),
 			persistenceEnabled: pointer.Bool(true),
 			tlsConfig: &redisv1beta2.TLSConfig{
 				TLSConfig: common.TLSConfig{
@@ -267,12 +269,20 @@ func TestGetEnvironmentVariables(t *testing.T) {
 				{Name: "REDIS_TLS_CA_KEY", Value: path.Join("/tls/", "test_ca.crt")},
 				{Name: "REDIS_TLS_CERT", Value: path.Join("/tls/", "test_tls.crt")},
 				{Name: "REDIS_TLS_CERT_KEY", Value: path.Join("/tls/", "test_tls.key")},
+				{Name: "REDIS_USERNAME", ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "test-secret",
+						},
+						Key: "test-username-key",
+					},
+				}},
 				{Name: "REDIS_PASSWORD", ValueFrom: &corev1.EnvVarSource{
 					SecretKeyRef: &corev1.SecretKeySelector{
 						LocalObjectReference: corev1.LocalObjectReference{
 							Name: "test-secret",
 						},
-						Key: "test-key",
+						Key: "test-password-key",
 					},
 				}},
 				{Name: "SERVER_MODE", Value: "sentinel"},
@@ -282,11 +292,12 @@ func TestGetEnvironmentVariables(t *testing.T) {
 			},
 		},
 		{
-			name:               "Test with role redis, metrics false, password nil, persistence nil, exporter nil, tls nil, acl nil and nil env var",
+			name:               "Test with role redis, metrics false, username nil, password nil, persistence nil, exporter nil, tls nil, acl nil and nil env var",
 			role:               "redis",
-			enabledPassword:    nil,
+			enableAuth:         nil,
 			secretName:         nil,
-			secretKey:          nil,
+			secretUsernameKey:  nil,
+			secretPasswordKey:  nil,
 			persistenceEnabled: nil,
 			tlsConfig:          nil,
 			aclConfig:          nil,
@@ -300,11 +311,12 @@ func TestGetEnvironmentVariables(t *testing.T) {
 			},
 		},
 		{
-			name:               "Test with role redis, metrics false, password nil, persistence false, exporter nil, tls nil, acl nil and nil env var",
+			name:               "Test with role redis, metrics false, username nil, password nil, persistence false, exporter nil, tls nil, acl nil and nil env var",
 			role:               "sentinel",
-			enabledPassword:    nil,
+			enableAuth:         nil,
 			secretName:         nil,
-			secretKey:          nil,
+			secretUsernameKey:  nil,
+			secretPasswordKey:  nil,
 			persistenceEnabled: pointer.Bool(false),
 			tlsConfig:          nil,
 			aclConfig:          nil,
@@ -316,11 +328,12 @@ func TestGetEnvironmentVariables(t *testing.T) {
 			},
 		},
 		{
-			name:               "Test with role cluster, metrics true, password true, persistence true, exporter env, tls nil, acl enabled and env var",
+			name:               "Test with role cluster, metrics true, auth true, username nil, password true, persistence true, exporter env, tls nil, acl enabled and env var",
 			role:               "cluster",
-			enabledPassword:    pointer.Bool(true),
+			enableAuth:         pointer.Bool(true),
 			secretName:         pointer.String("test-secret"),
-			secretKey:          pointer.String("test-key"),
+			secretUsernameKey:  nil,
+			secretPasswordKey:  pointer.String("test-password-key"),
 			persistenceEnabled: pointer.Bool(true),
 			tlsConfig:          nil,
 			aclConfig:          &redisv1beta2.ACLConfig{},
@@ -337,7 +350,7 @@ func TestGetEnvironmentVariables(t *testing.T) {
 						LocalObjectReference: corev1.LocalObjectReference{
 							Name: "test-secret",
 						},
-						Key: "test-key",
+						Key: "test-password-key",
 					},
 				}},
 				{Name: "SERVER_MODE", Value: "cluster"},
@@ -349,9 +362,10 @@ func TestGetEnvironmentVariables(t *testing.T) {
 		{
 			name:               "Test with cluster role and only metrics enabled",
 			role:               "cluster",
-			enabledPassword:    nil,
+			enableAuth:         nil,
 			secretName:         nil,
-			secretKey:          nil,
+			secretUsernameKey:  nil,
+			secretPasswordKey:  nil,
 			persistenceEnabled: nil,
 			tlsConfig:          nil,
 			aclConfig:          nil,
@@ -362,12 +376,37 @@ func TestGetEnvironmentVariables(t *testing.T) {
 				{Name: "SETUP_MODE", Value: "cluster"},
 			},
 		},
+		{
+			name:               "Test with role redis, metrics false, auth true, username true, password nil, persistence false, exporter nil, tls nil, acl nil and nil env var",
+			role:               "sentinel",
+			enableAuth:         pointer.Bool(true),
+			secretName:         pointer.String("test-secret"),
+			secretUsernameKey:  pointer.String("test-username-key"),
+			secretPasswordKey:  nil,
+			persistenceEnabled: pointer.Bool(false),
+			tlsConfig:          nil,
+			aclConfig:          nil,
+			envVar:             nil,
+			expectedEnvironment: []corev1.EnvVar{
+				{Name: "REDIS_ADDR", Value: "redis://localhost:26379"},
+				{Name: "SERVER_MODE", Value: "sentinel"},
+				{Name: "REDIS_USERNAME", ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "test-secret",
+						},
+						Key: "test-username-key",
+					},
+				}},
+				{Name: "SETUP_MODE", Value: "sentinel"},
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actualEnvironment := getEnvironmentVariables(tt.role, tt.enabledPassword, tt.secretName,
-				tt.secretKey, tt.persistenceEnabled, tt.tlsConfig, tt.aclConfig, tt.envVar, tt.port, tt.clusterVersion)
+			actualEnvironment := getEnvironmentVariables(tt.role, tt.enableAuth, tt.secretName,
+				tt.secretUsernameKey, tt.secretPasswordKey, tt.persistenceEnabled, tt.tlsConfig, tt.aclConfig, tt.envVar, tt.port, tt.clusterVersion)
 
 			assert.ElementsMatch(t, tt.expectedEnvironment, actualEnvironment)
 		})

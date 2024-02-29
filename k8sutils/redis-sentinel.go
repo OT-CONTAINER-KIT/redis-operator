@@ -152,12 +152,13 @@ func generateRedisSentinelContainerParams(ctx context.Context, client kubernetes
 	if cr.Spec.EnvVars != nil {
 		containerProp.EnvVars = cr.Spec.EnvVars
 	}
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		containerProp.EnabledPassword = &trueProperty
-		containerProp.SecretName = cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name
-		containerProp.SecretKey = cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key
+	if cr.Spec.KubernetesConfig.ExistingAuthSecret != nil {
+		containerProp.EnableAuth = &trueProperty
+		containerProp.SecretName = cr.Spec.KubernetesConfig.ExistingAuthSecret.Name
+		containerProp.SecretUsernameKey = cr.Spec.KubernetesConfig.ExistingAuthSecret.UsernameKey
+		containerProp.SecretPasswordKey = cr.Spec.KubernetesConfig.ExistingAuthSecret.PasswordKey
 	} else {
-		containerProp.EnabledPassword = &falseProperty
+		containerProp.EnableAuth = &falseProperty
 	}
 	if cr.Spec.RedisExporter != nil {
 		containerProp.RedisExporterImage = cr.Spec.RedisExporter.Image

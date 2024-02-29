@@ -20,8 +20,8 @@ spec:
     runAsNonRoot: true
     readOnlyRootFilesystem: true
     capabilities:
-      drop: ["ALL"]
-      add: ["NET_BIND_SERVICE"]
+      drop: [ "ALL" ]
+      add: [ "NET_BIND_SERVICE" ]
   kubernetesConfig:
     image: quay.io/opstree/redis:v7.0.12
     imagePullPolicy: IfNotPresent
@@ -36,7 +36,8 @@ spec:
         memory: 128Mi
     redisSecret:
       name: redis-secret
-      key: password
+      username: username
+      password: password
     ignoreAnnotations:
       - "opstreelabs.in/ignore"
   redisExporter:
@@ -61,13 +62,18 @@ spec:
       - name: SECRET_USERNAME
         valueFrom:
           secretKeyRef:
-            name: mysecret
+            name: redis-secret
             key: username
+      - name: SECRET_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: redis-secret
+            key: password
   storage:
     volumeClaimTemplate:
       spec:
         storageClassName: standard
-        accessModes: ["ReadWriteOnce"]
+        accessModes: [ "ReadWriteOnce" ]
         resources:
           requests:
             storage: 1Gi
@@ -118,8 +124,8 @@ spec:
     enabled: true
     image: quay.io/opstree/redis-operator-restore:latest
     imagePullPolicy: Always
-    command: ["/bin/bash", "-c", "/app/restore.bash"]
-    args: ["--restore-from", "redis-standalone-restore"]
+    command: [ "/bin/bash", "-c", "/app/restore.bash" ]
+    args: [ "--restore-from", "redis-standalone-restore" ]
     resources:
       requests:
         cpu: 100m

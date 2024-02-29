@@ -38,8 +38,17 @@ func ReshardRedisCluster(client kubernetes.Interface, logger logr.Logger, cr *re
 		cmd = append(cmd, getRedisServerIP(client, logger, transferPOD)+fmt.Sprintf(":%d", *cr.Spec.Port))
 	}
 
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+	if cr.Spec.KubernetesConfig.ExistingAuthSecret != nil {
+		username, err := getKVFromSecret(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingAuthSecret.Name, *cr.Spec.KubernetesConfig.ExistingAuthSecret.UsernameKey)
+		if err != nil {
+			logger.Error(err, "Error in getting redis username")
+		}
+		if username != "" {
+			cmd = append(cmd, "--user")
+			cmd = append(cmd, username)
+		}
+
+		pass, err := getKVFromSecret(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingAuthSecret.Name, *cr.Spec.KubernetesConfig.ExistingAuthSecret.PasswordKey)
 		if err != nil {
 			logger.Error(err, "Error in getting redis password")
 		}
@@ -146,7 +155,7 @@ func getRedisNodeID(ctx context.Context, client kubernetes.Interface, logger log
 
 // Rebalance the Redis CLuster using the Empty Master Nodes
 func RebalanceRedisClusterEmptyMasters(client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster) {
-	// cmd = redis-cli --cluster rebalance <redis>:<port> --cluster-use-empty-masters -a <pass>
+	// cmd = redis-cli --cluster rebalance <redis>:<port> --cluster-use-empty-masters --user <username> -a <pass>
 	var cmd []string
 	pod := RedisDetails{
 		PodName:   cr.ObjectMeta.Name + "-leader-1",
@@ -162,8 +171,17 @@ func RebalanceRedisClusterEmptyMasters(client kubernetes.Interface, logger logr.
 
 	cmd = append(cmd, "--cluster-use-empty-masters")
 
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+	if cr.Spec.KubernetesConfig.ExistingAuthSecret != nil {
+		username, err := getKVFromSecret(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingAuthSecret.Name, *cr.Spec.KubernetesConfig.ExistingAuthSecret.UsernameKey)
+		if err != nil {
+			logger.Error(err, "Error in getting redis username")
+		}
+		if username != "" {
+			cmd = append(cmd, "--user")
+			cmd = append(cmd, username)
+		}
+
+		pass, err := getKVFromSecret(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingAuthSecret.Name, *cr.Spec.KubernetesConfig.ExistingAuthSecret.PasswordKey)
 		if err != nil {
 			logger.Error(err, "Error in getting redis password")
 		}
@@ -212,8 +230,17 @@ func RebalanceRedisCluster(client kubernetes.Interface, logger logr.Logger, cr *
 		cmd = append(cmd, getRedisServerIP(client, logger, pod)+fmt.Sprintf(":%d", *cr.Spec.Port))
 	}
 
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+	if cr.Spec.KubernetesConfig.ExistingAuthSecret != nil {
+		username, err := getKVFromSecret(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingAuthSecret.Name, *cr.Spec.KubernetesConfig.ExistingAuthSecret.UsernameKey)
+		if err != nil {
+			logger.Error(err, "Error in getting redis username")
+		}
+		if username != "" {
+			cmd = append(cmd, "--user")
+			cmd = append(cmd, username)
+		}
+
+		pass, err := getKVFromSecret(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingAuthSecret.Name, *cr.Spec.KubernetesConfig.ExistingAuthSecret.PasswordKey)
 		if err != nil {
 			logger.Error(err, "Error in getting redis password")
 		}
@@ -251,8 +278,17 @@ func AddRedisNodeToCluster(ctx context.Context, client kubernetes.Interface, log
 		cmd = append(cmd, getRedisServerIP(client, logger, existingPod)+fmt.Sprintf(":%d", *cr.Spec.Port))
 	}
 
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+	if cr.Spec.KubernetesConfig.ExistingAuthSecret != nil {
+		username, err := getKVFromSecret(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingAuthSecret.Name, *cr.Spec.KubernetesConfig.ExistingAuthSecret.UsernameKey)
+		if err != nil {
+			logger.Error(err, "Error in getting redis username")
+		}
+		if username != "" {
+			cmd = append(cmd, "--user")
+			cmd = append(cmd, username)
+		}
+
+		pass, err := getKVFromSecret(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingAuthSecret.Name, *cr.Spec.KubernetesConfig.ExistingAuthSecret.PasswordKey)
 		if err != nil {
 			logger.Error(err, "Error in getting redis password")
 		}
@@ -309,8 +345,17 @@ func RemoveRedisFollowerNodesFromCluster(ctx context.Context, client kubernetes.
 
 	cmd = []string{"redis-cli"}
 
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+	if cr.Spec.KubernetesConfig.ExistingAuthSecret != nil {
+		username, err := getKVFromSecret(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingAuthSecret.Name, *cr.Spec.KubernetesConfig.ExistingAuthSecret.UsernameKey)
+		if err != nil {
+			logger.Error(err, "Error in getting redis username")
+		}
+		if username != "" {
+			cmd = append(cmd, "--user")
+			cmd = append(cmd, username)
+		}
+
+		pass, err := getKVFromSecret(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingAuthSecret.Name, *cr.Spec.KubernetesConfig.ExistingAuthSecret.PasswordKey)
 		if err != nil {
 			logger.Error(err, "Error in getting redis password")
 		}
@@ -362,8 +407,17 @@ func RemoveRedisNodeFromCluster(ctx context.Context, client kubernetes.Interface
 	removePodNodeID := getRedisNodeID(ctx, client, logger, cr, removePod)
 	cmd = append(cmd, removePodNodeID)
 
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+	if cr.Spec.KubernetesConfig.ExistingAuthSecret != nil {
+		username, err := getKVFromSecret(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingAuthSecret.Name, *cr.Spec.KubernetesConfig.ExistingAuthSecret.UsernameKey)
+		if err != nil {
+			logger.Error(err, "Error in getting redis username")
+		}
+		if username != "" {
+			cmd = append(cmd, "--user")
+			cmd = append(cmd, username)
+		}
+
+		pass, err := getKVFromSecret(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingAuthSecret.Name, *cr.Spec.KubernetesConfig.ExistingAuthSecret.PasswordKey)
 		if err != nil {
 			logger.Error(err, "Error in getting redis password")
 		}
@@ -420,8 +474,17 @@ func ClusterFailover(ctx context.Context, client kubernetes.Interface, logger lo
 		cmd = append(cmd, getRedisServerIP(client, logger, pod)+fmt.Sprintf(":%d", *cr.Spec.Port))
 	}
 
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+	if cr.Spec.KubernetesConfig.ExistingAuthSecret != nil {
+		username, err := getKVFromSecret(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingAuthSecret.Name, *cr.Spec.KubernetesConfig.ExistingAuthSecret.UsernameKey)
+		if err != nil {
+			logger.Error(err, "Error in getting redis username")
+		}
+		if username != "" {
+			cmd = append(cmd, "--user")
+			cmd = append(cmd, username)
+		}
+
+		pass, err := getKVFromSecret(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingAuthSecret.Name, *cr.Spec.KubernetesConfig.ExistingAuthSecret.PasswordKey)
 		if err != nil {
 			logger.Error(err, "Error in getting redis password")
 		}

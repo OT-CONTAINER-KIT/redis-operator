@@ -956,12 +956,14 @@ spec:
                       type: object
                     type: array
                   redisSecret:
-                    description: ExistingPasswordSecret is the struct to access the
-                      existing secret
+                    description: ExistingAuthSecret is the struct to access the existing
+                      secret
                     properties:
-                      key:
-                        type: string
                       name:
+                        type: string
+                      password:
+                        type: string
+                      username:
                         type: string
                     type: object
                   resources:
@@ -5136,12 +5138,14 @@ spec:
                       type: object
                     type: array
                   redisSecret:
-                    description: ExistingPasswordSecret is the struct to access the
-                      existing secret
+                    description: ExistingAuthSecret is the struct to access the existing
+                      secret
                     properties:
-                      key:
-                        type: string
                       name:
+                        type: string
+                      password:
+                        type: string
+                      username:
                         type: string
                     type: object
                   resources:

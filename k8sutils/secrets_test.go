@@ -15,7 +15,7 @@ import (
 	k8sClientFake "k8s.io/client-go/kubernetes/fake"
 )
 
-func Test_getRedisPassword(t *testing.T) {
+func TestGetRedisKVFromSecret(t *testing.T) {
 	tests := []struct {
 		name        string
 		setup       func() *k8sClientFake.Clientset
@@ -26,11 +26,11 @@ func Test_getRedisPassword(t *testing.T) {
 		expectedErr bool
 	}{
 		{
-			name: "successful retrieval",
+			name: "successful retrieval password",
 			setup: func() *k8sClientFake.Clientset {
 				secret := &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "redis-secret",
+						Name:      "mysecret",
 						Namespace: "default",
 					},
 					Data: map[string][]byte{
@@ -41,9 +41,30 @@ func Test_getRedisPassword(t *testing.T) {
 				return client
 			},
 			namespace:   "default",
-			secretName:  "redis-secret",
+			secretName:  "mysecret",
 			secretKey:   "password",
 			expected:    "secret-password",
+			expectedErr: false,
+		},
+		{
+			name: "successful retrieval username",
+			setup: func() *k8sClientFake.Clientset {
+				secret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "mysecret",
+						Namespace: "default",
+					},
+					Data: map[string][]byte{
+						"username": []byte("secret-username"),
+					},
+				}
+				client := k8sClientFake.NewSimpleClientset(secret.DeepCopyObject())
+				return client
+			},
+			namespace:   "default",
+			secretName:  "mysecret",
+			secretKey:   "username",
+			expected:    "secret-username",
 			expectedErr: false,
 		},
 		{
@@ -85,7 +106,7 @@ func Test_getRedisPassword(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			client := tt.setup()
 			logger := testr.New(t)
-			got, err := getRedisPassword(client, logger, tt.namespace, tt.secretName, tt.secretKey)
+			got, err := getKVFromSecret(client, logger, tt.namespace, tt.secretName, tt.secretKey)
 
 			if tt.expectedErr {
 				require.Error(t, err, "Expected an error but didn't get one")

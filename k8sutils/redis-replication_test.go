@@ -150,17 +150,29 @@ func Test_generateRedisReplicationContainerParams(t *testing.T) {
 				ValueFrom: &corev1.EnvVarSource{
 					SecretKeyRef: &corev1.SecretKeySelector{
 						LocalObjectReference: corev1.LocalObjectReference{
-							Name: "mysecret",
+							Name: "redis-secret",
 						},
 						Key: "username",
 					},
 				},
 			},
+			{
+				Name: "SECRET_PASSWORD",
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "redis-secret",
+						},
+						Key: "password",
+					},
+				},
+			},
 		},
 		Role:               "replication",
-		EnabledPassword:    pointer.Bool(true),
+		EnableAuth:         pointer.Bool(true),
 		SecretName:         pointer.String("redis-secret"),
-		SecretKey:          pointer.String("password"),
+		SecretUsernameKey:  pointer.String("username"),
+		SecretPasswordKey:  pointer.String("password"),
 		PersistenceEnabled: pointer.Bool(true),
 		TLSConfig: &redisv1beta2.TLSConfig{
 			TLSConfig: common.TLSConfig{
