@@ -23,7 +23,7 @@ REDIS_HOST="${CLUSTER_NAME}-leader-0.${CLUSTER_NAME}-leader-headless.${CLUSTER_N
 
 # Check the Total Leader Present in Redis Cluster using cr and redis-cli
 TOTAL_LEADERS=$(kubectl get redisclusters.redis.redis.opstreelabs.in "${CLUSTER_NAME}" -n "${CLUSTER_NAMESPACE}" -o jsonpath='{.spec.redisLeader.replicas}')
-MASTERS_IP=($(redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" -a "$REDIS_PASSWORD" --no-auth-warning cluster nodes | grep "master" | awk '{print $2}' | cut -d "@" -f1))
+MASTERS_IP=($(redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" --username "$REDIS_USERNAME" -a "$REDIS_PASSWORD" --no-auth-warning cluster nodes | grep "master" | awk '{print $2}' | cut -d "@" -f1))
 
 check_total_leaders_from_cr() {
   # Check if TOTAL_LEADERS is 0 or nil
@@ -73,7 +73,7 @@ perform_redis_backup(){
         echo "Performing backup on Redis instance at $IP:$PORT"
 
         # Copy the file from the Redis instance to a local file
-        redis-cli -h "$IP" -p "$PORT" -a "$REDIS_PASSWORD" --rdb "/tmp/${POD}.rdb"
+        redis-cli -h "$IP" -p "$PORT" --username "$REDIS_USERNAME" -a "$REDIS_PASSWORD" --rdb "/tmp/${POD}.rdb"
 
         # Upload the file to the selected backup destination using restic
         restic -r "$RESTIC_REPOSITORY" backup "/tmp/${POD}.rdb" --host "${CLUSTER_NAME}_${CLUSTER_NAMESPACE}" --tag "${POD}" --tag "redis"
