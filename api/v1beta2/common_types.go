@@ -38,6 +38,13 @@ type RedisConfig struct {
 	common.RedisConfig `json:",inline"`
 }
 
+// ExistingAuthSecret is the struct to access the existing secret
+type ExistingAuthSecret struct {
+	Name        *string `json:"name,omitempty"`
+	UsernameKey *string `json:"username,omitempty"`
+	PasswordKey *string `json:"password,omitempty"`
+}
+
 // Storage is the inteface to add pvc and pv support in redis
 type Storage struct {
 	common.Storage `json:",inline"`
@@ -65,7 +72,7 @@ type ACLConfig struct {
 	Secret *corev1.SecretVolumeSource `json:"secret,omitempty"`
 }
 
-// Probe is a interface for ReadinessProbe and LivenessProbe
+// Probe is an interface for ReadinessProbe and LivenessProbe
 type Probe struct {
 	common.Probe `json:",inline"`
 }
