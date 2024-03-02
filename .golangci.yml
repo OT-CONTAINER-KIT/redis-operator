@@ -7,6 +7,44 @@ linters-settings:
     simplify: true
 
 linters:
+  enable:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - containedctx
+    - decorder
+    - dogsled
+    - durationcheck
+    - errcheck
+    - errname
+    - exportloopref
+    - gci
+    - gochecknoinits
+    - gofmt
+    - gofumpt
+    - goimports
+    - goprintffuncname
+    - gosec
+    - gosimple
+    - govet
+    - grouper
+    - importas
+    - ineffassign
+    - makezero
+    - misspell
+    - noctx
+    - nolintlint
+    - nosprintfhostport
+    - staticcheck
+    - tenv
+    - thelper
+    - tparallel
+    - typecheck
+    - unconvert
+    - unused
+    - wastedassign
+    - whitespace
   disable:
     - errcheck 
     - tagliatelle
@@ -23,7 +61,7 @@ issues:
         - dupl
         - gosec
 run:
-  timeout: 5m
+  timeout: 15m
   go-version: "1.21"
   output:
     format: colored-line-number
