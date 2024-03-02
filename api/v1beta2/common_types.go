@@ -38,14 +38,7 @@ type RedisConfig struct {
 	common.RedisConfig `json:",inline"`
 }
 
-//// ExistingAuthSecret is the struct to access the existing secret
-//type ExistingAuthSecret struct {
-//	Name        *string `json:"name,omitempty"`
-//	UsernameKey *string `json:"username,omitempty"`
-//	PasswordKey *string `json:"password,omitempty"`
-//}
-
-// Storage is the inteface to add pvc and pv support in redis
+g// Storage is the inteface to add pvc and pv support in redis
 type Storage struct {
 	common.Storage `json:",inline"`
 }
