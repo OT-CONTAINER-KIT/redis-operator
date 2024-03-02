@@ -7,6 +7,9 @@ on:
     branches:
       - master
 
+permissions:
+  contents: read
+
 env:
   GOLANG_VERSION: 1.21
   APPLICATION_NAME: redis-operator
