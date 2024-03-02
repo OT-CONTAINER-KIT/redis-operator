@@ -16,35 +16,6 @@ env:
   DOCKERFILE_PATH: "**/Dockerfile"
 
 jobs:
-  gofmt:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: ${{ env.GOLANG_VERSION }}
-      - name: Check Go Fmt
-        run: |
-          gofmt_files=$(go fmt ./... | wc -l)
-          if [[ ${gofmt_files} > 0 ]]
-          then
-              echo "Please format golang files using:- go fmt ./..."
-              exit 1
-          else
-              echo "All files are formated using gofmt"
-          fi
-  govet:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: ${{ env.GOLANG_VERSION }}
-      - name: Run Go Vet
-        run: go vet ./...
-
   gotest:
     name: Go Test
     runs-on: ubuntu-latest
@@ -65,8 +36,7 @@ jobs:
           fail_ci_if_error: false
           verbose: true
 
-  code_quality_golang_ci_lint:
-    needs: [gofmt, govet]
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -90,7 +60,6 @@ jobs:
           version: v1.54.0
 
   container_quality_dockerfile_lint:
-    needs: [gofmt, govet]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -103,7 +72,7 @@ jobs:
           ignore: DL3007,DL3018
 
   build_go_binary:
-    needs: [code_quality_golang_ci_lint]
+    needs: [lint]
     runs-on: ubuntu-latest
     strategy:
       matrix:
