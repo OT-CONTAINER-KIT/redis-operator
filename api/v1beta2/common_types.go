@@ -38,7 +38,7 @@ type RedisConfig struct {
 	common.RedisConfig `json:",inline"`
 }
 
-g// Storage is the inteface to add pvc and pv support in redis
+// Storage is the inteface to add pvc and pv support in redis
 type Storage struct {
 	common.Storage `json:",inline"`
 }
