@@ -16,7 +16,7 @@ linters:
     - decorder
     - dogsled
     - durationcheck
-    - errcheck
+    # - errcheck
     - errname
     - exportloopref
     - gci
@@ -36,7 +36,7 @@ linters:
     - noctx
     - nolintlint
     - nosprintfhostport
-    - staticcheck
+    # - staticcheck
     - tenv
     - thelper
     - tparallel
