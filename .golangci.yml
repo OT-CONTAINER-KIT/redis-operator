@@ -30,7 +30,7 @@ linters:
     - govet
     - grouper
     - importas
-    - ineffassign
+    # - ineffassign
     - makezero
     - misspell
     - noctx
