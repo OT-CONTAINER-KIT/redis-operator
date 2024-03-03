@@ -10,19 +10,8 @@ on:
 
 jobs:
   test:
-    name: ${{ matrix.testpath }}
+    name: "E2E chainsaw tests"
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        testpath:
-          - ./tests/e2e-chainsaw/v1beta2/teardown/
-          - ./tests/e2e-chainsaw/v1beta2/setup/
-          - ./tests/e2e-chainsaw/v1beta2/hostnetwork/
-          - ./tests/e2e-chainsaw/v1beta2/password/
-          - ./tests/e2e-chainsaw/v1beta2/ha-setup/
-          - ./tests/e2e-chainsaw/v1beta2/nodeport/
-          - ./tests/e2e-chainsaw/v1beta2/pvc-name/
-          - ./tests/e2e-chainsaw/v1beta2/keep-pvc/
 
     steps:
     - name: Checkout code
@@ -68,4 +57,4 @@ jobs:
         kubectl wait --for=condition=available --timeout=300s deployment/redis-operator-redis-operator -n redis-operator-system
   
     - name: Run chainsaw test
-      run: chainsaw test --test-dir ${{ matrix.testpath }} --config tests/_config/chainsaw-configuration.yaml
+      run: chainsaw test --config tests/_config/chainsaw-configuration.yaml tests/e2e-chainsaw
