@@ -94,7 +94,6 @@ func getRedisClusterSlots(ctx context.Context, client kubernetes.Interface, logg
 
 	// Split the Redis cluster info into lines
 	lines := strings.Split(redisClusterInfo, "\n")
-
 	// Iterate through all lines
 	for _, line := range lines {
 		if strings.Contains(line, "master") && strings.Contains(line, "connected") { // Check if this line is a master node
@@ -114,9 +113,7 @@ func getRedisClusterSlots(ctx context.Context, client kubernetes.Interface, logg
 			}
 		}
 	}
-
 	logger.V(1).Info("Total cluster slots to be transferred from", "node", nodeID, "is", totalSlots)
-
 	return strconv.Itoa(totalSlots)
 }
 
@@ -333,7 +330,6 @@ func RemoveRedisFollowerNodesFromCluster(ctx context.Context, client kubernetes.
 	}
 
 	for _, followerNodeID := range followerNodeIDs {
-
 		cmd = append(cmd, followerNodeID)
 		logger.V(1).Info("Redis cluster follower remove command is", "Command", cmd)
 		executeCommand(client, logger, cr, cmd, cr.ObjectMeta.Name+"-leader-0")

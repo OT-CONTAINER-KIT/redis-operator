@@ -168,12 +168,13 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 						}
 						updateFailed := false
 						realUpdate := false
-						for _, pvc := range pvcs.Items {
+						for i := range pvcs.Items {
+							pvc := &pvcs.Items[i]
 							realCapacity := pvc.Spec.Resources.Requests.Storage().Value()
 							if realCapacity != stateCapacity {
 								realUpdate = true
 								pvc.Spec.Resources.Requests = newStateful.Spec.VolumeClaimTemplates[0].Spec.Resources.Requests
-								_, err = cl.CoreV1().PersistentVolumeClaims(storedStateful.Namespace).Update(context.Background(), &pvc, metav1.UpdateOptions{})
+								_, err = cl.CoreV1().PersistentVolumeClaims(storedStateful.Namespace).Update(context.Background(), pvc, metav1.UpdateOptions{})
 								if err != nil {
 									if !updateFailed {
 										updateFailed = true
@@ -182,6 +183,7 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 								}
 							}
 						}
+
 						if !updateFailed && len(pvcs.Items) != 0 {
 							annotations["storageCapacity"] = fmt.Sprintf("%d", stateCapacity)
 							storedStateful.Annotations = annotations

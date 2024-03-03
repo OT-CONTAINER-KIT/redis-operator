@@ -2,7 +2,7 @@ linters-settings:
   govet:
     check-shadowing: true
   golint:
-    min-confidence: 0.8 
+    min-confidence: 0.8
   gofmt:
     simplify: true
 
@@ -23,7 +23,6 @@ linters:
     - gochecknoinits
     - gofmt
     - gofumpt
-    - goimports
     - goprintffuncname
     - gosec
     - gosimple
@@ -46,11 +45,11 @@ linters:
     - wastedassign
     - whitespace
   disable:
-    - errcheck 
+    - errcheck
     - tagliatelle
     - ineffassign
     - staticcheck
-    
+
 # Exclude the files that are causing the errors
 issues:
   exclude-rules:
