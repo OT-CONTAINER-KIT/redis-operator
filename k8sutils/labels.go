@@ -39,7 +39,7 @@ func AddOwnerRefToObject(obj metav1.Object, ownerRef metav1.OwnerReference) {
 	obj.SetOwnerReferences(append(obj.GetOwnerReferences(), ownerRef))
 }
 
-// redisAsOwner generates and returns object refernece
+// redisAsOwner generates and returns object reference
 func redisAsOwner(cr *redisv1beta2.Redis) metav1.OwnerReference {
 	trueVar := true
 	return metav1.OwnerReference{
@@ -51,7 +51,7 @@ func redisAsOwner(cr *redisv1beta2.Redis) metav1.OwnerReference {
 	}
 }
 
-// redisClusterAsOwner generates and returns object refernece
+// redisClusterAsOwner generates and returns object reference
 func redisClusterAsOwner(cr *redisv1beta2.RedisCluster) metav1.OwnerReference {
 	trueVar := true
 	return metav1.OwnerReference{
@@ -63,7 +63,7 @@ func redisClusterAsOwner(cr *redisv1beta2.RedisCluster) metav1.OwnerReference {
 	}
 }
 
-// redisReplicationAsOwner generates and returns object refernece
+// redisReplicationAsOwner generates and returns object reference
 func redisReplicationAsOwner(cr *redisv1beta2.RedisReplication) metav1.OwnerReference {
 	trueVar := true
 	return metav1.OwnerReference{
@@ -75,7 +75,7 @@ func redisReplicationAsOwner(cr *redisv1beta2.RedisReplication) metav1.OwnerRefe
 	}
 }
 
-// RedisSentinelAsOwner generates and returns object refernece
+// RedisSentinelAsOwner generates and returns object reference
 func redisSentinelAsOwner(cr *redisv1beta2.RedisSentinel) metav1.OwnerReference {
 	trueVar := true
 	return metav1.OwnerReference{
