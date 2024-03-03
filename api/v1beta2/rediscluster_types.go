@@ -113,6 +113,7 @@ type RedisClusterList struct {
 	Items           []RedisCluster `json:"items"`
 }
 
+//nolint:gochecknoinits
 func init() {
 	SchemeBuilder.Register(&RedisCluster{}, &RedisClusterList{})
 }

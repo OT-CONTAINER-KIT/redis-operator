@@ -54,6 +54,7 @@ type RedisReplicationList struct {
 	Items           []RedisReplication `json:"items"`
 }
 
+//nolint:gochecknoinits
 func init() {
 	SchemeBuilder.Register(&RedisReplication{}, &RedisReplicationList{})
 }

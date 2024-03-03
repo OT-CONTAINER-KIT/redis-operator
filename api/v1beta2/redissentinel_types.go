@@ -65,6 +65,7 @@ type RedisSentinelList struct {
 	Items           []RedisSentinel `json:"items"`
 }
 
+//nolint:gochecknoinits
 func init() {
 	SchemeBuilder.Register(&RedisSentinel{}, &RedisSentinelList{})
 }
