@@ -16,7 +16,7 @@ linters:
     - decorder
     - dogsled
     - durationcheck
-    # - errcheck
+    - errcheck
     - errname
     - exportloopref
     - gci
@@ -29,13 +29,13 @@ linters:
     - govet
     - grouper
     - importas
-    # - ineffassign
+    - ineffassign
     - makezero
     - misspell
     - noctx
     - nolintlint
     - nosprintfhostport
-    # - staticcheck
+    - staticcheck
     - tenv
     - thelper
     - tparallel
@@ -44,11 +44,6 @@ linters:
     - unused
     - wastedassign
     - whitespace
-  disable:
-    - errcheck
-    - tagliatelle
-    - ineffassign
-    - staticcheck
 
 run:
   timeout: 15m
