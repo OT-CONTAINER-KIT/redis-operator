@@ -141,7 +141,6 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	if redisLeaderInfo.Status.ReadyReplicas == leaderReplicas {
-
 		// Mark the cluster status as initializing if there are no follower nodes
 		if instance.Status.ReadyLeaderReplicas == 0 && instance.Status.ReadyFollowerReplicas == 0 {
 			err = k8sutils.UpdateRedisClusterStatus(instance, status.RedisClusterInitializing, status.InitializingClusterFollowerReason, leaderReplicas, 0, r.Dk8sClient)

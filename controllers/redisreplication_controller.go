@@ -72,7 +72,7 @@ func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	// Check that the Leader and Follower are ready in redis replication
-	if int32(redisReplicationInfo.Status.ReadyReplicas) != totalReplicas {
+	if redisReplicationInfo.Status.ReadyReplicas != totalReplicas {
 		reqLogger.Info("Redis replication nodes are not ready yet", "Ready.Replicas", strconv.Itoa(int(redisReplicationInfo.Status.ReadyReplicas)), "Expected.Replicas", totalReplicas)
 		return ctrl.Result{RequeueAfter: time.Second * 60}, nil
 	}
@@ -85,9 +85,7 @@ func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		if err != nil {
 			return ctrl.Result{RequeueAfter: time.Second * 60}, err
 		}
-
 	}
-
 	reqLogger.Info("Will reconcile redis operator in again 10 seconds")
 	return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 }

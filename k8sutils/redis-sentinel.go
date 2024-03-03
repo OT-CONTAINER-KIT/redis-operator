@@ -133,9 +133,7 @@ func generateRedisSentinelInitContainerParams(cr *redisv1beta2.RedisSentinel) in
 			Command:               initContainer.Command,
 			Arguments:             initContainer.Args,
 		}
-
 	}
-
 	return initcontainerProp
 }
 

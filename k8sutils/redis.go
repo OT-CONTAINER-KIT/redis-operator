@@ -486,7 +486,6 @@ func GetRedisNodesByRole(ctx context.Context, cl kubernetes.Interface, logger lo
 	replicas := cr.Spec.GetReplicationCounts("replication")
 
 	for i := 0; i < int(replicas); i++ {
-
 		podName := statefulset.Name + "-" + strconv.Itoa(i)
 		podRole := checkRedisServerRole(ctx, cl, logger, cr, podName)
 		if podRole == redisRole {
@@ -542,9 +541,7 @@ func checkAttachedSlave(ctx context.Context, client kubernetes.Interface, logger
 		if nums > 0 {
 			return podName
 		}
-
 	}
-
 	return ""
 }
 
@@ -567,7 +564,6 @@ func CreateMasterSlaveReplication(ctx context.Context, client kubernetes.Interfa
 
 	for i := 0; i < len(masterPods); i++ {
 		if masterPods[i] != realMasterPod {
-
 			redisClient := configureRedisReplicationClient(client, logger, cr, masterPods[i])
 			defer redisClient.Close()
 			logger.V(1).Info("Setting the", "pod", masterPods[i], "to slave of", realMasterPod)

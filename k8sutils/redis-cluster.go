@@ -95,7 +95,6 @@ func generateRedisClusterInitContainerParams(cr *redisv1beta2.RedisCluster) init
 		if cr.Spec.Storage != nil {
 			initcontainerProp.PersistenceEnabled = &trueProperty
 		}
-
 	}
 
 	return initcontainerProp

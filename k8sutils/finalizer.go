@@ -172,7 +172,6 @@ func finalizeRedisClusterPVC(client kubernetes.Interface, logger logr.Logger, cr
 				}
 			}
 		}
-
 	}
 	return nil
 }
