@@ -8,13 +8,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/utils/env"
-	"k8s.io/utils/pointer"
-
 	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -24,6 +20,9 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/utils/env"
+	"k8s.io/utils/pointer"
 )
 
 const (

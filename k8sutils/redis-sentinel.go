@@ -5,17 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
-	"k8s.io/utils/pointer"
-
 	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/utils/pointer"
 )
 
 // RedisSentinelSTS is a interface to call Redis Statefulset function

@@ -7,9 +7,6 @@ import (
 	"reflect"
 	"testing"
 
-	"k8s.io/client-go/dynamic/fake"
-	"k8s.io/client-go/kubernetes"
-
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/go-logr/logr"
@@ -18,6 +15,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/client-go/dynamic/fake"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/pointer"
 )
 
