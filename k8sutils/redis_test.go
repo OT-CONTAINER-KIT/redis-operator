@@ -24,7 +24,7 @@ func TestCheckRedisNodePresence(t *testing.T) {
 	csvOutput.FieldsPerRecord = -1
 	nodes, _ := csvOutput.ReadAll()
 
-	var tests = []struct {
+	tests := []struct {
 		nodes [][]string
 		ip    string
 		want  bool

@@ -7,9 +7,6 @@ import (
 	"reflect"
 	"testing"
 
-	"k8s.io/client-go/dynamic/fake"
-	"k8s.io/client-go/kubernetes"
-
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/go-logr/logr"
@@ -18,6 +15,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/client-go/dynamic/fake"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/pointer"
 )
 
@@ -28,7 +27,8 @@ func Test_generateRedisSentinelParams(t *testing.T) {
 		ClusterMode:    false,
 		NodeConfVolume: false,
 		NodeSelector: map[string]string{
-			"node-role.kubernetes.io/infra": "worker"},
+			"node-role.kubernetes.io/infra": "worker",
+		},
 		PodSecurityContext: &corev1.PodSecurityContext{
 			RunAsUser: pointer.Int64(1000),
 			FSGroup:   pointer.Int64(1000),
@@ -254,7 +254,6 @@ func Test_generateRedisSentinelInitContainerParams(t *testing.T) {
 
 func Test_getSentinelEnvVariable(t *testing.T) {
 	type args struct {
-		ctx    context.Context
 		client kubernetes.Interface
 		logger logr.Logger
 		cr     *redisv1beta2.RedisSentinel
@@ -267,7 +266,6 @@ func Test_getSentinelEnvVariable(t *testing.T) {
 		{
 			name: "When RedisSentinelConfig is nil",
 			args: args{
-				ctx:    context.TODO(),
 				client: nil,
 				logger: logr.Logger{},
 				cr:     &redisv1beta2.RedisSentinel{},
@@ -277,7 +275,6 @@ func Test_getSentinelEnvVariable(t *testing.T) {
 		{
 			name: "When RedisSentinelConfig is not nil",
 			args: args{
-				ctx:    context.TODO(),
 				client: nil,
 				logger: logr.Logger{},
 				cr: &redisv1beta2.RedisSentinel{
@@ -329,7 +326,8 @@ func Test_getSentinelEnvVariable(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getSentinelEnvVariable(tt.args.ctx, tt.args.client, tt.args.logger, tt.args.cr, fake.NewSimpleDynamicClient(&runtime.Scheme{})); !reflect.DeepEqual(got, tt.want) {
+			ctx := context.TODO()
+			if got := getSentinelEnvVariable(ctx, tt.args.client, tt.args.logger, tt.args.cr, fake.NewSimpleDynamicClient(&runtime.Scheme{})); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("getSentinelEnvVariable() = %v, want %v", got, tt.want)
 			}
 		})

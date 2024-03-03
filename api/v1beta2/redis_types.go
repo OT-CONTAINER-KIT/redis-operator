@@ -50,8 +50,7 @@ type RedisSpec struct {
 }
 
 // RedisStatus defines the observed state of Redis
-type RedisStatus struct {
-}
+type RedisStatus struct{}
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
@@ -75,6 +74,7 @@ type RedisList struct {
 	Items           []Redis `json:"items"`
 }
 
+//nolint:gochecknoinits
 func init() {
 	SchemeBuilder.Register(&Redis{}, &RedisList{})
 }

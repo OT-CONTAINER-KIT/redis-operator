@@ -2,50 +2,59 @@ linters-settings:
   govet:
     check-shadowing: true
   golint:
-    min-confidence: 0.8 
+    min-confidence: 0.8
   gofmt:
     simplify: true
 
 linters:
-  disable:
-    - errcheck 
-    - tagliatelle
+  enable:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - containedctx
+    - decorder
+    - dogsled
+    - durationcheck
+    - errcheck
+    - errname
+    - exportloopref
+    - gci
+    - gochecknoinits
+    - gofmt
+    - gofumpt
+    - goprintffuncname
+    - gosec
+    - gosimple
+    - govet
+    - grouper
+    - importas
     - ineffassign
+    - makezero
+    - misspell
+    - noctx
+    - nolintlint
+    - nosprintfhostport
     - staticcheck
-    
-# Exclude the files that are causing the errors
-issues:
-  exclude-rules:
-    - path: _test\.go # Ignore test files for linting
-      linters:
-        - gocyclo
-        - errcheck
-        - dupl
-        - gosec
-run:
-  timeout: 5m
-  go-version: "1.21"
-  output:
-    format: colored-line-number
-    sort-results: true
+    - tenv
+    - thelper
+    - tparallel
+    - typecheck
+    - unconvert
+    - unused
+    - wastedassign
+    - whitespace
 
-  test: false
-  # Exclude third-party packages and go.mod from the lint checks
-  exclude: |
-    '(^vendor/.*|.*_test\.go|go\.mod|.*validatingwebhookconfiguration\.go|.*mutatingwebhookconfiguration\.go)'
+run:
+  timeout: 15m
+  go: "1.21"
+  tests: true
+  show-stats: true
   skip-files:
-    - '^.*validatingwebhookconfiguration\.go$'
-    - controllers/suite_test.go
-  skip-dirs:
-    - k8s.io/client-go
-    - github.com/banzaicloud/k8s-objectmatcher
-    - github.com/go-logr/logr
-    - github.com/redis/go-redis
-    - github.com/onsi/ginkgo
-    - github.com/onsi/gomega
-    - github.com/pkg/errors
-    - k8s.io/api
-    - k8s.io/apimachinery
-    - sigs.k8s.io/controller-runtime
-    - golang.org/x/sys
-    - vendor$, third_party$, testdata$, examples$, Godeps$, builtin$
+    - ".+\\.generated.go"
+
+output:
+  format: colored-line-number
+  sort-results: true
+  print-linter-name: true
+  print-issued-lines: true

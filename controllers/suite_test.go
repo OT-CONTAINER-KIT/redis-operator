@@ -23,7 +23,6 @@ import (
 
 	// redisv1beta1 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta1"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
@@ -31,16 +30,16 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
-
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	// +kubebuilder:scaffold:imports
 )
 
-var k8sClient client.Client
-var testEnv *envtest.Environment
+var (
+	k8sClient client.Client
+	testEnv   *envtest.Environment
+)
 
 const (
 	ns = "default"
@@ -136,5 +135,4 @@ var _ = BeforeSuite(func() {
 		err := testEnv.Stop()
 		Expect(err).ToNot(HaveOccurred())
 	}()
-
 })

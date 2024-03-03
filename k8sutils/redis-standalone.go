@@ -103,7 +103,6 @@ func generateRedisStandaloneParams(cr *redisv1beta2.Redis) statefulSetParameters
 	}
 	if cr.Spec.RedisExporter != nil {
 		res.EnableMetrics = cr.Spec.RedisExporter.Enabled
-
 	}
 	if cr.Spec.ServiceAccountName != nil {
 		res.ServiceAccountName = cr.Spec.ServiceAccountName
@@ -153,7 +152,6 @@ func generateRedisStandaloneContainerParams(cr *redisv1beta2.Redis) containerPar
 		if cr.Spec.RedisExporter.EnvVars != nil {
 			containerProp.RedisExporterEnv = cr.Spec.RedisExporter.EnvVars
 		}
-
 	}
 	if cr.Spec.ReadinessProbe != nil {
 		containerProp.ReadinessProbe = &cr.Spec.ReadinessProbe.Probe
@@ -199,8 +197,6 @@ func generateRedisStandaloneInitContainerParams(cr *redisv1beta2.Redis) initCont
 		if cr.Spec.Storage != nil {
 			initcontainerProp.PersistenceEnabled = &trueProperty
 		}
-
 	}
-
 	return initcontainerProp
 }

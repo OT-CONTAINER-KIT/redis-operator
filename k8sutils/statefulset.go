@@ -8,13 +8,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/utils/env"
-	"k8s.io/utils/pointer"
-
 	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -24,6 +20,9 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/utils/env"
+	"k8s.io/utils/pointer"
 )
 
 const (
@@ -169,12 +168,13 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 						}
 						updateFailed := false
 						realUpdate := false
-						for _, pvc := range pvcs.Items {
+						for i := range pvcs.Items {
+							pvc := &pvcs.Items[i]
 							realCapacity := pvc.Spec.Resources.Requests.Storage().Value()
 							if realCapacity != stateCapacity {
 								realUpdate = true
 								pvc.Spec.Resources.Requests = newStateful.Spec.VolumeClaimTemplates[0].Spec.Resources.Requests
-								_, err = cl.CoreV1().PersistentVolumeClaims(storedStateful.Namespace).Update(context.Background(), &pvc, metav1.UpdateOptions{})
+								_, err = cl.CoreV1().PersistentVolumeClaims(storedStateful.Namespace).Update(context.Background(), pvc, metav1.UpdateOptions{})
 								if err != nil {
 									if !updateFailed {
 										updateFailed = true
@@ -183,6 +183,7 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 								}
 							}
 						}
+
 						if !updateFailed && len(pvcs.Items) != 0 {
 							annotations["storageCapacity"] = fmt.Sprintf("%d", stateCapacity)
 							storedStateful.Annotations = annotations
@@ -612,7 +613,8 @@ func getProbeInfo(probe *commonapi.Probe) *corev1.Probe {
 // getEnvironmentVariables returns all the required Environment Variables
 func getEnvironmentVariables(role string, enabledPassword *bool, secretName *string,
 	secretKey *string, persistenceEnabled *bool, tlsConfig *redisv1beta2.TLSConfig,
-	aclConfig *redisv1beta2.ACLConfig, envVar *[]corev1.EnvVar, port *int, clusterVersion *string) []corev1.EnvVar {
+	aclConfig *redisv1beta2.ACLConfig, envVar *[]corev1.EnvVar, port *int, clusterVersion *string,
+) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{Name: "SERVER_MODE", Value: role},
 		{Name: "SETUP_MODE", Value: role},

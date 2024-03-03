@@ -3,13 +3,13 @@ package k8sutils
 import (
 	"context"
 	"fmt"
-	"k8s.io/utils/env"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/utils/env"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -172,7 +172,6 @@ func finalizeRedisClusterPVC(client kubernetes.Interface, logger logr.Logger, cr
 				}
 			}
 		}
-
 	}
 	return nil
 }
@@ -192,6 +191,5 @@ func finalizeRedisReplicationPVC(client kubernetes.Interface, logger logr.Logger
 }
 
 func finalizeRedisSentinelPVC(cr *redisv1beta2.RedisSentinel) error {
-
 	return nil
 }

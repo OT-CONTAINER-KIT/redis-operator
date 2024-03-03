@@ -7,6 +7,9 @@ on:
     branches:
       - master
 
+permissions:
+  contents: read
+
 env:
   GOLANG_VERSION: 1.21
   APPLICATION_NAME: redis-operator
@@ -44,15 +47,7 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GOLANG_VERSION }}
-
-      - name: Download Go modules
-        run: go mod download
-
-      - name: Check disk space
-        run: df -h
-
-      - name: List Go module cache
-        run: ls -la $(go env GOPATH)/pkg/mod
+          cache: false
 
       - name: Run GolangCI-Lint
         uses: golangci/golangci-lint-action@v3

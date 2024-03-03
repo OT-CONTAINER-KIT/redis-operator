@@ -66,7 +66,7 @@ func CreateFakeClientWithPodIPs(cr *redisv1beta2.RedisCluster) *fake.Clientset {
 func CreateFakeClientWithSecrets(cr *redisv1beta2.RedisCluster, secretName, secretKey, secretValue string) *fake.Clientset {
 	leaderReplicas := cr.Spec.GetReplicaCounts("leader")
 	followerReplicas := cr.Spec.GetReplicaCounts("follower")
-	pods := make([]runtime.Object, leaderReplicas+followerReplicas)
+	pods := make([]runtime.Object, 0)
 
 	for i := 0; i < int(leaderReplicas); i++ {
 		podName := cr.ObjectMeta.Name + "-leader-" + strconv.Itoa(i)

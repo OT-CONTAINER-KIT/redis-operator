@@ -37,8 +37,7 @@ type RedisSentinelConfig struct {
 	common.RedisSentinelConfig `json:",inline"`
 }
 
-type RedisSentinelStatus struct {
-}
+type RedisSentinelStatus struct{}
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
@@ -61,6 +60,7 @@ type RedisSentinelList struct {
 	Items           []RedisSentinel `json:"items"`
 }
 
+//nolint:gochecknoinits
 func init() {
 	SchemeBuilder.Register(&RedisSentinel{}, &RedisSentinelList{})
 }

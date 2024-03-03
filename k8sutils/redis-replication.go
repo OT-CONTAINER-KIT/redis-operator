@@ -143,11 +143,9 @@ func generateRedisReplicationContainerParams(cr *redisv1beta2.RedisReplication) 
 		if cr.Spec.RedisExporter.Resources != nil {
 			containerProp.RedisExporterResources = cr.Spec.RedisExporter.Resources
 		}
-
 		if cr.Spec.RedisExporter.EnvVars != nil {
 			containerProp.RedisExporterEnv = cr.Spec.RedisExporter.EnvVars
 		}
-
 	}
 	if cr.Spec.ReadinessProbe != nil {
 		containerProp.ReadinessProbe = &cr.Spec.ReadinessProbe.Probe
@@ -193,8 +191,6 @@ func generateRedisReplicationInitContainerParams(cr *redisv1beta2.RedisReplicati
 		if cr.Spec.Storage != nil {
 			initcontainerProp.PersistenceEnabled = &trueProperty
 		}
-
 	}
-
 	return initcontainerProp
 }

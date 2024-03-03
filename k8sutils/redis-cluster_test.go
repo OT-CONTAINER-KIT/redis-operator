@@ -5,14 +5,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	"k8s.io/client-go/kubernetes/fake"
-
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/utils/pointer"
 )
 

@@ -94,7 +94,6 @@ func getRedisClusterSlots(ctx context.Context, client kubernetes.Interface, logg
 
 	// Split the Redis cluster info into lines
 	lines := strings.Split(redisClusterInfo, "\n")
-
 	// Iterate through all lines
 	for _, line := range lines {
 		if strings.Contains(line, "master") && strings.Contains(line, "connected") { // Check if this line is a master node
@@ -114,9 +113,7 @@ func getRedisClusterSlots(ctx context.Context, client kubernetes.Interface, logg
 			}
 		}
 	}
-
 	logger.V(1).Info("Total cluster slots to be transferred from", "node", nodeID, "is", totalSlots)
-
 	return strconv.Itoa(totalSlots)
 }
 
@@ -290,7 +287,6 @@ func getAttachedFollowerNodeIDs(ctx context.Context, client kubernetes.Interface
 				slaveIDs = append(slaveIDs, parts[0])
 			}
 		}
-
 	}
 
 	logger.V(1).Info("Slaves Nodes attached to", "node", masterNodeID, "are", slaveIDs)
@@ -334,7 +330,6 @@ func RemoveRedisFollowerNodesFromCluster(ctx context.Context, client kubernetes.
 	}
 
 	for _, followerNodeID := range followerNodeIDs {
-
 		cmd = append(cmd, followerNodeID)
 		logger.V(1).Info("Redis cluster follower remove command is", "Command", cmd)
 		executeCommand(client, logger, cr, cmd, cr.ObjectMeta.Name+"-leader-0")
@@ -345,7 +340,7 @@ func RemoveRedisFollowerNodesFromCluster(ctx context.Context, client kubernetes.
 // Remove redis cluster node would remove last node to the existing redis cluster using redis-cli
 func RemoveRedisNodeFromCluster(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster, removePod RedisDetails) {
 	var cmd []string
-	//currentRedisCount := CheckRedisNodeCount(ctx, client, logger, cr, "leader")
+	// currentRedisCount := CheckRedisNodeCount(ctx, client, logger, cr, "leader")
 
 	existingPod := RedisDetails{
 		PodName:   cr.ObjectMeta.Name + "-leader-0",
@@ -398,7 +393,7 @@ func VerifyLeaderPod(ctx context.Context, client kubernetes.Interface, logger lo
 	}
 
 	lines := strings.Split(info, "\r\n")
-	role := ""
+	var role string
 	for _, line := range lines {
 		if strings.HasPrefix(line, "role:") {
 			role = strings.TrimPrefix(line, "role:")
