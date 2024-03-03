@@ -182,7 +182,7 @@ func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Inter
 				Namespace: cr.Namespace,
 			}
 			leaderPod := RedisDetails{
-				PodName:   cr.ObjectMeta.Name + "-leader-" + strconv.Itoa(int(followerIdx)%int(leaderCounts)),
+				PodName:   cr.ObjectMeta.Name + "-leader-" + strconv.Itoa((followerIdx)%int(leaderCounts)),
 				Namespace: cr.Namespace,
 			}
 			podIP = getRedisServerIP(client, logger, followerPod)
