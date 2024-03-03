@@ -254,7 +254,6 @@ func Test_generateRedisSentinelInitContainerParams(t *testing.T) {
 
 func Test_getSentinelEnvVariable(t *testing.T) {
 	type args struct {
-		ctx    context.Context
 		client kubernetes.Interface
 		logger logr.Logger
 		cr     *redisv1beta2.RedisSentinel
@@ -267,7 +266,6 @@ func Test_getSentinelEnvVariable(t *testing.T) {
 		{
 			name: "When RedisSentinelConfig is nil",
 			args: args{
-				ctx:    context.TODO(),
 				client: nil,
 				logger: logr.Logger{},
 				cr:     &redisv1beta2.RedisSentinel{},
@@ -277,7 +275,6 @@ func Test_getSentinelEnvVariable(t *testing.T) {
 		{
 			name: "When RedisSentinelConfig is not nil",
 			args: args{
-				ctx:    context.TODO(),
 				client: nil,
 				logger: logr.Logger{},
 				cr: &redisv1beta2.RedisSentinel{
@@ -329,7 +326,8 @@ func Test_getSentinelEnvVariable(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getSentinelEnvVariable(tt.args.ctx, tt.args.client, tt.args.logger, tt.args.cr, fake.NewSimpleDynamicClient(&runtime.Scheme{})); !reflect.DeepEqual(got, tt.want) {
+			ctx := context.TODO()
+			if got := getSentinelEnvVariable(ctx, tt.args.client, tt.args.logger, tt.args.cr, fake.NewSimpleDynamicClient(&runtime.Scheme{})); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("getSentinelEnvVariable() = %v, want %v", got, tt.want)
 			}
 		})

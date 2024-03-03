@@ -393,7 +393,7 @@ func VerifyLeaderPod(ctx context.Context, client kubernetes.Interface, logger lo
 	}
 
 	lines := strings.Split(info, "\r\n")
-	role := ""
+	var role string
 	for _, line := range lines {
 		if strings.HasPrefix(line, "role:") {
 			role = strings.TrimPrefix(line, "role:")
