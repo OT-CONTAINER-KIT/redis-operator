@@ -76,14 +76,14 @@ func generatePodDisruptionBudgetDef(cr *redisv1beta2.RedisCluster, role string, 
 		},
 	}
 	if pdbParams.MinAvailable != nil {
-		pdbTemplate.Spec.MinAvailable = &intstr.IntOrString{Type: intstr.Int, IntVal: int32(*pdbParams.MinAvailable)}
+		pdbTemplate.Spec.MinAvailable = &intstr.IntOrString{Type: intstr.Int, IntVal: (*pdbParams.MinAvailable)}
 	}
 	if pdbParams.MaxUnavailable != nil {
-		pdbTemplate.Spec.MaxUnavailable = &intstr.IntOrString{Type: intstr.Int, IntVal: int32(*pdbParams.MaxUnavailable)}
+		pdbTemplate.Spec.MaxUnavailable = &intstr.IntOrString{Type: intstr.Int, IntVal: *pdbParams.MaxUnavailable}
 	}
 	// If we don't have a value for either, assume quorum: (N/2)+1
 	if pdbTemplate.Spec.MaxUnavailable == nil && pdbTemplate.Spec.MinAvailable == nil {
-		pdbTemplate.Spec.MinAvailable = &intstr.IntOrString{Type: intstr.Int, IntVal: int32((*cr.Spec.Size / 2) + 1)}
+		pdbTemplate.Spec.MinAvailable = &intstr.IntOrString{Type: intstr.Int, IntVal: (*cr.Spec.Size / 2) + 1}
 	}
 	AddOwnerRefToObject(pdbTemplate, redisClusterAsOwner(cr))
 	return pdbTemplate
@@ -103,14 +103,14 @@ func generateSentinelPodDisruptionBudgetDef(cr *redisv1beta2.RedisSentinel, role
 		},
 	}
 	if pdbParams.MinAvailable != nil {
-		pdbTemplate.Spec.MinAvailable = &intstr.IntOrString{Type: intstr.Int, IntVal: int32(*pdbParams.MinAvailable)}
+		pdbTemplate.Spec.MinAvailable = &intstr.IntOrString{Type: intstr.Int, IntVal: *pdbParams.MinAvailable}
 	}
 	if pdbParams.MaxUnavailable != nil {
-		pdbTemplate.Spec.MaxUnavailable = &intstr.IntOrString{Type: intstr.Int, IntVal: int32(*pdbParams.MaxUnavailable)}
+		pdbTemplate.Spec.MaxUnavailable = &intstr.IntOrString{Type: intstr.Int, IntVal: *pdbParams.MaxUnavailable}
 	}
 	// If we don't have a value for either, assume quorum: (N/2)+1
 	if pdbTemplate.Spec.MaxUnavailable == nil && pdbTemplate.Spec.MinAvailable == nil {
-		pdbTemplate.Spec.MinAvailable = &intstr.IntOrString{Type: intstr.Int, IntVal: int32((*cr.Spec.Size / 2) + 1)}
+		pdbTemplate.Spec.MinAvailable = &intstr.IntOrString{Type: intstr.Int, IntVal: (*cr.Spec.Size / 2) + 1}
 	}
 	AddOwnerRefToObject(pdbTemplate, redisSentinelAsOwner(cr))
 	return pdbTemplate

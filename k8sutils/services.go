@@ -47,7 +47,7 @@ func generateServiceDef(serviceMeta metav1.ObjectMeta, epp exporterPortProvider,
 				{
 					Name:       PortName,
 					Port:       int32(port),
-					TargetPort: intstr.FromInt(int(port)),
+					TargetPort: intstr.FromInt(port),
 					Protocol:   corev1.ProtocolTCP,
 				},
 			},
