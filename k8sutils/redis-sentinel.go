@@ -52,12 +52,10 @@ func CreateRedisSentinel(ctx context.Context, client kubernetes.Interface, logge
 	}
 
 	return prop.CreateRedisSentinelSetup(ctx, client, logger, cr, cl, dcl)
-
 }
 
 // Create RedisSentinel Service
 func CreateRedisSentinelService(cr *redisv1beta2.RedisSentinel, cl kubernetes.Interface) error {
-
 	prop := RedisSentinelService{
 		RedisServiceRole: "sentinel",
 	}
@@ -80,7 +78,6 @@ func (service RedisSentinelSTS) CreateRedisSentinelSetup(ctx context.Context, cl
 		cr.Spec.Sidecars,
 		cl,
 	)
-
 	if err != nil {
 		logger.Error(err, "Cannot create Sentinel statefulset for Redis")
 		return err
@@ -90,7 +87,6 @@ func (service RedisSentinelSTS) CreateRedisSentinelSetup(ctx context.Context, cl
 
 // Create Redis Sentile Params for the statefulset
 func generateRedisSentinelParams(cr *redisv1beta2.RedisSentinel, replicas int32, externalConfig *string, affinity *corev1.Affinity) statefulSetParameters {
-
 	res := statefulSetParameters{
 		Replicas:                      &replicas,
 		ClusterMode:                   false,
@@ -123,7 +119,6 @@ func generateRedisSentinelParams(cr *redisv1beta2.RedisSentinel, replicas int32,
 
 // generateRedisSentinelInitContainerParams generates Redis sentinel initcontainer information
 func generateRedisSentinelInitContainerParams(cr *redisv1beta2.RedisSentinel) initContainerParameters {
-
 	initcontainerProp := initContainerParameters{}
 
 	if cr.Spec.InitContainer != nil {
@@ -190,7 +185,6 @@ func generateRedisSentinelContainerParams(ctx context.Context, client kubernetes
 	}
 
 	return containerProp
-
 }
 
 // Get the Count of the Sentinel
@@ -243,7 +237,6 @@ func (service RedisSentinelService) CreateRedisSentinelService(cr *redisv1beta2.
 		return err
 	}
 	return nil
-
 }
 
 func getSentinelEnvVariable(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisSentinel, dcl dynamic.Interface) *[]corev1.EnvVar {
@@ -289,7 +282,6 @@ func getSentinelEnvVariable(ctx context.Context, client kubernetes.Interface, lo
 		})
 	}
 	return envVar
-
 }
 
 func getRedisReplicationMasterIP(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisSentinel, dcl dynamic.Interface) string {

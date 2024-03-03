@@ -612,7 +612,8 @@ func getProbeInfo(probe *commonapi.Probe) *corev1.Probe {
 // getEnvironmentVariables returns all the required Environment Variables
 func getEnvironmentVariables(role string, enabledPassword *bool, secretName *string,
 	secretKey *string, persistenceEnabled *bool, tlsConfig *redisv1beta2.TLSConfig,
-	aclConfig *redisv1beta2.ACLConfig, envVar *[]corev1.EnvVar, port *int, clusterVersion *string) []corev1.EnvVar {
+	aclConfig *redisv1beta2.ACLConfig, envVar *[]corev1.EnvVar, port *int, clusterVersion *string,
+) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{Name: "SERVER_MODE", Value: role},
 		{Name: "SETUP_MODE", Value: role},

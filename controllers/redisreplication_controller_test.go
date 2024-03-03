@@ -49,7 +49,6 @@ var _ = Describe("Redis replication test", func() {
 
 	Context("When creating a redis replication CR", func() {
 		It("should create a statefulset, service", func() {
-
 			svc := &corev1.Service{}
 			sts := &appsv1.StatefulSet{}
 
@@ -101,7 +100,6 @@ var _ = Describe("Redis replication test", func() {
 				"redis_setup_type": "replication",
 				"role":             "replication",
 			}))
-
 		})
 
 		Context("then deleting the redis replication CR", func() {

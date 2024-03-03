@@ -29,7 +29,8 @@ func Test_generateRedisStandaloneParams(t *testing.T) {
 		// 		"opstreelabs.in.redis": "true"},
 		// },
 		NodeSelector: map[string]string{
-			"node-role.kubernetes.io/infra": "worker"},
+			"node-role.kubernetes.io/infra": "worker",
+		},
 		PodSecurityContext: &corev1.PodSecurityContext{
 			RunAsUser: pointer.Int64(1000),
 			FSGroup:   pointer.Int64(1000),

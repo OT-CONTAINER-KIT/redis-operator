@@ -19,9 +19,7 @@ const (
 	redisExporterPortName = "redis-exporter"
 )
 
-var (
-	serviceType corev1.ServiceType
-)
+var serviceType corev1.ServiceType
 
 // exporterPortProvider return the exporter port if bool is true
 type exporterPortProvider func() (port int, enable bool)

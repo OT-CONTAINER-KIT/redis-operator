@@ -11,6 +11,7 @@ import (
 func mockK8sConfigProvider() (*rest.Config, error) {
 	return &rest.Config{}, nil
 }
+
 func mockInvalidK8sConfigProvider() (*rest.Config, error) {
 	return nil, errors.New("invalid configuration")
 }

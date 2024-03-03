@@ -290,7 +290,6 @@ func getAttachedFollowerNodeIDs(ctx context.Context, client kubernetes.Interface
 				slaveIDs = append(slaveIDs, parts[0])
 			}
 		}
-
 	}
 
 	logger.V(1).Info("Slaves Nodes attached to", "node", masterNodeID, "are", slaveIDs)
@@ -345,7 +344,7 @@ func RemoveRedisFollowerNodesFromCluster(ctx context.Context, client kubernetes.
 // Remove redis cluster node would remove last node to the existing redis cluster using redis-cli
 func RemoveRedisNodeFromCluster(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster, removePod RedisDetails) {
 	var cmd []string
-	//currentRedisCount := CheckRedisNodeCount(ctx, client, logger, cr, "leader")
+	// currentRedisCount := CheckRedisNodeCount(ctx, client, logger, cr, "leader")
 
 	existingPod := RedisDetails{
 		PodName:   cr.ObjectMeta.Name + "-leader-0",

@@ -103,7 +103,6 @@ func generateRedisStandaloneParams(cr *redisv1beta2.Redis) statefulSetParameters
 	}
 	if cr.Spec.RedisExporter != nil {
 		res.EnableMetrics = cr.Spec.RedisExporter.Enabled
-
 	}
 	if cr.Spec.ServiceAccountName != nil {
 		res.ServiceAccountName = cr.Spec.ServiceAccountName

@@ -39,8 +39,10 @@ import (
 	// +kubebuilder:scaffold:imports
 )
 
-var k8sClient client.Client
-var testEnv *envtest.Environment
+var (
+	k8sClient client.Client
+	testEnv   *envtest.Environment
+)
 
 const (
 	ns = "default"
@@ -136,5 +138,4 @@ var _ = BeforeSuite(func() {
 		err := testEnv.Stop()
 		Expect(err).ToNot(HaveOccurred())
 	}()
-
 })

@@ -37,8 +37,7 @@ type RedisSentinelConfig struct {
 	common.RedisSentinelConfig `json:",inline"`
 }
 
-type RedisSentinelStatus struct {
-}
+type RedisSentinelStatus struct{}
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status

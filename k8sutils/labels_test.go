@@ -48,7 +48,8 @@ func Test_generateObjectMetaInformation(t *testing.T) {
 				name:        "test",
 				namespace:   "default",
 				labels:      map[string]string{"test": "test"},
-				annotations: map[string]string{"test": "test"}},
+				annotations: map[string]string{"test": "test"},
+			},
 			want: metav1.ObjectMeta{
 				Name:        "test",
 				Namespace:   "default",

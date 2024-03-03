@@ -546,7 +546,6 @@ func checkAttachedSlave(ctx context.Context, client kubernetes.Interface, logger
 	}
 
 	return ""
-
 }
 
 func CreateMasterSlaveReplication(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication, masterPods []string, slavePods []string) error {

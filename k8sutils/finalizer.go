@@ -3,6 +3,7 @@ package k8sutils
 import (
 	"context"
 	"fmt"
+
 	"k8s.io/utils/env"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
@@ -192,6 +193,5 @@ func finalizeRedisReplicationPVC(client kubernetes.Interface, logger logr.Logger
 }
 
 func finalizeRedisSentinelPVC(cr *redisv1beta2.RedisSentinel) error {
-
 	return nil
 }

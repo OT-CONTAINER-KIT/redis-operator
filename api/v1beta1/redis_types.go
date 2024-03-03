@@ -45,8 +45,7 @@ type RedisSpec struct {
 }
 
 // RedisStatus defines the observed state of Redis
-type RedisStatus struct {
-}
+type RedisStatus struct{}
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status

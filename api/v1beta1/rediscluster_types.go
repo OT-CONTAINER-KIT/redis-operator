@@ -64,8 +64,7 @@ type RedisFollower struct {
 }
 
 // RedisClusterStatus defines the observed state of RedisCluster
-type RedisClusterStatus struct {
-}
+type RedisClusterStatus struct{}
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
