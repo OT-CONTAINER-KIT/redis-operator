@@ -55,6 +55,8 @@ run:
   go: "1.21"
   tests: true
   show-stats: true
+  skip-files:
+    - ".+\\.generated.go"
 
 output:
   format: colored-line-number
