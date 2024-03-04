@@ -1,7 +1,0 @@
-apiVersion: kuttl.dev/v1beta1
-kind: TestStep
-apply:
-  - sentinel.yaml
-assert:
-  - ready-sts.yaml
-  - ready-svc.yaml

@@ -1,8 +1,0 @@
-apiVersion: redis.redis.opstreelabs.in/v1beta2
-kind: RedisCluster
-metadata:
-  name: redis-cluster-v1beta2
-status:
-  state: Ready
-  readyLeaderReplicas: 6
-  readyFollowerReplicas: 6
