@@ -2,7 +2,7 @@
 apiVersion: redis.redis.opstreelabs.in/v1beta2
 kind: RedisReplication
 metadata:
-  name: redis-replication-v1beta2
+  name: redis-replication
 spec:
   clusterSize: 3
   podSecurityContext:
