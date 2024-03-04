@@ -164,7 +164,6 @@ func TestHandleRedisFinalizer(t *testing.T) {
 				} else {
 					assert.True(t, k8serrors.IsNotFound(err))
 				}
-
 			}
 		})
 	}
