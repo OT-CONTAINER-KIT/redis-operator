@@ -1,8 +1,0 @@
-apiVersion: kuttl.dev/v1beta1
-kind: TestStep
-commands:
-  - command: kubectl delete -f sentinel.yaml
-    namespaced: true
-error:
-  - ready-sts.yaml
-  - ready-svc.yaml

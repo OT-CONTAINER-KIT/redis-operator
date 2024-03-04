@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: redis-standalone-teardown
+spec:
+  steps:
+    - name: redis-standalone-install
+      try:
+        - apply:
+            file: standalone.yaml
+        - assert:
+            file: ready-sts.yaml
+        - assert:
+            file: ready-svc.yaml
+        - assert:
+            file: ready-pvc.yaml
+
+    - name: redis-standalone-uninstall
+      try:
+        - delete:
+            ref:
+              name: redis-standalone-v1beta2
+              kind: Redis
+              apiVersion: redis.redis.opstreelabs.in/v1beta2
+        - error:
+            file: ready-sts.yaml
+        - error:
+            file: ready-svc.yaml
+        - error:
+            file: ready-pvc.yaml
