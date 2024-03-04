@@ -23,6 +23,7 @@ jobs:
           - ./tests/e2e-chainsaw/v1beta2/nodeport/
           - ./tests/e2e-chainsaw/v1beta2/pvc-name/
           - ./tests/e2e-chainsaw/v1beta2/keep-pvc/
+          - ./tests/e2e-chainsaw/v1beta2/scaling/
           - ./tests/e2e-chainsaw/v1beta2/acl-user/
           - ./tests/e2e-chainsaw/v1beta2/scaling/
           - ./tests/e2e-chainsaw/v1beta2/acl-user/
