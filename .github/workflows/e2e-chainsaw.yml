@@ -27,6 +27,7 @@ jobs:
           - ./tests/e2e-chainsaw/v1beta2/acl-user/
           - ./tests/e2e-chainsaw/v1beta2/scaling/
           - ./tests/e2e-chainsaw/v1beta2/acl-user/
+          - ./tests/e2e-chainsaw/v1beta2/ignore-annots/
 
     steps:
     - name: Checkout code
