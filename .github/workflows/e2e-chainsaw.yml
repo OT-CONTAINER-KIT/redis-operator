@@ -23,6 +23,7 @@ jobs:
           - ./tests/e2e-chainsaw/v1beta2/nodeport/
           - ./tests/e2e-chainsaw/v1beta2/pvc-name/
           - ./tests/e2e-chainsaw/v1beta2/keep-pvc/
+          - ./tests/e2e-chainsaw/v1beta2/acl-user/
 
     steps:
     - name: Checkout code
@@ -38,7 +39,7 @@ jobs:
 
     - name: Check install
       run: chainsaw version
-    
+
     - name: Install kubectl
       run: |
         curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
@@ -55,7 +56,7 @@ jobs:
         cluster_name: kind
 
     - name: Load Docker image into Kind
-      run: | 
+      run: |
         kubectl cluster-info --context kind-kind
         kind load docker-image redis-operator:e2e --name kind
 
@@ -66,6 +67,6 @@ jobs:
     - name: Wait for Redis Operator to be ready
       run: |
         kubectl wait --for=condition=available --timeout=300s deployment/redis-operator-redis-operator -n redis-operator-system
-  
+
     - name: Run chainsaw test
       run: chainsaw test --test-dir ${{ matrix.testpath }} --config tests/_config/chainsaw-configuration.yaml

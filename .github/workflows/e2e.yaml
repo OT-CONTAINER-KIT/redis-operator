@@ -32,7 +32,7 @@ jobs:
       run: |
         curl -L https://github.com/kudobuilder/kuttl/releases/download/v0.15.0/kubectl-kuttl_0.15.0_linux_x86_64 -o /usr/local/bin/kuttl
         chmod +x /usr/local/bin/kuttl
-    
+
     - name: Install kubectl
       run: |
         curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
@@ -46,7 +46,7 @@ jobs:
         cluster_name: kind
 
     - name: Load Docker image into Kind
-      run: | 
+      run: |
         kubectl cluster-info --context kind-kind
         kind load docker-image redis-operator:e2e --name kind
 
@@ -57,6 +57,6 @@ jobs:
     - name: Wait for Redis Operator to be ready
       run: |
         kubectl wait --for=condition=available --timeout=300s deployment/redis-operator-redis-operator -n redis-operator-system
-  
+
     - name: Run kuttl test
       run: kuttl test ${{ matrix.testpath }} --config tests/_config/kuttl-test.yaml
