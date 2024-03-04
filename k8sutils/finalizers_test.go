@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
+	"github.com/OT-CONTAINER-KIT/redis-operator/api"
 	"github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	mockClient "github.com/OT-CONTAINER-KIT/redis-operator/mocks/client"
 	"github.com/go-logr/logr/testr"
@@ -13,54 +15,161 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	// "k8s.io/apimachinery/pkg/types"
-	// utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+
 	k8sClientFake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// func TestHandleRedisFinalizer(t *testing.T) {
-// 	cr := &v1beta2.Redis{
-// 		TypeMeta: metav1.TypeMeta{
-// 			Kind:       "Redis",
-// 			APIVersion: "redis.opstreelabs.in/v1beta2",
-// 		},
-// 		ObjectMeta: metav1.ObjectMeta{
-// 			Name:              "test-redis",
-// 			Namespace:         "default",
-// 			DeletionTimestamp: &metav1.Time{Time: time.Now()},
-// 			Finalizers:        []string{RedisFinalizer},
-// 		},
-// 	}
+func TestHandleRedisFinalizer(t *testing.T) {
+	tests := []struct {
+		name          string
+		mockClient    *mockClient.MockClient
+		hasFinalizers bool
+		cr            *v1beta2.Redis
+		existingPVC   *corev1.PersistentVolumeClaim
+		expectError   bool
+	}{
+		{
+			name: "Redis CR without finalizer",
+			mockClient: &mockClient.MockClient{
+				UpdateFn: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+					return nil
+				},
+			},
+			hasFinalizers: false,
+			cr: &v1beta2.Redis{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "redis-standalone",
+					Namespace:  "default",
+					Finalizers: []string{},
+					DeletionTimestamp: &metav1.Time{
+						Time: time.Now(),
+					},
+				},
+				Spec: v1beta2.RedisSpec{
+					Storage: &v1beta2.Storage{
+						Storage: api.Storage{
+							KeepAfterDelete: false,
+						},
+					},
+				},
+			},
+			existingPVC: &corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "redis-standalone-redis-standalone-0",
+					Namespace: "default",
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "Redis CR with finalizer",
+			mockClient: &mockClient.MockClient{
+				UpdateFn: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+					return nil
+				},
+			},
+			hasFinalizers: true,
+			cr: &v1beta2.Redis{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "redis-standalone",
+					Namespace:  "default",
+					Finalizers: []string{RedisFinalizer},
+					DeletionTimestamp: &metav1.Time{
+						Time: time.Now(),
+					},
+				},
+				Spec: v1beta2.RedisSpec{
+					Storage: &v1beta2.Storage{
+						Storage: api.Storage{
+							KeepAfterDelete: false,
+						},
+					},
+				},
+			},
+			existingPVC: &corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "redis-standalone-redis-standalone-0",
+					Namespace: "default",
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "Redis CR with finalizer and keepAfterDelete true",
+			mockClient: &mockClient.MockClient{
+				UpdateFn: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+					return nil
+				},
+			},
+			hasFinalizers: true,
+			cr: &v1beta2.Redis{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "redis-standalone",
+					Namespace:  "default",
+					Finalizers: []string{RedisFinalizer},
+					DeletionTimestamp: &metav1.Time{
+						Time: time.Now(),
+					},
+				},
+				Spec: v1beta2.RedisSpec{
+					Storage: &v1beta2.Storage{
+						Storage: api.Storage{
+							KeepAfterDelete: true,
+						},
+					},
+				},
+			},
+			existingPVC: &corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "redis-standalone-redis-standalone-0",
+					Namespace: "default",
+				},
+			},
+			expectError: false,
+		},
+	}
 
-// 	// Create a fake controller-runtime client
-// 	scheme := runtime.NewScheme()
-// 	mockAddToScheme := v1beta2.SchemeBuilder.Register(&v1beta2.Redis{}, &v1beta2.RedisList{}).AddToScheme(scheme)
-// 	utilruntime.Must(mockAddToScheme)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			logger := testr.New(t)
+			var k8sClient *k8sClientFake.Clientset
+			if tc.existingPVC != nil {
+				k8sClient = k8sClientFake.NewSimpleClientset(tc.existingPVC.DeepCopyObject())
+			} else {
+				k8sClient = k8sClientFake.NewSimpleClientset()
+			}
 
-// 	ctrlFakeclient := ctrlClientFake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(cr.DeepCopyObject()).Build()
-// 	k8sFakeClient := k8sClientFake.NewSimpleClientset(cr.DeepCopyObject())
+			// Verify that the PVC was created
+			if tc.existingPVC != nil {
+				pvcName := fmt.Sprintf("%s-%s-0", tc.cr.Name, tc.cr.Name)
+				_, err := k8sClient.CoreV1().PersistentVolumeClaims(tc.cr.Namespace).Get(context.TODO(), pvcName, metav1.GetOptions{})
+				assert.NoError(t, err)
+			}
 
-// 	logger := testr.New(t)
-// 	// Run the HandleRedisFinalizer function
-// 	err := HandleRedisFinalizer(ctrlFakeclient, k8sFakeClient, logger, cr)
-// 	assert.NoError(t, err)
+			err := HandleRedisFinalizer(tc.mockClient, k8sClient, logger, tc.cr)
+			if tc.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Empty(t, tc.cr.GetFinalizers())
+			}
 
-// 	// Check if the PVC was deleted
-// 	PVCName := fmt.Sprintf("%s-%s-0", cr.Name, cr.Name)
-// 	_, err = k8sFakeClient.CoreV1().PersistentVolumeClaims(cr.Namespace).Get(context.TODO(), PVCName, metav1.GetOptions{})
-// 	assert.True(t, k8serrors.IsNotFound(err))
+			// Verify that the PVC is not found in case of success or non-existent PVC
+			if !tc.expectError && tc.cr.DeletionTimestamp != nil && tc.hasFinalizers {
+				pvcName := fmt.Sprintf("%s-%s-0", tc.cr.GetName(), tc.cr.GetName())
+				_, err = k8sClient.CoreV1().PersistentVolumeClaims(tc.cr.GetNamespace()).Get(context.TODO(), pvcName, metav1.GetOptions{})
+				if tc.cr.Spec.Storage.KeepAfterDelete {
+					assert.NoError(t, err)
+				} else {
+					assert.True(t, k8serrors.IsNotFound(err))
+				}
 
-// 	// Check if the finalizer was removed
-// 	updatedCR := &v1beta2.Redis{}
-// 	err = ctrlFakeclient.Get(context.TODO(), types.NamespacedName{Namespace: "default", Name: "test-redis"}, updatedCR)
-// 	assert.NoError(t, err)
-// 	assert.NotContains(t, updatedCR.GetFinalizers(), RedisFinalizer)
-
-// 	// Ensure the logger's Error method was not called
-// 	//logger.AssertNotCalled(t, "Error", mock.Anything, mock.Anything, mock.Anything)
-// }
+			}
+		})
+	}
+}
 
 func TestFinalizeRedisPVC(t *testing.T) {
 	tests := []struct {
@@ -81,13 +190,8 @@ func TestFinalizeRedisPVC(t *testing.T) {
 			errorExpected: nil,
 		},
 		{
-			name: "PVC does not exist and no error should be returned",
-			existingPVC: &corev1.PersistentVolumeClaim{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "nonexistent",
-					Namespace: "default",
-				},
-			},
+			name:          "PVC does not exist and no error should be returned",
+			existingPVC:   nil,
 			expectError:   false,
 			errorExpected: nil,
 		},
@@ -107,6 +211,13 @@ func TestFinalizeRedisPVC(t *testing.T) {
 				k8sClient = k8sClientFake.NewSimpleClientset(tc.existingPVC.DeepCopyObject())
 			} else {
 				k8sClient = k8sClientFake.NewSimpleClientset()
+			}
+
+			// Verify that the PVC was created
+			if tc.existingPVC != nil {
+				pvcName := fmt.Sprintf("%s-%s-0", cr.Name, cr.Name)
+				_, err := k8sClient.CoreV1().PersistentVolumeClaims(cr.Namespace).Get(context.TODO(), pvcName, metav1.GetOptions{})
+				assert.NoError(t, err)
 			}
 
 			err := finalizeRedisPVC(k8sClient, logger, cr)
