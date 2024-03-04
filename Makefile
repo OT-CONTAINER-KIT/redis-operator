@@ -140,11 +140,22 @@ install-kuttl:
 	chmod +x $(shell pwd)/bin/kuttl
 
 .PHONY: e2e-kind-setup
-e2e-kind-setup: 
+e2e-kind-setup:
 	docker build -t redis-operator:e2e -f Dockerfile .
 	kind create cluster --config tests/_config/kind-config.yaml
 	kind load docker-image redis-operator:e2e --name kind
 	make deploy IMG=redis-operator:e2e
+
+
+########
+# TEST #
+########
+
+.PHONY: unit-tests
+unit-tests:
+	@echo Running tests... >&2
+	@go test ./... -race -coverprofile=coverage.out -covermode=atomic
+	@go tool cover -html=coverage.out
 
 .PHONY: e2e-test
 e2e-test: e2e-kind-setup install-kuttl
