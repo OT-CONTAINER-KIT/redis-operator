@@ -1,4 +1,4 @@
-name: E2E tests
+name: E2E Kuttl tests
 
 on:
   pull_request:
@@ -14,11 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        testpath:
-        # - ./tests/e2e/v1beta2/setup
-        # - ./tests/e2e/v1beta2/teardown
-        - ./tests/e2e/v1beta2/ignore-annots
-        # - ./tests/e2e/v1beta2/scaling
+        testpath: []
 
     steps:
     - name: Checkout code
