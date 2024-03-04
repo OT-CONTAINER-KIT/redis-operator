@@ -97,7 +97,7 @@ spec:
           check:
             ($stdout=='[OK] All 16384 slots covered.'): true
 
-  - name: Try saving a key Without Password
+  - name: Try saving a key With Password
     try:
      - script:
          timeout: 30s
