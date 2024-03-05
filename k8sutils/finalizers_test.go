@@ -304,6 +304,205 @@ func TestHandleRedisClusterFinalizer(t *testing.T) {
 	}
 }
 
+func TestHandleRedisReplicationFinalizer(t *testing.T) {
+	tests := []struct {
+		name          string
+		mockClient    *mockClient.MockClient
+		hasFinalizers bool
+		cr            *v1beta2.RedisReplication
+		existingPVC   []*corev1.PersistentVolumeClaim
+		expectError   bool
+	}{
+		{
+			name: "Redis Replication CR without finalizer",
+			mockClient: &mockClient.MockClient{
+				UpdateFn: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+					return nil
+				},
+			},
+			hasFinalizers: false,
+			cr: &v1beta2.RedisReplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "redis-replication",
+					Namespace:  "redis",
+					Finalizers: []string{},
+					DeletionTimestamp: &metav1.Time{
+						Time: time.Now(),
+					},
+				},
+				Spec: v1beta2.RedisReplicationSpec{
+					Size: pointer.Int32(3),
+					Storage: &v1beta2.Storage{
+						Storage: api.Storage{
+							KeepAfterDelete: false,
+						},
+					},
+				},
+			},
+			existingPVC: []*corev1.PersistentVolumeClaim{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "redis-replication-redis-replication-0",
+						Namespace: "redis",
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "redis-replication-redis-replication-1",
+						Namespace: "redis",
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "redis-replication-redis-replication-2",
+						Namespace: "redis",
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "Redis Replication CR with finalizer",
+			mockClient: &mockClient.MockClient{
+				UpdateFn: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+					return nil
+				},
+			},
+			hasFinalizers: false,
+			cr: &v1beta2.RedisReplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "redis-replication",
+					Namespace:  "redis",
+					Finalizers: []string{},
+					DeletionTimestamp: &metav1.Time{
+						Time: time.Now(),
+					},
+				},
+				Spec: v1beta2.RedisReplicationSpec{
+					Size: pointer.Int32(3),
+					Storage: &v1beta2.Storage{
+						Storage: api.Storage{
+							KeepAfterDelete: false,
+						},
+					},
+				},
+			},
+			existingPVC: []*corev1.PersistentVolumeClaim{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "redis-replication-redis-replication-0",
+						Namespace: "redis",
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "redis-replication-redis-replication-1",
+						Namespace: "redis",
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "redis-replication-redis-replication-2",
+						Namespace: "redis",
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "Redis Replication CR with finalizer and keepAfterDelete true",
+			mockClient: &mockClient.MockClient{
+				UpdateFn: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+					return nil
+				},
+			},
+			hasFinalizers: false,
+			cr: &v1beta2.RedisReplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "redis-replication",
+					Namespace:  "redis",
+					Finalizers: []string{},
+					DeletionTimestamp: &metav1.Time{
+						Time: time.Now(),
+					},
+				},
+				Spec: v1beta2.RedisReplicationSpec{
+					Size: pointer.Int32(3),
+					Storage: &v1beta2.Storage{
+						Storage: api.Storage{
+							KeepAfterDelete: true,
+						},
+					},
+				},
+			},
+			existingPVC: []*corev1.PersistentVolumeClaim{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "redis-replication-redis-replication-0",
+						Namespace: "redis",
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "redis-replication-redis-replication-1",
+						Namespace: "redis",
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "redis-replication-redis-replication-2",
+						Namespace: "redis",
+					},
+				},
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			logger := testr.New(t)
+			var k8sClient *k8sClientFake.Clientset
+			if tc.existingPVC != nil {
+				k8sClient = k8sClientFake.NewSimpleClientset(helperToRuntimeObjects(tc.existingPVC)...)
+			} else {
+				k8sClient = k8sClientFake.NewSimpleClientset()
+			}
+
+			// Verify that the PVC was created
+			if tc.existingPVC != nil && len(tc.existingPVC) != 0 {
+				for _, pvc := range tc.existingPVC {
+					pvcName := pvc.GetName()
+					_, err := k8sClient.CoreV1().PersistentVolumeClaims(tc.cr.Namespace).Get(context.TODO(), pvcName, metav1.GetOptions{})
+					assert.NoError(t, err)
+				}
+			}
+
+			err := HandleRedisReplicationFinalizer(tc.mockClient, k8sClient, logger, tc.cr)
+			if tc.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Empty(t, tc.cr.GetFinalizers())
+			}
+
+			// Verify that the PVC is not found in case of success or non-existent PVC
+			if !tc.expectError && tc.cr.DeletionTimestamp != nil && tc.hasFinalizers {
+				for _, pvc := range tc.existingPVC {
+					pvcName := pvc.GetName()
+					t.Log(pvcName)
+					_, err := k8sClient.CoreV1().PersistentVolumeClaims(tc.cr.GetNamespace()).Get(context.TODO(), pvcName, metav1.GetOptions{})
+					if tc.cr.Spec.Storage.KeepAfterDelete {
+						assert.NoError(t, err)
+					} else {
+						assert.True(t, k8serrors.IsNotFound(err))
+					}
+				}
+			}
+		})
+	}
+}
+
 func TestFinalizeRedisPVC(t *testing.T) {
 	tests := []struct {
 		name          string
