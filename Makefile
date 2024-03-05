@@ -134,17 +134,19 @@ verify-codegen: codegen
 	@echo 'To correct this, locally run "make codegen", commit the changes, and re-run tests.' >&2
 	@git diff --quiet --exit-code -- .
 
-.PHONY: install-kuttl
-install-kuttl:
-	curl -L https://github.com/kudobuilder/kuttl/releases/download/v0.15.0/kubectl-kuttl_0.15.0_linux_x86_64 -o $(shell pwd)/bin/kuttl
-	chmod +x $(shell pwd)/bin/kuttl
 
-.PHONY: e2e-kind-setup
-e2e-kind-setup: 
-	docker build -t redis-operator:e2e -f Dockerfile .
-	kind create cluster --config tests/_config/kind-config.yaml
-	kind load docker-image redis-operator:e2e --name kind
-	make deploy IMG=redis-operator:e2e
+########
+# TEST #
+########
+
+.PHONY: tests
+tests: integration-test-setup unit-tests
+
+.PHONY: unit-tests
+unit-tests:
+	@echo Running tests... >&2
+	@go test ./... -race -coverprofile=coverage.out -covermode=atomic
+	@go tool cover -html=coverage.out
 
 .PHONY: e2e-test
 e2e-test: e2e-kind-setup install-kuttl
@@ -153,3 +155,16 @@ e2e-test: e2e-kind-setup install-kuttl
 .PHONY: integration-test-setup
 integration-test-setup:
 	./hack/integrationSetup.sh
+
+
+.PHONY: install-kuttl
+install-kuttl:
+	curl -L https://github.com/kudobuilder/kuttl/releases/download/v0.15.0/kubectl-kuttl_0.15.0_linux_x86_64 -o $(shell pwd)/bin/kuttl
+	chmod +x $(shell pwd)/bin/kuttl
+
+.PHONY: e2e-kind-setup
+e2e-kind-setup:
+	docker build -t redis-operator:e2e -f Dockerfile .
+	kind create cluster --config tests/_config/kind-config.yaml
+	kind load docker-image redis-operator:e2e --name kind
+	make deploy IMG=redis-operator:e2e
