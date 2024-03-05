@@ -21,12 +21,6 @@ const (
 	RedisSentinelFinalizer    string = "redisSentinelFinalizer"
 )
 
-// finalizeLogger will generate logging interface
-func finalizerLogger(namespace string, name string) logr.Logger {
-	reqLogger := log.WithValues("Request.Service.Namespace", namespace, "Request.Finalizer.Name", name)
-	return reqLogger
-}
-
 // HandleRedisFinalizer finalize resource if instance is marked to be deleted
 func HandleRedisFinalizer(ctrlclient client.Client, k8sClient kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.Redis) error {
 	if cr.GetDeletionTimestamp() != nil {
