@@ -333,6 +333,97 @@ func Test_createService(t *testing.T) {
 	}
 }
 
+func Test_updateService(t *testing.T) {
+	tests := []struct {
+		name              string
+		serviceName       string
+		servinceNamespace string
+		current           *corev1.Service
+		updated           *corev1.Service
+		wantErr           bool
+	}{
+		{
+			name:              "Service updated successfully",
+			serviceName:       "test-service",
+			servinceNamespace: "test-namespace",
+			current: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service",
+					Namespace: "test-namespace",
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{
+							Name:       "test-port",
+							Port:       6379,
+							TargetPort: intstr.FromInt(6379),
+							Protocol:   corev1.ProtocolTCP,
+						},
+					},
+				},
+			},
+			updated: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service",
+					Namespace: "test-namespace",
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{
+							Name:       "fake-port",
+							Port:       6380,
+							TargetPort: intstr.FromInt(6380),
+							Protocol:   corev1.ProtocolUDP,
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:              "Service does not exist",
+			serviceName:       "test-service",
+			servinceNamespace: "test-namespace",
+			current:           &corev1.Service{},
+			updated: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service",
+					Namespace: "test-namespace",
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{
+							Name:       "fake-port",
+							Port:       6380,
+							TargetPort: intstr.FromInt(6380),
+							Protocol:   corev1.ProtocolUDP,
+						},
+					},
+				},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			logger := testr.New(t)
+			k8sClient := k8sClientFake.NewSimpleClientset(tt.current.DeepCopyObject())
+
+			err := updateService(k8sClient, logger, tt.servinceNamespace, tt.updated)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				// Verify the service was updated
+				got, err := k8sClient.CoreV1().Services(tt.servinceNamespace).Get(context.TODO(), tt.serviceName, metav1.GetOptions{})
+				assert.NoError(t, err)
+				assert.Equal(t, tt.updated, got)
+			}
+		})
+	}
+}
+
 func Test_getService(t *testing.T) {
 	tests := []struct {
 		name    string

@@ -105,9 +105,8 @@ func createService(kusClient kubernetes.Interface, logger logr.Logger, namespace
 }
 
 // updateService is a method to update service is Kubernetes
-func updateService(namespace string, service *corev1.Service, cl kubernetes.Interface) error {
-	logger := serviceLogger(namespace, service.Name)
-	_, err := cl.CoreV1().Services(namespace).Update(context.TODO(), service, metav1.UpdateOptions{})
+func updateService(k8sClient kubernetes.Interface, logger logr.Logger, namespace string, service *corev1.Service) error {
+	_, err := k8sClient.CoreV1().Services(namespace).Update(context.TODO(), service, metav1.UpdateOptions{})
 	if err != nil {
 		logger.Error(err, "Redis service update failed")
 		return err
@@ -186,7 +185,7 @@ func patchService(storedService *corev1.Service, newService *corev1.Service, nam
 			return err
 		}
 		logger.V(1).Info("Syncing Redis service with defined properties")
-		return updateService(namespace, newService, cl)
+		return updateService(cl, logger, namespace, newService)
 	}
 	logger.V(1).Info("Redis service is already in-sync")
 	return nil
