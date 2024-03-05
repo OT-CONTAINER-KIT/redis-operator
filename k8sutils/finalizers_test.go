@@ -373,7 +373,7 @@ func TestHandleRedisReplicationFinalizer(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "redis-replication",
 					Namespace:  "redis",
-					Finalizers: []string{},
+					Finalizers: []string{RedisReplicationFinalizer},
 					DeletionTimestamp: &metav1.Time{
 						Time: time.Now(),
 					},
@@ -421,7 +421,7 @@ func TestHandleRedisReplicationFinalizer(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "redis-replication",
 					Namespace:  "redis",
-					Finalizers: []string{},
+					Finalizers: []string{RedisReplicationFinalizer},
 					DeletionTimestamp: &metav1.Time{
 						Time: time.Now(),
 					},
