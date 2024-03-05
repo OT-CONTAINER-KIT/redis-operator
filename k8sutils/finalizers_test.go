@@ -503,6 +503,72 @@ func TestHandleRedisReplicationFinalizer(t *testing.T) {
 	}
 }
 
+func TestHandleRedisSentinelFinalizer(t *testing.T) {
+	tests := []struct {
+		name          string
+		mockClient    *mockClient.MockClient
+		hasFinalizers bool
+		cr            *v1beta2.RedisSentinel
+		expectError   bool
+	}{
+		{
+			name: "Redis Sentinel CR without finalizer",
+			mockClient: &mockClient.MockClient{
+				UpdateFn: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+					return nil
+				},
+			},
+			hasFinalizers: false,
+			cr: &v1beta2.RedisSentinel{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "redis-sentinel",
+					Namespace:  "default",
+					Finalizers: []string{},
+					DeletionTimestamp: &metav1.Time{
+						Time: time.Now(),
+					},
+				},
+				Spec: v1beta2.RedisSentinelSpec{},
+			},
+			expectError: false,
+		},
+		{
+			name: "Redis Sentinel CR with finalizer",
+			mockClient: &mockClient.MockClient{
+				UpdateFn: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+					return nil
+				},
+			},
+			hasFinalizers: false,
+			cr: &v1beta2.RedisSentinel{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "redis-sentinel",
+					Namespace:  "default",
+					Finalizers: []string{RedisSentinelFinalizer},
+					DeletionTimestamp: &metav1.Time{
+						Time: time.Now(),
+					},
+				},
+				Spec: v1beta2.RedisSentinelSpec{},
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			logger := testr.New(t)
+			err := HandleRedisSentinelFinalizer(tc.mockClient, logger, tc.cr)
+			if tc.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Empty(t, tc.cr.GetFinalizers())
+			}
+		})
+	}
+}
+
 func TestFinalizeRedisPVC(t *testing.T) {
 	tests := []struct {
 		name          string
