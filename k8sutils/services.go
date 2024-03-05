@@ -118,12 +118,11 @@ func updateService(namespace string, service *corev1.Service, cl kubernetes.Inte
 }
 
 // getService is a method to get service is Kubernetes
-func getService(namespace string, service string, cl kubernetes.Interface) (*corev1.Service, error) {
-	logger := serviceLogger(namespace, service)
+func getService(k8sClient kubernetes.Interface, logger logr.Logger, namespace string, name string) (*corev1.Service, error) {
 	getOpts := metav1.GetOptions{
 		TypeMeta: generateMetaInformation("Service", "v1"),
 	}
-	serviceInfo, err := cl.CoreV1().Services(namespace).Get(context.TODO(), service, getOpts)
+	serviceInfo, err := k8sClient.CoreV1().Services(namespace).Get(context.TODO(), name, getOpts)
 	if err != nil {
 		logger.V(1).Info("Redis service get action is failed")
 		return nil, err
@@ -141,7 +140,7 @@ func serviceLogger(namespace string, name string) logr.Logger {
 func CreateOrUpdateService(namespace string, serviceMeta metav1.ObjectMeta, ownerDef metav1.OwnerReference, epp exporterPortProvider, headless bool, serviceType string, port int, cl kubernetes.Interface, extra ...corev1.ServicePort) error {
 	logger := serviceLogger(namespace, serviceMeta.Name)
 	serviceDef := generateServiceDef(serviceMeta, epp, ownerDef, headless, serviceType, port, extra...)
-	storedService, err := getService(namespace, serviceMeta.Name, cl)
+	storedService, err := getService(cl, logger, namespace, serviceMeta.GetName())
 	if err != nil {
 		if errors.IsNotFound(err) {
 			if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(serviceDef); err != nil { //nolint

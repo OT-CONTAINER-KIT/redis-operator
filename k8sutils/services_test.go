@@ -3,10 +3,12 @@ package k8sutils
 import (
 	"testing"
 
+	"github.com/go-logr/logr/testr"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	k8sClientFake "k8s.io/client-go/kubernetes/fake"
 )
 
 var defaultExporterPortProvider exporterPortProvider = func() (int, bool) {
@@ -272,6 +274,61 @@ func TestGenerateServiceType(t *testing.T) {
 			actualType := generateServiceType(tt.serviceType)
 			if actualType != tt.expectedType {
 				t.Errorf("Expected service type %v, but got %v", tt.expectedType, actualType)
+			}
+		})
+	}
+}
+
+func Test_getService(t *testing.T) {
+	tests := []struct {
+		name    string
+		have    *corev1.Service
+		want    *corev1.Service
+		wantErr bool
+	}{
+		{
+			name: "Service exists",
+			have: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service",
+					Namespace: "test-namespace",
+				},
+			},
+			want: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service",
+					Namespace: "test-namespace",
+				},
+			},
+		},
+		{
+			name: "Service does not exist",
+			have: &corev1.Service{},
+			want: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service",
+					Namespace: "test-namespace",
+				},
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			logger := testr.New(t)
+			var k8sClient *k8sClientFake.Clientset
+			if tt.have != nil {
+				k8sClient = k8sClientFake.NewSimpleClientset(tt.have.DeepCopyObject())
+			} else {
+				k8sClient = k8sClientFake.NewSimpleClientset()
+			}
+
+			got, err := getService(k8sClient, logger, tt.want.GetNamespace(), tt.want.GetName())
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, got)
 			}
 		})
 	}
