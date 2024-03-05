@@ -1,6 +1,7 @@
 package k8sutils
 
 import (
+	"context"
 	"testing"
 
 	"github.com/go-logr/logr/testr"
@@ -274,6 +275,59 @@ func TestGenerateServiceType(t *testing.T) {
 			actualType := generateServiceType(tt.serviceType)
 			if actualType != tt.expectedType {
 				t.Errorf("Expected service type %v, but got %v", tt.expectedType, actualType)
+			}
+		})
+	}
+}
+
+func Test_createService(t *testing.T) {
+	tests := []struct {
+		name    string
+		service *corev1.Service
+		exist   bool
+		wantErr bool
+	}{
+		{
+			name: "Service created successfully",
+			service: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service",
+					Namespace: "test-namespace",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Service creation failed already exists",
+			service: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service",
+					Namespace: "test-namespace",
+				},
+			},
+			exist:   true,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			logger := testr.New(t)
+			var k8sClient *k8sClientFake.Clientset
+			if tt.exist {
+				k8sClient = k8sClientFake.NewSimpleClientset(tt.service.DeepCopyObject())
+			} else {
+				k8sClient = k8sClientFake.NewSimpleClientset()
+			}
+
+			err := createService(k8sClient, logger, tt.service.GetNamespace(), tt.service)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				// Verify the service was created
+				got, err := k8sClient.CoreV1().Services(tt.service.GetNamespace()).Get(context.TODO(), tt.service.GetName(), metav1.GetOptions{})
+				assert.NoError(t, err)
+				assert.Equal(t, tt.service, got)
 			}
 		})
 	}

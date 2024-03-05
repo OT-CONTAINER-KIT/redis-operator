@@ -94,9 +94,8 @@ func generateServiceType(k8sServiceType string) corev1.ServiceType {
 }
 
 // createService is a method to create service is Kubernetes
-func createService(namespace string, service *corev1.Service, cl kubernetes.Interface) error {
-	logger := serviceLogger(namespace, service.Name)
-	_, err := cl.CoreV1().Services(namespace).Create(context.TODO(), service, metav1.CreateOptions{})
+func createService(kusClient kubernetes.Interface, logger logr.Logger, namespace string, service *corev1.Service) error {
+	_, err := kusClient.CoreV1().Services(namespace).Create(context.TODO(), service, metav1.CreateOptions{})
 	if err != nil {
 		logger.Error(err, "Redis service creation is failed")
 		return err
@@ -146,7 +145,7 @@ func CreateOrUpdateService(namespace string, serviceMeta metav1.ObjectMeta, owne
 			if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(serviceDef); err != nil { //nolint
 				logger.Error(err, "Unable to patch redis service with compare annotations")
 			}
-			return createService(namespace, serviceDef, cl)
+			return createService(cl, logger, namespace, serviceDef)
 		}
 		return err
 	}
