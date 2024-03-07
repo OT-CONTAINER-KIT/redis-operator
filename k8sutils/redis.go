@@ -362,7 +362,7 @@ func executeCommand(client kubernetes.Interface, logger logr.Logger, cr *redisv1
 		execOut bytes.Buffer
 		execErr bytes.Buffer
 	)
-	config, err := GenerateK8sConfig()
+	config, err := GenerateK8sConfig()()
 	if err != nil {
 		logger.Error(err, "Could not find pod to execute")
 		return
