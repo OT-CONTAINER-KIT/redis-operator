@@ -54,6 +54,7 @@ jobs:
           # Configure which scopes are allowed.
           scopes: |
             api
+            deps
             config
             client
             config
