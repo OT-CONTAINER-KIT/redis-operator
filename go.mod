@@ -3,7 +3,7 @@ module github.com/OT-CONTAINER-KIT/redis-operator
 go 1.21
 
 require (
-	github.com/banzaicloud/k8s-objectmatcher v1.7.0
+	github.com/banzaicloud/k8s-objectmatcher v1.8.0
 	github.com/go-logr/logr v1.4.1
 	github.com/onsi/ginkgo/v2 v2.16.0
 	github.com/onsi/gomega v1.31.1
