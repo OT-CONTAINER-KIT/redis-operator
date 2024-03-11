@@ -20,6 +20,7 @@ jobs:
           - ./tests/e2e-chainsaw/v1beta2/hostnetwork/
           - ./tests/e2e-chainsaw/v1beta2/password/
           - ./tests/e2e-chainsaw/v1beta2/ha-setup/
+          - ./tests/e2e-chainsaw/v1beta2/ha-failover/
           - ./tests/e2e-chainsaw/v1beta2/nodeport/
           - ./tests/e2e-chainsaw/v1beta2/pvc-name/
           - ./tests/e2e-chainsaw/v1beta2/keep-pvc/
