@@ -29,11 +29,11 @@ func GenerateK8sDynamicClient(configProvider K8sConfigProvider) (dynamic.Interfa
 }
 
 // GenerateK8sConfig will load the kube config file
-func GenerateK8sConfig() (*rest.Config, error) {
+func GenerateK8sConfig() K8sConfigProvider {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	// if you want to change the loading rules (which files in which order), you can do so here
 	configOverrides := &clientcmd.ConfigOverrides{}
 	// if you want to change override values or bind them to flags, there are methods to help you
 	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
-	return kubeConfig.ClientConfig()
+	return kubeConfig.ClientConfig
 }

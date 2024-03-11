@@ -96,13 +96,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	k8sclient, err := k8sutils.GenerateK8sClient(k8sutils.GenerateK8sConfig)
+	k8sclient, err := k8sutils.GenerateK8sClient(k8sutils.GenerateK8sConfig())
 	if err != nil {
 		setupLog.Error(err, "unable to create k8s client")
 		os.Exit(1)
 	}
 
-	dk8sClient, err := k8sutils.GenerateK8sDynamicClient(k8sutils.GenerateK8sConfig)
+	dk8sClient, err := k8sutils.GenerateK8sDynamicClient(k8sutils.GenerateK8sConfig())
 	if err != nil {
 		setupLog.Error(err, "unable to create k8s dynamic client")
 		os.Exit(1)
