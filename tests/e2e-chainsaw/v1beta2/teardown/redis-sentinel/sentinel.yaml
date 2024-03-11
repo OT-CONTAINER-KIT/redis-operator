@@ -8,8 +8,9 @@ spec:
   podSecurityContext:
     runAsUser: 1000
     fsGroup: 1000
-  redisSentinelConfig:
-    redisReplicationName : redis-replication
+   # If we specify the redisReplicationName, we should wait for the redis cluster to be ready before deploying the sentinel
+#  redisSentinelConfig:
+#    redisReplicationName : redis-replication
   kubernetesConfig:
     image: quay.io/opstree/redis-sentinel:latest
     imagePullPolicy: Always

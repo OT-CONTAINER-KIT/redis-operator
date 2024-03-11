@@ -1,10 +1,14 @@
 package k8sutils
 
 import (
+	"context"
+
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/pointer"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // CreateReplicationService method will create replication service for Redis
@@ -193,4 +197,16 @@ func generateRedisReplicationInitContainerParams(cr *redisv1beta2.RedisReplicati
 		}
 	}
 	return initcontainerProp
+}
+
+func IsRedisReplicationReady(ctx context.Context, ki kubernetes.Interface, o *client.ObjectKey) bool {
+	// statefulset name the same as the redis replication name
+	sts, err := ki.AppsV1().StatefulSets(o.Namespace).Get(ctx, o.Name, metav1.GetOptions{})
+	if err != nil {
+		return false
+	}
+	if sts.Status.ReadyReplicas != *sts.Spec.Replicas {
+		return false
+	}
+	return true
 }
