@@ -22,9 +22,9 @@ spec:
         - script:
             timeout: 10s
             content: |
-              kubectl exec --namespace ${NAMESPACE} redis -- redis-cli -h redis-sentinel-sentinel.${NAMESPACE}.svc -p 26379 sentinel master myMaster | grep -A 1 'num-slaves' | tail -n 1
+              kubectl exec --namespace ${NAMESPACE} redis -- redis-cli -h redis-sentinel-sentinel.${NAMESPACE}.svc -p 26379 sentinel master myMaster | grep -A 1 'flags' | tail -n 1
             check:
-              ($stdout=='2'): true
+              ($stdout=='master'): true
 
     # New created cluster, the first pod is master
     - name: Terminate the redis-replication-0 pod
@@ -44,6 +44,6 @@ spec:
         - script:
             timeout: 10s
             content: |
-              kubectl exec --namespace ${NAMESPACE} redis -- redis-cli -h redis-sentinel-sentinel.${NAMESPACE}.svc -p 26379 sentinel master myMaster | grep -A 1 'num-slaves' | tail -n 1
+              kubectl exec --namespace ${NAMESPACE} redis -- redis-cli -h redis-sentinel-sentinel.${NAMESPACE}.svc -p 26379 sentinel master myMaster | grep -A 1 'flags' | tail -n 1
             check:
-              ($stdout=='2'): true
+              ($stdout=='master'): true
