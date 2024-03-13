@@ -53,6 +53,18 @@ func getRedisServerIP(client kubernetes.Interface, logger logr.Logger, redisInfo
 	return redisIP
 }
 
+func getRedisServerAddress(client kubernetes.Interface, logger logr.Logger, rd RedisDetails, port int) string {
+	ip := getRedisServerIP(client, logger, rd)
+	format := "%s:%d"
+
+	// if ip is IPv6, wrap it in brackets
+	if net.ParseIP(ip).To4() == nil {
+		format = "[%s]:%d"
+	}
+
+	return fmt.Sprintf(format, ip, port)
+}
+
 // getRedisHostname will return the complete FQDN for redis
 func getRedisHostname(redisInfo RedisDetails, cr *redisv1beta2.RedisCluster, role string) string {
 	fqdn := fmt.Sprintf("%s.%s-%s-headless.%s.svc", redisInfo.PodName, cr.ObjectMeta.Name, role, cr.Namespace)
@@ -84,7 +96,7 @@ func CreateMultipleLeaderRedisCommand(client kubernetes.Interface, logger logr.L
 		if cr.Spec.ClusterVersion != nil && *cr.Spec.ClusterVersion == "v7" {
 			address = getRedisHostname(RedisDetails{PodName: podName, Namespace: cr.Namespace}, cr, "leader") + fmt.Sprintf(":%d", *cr.Spec.Port)
 		} else {
-			address = getRedisServerIP(client, logger, RedisDetails{PodName: podName, Namespace: cr.Namespace}) + fmt.Sprintf(":%d", *cr.Spec.Port)
+			address = getRedisServerAddress(client, logger, RedisDetails{PodName: podName, Namespace: cr.Namespace}, *cr.Spec.Port)
 		}
 		cmd = append(cmd, address)
 	}
@@ -143,8 +155,8 @@ func createRedisReplicationCommand(client kubernetes.Interface, logger logr.Logg
 		followerAddress = getRedisHostname(followerPod, cr, "follower") + fmt.Sprintf(":%d", *cr.Spec.Port)
 		leaderAddress = getRedisHostname(leaderPod, cr, "leader") + fmt.Sprintf(":%d", *cr.Spec.Port)
 	} else {
-		followerAddress = getRedisServerIP(client, logger, followerPod) + fmt.Sprintf(":%d", *cr.Spec.Port)
-		leaderAddress = getRedisServerIP(client, logger, leaderPod) + fmt.Sprintf(":%d", *cr.Spec.Port)
+		followerAddress = getRedisServerAddress(client, logger, followerPod, *cr.Spec.Port)
+		leaderAddress = getRedisServerAddress(client, logger, leaderPod, *cr.Spec.Port)
 	}
 
 	cmd = append(cmd, followerAddress, leaderAddress, "--cluster-slave")
@@ -339,14 +351,14 @@ func configureRedisClient(client kubernetes.Interface, logger logr.Logger, cr *r
 			logger.Error(err, "Error in getting redis password")
 		}
 		redisClient = redis.NewClient(&redis.Options{
-			Addr:      getRedisServerIP(client, logger, redisInfo) + fmt.Sprintf(":%d", *cr.Spec.Port),
+			Addr:      getRedisServerAddress(client, logger, redisInfo, *cr.Spec.Port),
 			Password:  pass,
 			DB:        0,
 			TLSConfig: getRedisTLSConfig(client, logger, cr, redisInfo),
 		})
 	} else {
 		redisClient = redis.NewClient(&redis.Options{
-			Addr:      getRedisServerIP(client, logger, redisInfo) + fmt.Sprintf(":%d", *cr.Spec.Port),
+			Addr:      getRedisServerAddress(client, logger, redisInfo, *cr.Spec.Port),
 			Password:  "",
 			DB:        0,
 			TLSConfig: getRedisTLSConfig(client, logger, cr, redisInfo),
@@ -458,14 +470,14 @@ func configureRedisReplicationClient(client kubernetes.Interface, logger logr.Lo
 			logger.Error(err, "Error in getting redis password")
 		}
 		redisClient = redis.NewClient(&redis.Options{
-			Addr:      getRedisServerIP(client, logger, redisInfo) + ":6379",
+			Addr:      getRedisServerAddress(client, logger, redisInfo, 6379),
 			Password:  pass,
 			DB:        0,
 			TLSConfig: getRedisReplicationTLSConfig(client, logger, cr, redisInfo),
 		})
 	} else {
 		redisClient = redis.NewClient(&redis.Options{
-			Addr:      getRedisServerIP(client, logger, redisInfo) + ":6379",
+			Addr:      getRedisServerAddress(client, logger, redisInfo, 6379),
 			Password:  "",
 			DB:        0,
 			TLSConfig: getRedisReplicationTLSConfig(client, logger, cr, redisInfo),
