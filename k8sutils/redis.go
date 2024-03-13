@@ -47,7 +47,6 @@ func getRedisServerIP(client kubernetes.Interface, logger logr.Logger, redisInfo
 	// If we're NOT IPv4, assume we're IPv6..
 	if net.ParseIP(redisIP).To4() == nil {
 		logger.V(1).Info("Redis is using IPv6", "ip", redisIP)
-		redisIP = fmt.Sprintf("[%s]", redisIP)
 	}
 
 	logger.V(1).Info("Successfully got the IP for Redis", "ip", redisIP)
