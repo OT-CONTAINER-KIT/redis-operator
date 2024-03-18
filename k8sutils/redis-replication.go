@@ -5,10 +5,10 @@ import (
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/go-logr/logr"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/pointer"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // CreateReplicationService method will create replication service for Redis
@@ -199,13 +199,19 @@ func generateRedisReplicationInitContainerParams(cr *redisv1beta2.RedisReplicati
 	return initcontainerProp
 }
 
-func IsRedisReplicationReady(ctx context.Context, ki kubernetes.Interface, o *client.ObjectKey) bool {
+func IsRedisReplicationReady(ctx context.Context, logger logr.Logger, ki kubernetes.Interface, di dynamic.Interface, rs *redisv1beta2.RedisSentinel) bool {
 	// statefulset name the same as the redis replication name
-	sts, err := ki.AppsV1().StatefulSets(o.Namespace).Get(ctx, o.Name, metav1.GetOptions{})
+	sts, err := GetStatefulSet(rs.Namespace, rs.Spec.RedisSentinelConfig.RedisReplicationName, ki)
 	if err != nil {
 		return false
 	}
 	if sts.Status.ReadyReplicas != *sts.Spec.Replicas {
+		return false
+	}
+	// Enhanced check: When the pod is ready, it may not have been
+	// created as part of a replication cluster, so we should verify
+	// whether there is an actual master node.
+	if master := getRedisReplicationMasterIP(ctx, ki, logger, rs, di); master == "" {
 		return false
 	}
 	return true

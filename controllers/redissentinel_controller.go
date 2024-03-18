@@ -43,10 +43,7 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 	}
 
-	if instance.Spec.RedisSentinelConfig != nil && !k8sutils.IsRedisReplicationReady(ctx, r.K8sClient, &client.ObjectKey{
-		Namespace: instance.Namespace,
-		Name:      instance.Spec.RedisSentinelConfig.RedisReplicationName,
-	}) {
+	if instance.Spec.RedisSentinelConfig != nil && !k8sutils.IsRedisReplicationReady(ctx, reqLogger, r.K8sClient, r.Dk8sClient, instance) {
 		reqLogger.Info("Redis Replication is specified but not ready, so will reconcile again in 10 seconds")
 		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 	}
@@ -79,8 +76,8 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
-	reqLogger.Info("Will reconcile redis operator in again 10 seconds")
-	return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+	reqLogger.Info("Will reconcile after 600 seconds")
+	return ctrl.Result{RequeueAfter: time.Second * 600}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

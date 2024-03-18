@@ -1,0 +1,49 @@
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: redis-ha-failover
+spec:
+  steps:
+    - try:
+        - apply:
+            file: replication.yaml
+        - apply:
+            file: sentinel.yaml
+        - create:
+            file: cli-pod.yaml
+
+    - name: Sleep for 3 minutes
+      try:
+        - sleep:
+            duration: 3m
+
+    - name: Test sentinel monitoring
+      try:
+        - script:
+            timeout: 10s
+            content: |
+              kubectl exec --namespace ${NAMESPACE} redis -- redis-cli -h redis-sentinel-sentinel.${NAMESPACE}.svc -p 26379 sentinel master myMaster | grep -A 1 'flags' | tail -n 1
+            check:
+              ($stdout=='master'): true
+
+    # New created cluster, the first pod is master
+    - name: Terminate the redis-replication-0 pod
+      try:
+        - script:
+            timeout: 10s
+            content: |
+              kubectl --namespace ${NAMESPACE} delete pod redis-replication-0
+
+    - name: Sleep for 3 minutes
+      try:
+        - sleep:
+            duration: 3m
+
+    - name: Test sentinel monitoring
+      try:
+        - script:
+            timeout: 10s
+            content: |
+              kubectl exec --namespace ${NAMESPACE} redis -- redis-cli -h redis-sentinel-sentinel.${NAMESPACE}.svc -p 26379 sentinel master myMaster | grep -A 1 'flags' | tail -n 1
+            check:
+              ($stdout=='master'): true
