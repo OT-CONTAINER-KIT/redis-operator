@@ -90,7 +90,7 @@ func TestGetRedisServerIP(t *testing.T) {
 				PodName:   "redis-pod",
 				Namespace: "default",
 			},
-			expectedIP:  "[2001:0db8:85a3:0000:0000:8a2e:0370:7334]",
+			expectedIP:  "2001:0db8:85a3:0000:0000:8a2e:0370:7334",
 			expectEmpty: false,
 		},
 		{
@@ -136,6 +136,71 @@ func TestGetRedisServerIP(t *testing.T) {
 				assert.Empty(t, redisIP, "Expected an empty IP address")
 			} else {
 				assert.Equal(t, tt.expectedIP, redisIP, "Expected and actual IP do not match")
+			}
+		})
+	}
+}
+
+func TestGetRedisServerAddress(t *testing.T) {
+	tests := []struct {
+		name         string
+		setup        func() *k8sClientFake.Clientset
+		redisInfo    RedisDetails
+		expectedAddr string
+		expectEmpty  bool
+	}{
+		{
+			name: "Successfully retrieve IPv4 URI",
+			setup: func() *k8sClientFake.Clientset {
+				return k8sClientFake.NewSimpleClientset(&corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "redis-pod",
+						Namespace: "default",
+					},
+					Status: corev1.PodStatus{
+						PodIP: "192.168.1.1",
+					},
+				})
+			},
+			redisInfo: RedisDetails{
+				PodName:   "redis-pod",
+				Namespace: "default",
+			},
+			expectedAddr: "192.168.1.1:6379",
+			expectEmpty:  false,
+		},
+		{
+			name: "Successfully retrieve IPv6 URI",
+			setup: func() *k8sClientFake.Clientset {
+				return k8sClientFake.NewSimpleClientset(&corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "redis-pod",
+						Namespace: "default",
+					},
+					Status: corev1.PodStatus{
+						PodIP: "2001:0db8:85a3:0000:0000:8a2e:0370:7334",
+					},
+				})
+			},
+			redisInfo: RedisDetails{
+				PodName:   "redis-pod",
+				Namespace: "default",
+			},
+			expectedAddr: "[2001:0db8:85a3:0000:0000:8a2e:0370:7334]:6379",
+			expectEmpty:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := tt.setup()
+			logger := testr.New(t)
+			redisIP := getRedisServerAddress(client, logger, tt.redisInfo, 6379)
+
+			if tt.expectEmpty {
+				assert.Empty(t, redisIP, "Expected an empty address")
+			} else {
+				assert.Equal(t, tt.expectedAddr, redisIP, "Expected and actual address do not match")
 			}
 		})
 	}

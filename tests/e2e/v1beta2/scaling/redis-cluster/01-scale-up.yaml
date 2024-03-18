@@ -1,7 +1,0 @@
-apiVersion: kuttl.dev/v1beta1
-kind: TestStep
-apply : 
-  - cluster-scale-up.yaml
-assert :
-  - ready-cluster-scale-up.yaml
-  - ready-sts-scale-up.yaml

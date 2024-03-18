@@ -1,8 +1,0 @@
-apiVersion: kuttl.dev/v1beta1
-kind: TestStep
-apply:
-  - replication.yaml
-assert:
-  - ready-sts.yaml
-  - ready-pvc.yaml
-  - ready-svc.yaml

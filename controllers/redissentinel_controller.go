@@ -43,10 +43,18 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 	}
 
+	if instance.Spec.RedisSentinelConfig != nil && !k8sutils.IsRedisReplicationReady(ctx, r.K8sClient, &client.ObjectKey{
+		Namespace: instance.Namespace,
+		Name:      instance.Spec.RedisSentinelConfig.RedisReplicationName,
+	}) {
+		reqLogger.Info("Redis Replication is specified but not ready, so will reconcile again in 10 seconds")
+		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+	}
+
 	// Get total Sentinel Replicas
 	// sentinelReplicas := instance.Spec.GetSentinelCounts("sentinel")
 
-	if err = k8sutils.HandleRedisSentinelFinalizer(instance, r.Client); err != nil {
+	if err = k8sutils.HandleRedisSentinelFinalizer(r.Client, r.Log, instance); err != nil {
 		return ctrl.Result{RequeueAfter: time.Second * 60}, err
 	}
 

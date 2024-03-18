@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: redis-sentinel-teardown
+spec:
+  steps:
+    - name: redis-sentinel-install
+      description: Install Redis Sentinel
+      try:
+        - apply:
+            file: sentinel.yaml
+        - assert:
+            file: ready-sts.yaml
+        - assert:
+            file: ready-svc.yaml
+
+    - name: redis-sentinel-uninstall
+      description: Uninstall Redis Sentinel
+      try:
+        - delete:
+            ref:
+              name: redis-sentinel
+              kind: RedisSentinel
+              apiVersion: redis.redis.opstreelabs.in/v1beta2
+        - error:
+            file: ready-sts.yaml
+        - error:
+            file: ready-svc.yaml
+

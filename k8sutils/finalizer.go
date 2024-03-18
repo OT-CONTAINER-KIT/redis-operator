@@ -21,12 +21,6 @@ const (
 	RedisSentinelFinalizer    string = "redisSentinelFinalizer"
 )
 
-// finalizeLogger will generate logging interface
-func finalizerLogger(namespace string, name string) logr.Logger {
-	reqLogger := log.WithValues("Request.Service.Namespace", namespace, "Request.Finalizer.Name", name)
-	return reqLogger
-}
-
 // HandleRedisFinalizer finalize resource if instance is marked to be deleted
 func HandleRedisFinalizer(ctrlclient client.Client, k8sClient kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.Redis) error {
 	if cr.GetDeletionTimestamp() != nil {
@@ -85,15 +79,14 @@ func HandleRedisReplicationFinalizer(ctrlclient client.Client, k8sClient kuberne
 }
 
 // HandleRedisSentinelFinalizer finalize resource if instance is marked to be deleted
-func HandleRedisSentinelFinalizer(cr *redisv1beta2.RedisSentinel, cl client.Client) error {
-	logger := finalizerLogger(cr.Namespace, RedisSentinelFinalizer)
+func HandleRedisSentinelFinalizer(ctrlclient client.Client, logger logr.Logger, cr *redisv1beta2.RedisSentinel) error {
 	if cr.GetDeletionTimestamp() != nil {
 		if controllerutil.ContainsFinalizer(cr, RedisSentinelFinalizer) {
 			if err := finalizeRedisSentinelPVC(cr); err != nil {
 				return err
 			}
 			controllerutil.RemoveFinalizer(cr, RedisSentinelFinalizer)
-			if err := cl.Update(context.TODO(), cr); err != nil {
+			if err := ctrlclient.Update(context.TODO(), cr); err != nil {
 				logger.Error(err, "Could not remove finalizer "+RedisSentinelFinalizer)
 				return err
 			}

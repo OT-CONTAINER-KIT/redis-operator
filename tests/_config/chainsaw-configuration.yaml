@@ -3,8 +3,8 @@
 apiVersion: chainsaw.kyverno.io/v1alpha1
 kind: Configuration
 metadata:
-  name:  chainsaw-configuration
-spec: 
+  name: chainsaw-configuration
+spec:
   delayBeforeCleanup: 10s
   timeouts:
     apply: 5m
