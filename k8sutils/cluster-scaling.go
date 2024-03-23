@@ -386,6 +386,10 @@ func VerifyLeaderPod(ctx context.Context, client kubernetes.Interface, logger lo
 
 	redisClient := configureRedisClient(client, logger, cr, podName)
 	defer redisClient.Close()
+	return verifyLeaderPodInfo(ctx, redisClient, logger, podName)
+}
+
+func verifyLeaderPodInfo(ctx context.Context, redisClient *redis.Client, logger logr.Logger, podName string) bool {
 	info, err := redisClient.Info(ctx, "replication").Result()
 	if err != nil {
 		logger.Error(err, "Failed to Get the role Info of the", "redis pod", podName)
