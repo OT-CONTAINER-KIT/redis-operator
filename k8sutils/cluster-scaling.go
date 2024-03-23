@@ -86,33 +86,22 @@ func getRedisClusterSlots(ctx context.Context, client kubernetes.Interface, logg
 
 	redisClient := configureRedisClient(client, logger, cr, cr.ObjectMeta.Name+"-leader-0")
 	defer redisClient.Close()
-	redisClusterInfo, err := redisClient.ClusterNodes(ctx).Result()
+
+	redisSlots, err := redisClient.ClusterSlots(ctx).Result()
 	if err != nil {
-		logger.Error(err, "Failed to Get Cluster Info")
+		logger.Error(err, "Failed to Get Cluster Slots")
 		return ""
 	}
-
-	// Split the Redis cluster info into lines
-	lines := strings.Split(redisClusterInfo, "\n")
-	// Iterate through all lines
-	for _, line := range lines {
-		if strings.Contains(line, "master") && strings.Contains(line, "connected") { // Check if this line is a master node
-			parts := strings.Fields(line)
-			if parts[0] == nodeID { // Check if this is the node we're interested in
-				for _, conn := range parts[8:] {
-					slotRange := strings.Split(conn, "-")
-					if len(slotRange) < 2 {
-						totalSlots = totalSlots + 1
-					} else {
-						start, _ := strconv.Atoi(slotRange[0])
-						end, _ := strconv.Atoi(slotRange[1])
-						totalSlots = totalSlots + end - start + 1
-					}
-				}
+	for _, slot := range redisSlots {
+		for _, node := range slot.Nodes {
+			if node.ID == nodeID {
+				// Each slot range is a continuous block managed by the node
+				totalSlots += int(slot.End - slot.Start + 1)
 				break
 			}
 		}
 	}
+
 	logger.V(1).Info("Total cluster slots to be transferred from", "node", nodeID, "is", totalSlots)
 	return strconv.Itoa(totalSlots)
 }
