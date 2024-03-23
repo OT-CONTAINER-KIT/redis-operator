@@ -37,5 +37,3 @@ func GenerateK8sConfig() (*rest.Config, error) {
 	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
 	return kubeConfig.ClientConfig()
 }
-
-// Rnadom
