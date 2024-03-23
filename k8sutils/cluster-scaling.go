@@ -96,7 +96,7 @@ func getRedisClusterSlots(ctx context.Context, client kubernetes.Interface, logg
 		for _, node := range slot.Nodes {
 			if node.ID == nodeID {
 				// Each slot range is a continuous block managed by the node
-				totalSlots += int(slot.End - slot.Start + 1)
+				totalSlots += slot.End - slot.Start + 1
 				break
 			}
 		}
