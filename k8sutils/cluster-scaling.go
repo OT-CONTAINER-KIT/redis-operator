@@ -259,25 +259,12 @@ func AddRedisNodeToCluster(ctx context.Context, client kubernetes.Interface, log
 func getAttachedFollowerNodeIDs(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster, masterNodeID string) []string {
 	redisClient := configureRedisClient(client, logger, cr, cr.ObjectMeta.Name+"-leader-0")
 	defer redisClient.Close()
-	redisClusterInfo, err := redisClient.ClusterNodes(ctx).Result()
+
+	slaveIDs, err := redisClient.ClusterSlaves(ctx, masterNodeID).Result()
 	if err != nil {
-		logger.Error(err, "Failed to Get Cluster Info")
+		logger.Error(err, "Failed to get attached follower node IDs", "masterNodeID", masterNodeID)
 		return nil
 	}
-
-	slaveIDs := []string{}
-	// Split the Redis cluster info into lines
-	lines := strings.Split(redisClusterInfo, "\n")
-
-	for _, line := range lines {
-		if strings.Contains(line, "slave") && strings.Contains(line, "connected") {
-			parts := strings.Fields(line)
-			if len(parts) >= 3 && parts[3] == masterNodeID {
-				slaveIDs = append(slaveIDs, parts[0])
-			}
-		}
-	}
-
 	logger.V(1).Info("Slaves Nodes attached to", "node", masterNodeID, "are", slaveIDs)
 	return slaveIDs
 }
