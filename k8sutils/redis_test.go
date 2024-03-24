@@ -566,3 +566,53 @@ func Test_checkAttachedSlave(t *testing.T) {
 		})
 	}
 }
+
+func Test_checkRedisServerRole(t *testing.T) {
+	logger := logr.Discard()
+
+	tests := []struct {
+		name           string
+		podName        string
+		infoReturn     string
+		infoErr        error
+		expectedResult string
+	}{
+		{
+			name:           "redis master role",
+			podName:        "pod1",
+			infoReturn:     "master\r\n",
+			expectedResult: "master\r\n",
+		},
+		{
+			name:           "redis slave role",
+			podName:        "pod2",
+			infoReturn:     "slave\r\n",
+			expectedResult: "slave\r\n",
+		},
+		{
+			name:           "error fetching role info",
+			podName:        "pod3",
+			infoErr:        redis.ErrClosed,
+			expectedResult: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.TODO()
+			client, mock := redismock.NewClientMock()
+
+			if tt.infoErr != nil {
+				mock.ExpectInfo("replication", "role").SetErr(tt.infoErr)
+			} else {
+				mock.ExpectInfo("replication", "role").SetVal(tt.infoReturn)
+			}
+
+			role := checkRedisServerRole(ctx, client, logger, tt.podName)
+			assert.Equal(t, tt.expectedResult, role, "Test case: "+tt.name)
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Errorf("there were unmet expectations: %s", err)
+			}
+		})
+	}
+}

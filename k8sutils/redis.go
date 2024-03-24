@@ -498,7 +498,9 @@ func GetRedisNodesByRole(ctx context.Context, cl kubernetes.Interface, logger lo
 
 	for i := 0; i < int(replicas); i++ {
 		podName := statefulset.Name + "-" + strconv.Itoa(i)
-		podRole := checkRedisServerRole(ctx, cl, logger, cr, podName)
+		redisClient := configureRedisReplicationClient(cl, logger, cr, podName)
+		defer redisClient.Close()
+		podRole := checkRedisServerRole(ctx, redisClient, logger, podName)
 		if podRole == redisRole {
 			pods = append(pods, podName)
 		}
@@ -508,23 +510,12 @@ func GetRedisNodesByRole(ctx context.Context, cl kubernetes.Interface, logger lo
 }
 
 // Check the Redis Server Role i.e. master, slave and sentinel
-func checkRedisServerRole(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication, podName string) string {
-	redisClient := configureRedisReplicationClient(client, logger, cr, podName)
-	defer redisClient.Close()
-	info, err := redisClient.Info(ctx, "replication").Result()
+func checkRedisServerRole(ctx context.Context, redisClient *redis.Client, logger logr.Logger, podName string) string {
+	role, err := redisClient.Info(ctx, "replication", "role").Result()
 	if err != nil {
 		logger.Error(err, "Failed to Get the role Info of the", "redis pod", podName)
+		return ""
 	}
-
-	lines := strings.Split(info, "\r\n")
-	role := ""
-	for _, line := range lines {
-		if strings.HasPrefix(line, "role:") {
-			role = strings.TrimPrefix(line, "role:")
-			break
-		}
-	}
-
 	return role
 }
 
