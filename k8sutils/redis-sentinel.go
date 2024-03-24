@@ -324,7 +324,15 @@ func getRedisReplicationMasterIP(ctx context.Context, client kubernetes.Interfac
 	} else if len(masterPods) == 1 {
 		realMasterPod = masterPods[0]
 	} else {
-		realMasterPod = checkAttachedSlave(ctx, client, logger, &replicationInstance, masterPods)
+		for _, podName := range masterPods {
+			redisClient := configureRedisReplicationClient(client, logger, &replicationInstance, podName)
+			defer redisClient.Close()
+
+			if checkAttachedSlave(ctx, redisClient, logger, podName) > 0 {
+				realMasterPod = podName
+				break
+			}
+		}
 	}
 
 	realMasterInfo := RedisDetails{

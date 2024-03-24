@@ -529,36 +529,28 @@ func checkRedisServerRole(ctx context.Context, client kubernetes.Interface, logg
 }
 
 // checkAttachedSlave would return redis pod name which has slave
-func checkAttachedSlave(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication, masterPods []string) string {
-	for _, podName := range masterPods {
-		connected_slaves := ""
-		redisClient := configureRedisReplicationClient(client, logger, cr, podName)
-		defer redisClient.Close()
-		info, err := redisClient.Info(ctx, "replication").Result()
-		if err != nil {
-			logger.Error(err, "Failed to Get the connected slaves Info of the", "redis pod", podName)
-		}
-
-		lines := strings.Split(info, "\r\n")
-
-		for _, line := range lines {
-			if strings.HasPrefix(line, "connected_slaves:") {
-				connected_slaves = strings.TrimPrefix(line, "connected_slaves:")
-				break
-			}
-		}
-
-		nums, _ := strconv.Atoi(connected_slaves)
-		if nums > 0 {
-			return podName
-		}
+func checkAttachedSlave(ctx context.Context, redisClient *redis.Client, logger logr.Logger, podName string) int {
+	connectedSlaves, err := redisClient.Info(ctx, "replication", "connected_slaves").Int()
+	if err != nil {
+		logger.Error(err, "Failed to get the connected slaves count of the", "redis pod", podName)
+		return -1 // For the failed connection
 	}
-	return ""
+	return connectedSlaves
 }
 
 func CreateMasterSlaveReplication(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication, masterPods []string, slavePods []string) error {
 	var realMasterPod string
-	realMasterPod = checkAttachedSlave(ctx, client, logger, cr, masterPods)
+
+	for _, podName := range masterPods {
+		redisClient := configureRedisReplicationClient(client, logger, cr, podName)
+		defer redisClient.Close()
+
+		if checkAttachedSlave(ctx, redisClient, logger, podName) > 0 {
+			realMasterPod = podName
+			break
+		}
+	}
+	// realMasterPod = checkAttachedSlave(ctx, client, logger, cr, masterPods)
 
 	if len(slavePods) < 1 {
 		realMasterPod = masterPods[0]

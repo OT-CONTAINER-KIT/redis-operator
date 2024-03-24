@@ -1,6 +1,7 @@
 package k8sutils
 
 import (
+	"context"
 	"encoding/csv"
 	"fmt"
 	"strings"
@@ -8,7 +9,10 @@ import (
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	mock_utils "github.com/OT-CONTAINER-KIT/redis-operator/mocks/utils"
+	"github.com/go-logr/logr"
 	"github.com/go-logr/logr/testr"
+	"github.com/go-redis/redismock/v9"
+	redis "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -508,6 +512,56 @@ func TestGetContainerID(t *testing.T) {
 				assert.Equal(t, test.expectedID, id, "Expected ID does not match")
 				assert.Equal(t, test.setupPod.Name, pod.GetName(), "Pod names do not match")
 				assert.Equal(t, test.setupPod.Namespace, pod.GetNamespace(), "Pod namespaces do not match")
+			}
+		})
+	}
+}
+
+func Test_checkAttachedSlave(t *testing.T) {
+	logger := logr.Discard()
+
+	tests := []struct {
+		name               string
+		podName            string
+		infoReturn         string
+		infoErr            error
+		expectedSlaveCount int
+	}{
+		{
+			name:               "no attached slaves",
+			podName:            "pod1",
+			infoReturn:         "0",
+			expectedSlaveCount: 0,
+		},
+		{
+			name:               "two attached slaves",
+			podName:            "pod2",
+			infoReturn:         "2",
+			expectedSlaveCount: 2,
+		},
+		{
+			name:               "error fetching slave info",
+			podName:            "pod3",
+			infoErr:            redis.ErrClosed,
+			expectedSlaveCount: -1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.TODO()
+			client, mock := redismock.NewClientMock()
+
+			if tt.infoErr != nil {
+				mock.ExpectInfo("replication", "connected_slaves").SetErr(tt.infoErr)
+			} else {
+				mock.ExpectInfo("replication", "connected_slaves").SetVal(tt.infoReturn)
+			}
+
+			slaveCount := checkAttachedSlave(ctx, client, logger, tt.podName)
+			assert.Equal(t, tt.expectedSlaveCount, slaveCount, "Test case: "+tt.name)
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Errorf("there were unmet expectations: %s", err)
 			}
 		})
 	}
