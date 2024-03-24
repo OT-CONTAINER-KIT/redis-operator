@@ -2,6 +2,7 @@ package k8sutils
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/go-logr/logr"
@@ -146,4 +147,83 @@ func Test_getRedisClusterSlots(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_getAttachedFollowerNodeIDs(t *testing.T) {
+	logger := logr.Discard()
+
+	tests := []struct {
+		name                 string
+		masterNodeID         string
+		slaveNodeIDs         []string
+		clusterSlavesErr     error
+		expectedslaveNodeIDs []string
+	}{
+		{
+			name:                 "successful retrieval of slave nodes",
+			masterNodeID:         "master123",
+			slaveNodeIDs:         []string{"slave1", "slave2"},
+			expectedslaveNodeIDs: []string{"slave1", "slave2"},
+		},
+		{
+			name:                 "error fetching slave nodes",
+			masterNodeID:         "master123",
+			clusterSlavesErr:     redis.ErrClosed,
+			expectedslaveNodeIDs: nil,
+		},
+		{
+			name:                 "no attached slave nodes",
+			masterNodeID:         "master456",
+			slaveNodeIDs:         []string{},
+			expectedslaveNodeIDs: []string{},
+		},
+		{
+			name:                 "nil response for slave nodes",
+			masterNodeID:         "masterNode123",
+			slaveNodeIDs:         nil,
+			expectedslaveNodeIDs: nil,
+			clusterSlavesErr:     nil,
+		},
+		{
+			name:                 "large number of attached slave nodes",
+			masterNodeID:         "master123",
+			slaveNodeIDs:         generateLargeListOfSlaves(1000), // Helper function needed
+			expectedslaveNodeIDs: generateLargeListOfSlaves(1000),
+		},
+		{
+			name:                 "invalid master node ID",
+			masterNodeID:         "invalidMasterID",
+			slaveNodeIDs:         nil,
+			expectedslaveNodeIDs: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			client, mock := redismock.NewClientMock()
+
+			if tt.clusterSlavesErr != nil {
+				mock.ExpectClusterSlaves(tt.masterNodeID).SetErr(tt.clusterSlavesErr)
+			} else {
+				mock.ExpectClusterSlaves(tt.masterNodeID).SetVal(tt.slaveNodeIDs)
+			}
+
+			result := getAttachedFollowerNodeIDs(ctx, client, logger, tt.masterNodeID)
+
+			assert.ElementsMatch(t, tt.expectedslaveNodeIDs, result, "Test case: "+tt.name)
+
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Errorf("there were unmet expectations: %s", err)
+			}
+		})
+	}
+}
+
+func generateLargeListOfSlaves(n int) []string {
+	var slaves []string
+	for i := 0; i < n; i++ {
+		slaves = append(slaves, fmt.Sprintf("slaveNode%d", i))
+	}
+	return slaves
 }

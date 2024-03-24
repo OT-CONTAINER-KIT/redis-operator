@@ -258,10 +258,7 @@ func AddRedisNodeToCluster(ctx context.Context, client kubernetes.Interface, log
 }
 
 // getAttachedFollowerNodeIDs would return a slice of redis followers attached to a redis leader
-func getAttachedFollowerNodeIDs(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster, masterNodeID string) []string {
-	redisClient := configureRedisClient(client, logger, cr, cr.ObjectMeta.Name+"-leader-0")
-	defer redisClient.Close()
-
+func getAttachedFollowerNodeIDs(ctx context.Context, redisClient *redis.Client, logger logr.Logger, masterNodeID string) []string {
 	slaveIDs, err := redisClient.ClusterSlaves(ctx, masterNodeID).Result()
 	if err != nil {
 		logger.Error(err, "Failed to get attached follower node IDs", "masterNodeID", masterNodeID)
@@ -274,6 +271,8 @@ func getAttachedFollowerNodeIDs(ctx context.Context, client kubernetes.Interface
 // Remove redis follower node would remove all follower nodes of last leader node using redis-cli
 func RemoveRedisFollowerNodesFromCluster(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster) {
 	var cmd []string
+	redisClient := configureRedisClient(client, logger, cr, cr.ObjectMeta.Name+"-leader-0")
+	defer redisClient.Close()
 	currentRedisCount := CheckRedisNodeCount(ctx, client, logger, cr, "leader")
 
 	existingPod := RedisDetails{
@@ -298,7 +297,7 @@ func RemoveRedisFollowerNodesFromCluster(ctx context.Context, client kubernetes.
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.ObjectMeta.Name+"-leader-0")...)
 
 	lastLeaderPodNodeID := getRedisNodeID(ctx, client, logger, cr, lastLeaderPod)
-	followerNodeIDs := getAttachedFollowerNodeIDs(ctx, client, logger, cr, lastLeaderPodNodeID)
+	followerNodeIDs := getAttachedFollowerNodeIDs(ctx, redisClient, logger, lastLeaderPodNodeID)
 
 	cmd = append(cmd, "--cluster", "del-node")
 	if *cr.Spec.ClusterVersion == "v7" {
