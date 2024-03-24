@@ -25,6 +25,13 @@ spec:
               kubectl exec --namespace ${NAMESPACE} redis -- redis-cli -h redis-sentinel-sentinel.${NAMESPACE}.svc -p 26379 sentinel master myMaster | grep -A 1 'flags' | tail -n 1
             check:
               ($stdout=='master'): true
+      catch:
+        - description: Redis Operator Logs
+          podLogs:
+              namespace: redis-operator-system
+              selector: control-plane=redis-operator
+              container: manager
+              tail: -1 # tail all logs
 
     # New created cluster, the first pod is master
     - name: Terminate the redis-replication-0 pod
@@ -47,3 +54,10 @@ spec:
               kubectl exec --namespace ${NAMESPACE} redis -- redis-cli -h redis-sentinel-sentinel.${NAMESPACE}.svc -p 26379 sentinel master myMaster | grep -A 1 'flags' | tail -n 1
             check:
               ($stdout=='master'): true
+      catch:
+        - description: Redis Operator Logs
+          podLogs:
+              namespace: redis-operator-system
+              selector: control-plane=redis-operator
+              container: manager
+              tail: -1 # tail all logs
