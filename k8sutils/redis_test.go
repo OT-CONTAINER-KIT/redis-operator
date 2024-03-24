@@ -553,9 +553,9 @@ func Test_checkAttachedSlave(t *testing.T) {
 			client, mock := redismock.NewClientMock()
 
 			if tt.infoErr != nil {
-				mock.ExpectInfo("replication", "connected_slaves").SetErr(tt.infoErr)
+				mock.ExpectInfo("Replication", "connected_slaves").SetErr(tt.infoErr)
 			} else {
-				mock.ExpectInfo("replication", "connected_slaves").SetVal(tt.infoReturn)
+				mock.ExpectInfo("Replication", "connected_slaves").SetVal(tt.infoReturn)
 			}
 
 			slaveCount := checkAttachedSlave(ctx, client, logger, tt.podName)
@@ -603,9 +603,9 @@ func Test_checkRedisServerRole(t *testing.T) {
 			client, mock := redismock.NewClientMock()
 
 			if tt.infoErr != nil {
-				mock.ExpectInfo("replication", "role").SetErr(tt.infoErr)
+				mock.ExpectInfo("Replication", "role").SetErr(tt.infoErr)
 			} else {
-				mock.ExpectInfo("replication", "role").SetVal(tt.infoReturn)
+				mock.ExpectInfo("Replication", "role").SetVal(tt.infoReturn)
 			}
 
 			role := checkRedisServerRole(ctx, client, logger, tt.podName)
