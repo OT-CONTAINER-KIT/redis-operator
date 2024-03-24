@@ -516,6 +516,7 @@ func checkRedisServerRole(ctx context.Context, redisClient *redis.Client, logger
 		logger.Error(err, "Failed to Get the role Info of the", "redis pod", podName)
 		return ""
 	}
+	logger.V(1).Info("Role of the Redis Pod", "pod", podName, "role", role)
 	return role
 }
 
