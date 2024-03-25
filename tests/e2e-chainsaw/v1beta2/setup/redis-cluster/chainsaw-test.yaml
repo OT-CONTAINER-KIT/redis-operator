@@ -17,6 +17,13 @@ spec:
         file: ready-svc.yaml
     - assert:
         file: ready-pvc.yaml
+    catch:
+      - description: Redis Operator Logs
+        podLogs:
+            namespace: redis-operator-system
+            selector: control-plane=redis-operator
+            container: manager
+            tail: -1 # tail all logs
 
   - name: Sleep for five minutes
     try:
@@ -128,3 +135,4 @@ spec:
           kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-2 -- redis-cli -c -p 6379 set foo-5 bar-5
          check:
           ($stdout=='OK'): true
+

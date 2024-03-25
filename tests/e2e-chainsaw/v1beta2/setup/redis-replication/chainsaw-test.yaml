@@ -15,6 +15,13 @@ spec:
         file: ready-svc.yaml
     - assert:
         file: ready-pvc.yaml
+    catch:
+      - description: Redis Operator Logs
+        podLogs:
+            namespace: redis-operator-system
+            selector: control-plane=redis-operator
+            container: manager
+            tail: -1 # tail all logs
 
   - name: Ping Replicated Cluster
     try:
