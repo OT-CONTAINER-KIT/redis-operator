@@ -86,6 +86,12 @@ func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			return ctrl.Result{RequeueAfter: time.Second * 60}, err
 		}
 	}
+
+	err = k8sutils.UpdateRoleLabelPod(ctx, r.K8sClient, r.Log, instance)
+	if err != nil {
+		return ctrl.Result{RequeueAfter: time.Second * 60}, err
+	}
+
 	reqLogger.Info("Will reconcile redis operator in again 10 seconds")
 	return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 }
