@@ -65,9 +65,10 @@ type containerParameters struct {
 	RedisExporterEnv             *[]corev1.EnvVar
 	RedisExporterPort            *int
 	Role                         string
-	EnabledPassword              *bool
+	EnableAuth                   *bool
 	SecretName                   *string
-	SecretKey                    *string
+	SecretUsernameKey            *string
+	SecretPasswordKey            *string
 	PersistenceEnabled           *bool
 	TLSConfig                    *redisv1beta2.TLSConfig
 	ACLConfig                    *redisv1beta2.ACLConfig
@@ -354,9 +355,10 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 			SecurityContext: containerParams.SecurityContext,
 			Env: getEnvironmentVariables(
 				containerParams.Role,
-				containerParams.EnabledPassword,
+				containerParams.EnableAuth,
 				containerParams.SecretName,
-				containerParams.SecretKey,
+				containerParams.SecretUsernameKey,
+				containerParams.SecretPasswordKey,
 				containerParams.PersistenceEnabled,
 				containerParams.TLSConfig,
 				containerParams.ACLConfig,
@@ -522,7 +524,20 @@ func getExporterEnvironmentVariables(params containerParameters) []corev1.EnvVar
 			Value: fmt.Sprintf("redis://localhost:%d", *params.Port),
 		})
 	}
-	if params.EnabledPassword != nil && *params.EnabledPassword {
+	if params.EnableAuth != nil && *params.EnableAuth {
+		envVars = append(envVars, corev1.EnvVar{
+			Name: "REDIS_USERNAME",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: *params.SecretName,
+					},
+					Key: *params.SecretUsernameKey,
+				},
+			},
+		})
+	}
+	if params.EnableAuth != nil && *params.EnableAuth {
 		envVars = append(envVars, corev1.EnvVar{
 			Name: "REDIS_PASSWORD",
 			ValueFrom: &corev1.EnvVarSource{
@@ -530,7 +545,7 @@ func getExporterEnvironmentVariables(params containerParameters) []corev1.EnvVar
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: *params.SecretName,
 					},
-					Key: *params.SecretKey,
+					Key: *params.SecretPasswordKey,
 				},
 			},
 		})
@@ -611,8 +626,8 @@ func getProbeInfo(probe *commonapi.Probe) *corev1.Probe {
 }
 
 // getEnvironmentVariables returns all the required Environment Variables
-func getEnvironmentVariables(role string, enabledPassword *bool, secretName *string,
-	secretKey *string, persistenceEnabled *bool, tlsConfig *redisv1beta2.TLSConfig,
+func getEnvironmentVariables(role string, enableAuth *bool, secretName *string,
+	secretUsernameKey *string, secretPasswordKey *string, persistenceEnabled *bool, tlsConfig *redisv1beta2.TLSConfig,
 	aclConfig *redisv1beta2.ACLConfig, envVar *[]corev1.EnvVar, port *int, clusterVersion *string,
 ) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
@@ -659,8 +674,20 @@ func getEnvironmentVariables(role string, enabledPassword *bool, secretName *str
 		Name:  "REDIS_ADDR",
 		Value: redisHost,
 	})
-
-	if enabledPassword != nil && *enabledPassword {
+	if enableAuth != nil && *enableAuth && secretUsernameKey != nil {
+		envVars = append(envVars, corev1.EnvVar{
+			Name: "REDIS_USERNAME",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: *secretName,
+					},
+					Key: *secretUsernameKey,
+				},
+			},
+		})
+	}
+	if enableAuth != nil && *enableAuth && secretPasswordKey != nil {
 		envVars = append(envVars, corev1.EnvVar{
 			Name: "REDIS_PASSWORD",
 			ValueFrom: &corev1.EnvVarSource{
@@ -668,7 +695,7 @@ func getEnvironmentVariables(role string, enabledPassword *bool, secretName *str
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: *secretName,
 					},
-					Key: *secretKey,
+					Key: *secretPasswordKey,
 				},
 			},
 		})

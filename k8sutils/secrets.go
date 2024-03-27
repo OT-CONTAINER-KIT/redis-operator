@@ -16,8 +16,8 @@ import (
 
 var log = logf.Log.WithName("controller_redis")
 
-// getRedisPassword method will return the redis password from the secret
-func getRedisPassword(client kubernetes.Interface, logger logr.Logger, namespace, name, secretKey string) (string, error) {
+// getKVFromSecret method will return the KV for from the secret
+func getKVFromSecret(client kubernetes.Interface, logger logr.Logger, namespace, name, secretKey string) (string, error) {
 	secretName, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		logger.Error(err, "Failed in getting existing secret for redis")

@@ -121,8 +121,17 @@ func ExecuteRedisClusterCommand(ctx context.Context, client kubernetes.Interface
 		cmd = CreateMultipleLeaderRedisCommand(client, logger, cr)
 	}
 
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+	if cr.Spec.KubernetesConfig.ExistingAuthSecret != nil {
+		username, err := getKVFromSecret(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingAuthSecret.Name, *cr.Spec.KubernetesConfig.ExistingAuthSecret.UsernameKey)
+		if err != nil {
+			logger.Error(err, "Error in getting redis username")
+		}
+		if username != "" {
+			cmd = append(cmd, "--user")
+			cmd = append(cmd, username)
+		}
+
+		pass, err := getKVFromSecret(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingAuthSecret.Name, *cr.Spec.KubernetesConfig.ExistingAuthSecret.PasswordKey)
 		if err != nil {
 			logger.Error(err, "Error in getting redis password")
 		}
@@ -161,10 +170,19 @@ func createRedisReplicationCommand(client kubernetes.Interface, logger logr.Logg
 
 	cmd = append(cmd, followerAddress, leaderAddress, "--cluster-slave")
 
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+	if cr.Spec.KubernetesConfig.ExistingAuthSecret != nil {
+		username, err := getKVFromSecret(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingAuthSecret.Name, *cr.Spec.KubernetesConfig.ExistingAuthSecret.UsernameKey)
 		if err != nil {
-			logger.Error(err, "Failed to retrieve Redis password", "Secret", *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name)
+			logger.Error(err, "Error in getting redis username")
+		}
+		if username != "" {
+			cmd = append(cmd, "--user")
+			cmd = append(cmd, username)
+		}
+
+		pass, err := getKVFromSecret(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingAuthSecret.Name, *cr.Spec.KubernetesConfig.ExistingAuthSecret.PasswordKey)
+		if err != nil {
+			logger.Error(err, "Failed to retrieve Redis password", "Secret", *cr.Spec.KubernetesConfig.ExistingAuthSecret.Name)
 		}
 		cmd = append(cmd, "-a", pass)
 	}
@@ -345,13 +363,22 @@ func configureRedisClient(client kubernetes.Interface, logger logr.Logger, cr *r
 	}
 	var redisClient *redis.Client
 
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+	if cr.Spec.KubernetesConfig.ExistingAuthSecret != nil {
+		username, err := getKVFromSecret(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingAuthSecret.Name, *cr.Spec.KubernetesConfig.ExistingAuthSecret.UsernameKey)
+		if err != nil {
+			logger.Error(err, "Error in getting redis username")
+		}
+		if username == "" {
+			username = "default"
+		}
+
+		pass, err := getKVFromSecret(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingAuthSecret.Name, *cr.Spec.KubernetesConfig.ExistingAuthSecret.PasswordKey)
 		if err != nil {
 			logger.Error(err, "Error in getting redis password")
 		}
 		redisClient = redis.NewClient(&redis.Options{
-			Addr:      getRedisServerAddress(client, logger, redisInfo, *cr.Spec.Port),
+			Addr:      getRedisServerIP(client, logger, redisInfo) + fmt.Sprintf(":%d", *cr.Spec.Port),
+			Username:  username,
 			Password:  pass,
 			DB:        0,
 			TLSConfig: getRedisTLSConfig(client, logger, cr, redisInfo),
@@ -464,13 +491,22 @@ func configureRedisReplicationClient(client kubernetes.Interface, logger logr.Lo
 	}
 	var redisClient *redis.Client
 
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+	if cr.Spec.KubernetesConfig.ExistingAuthSecret != nil {
+		username, err := getKVFromSecret(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingAuthSecret.Name, *cr.Spec.KubernetesConfig.ExistingAuthSecret.UsernameKey)
+		if err != nil {
+			logger.Error(err, "Error in getting redis username")
+		}
+		if username == "" {
+			username = "default"
+		}
+
+		pass, err := getKVFromSecret(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingAuthSecret.Name, *cr.Spec.KubernetesConfig.ExistingAuthSecret.PasswordKey)
 		if err != nil {
 			logger.Error(err, "Error in getting redis password")
 		}
 		redisClient = redis.NewClient(&redis.Options{
-			Addr:      getRedisServerAddress(client, logger, redisInfo, 6379),
+			Addr:      getRedisServerIP(client, logger, redisInfo) + ":6379",
+			Username:  username,
 			Password:  pass,
 			DB:        0,
 			TLSConfig: getRedisReplicationTLSConfig(client, logger, cr, redisInfo),

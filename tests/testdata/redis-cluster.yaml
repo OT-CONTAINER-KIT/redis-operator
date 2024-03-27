@@ -24,7 +24,8 @@ spec:
         memory: 128Mi
     redisSecret:
       name: redis-secret
-      key: password
+      username: username
+      password: password
     ignoreAnnotations:
       - "opstreelabs.in/ignore"
   podSecurityContext:
@@ -108,8 +109,13 @@ spec:
       - name: SECRET_USERNAME
         valueFrom:
           secretKeyRef:
-            name: mysecret
+            name: redis-secret
             key: username
+      - name: SECRET_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: redis-secret
+            key: password
   persistenceEnabled: true
   storage:
     nodeConfVolume: true
