@@ -24,7 +24,6 @@ type RedisSentinelReconciler struct {
 	Scheme     *runtime.Scheme
 }
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims
 func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	reqLogger := r.Log.WithValues("Request.Namespace", req.Namespace, "Request.Name", req.Name)
 	reqLogger.Info("Reconciling opstree redis controller")
