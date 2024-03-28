@@ -364,8 +364,8 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 				containerParams.Port,
 				clusterVersion,
 			),
-			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe),
-			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe),
+			ReadinessProbe: getProbeInfo(containerParams, "R"),
+			LivenessProbe:  getProbeInfo(containerParams, "L"),
 			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, clusterMode, nodeConfVolume, externalConfig, mountpath, containerParams.TLSConfig, containerParams.ACLConfig),
 		},
 	}
@@ -592,7 +592,35 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nod
 }
 
 // getProbeInfo generate probe for Redis StatefulSet
-func getProbeInfo(probe *commonapi.Probe) *corev1.Probe {
+func getProbeInfo(params containerParameters, probeType string) *corev1.Probe {
+	probePort := redisPort
+	if params.Role == "sentinel" {
+		probePort = sentinelPort
+	}
+
+	probeCommand := []string{
+		"redis-cli", "-p", strconv.Itoa(probePort),
+	}
+	if params.EnabledPassword != nil && *params.EnabledPassword {
+		probeCommand = append(probeCommand, "-a", "$(REDIS_PASSWORD)")
+	}
+	if params.TLSConfig != nil {
+		probeCommand = append(probeCommand, "--tls")
+		probeCommand = append(probeCommand, "--cacert", "$(REDIS_TLS_CA_KEY)")
+		probeCommand = append(probeCommand, "--cert", "$(REDIS_TLS_CERT)", "--key", "$(REDIS_TLS_CERT_KEY)")
+	}
+	probeCommand = append(probeCommand, "ping")
+
+	var probe *commonapi.Probe
+	switch probeType {
+	case "R":
+		probe = params.ReadinessProbe
+	case "L":
+		probe = params.LivenessProbe
+	default:
+		probe = params.LivenessProbe
+	}
+
 	return &corev1.Probe{
 		InitialDelaySeconds: probe.InitialDelaySeconds,
 		PeriodSeconds:       probe.PeriodSeconds,
@@ -601,10 +629,7 @@ func getProbeInfo(probe *commonapi.Probe) *corev1.Probe {
 		SuccessThreshold:    probe.SuccessThreshold,
 		ProbeHandler: corev1.ProbeHandler{
 			Exec: &corev1.ExecAction{
-				Command: []string{
-					"bash",
-					"/usr/bin/healthcheck.sh",
-				},
+				Command: probeCommand,
 			},
 		},
 	}
