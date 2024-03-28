@@ -7,10 +7,6 @@ import (
 	"k8s.io/utils/pointer"
 )
 
-//var (
-//	enableMetrics bool
-//)
-
 // CreateStandaloneService method will create standalone service for Redis
 func CreateStandaloneService(cr *redisv1beta2.Redis, cl kubernetes.Interface) error {
 	logger := serviceLogger(cr.Namespace, cr.ObjectMeta.Name)
