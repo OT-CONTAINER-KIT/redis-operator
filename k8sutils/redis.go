@@ -511,13 +511,21 @@ func GetRedisNodesByRole(ctx context.Context, cl kubernetes.Interface, logger lo
 
 // Check the Redis Server Role i.e. master, slave and sentinel
 func checkRedisServerRole(ctx context.Context, redisClient *redis.Client, logger logr.Logger, podName string) string {
-	role, err := redisClient.Info(ctx, "Replication", "role").Result()
+	info, err := redisClient.Info(ctx, "Replication").Result()
 	if err != nil {
 		logger.Error(err, "Failed to Get the role Info of the", "redis pod", podName)
 		return ""
 	}
-	logger.V(1).Info("Role of the Redis Pod", "pod", podName, "role", role)
-	return role
+	lines := strings.Split(info, "\r\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, "role:") {
+			role := strings.TrimPrefix(line, "role:")
+			logger.V(1).Info("Role of the Redis Pod", "pod", podName, "role", role)
+			return role
+		}
+	}
+	logger.Error(err, "Failed to find role from Info # Replication in", "redis pod", podName)
+	return ""
 }
 
 // checkAttachedSlave would return redis pod name which has slave
@@ -531,14 +539,18 @@ func checkAttachedSlave(ctx context.Context, redisClient *redis.Client, logger l
 	lines := strings.Split(info, "\r\n")
 	for _, line := range lines {
 		if strings.HasPrefix(line, "connected_slaves:") {
-			connected_slaves, err := strconv.Atoi(strings.TrimPrefix(line, "connected_slaves:"))
+			var connected_slaves int
+			connected_slaves, err = strconv.Atoi(strings.TrimPrefix(line, "connected_slaves:"))
 			if err != nil {
 				logger.Error(err, "Failed to convert the connected slaves count of the", "redis pod", podName)
 				return -1
 			}
+			logger.V(1).Info("Connected Slaves of the Redis Pod", "pod", podName, "connected_slaves", connected_slaves)
 			return connected_slaves
 		}
 	}
+
+	logger.Error(nil, "Failed to find connected_slaves from Info # Replication in", "redis pod", podName)
 	return 0
 }
 
