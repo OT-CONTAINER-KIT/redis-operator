@@ -6,8 +6,12 @@ import (
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sClientFake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/utils/pointer"
 )
 
@@ -187,6 +191,47 @@ func TestGetVolumeMount(t *testing.T) {
 }
 
 func Test_GetStatefulSet(t *testing.T) {
+	logger := logr.Discard()
+
+	tests := []struct {
+		name         string
+		sts          appsv1.StatefulSet
+		stsName      string
+		stsNamespace string
+		present      bool
+	}{
+		{
+			name: "StatefulSet present",
+			sts: appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-sts",
+					Namespace: "test-ns",
+				},
+			},
+			stsName:      "test-sts",
+			stsNamespace: "test-ns",
+			present:      true,
+		},
+		{
+			name:         "StatefulSet not present",
+			sts:          appsv1.StatefulSet{},
+			stsName:      "test-sts",
+			stsNamespace: "test-ns",
+			present:      false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := k8sClientFake.NewSimpleClientset(test.sts.DeepCopy())
+			_, err := GetStatefulSet(client, logger, test.stsNamespace, test.stsName)
+			if test.present {
+				assert.Nil(t, err)
+			} else {
+				assert.NotNil(t, err)
+			}
+		})
+	}
 }
 
 func TestGenerateTLSEnvironmentVariables(t *testing.T) {
