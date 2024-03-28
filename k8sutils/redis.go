@@ -522,13 +522,24 @@ func checkRedisServerRole(ctx context.Context, redisClient *redis.Client, logger
 
 // checkAttachedSlave would return redis pod name which has slave
 func checkAttachedSlave(ctx context.Context, redisClient *redis.Client, logger logr.Logger, podName string) int {
-	connectedSlaves, err := redisClient.Info(ctx, "Replication", "connected_slaves").Int()
+	info, err := redisClient.Info(ctx, "Replication").Result()
 	if err != nil {
 		logger.Error(err, "Failed to get the connected slaves count of the", "redis pod", podName)
-		return -1 // For the failed connection
+		return -1 // return -1 if failed to get the connected slaves count
 	}
-	logger.V(1).Info("Connected Slaves of the Redis Pod", "pod", podName, "connected_slaves", connectedSlaves)
-	return connectedSlaves
+
+	lines := strings.Split(info, "\r\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, "connected_slaves:") {
+			connected_slaves, err := strconv.Atoi(strings.TrimPrefix(line, "connected_slaves:"))
+			if err != nil {
+				logger.Error(err, "Failed to convert the connected slaves count of the", "redis pod", podName)
+				return -1
+			}
+			return connected_slaves
+		}
+	}
+	return 0
 }
 
 func CreateMasterSlaveReplication(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication, masterPods []string, slavePods []string) error {
