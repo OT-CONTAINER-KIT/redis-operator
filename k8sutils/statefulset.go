@@ -104,7 +104,7 @@ func CreateOrUpdateStateFul(cl kubernetes.Interface, logger logr.Logger, namespa
 			return err
 		}
 		if apierrors.IsNotFound(err) {
-			return createStatefulSet(namespace, statefulSetDef, cl)
+			return createStatefulSet(cl, logger, namespace, statefulSetDef)
 		}
 		return err
 	}
@@ -687,8 +687,7 @@ func getEnvironmentVariables(role string, enabledPassword *bool, secretName *str
 }
 
 // createStatefulSet is a method to create statefulset in Kubernetes
-func createStatefulSet(namespace string, stateful *appsv1.StatefulSet, cl kubernetes.Interface) error {
-	logger := statefulSetLogger(stateful.Namespace, stateful.Name)
+func createStatefulSet(cl kubernetes.Interface, logger logr.Logger, namespace string, stateful *appsv1.StatefulSet) error {
 	_, err := cl.AppsV1().StatefulSets(namespace).Create(context.TODO(), stateful, metav1.CreateOptions{})
 	if err != nil {
 		logger.Error(err, "Redis stateful creation failed")

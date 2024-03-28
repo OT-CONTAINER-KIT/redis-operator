@@ -234,6 +234,55 @@ func Test_GetStatefulSet(t *testing.T) {
 	}
 }
 
+func Test_createStatefulSet(t *testing.T) {
+	logger := logr.Discard()
+
+	tests := []struct {
+		name    string
+		sts     appsv1.StatefulSet
+		present bool
+	}{
+		{
+			name: "StatefulSet present",
+			sts: appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-sts",
+					Namespace: "test-ns",
+				},
+			},
+
+			present: true,
+		},
+		{
+			name: "StatefulSet not present",
+			sts: appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-sts",
+					Namespace: "test-ns",
+				},
+			},
+			present: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var client *k8sClientFake.Clientset
+			if test.present {
+				client = k8sClientFake.NewSimpleClientset(test.sts.DeepCopy())
+			} else {
+				client = k8sClientFake.NewSimpleClientset()
+			}
+			err := createStatefulSet(client, logger, test.sts.GetNamespace(), &test.sts)
+			if test.present {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+			}
+		})
+	}
+}
+
 func TestGenerateTLSEnvironmentVariables(t *testing.T) {
 	tlsConfig := &redisv1beta2.TLSConfig{
 		TLSConfig: common.TLSConfig{
