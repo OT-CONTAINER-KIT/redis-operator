@@ -488,7 +488,7 @@ func configureRedisReplicationClient(client kubernetes.Interface, logger logr.Lo
 
 // Get Redis nodes by it's role i.e. master, slave and sentinel
 func GetRedisNodesByRole(ctx context.Context, cl kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication, redisRole string) []string {
-	statefulset, err := GetStatefulSet(cr.Namespace, cr.Name, cl)
+	statefulset, err := GetStatefulSet(cl, logger, cr.GetNamespace(), cr.GetName())
 	if err != nil {
 		logger.Error(err, "Failed to Get the Statefulset of the", "custom resource", cr.Name, "in namespace", cr.Namespace)
 	}

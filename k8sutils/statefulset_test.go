@@ -186,6 +186,9 @@ func TestGetVolumeMount(t *testing.T) {
 	}
 }
 
+func Test_GetStatefulSet(t *testing.T) {
+}
+
 func TestGenerateTLSEnvironmentVariables(t *testing.T) {
 	tlsConfig := &redisv1beta2.TLSConfig{
 		TLSConfig: common.TLSConfig{

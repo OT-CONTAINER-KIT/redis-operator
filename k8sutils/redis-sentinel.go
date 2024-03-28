@@ -68,14 +68,15 @@ func (service RedisSentinelSTS) CreateRedisSentinelSetup(ctx context.Context, cl
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, annotations)
 	err := CreateOrUpdateStateFul(
-		cr.Namespace,
+		cl,
+		logger,
+		cr.GetNamespace(),
 		objectMetaInfo,
 		generateRedisSentinelParams(cr, service.getSentinelCount(cr), service.ExternalConfig, service.Affinity),
 		redisSentinelAsOwner(cr),
 		generateRedisSentinelInitContainerParams(cr),
 		generateRedisSentinelContainerParams(ctx, client, logger, cr, service.ReadinessProbe, service.LivenessProbe, dcl),
 		cr.Spec.Sidecars,
-		cl,
 	)
 	if err != nil {
 		logger.Error(err, "Cannot create Sentinel statefulset for Redis")

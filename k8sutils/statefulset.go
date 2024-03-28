@@ -95,9 +95,8 @@ type initContainerParameters struct {
 }
 
 // CreateOrUpdateStateFul method will create or update Redis service
-func CreateOrUpdateStateFul(namespace string, stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, initcontainerParams initContainerParameters, containerParams containerParameters, sidecars *[]redisv1beta2.Sidecar, cl kubernetes.Interface) error {
-	logger := statefulSetLogger(namespace, stsMeta.Name)
-	storedStateful, err := GetStatefulSet(namespace, stsMeta.Name, cl)
+func CreateOrUpdateStateFul(cl kubernetes.Interface, logger logr.Logger, namespace string, stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, initcontainerParams initContainerParameters, containerParams containerParameters, sidecars *[]redisv1beta2.Sidecar) error {
+	storedStateful, err := GetStatefulSet(cl, logger, namespace, stsMeta.Name)
 	statefulSetDef := generateStatefulSetsDef(stsMeta, params, ownerDef, initcontainerParams, containerParams, getSidecars(sidecars))
 	if err != nil {
 		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(statefulSetDef); err != nil { //nolint
@@ -726,12 +725,11 @@ func updateStatefulSet(namespace string, stateful *appsv1.StatefulSet, recreateS
 }
 
 // GetStateFulSet is a method to get statefulset in Kubernetes
-func GetStatefulSet(namespace string, stateful string, cl kubernetes.Interface) (*appsv1.StatefulSet, error) {
-	logger := statefulSetLogger(namespace, stateful)
+func GetStatefulSet(cl kubernetes.Interface, logger logr.Logger, namespace string, name string) (*appsv1.StatefulSet, error) {
 	getOpts := metav1.GetOptions{
 		TypeMeta: generateMetaInformation("StatefulSet", "apps/v1"),
 	}
-	statefulInfo, err := cl.AppsV1().StatefulSets(namespace).Get(context.TODO(), stateful, getOpts)
+	statefulInfo, err := cl.AppsV1().StatefulSets(namespace).Get(context.TODO(), name, getOpts)
 	if err != nil {
 		logger.V(1).Info("Redis statefulset get action failed")
 		return nil, err
