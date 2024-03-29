@@ -21,6 +21,6 @@ fi
 if [ -n "$DIR" ]; then
   echo "------------------------------"
   echo "Fixing all YAML files in the directory and its subdirectories: $DIR"
-  find "$DIR" \( -name '*.yml' -o -name '*.yaml' \) -type f -print0 | xargs -0 -P 4 -I {} yamlfix "{}"
+  find "$DIR" -type f -print0 | xargs -0 -P 4 -I {} yamlfix "{}"
   echo "yamlfix has been applied to all YAML files in $DIR and its subdirectories."
 fi
