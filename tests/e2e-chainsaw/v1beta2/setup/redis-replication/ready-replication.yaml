@@ -1,0 +1,8 @@
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisReplication
+metadata:
+  name: redis-replication
+status:
+  # by default, the first pod is being selected as master
+  masterNode: redis-replication-0
