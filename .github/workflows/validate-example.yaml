@@ -47,6 +47,6 @@ jobs:
 
     - name: Validate CR
       run: |
-        for example in $(find ./example -type f -name '*.yaml'); do
+        for example in $(find ./example -type f \( -name '*.yaml' -o -name '*.yml' \)); do
           kubectl apply --dry-run=server -f $example
         done
