@@ -8,14 +8,14 @@ import (
 // KubernetesConfig will be the JSON struct for Basic Redis Config
 // +k8s:deepcopy-gen=true
 type KubernetesConfig struct {
-	Image                  string                           `json:"image"`
-	ImagePullPolicy        corev1.PullPolicy                `json:"imagePullPolicy,omitempty"`
-	Resources              *corev1.ResourceRequirements     `json:"resources,omitempty"`
-	ExistingPasswordSecret *ExistingPasswordSecret          `json:"redisSecret,omitempty"`
-	ImagePullSecrets       *[]corev1.LocalObjectReference   `json:"imagePullSecrets,omitempty"`
-	UpdateStrategy         appsv1.StatefulSetUpdateStrategy `json:"updateStrategy,omitempty"`
-	Service                *ServiceConfig                   `json:"service,omitempty"`
-	IgnoreAnnotations      []string                         `json:"ignoreAnnotations,omitempty"`
+	Image              string                           `json:"image"`
+	ImagePullPolicy    corev1.PullPolicy                `json:"imagePullPolicy,omitempty"`
+	Resources          *corev1.ResourceRequirements     `json:"resources,omitempty"`
+	ExistingAuthSecret *ExistingAuthSecret              `json:"redisSecret,omitempty"`
+	ImagePullSecrets   *[]corev1.LocalObjectReference   `json:"imagePullSecrets,omitempty"`
+	UpdateStrategy     appsv1.StatefulSetUpdateStrategy `json:"updateStrategy,omitempty"`
+	Service            *ServiceConfig                   `json:"service,omitempty"`
+	IgnoreAnnotations  []string                         `json:"ignoreAnnotations,omitempty"`
 }
 
 // ServiceConfig define the type of service to be created and its annotations
@@ -26,11 +26,12 @@ type ServiceConfig struct {
 	ServiceAnnotations map[string]string `json:"annotations,omitempty"`
 }
 
-// ExistingPasswordSecret is the struct to access the existing secret
+// ExistingAuthSecret is the struct to access the existing secret
 // +k8s:deepcopy-gen=true
-type ExistingPasswordSecret struct {
-	Name *string `json:"name,omitempty"`
-	Key  *string `json:"key,omitempty"`
+type ExistingAuthSecret struct {
+	Name        *string `json:"name,omitempty"`
+	UsernameKey *string `json:"username,omitempty"`
+	PasswordKey *string `json:"password,omitempty"`
 }
 
 // RedisExporter interface will have the information for redis exporter related stuff
