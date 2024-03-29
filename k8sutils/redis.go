@@ -554,25 +554,7 @@ func checkAttachedSlave(ctx context.Context, redisClient *redis.Client, logger l
 	return 0
 }
 
-func CreateMasterSlaveReplication(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication, masterPods []string, slavePods []string) error {
-	var realMasterPod string
-
-	for _, podName := range masterPods {
-		redisClient := configureRedisReplicationClient(client, logger, cr, podName)
-		defer redisClient.Close()
-
-		if checkAttachedSlave(ctx, redisClient, logger, podName) > 0 {
-			realMasterPod = podName
-			break
-		}
-	}
-	// realMasterPod = checkAttachedSlave(ctx, client, logger, cr, masterPods)
-
-	if len(slavePods) < 1 {
-		realMasterPod = masterPods[0]
-		logger.V(1).Info("No Master Node Found with attached slave promoting the following pod to master", "pod", masterPods[0])
-	}
-
+func CreateMasterSlaveReplication(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication, masterPods []string, realMasterPod string) error {
 	logger.V(1).Info("Redis Master Node is set to", "pod", realMasterPod)
 	realMasterInfo := RedisDetails{
 		PodName:   realMasterPod,
@@ -595,4 +577,16 @@ func CreateMasterSlaveReplication(ctx context.Context, client kubernetes.Interfa
 	}
 
 	return nil
+}
+
+func GetRedisReplicationRealMaster(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication, masterPods []string) string {
+	for _, podName := range masterPods {
+		redisClient := configureRedisReplicationClient(client, logger, cr, podName)
+		defer redisClient.Close()
+
+		if checkAttachedSlave(ctx, redisClient, logger, podName) > 0 {
+			return podName
+		}
+	}
+	return ""
 }
