@@ -13,19 +13,19 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 func Test_generateRedisClusterParams(t *testing.T) {
 	path := filepath.Join("..", "tests", "testdata", "redis-cluster.yaml")
 
 	expectedLeaderSTS := statefulSetParameters{
-		Replicas:       pointer.Int32(3),
+		Replicas:       ptr.To(int32(3)),
 		ClusterMode:    true,
 		NodeConfVolume: true,
 		PodSecurityContext: &corev1.PodSecurityContext{
-			RunAsUser: pointer.Int64(1000),
-			FSGroup:   pointer.Int64(1000),
+			RunAsUser: ptr.To(int64(1000)),
+			FSGroup:   ptr.To(int64(1000)),
 		},
 		PriorityClassName: "high-priority",
 		Affinity: &corev1.Affinity{
@@ -59,7 +59,7 @@ func Test_generateRedisClusterParams(t *testing.T) {
 		},
 		PersistentVolumeClaim: corev1.PersistentVolumeClaim{
 			Spec: corev1.PersistentVolumeClaimSpec{
-				StorageClassName: pointer.String("standard"),
+				StorageClassName: ptr.To("standard"),
 				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				Resources: corev1.VolumeResourceRequirements{
 					Requests: corev1.ResourceList{
@@ -70,7 +70,7 @@ func Test_generateRedisClusterParams(t *testing.T) {
 		},
 		NodeConfPersistentVolumeClaim: corev1.PersistentVolumeClaim{
 			Spec: corev1.PersistentVolumeClaimSpec{
-				StorageClassName: pointer.String("standard"),
+				StorageClassName: ptr.To("standard"),
 				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				Resources: corev1.VolumeResourceRequirements{
 					Requests: corev1.ResourceList{
@@ -81,17 +81,17 @@ func Test_generateRedisClusterParams(t *testing.T) {
 		},
 		EnableMetrics:      true,
 		ImagePullSecrets:   &[]corev1.LocalObjectReference{{Name: "mysecret"}},
-		ExternalConfig:     pointer.String("redis-external-config-leader"),
-		ServiceAccountName: pointer.String("redis-sa"),
+		ExternalConfig:     ptr.To("redis-external-config-leader"),
+		ServiceAccountName: ptr.To("redis-sa"),
 		IgnoreAnnotations:  []string{"opstreelabs.in/ignore"},
 	}
 	expectedFollowerSTS := statefulSetParameters{
-		Replicas:       pointer.Int32(3),
+		Replicas:       ptr.To(int32(3)),
 		ClusterMode:    true,
 		NodeConfVolume: true,
 		PodSecurityContext: &corev1.PodSecurityContext{
-			RunAsUser: pointer.Int64(1000),
-			FSGroup:   pointer.Int64(1000),
+			RunAsUser: ptr.To(int64(1000)),
+			FSGroup:   ptr.To(int64(1000)),
 		},
 		PriorityClassName: "high-priority",
 		Affinity: &corev1.Affinity{
@@ -125,7 +125,7 @@ func Test_generateRedisClusterParams(t *testing.T) {
 		},
 		PersistentVolumeClaim: corev1.PersistentVolumeClaim{
 			Spec: corev1.PersistentVolumeClaimSpec{
-				StorageClassName: pointer.String("standard"),
+				StorageClassName: ptr.To("standard"),
 				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				Resources: corev1.VolumeResourceRequirements{
 					Requests: corev1.ResourceList{
@@ -136,7 +136,7 @@ func Test_generateRedisClusterParams(t *testing.T) {
 		},
 		NodeConfPersistentVolumeClaim: corev1.PersistentVolumeClaim{
 			Spec: corev1.PersistentVolumeClaimSpec{
-				StorageClassName: pointer.String("standard"),
+				StorageClassName: ptr.To("standard"),
 				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				Resources: corev1.VolumeResourceRequirements{
 					Requests: corev1.ResourceList{
@@ -147,8 +147,8 @@ func Test_generateRedisClusterParams(t *testing.T) {
 		},
 		EnableMetrics:      true,
 		ImagePullSecrets:   &[]corev1.LocalObjectReference{{Name: "mysecret"}},
-		ExternalConfig:     pointer.String("redis-external-config-follower"),
-		ServiceAccountName: pointer.String("redis-sa"),
+		ExternalConfig:     ptr.To("redis-external-config-follower"),
+		ServiceAccountName: ptr.To("redis-sa"),
 		IgnoreAnnotations:  []string{"opstreelabs.in/ignore"},
 	}
 
@@ -206,10 +206,10 @@ func Test_generateRedisClusterContainerParams(t *testing.T) {
 			},
 		},
 		SecurityContext: &corev1.SecurityContext{
-			RunAsUser:              pointer.Int64(1000),
-			RunAsGroup:             pointer.Int64(1000),
-			RunAsNonRoot:           pointer.Bool(true),
-			ReadOnlyRootFilesystem: pointer.Bool(true),
+			RunAsUser:              ptr.To(int64(1000)),
+			RunAsGroup:             ptr.To(int64(1000)),
+			RunAsNonRoot:           ptr.To(true),
+			ReadOnlyRootFilesystem: ptr.To(true),
 			Capabilities: &corev1.Capabilities{
 				Drop: []corev1.Capability{"ALL"},
 				Add:  []corev1.Capability{"NET_BIND_SERVICE"},
@@ -256,10 +256,10 @@ func Test_generateRedisClusterContainerParams(t *testing.T) {
 			},
 		},
 		Role:               "cluster",
-		EnabledPassword:    pointer.Bool(true),
-		SecretName:         pointer.String("redis-secret"),
-		SecretKey:          pointer.String("password"),
-		PersistenceEnabled: pointer.Bool(true),
+		EnabledPassword:    ptr.To(true),
+		SecretName:         ptr.To("redis-secret"),
+		SecretKey:          ptr.To("password"),
+		PersistenceEnabled: ptr.To(true),
 		TLSConfig: &redisv1beta2.TLSConfig{
 			TLSConfig: common.TLSConfig{
 				CaKeyFile:   "ca.key",
@@ -319,10 +319,10 @@ func Test_generateRedisClusterContainerParams(t *testing.T) {
 			},
 		},
 		SecurityContext: &corev1.SecurityContext{
-			RunAsUser:              pointer.Int64(1000),
-			RunAsGroup:             pointer.Int64(1000),
-			RunAsNonRoot:           pointer.Bool(true),
-			ReadOnlyRootFilesystem: pointer.Bool(true),
+			RunAsUser:              ptr.To(int64(1000)),
+			RunAsGroup:             ptr.To(int64(1000)),
+			RunAsNonRoot:           ptr.To(true),
+			ReadOnlyRootFilesystem: ptr.To(true),
 			Capabilities: &corev1.Capabilities{
 				Drop: []corev1.Capability{"ALL"},
 				Add:  []corev1.Capability{"NET_BIND_SERVICE"},
@@ -369,10 +369,10 @@ func Test_generateRedisClusterContainerParams(t *testing.T) {
 			},
 		},
 		Role:               "cluster",
-		EnabledPassword:    pointer.Bool(true),
-		SecretName:         pointer.String("redis-secret"),
-		SecretKey:          pointer.String("password"),
-		PersistenceEnabled: pointer.Bool(true),
+		EnabledPassword:    ptr.To(true),
+		SecretName:         ptr.To("redis-secret"),
+		SecretKey:          ptr.To("password"),
+		PersistenceEnabled: ptr.To(true),
 		TLSConfig: &redisv1beta2.TLSConfig{
 			TLSConfig: common.TLSConfig{
 				CaKeyFile:   "ca.key",
@@ -440,7 +440,7 @@ func Test_generateRedisClusterContainerParams(t *testing.T) {
 func Test_generateRedisClusterInitContainerParams(t *testing.T) {
 	path := filepath.Join("..", "tests", "testdata", "redis-cluster.yaml")
 	expected := initContainerParameters{
-		Enabled:         pointer.Bool(true),
+		Enabled:         ptr.To(true),
 		Image:           "quay.io/opstree/redis-operator-restore:latest",
 		ImagePullPolicy: corev1.PullPolicy("Always"),
 		Resources: &corev1.ResourceRequirements{
@@ -456,7 +456,7 @@ func Test_generateRedisClusterInitContainerParams(t *testing.T) {
 		Role:               "cluster",
 		Command:            []string{"/bin/bash", "-c", "/app/restore.bash"},
 		Arguments:          []string{"--restore-from", "redis-cluster-restore"},
-		PersistenceEnabled: pointer.Bool(true),
+		PersistenceEnabled: ptr.To(true),
 		AdditionalEnvVariable: &[]corev1.EnvVar{
 			{
 				Name: "CLUSTER_NAME",

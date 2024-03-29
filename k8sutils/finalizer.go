@@ -183,6 +183,7 @@ func finalizeRedisReplicationPVC(client kubernetes.Interface, logger logr.Logger
 	return nil
 }
 
+//nolint:unparam
 func finalizeRedisSentinelPVC(cr *redisv1beta2.RedisSentinel) error {
 	return nil
 }

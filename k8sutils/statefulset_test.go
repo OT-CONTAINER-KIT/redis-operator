@@ -12,7 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sClientFake "k8s.io/client-go/kubernetes/fake"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 func TestGetVolumeMount(t *testing.T) {
@@ -40,7 +40,7 @@ func TestGetVolumeMount(t *testing.T) {
 		},
 		{
 			name:               "2. Persistence enabled with cluster mode and node conf",
-			persistenceEnabled: pointer.Bool(true),
+			persistenceEnabled: ptr.To(true),
 			clusterMode:        true,
 			nodeConfVolume:     true,
 			externalConfig:     nil,
@@ -60,10 +60,10 @@ func TestGetVolumeMount(t *testing.T) {
 		},
 		{
 			name:               "3. Persistence enabled with cluster mode and external config",
-			persistenceEnabled: pointer.Bool(true),
+			persistenceEnabled: ptr.To(true),
 			clusterMode:        true,
 			nodeConfVolume:     false,
-			externalConfig:     pointer.String("some-config"),
+			externalConfig:     ptr.To("some-config"),
 			mountpath:          []corev1.VolumeMount{},
 			tlsConfig:          nil,
 			aclConfig:          nil,
@@ -80,7 +80,7 @@ func TestGetVolumeMount(t *testing.T) {
 		},
 		{
 			name:               "4. Persistence enabled, cluster mode false, node conf true, no tls/acl, with mountpath",
-			persistenceEnabled: pointer.Bool(true),
+			persistenceEnabled: ptr.To(true),
 			clusterMode:        false,
 			nodeConfVolume:     true,
 			externalConfig:     nil,
@@ -118,7 +118,7 @@ func TestGetVolumeMount(t *testing.T) {
 		},
 		{
 			name:               "7. Everything enabled except externalConfig",
-			persistenceEnabled: pointer.Bool(true),
+			persistenceEnabled: ptr.To(true),
 			clusterMode:        true,
 			nodeConfVolume:     true,
 			externalConfig:     nil,
@@ -143,7 +143,7 @@ func TestGetVolumeMount(t *testing.T) {
 			persistenceEnabled: nil,
 			clusterMode:        false,
 			nodeConfVolume:     false,
-			externalConfig:     pointer.String("some-config"),
+			externalConfig:     ptr.To("some-config"),
 			mountpath:          []corev1.VolumeMount{},
 			tlsConfig:          nil,
 			aclConfig:          nil,
@@ -151,7 +151,7 @@ func TestGetVolumeMount(t *testing.T) {
 		},
 		{
 			name:               "9. Persistence enabled, cluster mode true, node conf true, only acl enabled",
-			persistenceEnabled: pointer.Bool(true),
+			persistenceEnabled: ptr.To(true),
 			clusterMode:        true,
 			nodeConfVolume:     true,
 			externalConfig:     nil,
@@ -166,7 +166,7 @@ func TestGetVolumeMount(t *testing.T) {
 		},
 		{
 			name:               "10. Persistence enabled, cluster mode false, node conf false, only tls enabled with mountpath",
-			persistenceEnabled: pointer.Bool(true),
+			persistenceEnabled: ptr.To(true),
 			clusterMode:        false,
 			nodeConfVolume:     false,
 			externalConfig:     nil,
@@ -265,7 +265,8 @@ func Test_createStatefulSet(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for i := range tests {
+		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
 			var client *k8sClientFake.Clientset
 			if test.present {
@@ -333,10 +334,10 @@ func TestGetEnvironmentVariables(t *testing.T) {
 		{
 			name:               "Test with role sentinel, metrics true, password true, persistence true, exporter env, tls enabled, acl enabled and env var",
 			role:               "sentinel",
-			enabledPassword:    pointer.Bool(true),
-			secretName:         pointer.String("test-secret"),
-			secretKey:          pointer.String("test-key"),
-			persistenceEnabled: pointer.Bool(true),
+			enabledPassword:    ptr.To(true),
+			secretName:         ptr.To("test-secret"),
+			secretKey:          ptr.To("test-key"),
+			persistenceEnabled: ptr.To(true),
 			tlsConfig: &redisv1beta2.TLSConfig{
 				TLSConfig: common.TLSConfig{
 					CaKeyFile:   "test_ca.crt",
@@ -355,7 +356,7 @@ func TestGetEnvironmentVariables(t *testing.T) {
 			envVar: &[]corev1.EnvVar{
 				{Name: "TEST_ENV", Value: "test-value"},
 			},
-			clusterVersion: pointer.String("v6"),
+			clusterVersion: ptr.To("v6"),
 			expectedEnvironment: []corev1.EnvVar{
 				{Name: "ACL_MODE", Value: "true"},
 				{Name: "PERSISTENCE_ENABLED", Value: "true"},
@@ -402,7 +403,7 @@ func TestGetEnvironmentVariables(t *testing.T) {
 			enabledPassword:    nil,
 			secretName:         nil,
 			secretKey:          nil,
-			persistenceEnabled: pointer.Bool(false),
+			persistenceEnabled: ptr.To(false),
 			tlsConfig:          nil,
 			aclConfig:          nil,
 			envVar:             nil,
@@ -415,16 +416,16 @@ func TestGetEnvironmentVariables(t *testing.T) {
 		{
 			name:               "Test with role cluster, metrics true, password true, persistence true, exporter env, tls nil, acl enabled and env var",
 			role:               "cluster",
-			enabledPassword:    pointer.Bool(true),
-			secretName:         pointer.String("test-secret"),
-			secretKey:          pointer.String("test-key"),
-			persistenceEnabled: pointer.Bool(true),
+			enabledPassword:    ptr.To(true),
+			secretName:         ptr.To("test-secret"),
+			secretKey:          ptr.To("test-key"),
+			persistenceEnabled: ptr.To(true),
 			tlsConfig:          nil,
 			aclConfig:          &redisv1beta2.ACLConfig{},
 			envVar: &[]corev1.EnvVar{
 				{Name: "TEST_ENV", Value: "test-value"},
 			},
-			port: pointer.Int(6380),
+			port: ptr.To(6380),
 			expectedEnvironment: []corev1.EnvVar{
 				{Name: "ACL_MODE", Value: "true"},
 				{Name: "PERSISTENCE_ENABLED", Value: "true"},

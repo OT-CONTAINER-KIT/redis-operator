@@ -6,7 +6,7 @@ import (
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 func Test_generateMetaInformation(t *testing.T) {
@@ -313,7 +313,7 @@ func TestRedisClusterAsOwner(t *testing.T) {
 		Kind:       "RedisCluster",
 		Name:       "test-redis-cluster",
 		UID:        "abcdef",
-		Controller: pointer.Bool(true),
+		Controller: ptr.To(true),
 	}
 
 	result := redisClusterAsOwner(clusterObj)
@@ -340,7 +340,7 @@ func TestRedisReplicationAsOwner(t *testing.T) {
 		Kind:       "RedisReplication",
 		Name:       "test-redis-replication",
 		UID:        "ghijkl",
-		Controller: pointer.Bool(true),
+		Controller: ptr.To(true),
 	}
 
 	result := redisReplicationAsOwner(replicationObj)
@@ -367,7 +367,7 @@ func TestRedisSentinelAsOwner(t *testing.T) {
 		Kind:       "RedisSentinel",
 		Name:       "test-redis-sentinel",
 		UID:        "mnopqr",
-		Controller: pointer.Bool(true),
+		Controller: ptr.To(true),
 	}
 
 	result := redisSentinelAsOwner(sentinelObj)

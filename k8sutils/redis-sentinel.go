@@ -14,7 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 // RedisSentinelSTS is a interface to call Redis Statefulset function
@@ -198,7 +198,7 @@ func (service RedisSentinelService) CreateRedisSentinelService(cr *redisv1beta2.
 	var epp exporterPortProvider
 	if cr.Spec.RedisExporter != nil {
 		epp = func() (port int, enable bool) {
-			defaultP := pointer.Int(redisExporterPort)
+			defaultP := ptr.To(redisExporterPort)
 			return *util.Coalesce(cr.Spec.RedisExporter.Port, defaultP), cr.Spec.RedisExporter.Enabled
 		}
 	} else {

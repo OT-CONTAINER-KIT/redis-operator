@@ -16,7 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8sClientFake "k8s.io/client-go/kubernetes/fake"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -217,7 +217,7 @@ func TestHandleRedisClusterFinalizer(t *testing.T) {
 					},
 				},
 				Spec: v1beta2.RedisClusterSpec{
-					Size: pointer.Int32(3),
+					Size: ptr.To(int32(3)),
 					Storage: &v1beta2.ClusterStorage{
 						Storage: api.Storage{
 							KeepAfterDelete: false,
@@ -247,7 +247,7 @@ func TestHandleRedisClusterFinalizer(t *testing.T) {
 					},
 				},
 				Spec: v1beta2.RedisClusterSpec{
-					Size: pointer.Int32(3),
+					Size: ptr.To(int32(3)),
 					Storage: &v1beta2.ClusterStorage{
 						Storage: api.Storage{
 							KeepAfterDelete: true,
@@ -331,7 +331,7 @@ func TestHandleRedisReplicationFinalizer(t *testing.T) {
 					},
 				},
 				Spec: v1beta2.RedisReplicationSpec{
-					Size: pointer.Int32(3),
+					Size: ptr.To(int32(3)),
 					Storage: &v1beta2.Storage{
 						Storage: api.Storage{
 							KeepAfterDelete: false,
@@ -379,7 +379,7 @@ func TestHandleRedisReplicationFinalizer(t *testing.T) {
 					},
 				},
 				Spec: v1beta2.RedisReplicationSpec{
-					Size: pointer.Int32(3),
+					Size: ptr.To(int32(3)),
 					Storage: &v1beta2.Storage{
 						Storage: api.Storage{
 							KeepAfterDelete: false,
@@ -427,7 +427,7 @@ func TestHandleRedisReplicationFinalizer(t *testing.T) {
 					},
 				},
 				Spec: v1beta2.RedisReplicationSpec{
-					Size: pointer.Int32(3),
+					Size: ptr.To(int32(3)),
 					Storage: &v1beta2.Storage{
 						Storage: api.Storage{
 							KeepAfterDelete: true,
@@ -651,7 +651,7 @@ func TestFinalizeRedisReplicationPVC(t *testing.T) {
 					Namespace: "redis",
 				},
 				Spec: v1beta2.RedisReplicationSpec{
-					Size: pointer.Int32(3),
+					Size: ptr.To(int32(3)),
 				},
 			},
 			existingPVCs: []*corev1.PersistentVolumeClaim{
@@ -685,7 +685,7 @@ func TestFinalizeRedisReplicationPVC(t *testing.T) {
 					Namespace: "redis",
 				},
 				Spec: v1beta2.RedisReplicationSpec{
-					Size: pointer.Int32(3),
+					Size: ptr.To(int32(3)),
 				},
 			},
 			expectError: false,
@@ -735,7 +735,7 @@ func TestFinalizeRedisClusterPVC(t *testing.T) {
 					Namespace: "redis",
 				},
 				Spec: v1beta2.RedisClusterSpec{
-					Size: pointer.Int32(3),
+					Size: ptr.To(int32(3)),
 					Storage: &v1beta2.ClusterStorage{
 						NodeConfVolume: true,
 					},
@@ -753,7 +753,7 @@ func TestFinalizeRedisClusterPVC(t *testing.T) {
 					Namespace: "redis",
 				},
 				Spec: v1beta2.RedisClusterSpec{
-					Size: pointer.Int32(3),
+					Size: ptr.To(int32(3)),
 					Storage: &v1beta2.ClusterStorage{
 						NodeConfVolume: false,
 					},
