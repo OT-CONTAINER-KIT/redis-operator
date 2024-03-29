@@ -1,11 +1,14 @@
-name: E2E chainsaw tests
+# yaml-language-server: $schema=https://raw.githubusercontent.com/SchemaStore/schemastore/master/src/schemas/json/github-workflow.json
 
+name: E2E chainsaw tests
 on:
   workflow_run:
     workflows:
       - "CI"
     types:
       - completed
+    branches:
+      - main
 
 jobs:
 
