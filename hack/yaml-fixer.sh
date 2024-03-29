@@ -18,6 +18,7 @@ fi
 
 # Since yamlfix is not able to search in a directory recursively
 if [ -n "$DIR" ]; then
+  echo ------------------------------
   echo "Fixing all yaml files in the directory: $DIR"
   find "$DIR" -type f -print0 | xargs -0 -I {} yamlfix "{}"
   echo "yamlfix has been applied to all YAML files in $DIR and its subdirectories."
