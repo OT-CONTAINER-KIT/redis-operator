@@ -488,7 +488,7 @@ func configureRedisReplicationClient(client kubernetes.Interface, logger logr.Lo
 
 // Get Redis nodes by it's role i.e. master, slave and sentinel
 func GetRedisNodesByRole(ctx context.Context, cl kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication, redisRole string) []string {
-	statefulset, err := GetStatefulSet(cr.Namespace, cr.Name, cl)
+	statefulset, err := GetStatefulSet(cl, logger, cr.GetNamespace(), cr.GetName())
 	if err != nil {
 		logger.Error(err, "Failed to Get the Statefulset of the", "custom resource", cr.Name, "in namespace", cr.Namespace)
 	}
@@ -498,7 +498,9 @@ func GetRedisNodesByRole(ctx context.Context, cl kubernetes.Interface, logger lo
 
 	for i := 0; i < int(replicas); i++ {
 		podName := statefulset.Name + "-" + strconv.Itoa(i)
-		podRole := checkRedisServerRole(ctx, cl, logger, cr, podName)
+		redisClient := configureRedisReplicationClient(cl, logger, cr, podName)
+		defer redisClient.Close()
+		podRole := checkRedisServerRole(ctx, redisClient, logger, podName)
 		if podRole == redisRole {
 			pods = append(pods, podName)
 		}
@@ -508,57 +510,63 @@ func GetRedisNodesByRole(ctx context.Context, cl kubernetes.Interface, logger lo
 }
 
 // Check the Redis Server Role i.e. master, slave and sentinel
-func checkRedisServerRole(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication, podName string) string {
-	redisClient := configureRedisReplicationClient(client, logger, cr, podName)
-	defer redisClient.Close()
-	info, err := redisClient.Info(ctx, "replication").Result()
+func checkRedisServerRole(ctx context.Context, redisClient *redis.Client, logger logr.Logger, podName string) string {
+	info, err := redisClient.Info(ctx, "Replication").Result()
 	if err != nil {
 		logger.Error(err, "Failed to Get the role Info of the", "redis pod", podName)
+		return ""
 	}
-
 	lines := strings.Split(info, "\r\n")
-	role := ""
 	for _, line := range lines {
 		if strings.HasPrefix(line, "role:") {
-			role = strings.TrimPrefix(line, "role:")
-			break
+			role := strings.TrimPrefix(line, "role:")
+			logger.V(1).Info("Role of the Redis Pod", "pod", podName, "role", role)
+			return role
 		}
 	}
-
-	return role
+	logger.Error(err, "Failed to find role from Info # Replication in", "redis pod", podName)
+	return ""
 }
 
 // checkAttachedSlave would return redis pod name which has slave
-func checkAttachedSlave(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication, masterPods []string) string {
-	for _, podName := range masterPods {
-		connected_slaves := ""
-		redisClient := configureRedisReplicationClient(client, logger, cr, podName)
-		defer redisClient.Close()
-		info, err := redisClient.Info(ctx, "replication").Result()
-		if err != nil {
-			logger.Error(err, "Failed to Get the connected slaves Info of the", "redis pod", podName)
-		}
+func checkAttachedSlave(ctx context.Context, redisClient *redis.Client, logger logr.Logger, podName string) int {
+	info, err := redisClient.Info(ctx, "Replication").Result()
+	if err != nil {
+		logger.Error(err, "Failed to get the connected slaves count of the", "redis pod", podName)
+		return -1 // return -1 if failed to get the connected slaves count
+	}
 
-		lines := strings.Split(info, "\r\n")
-
-		for _, line := range lines {
-			if strings.HasPrefix(line, "connected_slaves:") {
-				connected_slaves = strings.TrimPrefix(line, "connected_slaves:")
-				break
+	lines := strings.Split(info, "\r\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, "connected_slaves:") {
+			var connected_slaves int
+			connected_slaves, err = strconv.Atoi(strings.TrimPrefix(line, "connected_slaves:"))
+			if err != nil {
+				logger.Error(err, "Failed to convert the connected slaves count of the", "redis pod", podName)
+				return -1
 			}
-		}
-
-		nums, _ := strconv.Atoi(connected_slaves)
-		if nums > 0 {
-			return podName
+			logger.V(1).Info("Connected Slaves of the Redis Pod", "pod", podName, "connected_slaves", connected_slaves)
+			return connected_slaves
 		}
 	}
-	return ""
+
+	logger.Error(nil, "Failed to find connected_slaves from Info # Replication in", "redis pod", podName)
+	return 0
 }
 
 func CreateMasterSlaveReplication(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication, masterPods []string, slavePods []string) error {
 	var realMasterPod string
-	realMasterPod = checkAttachedSlave(ctx, client, logger, cr, masterPods)
+
+	for _, podName := range masterPods {
+		redisClient := configureRedisReplicationClient(client, logger, cr, podName)
+		defer redisClient.Close()
+
+		if checkAttachedSlave(ctx, redisClient, logger, podName) > 0 {
+			realMasterPod = podName
+			break
+		}
+	}
+	// realMasterPod = checkAttachedSlave(ctx, client, logger, cr, masterPods)
 
 	if len(slavePods) < 1 {
 		realMasterPod = masterPods[0]

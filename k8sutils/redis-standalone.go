@@ -7,10 +7,6 @@ import (
 	"k8s.io/utils/pointer"
 )
 
-//var (
-//	enableMetrics bool
-//)
-
 // CreateStandaloneService method will create standalone service for Redis
 func CreateStandaloneService(cr *redisv1beta2.Redis, cl kubernetes.Interface) error {
 	logger := serviceLogger(cr.Namespace, cr.ObjectMeta.Name)
@@ -60,14 +56,16 @@ func CreateStandaloneRedis(cr *redisv1beta2.Redis, cl kubernetes.Interface) erro
 	labels := getRedisLabels(cr.ObjectMeta.Name, standalone, "standalone", cr.ObjectMeta.Labels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 	objectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name, cr.Namespace, labels, annotations)
-	err := CreateOrUpdateStateFul(cr.Namespace,
+	err := CreateOrUpdateStateFul(
+		cl,
+		logger,
+		cr.GetNamespace(),
 		objectMetaInfo,
 		generateRedisStandaloneParams(cr),
 		redisAsOwner(cr),
 		generateRedisStandaloneInitContainerParams(cr),
 		generateRedisStandaloneContainerParams(cr),
 		cr.Spec.Sidecars,
-		cl,
 	)
 	if err != nil {
 		logger.Error(err, "Cannot create standalone statefulset for Redis")

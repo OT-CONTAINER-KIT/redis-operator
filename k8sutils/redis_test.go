@@ -1,6 +1,7 @@
 package k8sutils
 
 import (
+	"context"
 	"encoding/csv"
 	"fmt"
 	"strings"
@@ -8,7 +9,10 @@ import (
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	mock_utils "github.com/OT-CONTAINER-KIT/redis-operator/mocks/utils"
+	"github.com/go-logr/logr"
 	"github.com/go-logr/logr/testr"
+	"github.com/go-redis/redismock/v9"
+	redis "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -508,6 +512,151 @@ func TestGetContainerID(t *testing.T) {
 				assert.Equal(t, test.expectedID, id, "Expected ID does not match")
 				assert.Equal(t, test.setupPod.Name, pod.GetName(), "Pod names do not match")
 				assert.Equal(t, test.setupPod.Namespace, pod.GetNamespace(), "Pod namespaces do not match")
+			}
+		})
+	}
+}
+
+func Test_checkAttachedSlave(t *testing.T) {
+	logger := logr.Discard()
+
+	tests := []struct {
+		name               string
+		podName            string
+		infoReturn         string
+		infoErr            error
+		expectedSlaveCount int
+	}{
+		{
+			name:    "no attached slaves",
+			podName: "pod1",
+			infoReturn: "# Replication\r\n" +
+				"role:master\r\n" +
+				"connected_slaves:0\r\n" +
+				"master_failover_state:no-failover\r\n" +
+				"master_replid:7b634a76ebb7d5f07007f1d5aec8abff8200704e\r\n" +
+				"master_replid2:0000000000000000000000000000000000000000\r\n" +
+				"master_repl_offset:0\r\n" +
+				"second_repl_offset:-1\r\n" +
+				"repl_backlog_active:0\r\n" +
+				"repl_backlog_size:1048576\r\n" +
+				"repl_backlog_first_byte_offset:0\r\n" +
+				"repl_backlog_histlen:0\r\n",
+			expectedSlaveCount: 0,
+		},
+		{
+			name:    "two attached slaves",
+			podName: "pod2",
+			infoReturn: "# Replication\r\n" +
+				"role:master\r\n" +
+				"connected_slaves:2\r\n" +
+				"master_failover_state:no-failover\r\n" +
+				"master_replid:7b634a76ebb7d5f07007f1d5aec8abff8200704e\r\n" +
+				"master_replid2:0000000000000000000000000000000000000000\r\n" +
+				"master_repl_offset:0\r\n" +
+				"second_repl_offset:-1\r\n" +
+				"repl_backlog_active:0\r\n" +
+				"repl_backlog_size:1048576\r\n" +
+				"repl_backlog_first_byte_offset:0\r\n" +
+				"repl_backlog_histlen:0\r\n",
+			expectedSlaveCount: 2,
+		},
+		{
+			name:               "error fetching slave info",
+			podName:            "pod3",
+			infoReturn:         "",
+			infoErr:            redis.ErrClosed,
+			expectedSlaveCount: -1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.TODO()
+			client, mock := redismock.NewClientMock()
+
+			if tt.infoErr != nil {
+				mock.ExpectInfo("Replication").SetErr(tt.infoErr)
+			} else {
+				mock.ExpectInfo("Replication").SetVal(tt.infoReturn)
+			}
+
+			slaveCount := checkAttachedSlave(ctx, client, logger, tt.podName)
+			assert.Equal(t, tt.expectedSlaveCount, slaveCount, "Test case: "+tt.name)
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Errorf("there were unmet expectations: %s", err)
+			}
+		})
+	}
+}
+
+func Test_checkRedisServerRole(t *testing.T) {
+	logger := logr.Discard()
+
+	tests := []struct {
+		name           string
+		podName        string
+		infoReturn     string
+		infoErr        error
+		expectedResult string
+	}{
+		{
+			name:    "redis master role",
+			podName: "pod1",
+			infoReturn: "# Replication\r\n" +
+				"role:master\r\n" +
+				"connected_slaves:0\r\n" +
+				"master_failover_state:no-failover\r\n" +
+				"master_replid:7b634a76ebb7d5f07007f1d5aec8abff8200704e\r\n" +
+				"master_replid2:0000000000000000000000000000000000000000\r\n" +
+				"master_repl_offset:0\r\n" +
+				"second_repl_offset:-1\r\n" +
+				"repl_backlog_active:0\r\n" +
+				"repl_backlog_size:1048576\r\n" +
+				"repl_backlog_first_byte_offset:0\r\n" +
+				"repl_backlog_histlen:0\r\n",
+			expectedResult: "master",
+		},
+		{
+			name:    "redis slave role",
+			podName: "pod2",
+			infoReturn: "# Replication\r\n" +
+				"role:slave\r\n" +
+				"connected_slaves:0\r\n" +
+				"master_failover_state:no-failover\r\n" +
+				"master_replid:7b634a76ebb7d5f07007f1d5aec8abff8200704e\r\n" +
+				"master_replid2:0000000000000000000000000000000000000000\r\n" +
+				"master_repl_offset:0\r\n" +
+				"second_repl_offset:-1\r\n" +
+				"repl_backlog_active:0\r\n" +
+				"repl_backlog_size:1048576\r\n" +
+				"repl_backlog_first_byte_offset:0\r\n" +
+				"repl_backlog_histlen:0\r\n",
+			expectedResult: "slave",
+		},
+		{
+			name:           "error fetching role info",
+			podName:        "pod3",
+			infoErr:        redis.ErrClosed,
+			expectedResult: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.TODO()
+			client, mock := redismock.NewClientMock()
+
+			if tt.infoErr != nil {
+				mock.ExpectInfo("Replication").SetErr(tt.infoErr)
+			} else {
+				mock.ExpectInfo("Replication").SetVal(tt.infoReturn)
+			}
+
+			role := checkRedisServerRole(ctx, client, logger, tt.podName)
+			assert.Equal(t, tt.expectedResult, role, "Test case: "+tt.name)
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Errorf("there were unmet expectations: %s", err)
 			}
 		})
 	}
