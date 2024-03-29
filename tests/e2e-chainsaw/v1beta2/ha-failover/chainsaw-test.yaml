@@ -1,3 +1,4 @@
+---
 apiVersion: chainsaw.kyverno.io/v1alpha1
 kind: Test
 metadata:
@@ -14,16 +15,14 @@ spec:
       catch:
         - description: Redis Operator Logs
           podLogs:
-              namespace: redis-operator-system
-              selector: control-plane=redis-operator
-              container: manager
-              tail: -1 # tail all logs
-
+            namespace: redis-operator-system
+            selector: control-plane=redis-operator
+            container: manager
+            tail: -1  # tail all logs
     - name: Sleep for 3 minutes
       try:
         - sleep:
             duration: 3m
-
     - name: Test sentinel monitoring
       try:
         - script:
@@ -35,10 +34,10 @@ spec:
       catch:
         - description: Redis Operator Logs
           podLogs:
-              namespace: redis-operator-system
-              selector: control-plane=redis-operator
-              container: manager
-              tail: -1 # tail all logs
+            namespace: redis-operator-system
+            selector: control-plane=redis-operator
+            container: manager
+            tail: -1  # tail all logs
 
     # New created cluster, the first pod is master
     - name: Terminate the redis-replication-0 pod
@@ -50,16 +49,14 @@ spec:
       catch:
         - description: Redis Operator Logs
           podLogs:
-              namespace: redis-operator-system
-              selector: control-plane=redis-operator
-              container: manager
-              tail: -1 # tail all logs
-
+            namespace: redis-operator-system
+            selector: control-plane=redis-operator
+            container: manager
+            tail: -1  # tail all logs
     - name: Sleep for 3 minutes
       try:
         - sleep:
             duration: 3m
-
     - name: Test sentinel monitoring
       try:
         - script:
@@ -71,7 +68,7 @@ spec:
       catch:
         - description: Redis Operator Logs
           podLogs:
-              namespace: redis-operator-system
-              selector: control-plane=redis-operator
-              container: manager
-              tail: -1 # tail all logs
+            namespace: redis-operator-system
+            selector: control-plane=redis-operator
+            container: manager
+            tail: -1  # tail all logs

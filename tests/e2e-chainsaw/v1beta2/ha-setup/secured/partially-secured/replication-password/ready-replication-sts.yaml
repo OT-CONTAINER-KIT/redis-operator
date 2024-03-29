@@ -1,8 +1,9 @@
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   annotations:
-    redis.opstreelabs.in: "true"
+    redis.opstreelabs.in: 'true'
     redis.opstreelabs.instance: redis-replication
   labels:
     app: redis-replication

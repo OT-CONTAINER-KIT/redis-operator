@@ -1,3 +1,4 @@
+---
 apiVersion: redis.redis.opstreelabs.in/v1beta2
 kind: RedisCluster
 metadata:
@@ -36,14 +37,14 @@ spec:
     volumeClaimTemplate:
       spec:
         # storageClassName: standard
-        accessModes: ["ReadWriteOnce"]
+        accessModes: [ReadWriteOnce]
         resources:
           requests:
             storage: 1Gi
     nodeConfVolume: true
     nodeConfVolumeClaimTemplate:
       spec:
-        accessModes: ["ReadWriteOnce"]
+        accessModes: [ReadWriteOnce]
         resources:
           requests:
             storage: 1Gi

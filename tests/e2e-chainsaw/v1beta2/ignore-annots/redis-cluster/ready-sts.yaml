@@ -1,3 +1,4 @@
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -10,7 +11,7 @@ spec:
   template:
     metadata:
       annotations:
-        redis.opstreelabs.in: "true"
+        redis.opstreelabs.in: 'true'
         redis.opstreelabs.instance: redis-cluster-v1beta2
 status:
   replicas: 3
@@ -28,7 +29,7 @@ spec:
   template:
     metadata:
       annotations:
-        redis.opstreelabs.in: "true"
+        redis.opstreelabs.in: 'true'
         redis.opstreelabs.instance: redis-cluster-v1beta2
 status:
   replicas: 3

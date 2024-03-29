@@ -1,3 +1,4 @@
+---
 apiVersion: redis.redis.opstreelabs.in/v1beta2
 kind: Redis
 metadata:
@@ -5,7 +6,7 @@ metadata:
 spec:
   podSecurityContext:
     runAsUser: 1000
-    fsGroup: 1000  
+    fsGroup: 1000
   kubernetesConfig:
     image: quay.io/opstree/redis:latest
     imagePullPolicy: Always
@@ -21,7 +22,7 @@ spec:
     volumeClaimTemplate:
       spec:
         # storageClassName: standard
-        accessModes: ["ReadWriteOnce"]
+        accessModes: [ReadWriteOnce]
         resources:
           requests:
             storage: 1Gi

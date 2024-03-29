@@ -1,5 +1,5 @@
+---
 # yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/configuration-chainsaw-v1alpha1.json
-
 apiVersion: chainsaw.kyverno.io/v1alpha1
 kind: Configuration
 metadata:

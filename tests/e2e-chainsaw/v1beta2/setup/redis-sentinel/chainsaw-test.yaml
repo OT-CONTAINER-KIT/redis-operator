@@ -1,22 +1,22 @@
+---
 # yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
-
 apiVersion: chainsaw.kyverno.io/v1alpha1
 kind: Test
 metadata:
   name: redis-sentinel-setup
 spec:
   steps:
-  - try:
-    - apply:
-        file: sentinel.yaml
-    - assert:
-        file: ready-sts.yaml
-    - assert:
-        file: ready-svc.yaml
-    catch:
-      - description: Redis Operator Logs
-        podLogs:
+    - try:
+        - apply:
+            file: sentinel.yaml
+        - assert:
+            file: ready-sts.yaml
+        - assert:
+            file: ready-svc.yaml
+      catch:
+        - description: Redis Operator Logs
+          podLogs:
             namespace: redis-operator-system
             selector: control-plane=redis-operator
             container: manager
-            tail: -1 # tail all logs
+            tail: -1  # tail all logs
