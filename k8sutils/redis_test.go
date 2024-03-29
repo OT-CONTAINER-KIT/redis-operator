@@ -17,7 +17,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sClientFake "k8s.io/client-go/kubernetes/fake"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 func TestCheckRedisNodePresence(t *testing.T) {
@@ -273,9 +273,9 @@ func TestCreateMultipleLeaderRedisCommand(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: redisv1beta2.RedisClusterSpec{
-					Size:           pointer.Int32(3),
-					ClusterVersion: pointer.String("v7"),
-					Port:           pointer.Int(6379),
+					Size:           ptr.To(int32(3)),
+					ClusterVersion: ptr.To("v7"),
+					Port:           ptr.To(6379),
 				},
 			},
 			expectedCommands: []string{
@@ -294,8 +294,8 @@ func TestCreateMultipleLeaderRedisCommand(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: redisv1beta2.RedisClusterSpec{
-					Size: pointer.Int32(3),
-					Port: pointer.Int(6379),
+					Size: ptr.To(int32(3)),
+					Port: ptr.To(6379),
 				},
 			},
 			expectedCommands: []string{
@@ -364,9 +364,9 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: redisv1beta2.RedisClusterSpec{
-					Size:           pointer.Int32(3),
-					ClusterVersion: pointer.String("v7"),
-					Port:           pointer.Int(6379),
+					Size:           ptr.To(int32(3)),
+					ClusterVersion: ptr.To("v7"),
+					Port:           ptr.To(6379),
 				},
 			},
 			leaderPod: RedisDetails{
@@ -392,8 +392,8 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: redisv1beta2.RedisClusterSpec{
-					Size: pointer.Int32(3),
-					Port: pointer.Int(6379),
+					Size: ptr.To(int32(3)),
+					Port: ptr.To(6379),
 				},
 			},
 			leaderPod: RedisDetails{

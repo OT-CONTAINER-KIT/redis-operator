@@ -22,7 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/env"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 const (
@@ -478,7 +478,7 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 		Ports: []corev1.ContainerPort{
 			{
 				Name:          redisExporterPortName,
-				ContainerPort: int32(*util.Coalesce(params.RedisExporterPort, pointer.Int(redisExporterPort))),
+				ContainerPort: int32(*util.Coalesce(params.RedisExporterPort, ptr.To(redisExporterPort))),
 				Protocol:      corev1.ProtocolTCP,
 			},
 		},

@@ -17,21 +17,21 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 func Test_generateRedisSentinelParams(t *testing.T) {
 	path := filepath.Join("..", "tests", "testdata", "redis-sentinel.yaml")
 	expected := statefulSetParameters{
-		Replicas:       pointer.Int32(3),
+		Replicas:       ptr.To(int32(3)),
 		ClusterMode:    false,
 		NodeConfVolume: false,
 		NodeSelector: map[string]string{
 			"node-role.kubernetes.io/infra": "worker",
 		},
 		PodSecurityContext: &corev1.PodSecurityContext{
-			RunAsUser: pointer.Int64(1000),
-			FSGroup:   pointer.Int64(1000),
+			RunAsUser: ptr.To(int64(1000)),
+			FSGroup:   ptr.To(int64(1000)),
 		},
 		PriorityClassName: "high-priority",
 		Affinity: &corev1.Affinity{
@@ -65,8 +65,8 @@ func Test_generateRedisSentinelParams(t *testing.T) {
 		},
 		EnableMetrics:                 true,
 		ImagePullSecrets:              &[]corev1.LocalObjectReference{{Name: "mysecret"}},
-		ServiceAccountName:            pointer.String("redis-sa"),
-		TerminationGracePeriodSeconds: pointer.Int64(30),
+		ServiceAccountName:            ptr.To("redis-sa"),
+		TerminationGracePeriodSeconds: ptr.To(int64(30)),
 		IgnoreAnnotations:             []string{"opstreelabs.in/ignore"},
 	}
 
@@ -101,10 +101,10 @@ func Test_generateRedisSentinelContainerParams(t *testing.T) {
 			},
 		},
 		SecurityContext: &corev1.SecurityContext{
-			RunAsUser:              pointer.Int64(1000),
-			RunAsGroup:             pointer.Int64(1000),
-			RunAsNonRoot:           pointer.Bool(true),
-			ReadOnlyRootFilesystem: pointer.Bool(true),
+			RunAsUser:              ptr.To(int64(1000)),
+			RunAsGroup:             ptr.To(int64(1000)),
+			RunAsNonRoot:           ptr.To(true),
+			ReadOnlyRootFilesystem: ptr.To(true),
 			Capabilities: &corev1.Capabilities{
 				Drop: []corev1.Capability{"ALL"},
 				Add:  []corev1.Capability{"NET_BIND_SERVICE"},
@@ -151,9 +151,9 @@ func Test_generateRedisSentinelContainerParams(t *testing.T) {
 			},
 		},
 		Role:            "sentinel",
-		EnabledPassword: pointer.Bool(true),
-		SecretName:      pointer.String("redis-secret"),
-		SecretKey:       pointer.String("password"),
+		EnabledPassword: ptr.To(true),
+		SecretName:      ptr.To("redis-secret"),
+		SecretKey:       ptr.To("password"),
 		TLSConfig: &redisv1beta2.TLSConfig{
 			TLSConfig: common.TLSConfig{
 				CaKeyFile:   "ca.key",
@@ -195,7 +195,7 @@ func Test_generateRedisSentinelContainerParams(t *testing.T) {
 func Test_generateRedisSentinelInitContainerParams(t *testing.T) {
 	path := filepath.Join("..", "tests", "testdata", "redis-sentinel.yaml")
 	expected := initContainerParameters{
-		Enabled:         pointer.Bool(true),
+		Enabled:         ptr.To(true),
 		Image:           "quay.io/opstree/redis-operator-restore:latest",
 		ImagePullPolicy: corev1.PullPolicy("Always"),
 		Resources: &corev1.ResourceRequirements{

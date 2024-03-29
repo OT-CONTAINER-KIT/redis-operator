@@ -8,7 +8,7 @@ import (
 	"github.com/go-logr/logr"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 // CreateReplicationService method will create replication service for Redis
@@ -18,7 +18,7 @@ func CreateReplicationService(cr *redisv1beta2.RedisReplication, cl kubernetes.I
 	var epp exporterPortProvider
 	if cr.Spec.RedisExporter != nil {
 		epp = func() (port int, enable bool) {
-			defaultP := pointer.Int(redisExporterPort)
+			defaultP := ptr.To(redisExporterPort)
 			return *util.Coalesce(cr.Spec.RedisExporter.Port, defaultP), cr.Spec.RedisExporter.Enabled
 		}
 	} else {
@@ -125,7 +125,7 @@ func generateRedisReplicationContainerParams(cr *redisv1beta2.RedisReplication) 
 		ImagePullPolicy: cr.Spec.KubernetesConfig.ImagePullPolicy,
 		Resources:       cr.Spec.KubernetesConfig.Resources,
 		SecurityContext: cr.Spec.SecurityContext,
-		Port:            pointer.Int(6379),
+		Port:            ptr.To(6379),
 	}
 	if cr.Spec.EnvVars != nil {
 		containerProp.EnvVars = cr.Spec.EnvVars
