@@ -2,8 +2,10 @@ name: E2E Kuttl tests
 
 on:
   workflow_run:
-    workflows: [CI]
-    types: [completed]
+    workflows:
+      - "CI"
+    types:
+      - completed
 
 jobs:
   test:
