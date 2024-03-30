@@ -11,8 +11,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 )
 
 // RedisSentinelReconciler reconciles a RedisSentinel object
@@ -83,5 +86,14 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 func (r *RedisSentinelReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&redisv1beta2.RedisSentinel{}).
+		Watches(&redisv1beta2.RedisReplication{}, &handler.Funcs{
+			CreateFunc: nil,
+			UpdateFunc: func(ctx context.Context, event event.UpdateEvent, limitingInterface workqueue.RateLimitingInterface) {
+				_ = event.ObjectNew.GetName()
+				_ = event.ObjectNew.GetNamespace()
+			},
+			DeleteFunc:  nil,
+			GenericFunc: nil,
+		}).
 		Complete(r)
 }

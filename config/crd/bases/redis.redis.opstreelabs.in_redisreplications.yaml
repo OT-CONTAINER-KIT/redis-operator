@@ -4127,6 +4127,9 @@ spec:
             type: object
           status:
             description: RedisStatus defines the observed state of Redis
+            properties:
+              masterNode:
+                type: string
             type: object
         required:
         - spec
@@ -8841,6 +8844,9 @@ spec:
             type: object
           status:
             description: RedisStatus defines the observed state of Redis
+            properties:
+              masterNode:
+                type: string
             type: object
         required:
         - spec

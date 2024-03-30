@@ -36,7 +36,9 @@ func (cr *RedisReplicationSpec) GetReplicationCounts(t string) int32 {
 }
 
 // RedisStatus defines the observed state of Redis
-type RedisReplicationStatus struct{}
+type RedisReplicationStatus struct {
+	MasterNode string `json:"masterNode,omitempty"`
+}
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status

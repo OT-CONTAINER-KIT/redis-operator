@@ -77,17 +77,37 @@ func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{RequeueAfter: time.Second * 60}, nil
 	}
 
-	if len(k8sutils.GetRedisNodesByRole(ctx, r.K8sClient, r.Log, instance, "master")) > int(leaderReplicas) {
+	var realMaster string
+	masterNodes := k8sutils.GetRedisNodesByRole(ctx, r.K8sClient, r.Log, instance, "master")
+	if len(masterNodes) > int(leaderReplicas) {
 		reqLogger.Info("Creating redis replication by executing replication creation commands", "Replication.Ready", strconv.Itoa(int(redisReplicationInfo.Status.ReadyReplicas)))
-		masterNodes := k8sutils.GetRedisNodesByRole(ctx, r.K8sClient, r.Log, instance, "master")
 		slaveNodes := k8sutils.GetRedisNodesByRole(ctx, r.K8sClient, r.Log, instance, "slave")
-		err := k8sutils.CreateMasterSlaveReplication(ctx, r.K8sClient, r.Log, instance, masterNodes, slaveNodes)
+		realMaster = k8sutils.GetRedisReplicationRealMaster(ctx, r.K8sClient, r.Log, instance, masterNodes)
+		if len(slaveNodes) == 0 {
+			realMaster = masterNodes[0]
+		}
+		err := k8sutils.CreateMasterSlaveReplication(ctx, r.K8sClient, r.Log, instance, masterNodes, realMaster)
 		if err != nil {
 			return ctrl.Result{RequeueAfter: time.Second * 60}, err
 		}
 	}
+	realMaster = k8sutils.GetRedisReplicationRealMaster(ctx, r.K8sClient, r.Log, instance, masterNodes)
+	if err := r.UpdateRedisReplicationMaster(ctx, instance, realMaster); err != nil {
+		return ctrl.Result{}, err
+	}
 	reqLogger.Info("Will reconcile redis operator in again 10 seconds")
 	return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+}
+
+func (r *RedisReplicationReconciler) UpdateRedisReplicationMaster(ctx context.Context, instance *redisv1beta2.RedisReplication, masterNode string) error {
+	if instance.Status.MasterNode == masterNode {
+		return nil
+	}
+	instance.Status.MasterNode = masterNode
+	if err := r.Client.Status().Update(ctx, instance); err != nil {
+		return err
+	}
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
