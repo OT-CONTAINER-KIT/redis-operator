@@ -8,8 +8,9 @@ spec:
     - name: Add PVC name environment
       try:
         - script:
-            content: |
-              kubectl patch deployment redis-operator-redis-operator --namespace redis-operator-system --type json -p='[{"op": "add", "path": "/spec/template/spec/containers/0/env/-", "value": {"name": "OPERATOR_STS_PVC_TEMPLATE_NAME", "value": "data"}}]'
+            content: >
+              kubectl patch deployment redis-operator-redis-operator --namespace redis-operator-system --type json
+              -p='[{"op": "add", "path": "/spec/template/spec/containers/0/env/-", "value": {"name": "OPERATOR_STS_PVC_TEMPLATE_NAME", "value": "data"}}]'
         - sleep:
             duration: 1m
     - name: redis-cluster-install
