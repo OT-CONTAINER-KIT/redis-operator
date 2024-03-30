@@ -4,4 +4,6 @@ rules:
   line-length:
     max: 150
     level: warning
+    allow-non-breakable-words: true
+    allow-non-breakable-inline-mappings: true
   comments-indentation: disable
