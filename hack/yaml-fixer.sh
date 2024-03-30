@@ -3,6 +3,7 @@
 export YAMLFIX_LINE_LENGTH="150"
 
 # This script is used to fix the yaml files in the repository.
+# Note: yamlfix utility doesn't seems to be much mature idk but it is fixing the .crt .tls .ca extenstion present in testdata
 
 DIR=""
 
