@@ -17,7 +17,6 @@ spec:
             file: ready-svc.yaml
         - assert:
             file: ready-pvc.yaml
-
     - name: redis-cluster-uninstall
       try:
         - delete:

@@ -1,16 +1,16 @@
+---
 apiVersion: redis.redis.opstreelabs.in/v1beta2
 kind: Redis
 metadata:
   name: redis-standalone-v1beta2
   annotations:
-    need-ignore-key: "need-ignore-value"
+    need-ignore-key: need-ignore-value
 spec:
   podSecurityContext:
     runAsUser: 1000
-    fsGroup: 1000  
+    fsGroup: 1000
   kubernetesConfig:
-    ignoreAnnotations:
-      - "need-ignore-key"
+    ignoreAnnotations: [need-ignore-key]
     image: quay.io/opstree/redis:latest
     imagePullPolicy: Always
     resources:
@@ -24,7 +24,7 @@ spec:
     volumeClaimTemplate:
       spec:
         # storageClassName: standard
-        accessModes: ["ReadWriteOnce"]
+        accessModes: [ReadWriteOnce]
         resources:
           requests:
             storage: 1Gi

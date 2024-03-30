@@ -1,8 +1,9 @@
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   annotations:
-    redis.opstreelabs.in: "true"
+    redis.opstreelabs.in: 'true'
     redis.opstreelabs.instance: redis-sentinel
   labels:
     app: redis-sentinel-sentinel
@@ -24,7 +25,7 @@ spec:
   template:
     metadata:
       annotations:
-        redis.opstreelabs.in: "true"
+        redis.opstreelabs.in: 'true'
         redis.opstreelabs.instance: redis-sentinel
       labels:
         app: redis-sentinel-sentinel

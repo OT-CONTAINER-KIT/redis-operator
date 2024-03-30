@@ -1,3 +1,4 @@
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -9,9 +10,7 @@ metadata:
 status:
   replicas: 3
   readyReplicas: 3
-
 ---
-
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
