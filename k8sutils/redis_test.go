@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	mock_utils "github.com/OT-CONTAINER-KIT/redis-operator/mocks/utils"
 	"github.com/go-logr/logr"
@@ -16,6 +17,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes/fake"
 	k8sClientFake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/utils/ptr"
 )
@@ -349,6 +352,7 @@ func TestGetRedisTLSArgs(t *testing.T) {
 }
 
 func TestCreateRedisReplicationCommand(t *testing.T) {
+	logger := logr.Discard()
 	tests := []struct {
 		name            string
 		redisCluster    *redisv1beta2.RedisCluster
@@ -364,7 +368,15 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: redisv1beta2.RedisClusterSpec{
-					Size:           ptr.To(int32(3)),
+					Size: ptr.To(int32(3)),
+					KubernetesConfig: redisv1beta2.KubernetesConfig{
+						KubernetesConfig: api.KubernetesConfig{
+							ExistingPasswordSecret: &api.ExistingPasswordSecret{
+								Name: ptr.To("redis-password-secret"),
+								Key:  ptr.To("password"),
+							},
+						},
+					},
 					ClusterVersion: ptr.To("v7"),
 					Port:           ptr.To(6379),
 				},
@@ -382,6 +394,7 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 				"redis-cluster-follower-0.redis-cluster-follower-headless.default.svc:6379",
 				"redis-cluster-leader-0.redis-cluster-leader-headless.default.svc:6379",
 				"--cluster-slave",
+				"-a", "password",
 			},
 		},
 		{
@@ -415,9 +428,17 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client := mock_utils.CreateFakeClientWithPodIPs(tt.redisCluster)
-			logger := testr.New(t)
+			pods := mock_utils.CreateFakeObjectWithPodIPs(tt.redisCluster)
+			var secret []runtime.Object
+			if tt.redisCluster.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
+				secret = mock_utils.CreateFakeObjectWithSecret(*tt.redisCluster.Spec.KubernetesConfig.ExistingPasswordSecret.Name, tt.redisCluster.GetNamespace(), *tt.redisCluster.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+			}
 
+			var objects []runtime.Object
+			objects = append(objects, pods...)
+			objects = append(objects, secret...)
+
+			client := fake.NewSimpleClientset(objects...)
 			cmd := createRedisReplicationCommand(client, logger, tt.redisCluster, tt.leaderPod, tt.followerPod)
 
 			// Assert the command is as expected using testify
