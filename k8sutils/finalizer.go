@@ -82,9 +82,6 @@ func HandleRedisReplicationFinalizer(ctrlclient client.Client, k8sClient kuberne
 func HandleRedisSentinelFinalizer(ctrlclient client.Client, logger logr.Logger, cr *redisv1beta2.RedisSentinel) error {
 	if cr.GetDeletionTimestamp() != nil {
 		if controllerutil.ContainsFinalizer(cr, RedisSentinelFinalizer) {
-			if err := finalizeRedisSentinelPVC(cr); err != nil {
-				return err
-			}
 			controllerutil.RemoveFinalizer(cr, RedisSentinelFinalizer)
 			if err := ctrlclient.Update(context.TODO(), cr); err != nil {
 				logger.Error(err, "Could not remove finalizer "+RedisSentinelFinalizer)
@@ -180,10 +177,5 @@ func finalizeRedisReplicationPVC(client kubernetes.Interface, logger logr.Logger
 			return err
 		}
 	}
-	return nil
-}
-
-//nolint:unparam
-func finalizeRedisSentinelPVC(cr *redisv1beta2.RedisSentinel) error {
 	return nil
 }

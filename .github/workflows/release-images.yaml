@@ -1,5 +1,4 @@
 # name: Release container images
-
 # on:
 #   pull_request:
 #     types: [closed]
@@ -26,7 +25,7 @@
 
 #     - name: Set up QEMU
 #       uses: docker/setup-qemu-action@v3
-      
+
 #     - name: Login to Quay.io
 #       uses: docker/login-action@v3
 #       with:
@@ -51,7 +50,7 @@
 #       uses: actions/checkout@v2
 #     - name: Run Trivy vulnerability scanner for arm64 image
 #       uses: aquasecurity/trivy-action@master
-      
+
 #     - name: Run Trivy vulnerability scanner for multi-arch image
 #       uses: aquasecurity/trivy-action@master
 #       with:
