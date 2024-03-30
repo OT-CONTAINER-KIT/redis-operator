@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	common "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -31,6 +32,17 @@ var _ = Describe("Redis standalone test", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      redisCRName,
 				Namespace: ns,
+				Annotations: map[string]string{
+					"key1": "value1",
+					"key2": "value2",
+				},
+			},
+			Spec: redisv1beta2.RedisSpec{
+				KubernetesConfig: redisv1beta2.KubernetesConfig{
+					KubernetesConfig: common.KubernetesConfig{
+						IgnoreAnnotations: []string{"key1"},
+					},
+				},
 			},
 		}
 		Expect(k8sClient.Create(context.TODO(), &redisCR)).Should(Succeed())
@@ -61,6 +73,10 @@ var _ = Describe("Redis standalone test", func() {
 
 			Expect(*sts.Spec.Replicas).To(BeEquivalentTo(1))
 			Expect(sts.Spec.ServiceName).To(Equal(redisCRName + "-headless"))
+			Expect(sts.Annotations).NotTo(HaveKey("key1"))
+			Expect(sts.Spec.Template.Annotations).NotTo(HaveKey("key1"))
+			Expect(sts.Annotations).To(HaveKey("key2"))
+			Expect(sts.Spec.Template.Annotations).To(HaveKey("key2"))
 
 			Eventually(func() error {
 				return k8sClient.Get(context.TODO(), types.NamespacedName{
