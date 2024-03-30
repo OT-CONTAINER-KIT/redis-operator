@@ -86,7 +86,7 @@ func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		if len(slaveNodes) == 0 {
 			realMaster = masterNodes[0]
 		}
-		err := k8sutils.CreateMasterSlaveReplication(ctx, r.K8sClient, r.Log, instance, masterNodes, realMaster)
+		err = k8sutils.CreateMasterSlaveReplication(ctx, r.K8sClient, r.Log, instance, masterNodes, slaveNodes)
 		if err != nil {
 			return ctrl.Result{RequeueAfter: time.Second * 60}, err
 		}
