@@ -17,7 +17,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     - name: Install yamllint
-      run: apt-get install -y yamllint
+      run: sudo apt-get install -y yamllint
     - name: Lint YAML files
       run: yamllint --strict ./tests/
 
