@@ -353,15 +353,26 @@ func TestGetRedisTLSArgs(t *testing.T) {
 
 func TestCreateRedisReplicationCommand(t *testing.T) {
 	logger := logr.Discard()
+	type secret struct {
+		name      string
+		namespace string
+		key       string
+	}
 	tests := []struct {
-		name            string
-		redisCluster    *redisv1beta2.RedisCluster
+		name         string
+		redisCluster *redisv1beta2.RedisCluster
+		secret
 		leaderPod       RedisDetails
 		followerPod     RedisDetails
 		expectedCommand []string
 	}{
 		{
 			name: "Test case with cluster version v7",
+			secret: secret{
+				name:      "redis-password-secret",
+				namespace: "default",
+				key:       "password",
+			},
 			redisCluster: &redisv1beta2.RedisCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "redis-cluster",
@@ -398,6 +409,47 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 			},
 		},
 		{
+			name: "Test case with cluster version v7 failed to get password",
+			secret: secret{
+				name:      "wrong-name",
+				namespace: "default",
+				key:       "password",
+			},
+			redisCluster: &redisv1beta2.RedisCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "redis-cluster",
+					Namespace: "default",
+				},
+				Spec: redisv1beta2.RedisClusterSpec{
+					Size: ptr.To(int32(3)),
+					KubernetesConfig: redisv1beta2.KubernetesConfig{
+						KubernetesConfig: api.KubernetesConfig{
+							ExistingPasswordSecret: &api.ExistingPasswordSecret{
+								Name: ptr.To("redis-password-secret"),
+								Key:  ptr.To("password"),
+							},
+						},
+					},
+					ClusterVersion: ptr.To("v7"),
+					Port:           ptr.To(6379),
+				},
+			},
+			leaderPod: RedisDetails{
+				PodName:   "redis-cluster-leader-0",
+				Namespace: "default",
+			},
+			followerPod: RedisDetails{
+				PodName:   "redis-cluster-follower-0",
+				Namespace: "default",
+			},
+			expectedCommand: []string{
+				"redis-cli", "--cluster", "add-node",
+				"redis-cluster-follower-0.redis-cluster-follower-headless.default.svc:6379",
+				"redis-cluster-leader-0.redis-cluster-leader-headless.default.svc:6379",
+				"--cluster-slave",
+			},
+		},
+		{
 			name: "Test case without cluster version v7",
 			redisCluster: &redisv1beta2.RedisCluster{
 				ObjectMeta: metav1.ObjectMeta{
@@ -431,7 +483,7 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 			pods := mock_utils.CreateFakeObjectWithPodIPs(tt.redisCluster)
 			var secret []runtime.Object
 			if tt.redisCluster.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-				secret = mock_utils.CreateFakeObjectWithSecret(*tt.redisCluster.Spec.KubernetesConfig.ExistingPasswordSecret.Name, tt.redisCluster.GetNamespace(), *tt.redisCluster.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+				secret = mock_utils.CreateFakeObjectWithSecret(tt.secret.name, tt.secret.namespace, tt.secret.key)
 			}
 
 			var objects []runtime.Object
@@ -678,6 +730,64 @@ func Test_checkRedisServerRole(t *testing.T) {
 			assert.Equal(t, tt.expectedResult, role, "Test case: "+tt.name)
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Errorf("there were unmet expectations: %s", err)
+			}
+		})
+	}
+}
+
+func TestCheckRedisCluster(t *testing.T) {
+	logger := logr.Discard() // Discard logs
+
+	tests := []struct {
+		name               string
+		expectError        error
+		clusterNodesOutput string
+		expectedResult     [][]string
+	}{
+		{
+			name: "Detailed cluster nodes output",
+			clusterNodesOutput: `07c37dfeb235213a872192d90877d0cd55635b91 127.0.0.1:30004@31004,hostname4 slave e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 0 1426238317239 4 connected
+67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1 127.0.0.1:30002@31002,hostname2 master - 0 1426238316232 2 connected 5461-10922
+292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f 127.0.0.1:30003@31003,hostname3 master - 0 1426238318243 3 connected 10923-16383
+6ec23923021cf3ffec47632106199cb7f496ce01 127.0.0.1:30005@31005,hostname5 slave 67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1 0 1426238316232 5 connected
+824fe116063bc5fcf9f4ffd895bc17aee7731ac3 127.0.0.1:30006@31006,hostname6 slave 292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f 0 1426238317741 6 connected
+e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@31001,hostname1 myself,master - 0 0 1 connected 0-5460`,
+			expectedResult: [][]string{
+				{"07c37dfeb235213a872192d90877d0cd55635b91", "127.0.0.1:30004@31004,hostname4", "slave", "e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca", "0", "1426238317239", "4", "connected"},
+				{"67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1", "127.0.0.1:30002@31002,hostname2", "master", "-", "0", "1426238316232", "2", "connected", "5461-10922"},
+				{"292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f", "127.0.0.1:30003@31003,hostname3", "master", "-", "0", "1426238318243", "3", "connected", "10923-16383"},
+				{"6ec23923021cf3ffec47632106199cb7f496ce01", "127.0.0.1:30005@31005,hostname5", "slave", "67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1", "0", "1426238316232", "5", "connected"},
+				{"824fe116063bc5fcf9f4ffd895bc17aee7731ac3", "127.0.0.1:30006@31006,hostname6", "slave", "292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f", "0", "1426238317741", "6", "connected"},
+				{"e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca", "127.0.0.1:30001@31001,hostname1", "myself,master", "-", "0", "0", "1", "connected", "0-5460"},
+			},
+		},
+		{
+			name:           "Error from ClusterNodes",
+			expectError:    redis.ErrClosed,
+			expectedResult: nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			db, mock := redismock.NewClientMock()
+
+			if tc.expectError != nil {
+				mock.ExpectClusterNodes().SetErr(tc.expectError)
+			} else {
+				mock.ExpectClusterNodes().SetVal(tc.clusterNodesOutput)
+			}
+			result := checkRedisCluster(context.TODO(), db, logger)
+
+			if tc.expectError != nil {
+				assert.Nil(t, result)
+			} else {
+				assert.ElementsMatch(t, tc.expectedResult, result)
+			}
+
+			// Ensure all expectations are met
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Errorf("there were unfulfilled expectations: %s", err)
 			}
 		})
 	}
