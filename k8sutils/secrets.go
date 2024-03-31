@@ -25,9 +25,11 @@ func getRedisPassword(client kubernetes.Interface, logger logr.Logger, namespace
 	}
 	for key, value := range secretName.Data {
 		if key == secretKey {
+			logger.V(1).Info("Secret key found in the secret", "secretKey", secretKey)
 			return strings.TrimSpace(string(value)), nil
 		}
 	}
+	logger.Error(errors.New("secret key not found"), "Secret key not found in the secret")
 	return "", nil
 }
 

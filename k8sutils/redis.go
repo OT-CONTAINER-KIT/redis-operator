@@ -165,8 +165,9 @@ func createRedisReplicationCommand(client kubernetes.Interface, logger logr.Logg
 		pass, err := getRedisPassword(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
 		if err != nil {
 			logger.Error(err, "Failed to retrieve Redis password", "Secret", *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name)
+		} else {
+			cmd = append(cmd, "-a", pass)
 		}
-		cmd = append(cmd, "-a", pass)
 	}
 
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, leaderPod.PodName)...)
@@ -185,7 +186,10 @@ func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Inter
 	leaderCounts := cr.Spec.GetReplicaCounts("leader")
 	followerPerLeader := followerCounts / leaderCounts
 
-	nodes := checkRedisCluster(ctx, client, logger, cr)
+	redisClient := configureRedisClient(client, logger, cr, cr.ObjectMeta.Name+"-leader-0")
+	defer redisClient.Close()
+
+	nodes := checkRedisCluster(ctx, redisClient, logger)
 	for followerIdx := 0; followerIdx <= int(followerCounts)-1; {
 		for i := 0; i < int(followerPerLeader) && followerIdx <= int(followerCounts)-1; i++ {
 			followerPod := RedisDetails{
@@ -222,18 +226,10 @@ func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Inter
 }
 
 // checkRedisCluster will check the redis cluster have sufficient nodes or not
-func checkRedisCluster(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster) [][]string {
-	redisClient := configureRedisClient(client, logger, cr, cr.ObjectMeta.Name+"-leader-0")
-	defer redisClient.Close()
-	cmd := redis.NewStringCmd(ctx, "cluster", "nodes")
-	err := redisClient.Process(ctx, cmd)
+func checkRedisCluster(ctx context.Context, redisClient *redis.Client, logger logr.Logger) [][]string {
+	output, err := redisClient.ClusterNodes(ctx).Result()
 	if err != nil {
-		logger.Error(err, "Redis command failed with this error")
-	}
-
-	output, err := cmd.Result()
-	if err != nil {
-		logger.Error(err, "Redis command failed with this error")
+		logger.Error(err, "Error in getting Redis cluster nodes")
 	}
 	logger.V(1).Info("Redis cluster nodes are listed", "Output", output)
 
@@ -298,8 +294,10 @@ func executeFailoverCommand(ctx context.Context, client kubernetes.Interface, lo
 
 // CheckRedisNodeCount will check the count of redis nodes
 func CheckRedisNodeCount(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster, nodeType string) int32 {
+	redisClient := configureRedisClient(client, logger, cr, cr.ObjectMeta.Name+"-leader-0")
+	defer redisClient.Close()
 	var redisNodeType string
-	clusterNodes := checkRedisCluster(ctx, client, logger, cr)
+	clusterNodes := checkRedisCluster(ctx, redisClient, logger)
 	count := len(clusterNodes)
 
 	switch nodeType {
@@ -326,7 +324,9 @@ func CheckRedisNodeCount(ctx context.Context, client kubernetes.Interface, logge
 
 // CheckRedisClusterState will check the redis cluster state
 func CheckRedisClusterState(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster) int {
-	clusterNodes := checkRedisCluster(ctx, client, logger, cr)
+	redisClient := configureRedisClient(client, logger, cr, cr.ObjectMeta.Name+"-leader-0")
+	defer redisClient.Close()
+	clusterNodes := checkRedisCluster(ctx, redisClient, logger)
 	count := 0
 	for _, node := range clusterNodes {
 		if strings.Contains(node[2], "fail") || strings.Contains(node[7], "disconnected") {

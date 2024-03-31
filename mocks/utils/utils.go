@@ -30,7 +30,7 @@ func CreateFakeClientWithPodIPs_LeaderPods(cr *redisv1beta2.RedisCluster) *fake.
 	return fake.NewSimpleClientset(pods...)
 }
 
-func CreateFakeClientWithPodIPs(cr *redisv1beta2.RedisCluster) *fake.Clientset {
+func CreateFakeObjectWithPodIPs(cr *redisv1beta2.RedisCluster) []runtime.Object {
 	leaderReplicas := cr.Spec.GetReplicaCounts("leader")
 	followerReplicas := cr.Spec.GetReplicaCounts("follower")
 	pods := make([]runtime.Object, leaderReplicas+followerReplicas)
@@ -60,7 +60,20 @@ func CreateFakeClientWithPodIPs(cr *redisv1beta2.RedisCluster) *fake.Clientset {
 		}
 	}
 
-	return fake.NewSimpleClientset(pods...)
+	return pods
+}
+
+func CreateFakeObjectWithSecret(name, namespace, key string) []runtime.Object {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{
+			key: []byte("password"),
+		},
+	}
+	return []runtime.Object{secret}
 }
 
 func CreateFakeClientWithSecrets(cr *redisv1beta2.RedisCluster, secretName, secretKey, secretValue string) *fake.Clientset {
