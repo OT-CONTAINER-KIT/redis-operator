@@ -69,7 +69,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
-	if err = k8sutils.AddRedisClusterFinalizer(instance, r.Client); err != nil {
+	if err = k8sutils.AddFinalizer(instance, k8sutils.RedisClusterFinalizer, r.Client); err != nil {
 		return ctrl.Result{}, err
 	}
 

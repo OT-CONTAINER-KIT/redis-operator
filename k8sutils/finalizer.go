@@ -92,37 +92,10 @@ func HandleRedisSentinelFinalizer(ctrlclient client.Client, logger logr.Logger, 
 	return nil
 }
 
-// AddRedisFinalizer add finalizer for graceful deletion
-func AddRedisFinalizer(cr *redisv1beta2.Redis, cl client.Client) error {
-	if !controllerutil.ContainsFinalizer(cr, RedisFinalizer) {
-		controllerutil.AddFinalizer(cr, RedisFinalizer)
-		return cl.Update(context.TODO(), cr)
-	}
-	return nil
-}
-
-// AddRedisClusterFinalizer add finalizer for graceful deletion
-func AddRedisClusterFinalizer(cr *redisv1beta2.RedisCluster, cl client.Client) error {
-	if !controllerutil.ContainsFinalizer(cr, RedisClusterFinalizer) {
-		controllerutil.AddFinalizer(cr, RedisClusterFinalizer)
-		return cl.Update(context.TODO(), cr)
-	}
-	return nil
-}
-
-// AddRedisReplicationFinalizer add finalizer for graceful deletion
-func AddRedisReplicationFinalizer(cr *redisv1beta2.RedisReplication, cl client.Client) error {
-	if !controllerutil.ContainsFinalizer(cr, RedisReplicationFinalizer) {
-		controllerutil.AddFinalizer(cr, RedisReplicationFinalizer)
-		return cl.Update(context.TODO(), cr)
-	}
-	return nil
-}
-
-// AddRedisSentinelFinalizer add finalizer for graceful deletion
-func AddRedisSentinelFinalizer(cr *redisv1beta2.RedisSentinel, cl client.Client) error {
-	if !controllerutil.ContainsFinalizer(cr, RedisSentinelFinalizer) {
-		controllerutil.AddFinalizer(cr, RedisSentinelFinalizer)
+// AddFinalizer add finalizer for graceful deletion
+func AddFinalizer(cr client.Object, finalizer string, cl client.Client) error {
+	if !controllerutil.ContainsFinalizer(cr, finalizer) {
+		controllerutil.AddFinalizer(cr, finalizer)
 		return cl.Update(context.TODO(), cr)
 	}
 	return nil

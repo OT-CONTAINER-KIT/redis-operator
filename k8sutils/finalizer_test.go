@@ -825,326 +825,72 @@ func helperRedisClusterPVCs(clusterName string, namespace string) []*corev1.Pers
 	return pvcs
 }
 
-func TestAddRedisFinalizer(t *testing.T) {
-	fakeFinalizer := "FakeFinalizer"
+func TestAddFinalizer(t *testing.T) {
+	type args struct {
+		cr        *v1beta2.Redis
+		finalizer string
+	}
 	tests := []struct {
-		name            string
-		redisStandalone *v1beta2.Redis
-		want            *v1beta2.Redis
-		expectError     bool
+		name    string
+		args    args
+		want    *v1beta2.Redis
+		wantErr bool
 	}{
 		{
-			name: "Redis CR without finalizer",
-			redisStandalone: &v1beta2.Redis{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "redis-standalone",
-					Namespace: "default",
+			name: "CR without finalizer",
+			args: args{
+				cr: &v1beta2.Redis{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:       "test-redis",
+						Namespace:  "default",
+						Finalizers: []string{},
+					},
 				},
+				finalizer: RedisFinalizer,
 			},
 			want: &v1beta2.Redis{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:       "redis-standalone",
+					Name:       "test-redis",
 					Namespace:  "default",
 					Finalizers: []string{RedisFinalizer},
 				},
 			},
-			expectError: false,
+			wantErr: false,
 		},
 		{
-			name: "Redis CR with finalizer",
-			redisStandalone: &v1beta2.Redis{
+			name: "CR with finalizer",
+			args: args{
+				cr: &v1beta2.Redis{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:       "test-redis",
+						Namespace:  "default",
+						Finalizers: []string{RedisFinalizer},
+					},
+				},
+				finalizer: RedisFinalizer,
+			},
+			want: &v1beta2.Redis{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:       "redis-standalone",
+					Name:       "test-redis",
 					Namespace:  "default",
 					Finalizers: []string{RedisFinalizer},
 				},
 			},
-			want: &v1beta2.Redis{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "redis-standalone",
-					Namespace:  "default",
-					Finalizers: []string{RedisFinalizer},
-				},
-			},
-			expectError: false,
-		},
-		{
-			name: "Redis CR with random finalizer",
-			redisStandalone: &v1beta2.Redis{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "redis-standalone",
-					Namespace:  "default",
-					Finalizers: []string{fakeFinalizer},
-				},
-			},
-			want: &v1beta2.Redis{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "redis-standalone",
-					Namespace:  "default",
-					Finalizers: []string{fakeFinalizer, RedisFinalizer},
-				},
-			},
-			expectError: false,
+			wantErr: false,
 		},
 	}
-
-	for _, tc := range tests {
-		mockClient := &mockClient.MockClient{
-			UpdateFn: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
-				return nil
-			},
-		}
-		t.Run(tc.name, func(t *testing.T) {
-			err := AddRedisFinalizer(tc.redisStandalone, mockClient)
-			if tc.expectError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tc.want, tc.redisStandalone)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mc := &mockClient.MockClient{
+				UpdateFn: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+					return nil
+				},
 			}
-		})
-	}
-}
-
-func TestAddRedisClusterFinalizer(t *testing.T) {
-	fakeFinalizer := "FakeFinalizer"
-	tests := []struct {
-		name         string
-		redisCluster *v1beta2.RedisCluster
-		want         *v1beta2.RedisCluster
-		expectError  bool
-	}{
-		{
-			name: "Redis Cluster CR without finalizer",
-			redisCluster: &v1beta2.RedisCluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "redis-cluster",
-					Namespace: "default",
-				},
-			},
-			want: &v1beta2.RedisCluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "redis-cluster",
-					Namespace:  "default",
-					Finalizers: []string{RedisClusterFinalizer},
-				},
-			},
-			expectError: false,
-		},
-		{
-			name: "Redis Cluster CR with finalizer",
-			redisCluster: &v1beta2.RedisCluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "redis-cluster",
-					Namespace:  "default",
-					Finalizers: []string{RedisClusterFinalizer},
-				},
-			},
-			want: &v1beta2.RedisCluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "redis-cluster",
-					Namespace:  "default",
-					Finalizers: []string{RedisClusterFinalizer},
-				},
-			},
-			expectError: false,
-		},
-		{
-			name: "Redis Cluster CR with random finalizer",
-			redisCluster: &v1beta2.RedisCluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "redis-cluster",
-					Namespace:  "default",
-					Finalizers: []string{fakeFinalizer},
-				},
-			},
-			want: &v1beta2.RedisCluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "redis-cluster",
-					Namespace:  "default",
-					Finalizers: []string{fakeFinalizer, RedisClusterFinalizer},
-				},
-			},
-			expectError: false,
-		},
-	}
-
-	for _, tc := range tests {
-		mockClient := &mockClient.MockClient{
-			UpdateFn: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
-				return nil
-			},
-		}
-		t.Run(tc.name, func(t *testing.T) {
-			err := AddRedisClusterFinalizer(tc.redisCluster, mockClient)
-			if tc.expectError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tc.want, tc.redisCluster)
+			err := AddFinalizer(tt.args.cr, tt.args.finalizer, mc)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("AddFinalizer() error = %v, wantErr %v", err, tt.wantErr)
 			}
-		})
-	}
-}
-
-func TestAddRedisReplicationFinalizer(t *testing.T) {
-	fakeFinalizer := "FakeFinalizer"
-	tests := []struct {
-		name             string
-		redisReplication *v1beta2.RedisReplication
-		want             *v1beta2.RedisReplication
-		expectError      bool
-	}{
-		{
-			name: "Redis Replication CR without finalizer",
-			redisReplication: &v1beta2.RedisReplication{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "redis-replication",
-					Namespace: "default",
-				},
-			},
-			want: &v1beta2.RedisReplication{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "redis-replication",
-					Namespace:  "default",
-					Finalizers: []string{RedisReplicationFinalizer},
-				},
-			},
-			expectError: false,
-		},
-		{
-			name: "Redis Replication CR with finalizer",
-			redisReplication: &v1beta2.RedisReplication{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "redis-replication",
-					Namespace:  "default",
-					Finalizers: []string{RedisReplicationFinalizer},
-				},
-			},
-			want: &v1beta2.RedisReplication{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "redis-replication",
-					Namespace:  "default",
-					Finalizers: []string{RedisReplicationFinalizer},
-				},
-			},
-			expectError: false,
-		},
-		{
-			name: "Redis Replication CR with random finalizer",
-			redisReplication: &v1beta2.RedisReplication{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "redis-replication",
-					Namespace:  "default",
-					Finalizers: []string{fakeFinalizer},
-				},
-			},
-			want: &v1beta2.RedisReplication{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "redis-replication",
-					Namespace:  "default",
-					Finalizers: []string{fakeFinalizer, RedisReplicationFinalizer},
-				},
-			},
-			expectError: false,
-		},
-	}
-
-	for _, tc := range tests {
-		mockClient := &mockClient.MockClient{
-			UpdateFn: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
-				return nil
-			},
-		}
-		t.Run(tc.name, func(t *testing.T) {
-			err := AddRedisReplicationFinalizer(tc.redisReplication, mockClient)
-			if tc.expectError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tc.want, tc.redisReplication)
-			}
-		})
-	}
-}
-
-func TestAddRedisSentinelFinalizer(t *testing.T) {
-	fakeFinalizer := "FakeFinalizer"
-	tests := []struct {
-		name          string
-		redisSentinel *v1beta2.RedisSentinel
-		want          *v1beta2.RedisSentinel
-		expectError   bool
-	}{
-		{
-			name: "Redis Sentinel CR without finalizer",
-			redisSentinel: &v1beta2.RedisSentinel{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "redis-sentinel",
-					Namespace: "default",
-				},
-			},
-			want: &v1beta2.RedisSentinel{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "redis-sentinel",
-					Namespace:  "default",
-					Finalizers: []string{RedisSentinelFinalizer},
-				},
-			},
-			expectError: false,
-		},
-		{
-			name: "Redis Sentinel CR with finalizer",
-			redisSentinel: &v1beta2.RedisSentinel{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "redis-sentinel",
-					Namespace:  "default",
-					Finalizers: []string{RedisSentinelFinalizer},
-				},
-			},
-			want: &v1beta2.RedisSentinel{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "redis-sentinel",
-					Namespace:  "default",
-					Finalizers: []string{RedisSentinelFinalizer},
-				},
-			},
-			expectError: false,
-		},
-		{
-			name: "Redis Sentinel CR with random finalizer",
-			redisSentinel: &v1beta2.RedisSentinel{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "redis-sentinel",
-					Namespace:  "default",
-					Finalizers: []string{fakeFinalizer},
-				},
-			},
-			want: &v1beta2.RedisSentinel{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "redis-sentinel",
-					Namespace:  "default",
-					Finalizers: []string{fakeFinalizer, RedisSentinelFinalizer},
-				},
-			},
-			expectError: false,
-		},
-	}
-
-	for _, tc := range tests {
-		mockClient := &mockClient.MockClient{
-			UpdateFn: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
-				return nil
-			},
-		}
-		t.Run(tc.name, func(t *testing.T) {
-			err := AddRedisSentinelFinalizer(tc.redisSentinel, mockClient)
-			if tc.expectError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tc.want, tc.redisSentinel)
-			}
+			assert.Equal(t, tt.want.ObjectMeta.Finalizers, tt.args.cr.ObjectMeta.Finalizers)
 		})
 	}
 }

@@ -60,7 +60,7 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, err
 	}
 
-	if err = k8sutils.AddRedisFinalizer(instance, r.Client); err != nil {
+	if err = k8sutils.AddFinalizer(instance, k8sutils.RedisFinalizer, r.Client); err != nil {
 		return ctrl.Result{}, err
 	}
 
