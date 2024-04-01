@@ -837,12 +837,34 @@ func TestAddFinalizer(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "Add finalizer",
+			name: "CR without finalizer",
 			args: args{
 				cr: &v1beta2.Redis{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-redis",
-						Namespace: "default",
+						Name:       "test-redis",
+						Namespace:  "default",
+						Finalizers: []string{},
+					},
+				},
+				finalizer: RedisFinalizer,
+			},
+			want: &v1beta2.Redis{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "test-redis",
+					Namespace:  "default",
+					Finalizers: []string{RedisFinalizer},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "CR with finalizer",
+			args: args{
+				cr: &v1beta2.Redis{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:       "test-redis",
+						Namespace:  "default",
+						Finalizers: []string{RedisFinalizer},
 					},
 				},
 				finalizer: RedisFinalizer,
