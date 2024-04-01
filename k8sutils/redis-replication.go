@@ -2,6 +2,7 @@ package k8sutils
 
 import (
 	"context"
+	"k8s.io/utils/pointer"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
@@ -252,23 +253,31 @@ func updatePodLabel(ctx context.Context, cl kubernetes.Interface, logger logr.Lo
 func UpdateRoleLabelPod(ctx context.Context, cl kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication) error {
 	// find realMaster, and label this pod: 'redis-role=master'
 	role := "master"
+	realMaster := ""
 	masterPods := GetRedisNodesByRole(ctx, cl, logger, cr, role)
-	realMaster := checkAttachedSlave(ctx, cl, logger, cr, masterPods)
-	err := updatePodLabel(ctx, cl, logger, cr, role, []string{realMaster})
-	if err != nil {
-		return err
+	for _, masterPod := range masterPods {
+		redisClient := configureRedisReplicationClient(cl, logger, cr, masterPod)
+		numOfConntectedSlaves := checkAttachedSlave(ctx, redisClient, logger, masterPod)
+		if numOfConntectedSlaves > 0 {
+			realMaster = masterPod
+		}
 	}
-
+	if realMaster != "" {
+		err := updatePodLabel(ctx, cl, logger, cr, role, []string{realMaster})
+		if err != nil {
+			return err
+		}
+	}
 	// when configuring one size replication
 	if cr.Spec.Size == pointer.Int32(1) {
-		err = updatePodLabel(ctx, cl, logger, cr, role, masterPods)
+		err := updatePodLabel(ctx, cl, logger, cr, role, masterPods)
 		if err != nil {
 			return err
 		}
 	}
 
 	role = "slave"
-	err = updatePodLabel(ctx, cl, logger, cr, role, GetRedisNodesByRole(ctx, cl, logger, cr, role))
+	err := updatePodLabel(ctx, cl, logger, cr, role, GetRedisNodesByRole(ctx, cl, logger, cr, role))
 	if err != nil {
 		return err
 	}
