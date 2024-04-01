@@ -363,8 +363,8 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 				containerParams.Port,
 				clusterVersion,
 			),
-			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe),
-			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe),
+			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe, containerParams.Role),
+			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe, containerParams.Role),
 			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, clusterMode, nodeConfVolume, externalConfig, mountpath, containerParams.TLSConfig, containerParams.ACLConfig),
 		},
 	}
@@ -590,9 +590,43 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nod
 	return VolumeMounts
 }
 
+var healthCheckScript = `
+#!/bin/bash
+
+health_check() {
+    if [[ -n "${REDIS_PASSWORD}" ]]; then
+        export REDISCLI_AUTH="${REDIS_PASSWORD}"
+    fi
+    if [[ "${TLS_MODE}" == "true" ]]; then
+        redis-cli --tls --cert "${REDIS_TLS_CERT}" --key "${REDIS_TLS_CERT_KEY}" --cacert "${REDIS_TLS_CA_KEY}" -h "$(hostname)" -p "${REDIS_PORT}" ping
+    else
+        redis-cli -h "$(hostname)" -p "${REDIS_PORT}" ping
+    fi
+}
+
+health_check
+`
+
+var sentinelHealthCheckScript = `
+#!/bin/bash
+
+health_check() {
+    if [[ -n "${REDIS_PASSWORD}" ]]; then
+        export REDISCLI_AUTH="${REDIS_PASSWORD}"
+    fi
+    if [[ "${TLS_MODE}" == "true" ]]; then
+        redis-cli --tls --cert "${REDIS_TLS_CERT}" --key "${REDIS_TLS_CERT_KEY}" --cacert "${REDIS_TLS_CA_KEY}" -h "$(hostname)" -p "${SENTINEL_PORT}" ping
+    else
+        redis-cli -h "$(hostname)" -p "${SENTINEL_PORT}" ping
+    fi
+}
+
+health_check
+`
+
 // getProbeInfo generate probe for Redis StatefulSet
-func getProbeInfo(probe *commonapi.Probe) *corev1.Probe {
-	return &corev1.Probe{
+func getProbeInfo(probe *commonapi.Probe, role string) *corev1.Probe {
+	ret := &corev1.Probe{
 		InitialDelaySeconds: probe.InitialDelaySeconds,
 		PeriodSeconds:       probe.PeriodSeconds,
 		FailureThreshold:    probe.FailureThreshold,
@@ -602,11 +636,20 @@ func getProbeInfo(probe *commonapi.Probe) *corev1.Probe {
 			Exec: &corev1.ExecAction{
 				Command: []string{
 					"bash",
-					"/usr/bin/healthcheck.sh",
+					"-c",
+					healthCheckScript,
 				},
 			},
 		},
 	}
+	if role == "sentinel" {
+		ret.ProbeHandler.Exec.Command = []string{
+			"bash",
+			"-c",
+			sentinelHealthCheckScript,
+		}
+	}
+	return ret
 }
 
 // getEnvironmentVariables returns all the required Environment Variables
