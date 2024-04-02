@@ -3,8 +3,6 @@ package k8sutils
 import (
 	"context"
 
-	"k8s.io/utils/pointer"
-
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
 	"github.com/go-logr/logr"
@@ -232,7 +230,7 @@ func IsRedisReplicationReady(ctx context.Context, logger logr.Logger, client kub
 	return true
 }
 
-func updatePodLabel(ctx context.Context, cl kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication, role string, nodes []string) error {
+func UpdateRoleLabelPod(ctx context.Context, cl kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication, role string, nodes []string) error {
 	for _, node := range nodes {
 		pod, err := cl.CoreV1().Pods(cr.Namespace).Get(context.TODO(), node, metav1.GetOptions{})
 		if err != nil {
@@ -247,40 +245,6 @@ func updatePodLabel(ctx context.Context, cl kubernetes.Interface, logger logr.Lo
 			logger.Error(err, "Cannot update redis replication pod")
 			return err
 		}
-	}
-	return nil
-}
-
-func UpdateRoleLabelPod(ctx context.Context, cl kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication) error {
-	// find realMaster, and label this pod: 'redis-role=master'
-	role := "master"
-	realMaster := ""
-	masterPods := GetRedisNodesByRole(ctx, cl, logger, cr, role)
-	for _, masterPod := range masterPods {
-		redisClient := configureRedisReplicationClient(cl, logger, cr, masterPod)
-		numOfConntectedSlaves := checkAttachedSlave(ctx, redisClient, logger, masterPod)
-		if numOfConntectedSlaves > 0 {
-			realMaster = masterPod
-		}
-	}
-	if realMaster != "" {
-		err := updatePodLabel(ctx, cl, logger, cr, role, []string{realMaster})
-		if err != nil {
-			return err
-		}
-	}
-	// when configuring one size replication
-	if cr.Spec.Size == pointer.Int32(1) {
-		err := updatePodLabel(ctx, cl, logger, cr, role, masterPods)
-		if err != nil {
-			return err
-		}
-	}
-
-	role = "slave"
-	err := updatePodLabel(ctx, cl, logger, cr, role, GetRedisNodesByRole(ctx, cl, logger, cr, role))
-	if err != nil {
-		return err
 	}
 	return nil
 }
