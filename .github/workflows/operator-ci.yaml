@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 env:
-  GOLANG_VERSION: 1.21
+  GOLANG_VERSION: 1.22
   APPLICATION_NAME: redis-operator
   DockerImagName: docker.io/opstree/redis-operator
   BuildDocs: true
