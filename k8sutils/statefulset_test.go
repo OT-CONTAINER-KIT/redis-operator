@@ -284,6 +284,87 @@ func Test_createStatefulSet(t *testing.T) {
 	}
 }
 
+func TestUpdateStatefulSet(t *testing.T) {
+
+	tests := []struct {
+		name        string
+		sts         appsv1.StatefulSet
+		recreatests bool
+		updated     bool
+	}{
+		{
+			name: "StatefulSet Recreated and Updated",
+			sts: appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-sts",
+					Namespace: "test-ns",
+				},
+			},
+			recreatests: true,
+			updated:     true,
+		},
+		{
+			name: "StatefulSet Updated",
+			sts: appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-sts",
+					Namespace: "test-ns",
+				},
+			},
+			recreatests: false,
+			updated:     true,
+		},
+		{
+			name: "StatefulSet Updated",
+			sts: appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-sts",
+					Namespace: "test-ns",
+				},
+			},
+			recreatests: true,
+			updated:     false,
+		},
+		{
+			name: "StatefulSet Updated",
+			sts: appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-sts",
+					Namespace: "test-ns",
+				},
+			},
+			recreatests: false,
+			updated:     false,
+		},
+	}
+
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			var client *k8sClientFake.Clientset
+			if test.updated {
+				client = k8sClientFake.NewSimpleClientset(test.sts.DeepCopy())
+			} else {
+				client = k8sClientFake.NewSimpleClientset()
+			}
+			err := updateStatefulSet(test.sts.Namespace, &test.sts, test.recreatests, client)
+			if test.updated {
+				if test.recreatests {
+					assert.Nil(t, err)
+				} else {
+					assert.Nil(t, err)
+				}
+			} else {
+				if test.recreatests {
+					assert.NotNil(t, err)
+				} else {
+					assert.NotNil(t, err)
+				}
+			}
+		})
+	}
+}
+
 func TestGenerateTLSEnvironmentVariables(t *testing.T) {
 	tlsConfig := &redisv1beta2.TLSConfig{
 		TLSConfig: common.TLSConfig{
