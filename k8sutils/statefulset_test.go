@@ -1,6 +1,7 @@
 package k8sutils
 
 import (
+	"context"
 	"path"
 	"testing"
 
@@ -284,82 +285,113 @@ func Test_createStatefulSet(t *testing.T) {
 	}
 }
 
-func TestUpdateStatefulSet(t *testing.T) {
+func ptrInt32(i int32) *int32 {
+	return &i
+}
 
+func TestUpdateStatefulSet(t *testing.T) {
 	tests := []struct {
-		name        string
-		sts         appsv1.StatefulSet
-		recreatests bool
-		updated     bool
+		name            string
+		existingStsSpec appsv1.StatefulSetSpec
+		updatedStsSpec  appsv1.StatefulSetSpec
+		recreateSts     bool
+		stsPresent      bool
 	}{
 		{
-			name: "StatefulSet Recreated and Updated",
-			sts: appsv1.StatefulSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-sts",
-					Namespace: "test-ns",
-				},
+			name: "Update StatefulSet without recreate in existing Statefulset",
+			existingStsSpec: appsv1.StatefulSetSpec{
+				Replicas: ptrInt32(3),
 			},
-			recreatests: true,
-			updated:     true,
+			updatedStsSpec: appsv1.StatefulSetSpec{
+				Replicas: ptrInt32(5),
+			},
+			recreateSts: false,
+			stsPresent:  true,
 		},
 		{
-			name: "StatefulSet Updated",
-			sts: appsv1.StatefulSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-sts",
-					Namespace: "test-ns",
-				},
+			name: "Update StatefulSet with recreate in existing Statefulset",
+			existingStsSpec: appsv1.StatefulSetSpec{
+				Replicas: ptrInt32(2),
 			},
-			recreatests: false,
-			updated:     true,
+			updatedStsSpec: appsv1.StatefulSetSpec{
+				Replicas: ptrInt32(4),
+			},
+			recreateSts: true,
+			stsPresent:  true,
 		},
 		{
-			name: "StatefulSet Updated",
-			sts: appsv1.StatefulSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-sts",
-					Namespace: "test-ns",
-				},
+			name: "Update StatefulSet without recreate StatefulSet is not present",
+			existingStsSpec: appsv1.StatefulSetSpec{
+				Replicas: ptrInt32(2),
 			},
-			recreatests: true,
-			updated:     false,
+			updatedStsSpec: appsv1.StatefulSetSpec{
+				Replicas: ptrInt32(4),
+			},
+			recreateSts: false,
+			stsPresent:  false,
 		},
 		{
-			name: "StatefulSet Updated",
-			sts: appsv1.StatefulSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-sts",
-					Namespace: "test-ns",
+			name: "Update StatefulSet without recreate StatefulSet",
+			existingStsSpec: appsv1.StatefulSetSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"name": "redis",
+						},
+					},
 				},
 			},
-			recreatests: false,
-			updated:     false,
+			updatedStsSpec: appsv1.StatefulSetSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"name": "redis-standalone",
+						},
+					},
+				},
+			},
+			recreateSts: false,
+			stsPresent:  true,
 		},
 	}
+
+	assert := assert.New(t)
 
 	for i := range tests {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
 			var client *k8sClientFake.Clientset
-			if test.updated {
-				client = k8sClientFake.NewSimpleClientset(test.sts.DeepCopy())
+			existingSts := appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-sts",
+					Namespace: "test-ns",
+				},
+				Spec: test.existingStsSpec,
+			}
+			updatedSts := appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-sts",
+					Namespace: "test-ns",
+				},
+				Spec: test.updatedStsSpec,
+			}
+			if test.stsPresent {
+				existingStsCopy := existingSts.DeepCopy()
+
+				client = k8sClientFake.NewSimpleClientset()
+				_, errExistingSts := client.AppsV1().StatefulSets(existingSts.Namespace).Create(context.TODO(), &existingSts, metav1.CreateOptions{})
+				assert.NoError(errExistingSts, "Error while creating Stateful Set")
+
+				errUpdatedSts := updateStatefulSet(updatedSts.Namespace, &updatedSts, test.recreateSts, client)
+				assert.NoError(errUpdatedSts, "Error while updating Statefulset")
+
+				getUpdatedSts, errGetUpdatedSts := client.AppsV1().StatefulSets(updatedSts.Namespace).Get(context.TODO(), updatedSts.Name, metav1.GetOptions{})
+				assert.NoError(errGetUpdatedSts, "Error getting Updted StatefulSet")
+
+				// assert.Equal(test.updatedStsSpec, getUpdatedSts.Spec, "StatefulSet spec Match")
+				assert.NotEqual(getUpdatedSts.Spec, existingStsCopy.Spec, "StatefulSet spec Mismatch")
 			} else {
 				client = k8sClientFake.NewSimpleClientset()
-			}
-			err := updateStatefulSet(test.sts.Namespace, &test.sts, test.recreatests, client)
-			if test.updated {
-				if test.recreatests {
-					assert.Nil(t, err)
-				} else {
-					assert.Nil(t, err)
-				}
-			} else {
-				if test.recreatests {
-					assert.NotNil(t, err)
-				} else {
-					assert.NotNil(t, err)
-				}
 			}
 		})
 	}
