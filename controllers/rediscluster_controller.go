@@ -230,16 +230,17 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, r.Log, instance, "") == totalReplicas {
 		k8sutils.CheckIfEmptyMasters(ctx, r.K8sClient, r.Log, instance)
 	}
-	reqLogger.Info("Will reconcile redis cluster operator in again 10 seconds")
 
 	// Mark the cluster status as ready if all the leader and follower nodes are ready
 	if instance.Status.ReadyLeaderReplicas == leaderReplicas && instance.Status.ReadyFollowerReplicas == followerReplicas {
-		err = k8sutils.UpdateRedisClusterStatus(instance, status.RedisClusterReady, status.ReadyClusterReason, leaderReplicas, followerReplicas, r.Dk8sClient)
-		if err != nil {
-			return ctrl.Result{}, err
+		if k8sutils.RedisClusterStatusHealth(ctx, r.K8sClient, r.Log, instance) {
+			err = k8sutils.UpdateRedisClusterStatus(instance, status.RedisClusterReady, status.ReadyClusterReason, leaderReplicas, followerReplicas, r.Dk8sClient)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
 		}
 	}
-
+	reqLogger.Info("Will reconcile redis cluster operator in again 10 seconds")
 	return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 }
 

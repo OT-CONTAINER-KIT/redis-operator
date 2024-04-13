@@ -322,6 +322,34 @@ func CheckRedisNodeCount(ctx context.Context, client kubernetes.Interface, logge
 	return int32(count)
 }
 
+// RedisClusterStatusHealth use `redis-cli --cluster check 127.0.0.1:6379`
+func RedisClusterStatusHealth(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster) bool {
+	redisClient := configureRedisClient(client, logger, cr, cr.ObjectMeta.Name+"-leader-0")
+	defer redisClient.Close()
+
+	cmd := []string{"redis-cli", "--cluster", "check", "127.0.0.1:6379"}
+	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
+		pass, err := getRedisPassword(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+		if err != nil {
+			logger.Error(err, "Error in getting redis password")
+		}
+		cmd = append(cmd, "-a")
+		cmd = append(cmd, pass)
+	}
+	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.ObjectMeta.Name+"-leader-0")...)
+	out, err := executeCommand1(client, logger, cr, cmd, cr.ObjectMeta.Name+"-leader-0")
+	if err != nil {
+		return false
+	}
+	// [OK] xxx keys in xxx masters.
+	// [OK] All nodes agree about slots configuration.
+	// [OK] All 16384 slots covered.
+	if strings.Count(out, "[OK]") != 3 {
+		return false
+	}
+	return true
+}
+
 // CheckRedisClusterState will check the redis cluster state
 func CheckRedisClusterState(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster) int {
 	redisClient := configureRedisClient(client, logger, cr, cr.ObjectMeta.Name+"-leader-0")
@@ -369,6 +397,15 @@ func configureRedisClient(client kubernetes.Interface, logger logr.Logger, cr *r
 
 // executeCommand will execute the commands in pod
 func executeCommand(client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster, cmd []string, podName string) {
+	execOut, execErr := executeCommand1(client, logger, cr, cmd, podName)
+	if execErr != nil {
+		logger.Error(execErr, "Could not execute command", "Command", cmd, "Output", execOut)
+		return
+	}
+	logger.V(1).Info("Successfully executed the command", "Command", cmd, "Output", execOut)
+}
+
+func executeCommand1(client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster, cmd []string, podName string) (stdout string, stderr error) {
 	var (
 		execOut bytes.Buffer
 		execErr bytes.Buffer
@@ -376,12 +413,12 @@ func executeCommand(client kubernetes.Interface, logger logr.Logger, cr *redisv1
 	config, err := GenerateK8sConfig()()
 	if err != nil {
 		logger.Error(err, "Could not find pod to execute")
-		return
+		return "", err
 	}
 	targetContainer, pod := getContainerID(client, logger, cr, podName)
 	if targetContainer < 0 {
 		logger.Error(err, "Could not find pod to execute")
-		return
+		return "", err
 	}
 
 	req := client.CoreV1().RESTClient().Post().Resource("pods").Name(podName).Namespace(cr.Namespace).SubResource("exec")
@@ -394,7 +431,7 @@ func executeCommand(client kubernetes.Interface, logger logr.Logger, cr *redisv1
 	exec, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
 	if err != nil {
 		logger.Error(err, "Failed to init executor")
-		return
+		return "", err
 	}
 
 	err = exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
@@ -403,10 +440,9 @@ func executeCommand(client kubernetes.Interface, logger logr.Logger, cr *redisv1
 		Tty:    false,
 	})
 	if err != nil {
-		logger.Error(err, "Could not execute command", "Command", cmd, "Output", execOut.String(), "Error", execErr.String())
-		return
+		return execOut.String(), fmt.Errorf("execute command with error: %w, stderr: %s", err, execErr.String())
 	}
-	logger.V(1).Info("Successfully executed the command", "Command", cmd, "Output", execOut.String())
+	return execOut.String(), nil
 }
 
 // getContainerID will return the id of container from pod
