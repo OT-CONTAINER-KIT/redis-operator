@@ -209,7 +209,7 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 			logger.Error(err, "Unable to patch redis statefulset with comparison object")
 			return err
 		}
-		return updateStatefulSet(namespace, newStateful, recreateStateFulSet, cl)
+		return updateStatefulSet(cl, logger, namespace, newStateful, recreateStateFulSet)
 	}
 	logger.V(1).Info("Reconciliation Complete, no Changes required.")
 	return nil
@@ -698,8 +698,7 @@ func createStatefulSet(cl kubernetes.Interface, logger logr.Logger, namespace st
 }
 
 // updateStatefulSet is a method to update statefulset in Kubernetes
-func updateStatefulSet(namespace string, stateful *appsv1.StatefulSet, recreateStateFulSet bool, cl kubernetes.Interface) error {
-	logger := statefulSetLogger(namespace, stateful.Name)
+func updateStatefulSet(cl kubernetes.Interface, logger logr.Logger, namespace string, stateful *appsv1.StatefulSet, recreateStateFulSet bool) error {
 	_, err := cl.AppsV1().StatefulSets(namespace).Update(context.TODO(), stateful, metav1.UpdateOptions{})
 	if recreateStateFulSet {
 		sErr, ok := err.(*apierrors.StatusError)

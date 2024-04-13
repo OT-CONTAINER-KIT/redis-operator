@@ -1,6 +1,7 @@
 package k8sutils
 
 import (
+	"context"
 	"path"
 	"testing"
 
@@ -10,7 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	k8sClientFake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/utils/ptr"
 )
@@ -279,6 +282,128 @@ func Test_createStatefulSet(t *testing.T) {
 				assert.NotNil(t, err)
 			} else {
 				assert.Nil(t, err)
+			}
+		})
+	}
+}
+
+func TestUpdateStatefulSet(t *testing.T) {
+	logger := logr.Discard()
+	tests := []struct {
+		name            string
+		existingStsSpec appsv1.StatefulSetSpec
+		updatedStsSpec  appsv1.StatefulSetSpec
+		recreateSts     bool
+		stsPresent      bool
+		expectErr       error
+	}{
+		{
+			name: "Update StatefulSet without recreate in existing Statefulset",
+			existingStsSpec: appsv1.StatefulSetSpec{
+				Replicas: ptr.To(int32(3)),
+			},
+			updatedStsSpec: appsv1.StatefulSetSpec{
+				Replicas: ptr.To(int32(5)),
+			},
+			recreateSts: false,
+			stsPresent:  true,
+		},
+		{
+			name: "Update StatefulSet with recreate in existing Statefulset",
+			existingStsSpec: appsv1.StatefulSetSpec{
+				Replicas: ptr.To(int32(2)),
+			},
+			updatedStsSpec: appsv1.StatefulSetSpec{
+				Replicas: ptr.To(int32(4)),
+			},
+			recreateSts: true,
+			stsPresent:  true,
+		},
+		{
+			name: "Update StatefulSet without recreate StatefulSet is not present",
+			existingStsSpec: appsv1.StatefulSetSpec{
+				Replicas: ptr.To(int32(2)),
+			},
+			updatedStsSpec: appsv1.StatefulSetSpec{
+				Replicas: ptr.To(int32(4)),
+			},
+			recreateSts: false,
+			stsPresent:  false,
+			expectErr:   kerrors.NewNotFound(schema.GroupResource{Group: "apps", Resource: "statefulsets"}, "test-sts"),
+		},
+		{
+			name: "Update StatefulSet without recreate StatefulSet",
+			existingStsSpec: appsv1.StatefulSetSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"name": "redis",
+						},
+					},
+				},
+			},
+			updatedStsSpec: appsv1.StatefulSetSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"name": "redis-standalone",
+						},
+					},
+				},
+			},
+			recreateSts: false,
+			stsPresent:  true,
+		},
+		{
+			name: "Update StatefulSet failed with Invalid Reason",
+			existingStsSpec: appsv1.StatefulSetSpec{
+				Replicas: ptr.To(int32(2)),
+			},
+			updatedStsSpec: appsv1.StatefulSetSpec{
+				Replicas: ptr.To(int32(4)),
+			},
+			recreateSts: true,
+			stsPresent:  false,
+			expectErr:   kerrors.NewNotFound(schema.GroupResource{Group: "apps", Resource: "statefulsets"}, "test-sts"),
+		},
+	}
+
+	assert := assert.New(t)
+
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			existingSts := appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-sts",
+					Namespace: "test-ns",
+				},
+				Spec: *test.existingStsSpec.DeepCopy(),
+			}
+			updatedSts := appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-sts",
+					Namespace: "test-ns",
+				},
+				Spec: *test.updatedStsSpec.DeepCopy(),
+			}
+			var client *k8sClientFake.Clientset
+			if test.stsPresent {
+				client = k8sClientFake.NewSimpleClientset(existingSts.DeepCopyObject())
+			} else {
+				client = k8sClientFake.NewSimpleClientset()
+			}
+			err := updateStatefulSet(client, logger, updatedSts.GetNamespace(), &updatedSts, test.recreateSts)
+			if test.expectErr != nil {
+				assert.Error(err, "Expected Error while updating Statefulset")
+				assert.Equal(test.expectErr, err)
+			} else {
+				assert.NoError(err, "Error while updating Statefulset")
+			}
+			if err == nil {
+				getUpdatedSts, err := client.AppsV1().StatefulSets(updatedSts.GetNamespace()).Get(context.TODO(), updatedSts.GetName(), metav1.GetOptions{})
+				assert.NoError(err, "Error getting Updted StatefulSet")
+				assert.NotEqual(getUpdatedSts.DeepCopy(), existingSts.DeepCopy(), "StatefulSet not updated")
 			}
 		})
 	}
