@@ -354,6 +354,18 @@ func TestUpdateStatefulSet(t *testing.T) {
 			recreateSts: false,
 			stsPresent:  true,
 		},
+		{
+			name: "Update StatefulSet failed with Invalid Reason",
+			existingStsSpec: appsv1.StatefulSetSpec{
+				Replicas: ptr.To(int32(2)),
+			},
+			updatedStsSpec: appsv1.StatefulSetSpec{
+				Replicas: ptr.To(int32(4)),
+			},
+			recreateSts: true,
+			stsPresent:  false,
+			expectErr:   kerrors.NewNotFound(schema.GroupResource{Group: "apps", Resource: "statefulsets"}, "test-sts"),
+		},
 	}
 
 	assert := assert.New(t)
