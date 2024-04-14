@@ -17,7 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
-	common "github.com/OT-CONTAINER-KIT/redis-operator/api"
+	common "github.com/teocns/redis-operator/api"
 )
 
 // KubernetesConfig will be the JSON struct for Basic Redis Config

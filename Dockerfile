@@ -36,7 +36,7 @@ RUN GO111MODULE=on go build  -ldflags "${LDFLAGS}" -a -o manager main.go
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM gcr.io/distroless/static:nonroot
-LABEL maintainer="The Opstree Opensource <opensource@opstree.com>"
+LABEL maintainer="teocns <teocns@gmail.com>"
 WORKDIR /
 COPY --from=builder /workspace/manager .
 USER 65532:65532

@@ -1,7 +1,7 @@
 package v1beta1
 
 import (
-	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	redisv1beta2 "github.com/teocns/redis-operator/api/v1beta2"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 )
 

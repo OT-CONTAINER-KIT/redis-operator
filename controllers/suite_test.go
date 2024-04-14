@@ -21,8 +21,8 @@ import (
 	"testing"
 	"time"
 
-	// redisv1beta1 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta1"
-	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	// redisv1beta1 "github.com/teocns/redis-operator/api/v1beta1"
+	redisv1beta2 "github.com/teocns/redis-operator/api/v1beta2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"

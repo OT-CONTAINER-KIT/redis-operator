@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	redisv1beta2 "github.com/teocns/redis-operator/api/v1beta2"
 	"github.com/go-logr/logr"
 	redis "github.com/redis/go-redis/v9"
 	corev1 "k8s.io/api/core/v1"

@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/OT-CONTAINER-KIT/redis-operator/api"
-	"github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
-	mockClient "github.com/OT-CONTAINER-KIT/redis-operator/mocks/client"
+	"github.com/teocns/redis-operator/api"
+	"github.com/teocns/redis-operator/api/v1beta2"
+	mockClient "github.com/teocns/redis-operator/mocks/client"
 	"github.com/go-logr/logr/testr"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"

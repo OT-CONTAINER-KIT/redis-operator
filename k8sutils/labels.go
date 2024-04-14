@@ -3,7 +3,7 @@ package k8sutils
 import (
 	"strconv"
 
-	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	redisv1beta2 "github.com/teocns/redis-operator/api/v1beta2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

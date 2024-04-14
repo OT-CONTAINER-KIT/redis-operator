@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api"
-	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	commonapi "github.com/teocns/redis-operator/api"
+	redisv1beta2 "github.com/teocns/redis-operator/api/v1beta2"
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/go-logr/logr"
 	policyv1 "k8s.io/api/policy/v1"

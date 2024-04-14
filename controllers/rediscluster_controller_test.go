@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	redisv1beta2 "github.com/teocns/redis-operator/api/v1beta2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"

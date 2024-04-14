@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	common "github.com/OT-CONTAINER-KIT/redis-operator/api"
-	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	common "github.com/teocns/redis-operator/api"
+	redisv1beta2 "github.com/teocns/redis-operator/api/v1beta2"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"

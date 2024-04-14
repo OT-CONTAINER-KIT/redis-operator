@@ -10,6 +10,8 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	mock_utils "github.com/OT-CONTAINER-KIT/redis-operator/mocks/utils"
+	redisv1beta2 "github.com/teocns/redis-operator/api/v1beta2"
+	mock_utils "github.com/teocns/redis-operator/mocks/utils"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/logr/testr"
 	"github.com/go-redis/redismock/v9"

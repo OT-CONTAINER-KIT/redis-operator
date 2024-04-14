@@ -1,8 +1,8 @@
 package k8sutils
 
 import (
-	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
-	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
+	redisv1beta2 "github.com/teocns/redis-operator/api/v1beta2"
+	"github.com/teocns/redis-operator/pkg/util"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 )

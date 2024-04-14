@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"time"
 
-	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
-	"github.com/OT-CONTAINER-KIT/redis-operator/k8sutils"
+	redisv1beta2 "github.com/teocns/redis-operator/api/v1beta2"
+	"github.com/teocns/redis-operator/k8sutils"
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
