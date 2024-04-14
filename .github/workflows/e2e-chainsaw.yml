@@ -22,6 +22,7 @@ jobs:
       run: yamllint --strict ./tests/
 
   test:
+    needs: [validate-yaml]
     name: ${{ matrix.testpath }}
     runs-on: ubuntu-latest
     strategy:
