@@ -8,3 +8,4 @@ status:
   reason: RedisCluster is initializing followers
   readyLeaderReplicas: 6
   readyFollowerReplicas: 3
+
