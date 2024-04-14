@@ -28,3 +28,7 @@ coverage.html
 
 docs/build
 kubeconfig
+
+.envrc
+.plan*
+example
