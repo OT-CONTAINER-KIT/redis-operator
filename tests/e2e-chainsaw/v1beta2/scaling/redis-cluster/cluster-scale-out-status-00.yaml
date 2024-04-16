@@ -1,0 +1,10 @@
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisCluster
+metadata:
+  name: redis-cluster-v1beta2
+status:
+  state: Initializing
+  reason: RedisCluster is initializing leaders
+  readyLeaderReplicas: 3
+  readyFollowerReplicas: 3

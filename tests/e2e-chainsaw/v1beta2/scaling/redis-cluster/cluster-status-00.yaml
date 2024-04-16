@@ -5,5 +5,6 @@ metadata:
   name: redis-cluster-v1beta2
 status:
   state: Ready
+  reason: RedisCluster is ready
   readyLeaderReplicas: 3
   readyFollowerReplicas: 3
