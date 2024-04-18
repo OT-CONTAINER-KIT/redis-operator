@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"strings"
 
-	redisv1beta2 "github.com/teocns/redis-operator/api/v1beta2"
 	"github.com/go-logr/logr"
 	redis "github.com/redis/go-redis/v9"
+	redisv1beta2 "github.com/teocns/redis-operator/api/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"

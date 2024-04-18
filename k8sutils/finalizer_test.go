@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-logr/logr/testr"
+	"github.com/stretchr/testify/assert"
 	"github.com/teocns/redis-operator/api"
 	"github.com/teocns/redis-operator/api/v1beta2"
 	mockClient "github.com/teocns/redis-operator/mocks/client"
-	"github.com/go-logr/logr/testr"
-	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	commonapi "github.com/teocns/redis-operator/api"
-	redisv1beta2 "github.com/teocns/redis-operator/api/v1beta2"
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/go-logr/logr"
+	commonapi "github.com/teocns/redis-operator/api"
+	redisv1beta2 "github.com/teocns/redis-operator/api/v1beta2"
 	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

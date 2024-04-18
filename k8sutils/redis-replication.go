@@ -3,9 +3,9 @@ package k8sutils
 import (
 	"context"
 
+	"github.com/go-logr/logr"
 	redisv1beta2 "github.com/teocns/redis-operator/api/v1beta2"
 	"github.com/teocns/redis-operator/pkg/util"
-	"github.com/go-logr/logr"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"

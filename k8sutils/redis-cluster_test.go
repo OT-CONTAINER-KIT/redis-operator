@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	common "github.com/teocns/redis-operator/api"
-	redisv1beta2 "github.com/teocns/redis-operator/api/v1beta2"
 	"github.com/go-logr/logr/testr"
 	"github.com/stretchr/testify/assert"
+	common "github.com/teocns/redis-operator/api"
+	redisv1beta2 "github.com/teocns/redis-operator/api/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/yaml"

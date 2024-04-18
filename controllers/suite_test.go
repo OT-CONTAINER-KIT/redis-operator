@@ -22,10 +22,10 @@ import (
 	"time"
 
 	// redisv1beta1 "github.com/teocns/redis-operator/api/v1beta1"
-	redisv1beta2 "github.com/teocns/redis-operator/api/v1beta2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
+	redisv1beta2 "github.com/teocns/redis-operator/api/v1beta2"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"

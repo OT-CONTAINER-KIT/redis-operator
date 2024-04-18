@@ -5,11 +5,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	common "github.com/teocns/redis-operator/api"
-	redisv1beta2 "github.com/teocns/redis-operator/api/v1beta2"
 	"github.com/go-logr/logr/testr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	common "github.com/teocns/redis-operator/api"
+	redisv1beta2 "github.com/teocns/redis-operator/api/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sClientFake "k8s.io/client-go/kubernetes/fake"

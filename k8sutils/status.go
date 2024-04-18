@@ -3,9 +3,9 @@ package k8sutils
 import (
 	"context"
 
+	"github.com/go-logr/logr"
 	status "github.com/teocns/redis-operator/api/status"
 	redisv1beta2 "github.com/teocns/redis-operator/api/v1beta2"
-	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"

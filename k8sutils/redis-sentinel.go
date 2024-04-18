@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/go-logr/logr"
 	commonapi "github.com/teocns/redis-operator/api"
 	redisv1beta2 "github.com/teocns/redis-operator/api/v1beta2"
 	"github.com/teocns/redis-operator/pkg/util"
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
