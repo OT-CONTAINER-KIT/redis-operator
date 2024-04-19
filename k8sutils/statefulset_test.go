@@ -409,6 +409,49 @@ func TestUpdateStatefulSet(t *testing.T) {
 	}
 }
 
+func TestEnableRedisMonitoring(t *testing.T) {
+	tests := []struct {
+		name                  string
+		redisExporterParams   containerParameters
+		expectedRedisExporter corev1.Container
+	}{
+		{
+			name: "Redis Monitoring",
+			redisExporterParams: containerParameters{
+				RedisExporterImage:           "redis-exporter:latest",
+				RedisExporterImagePullPolicy: corev1.PullIfNotPresent,
+				RedisExporterPort:            ptr.To(9121),
+			},
+			expectedRedisExporter: corev1.Container{
+				Name:            "redis-exporter",
+				Image:           "redis-exporter:latest",
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Env: []corev1.EnvVar{
+					{
+						Name:  "REDIS_EXPORTER_WEB_LISTEN_ADDRESS",
+						Value: ":9121",
+					},
+				},
+				Ports: []corev1.ContainerPort{
+					{
+						Name:          "redis-exporter",
+						ContainerPort: 9121,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				},
+			},
+		},
+	}
+
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			redisExporter := enableRedisMonitoring(test.redisExporterParams)
+			assert.Equal(t, redisExporter, test.expectedRedisExporter, "Redis Exporter Configuration")
+		})
+	}
+}
+
 func TestGenerateTLSEnvironmentVariables(t *testing.T) {
 	tlsConfig := &redisv1beta2.TLSConfig{
 		TLSConfig: common.TLSConfig{
