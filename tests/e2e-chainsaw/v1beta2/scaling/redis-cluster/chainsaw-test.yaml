@@ -40,7 +40,7 @@ spec:
 
     - name: Scale In Redis Cluster
       try:
-        - create:
+        - apply:
             file: cluster.yaml
         - assert:
             file: cluster-status-00.yaml
