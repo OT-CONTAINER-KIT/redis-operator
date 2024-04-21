@@ -33,41 +33,53 @@ type RedisClusterService struct {
 }
 
 // generateRedisClusterParams generates Redis cluster information
+
 func generateRedisClusterParams(cr *redisv1beta2.RedisCluster, replicas int32, externalConfig *string, params RedisClusterSTS) statefulSetParameters {
-	res := statefulSetParameters{
-		Replicas:                      &replicas,
-		ClusterMode:                   true,
-		ClusterVersion:                cr.Spec.ClusterVersion,
-		NodeConfVolume:                cr.Spec.Storage.NodeConfVolume,
-		NodeSelector:                  params.NodeSelector,
-		PodSecurityContext:            cr.Spec.PodSecurityContext,
-		PriorityClassName:             cr.Spec.PriorityClassName,
-		Affinity:                      params.Affinity,
-		TerminationGracePeriodSeconds: params.TerminationGracePeriodSeconds,
-		Tolerations:                   params.Tolerations,
-		ServiceAccountName:            cr.Spec.ServiceAccountName,
-		UpdateStrategy:                cr.Spec.KubernetesConfig.UpdateStrategy,
-		IgnoreAnnotations:             cr.Spec.KubernetesConfig.IgnoreAnnotations,
-		HostNetwork:                   cr.Spec.HostNetwork,
-	}
-	if cr.Spec.RedisExporter != nil {
-		res.EnableMetrics = cr.Spec.RedisExporter.Enabled
-	}
-	if cr.Spec.KubernetesConfig.ImagePullSecrets != nil {
-		res.ImagePullSecrets = cr.Spec.KubernetesConfig.ImagePullSecrets
-	}
-	if cr.Spec.Storage != nil {
-		res.PersistentVolumeClaim = cr.Spec.Storage.VolumeClaimTemplate
-		res.NodeConfPersistentVolumeClaim = cr.Spec.Storage.NodeConfVolumeClaimTemplate
-	}
-	if externalConfig != nil {
-		res.ExternalConfig = externalConfig
-	}
-	if _, found := cr.ObjectMeta.GetAnnotations()[AnnotationKeyRecreateStatefulset]; found {
-		res.RecreateStatefulSet = true
-	}
-	return res
+    if cr == nil {
+        panic("RedisCluster is empty")
+    }
+    if cr.Spec == nil {
+        panic("RedisCluster.Spec cannot be empty")
+    }
+    if cr.Spec.Storage == nil {
+    	cr.Spec.Storage = &redisv1beta2.Storage{}
+    }
+    
+    res := statefulSetParameters{
+        Replicas:                      &replicas,
+        ClusterMode:                   true,
+        ClusterVersion:                cr.Spec.ClusterVersion,
+        NodeConfVolume:                cr.Spec.Storage.NodeConfVolume,
+        NodeSelector:                  params.NodeSelector,
+        PodSecurityContext:            cr.Spec.PodSecurityContext,
+        PriorityClassName:             cr.Spec.PriorityClassName,
+        Affinity:                      params.Affinity,
+        TerminationGracePeriodSeconds: params.TerminationGracePeriodSeconds,
+        Tolerations:                   params.Tolerations,
+        ServiceAccountName:            cr.Spec.ServiceAccountName,
+        UpdateStrategy:                cr.Spec.KubernetesConfig.UpdateStrategy,
+        IgnoreAnnotations:             cr.Spec.KubernetesConfig.IgnoreAnnotations,
+        HostNetwork:                   cr.Spec.HostNetwork,
+    }
+    if cr.Spec.RedisExporter != nil {
+        res.EnableMetrics = cr.Spec.RedisExporter.Enabled
+    }
+    if cr.Spec.KubernetesConfig.ImagePullSecrets != nil {
+        res.ImagePullSecrets = cr.Spec.KubernetesConfig.ImagePullSecrets
+    }
+    if cr.Spec.Storage != nil {
+        res.PersistentVolumeClaim = cr.Spec.Storage.VolumeClaimTemplate
+        res.NodeConfPersistentVolumeClaim = cr.Spec.Storage.NodeConfVolumeClaimTemplate
+    }
+    if externalConfig != nil {
+        res.ExternalConfig = externalConfig
+    }
+    if _, found := cr.ObjectMeta.GetAnnotations()[AnnotationKeyRecreateStatefulset]; found {
+        res.RecreateStatefulSet = true
+    }
+    return res
 }
+
 
 func generateRedisClusterInitContainerParams(cr *redisv1beta2.RedisCluster) initContainerParameters {
 	trueProperty := true
