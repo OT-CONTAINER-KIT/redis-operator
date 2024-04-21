@@ -74,14 +74,10 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// Check if the cluster is downscaled
-	if leaderReplicas < instance.Status.ReadyLeaderReplicas {
-		reqLogger.Info("Redis cluster is downscaling...", "Ready.ReadyLeaderReplicas", instance.Status.ReadyLeaderReplicas, "Expected.ReadyLeaderReplicas", leaderReplicas)
-
-		// loop count times to remove the latest leader/follower pod
-		count := instance.Status.ReadyLeaderReplicas - leaderReplicas
-		for i := int32(0); i < count; i++ {
-			reqLogger.Info("Redis cluster is downscaling", "The times of loop", i)
-
+	if leaderCount := k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, r.Log, instance, "leader"); leaderReplicas < leaderCount {
+		reqLogger.Info("Redis cluster is downscaling...", "Current.LeaderReplicas", leaderCount, "Desired.LeaderReplicas", leaderReplicas)
+		for shardIdx := leaderCount - 1; shardIdx >= leaderReplicas; shardIdx-- {
+			reqLogger.Info("Remove the shard", "Shard.Index", shardIdx)
 			//  Imp if the last index of leader sts is not leader make it then
 			// check whether the redis is leader or not ?
 			// if not true then make it leader pod
