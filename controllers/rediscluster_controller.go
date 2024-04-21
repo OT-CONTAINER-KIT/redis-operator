@@ -96,11 +96,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		// Step 3 Rebalance the cluster
 		k8sutils.RebalanceRedisCluster(r.K8sClient, r.Log, instance)
 		reqLogger.Info("Redis cluster is downscaled... Rebalancing the cluster is done")
-		err = k8sutils.UpdateRedisClusterStatus(instance, status.RedisClusterReady, status.ReadyClusterReason, leaderReplicas, leaderReplicas, r.Dk8sClient)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-		return ctrl.Result{RequeueAfter: time.Second * 60}, nil
+		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 	}
 
 	// Mark the cluster status as initializing if there are no leader or follower nodes

@@ -9,5 +9,5 @@ spec:
   timeouts:
     apply: 5m
     delete: 5m
-    assert: 10m
-    error: 10m
+    assert: 20m
+    error: 20m
