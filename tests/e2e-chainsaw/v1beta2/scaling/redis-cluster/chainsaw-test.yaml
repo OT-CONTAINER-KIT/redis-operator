@@ -37,3 +37,10 @@ spec:
       try:
         - assert:
             file: cluster-scale-out-status-03.yaml
+
+    - name: Scale In Redis Cluster
+      try:
+        - apply:
+            file: cluster.yaml
+        - assert:
+            file: cluster-status-00.yaml
