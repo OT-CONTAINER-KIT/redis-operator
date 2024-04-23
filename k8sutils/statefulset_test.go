@@ -452,6 +452,72 @@ func TestEnableRedisMonitoring(t *testing.T) {
 	}
 }
 
+func TestGenerateInitContainerDef(t *testing.T) {
+	tests := []struct {
+		name                     string
+		initContainerDef         initContainerParameters
+		expectedInitContainerDef []corev1.Container
+		mountPaths               []corev1.VolumeMount
+	}{
+		{
+			name: "Redis",
+			initContainerDef: initContainerParameters{
+				Image:              "redis-init-container:latest",
+				ImagePullPolicy:    corev1.PullAlways,
+				Command:            []string{"/bin/bash", "-c", "/app/restore.bash"},
+				PersistenceEnabled: ptr.To(false),
+			},
+			expectedInitContainerDef: []corev1.Container{
+				{
+					Name:            "initRedis",
+					Image:           "redis-init-container:latest",
+					Command:         []string{"/bin/bash", "-c", "/app/restore.bash"},
+					ImagePullPolicy: corev1.PullAlways,
+					VolumeMounts:    getVolumeMount("redisVolume", ptr.To(false), false, false, nil, []corev1.VolumeMount{}, nil, nil),
+				},
+			},
+			mountPaths: []corev1.VolumeMount{},
+		},
+		{
+			name: "Redis-1",
+			initContainerDef: initContainerParameters{
+				Image:              "redis-init-container:latest",
+				ImagePullPolicy:    corev1.PullAlways,
+				Command:            []string{"/bin/bash", "-c", "/app/restore.bash"},
+				PersistenceEnabled: ptr.To(true),
+			},
+			expectedInitContainerDef: []corev1.Container{
+				{
+					Name:            "initRedis-1",
+					Image:           "redis-init-container:latest",
+					Command:         []string{"/bin/bash", "-c", "/app/restore.bash"},
+					ImagePullPolicy: corev1.PullAlways,
+					VolumeMounts: getVolumeMount("Redis-1", ptr.To(true), false, false, nil, []corev1.VolumeMount{
+						{
+							Name:      "Redis-1",
+							MountPath: "/data",
+						},
+					}, nil, nil),
+				},
+			},
+			mountPaths: []corev1.VolumeMount{
+				{
+					Name:      "Redis-1",
+					MountPath: "/data",
+				},
+			},
+		},
+	}
+
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			initContainer := generateInitContainerDef(test.name, test.initContainerDef, test.mountPaths)
+			assert.Equal(t, initContainer, test.expectedInitContainerDef, "Init Container Configuration")
+		})
+	}
+}
+
 func TestGenerateTLSEnvironmentVariables(t *testing.T) {
 	tlsConfig := &redisv1beta2.TLSConfig{
 		TLSConfig: common.TLSConfig{
