@@ -28,7 +28,7 @@ jobs:
         sudo mv kubectl /usr/local/bin/
 
     - name: Create k8s Kind Cluster
-      uses: helm/kind-action@v1.9.0
+      uses: helm/kind-action@v1.10.0
       with:
         cluster_name: kind
 
