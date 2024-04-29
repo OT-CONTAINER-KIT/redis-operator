@@ -491,6 +491,7 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 
 func getExporterEnvironmentVariables(params containerParameters) []corev1.EnvVar {
 	var envVars []corev1.EnvVar
+	redisHost := "redis://localhost:"
 	if params.TLSConfig != nil {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  "REDIS_EXPORTER_TLS_CLIENT_KEY_FILE",
@@ -508,6 +509,7 @@ func getExporterEnvironmentVariables(params containerParameters) []corev1.EnvVar
 			Name:  "REDIS_EXPORTER_SKIP_TLS_VERIFICATION",
 			Value: "true",
 		})
+		redisHost = "rediss://localhost:"
 	}
 	if params.RedisExporterPort != nil {
 		envVars = append(envVars, corev1.EnvVar{
@@ -518,7 +520,7 @@ func getExporterEnvironmentVariables(params containerParameters) []corev1.EnvVar
 	if params.Port != nil {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  "REDIS_ADDR",
-			Value: fmt.Sprintf("redis://localhost:%d", *params.Port),
+			Value: redisHost + strconv.Itoa(*params.Port),
 		})
 	}
 	if params.EnabledPassword != nil && *params.EnabledPassword {
