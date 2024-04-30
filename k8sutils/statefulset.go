@@ -621,7 +621,7 @@ func getProbeInfo(probe *commonapi.Probe, sentinel, enableTLS, enableAuth bool) 
 		SuccessThreshold:    probe.SuccessThreshold,
 		ProbeHandler: corev1.ProbeHandler{
 			Exec: &corev1.ExecAction{
-				Command: healthChecker,
+				Command: []string{"sh", "-c", strings.Join(healthChecker, " ")},
 			},
 		},
 	}
