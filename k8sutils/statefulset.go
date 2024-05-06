@@ -345,6 +345,9 @@ func createPVCTemplate(volumeName string, stsMeta metav1.ObjectMeta, storageSpec
 
 // generateContainerDef generates container definition for Redis
 func generateContainerDef(name string, containerParams containerParameters, clusterMode, nodeConfVolume, enableMetrics bool, externalConfig, clusterVersion *string, mountpath []corev1.VolumeMount, sidecars []redisv1beta2.Sidecar) []corev1.Container {
+	sentinelCntr := containerParams.Role == "sentinel"
+	enableTLS := containerParams.TLSConfig != nil
+	enableAuth := containerParams.EnabledPassword != nil && *containerParams.EnabledPassword
 	containerDefinition := []corev1.Container{
 		{
 			Name:            name,
@@ -363,8 +366,8 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 				containerParams.Port,
 				clusterVersion,
 			),
-			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe),
-			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe),
+			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe, sentinelCntr, enableTLS, enableAuth),
+			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe, sentinelCntr, enableTLS, enableAuth),
 			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, clusterMode, nodeConfVolume, externalConfig, mountpath, containerParams.TLSConfig, containerParams.ACLConfig),
 		},
 	}
@@ -593,7 +596,23 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nod
 }
 
 // getProbeInfo generate probe for Redis StatefulSet
-func getProbeInfo(probe *commonapi.Probe) *corev1.Probe {
+func getProbeInfo(probe *commonapi.Probe, sentinel, enableTLS, enableAuth bool) *corev1.Probe {
+	healthChecker := []string{
+		"redis-cli",
+		"-h", "$(hostname)",
+	}
+	if sentinel {
+		healthChecker = append(healthChecker, "-p", "${SENTINEL_PORT}")
+	} else {
+		healthChecker = append(healthChecker, "-p", "${REDIS_PORT}")
+	}
+	if enableAuth {
+		healthChecker = append(healthChecker, "-a", "${REDIS_PASSWORD}")
+	}
+	if enableTLS {
+		healthChecker = append(healthChecker, "--tls", "--cert", "${REDIS_TLS_CERT}", "--key", "${REDIS_TLS_CERT_KEY}", "--cacert", "${REDIS_TLS_CA_KEY}")
+	}
+	healthChecker = append(healthChecker, "ping")
 	return &corev1.Probe{
 		InitialDelaySeconds: probe.InitialDelaySeconds,
 		PeriodSeconds:       probe.PeriodSeconds,
@@ -602,10 +621,7 @@ func getProbeInfo(probe *commonapi.Probe) *corev1.Probe {
 		SuccessThreshold:    probe.SuccessThreshold,
 		ProbeHandler: corev1.ProbeHandler{
 			Exec: &corev1.ExecAction{
-				Command: []string{
-					"bash",
-					"/usr/bin/healthcheck.sh",
-				},
+				Command: []string{"sh", "-c", strings.Join(healthChecker, " ")},
 			},
 		},
 	}
