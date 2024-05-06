@@ -30,6 +30,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Setup Env
+        run: |
+          echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV        
+
       - name: Build and Push Operator image
         uses: docker/build-push-action@v3
         with:
@@ -37,6 +41,6 @@ jobs:
           file: Dockerfile
           push: true
           tags: | 
-            ${{ env.REGISTRY }}/${{ env.REPOSITORY }}:${GITHUB_REF#refs/tags/}
+            ${{ env.REGISTRY }}/${{ env.REPOSITORY }}:${{ env.TAG }}
             ${{ env.REGISTRY }}/${{ env.REPOSITORY }}:latest
           platforms: linux/amd64,linux/arm64
