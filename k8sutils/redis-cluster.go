@@ -33,7 +33,6 @@ type RedisClusterService struct {
 }
 
 // generateRedisClusterParams generates Redis cluster information
-
 func generateRedisClusterParams(cr *redisv1beta2.RedisCluster, replicas int32, externalConfig *string, params RedisClusterSTS) statefulSetParameters {
 	res := statefulSetParameters{
 		Replicas:                      &replicas,
