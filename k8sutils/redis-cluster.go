@@ -69,7 +69,6 @@ func generateRedisClusterParams(cr *redisv1beta2.RedisCluster, replicas int32, e
 	return res
 }
 
-
 func generateRedisClusterInitContainerParams(cr *redisv1beta2.RedisCluster) initContainerParameters {
 	trueProperty := true
 	initcontainerProp := initContainerParameters{}
