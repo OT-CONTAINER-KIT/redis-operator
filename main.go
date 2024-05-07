@@ -19,7 +19,6 @@ package main
 import (
 	"flag"
 	"os"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"strings"
 
 	redisv1beta1 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta1"
@@ -31,6 +30,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
