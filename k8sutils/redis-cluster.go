@@ -38,7 +38,6 @@ func generateRedisClusterParams(cr *redisv1beta2.RedisCluster, replicas int32, e
 		Replicas:                      &replicas,
 		ClusterMode:                   true,
 		ClusterVersion:                cr.Spec.ClusterVersion,
-		NodeConfVolume:                cr.Spec.Storage.NodeConfVolume,
 		NodeSelector:                  params.NodeSelector,
 		PodSecurityContext:            cr.Spec.PodSecurityContext,
 		PriorityClassName:             cr.Spec.PriorityClassName,
@@ -58,6 +57,7 @@ func generateRedisClusterParams(cr *redisv1beta2.RedisCluster, replicas int32, e
 	}
 	if cr.Spec.Storage != nil {
 		res.PersistentVolumeClaim = cr.Spec.Storage.VolumeClaimTemplate
+		res.NodeConfVolume = cr.Spec.Storage.NodeConfVolume
 		res.NodeConfPersistentVolumeClaim = cr.Spec.Storage.NodeConfVolumeClaimTemplate
 	}
 	if externalConfig != nil {
