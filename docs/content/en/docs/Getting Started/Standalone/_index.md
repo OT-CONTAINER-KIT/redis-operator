@@ -39,7 +39,7 @@ Verify the standalone redis setup by kubectl command line.
 $ kubectl get pods -n ot-operators
 ...
 NAME                              READY   STATUS    RESTARTS   AGE
-redis-standalone-0                2/2     Running   0          56s
+redis-0                           1/1     Running   0          56s
 ```
 
 ## YAML Installation
