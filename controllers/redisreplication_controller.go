@@ -73,8 +73,26 @@ func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	// Check that the Leader and Follower are ready in redis replication
 	if redisReplicationInfo.Status.ReadyReplicas != totalReplicas {
-		reqLogger.Info("Redis replication nodes are not ready yet", "Ready.Replicas", strconv.Itoa(int(redisReplicationInfo.Status.ReadyReplicas)), "Expected.Replicas", totalReplicas)
-		return ctrl.Result{RequeueAfter: time.Second * 60}, nil
+		var realMaster string
+		masterNodes := k8sutils.GetRedisNodesByRole(ctx, r.K8sClient, r.Log, instance, "master")
+		slaveNodes := k8sutils.GetRedisNodesByRole(ctx, r.K8sClient, r.Log, instance, "slave")
+
+		if redisReplicationInfo.Status.ReadyReplicas == 0 {
+			reqLogger.Info("Redis replication nodes are not ready yet", "Ready.Replicas", strconv.Itoa(int(redisReplicationInfo.Status.ReadyReplicas)), "Expected.Replicas", totalReplicas)
+			return ctrl.Result{RequeueAfter: time.Second * 60}, nil
+		}
+
+		reqLogger.Info("The number of Redis replication replicas is less than the desired status\n", "Ready.Replicas", strconv.Itoa(int(redisReplicationInfo.Status.ReadyReplicas)), "Expected.Replicas", totalReplicas)
+		if len(masterNodes) == int(leaderReplicas) && followerReplicas != 0 && len(slaveNodes) != 0 {
+			realMaster = k8sutils.GetRedisReplicationRealMaster(ctx, r.K8sClient, r.Log, instance, masterNodes)
+			if err = k8sutils.UpdateRoleLabelPod(ctx, r.K8sClient, r.Log, instance, "master", []string{realMaster}); err != nil {
+				return ctrl.Result{Requeue: true}, err
+			}
+			if err = k8sutils.UpdateRoleLabelPod(ctx, r.K8sClient, r.Log, instance, "slave", slaveNodes); err != nil {
+				return ctrl.Result{RequeueAfter: time.Second * 1}, err
+			}
+		}
+		return ctrl.Result{RequeueAfter: time.Second * 1}, nil
 	}
 
 	var realMaster string
@@ -86,15 +104,29 @@ func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		if len(slaveNodes) == 0 {
 			realMaster = masterNodes[0]
 		}
-		err := k8sutils.CreateMasterSlaveReplication(ctx, r.K8sClient, r.Log, instance, masterNodes, realMaster)
+		if err = k8sutils.UpdateRoleLabelPod(ctx, r.K8sClient, r.Log, instance, "master", []string{realMaster}); err != nil {
+			return ctrl.Result{Requeue: true}, err
+		}
+		err = k8sutils.CreateMasterSlaveReplication(ctx, r.K8sClient, r.Log, instance, masterNodes, realMaster)
 		if err != nil {
-			return ctrl.Result{RequeueAfter: time.Second * 60}, err
+			return ctrl.Result{Requeue: true}, err
+		}
+		if err = k8sutils.UpdateRoleLabelPod(ctx, r.K8sClient, r.Log, instance, "slave", slaveNodes); err != nil {
+			return ctrl.Result{Requeue: true}, err
 		}
 	}
 	realMaster = k8sutils.GetRedisReplicationRealMaster(ctx, r.K8sClient, r.Log, instance, masterNodes)
-	if err := r.UpdateRedisReplicationMaster(ctx, instance, realMaster); err != nil {
+	slaveNodes := k8sutils.GetRedisNodesByRole(ctx, r.K8sClient, r.Log, instance, "slave")
+	if err = r.UpdateRedisReplicationMaster(ctx, instance, realMaster); err != nil {
 		return ctrl.Result{}, err
 	}
+	if err = k8sutils.UpdateRoleLabelPod(ctx, r.K8sClient, r.Log, instance, "master", []string{realMaster}); err != nil {
+		return ctrl.Result{}, err
+	}
+	if err = k8sutils.UpdateRoleLabelPod(ctx, r.K8sClient, r.Log, instance, "slave", slaveNodes); err != nil {
+		return ctrl.Result{}, err
+	}
+
 	reqLogger.Info("Will reconcile redis operator in again 10 seconds")
 	return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 }

@@ -99,6 +99,39 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 	}
 
+	if followerReplicas < instance.Status.ReadyFollowerReplicas {
+		reqLogger.Info("Redis cluster is downscaling...", "Ready.ReadyFollowerReplicas", instance.Status.ReadyFollowerReplicas, "Expected.ReadFollowerReplicas", followerReplicas)
+
+		// loop count times to remove the latest leader/follower pod
+		count := instance.Status.ReadyLeaderReplicas - leaderReplicas
+		for i := int32(0); i < count; i++ {
+			reqLogger.Info("Redis cluster is downscaling", "The times of loop", i)
+
+			//  Imp if the last index of leader sts is not leader make it then
+			// check whether the redis is leader or not ?
+			// if not true then make it leader pod
+			if !(k8sutils.VerifyLeaderPod(ctx, r.K8sClient, r.Log, instance)) {
+				// lastLeaderPod is slaving right now Make it the master Pod
+				// We have to bring a manual failover here to make it a leaderPod
+				// clusterFailover should also include the clusterReplicate since we have to map the followers to new leader
+				k8sutils.ClusterFailover(ctx, r.K8sClient, r.Log, instance)
+			}
+			// Step 1 Remove the Follower Node
+			k8sutils.RemoveRedisFollowerNodesFromCluster(ctx, r.K8sClient, r.Log, instance)
+			// Step 2 Reshard the Cluster
+			k8sutils.ReshardRedisCluster(r.K8sClient, r.Log, instance, true)
+		}
+		reqLogger.Info("Redis cluster is downscaled... Rebalancing the cluster")
+		// Step 3 Rebalance the cluster
+		k8sutils.RebalanceRedisCluster(r.K8sClient, r.Log, instance)
+		reqLogger.Info("Redis cluster is downscaled... Rebalancing the cluster is done")
+		err = k8sutils.UpdateRedisClusterStatus(instance, status.RedisClusterReady, status.ReadyClusterReason, leaderReplicas, leaderReplicas, r.Dk8sClient)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{RequeueAfter: time.Second * 60}, nil
+	}
+
 	// Mark the cluster status as initializing if there are no leader or follower nodes
 	if (instance.Status.ReadyLeaderReplicas == 0 && instance.Status.ReadyFollowerReplicas == 0) ||
 		instance.Status.ReadyLeaderReplicas != leaderReplicas {
