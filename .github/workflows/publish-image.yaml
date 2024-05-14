@@ -7,7 +7,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  REPOSITORY: ${{ github.repository }}
+  REPOSITORY: ot-container-kit/redis-operator
 
 jobs:
   build-and-push:
