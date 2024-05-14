@@ -88,8 +88,7 @@ func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		if len(slaveNodes) == 0 {
 			realMaster = masterNodes[0]
 		}
-		err := k8sutils.CreateMasterSlaveReplication(ctx, r.K8sClient, r.Log, instance, masterNodes, realMaster)
-		if err != nil {
+		if err = k8sutils.CreateMasterSlaveReplication(ctx, r.K8sClient, r.Log, instance, masterNodes, realMaster); err != nil {
 			return ctrl.Result{RequeueAfter: time.Second * 60}, err
 		}
 	}
@@ -121,7 +120,7 @@ func (r *RedisReplicationReconciler) UpdateRedisPodRoleLabel(ctx context.Context
 	if err != nil {
 		return err
 	}
-	updateRoleLabelFunc := func(ctx context.Context, namespace string, pod *corev1.Pod, role string) error {
+	updateRoleLabelFunc := func(ctx context.Context, namespace string, pod corev1.Pod, role string) error {
 		if pod.Labels[k8sutils.RedisRoleLabelKey] != role {
 			return r.PatchPodLabels(ctx, namespace, pod.GetName(), map[string]string{k8sutils.RedisRoleLabelKey: role})
 		}
@@ -129,9 +128,9 @@ func (r *RedisReplicationReconciler) UpdateRedisPodRoleLabel(ctx context.Context
 	}
 	for _, pod := range pods.Items {
 		if masterNode == pod.GetName() {
-			err = updateRoleLabelFunc(ctx, cr.GetNamespace(), &pod, k8sutils.RedisRoleLabelMaster)
+			err = updateRoleLabelFunc(ctx, cr.GetNamespace(), pod, k8sutils.RedisRoleLabelMaster)
 		} else {
-			err = updateRoleLabelFunc(ctx, cr.GetNamespace(), &pod, k8sutils.RedisRoleLabelSlave)
+			err = updateRoleLabelFunc(ctx, cr.GetNamespace(), pod, k8sutils.RedisRoleLabelSlave)
 		}
 		if err != nil {
 			return err
