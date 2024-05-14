@@ -36,7 +36,7 @@ spec:
               echo "MASTER_IP_FROM_SENTINEL: $MASTER_IP_FROM_SENTINEL";
               echo "MASTER_IP_FROM_LABEL: $MASTER_IP_FROM_LABEL";
               ####
-              if [ "$MASTER_IP_FROM_SENTINEL" == "$MASTER_IP_FROM_LABEL" ]; then echo "OK"; else echo "FAIL"; fi
+              if [[ "$MASTER_IP_FROM_SENTINEL" == "$MASTER_IP_FROM_LABEL" ]]; then echo "OK"; else echo "FAIL"; fi
             check:
               ($stdout=='OK'): true
       catch:
