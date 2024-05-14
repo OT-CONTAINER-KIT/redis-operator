@@ -31,9 +31,7 @@ spec:
             timeout: 10s
             content: |
               MASTER_IP_FROM_SENTINEL=$(kubectl exec --namespace ${NAMESPACE} redis-sentinel-sentinel-0 -- redis-cli -p 26379 sentinel get-master-addr-by-name myMaster | head -n 1);
-              
               MASTER_IP_FROM_LABEL=$(kubectl -n ${NAMESPACE} get pod -l app=redis-replication,redis-role=master,redis_setup_type=replication -o jsonpath='{.items[0].status.podIP}');
-              
               if [ "$MASTER_IP_FROM_SENTINEL" == "$MASTER_IP_FROM_LABEL" ]; then echo "OK"; else echo "FAIL"; fi
             check:
               ($stdout=='OK'): true
@@ -71,9 +69,7 @@ spec:
             timeout: 10s
             content: |
               MASTER_IP_FROM_SENTINEL=$(kubectl exec --namespace ${NAMESPACE} redis-sentinel-sentinel-0 -- redis-cli -p 26379 sentinel get-master-addr-by-name myMaster | head -n 1);
-              
               MASTER_IP_FROM_LABEL=$(kubectl -n ${NAMESPACE} get pod -l app=redis-replication,redis-role=master,redis_setup_type=replication -o jsonpath='{.items[0].status.podIP}');
-
               if [ "$MASTER_IP_FROM_SENTINEL" == "$MASTER_IP_FROM_LABEL" ]; then echo "OK"; else echo "FAIL"; fi
             check:
               ($stdout=='OK'): true
