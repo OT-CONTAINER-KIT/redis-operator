@@ -149,3 +149,7 @@ func getRedisLabels(name string, st setupType, role string, labels map[string]st
 	}
 	return lbls
 }
+
+func GetRedisReplicationLabels(cr *redisv1beta2.RedisReplication) map[string]string {
+	return getRedisLabels(cr.GetName(), replication, "replication", cr.GetLabels())
+}

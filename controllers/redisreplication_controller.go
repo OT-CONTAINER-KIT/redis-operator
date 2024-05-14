@@ -8,6 +8,7 @@ import (
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/k8sutils"
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
@@ -19,6 +20,7 @@ import (
 // RedisReplicationReconciler reconciles a RedisReplication object
 type RedisReplicationReconciler struct {
 	client.Client
+	k8sutils.Pod
 	K8sClient  kubernetes.Interface
 	Dk8sClient dynamic.Interface
 	Log        logr.Logger
@@ -86,13 +88,15 @@ func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		if len(slaveNodes) == 0 {
 			realMaster = masterNodes[0]
 		}
-		err := k8sutils.CreateMasterSlaveReplication(ctx, r.K8sClient, r.Log, instance, masterNodes, realMaster)
-		if err != nil {
+		if err = k8sutils.CreateMasterSlaveReplication(ctx, r.K8sClient, r.Log, instance, masterNodes, realMaster); err != nil {
 			return ctrl.Result{RequeueAfter: time.Second * 60}, err
 		}
 	}
 	realMaster = k8sutils.GetRedisReplicationRealMaster(ctx, r.K8sClient, r.Log, instance, masterNodes)
-	if err := r.UpdateRedisReplicationMaster(ctx, instance, realMaster); err != nil {
+	if err = r.UpdateRedisReplicationMaster(ctx, instance, realMaster); err != nil {
+		return ctrl.Result{}, err
+	}
+	if err = r.UpdateRedisPodRoleLabel(ctx, instance, realMaster); err != nil {
 		return ctrl.Result{}, err
 	}
 	reqLogger.Info("Will reconcile redis operator in again 10 seconds")
@@ -106,6 +110,31 @@ func (r *RedisReplicationReconciler) UpdateRedisReplicationMaster(ctx context.Co
 	instance.Status.MasterNode = masterNode
 	if err := r.Client.Status().Update(ctx, instance); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (r *RedisReplicationReconciler) UpdateRedisPodRoleLabel(ctx context.Context, cr *redisv1beta2.RedisReplication, masterNode string) error {
+	labels := k8sutils.GetRedisReplicationLabels(cr)
+	pods, err := r.ListPods(ctx, cr.GetNamespace(), labels)
+	if err != nil {
+		return err
+	}
+	updateRoleLabelFunc := func(ctx context.Context, namespace string, pod corev1.Pod, role string) error {
+		if pod.Labels[k8sutils.RedisRoleLabelKey] != role {
+			return r.PatchPodLabels(ctx, namespace, pod.GetName(), map[string]string{k8sutils.RedisRoleLabelKey: role})
+		}
+		return nil
+	}
+	for _, pod := range pods.Items {
+		if masterNode == pod.GetName() {
+			err = updateRoleLabelFunc(ctx, cr.GetNamespace(), pod, k8sutils.RedisRoleLabelMaster)
+		} else {
+			err = updateRoleLabelFunc(ctx, cr.GetNamespace(), pod, k8sutils.RedisRoleLabelSlave)
+		}
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
