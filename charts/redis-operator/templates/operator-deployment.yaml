@@ -1,0 +1,76 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.redisOperator.name }}
+  namespace: {{ .Release.Namespace }}
+  labels: {{- include "redisOperator.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels: {{- include "redisOperator.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ .Values.certificate.name }}
+      {{- with .Values.redisOperator.podAnnotations }}
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels: {{- include "redisOperator.selectorLabels" . | nindent 8 }}
+      {{- with .Values.redisOperator.podLabels }}
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      containers:
+      - name: "{{ .Values.redisOperator.name }}"
+        image: "{{ .Values.redisOperator.imageName }}:{{ .Values.redisOperator.imageTag | default (printf "v%s" .Chart.AppVersion) }}"
+        imagePullPolicy: {{ .Values.redisOperator.imagePullPolicy }}
+        command:
+        - /manager
+        args:
+        - --leader-elect
+        {{- range $arg := .Values.redisOperator.extraArgs }}
+        - {{ $arg }}
+        {{- end }}
+      {{- if .Values.redisOperator.webhook }}
+        ports:
+        - containerPort: 9443
+          name: webhook-server
+          protocol: TCP
+        volumeMounts:
+        - mountPath: /tmp/k8s-webhook-server/serving-certs
+          name: cert
+          readOnly: true
+      {{- end }}
+        env:
+        - name: ENABLE_WEBHOOKS
+          value: "{{ .Values.redisOperator.webhook | toString }}"
+        {{- if .WATCH_NAMESPACE }}
+        - name: WATCH_NAMESPACE
+          value: {{ .WATCH_NAMESPACE }}
+        {{- end }}
+        {{- range $env := .Values.redisOperator.env }}
+        - name: {{ $env.name }}
+          value: {{ $env.value | quote }}
+        {{- end }} 
+      {{- if .Values.resources }}
+        resources: {{ toYaml .Values.resources | nindent 10 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.priorityClassName}}
+      priorityClassName: {{ .Values.priorityClassName }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: "{{ .Values.serviceAccountName }}"
+      serviceAccount: "{{ .Values.serviceAccountName }}"
+      {{- if .Values.redisOperator.webhook }}
+      volumes:
+      - name: cert
+        secret:
+          defaultMode: 420
+          secretName: {{ .Values.certificate.secretName }}
+      {{- end }}

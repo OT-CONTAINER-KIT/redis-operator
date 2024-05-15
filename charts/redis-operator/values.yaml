@@ -1,0 +1,60 @@
+---
+redisOperator:
+  name: redis-operator
+  imageName: quay.io/opstree/redis-operator
+  # Overrides the image tag whose default is the chart appVersion.
+  imageTag: ""
+  imagePullPolicy: Always
+
+  # Additional pod annotations
+  podAnnotations: {}
+  # Additional Pod labels (e.g. for filtering Pod by custom labels)
+  podLabels: {}
+
+  # Additional arguments for redis-operator container
+  extraArgs: []
+
+  #  - -zap-log-level=error
+  watch_namespace: ""
+  env: []
+  webhook: false
+
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 500Mi
+  requests:
+    cpu: 500m
+    memory: 500Mi
+
+replicas: 1
+
+serviceAccountName: redis-operator
+
+service:
+  name: webhook-service
+  namespace: redis-operator
+
+certificate:
+  name: serving-cert
+  secretName: webhook-server-cert
+
+issuer:
+  type: selfSigned
+  name: redis-operator-issuer
+  email: shubham.gupta@opstree.com
+  server: https://acme-v02.api.letsencrypt.org/directory
+  privateKeySecretName: letsencrypt-prod
+  solver:
+    enabled: true
+    ingressClass: nginx
+
+certmanager:
+  enabled: false
+
+priorityClassName: ""
+nodeSelector: {}
+tolerateAllTaints: false
+tolerations: []
+affinity: {}
