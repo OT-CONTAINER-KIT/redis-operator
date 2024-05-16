@@ -27,10 +27,8 @@ type RedisClusterSpec struct {
 	Size             *int32           `json:"clusterSize"`
 	KubernetesConfig KubernetesConfig `json:"kubernetesConfig"`
 	// +kubebuilder:default:=v7
-	ClusterVersion *string `json:"clusterVersion,omitempty"`
-	// +kubebuilder:default:={livenessProbe:{initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}, readinessProbe:{initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}}
-	RedisLeader RedisLeader `json:"redisLeader,omitempty"`
-	// +kubebuilder:default:={livenessProbe:{initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}, readinessProbe:{initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}}
+	ClusterVersion     *string                      `json:"clusterVersion,omitempty"`
+	RedisLeader        RedisLeader                  `json:"redisLeader,omitempty"`
 	RedisFollower      RedisFollower                `json:"redisFollower,omitempty"`
 	RedisExporter      *RedisExporter               `json:"redisExporter,omitempty"`
 	Storage            *Storage                     `json:"storage,omitempty"`
