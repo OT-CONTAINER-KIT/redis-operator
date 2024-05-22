@@ -162,7 +162,7 @@ jobs:
         run: docker build . --file Dockerfile --tag redis-operator:e2e
 
       - name: Install chainsaw
-        uses: kyverno/chainsaw/.github/actions/install@v0.0.9
+        uses: kyverno/chainsaw/.github/actions/install@v0.2.2
         with:
           release: v0.1.7
 
