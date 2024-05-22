@@ -39,6 +39,12 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 		return ctrl.Result{}, err
 	}
+	if instance.ObjectMeta.GetDeletionTimestamp() != nil {
+		if err = k8sutils.HandleRedisSentinelFinalizer(r.Client, r.Log, instance); err != nil {
+			return ctrl.Result{RequeueAfter: time.Second * 60}, err
+		}
+		return ctrl.Result{}, nil
+	}
 
 	if _, found := instance.ObjectMeta.GetAnnotations()["redissentinel.opstreelabs.in/skip-reconcile"]; found {
 		reqLogger.Info("Found annotations redissentinel.opstreelabs.in/skip-reconcile, so skipping reconcile")
@@ -47,10 +53,6 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// Get total Sentinel Replicas
 	// sentinelReplicas := instance.Spec.GetSentinelCounts("sentinel")
-
-	if err = k8sutils.HandleRedisSentinelFinalizer(r.Client, r.Log, instance); err != nil {
-		return ctrl.Result{RequeueAfter: time.Second * 60}, err
-	}
 
 	if err = k8sutils.AddFinalizer(instance, k8sutils.RedisSentinelFinalizer, r.Client); err != nil {
 		return ctrl.Result{RequeueAfter: time.Second * 60}, err
