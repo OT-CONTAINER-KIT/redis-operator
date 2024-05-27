@@ -1,0 +1,126 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Values.redisOperator.name }}
+  labels:
+    app.kubernetes.io/name : {{ .Values.redisOperator.name }}
+    helm.sh/chart : {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    app.kubernetes.io/managed-by : {{ .Release.Service }}
+    app.kubernetes.io/instance : {{ .Release.Name }}
+    app.kubernetes.io/version : {{ .Chart.AppVersion }}
+    app.kubernetes.io/component: role
+    app.kubernetes.io/part-of : {{ .Release.Name }}
+rules:
+- apiGroups:
+  - redis.redis.opstreelabs.in
+  resources:
+  - rediss
+  - redisclusters
+  - redisreplications
+  - redis
+  - rediscluster
+  - redissentinel
+  - redissentinels
+  - redisreplication
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- nonResourceURLs:
+  - '*'
+  verbs:
+  - get
+- apiGroups: 
+  - "apiextensions.k8s.io"
+  resources: 
+  - "customresourcedefinitions"
+  verbs: 
+  - "get"
+  - "list" 
+  - "watch"
+- apiGroups:
+  - redis.redis.opstreelabs.in
+  resources:
+  - redis/finalizers
+  - rediscluster/finalizers
+  - redisclusters/finalizers
+  - redissentinel/finalizers
+  - redissentinels/finalizers
+  - redisreplication/finalizers
+  - redisreplications/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - redis.redis.opstreelabs.in
+  resources:
+  - redis/status
+  - rediscluster/status
+  - redisclusters/status
+  - redissentinel/status
+  - redissentinels/status
+  - redisreplication/status
+  - redisreplications/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  - pods/exec
+  - pods
+  - services
+  - configmaps
+  - events
+  - persistentvolumeclaims
+  - namespace
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - statefulsets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - "coordination.k8s.io"
+  resources:
+  - leases
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+    - "policy"
+  resources:
+  - poddisruptionbudgets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch

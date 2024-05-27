@@ -1,0 +1,43 @@
+{{ if .Values.certmanager.enabled }}
+
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ .Values.issuer.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.redisOperator.name }}
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    app.kubernetes.io/component: issuer
+    app.kubernetes.io/part-of: {{ .Release.Name }}
+spec:
+  {{- include "redis-operator.issuerSpec" . | nindent 2 }}
+
+---
+
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ .Values.certificate.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.redisOperator.name }}
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    app.kubernetes.io/component: certificate
+    app.kubernetes.io/part-of: {{ .Release.Name }}
+spec:
+  dnsNames:
+    - {{ .Values.service.name }}.{{ .Values.service.namespace }}.svc
+    - {{ .Values.service.name }}.{{ .Values.service.namespace }}.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: {{ .Values.issuer.name }}
+  secretName: {{ .Values.certificate.secretName }}
+
+{{ end }}

@@ -1,0 +1,28 @@
+---
+apiVersion: v2
+version: 0.15.9
+appVersion: "0.15.1"
+description: Provides easy redis setup definitions for Kubernetes services, and deployment.
+engine: gotpl
+maintainers:
+  - name: iamabhishek-dubey
+  - name: sandy724
+  - name: shubham-cmyk
+name: redis-operator
+sources:
+  - https://github.com/OT-CONTAINER-KIT/redis-operator
+home: https://github.com/OT-CONTAINER-KIT/redis-operator
+icon: https://github.com/OT-CONTAINER-KIT/redis-operator/raw/master/static/redis-operator-logo.svg
+keywords:
+- operator
+- redis
+- opstree
+- kubernetes
+- openshift
+
+dependencies:
+  - name: cert-manager
+    version: v1.12.4
+    repository: https://charts.jetstack.io
+    alias: certmanager
+    condition: certmanager.enabled
