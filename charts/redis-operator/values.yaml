@@ -1,7 +1,7 @@
 ---
 redisOperator:
   name: redis-operator
-  imageName: ghcr.io/ot-container-kit/redis-operator
+  imageName: ghcr.io/ot-container-kit/redis-operator/redis-operator
   # Overrides the image tag whose default is the chart appVersion.
   imageTag: ""
   imagePullPolicy: Always
