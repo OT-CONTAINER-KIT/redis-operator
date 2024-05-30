@@ -4,7 +4,6 @@ import (
 	"strconv"
 	"strings"
 
-	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
 	"github.com/go-logr/logr"
@@ -21,8 +20,8 @@ type RedisClusterSTS struct {
 	SecurityContext               *corev1.SecurityContext
 	Affinity                      *corev1.Affinity `json:"affinity,omitempty"`
 	TerminationGracePeriodSeconds *int64           `json:"terminationGracePeriodSeconds,omitempty" protobuf:"varint,4,opt,name=terminationGracePeriodSeconds"`
-	ReadinessProbe                *commonapi.Probe
-	LivenessProbe                 *commonapi.Probe
+	ReadinessProbe                *corev1.Probe
+	LivenessProbe                 *corev1.Probe
 	NodeSelector                  map[string]string
 	Tolerations                   *[]corev1.Toleration
 }
@@ -100,7 +99,7 @@ func generateRedisClusterInitContainerParams(cr *redisv1beta2.RedisCluster) init
 }
 
 // generateRedisClusterContainerParams generates Redis container information
-func generateRedisClusterContainerParams(cl kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster, securityContext *corev1.SecurityContext, readinessProbeDef *commonapi.Probe, livenessProbeDef *commonapi.Probe, role string) containerParameters {
+func generateRedisClusterContainerParams(cl kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster, securityContext *corev1.SecurityContext, readinessProbeDef *corev1.Probe, livenessProbeDef *corev1.Probe, role string) containerParameters {
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{

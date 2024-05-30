@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 
-	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
 	"github.com/go-logr/logr"
@@ -23,8 +22,8 @@ type RedisSentinelSTS struct {
 	ExternalConfig                *string
 	Affinity                      *corev1.Affinity `json:"affinity,omitempty"`
 	TerminationGracePeriodSeconds *int64           `json:"terminationGracePeriodSeconds,omitempty" protobuf:"varint,4,opt,name=terminationGracePeriodSeconds"`
-	ReadinessProbe                *commonapi.Probe
-	LivenessProbe                 *commonapi.Probe
+	ReadinessProbe                *corev1.Probe
+	LivenessProbe                 *corev1.Probe
 }
 
 // RedisSentinelService is a interface to call Redis Service function
@@ -41,8 +40,8 @@ func CreateRedisSentinel(ctx context.Context, client kubernetes.Interface, logge
 	prop := RedisSentinelSTS{
 		RedisStateFulType:             "sentinel",
 		Affinity:                      cr.Spec.Affinity,
-		ReadinessProbe:                &cr.Spec.ReadinessProbe.Probe,
-		LivenessProbe:                 &cr.Spec.LivenessProbe.Probe,
+		ReadinessProbe:                cr.Spec.ReadinessProbe,
+		LivenessProbe:                 cr.Spec.LivenessProbe,
 		TerminationGracePeriodSeconds: cr.Spec.TerminationGracePeriodSeconds,
 	}
 
@@ -139,7 +138,7 @@ func generateRedisSentinelInitContainerParams(cr *redisv1beta2.RedisSentinel) in
 }
 
 // Create Redis Sentinel Statefulset Container Params
-func generateRedisSentinelContainerParams(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisSentinel, readinessProbeDef *commonapi.Probe, livenessProbeDef *commonapi.Probe, dcl dynamic.Interface) containerParameters {
+func generateRedisSentinelContainerParams(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisSentinel, readinessProbeDef *corev1.Probe, livenessProbeDef *corev1.Probe, dcl dynamic.Interface) containerParameters {
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{
