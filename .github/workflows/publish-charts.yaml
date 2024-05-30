@@ -1,9 +1,15 @@
 name: Release Charts
 
+#on:
+#  push:
+#    tags:
+#      - "v*.*.*"
 on:
   push:
-    tags:
-      - "v*.*.*"
+    paths:
+      - 'charts/**'
+    branches:
+      - master
 
 jobs:
   release-charts:
@@ -36,8 +42,8 @@ jobs:
         shell: bash
         working-directory: redis-operator
         run: |
-          VERSION=$(echo ${{ env.chart_version }} | cut -c 2-)   
-          sed -i "s/appVersion:.*/appVersion: \"$VERSION\"/g" charts/redis-operator/Chart.yaml
+#          VERSION=$(echo ${{ env.chart_version }} | cut -c 2-)
+#          sed -i "s/appVersion:.*/appVersion: \"$VERSION\"/g" charts/redis-operator/Chart.yaml
           helm repo add jetstack https://charts.jetstack.io
           helm repo update
           helm dependency update charts/redis-operator
