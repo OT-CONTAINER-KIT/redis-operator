@@ -37,7 +37,6 @@ func getRedisTLSConfig(client kubernetes.Interface, logger logr.Logger, cr *redi
 	if cr.Spec.TLS != nil {
 		secret, err := client.CoreV1().Secrets(cr.Namespace).Get(context.TODO(), cr.Spec.TLS.Secret.SecretName, metav1.GetOptions{})
 		if err != nil {
-			logger.Error(err, "Failed in getting TLS secret for redis cluster")
 			logger.V(1).Error(err, "Failed in getting TLS secret for redis cluster", "secretName", cr.Spec.TLS.Secret.SecretName, "namespace", cr.Namespace, "redisClusterName", cr.Name)
 			return nil
 		}
@@ -53,7 +52,6 @@ func getRedisTLSConfig(client kubernetes.Interface, logger logr.Logger, cr *redi
 
 		cert, err := tls.X509KeyPair(tlsClientCert, tlsClientKey)
 		if err != nil {
-			logger.Error(err, "Couldn't load TLS client key pair")
 			logger.V(1).Error(err, "Couldn't load TLS client key pair", "secretName", cr.Spec.TLS.Secret.SecretName, "namespace", cr.Namespace, "redisClusterName", cr.Name)
 			return nil
 		}
@@ -81,7 +79,6 @@ func getRedisReplicationTLSConfig(client kubernetes.Interface, logger logr.Logge
 	if cr.Spec.TLS != nil {
 		secret, err := client.CoreV1().Secrets(cr.Namespace).Get(context.TODO(), cr.Spec.TLS.Secret.SecretName, metav1.GetOptions{})
 		if err != nil {
-			logger.Error(err, "Failed in getting TLS secret for redis replication")
 			logger.V(1).Error(err, "Failed in getting TLS secret for redis replication", "secretName", cr.Spec.TLS.Secret.SecretName, "namespace", cr.Namespace, "redisReplicationName", cr.Name)
 			return nil
 		}
@@ -97,7 +94,6 @@ func getRedisReplicationTLSConfig(client kubernetes.Interface, logger logr.Logge
 
 		cert, err := tls.X509KeyPair(tlsClientCert, tlsClientKey)
 		if err != nil {
-			logger.Error(err, "Couldn't load TLS client key pair")
 			logger.V(1).Error(err, "Couldn't load TLS client key pair", "secretName", cr.Spec.TLS.Secret.SecretName, "namespace", cr.Namespace, "redisReplicationName", cr.Name)
 			return nil
 		}
@@ -105,7 +101,6 @@ func getRedisReplicationTLSConfig(client kubernetes.Interface, logger logr.Logge
 		tlsCaCertificates := x509.NewCertPool()
 		ok := tlsCaCertificates.AppendCertsFromPEM(tlsCaCertificate)
 		if !ok {
-			logger.Error(errors.New("failed to load CA Certificates from secret"), "Invalid CA Certificates")
 			logger.V(1).Error(err, "Invalid CA Certificates", "secretName", cr.Spec.TLS.Secret.SecretName, "namespace", cr.Namespace, "redisReplicationName", cr.Name)
 			return nil
 		}
