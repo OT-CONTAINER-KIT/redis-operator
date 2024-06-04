@@ -210,6 +210,12 @@ func IsRedisReplicationReady(ctx context.Context, logger logr.Logger, client kub
 	if sts.Status.ReadyReplicas != *sts.Spec.Replicas {
 		return false
 	}
+	if sts.Status.ObservedGeneration != sts.Generation {
+		return false
+	}
+	if sts.Status.UpdateRevision != sts.Status.CurrentRevision {
+		return false
+	}
 	// Enhanced check: When the pod is ready, it may not have been
 	// created as part of a replication cluster, so we should verify
 	// whether there is an actual master node.
