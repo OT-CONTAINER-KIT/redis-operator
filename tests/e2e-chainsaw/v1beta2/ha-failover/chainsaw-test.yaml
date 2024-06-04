@@ -50,13 +50,6 @@ spec:
             timeout: 10s
             content: |
               kubectl --namespace ${NAMESPACE} delete pod redis-replication-0
-      catch:
-        - description: Redis Operator Logs
-          podLogs:
-            namespace: redis-operator-system
-            selector: control-plane=redis-operator
-            container: manager
-            tail: -1  # tail all logs
 
     - name: Sleep for 3 minutes
       try:

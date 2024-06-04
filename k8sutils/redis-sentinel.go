@@ -316,30 +316,27 @@ func getRedisReplicationMasterIP(ctx context.Context, client kubernetes.Interfac
 	}
 
 	masterPods := GetRedisNodesByRole(ctx, client, logger, &replicationInstance, "master")
-
 	if len(masterPods) == 0 {
-		realMasterPod = ""
-		err := errors.New("no master pods found")
-		logger.Error(err, "")
-	} else if len(masterPods) == 1 {
-		realMasterPod = masterPods[0]
-	} else {
-		for _, podName := range masterPods {
-			redisClient := configureRedisReplicationClient(client, logger, &replicationInstance, podName)
-			defer redisClient.Close()
+		logger.Error(errors.New("no master pods found"), "")
+		return ""
+	}
+	for _, podName := range masterPods {
+		redisClient := configureRedisReplicationClient(client, logger, &replicationInstance, podName)
+		defer redisClient.Close()
 
-			if checkAttachedSlave(ctx, redisClient, logger, podName) > 0 {
-				realMasterPod = podName
-				break
-			}
+		if checkAttachedSlave(ctx, redisClient, logger, podName) > 0 {
+			realMasterPod = podName
+			break
 		}
+	}
+	if realMasterPod == "" {
+		logger.Error(errors.New("no real master pod found"), "")
+		return ""
 	}
 
 	realMasterInfo := RedisDetails{
 		PodName:   realMasterPod,
 		Namespace: replicationNamespace,
 	}
-
-	realMasterPodIP := getRedisServerIP(client, logger, realMasterInfo)
-	return realMasterPodIP
+	return getRedisServerIP(client, logger, realMasterInfo)
 }
