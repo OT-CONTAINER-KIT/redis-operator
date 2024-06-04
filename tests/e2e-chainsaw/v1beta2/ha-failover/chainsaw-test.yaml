@@ -51,10 +51,10 @@ spec:
             content: |
               kubectl --namespace ${NAMESPACE} delete pod redis-replication-0
 
-    - name: Sleep for 3 minutes
+    - name: Sleep for 5 minutes
       try:
         - sleep:
-            duration: 3m
+            duration: 5m
 
     - name: Test sentinel monitoring
       try:
