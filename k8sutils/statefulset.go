@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
@@ -71,8 +70,8 @@ type containerParameters struct {
 	PersistenceEnabled           *bool
 	TLSConfig                    *redisv1beta2.TLSConfig
 	ACLConfig                    *redisv1beta2.ACLConfig
-	ReadinessProbe               *commonapi.Probe
-	LivenessProbe                *commonapi.Probe
+	ReadinessProbe               *corev1.Probe
+	LivenessProbe                *corev1.Probe
 	AdditionalEnvVariable        *[]corev1.EnvVar
 	AdditionalVolume             []corev1.Volume
 	AdditionalMountPath          []corev1.VolumeMount
@@ -345,6 +344,9 @@ func createPVCTemplate(volumeName string, stsMeta metav1.ObjectMeta, storageSpec
 
 // generateContainerDef generates container definition for Redis
 func generateContainerDef(name string, containerParams containerParameters, clusterMode, nodeConfVolume, enableMetrics bool, externalConfig, clusterVersion *string, mountpath []corev1.VolumeMount, sidecars []redisv1beta2.Sidecar) []corev1.Container {
+	sentinelCntr := containerParams.Role == "sentinel"
+	enableTLS := containerParams.TLSConfig != nil
+	enableAuth := containerParams.EnabledPassword != nil && *containerParams.EnabledPassword
 	containerDefinition := []corev1.Container{
 		{
 			Name:            name,
@@ -363,8 +365,8 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 				containerParams.Port,
 				clusterVersion,
 			),
-			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe),
-			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe),
+			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe, sentinelCntr, enableTLS, enableAuth),
+			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe, sentinelCntr, enableTLS, enableAuth),
 			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, clusterMode, nodeConfVolume, externalConfig, mountpath, containerParams.TLSConfig, containerParams.ACLConfig),
 		},
 	}
@@ -491,6 +493,7 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 
 func getExporterEnvironmentVariables(params containerParameters) []corev1.EnvVar {
 	var envVars []corev1.EnvVar
+	redisHost := "redis://localhost:"
 	if params.TLSConfig != nil {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  "REDIS_EXPORTER_TLS_CLIENT_KEY_FILE",
@@ -508,6 +511,7 @@ func getExporterEnvironmentVariables(params containerParameters) []corev1.EnvVar
 			Name:  "REDIS_EXPORTER_SKIP_TLS_VERIFICATION",
 			Value: "true",
 		})
+		redisHost = "rediss://localhost:"
 	}
 	if params.RedisExporterPort != nil {
 		envVars = append(envVars, corev1.EnvVar{
@@ -518,7 +522,7 @@ func getExporterEnvironmentVariables(params containerParameters) []corev1.EnvVar
 	if params.Port != nil {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  "REDIS_ADDR",
-			Value: fmt.Sprintf("redis://localhost:%d", *params.Port),
+			Value: redisHost + strconv.Itoa(*params.Port),
 		})
 	}
 	if params.EnabledPassword != nil && *params.EnabledPassword {
@@ -591,22 +595,34 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nod
 }
 
 // getProbeInfo generate probe for Redis StatefulSet
-func getProbeInfo(probe *commonapi.Probe) *corev1.Probe {
-	return &corev1.Probe{
-		InitialDelaySeconds: probe.InitialDelaySeconds,
-		PeriodSeconds:       probe.PeriodSeconds,
-		FailureThreshold:    probe.FailureThreshold,
-		TimeoutSeconds:      probe.TimeoutSeconds,
-		SuccessThreshold:    probe.SuccessThreshold,
-		ProbeHandler: corev1.ProbeHandler{
-			Exec: &corev1.ExecAction{
-				Command: []string{
-					"bash",
-					"/usr/bin/healthcheck.sh",
-				},
-			},
-		},
+func getProbeInfo(probe *corev1.Probe, sentinel, enableTLS, enableAuth bool) *corev1.Probe {
+	if probe == nil {
+		probe = &corev1.Probe{}
 	}
+	if probe.ProbeHandler.Exec == nil && probe.ProbeHandler.HTTPGet == nil && probe.ProbeHandler.TCPSocket == nil && probe.ProbeHandler.GRPC == nil {
+		healthChecker := []string{
+			"redis-cli",
+			"-h", "$(hostname)",
+		}
+		if sentinel {
+			healthChecker = append(healthChecker, "-p", "${SENTINEL_PORT}")
+		} else {
+			healthChecker = append(healthChecker, "-p", "${REDIS_PORT}")
+		}
+		if enableAuth {
+			healthChecker = append(healthChecker, "-a", "${REDIS_PASSWORD}")
+		}
+		if enableTLS {
+			healthChecker = append(healthChecker, "--tls", "--cert", "${REDIS_TLS_CERT}", "--key", "${REDIS_TLS_CERT_KEY}", "--cacert", "${REDIS_TLS_CA_KEY}")
+		}
+		healthChecker = append(healthChecker, "ping")
+		probe.ProbeHandler = corev1.ProbeHandler{
+			Exec: &corev1.ExecAction{
+				Command: []string{"sh", "-c", strings.Join(healthChecker, " ")},
+			},
+		}
+	}
+	return probe
 }
 
 // getEnvironmentVariables returns all the required Environment Variables

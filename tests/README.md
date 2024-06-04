@@ -1,5 +1,7 @@
 # E2E Testing of the Redis Cluster with Kuttl
 
+> ***Kuttl is depracated!*** now we use chainsaw to run e2e tests. Please refer to the [chainsaw](https://github.com/kyverno/chainsaw).
+
 This guide will walk you through the process of end-to-end (E2E) testing a Redis cluster using the `kuttl` utility.
 
 ## **Prerequisites**

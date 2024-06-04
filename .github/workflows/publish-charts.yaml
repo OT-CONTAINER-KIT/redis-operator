@@ -1,0 +1,98 @@
+name: Release Charts
+
+on:
+  push:
+    paths:
+      - 'charts/**'
+      - '.github/workflows/publish-charts.yaml'
+    branches:
+      - master
+
+jobs:
+  release-charts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          repository: "${{ github.repository_owner }}/redis-operator"
+          path: "redis-operator"
+          fetch-depth: 0
+
+      - name: Checkout helm-charts
+        uses: actions/checkout@v3
+        with:
+          repository: "${{ github.repository_owner }}/helm-charts"
+          # use token for helm-charts repo
+          token: "${{ secrets.HELM_CHARTER_TOKEN }}"
+          path: "helm-charts"
+          fetch-depth: 0
+
+      - name: Get chart version
+        run: |
+          echo "chart_version=$(echo ${GITHUB_REF##*/v})" >> $GITHUB_ENV
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4.2.0
+
+      - name: Make charts
+        shell: bash
+        working-directory: redis-operator
+        run: |
+          helm repo add jetstack https://charts.jetstack.io
+          helm repo update
+          helm dependency update charts/redis-operator
+          helm package charts/redis-operator -d .cr-release-packages
+
+      - name: Install chart-releaser
+        uses: helm/chart-releaser-action@v1.5.0
+        with:
+          install_only: true
+
+      # upload charts to helm-charts repos's release
+      - name: Upload charts
+        shell: bash
+        working-directory: redis-operator
+        run: |
+          cr upload
+        env:
+          # GitHub repository
+          CR_GIT_REPO: "helm-charts"
+          # Path to directory with chart packages (default ".cr-release-packages")
+          CR_PACKAGE_PATH: ".cr-release-packages"
+          # use token for helm-charts repo
+          CR_TOKEN: "${{ secrets.HELM_CHARTER_TOKEN }}"
+          # owner
+          CR_OWNER: "${{ github.repository_owner }}"
+          # skip existing charts
+          CR_SKIP_EXISTING: "true"
+
+      # copy artifacts to helm-charts repo, we need those for update index
+      - name: Copy artifacts
+        run: |
+          cp -r redis-operator/.cr-release-packages helm-charts/
+
+      - name: Configure Git
+        working-directory: helm-charts
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      # this step will directly push to the main branch, so make sure you have the right permissions
+      - name: Update index
+        working-directory: helm-charts
+        run: |
+          cr index --push
+        env:
+          # GitHub repository
+          CR_GIT_REPO: "helm-charts"
+          # The GitHub pages branch (default "gh-pages")
+          CR_PAGES_BRANCH: "gh-pages"
+          # Path to directory with chart packages (default ".cr-release-packages")
+          CR_PACKAGE_PATH: ".cr-release-packages"
+          # use token for helm-charts repo
+          CR_TOKEN: "${{ secrets.HELM_CHARTER_TOKEN }}"
+          # owner
+          CR_OWNER: "${{ github.repository_owner }}"
+          # index path
+          CR_INDEX_PATH: "index.yaml"

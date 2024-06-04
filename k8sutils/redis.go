@@ -371,28 +371,23 @@ func configureRedisClient(client kubernetes.Interface, logger logr.Logger, cr *r
 		PodName:   podName,
 		Namespace: cr.Namespace,
 	}
-	var redisClient *redis.Client
-
+	var err error
+	var pass string
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+		pass, err = getRedisPassword(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
 		if err != nil {
 			logger.Error(err, "Error in getting redis password")
 		}
-		redisClient = redis.NewClient(&redis.Options{
-			Addr:      getRedisServerAddress(client, logger, redisInfo, *cr.Spec.Port),
-			Password:  pass,
-			DB:        0,
-			TLSConfig: getRedisTLSConfig(client, logger, cr, redisInfo),
-		})
-	} else {
-		redisClient = redis.NewClient(&redis.Options{
-			Addr:      getRedisServerAddress(client, logger, redisInfo, *cr.Spec.Port),
-			Password:  "",
-			DB:        0,
-			TLSConfig: getRedisTLSConfig(client, logger, cr, redisInfo),
-		})
 	}
-	return redisClient
+	opts := &redis.Options{
+		Addr:     getRedisServerAddress(client, logger, redisInfo, *cr.Spec.Port),
+		Password: pass,
+		DB:       0,
+	}
+	if cr.Spec.TLS != nil {
+		opts.TLSConfig = getRedisTLSConfig(client, logger, cr.Namespace, cr.Spec.TLS.Secret.SecretName, redisInfo.PodName)
+	}
+	return redis.NewClient(opts)
 }
 
 // executeCommand will execute the commands in pod
@@ -498,28 +493,23 @@ func configureRedisReplicationClient(client kubernetes.Interface, logger logr.Lo
 		PodName:   podName,
 		Namespace: cr.Namespace,
 	}
-	var redisClient *redis.Client
-
+	var err error
+	var pass string
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+		pass, err = getRedisPassword(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
 		if err != nil {
 			logger.Error(err, "Error in getting redis password")
 		}
-		redisClient = redis.NewClient(&redis.Options{
-			Addr:      getRedisServerAddress(client, logger, redisInfo, 6379),
-			Password:  pass,
-			DB:        0,
-			TLSConfig: getRedisReplicationTLSConfig(client, logger, cr, redisInfo),
-		})
-	} else {
-		redisClient = redis.NewClient(&redis.Options{
-			Addr:      getRedisServerAddress(client, logger, redisInfo, 6379),
-			Password:  "",
-			DB:        0,
-			TLSConfig: getRedisReplicationTLSConfig(client, logger, cr, redisInfo),
-		})
 	}
-	return redisClient
+	opts := &redis.Options{
+		Addr:     getRedisServerAddress(client, logger, redisInfo, 6379),
+		Password: pass,
+		DB:       0,
+	}
+	if cr.Spec.TLS != nil {
+		opts.TLSConfig = getRedisTLSConfig(client, logger, cr.Namespace, cr.Spec.TLS.Secret.SecretName, podName)
+	}
+	return redis.NewClient(opts)
 }
 
 // Get Redis nodes by it's role i.e. master, slave and sentinel

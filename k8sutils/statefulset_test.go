@@ -454,6 +454,238 @@ func TestEnableRedisMonitoring(t *testing.T) {
 	}
 }
 
+func TestGenerateContainerDef(t *testing.T) {
+	tests := []struct {
+		name                    string
+		containerName           string
+		containerDef            containerParameters
+		expectedContainerDef    []corev1.Container
+		redisClusterMode        bool
+		containerNodeConfVolume bool
+		containerEnableMetrics  bool
+		containerExternalConfig *string
+		redisClusterVersion     *string
+		containerMountPaths     []corev1.VolumeMount
+		sideCareContainer       []redisv1beta2.Sidecar
+	}{
+		{
+			name:          "redis-1",
+			containerName: "redis",
+			containerDef: containerParameters{
+				Image:              "redis:latest",
+				ImagePullPolicy:    corev1.PullAlways,
+				EnabledPassword:    ptr.To(false),
+				PersistenceEnabled: ptr.To(false),
+				AdditionalEnvVariable: &[]corev1.EnvVar{
+					{
+						Name:  "Add_ENV",
+						Value: "Add_Value",
+					},
+				},
+			},
+			expectedContainerDef: []corev1.Container{
+				{
+					Name:            "redis",
+					Image:           "redis:latest",
+					ImagePullPolicy: corev1.PullAlways,
+					VolumeMounts:    getVolumeMount("redisVolume", ptr.To(false), false, false, nil, []corev1.VolumeMount{}, nil, nil),
+					// Command:         []string{"/bin/bash", "-c", "/app/restore.bash"},
+					Env: []corev1.EnvVar{
+						{
+							Name:  "REDIS_ADDR",
+							Value: "redis://localhost:6379",
+						},
+						{
+							Name:  "REDIS_MAJOR_VERSION",
+							Value: "1.0",
+						},
+						{
+							Name:  "SERVER_MODE",
+							Value: "",
+						},
+						{
+							Name:  "SETUP_MODE",
+							Value: "",
+						},
+						{
+							Name:  "Add_ENV",
+							Value: "Add_Value",
+						},
+					},
+					ReadinessProbe: &corev1.Probe{
+						ProbeHandler: corev1.ProbeHandler{
+							Exec: &corev1.ExecAction{
+								Command: []string{"sh", "-c", "redis-cli -h $(hostname) -p ${REDIS_PORT} ping"},
+							},
+						},
+					},
+					LivenessProbe: &corev1.Probe{
+						ProbeHandler: corev1.ProbeHandler{
+							Exec: &corev1.ExecAction{
+								Command: []string{"sh", "-c", "redis-cli -h $(hostname) -p ${REDIS_PORT} ping"},
+							},
+						},
+					},
+				},
+			},
+			redisClusterMode:        false,
+			containerNodeConfVolume: false,
+			containerEnableMetrics:  false,
+			containerExternalConfig: nil,
+			redisClusterVersion:     ptr.To("1.0"),
+			containerMountPaths:     []corev1.VolumeMount{},
+			sideCareContainer:       []redisv1beta2.Sidecar{},
+		},
+		{
+			name:          "redis-2",
+			containerName: "redis",
+			containerDef: containerParameters{
+				Image:              "redis:latest",
+				ImagePullPolicy:    corev1.PullAlways,
+				EnabledPassword:    ptr.To(false),
+				PersistenceEnabled: ptr.To(false),
+				Resources: &corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("250m"),
+						corev1.ResourceMemory: resource.MustParse("64Mi"),
+					},
+					Limits: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("500m"),
+						corev1.ResourceMemory: resource.MustParse("128Mi"),
+					},
+				},
+			},
+			expectedContainerDef: []corev1.Container{
+				{
+					Name:            "redis",
+					Image:           "redis:latest",
+					ImagePullPolicy: corev1.PullAlways,
+					VolumeMounts: getVolumeMount("redisVolume", ptr.To(false), false, false, nil, []corev1.VolumeMount{
+						{
+							Name:      "external-config",
+							ReadOnly:  false,
+							MountPath: "/etc/redis/external.conf.d",
+						},
+					}, nil, nil),
+					// Command:         []string{"/bin/bash", "-c", "/app/restore.bash"},
+					Env: []corev1.EnvVar{
+						{
+							Name:  "REDIS_ADDR",
+							Value: "redis://localhost:6379",
+						},
+						{
+							Name:  "REDIS_MAJOR_VERSION",
+							Value: "1.0",
+						},
+						{
+							Name:  "SERVER_MODE",
+							Value: "",
+						},
+						{
+							Name:  "SETUP_MODE",
+							Value: "",
+						},
+					},
+					Resources: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("250m"),
+							corev1.ResourceMemory: resource.MustParse("64Mi"),
+						},
+						Limits: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("500m"),
+							corev1.ResourceMemory: resource.MustParse("128Mi"),
+						},
+					},
+					ReadinessProbe: &corev1.Probe{
+						ProbeHandler: corev1.ProbeHandler{
+							Exec: &corev1.ExecAction{
+								Command: []string{"sh", "-c", "redis-cli -h $(hostname) -p ${REDIS_PORT} ping"},
+							},
+						},
+					},
+					LivenessProbe: &corev1.Probe{
+						ProbeHandler: corev1.ProbeHandler{
+							Exec: &corev1.ExecAction{
+								Command: []string{"sh", "-c", "redis-cli -h $(hostname) -p ${REDIS_PORT} ping"},
+							},
+						},
+					},
+				},
+				{
+					Name: "redis-exporter",
+					Ports: []corev1.ContainerPort{
+						{
+							Name:          "redis-exporter",
+							ContainerPort: 9121,
+							Protocol:      corev1.ProtocolTCP,
+						},
+					},
+				},
+				{
+					Name:            "redis-sidecare",
+					Image:           "redis-sidecar:latest",
+					ImagePullPolicy: corev1.PullAlways,
+					Env: []corev1.EnvVar{
+						{
+							Name:  "REDISEXPORTER",
+							Value: "ENVVALUE",
+						},
+					},
+					Resources:    corev1.ResourceRequirements{},
+					VolumeMounts: []corev1.VolumeMount{},
+					Command:      []string{"/bin/bash", "-c", "/app/restore.bash"},
+					Ports: []corev1.ContainerPort{
+						{
+							Name:          "redis-sidecare",
+							ContainerPort: 7000,
+							Protocol:      corev1.ProtocolTCP,
+						},
+					},
+				},
+			},
+			redisClusterMode:        false,
+			containerNodeConfVolume: false,
+			containerEnableMetrics:  true,
+			containerExternalConfig: ptr.To("some-config"),
+			redisClusterVersion:     ptr.To("1.0"),
+			containerMountPaths:     []corev1.VolumeMount{},
+			sideCareContainer: []redisv1beta2.Sidecar{
+				{
+					Sidecar: common.Sidecar{
+						Name:            "redis-sidecare",
+						Image:           "redis-sidecar:latest",
+						ImagePullPolicy: corev1.PullAlways,
+						EnvVars: &[]corev1.EnvVar{
+							{
+								Name:  "REDISEXPORTER",
+								Value: "ENVVALUE",
+							},
+						},
+						Resources: &corev1.ResourceRequirements{},
+					},
+					Volumes: &[]corev1.VolumeMount{},
+					Command: []string{"/bin/bash", "-c", "/app/restore.bash"},
+					Ports: &[]corev1.ContainerPort{
+						{
+							Name:          "redis-sidecare",
+							ContainerPort: 7000,
+							Protocol:      corev1.ProtocolTCP,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			containerDef := generateContainerDef(test.containerName, test.containerDef, test.redisClusterMode, test.containerNodeConfVolume, test.containerEnableMetrics, test.containerExternalConfig, test.redisClusterVersion, test.containerMountPaths, test.sideCareContainer)
+			assert.Equal(t, containerDef, test.expectedContainerDef, "Container Configration")
+		})
+	}
+}
+
 func TestGenerateInitContainerDef(t *testing.T) {
 	tests := []struct {
 		name                     string

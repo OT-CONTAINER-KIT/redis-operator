@@ -52,14 +52,16 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		}
 		return ctrl.Result{}, err
 	}
+	if instance.ObjectMeta.GetDeletionTimestamp() != nil {
+		if err = k8sutils.HandleRedisFinalizer(r.Client, r.K8sClient, r.Log, instance); err != nil {
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, nil
+	}
 	if _, found := instance.ObjectMeta.GetAnnotations()["redis.opstreelabs.in/skip-reconcile"]; found {
 		reqLogger.Info("Found annotations redis.opstreelabs.in/skip-reconcile, so skipping reconcile")
 		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 	}
-	if err = k8sutils.HandleRedisFinalizer(r.Client, r.K8sClient, r.Log, instance); err != nil {
-		return ctrl.Result{}, err
-	}
-
 	if err = k8sutils.AddFinalizer(instance, k8sutils.RedisFinalizer, r.Client); err != nil {
 		return ctrl.Result{}, err
 	}
