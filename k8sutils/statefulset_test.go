@@ -437,18 +437,10 @@ func TestCreateOrUpdateStateFul(t *testing.T) {
 			containerParams: containerParameters{
 				Image: "redis:latest",
 				ReadinessProbe: &common.Probe{
-					InitialDelaySeconds: 5,
-					TimeoutSeconds:      5,
-					PeriodSeconds:       5,
-					SuccessThreshold:    2,
-					FailureThreshold:    2,
+					InitialDelaySeconds: int32(5),
 				},
 				LivenessProbe: &common.Probe{
-					InitialDelaySeconds: 5,
-					TimeoutSeconds:      5,
-					PeriodSeconds:       5,
-					SuccessThreshold:    2,
-					FailureThreshold:    2,
+					InitialDelaySeconds: int32(5),
 				},
 			},
 			sidecar: &[]redisv1beta2.Sidecar{
@@ -479,18 +471,10 @@ func TestCreateOrUpdateStateFul(t *testing.T) {
 			containerParams: containerParameters{
 				Image: "redis:latest",
 				ReadinessProbe: &common.Probe{
-					InitialDelaySeconds: 5,
-					TimeoutSeconds:      5,
-					PeriodSeconds:       5,
-					SuccessThreshold:    2,
-					FailureThreshold:    2,
+					InitialDelaySeconds: int32(5),
 				},
 				LivenessProbe: &common.Probe{
-					InitialDelaySeconds: 5,
-					TimeoutSeconds:      5,
-					PeriodSeconds:       5,
-					SuccessThreshold:    2,
-					FailureThreshold:    2,
+					InitialDelaySeconds: int32(5),
 				},
 			},
 			sidecar: &[]redisv1beta2.Sidecar{
@@ -524,10 +508,10 @@ func TestCreateOrUpdateStateFul(t *testing.T) {
 			containerParams: containerParameters{
 				Image: "redis:latest",
 				ReadinessProbe: &common.Probe{
-					InitialDelaySeconds: 5,
+					InitialDelaySeconds: int32(5),
 				},
 				LivenessProbe: &common.Probe{
-					InitialDelaySeconds: 5,
+					InitialDelaySeconds: int32(5),
 				},
 			},
 			sidecar: &[]redisv1beta2.Sidecar{
