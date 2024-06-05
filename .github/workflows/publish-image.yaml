@@ -40,6 +40,6 @@ jobs:
           file: Dockerfile
           push: true
           tags: | 
-            ${{ env.REGISTRY }}/${{ env.REPOSITORY }}:${{ env.TAG }}
-            ${{ env.REGISTRY }}/${{ env.REPOSITORY }}:latest
+            ${{ env.REGISTRY }}/${{ env.REPOSITORY }}/redis-operator:${{ env.TAG }}
+            ${{ env.REGISTRY }}/${{ env.REPOSITORY }}/redis-operator:latest
           platforms: linux/amd64,linux/arm64
