@@ -36,6 +36,7 @@ import (
 // RedisClusterReconciler reconciles a RedisCluster object
 type RedisClusterReconciler struct {
 	client.Client
+	k8sutils.StatefulSet
 	K8sClient  kubernetes.Interface
 	Dk8sClient dynamic.Interface
 	Log        logr.Logger
@@ -125,6 +126,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
+	// todo: remove me after watch statefulset in controller
 	redisLeaderInfo, err := k8sutils.GetStatefulSet(r.K8sClient, r.Log, instance.GetNamespace(), instance.GetName()+"-leader")
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -133,7 +135,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
-	if redisLeaderInfo.Status.ReadyReplicas == leaderReplicas {
+	if r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-leader") {
 		// Mark the cluster status as initializing if there are no follower nodes
 		if (instance.Status.ReadyLeaderReplicas == 0 && instance.Status.ReadyFollowerReplicas == 0) ||
 			instance.Status.ReadyFollowerReplicas != followerReplicas {
@@ -158,6 +160,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return ctrl.Result{}, err
 		}
 	}
+	// todo: remove me after watch statefulset in controller
 	redisFollowerInfo, err := k8sutils.GetStatefulSet(r.K8sClient, r.Log, instance.GetNamespace(), instance.GetName()+"-follower")
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -171,9 +174,9 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{RequeueAfter: time.Second * 60}, nil
 	}
 
-	if !(redisLeaderInfo.Status.ReadyReplicas == leaderReplicas && redisFollowerInfo.Status.ReadyReplicas == followerReplicas) {
-		reqLogger.Info("Redis leader and follower nodes are not ready yet", "Ready.Replicas", strconv.Itoa(int(redisLeaderInfo.Status.ReadyReplicas)), "Expected.Replicas", leaderReplicas)
-		return ctrl.Result{RequeueAfter: time.Second * 60}, nil
+	if !(r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-leader") && r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-follower")) {
+		reqLogger.Info("Redis leader and follower nodes are not ready yet")
+		return ctrl.Result{RequeueAfter: time.Second * 30}, nil
 	}
 
 	// Mark the cluster status as bootstrapping if all the leader and follower nodes are ready

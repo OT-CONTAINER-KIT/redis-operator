@@ -124,12 +124,14 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Redis")
 		os.Exit(1)
 	}
+	rcLog := ctrl.Log.WithName("controllers").WithName("RedisCluster")
 	if err = (&controllers.RedisClusterReconciler{
-		Client:     mgr.GetClient(),
-		K8sClient:  k8sclient,
-		Dk8sClient: dk8sClient,
-		Log:        ctrl.Log.WithName("controllers").WithName("RedisCluster"),
-		Scheme:     mgr.GetScheme(),
+		Client:      mgr.GetClient(),
+		K8sClient:   k8sclient,
+		Dk8sClient:  dk8sClient,
+		Log:         ctrl.Log.WithName("controllers").WithName("RedisCluster"),
+		Scheme:      mgr.GetScheme(),
+		StatefulSet: k8sutils.NewStatefulSetService(k8sclient, rcLog),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RedisCluster")
 		os.Exit(1)
