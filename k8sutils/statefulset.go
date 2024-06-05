@@ -24,6 +24,60 @@ import (
 	"k8s.io/utils/ptr"
 )
 
+type StatefulSet interface {
+	IsStatefulSetReady(ctx context.Context, namespace, name string) bool
+}
+
+type StatefulSetService struct {
+	kubeClient kubernetes.Interface
+	log        logr.Logger
+}
+
+func NewStatefulSetService(kubeClient kubernetes.Interface, log logr.Logger) *StatefulSetService {
+	log = log.WithValues("service", "k8s.statefulset")
+	return &StatefulSetService{
+		kubeClient: kubeClient,
+		log:        log,
+	}
+}
+
+func (s *StatefulSetService) IsStatefulSetReady(ctx context.Context, namespace, name string) bool {
+	var (
+		partition = 0
+		replicas  = 1
+
+		logger = s.log.WithValues("namespace", namespace, "name", name)
+	)
+
+	sts, err := s.kubeClient.AppsV1().StatefulSets(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		logger.Error(err, "failed to get statefulset")
+		return false
+	}
+
+	if sts.Spec.UpdateStrategy.RollingUpdate != nil && sts.Spec.UpdateStrategy.RollingUpdate.Partition != nil {
+		partition = int(*sts.Spec.UpdateStrategy.RollingUpdate.Partition)
+	}
+	if sts.Spec.Replicas != nil {
+		replicas = int(*sts.Spec.Replicas)
+	}
+
+	if expectedUpdateReplicas := replicas - partition; sts.Status.UpdatedReplicas < int32(expectedUpdateReplicas) {
+		logger.V(1).Info("StatefulSet is not ready", "Status.UpdatedReplicas", sts.Status.UpdatedReplicas, "ExpectedUpdateReplicas", expectedUpdateReplicas)
+		return false
+	}
+	if partition == 0 && sts.Status.CurrentRevision != sts.Status.UpdateRevision {
+		logger.V(1).Info("StatefulSet is not ready", "Status.CurrentRevision", sts.Status.CurrentRevision, "Status.UpdateRevision", sts.Status.UpdateRevision)
+		return false
+	}
+	if sts.Status.ObservedGeneration != sts.ObjectMeta.Generation {
+		logger.V(1).Info("StatefulSet is not ready", "Status.ObservedGeneration", sts.Status.ObservedGeneration, "ObjectMeta.Generation", sts.ObjectMeta.Generation)
+		return false
+	}
+
+	return true
+}
+
 const (
 	redisExporterContainer = "redis-exporter"
 )
