@@ -19,7 +19,7 @@ spec:
         memory: 128Mi
       limits:
         cpu: 101m
-        memory: 256Mi # Increased memory limit
+        memory: 256Mi          # Increased memory limit
   storage:
     volumeClaimTemplate:
       spec:
