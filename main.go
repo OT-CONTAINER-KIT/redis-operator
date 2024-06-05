@@ -129,7 +129,7 @@ func main() {
 		Client:      mgr.GetClient(),
 		K8sClient:   k8sclient,
 		Dk8sClient:  dk8sClient,
-		Log:         ctrl.Log.WithName("controllers").WithName("RedisCluster"),
+		Log:         rcLog,
 		Scheme:      mgr.GetScheme(),
 		StatefulSet: k8sutils.NewStatefulSetService(k8sclient, rcLog),
 	}).SetupWithManager(mgr); err != nil {
