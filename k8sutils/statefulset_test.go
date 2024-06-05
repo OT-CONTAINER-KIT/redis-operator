@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -688,31 +689,66 @@ func TestGenerateContainerDef(t *testing.T) {
 func TestGenerateInitContainerDef(t *testing.T) {
 	tests := []struct {
 		name                     string
+		initContainerName        string
 		initContainerDef         initContainerParameters
 		expectedInitContainerDef []corev1.Container
 		mountPaths               []corev1.VolumeMount
 	}{
 		{
-			name: "Redis",
+			name:              "Test1_With_Resources_AdditionalENV",
+			initContainerName: "redis",
 			initContainerDef: initContainerParameters{
 				Image:              "redis-init-container:latest",
 				ImagePullPolicy:    corev1.PullAlways,
 				Command:            []string{"/bin/bash", "-c", "/app/restore.bash"},
 				PersistenceEnabled: ptr.To(false),
+				Resources: &corev1.ResourceRequirements{
+					Requests: v1.ResourceList{
+						v1.ResourceCPU:    resource.MustParse("220m"),
+						v1.ResourceMemory: resource.MustParse("500Mi"),
+					},
+					Limits: v1.ResourceList{
+						v1.ResourceCPU:    resource.MustParse("250m"),
+						v1.ResourceMemory: resource.MustParse("500Mi"),
+					},
+				},
+				AdditionalEnvVariable: &[]v1.EnvVar{
+					{
+						Name:  "TLS_MODE",
+						Value: "true",
+					},
+				},
 			},
 			expectedInitContainerDef: []corev1.Container{
 				{
-					Name:            "initRedis",
+					Name:            "initredis",
 					Image:           "redis-init-container:latest",
 					Command:         []string{"/bin/bash", "-c", "/app/restore.bash"},
 					ImagePullPolicy: corev1.PullAlways,
 					VolumeMounts:    getVolumeMount("redisVolume", ptr.To(false), false, false, nil, []corev1.VolumeMount{}, nil, nil),
+					Resources: corev1.ResourceRequirements{
+						Requests: v1.ResourceList{
+							v1.ResourceCPU:    resource.MustParse("220m"),
+							v1.ResourceMemory: resource.MustParse("500Mi"),
+						},
+						Limits: v1.ResourceList{
+							v1.ResourceCPU:    resource.MustParse("250m"),
+							v1.ResourceMemory: resource.MustParse("500Mi"),
+						},
+					},
+					Env: []v1.EnvVar{
+						{
+							Name:  "TLS_MODE",
+							Value: "true",
+						},
+					},
 				},
 			},
 			mountPaths: []corev1.VolumeMount{},
 		},
 		{
-			name: "Redis-1",
+			name:              "Test2_With_Volume",
+			initContainerName: "redis",
 			initContainerDef: initContainerParameters{
 				Image:              "redis-init-container:latest",
 				ImagePullPolicy:    corev1.PullAlways,
@@ -721,11 +757,11 @@ func TestGenerateInitContainerDef(t *testing.T) {
 			},
 			expectedInitContainerDef: []corev1.Container{
 				{
-					Name:            "initRedis-1",
+					Name:            "initredis",
 					Image:           "redis-init-container:latest",
 					Command:         []string{"/bin/bash", "-c", "/app/restore.bash"},
 					ImagePullPolicy: corev1.PullAlways,
-					VolumeMounts: getVolumeMount("Redis-1", ptr.To(true), false, false, nil, []corev1.VolumeMount{
+					VolumeMounts: getVolumeMount("redis", ptr.To(true), false, false, nil, []corev1.VolumeMount{
 						{
 							Name:      "Redis-1",
 							MountPath: "/data",
@@ -745,7 +781,7 @@ func TestGenerateInitContainerDef(t *testing.T) {
 	for i := range tests {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
-			initContainer := generateInitContainerDef(test.name, test.initContainerDef, test.mountPaths)
+			initContainer := generateInitContainerDef(test.initContainerName, test.initContainerDef, test.mountPaths)
 			assert.Equal(t, initContainer, test.expectedInitContainerDef, "Init Container Configuration")
 		})
 	}
