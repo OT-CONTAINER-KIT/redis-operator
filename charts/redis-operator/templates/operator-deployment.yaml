@@ -21,8 +21,12 @@ spec:
       {{- toYaml . | nindent 8 }}
       {{- end }}
     spec:
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
       - name: "{{ .Values.redisOperator.name }}"
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 10 }}
         image: "{{ .Values.redisOperator.imageName }}:{{ .Values.redisOperator.imageTag | default (printf "v%s" .Chart.AppVersion) }}"
         imagePullPolicy: {{ .Values.redisOperator.imagePullPolicy }}
         command:
