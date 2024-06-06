@@ -438,9 +438,17 @@ func TestCreateOrUpdateStateFul(t *testing.T) {
 				Image: "redis:latest",
 				ReadinessProbe: &common.Probe{
 					InitialDelaySeconds: int32(5),
+					TimeoutSeconds:      int32(0),
+					PeriodSeconds:       int32(0),
+					SuccessThreshold:    int32(0),
+					FailureThreshold:    int32(0),
 				},
 				LivenessProbe: &common.Probe{
 					InitialDelaySeconds: int32(5),
+					TimeoutSeconds:      int32(0),
+					PeriodSeconds:       int32(0),
+					SuccessThreshold:    int32(0),
+					FailureThreshold:    int32(0),
 				},
 			},
 			sidecar: &[]redisv1beta2.Sidecar{
