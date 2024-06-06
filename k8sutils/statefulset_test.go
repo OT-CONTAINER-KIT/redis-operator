@@ -458,7 +458,7 @@ func TestCreateOrUpdateStateFul(t *testing.T) {
 			expectErr:  false,
 		},
 		{
-			name: "Test2_Create_Statefulset",
+			name: "Test2_udpate_Statefulset",
 			stsParams: statefulSetParameters{
 				Replicas: ptr.To(int32(4)),
 			},
@@ -491,7 +491,7 @@ func TestCreateOrUpdateStateFul(t *testing.T) {
 			updatedStatefulSet: appsv1.StatefulSetSpec{
 				Replicas: ptr.To(int32(6)),
 			},
-			stsPresent: false,
+			stsPresent: true,
 			expectErr:  false,
 		},
 		{
