@@ -1,10 +1,11 @@
 package controllerutil
 
 import (
+	"time"
+
 	"github.com/go-logr/logr"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"time"
 )
 
 func Reconciled() (reconcile.Result, error) {
