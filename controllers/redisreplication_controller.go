@@ -7,9 +7,9 @@ import (
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/k8sutils"
+	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllerutil"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -34,20 +34,16 @@ func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	err := r.Client.Get(context.TODO(), req.NamespacedName, instance)
 	if err != nil {
-		if errors.IsNotFound(err) {
-			return ctrl.Result{}, nil
-		}
-		return ctrl.Result{}, err
+		return intctrlutil.RequeueWithErrorChecking(err, reqLogger, "")
 	}
 	if instance.ObjectMeta.GetDeletionTimestamp() != nil {
 		if err = k8sutils.HandleRedisReplicationFinalizer(r.Client, r.K8sClient, r.Log, instance); err != nil {
-			return ctrl.Result{}, err
+			return intctrlutil.RequeueWithError(err, reqLogger, "")
 		}
-		return ctrl.Result{}, nil
+		return intctrlutil.Reconciled()
 	}
 	if _, found := instance.ObjectMeta.GetAnnotations()["redisreplication.opstreelabs.in/skip-reconcile"]; found {
-		reqLogger.Info("Found annotations redisreplication.opstreelabs.in/skip-reconcile, so skipping reconcile")
-		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+		return intctrlutil.RequeueAfter(reqLogger, time.Second*10, "found skip reconcile annotation")
 	}
 
 	leaderReplicas := int32(1)
@@ -55,29 +51,28 @@ func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	totalReplicas := leaderReplicas + followerReplicas
 
 	if err = k8sutils.AddFinalizer(instance, k8sutils.RedisReplicationFinalizer, r.Client); err != nil {
-		return ctrl.Result{}, err
+		return intctrlutil.RequeueWithError(err, reqLogger, "")
 	}
 
 	err = k8sutils.CreateReplicationRedis(instance, r.K8sClient)
 	if err != nil {
-		return ctrl.Result{}, err
+		return intctrlutil.RequeueWithError(err, reqLogger, "")
 	}
 	err = k8sutils.CreateReplicationService(instance, r.K8sClient)
 	if err != nil {
-		return ctrl.Result{}, err
+		return intctrlutil.RequeueWithError(err, reqLogger, "")
 	}
 
 	// Set Pod distruptiuon Budget Later
 
 	redisReplicationInfo, err := k8sutils.GetStatefulSet(r.K8sClient, r.Log, instance.GetNamespace(), instance.GetName())
 	if err != nil {
-		return ctrl.Result{RequeueAfter: time.Second * 60}, err
+		return intctrlutil.RequeueAfter(reqLogger, time.Second*60, "")
 	}
 
 	// Check that the Leader and Follower are ready in redis replication
 	if redisReplicationInfo.Status.ReadyReplicas != totalReplicas {
-		reqLogger.Info("Redis replication nodes are not ready yet", "Ready.Replicas", strconv.Itoa(int(redisReplicationInfo.Status.ReadyReplicas)), "Expected.Replicas", totalReplicas)
-		return ctrl.Result{RequeueAfter: time.Second * 60}, nil
+		return intctrlutil.RequeueAfter(reqLogger, time.Second*60, "Redis replication nodes are not ready yet", "Ready.Replicas", redisReplicationInfo.Status.ReadyReplicas, "Expected.Replicas", totalReplicas)
 	}
 
 	var realMaster string
@@ -90,18 +85,17 @@ func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			realMaster = masterNodes[0]
 		}
 		if err = k8sutils.CreateMasterSlaveReplication(ctx, r.K8sClient, r.Log, instance, masterNodes, realMaster); err != nil {
-			return ctrl.Result{RequeueAfter: time.Second * 60}, err
+			return intctrlutil.RequeueAfter(reqLogger, time.Second*60, "")
 		}
 	}
 	realMaster = k8sutils.GetRedisReplicationRealMaster(ctx, r.K8sClient, r.Log, instance, masterNodes)
 	if err = r.UpdateRedisReplicationMaster(ctx, instance, realMaster); err != nil {
-		return ctrl.Result{}, err
+		return intctrlutil.RequeueWithError(err, reqLogger, "")
 	}
 	if err = r.UpdateRedisPodRoleLabel(ctx, instance, realMaster); err != nil {
-		return ctrl.Result{}, err
+		return intctrlutil.RequeueWithError(err, reqLogger, "")
 	}
-	reqLogger.Info("Will reconcile redis operator in again 10 seconds")
-	return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+	return intctrlutil.RequeueAfter(reqLogger, time.Second*10, "")
 }
 
 func (r *RedisReplicationReconciler) UpdateRedisReplicationMaster(ctx context.Context, instance *redisv1beta2.RedisReplication, masterNode string) error {

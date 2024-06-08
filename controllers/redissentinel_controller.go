@@ -6,8 +6,8 @@ import (
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/k8sutils"
+	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllerutil"
 	"github.com/go-logr/logr"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -31,54 +31,47 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	err := r.Client.Get(context.TODO(), req.NamespacedName, instance)
 	if err != nil {
-		if errors.IsNotFound(err) {
-			return ctrl.Result{}, nil
-		}
-		return ctrl.Result{}, err
+		return intctrlutil.RequeueWithErrorChecking(err, reqLogger, "")
 	}
 	if instance.ObjectMeta.GetDeletionTimestamp() != nil {
 		if err = k8sutils.HandleRedisSentinelFinalizer(r.Client, r.Log, instance); err != nil {
-			return ctrl.Result{RequeueAfter: time.Second * 60}, err
+			return intctrlutil.RequeueWithError(err, reqLogger, "")
 		}
-		return ctrl.Result{}, nil
+		return intctrlutil.Reconciled()
 	}
 
 	if _, found := instance.ObjectMeta.GetAnnotations()["redissentinel.opstreelabs.in/skip-reconcile"]; found {
-		reqLogger.Info("Found annotations redissentinel.opstreelabs.in/skip-reconcile, so skipping reconcile")
-		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+		return intctrlutil.RequeueAfter(reqLogger, time.Second*10, "found skip reconcile annotation")
 	}
 
 	// Get total Sentinel Replicas
 	// sentinelReplicas := instance.Spec.GetSentinelCounts("sentinel")
 
 	if err = k8sutils.AddFinalizer(instance, k8sutils.RedisSentinelFinalizer, r.Client); err != nil {
-		return ctrl.Result{RequeueAfter: time.Second * 60}, err
+		return intctrlutil.RequeueWithError(err, reqLogger, "")
 	}
 
 	if instance.Spec.RedisSentinelConfig != nil && !k8sutils.IsRedisReplicationReady(ctx, reqLogger, r.K8sClient, r.Dk8sClient, instance) {
-		reqLogger.Info("Redis Replication is specified but not ready, so will reconcile again in 10 seconds")
-		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+		return intctrlutil.RequeueAfter(reqLogger, time.Second*10, "Redis Replication is specified but not ready")
 	}
 
 	// Create Redis Sentinel
 	err = k8sutils.CreateRedisSentinel(ctx, r.K8sClient, r.Log, instance, r.K8sClient, r.Dk8sClient)
 	if err != nil {
-		return ctrl.Result{}, err
+		return intctrlutil.RequeueWithError(err, reqLogger, "")
 	}
 
 	err = k8sutils.ReconcileSentinelPodDisruptionBudget(instance, instance.Spec.PodDisruptionBudget, r.K8sClient)
 	if err != nil {
-		return ctrl.Result{}, err
+		return intctrlutil.RequeueWithError(err, reqLogger, "")
 	}
 
 	// Create the Service for Redis Sentinel
 	err = k8sutils.CreateRedisSentinelService(instance, r.K8sClient)
 	if err != nil {
-		return ctrl.Result{}, err
+		return intctrlutil.RequeueWithError(err, reqLogger, "")
 	}
-
-	reqLogger.Info("Will reconcile after 10 seconds")
-	return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+	return intctrlutil.RequeueAfter(reqLogger, time.Second*10, "")
 }
 
 // SetupWithManager sets up the controller with the Manager.
