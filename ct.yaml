@@ -1,0 +1,7 @@
+---
+remote: origin
+target-branch: master
+chart-dirs:
+  - charts
+chart-repos:
+  - ot-helm=https://ot-container-kit.github.io/helm-charts

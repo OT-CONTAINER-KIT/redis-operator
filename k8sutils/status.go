@@ -2,8 +2,9 @@ package k8sutils
 
 import (
 	"context"
+	"reflect"
 
-	status "github.com/OT-CONTAINER-KIT/redis-operator/api/status"
+	"github.com/OT-CONTAINER-KIT/redis-operator/api/status"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,13 +21,18 @@ func statusLogger(namespace string, name string) logr.Logger {
 }
 
 // UpdateRedisClusterStatus will update the status of the RedisCluster
-func UpdateRedisClusterStatus(cr *redisv1beta2.RedisCluster, status status.RedisClusterState, resaon string, readyLeaderReplicas, readyFollowerReplicas int32, dcl dynamic.Interface) error {
+func UpdateRedisClusterStatus(cr *redisv1beta2.RedisCluster, state status.RedisClusterState, reason string, readyLeaderReplicas, readyFollowerReplicas int32, dcl dynamic.Interface) error {
 	logger := statusLogger(cr.Namespace, cr.Name)
-	cr.Status.State = status
-	cr.Status.Reason = resaon
-	cr.Status.ReadyLeaderReplicas = readyLeaderReplicas
-	cr.Status.ReadyFollowerReplicas = readyFollowerReplicas
-
+	newStatus := redisv1beta2.RedisClusterStatus{
+		State:                 state,
+		Reason:                reason,
+		ReadyLeaderReplicas:   readyLeaderReplicas,
+		ReadyFollowerReplicas: readyFollowerReplicas,
+	}
+	if reflect.DeepEqual(cr.Status, newStatus) {
+		return nil
+	}
+	cr.Status = newStatus
 	gvr := schema.GroupVersionResource{
 		Group:    "redis.redis.opstreelabs.in",
 		Version:  "v1beta2",

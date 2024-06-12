@@ -76,26 +76,6 @@ type TLSConfig struct {
 	Secret corev1.SecretVolumeSource `json:"secret"`
 }
 
-// Probe is a interface for ReadinessProbe and LivenessProbe
-// +k8s:deepcopy-gen=true
-type Probe struct {
-	// +kubebuilder:validation:Minimum=1
-	// +kubebuilder:default=1
-	InitialDelaySeconds int32 `json:"initialDelaySeconds,omitempty" protobuf:"varint,2,opt,name=initialDelaySeconds"`
-	// +kubebuilder:validation:Minimum=1
-	// +kubebuilder:default=1
-	TimeoutSeconds int32 `json:"timeoutSeconds,omitempty" protobuf:"varint,3,opt,name=timeoutSeconds"`
-	// +kubebuilder:validation:Minimum=1
-	// +kubebuilder:default=10
-	PeriodSeconds int32 `json:"periodSeconds,omitempty" protobuf:"varint,4,opt,name=periodSeconds"`
-	// +kubebuilder:validation:Minimum=1
-	// +kubebuilder:default=1
-	SuccessThreshold int32 `json:"successThreshold,omitempty" protobuf:"varint,5,opt,name=successThreshold"`
-	// +kubebuilder:validation:Minimum=1
-	// +kubebuilder:default=3
-	FailureThreshold int32 `json:"failureThreshold,omitempty" protobuf:"varint,6,opt,name=failureThreshold"`
-}
-
 // Sidecar for each Redis pods
 // +k8s:deepcopy-gen=true
 type Sidecar struct {
@@ -113,12 +93,10 @@ type RedisLeader struct {
 	RedisConfig         *RedisConfig              `json:"redisConfig,omitempty"`
 	Affinity            *corev1.Affinity          `json:"affinity,omitempty"`
 	PodDisruptionBudget *RedisPodDisruptionBudget `json:"pdb,omitempty"`
-	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
-	ReadinessProbe *Probe `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
-	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
-	LivenessProbe *Probe               `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
-	Tolerations   *[]corev1.Toleration `json:"tolerations,omitempty"`
-	NodeSelector  map[string]string    `json:"nodeSelector,omitempty"`
+	ReadinessProbe      *corev1.Probe             `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
+	LivenessProbe       *corev1.Probe             `json:"livenessProbe,omitempty" protobuf:"bytes,12,opt,name=livenessProbe"`
+	Tolerations         *[]corev1.Toleration      `json:"tolerations,omitempty"`
+	NodeSelector        map[string]string         `json:"nodeSelector,omitempty"`
 }
 
 // RedisFollower interface will have the redis follower configuration
@@ -128,12 +106,10 @@ type RedisFollower struct {
 	RedisConfig         *RedisConfig              `json:"redisConfig,omitempty"`
 	Affinity            *corev1.Affinity          `json:"affinity,omitempty"`
 	PodDisruptionBudget *RedisPodDisruptionBudget `json:"pdb,omitempty"`
-	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
-	ReadinessProbe *Probe `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
-	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
-	LivenessProbe *Probe               `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
-	Tolerations   *[]corev1.Toleration `json:"tolerations,omitempty"`
-	NodeSelector  map[string]string    `json:"nodeSelector,omitempty"`
+	ReadinessProbe      *corev1.Probe             `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
+	LivenessProbe       *corev1.Probe             `json:"livenessProbe,omitempty" protobuf:"bytes,12,opt,name=livenessProbe"`
+	Tolerations         *[]corev1.Toleration      `json:"tolerations,omitempty"`
+	NodeSelector        map[string]string         `json:"nodeSelector,omitempty"`
 }
 
 // RedisPodDisruptionBudget configure a PodDisruptionBudget on the resource (leader/follower)

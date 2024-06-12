@@ -22,8 +22,8 @@ import (
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/k8sutils"
+	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllerutil"
 	"github.com/go-logr/logr"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -47,34 +47,29 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	err := r.Client.Get(context.TODO(), req.NamespacedName, instance)
 	if err != nil {
-		if errors.IsNotFound(err) {
-			return ctrl.Result{}, nil
+		return intctrlutil.RequeueWithErrorChecking(err, reqLogger, "failed to get redis instance")
+	}
+	if instance.ObjectMeta.GetDeletionTimestamp() != nil {
+		if err = k8sutils.HandleRedisFinalizer(r.Client, r.K8sClient, r.Log, instance); err != nil {
+			return intctrlutil.RequeueWithError(err, reqLogger, "failed to handle redis finalizer")
 		}
-		return ctrl.Result{}, err
+		return intctrlutil.Reconciled()
 	}
 	if _, found := instance.ObjectMeta.GetAnnotations()["redis.opstreelabs.in/skip-reconcile"]; found {
-		reqLogger.Info("Found annotations redis.opstreelabs.in/skip-reconcile, so skipping reconcile")
-		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+		return intctrlutil.RequeueAfter(reqLogger, time.Second*10, "found skip reconcile annotation")
 	}
-	if err = k8sutils.HandleRedisFinalizer(r.Client, r.K8sClient, r.Log, instance); err != nil {
-		return ctrl.Result{}, err
-	}
-
 	if err = k8sutils.AddFinalizer(instance, k8sutils.RedisFinalizer, r.Client); err != nil {
-		return ctrl.Result{}, err
+		return intctrlutil.RequeueWithError(err, reqLogger, "failed to add finalizer")
 	}
-
 	err = k8sutils.CreateStandaloneRedis(instance, r.K8sClient)
 	if err != nil {
-		return ctrl.Result{}, err
+		return intctrlutil.RequeueWithError(err, reqLogger, "failed to create redis")
 	}
 	err = k8sutils.CreateStandaloneService(instance, r.K8sClient)
 	if err != nil {
-		return ctrl.Result{}, err
+		return intctrlutil.RequeueWithError(err, reqLogger, "failed to create service")
 	}
-
-	reqLogger.Info("Will reconcile redis operator in again 10 seconds")
-	return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+	return intctrlutil.RequeueAfter(reqLogger, time.Second*10, "requeue after 10 seconds")
 }
 
 // SetupWithManager sets up the controller with the Manager.

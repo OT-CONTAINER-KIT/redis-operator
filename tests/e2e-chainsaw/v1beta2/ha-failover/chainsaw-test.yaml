@@ -19,18 +19,22 @@ spec:
             selector: control-plane=redis-operator
             container: manager
             tail: -1  # tail all logs
+
     - name: Sleep for 3 minutes
       try:
         - sleep:
             duration: 3m
+
     - name: Test sentinel monitoring
       try:
         - script:
             timeout: 10s
             content: |
-              kubectl exec --namespace ${NAMESPACE} redis -- redis-cli -h redis-sentinel-sentinel.${NAMESPACE}.svc -p 26379 sentinel master myMaster | grep -A 1 'flags' | tail -n 1
+              export MASTER_IP_FROM_SENTINEL=$(kubectl exec --namespace ${NAMESPACE} redis-sentinel-sentinel-0 -- redis-cli -p 26379 sentinel get-master-addr-by-name myMaster | head -n 1);
+              export MASTER_IP_FROM_LABEL=$(kubectl -n ${NAMESPACE} get pod -l app=redis-replication,redis-role=master,redis_setup_type=replication -o jsonpath='{.items[0].status.podIP}');
+              if [ "$MASTER_IP_FROM_SENTINEL" = "$MASTER_IP_FROM_LABEL" ]; then echo "OK"; else echo "FAIL"; fi
             check:
-              ($stdout=='master'): true
+              ($stdout=='OK'): true
       catch:
         - description: Redis Operator Logs
           podLogs:
@@ -46,25 +50,22 @@ spec:
             timeout: 10s
             content: |
               kubectl --namespace ${NAMESPACE} delete pod redis-replication-0
-      catch:
-        - description: Redis Operator Logs
-          podLogs:
-            namespace: redis-operator-system
-            selector: control-plane=redis-operator
-            container: manager
-            tail: -1  # tail all logs
-    - name: Sleep for 3 minutes
+
+    - name: Sleep for 5 minutes
       try:
         - sleep:
-            duration: 3m
+            duration: 5m
+
     - name: Test sentinel monitoring
       try:
         - script:
             timeout: 10s
             content: |
-              kubectl exec --namespace ${NAMESPACE} redis -- redis-cli -h redis-sentinel-sentinel.${NAMESPACE}.svc -p 26379 sentinel master myMaster | grep -A 1 'flags' | tail -n 1
+              export MASTER_IP_FROM_SENTINEL=$(kubectl exec --namespace ${NAMESPACE} redis-sentinel-sentinel-0 -- redis-cli -p 26379 sentinel get-master-addr-by-name myMaster | head -n 1);
+              export MASTER_IP_FROM_LABEL=$(kubectl -n ${NAMESPACE} get pod -l app=redis-replication,redis-role=master,redis_setup_type=replication -o jsonpath='{.items[0].status.podIP}');
+              if [ $MASTER_IP_FROM_SENTINEL = $MASTER_IP_FROM_LABEL ]; then echo "OK"; else echo "FAIL"; fi
             check:
-              ($stdout=='master'): true
+              ($stdout=='OK'): true
       catch:
         - description: Redis Operator Logs
           podLogs:

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 
-	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
 	"github.com/go-logr/logr"
@@ -23,8 +22,8 @@ type RedisSentinelSTS struct {
 	ExternalConfig                *string
 	Affinity                      *corev1.Affinity `json:"affinity,omitempty"`
 	TerminationGracePeriodSeconds *int64           `json:"terminationGracePeriodSeconds,omitempty" protobuf:"varint,4,opt,name=terminationGracePeriodSeconds"`
-	ReadinessProbe                *commonapi.Probe
-	LivenessProbe                 *commonapi.Probe
+	ReadinessProbe                *corev1.Probe
+	LivenessProbe                 *corev1.Probe
 }
 
 // RedisSentinelService is a interface to call Redis Service function
@@ -41,8 +40,8 @@ func CreateRedisSentinel(ctx context.Context, client kubernetes.Interface, logge
 	prop := RedisSentinelSTS{
 		RedisStateFulType:             "sentinel",
 		Affinity:                      cr.Spec.Affinity,
-		ReadinessProbe:                &cr.Spec.ReadinessProbe.Probe,
-		LivenessProbe:                 &cr.Spec.LivenessProbe.Probe,
+		ReadinessProbe:                cr.Spec.ReadinessProbe,
+		LivenessProbe:                 cr.Spec.LivenessProbe,
 		TerminationGracePeriodSeconds: cr.Spec.TerminationGracePeriodSeconds,
 	}
 
@@ -139,7 +138,7 @@ func generateRedisSentinelInitContainerParams(cr *redisv1beta2.RedisSentinel) in
 }
 
 // Create Redis Sentinel Statefulset Container Params
-func generateRedisSentinelContainerParams(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisSentinel, readinessProbeDef *commonapi.Probe, livenessProbeDef *commonapi.Probe, dcl dynamic.Interface) containerParameters {
+func generateRedisSentinelContainerParams(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisSentinel, readinessProbeDef *corev1.Probe, livenessProbeDef *corev1.Probe, dcl dynamic.Interface) containerParameters {
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{
@@ -317,30 +316,27 @@ func getRedisReplicationMasterIP(ctx context.Context, client kubernetes.Interfac
 	}
 
 	masterPods := GetRedisNodesByRole(ctx, client, logger, &replicationInstance, "master")
-
 	if len(masterPods) == 0 {
-		realMasterPod = ""
-		err := errors.New("no master pods found")
-		logger.Error(err, "")
-	} else if len(masterPods) == 1 {
-		realMasterPod = masterPods[0]
-	} else {
-		for _, podName := range masterPods {
-			redisClient := configureRedisReplicationClient(client, logger, &replicationInstance, podName)
-			defer redisClient.Close()
+		logger.Error(errors.New("no master pods found"), "")
+		return ""
+	}
+	for _, podName := range masterPods {
+		redisClient := configureRedisReplicationClient(client, logger, &replicationInstance, podName)
+		defer redisClient.Close()
 
-			if checkAttachedSlave(ctx, redisClient, logger, podName) > 0 {
-				realMasterPod = podName
-				break
-			}
+		if checkAttachedSlave(ctx, redisClient, logger, podName) > 0 {
+			realMasterPod = podName
+			break
 		}
+	}
+	if realMasterPod == "" {
+		logger.Error(errors.New("no real master pod found"), "")
+		return ""
 	}
 
 	realMasterInfo := RedisDetails{
 		PodName:   realMasterPod,
 		Namespace: replicationNamespace,
 	}
-
-	realMasterPodIP := getRedisServerIP(client, logger, realMasterInfo)
-	return realMasterPodIP
+	return getRedisServerIP(client, logger, realMasterInfo)
 }

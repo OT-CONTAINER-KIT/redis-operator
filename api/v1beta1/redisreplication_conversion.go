@@ -2,6 +2,7 @@ package v1beta1
 
 import (
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 )
 
@@ -59,13 +60,13 @@ func (src *RedisReplication) ConvertTo(dstRaw conversion.Hub) error {
 	}
 	// ReadinessProbe
 	if src.Spec.ReadinessProbe != nil {
-		dst.Spec.ReadinessProbe = &redisv1beta2.Probe{}
-		dst.Spec.ReadinessProbe.Probe = src.Spec.ReadinessProbe.Probe
+		dst.Spec.ReadinessProbe = &corev1.Probe{}
+		dst.Spec.ReadinessProbe = src.Spec.ReadinessProbe
 	}
 	// LivenessProbe
 	if src.Spec.LivenessProbe != nil {
-		dst.Spec.LivenessProbe = &redisv1beta2.Probe{}
-		dst.Spec.LivenessProbe.Probe = src.Spec.LivenessProbe.Probe
+		dst.Spec.LivenessProbe = &corev1.Probe{}
+		dst.Spec.LivenessProbe = src.Spec.LivenessProbe
 	}
 	// Sidecars
 	if src.Spec.Sidecars != nil {
@@ -138,13 +139,13 @@ func (dst *RedisReplication) ConvertFrom(srcRaw conversion.Hub) error {
 	}
 	// ReadinessProbe
 	if src.Spec.ReadinessProbe != nil {
-		dst.Spec.ReadinessProbe = &Probe{}
-		dst.Spec.ReadinessProbe.Probe = src.Spec.ReadinessProbe.Probe
+		dst.Spec.ReadinessProbe = &corev1.Probe{}
+		dst.Spec.ReadinessProbe = src.Spec.ReadinessProbe
 	}
 	// LivenessProbe
 	if src.Spec.LivenessProbe != nil {
-		dst.Spec.ReadinessProbe = &Probe{}
-		dst.Spec.LivenessProbe.Probe = src.Spec.LivenessProbe.Probe
+		dst.Spec.ReadinessProbe = &corev1.Probe{}
+		dst.Spec.LivenessProbe = src.Spec.LivenessProbe
 	}
 	// Sidecars
 	if src.Spec.Sidecars != nil {

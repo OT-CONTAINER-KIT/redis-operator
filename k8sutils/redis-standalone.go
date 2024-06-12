@@ -152,10 +152,10 @@ func generateRedisStandaloneContainerParams(cr *redisv1beta2.Redis) containerPar
 		}
 	}
 	if cr.Spec.ReadinessProbe != nil {
-		containerProp.ReadinessProbe = &cr.Spec.ReadinessProbe.Probe
+		containerProp.ReadinessProbe = cr.Spec.ReadinessProbe
 	}
 	if cr.Spec.LivenessProbe != nil {
-		containerProp.LivenessProbe = &cr.Spec.LivenessProbe.Probe
+		containerProp.LivenessProbe = cr.Spec.LivenessProbe
 	}
 	if cr.Spec.Storage != nil {
 		containerProp.PersistenceEnabled = &trueProperty

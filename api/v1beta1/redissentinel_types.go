@@ -20,12 +20,10 @@ type RedisSentinelSpec struct {
 	Tolerations         *[]corev1.Toleration             `json:"tolerations,omitempty"`
 	TLS                 *TLSConfig                       `json:"TLS,omitempty"`
 	PodDisruptionBudget *common.RedisPodDisruptionBudget `json:"pdb,omitempty"`
-	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
-	ReadinessProbe *Probe `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
-	// +kubebuilder:default:={initialDelaySeconds: 1, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold:3}
-	LivenessProbe      *Probe     `json:"livenessProbe,omitempty" protobuf:"bytes,11,opt,name=livenessProbe"`
-	Sidecars           *[]Sidecar `json:"sidecars,omitempty"`
-	ServiceAccountName *string    `json:"serviceAccountName,omitempty"`
+	ReadinessProbe      *corev1.Probe                    `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
+	LivenessProbe       *corev1.Probe                    `json:"livenessProbe,omitempty" protobuf:"bytes,12,opt,name=livenessProbe"`
+	Sidecars            *[]Sidecar                       `json:"sidecars,omitempty"`
+	ServiceAccountName  *string                          `json:"serviceAccountName,omitempty"`
 }
 
 func (cr *RedisSentinelSpec) GetSentinelCounts(t string) int32 {

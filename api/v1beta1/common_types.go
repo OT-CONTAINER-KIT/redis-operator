@@ -58,11 +58,6 @@ type TLSConfig struct {
 	common.TLSConfig `json:",inline"`
 }
 
-// Probe is a interface for ReadinessProbe and LivenessProbe
-type Probe struct {
-	common.Probe `json:",inline"`
-}
-
 // Sidecar for each Redis pods
 type Sidecar struct {
 	common.Sidecar `json:",inline"`

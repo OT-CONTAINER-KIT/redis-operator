@@ -25,7 +25,7 @@ const (
 func HandleRedisFinalizer(ctrlclient client.Client, k8sClient kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.Redis) error {
 	if cr.GetDeletionTimestamp() != nil {
 		if controllerutil.ContainsFinalizer(cr, RedisFinalizer) {
-			if !cr.Spec.Storage.KeepAfterDelete {
+			if cr.Spec.Storage != nil && !cr.Spec.Storage.KeepAfterDelete {
 				if err := finalizeRedisPVC(k8sClient, logger, cr); err != nil {
 					return err
 				}
@@ -44,7 +44,7 @@ func HandleRedisFinalizer(ctrlclient client.Client, k8sClient kubernetes.Interfa
 func HandleRedisClusterFinalizer(ctrlclient client.Client, k8sClient kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster) error {
 	if cr.GetDeletionTimestamp() != nil {
 		if controllerutil.ContainsFinalizer(cr, RedisClusterFinalizer) {
-			if !cr.Spec.Storage.KeepAfterDelete {
+			if cr.Spec.Storage != nil && !cr.Spec.Storage.KeepAfterDelete {
 				if err := finalizeRedisClusterPVC(k8sClient, logger, cr); err != nil {
 					return err
 				}
@@ -63,7 +63,7 @@ func HandleRedisClusterFinalizer(ctrlclient client.Client, k8sClient kubernetes.
 func HandleRedisReplicationFinalizer(ctrlclient client.Client, k8sClient kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication) error {
 	if cr.GetDeletionTimestamp() != nil {
 		if controllerutil.ContainsFinalizer(cr, RedisReplicationFinalizer) {
-			if !cr.Spec.Storage.KeepAfterDelete {
+			if cr.Spec.Storage != nil && !cr.Spec.Storage.KeepAfterDelete {
 				if err := finalizeRedisReplicationPVC(k8sClient, logger, cr); err != nil {
 					return err
 				}

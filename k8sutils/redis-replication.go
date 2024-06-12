@@ -154,10 +154,10 @@ func generateRedisReplicationContainerParams(cr *redisv1beta2.RedisReplication) 
 		}
 	}
 	if cr.Spec.ReadinessProbe != nil {
-		containerProp.ReadinessProbe = &cr.Spec.ReadinessProbe.Probe
+		containerProp.ReadinessProbe = cr.Spec.ReadinessProbe
 	}
 	if cr.Spec.LivenessProbe != nil {
-		containerProp.LivenessProbe = &cr.Spec.LivenessProbe.Probe
+		containerProp.LivenessProbe = cr.Spec.LivenessProbe
 	}
 	if cr.Spec.Storage != nil {
 		containerProp.PersistenceEnabled = &trueProperty
@@ -208,6 +208,12 @@ func IsRedisReplicationReady(ctx context.Context, logger logr.Logger, client kub
 		return false
 	}
 	if sts.Status.ReadyReplicas != *sts.Spec.Replicas {
+		return false
+	}
+	if sts.Status.ObservedGeneration != sts.Generation {
+		return false
+	}
+	if sts.Status.UpdateRevision != sts.Status.CurrentRevision {
 		return false
 	}
 	// Enhanced check: When the pod is ready, it may not have been

@@ -11,7 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	k8sClientFake "k8s.io/client-go/kubernetes/fake"
@@ -633,34 +635,301 @@ func TestEnableRedisMonitoring(t *testing.T) {
 	}
 }
 
+func TestGenerateContainerDef(t *testing.T) {
+	tests := []struct {
+		name                    string
+		containerName           string
+		containerDef            containerParameters
+		expectedContainerDef    []corev1.Container
+		redisClusterMode        bool
+		containerNodeConfVolume bool
+		containerEnableMetrics  bool
+		containerExternalConfig *string
+		redisClusterVersion     *string
+		containerMountPaths     []corev1.VolumeMount
+		sideCareContainer       []redisv1beta2.Sidecar
+	}{
+		{
+			name:          "redis-1",
+			containerName: "redis",
+			containerDef: containerParameters{
+				Image:              "redis:latest",
+				ImagePullPolicy:    corev1.PullAlways,
+				EnabledPassword:    ptr.To(false),
+				PersistenceEnabled: ptr.To(false),
+				AdditionalEnvVariable: &[]corev1.EnvVar{
+					{
+						Name:  "Add_ENV",
+						Value: "Add_Value",
+					},
+				},
+			},
+			expectedContainerDef: []corev1.Container{
+				{
+					Name:            "redis",
+					Image:           "redis:latest",
+					ImagePullPolicy: corev1.PullAlways,
+					VolumeMounts:    getVolumeMount("redisVolume", ptr.To(false), false, false, nil, []corev1.VolumeMount{}, nil, nil),
+					// Command:         []string{"/bin/bash", "-c", "/app/restore.bash"},
+					Env: []corev1.EnvVar{
+						{
+							Name:  "REDIS_ADDR",
+							Value: "redis://localhost:6379",
+						},
+						{
+							Name:  "REDIS_MAJOR_VERSION",
+							Value: "1.0",
+						},
+						{
+							Name:  "SERVER_MODE",
+							Value: "",
+						},
+						{
+							Name:  "SETUP_MODE",
+							Value: "",
+						},
+						{
+							Name:  "Add_ENV",
+							Value: "Add_Value",
+						},
+					},
+					ReadinessProbe: &corev1.Probe{
+						ProbeHandler: corev1.ProbeHandler{
+							Exec: &corev1.ExecAction{
+								Command: []string{"sh", "-c", "redis-cli -h $(hostname) -p ${REDIS_PORT} ping"},
+							},
+						},
+					},
+					LivenessProbe: &corev1.Probe{
+						ProbeHandler: corev1.ProbeHandler{
+							Exec: &corev1.ExecAction{
+								Command: []string{"sh", "-c", "redis-cli -h $(hostname) -p ${REDIS_PORT} ping"},
+							},
+						},
+					},
+				},
+			},
+			redisClusterMode:        false,
+			containerNodeConfVolume: false,
+			containerEnableMetrics:  false,
+			containerExternalConfig: nil,
+			redisClusterVersion:     ptr.To("1.0"),
+			containerMountPaths:     []corev1.VolumeMount{},
+			sideCareContainer:       []redisv1beta2.Sidecar{},
+		},
+		{
+			name:          "redis-2",
+			containerName: "redis",
+			containerDef: containerParameters{
+				Image:              "redis:latest",
+				ImagePullPolicy:    corev1.PullAlways,
+				EnabledPassword:    ptr.To(false),
+				PersistenceEnabled: ptr.To(false),
+				Resources: &corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("250m"),
+						corev1.ResourceMemory: resource.MustParse("64Mi"),
+					},
+					Limits: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("500m"),
+						corev1.ResourceMemory: resource.MustParse("128Mi"),
+					},
+				},
+			},
+			expectedContainerDef: []corev1.Container{
+				{
+					Name:            "redis",
+					Image:           "redis:latest",
+					ImagePullPolicy: corev1.PullAlways,
+					VolumeMounts: getVolumeMount("redisVolume", ptr.To(false), false, false, nil, []corev1.VolumeMount{
+						{
+							Name:      "external-config",
+							ReadOnly:  false,
+							MountPath: "/etc/redis/external.conf.d",
+						},
+					}, nil, nil),
+					// Command:         []string{"/bin/bash", "-c", "/app/restore.bash"},
+					Env: []corev1.EnvVar{
+						{
+							Name:  "REDIS_ADDR",
+							Value: "redis://localhost:6379",
+						},
+						{
+							Name:  "REDIS_MAJOR_VERSION",
+							Value: "1.0",
+						},
+						{
+							Name:  "SERVER_MODE",
+							Value: "",
+						},
+						{
+							Name:  "SETUP_MODE",
+							Value: "",
+						},
+					},
+					Resources: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("250m"),
+							corev1.ResourceMemory: resource.MustParse("64Mi"),
+						},
+						Limits: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("500m"),
+							corev1.ResourceMemory: resource.MustParse("128Mi"),
+						},
+					},
+					ReadinessProbe: &corev1.Probe{
+						ProbeHandler: corev1.ProbeHandler{
+							Exec: &corev1.ExecAction{
+								Command: []string{"sh", "-c", "redis-cli -h $(hostname) -p ${REDIS_PORT} ping"},
+							},
+						},
+					},
+					LivenessProbe: &corev1.Probe{
+						ProbeHandler: corev1.ProbeHandler{
+							Exec: &corev1.ExecAction{
+								Command: []string{"sh", "-c", "redis-cli -h $(hostname) -p ${REDIS_PORT} ping"},
+							},
+						},
+					},
+				},
+				{
+					Name: "redis-exporter",
+					Ports: []corev1.ContainerPort{
+						{
+							Name:          "redis-exporter",
+							ContainerPort: 9121,
+							Protocol:      corev1.ProtocolTCP,
+						},
+					},
+				},
+				{
+					Name:            "redis-sidecare",
+					Image:           "redis-sidecar:latest",
+					ImagePullPolicy: corev1.PullAlways,
+					Env: []corev1.EnvVar{
+						{
+							Name:  "REDISEXPORTER",
+							Value: "ENVVALUE",
+						},
+					},
+					Resources:    corev1.ResourceRequirements{},
+					VolumeMounts: []corev1.VolumeMount{},
+					Command:      []string{"/bin/bash", "-c", "/app/restore.bash"},
+					Ports: []corev1.ContainerPort{
+						{
+							Name:          "redis-sidecare",
+							ContainerPort: 7000,
+							Protocol:      corev1.ProtocolTCP,
+						},
+					},
+				},
+			},
+			redisClusterMode:        false,
+			containerNodeConfVolume: false,
+			containerEnableMetrics:  true,
+			containerExternalConfig: ptr.To("some-config"),
+			redisClusterVersion:     ptr.To("1.0"),
+			containerMountPaths:     []corev1.VolumeMount{},
+			sideCareContainer: []redisv1beta2.Sidecar{
+				{
+					Sidecar: common.Sidecar{
+						Name:            "redis-sidecare",
+						Image:           "redis-sidecar:latest",
+						ImagePullPolicy: corev1.PullAlways,
+						EnvVars: &[]corev1.EnvVar{
+							{
+								Name:  "REDISEXPORTER",
+								Value: "ENVVALUE",
+							},
+						},
+						Resources: &corev1.ResourceRequirements{},
+					},
+					Volumes: &[]corev1.VolumeMount{},
+					Command: []string{"/bin/bash", "-c", "/app/restore.bash"},
+					Ports: &[]corev1.ContainerPort{
+						{
+							Name:          "redis-sidecare",
+							ContainerPort: 7000,
+							Protocol:      corev1.ProtocolTCP,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			containerDef := generateContainerDef(test.containerName, test.containerDef, test.redisClusterMode, test.containerNodeConfVolume, test.containerEnableMetrics, test.containerExternalConfig, test.redisClusterVersion, test.containerMountPaths, test.sideCareContainer)
+			assert.Equal(t, containerDef, test.expectedContainerDef, "Container Configration")
+		})
+	}
+}
+
 func TestGenerateInitContainerDef(t *testing.T) {
 	tests := []struct {
 		name                     string
+		initContainerName        string
 		initContainerDef         initContainerParameters
 		expectedInitContainerDef []corev1.Container
 		mountPaths               []corev1.VolumeMount
 	}{
 		{
-			name: "Redis",
+			name:              "Test1_With_Resources_AdditionalENV",
+			initContainerName: "redis",
 			initContainerDef: initContainerParameters{
 				Image:              "redis-init-container:latest",
 				ImagePullPolicy:    corev1.PullAlways,
 				Command:            []string{"/bin/bash", "-c", "/app/restore.bash"},
 				PersistenceEnabled: ptr.To(false),
+				Resources: &corev1.ResourceRequirements{
+					Requests: v1.ResourceList{
+						v1.ResourceCPU:    resource.MustParse("220m"),
+						v1.ResourceMemory: resource.MustParse("500Mi"),
+					},
+					Limits: v1.ResourceList{
+						v1.ResourceCPU:    resource.MustParse("250m"),
+						v1.ResourceMemory: resource.MustParse("500Mi"),
+					},
+				},
+				AdditionalEnvVariable: &[]v1.EnvVar{
+					{
+						Name:  "TLS_MODE",
+						Value: "true",
+					},
+				},
 			},
 			expectedInitContainerDef: []corev1.Container{
 				{
-					Name:            "initRedis",
+					Name:            "initredis",
 					Image:           "redis-init-container:latest",
 					Command:         []string{"/bin/bash", "-c", "/app/restore.bash"},
 					ImagePullPolicy: corev1.PullAlways,
 					VolumeMounts:    getVolumeMount("redisVolume", ptr.To(false), false, false, nil, []corev1.VolumeMount{}, nil, nil),
+					Resources: corev1.ResourceRequirements{
+						Requests: v1.ResourceList{
+							v1.ResourceCPU:    resource.MustParse("220m"),
+							v1.ResourceMemory: resource.MustParse("500Mi"),
+						},
+						Limits: v1.ResourceList{
+							v1.ResourceCPU:    resource.MustParse("250m"),
+							v1.ResourceMemory: resource.MustParse("500Mi"),
+						},
+					},
+					Env: []v1.EnvVar{
+						{
+							Name:  "TLS_MODE",
+							Value: "true",
+						},
+					},
 				},
 			},
 			mountPaths: []corev1.VolumeMount{},
 		},
 		{
-			name: "Redis-1",
+			name:              "Test2_With_Volume",
+			initContainerName: "redis",
 			initContainerDef: initContainerParameters{
 				Image:              "redis-init-container:latest",
 				ImagePullPolicy:    corev1.PullAlways,
@@ -669,11 +938,11 @@ func TestGenerateInitContainerDef(t *testing.T) {
 			},
 			expectedInitContainerDef: []corev1.Container{
 				{
-					Name:            "initRedis-1",
+					Name:            "initredis",
 					Image:           "redis-init-container:latest",
 					Command:         []string{"/bin/bash", "-c", "/app/restore.bash"},
 					ImagePullPolicy: corev1.PullAlways,
-					VolumeMounts: getVolumeMount("Redis-1", ptr.To(true), false, false, nil, []corev1.VolumeMount{
+					VolumeMounts: getVolumeMount("redis", ptr.To(true), false, false, nil, []corev1.VolumeMount{
 						{
 							Name:      "Redis-1",
 							MountPath: "/data",
@@ -693,7 +962,7 @@ func TestGenerateInitContainerDef(t *testing.T) {
 	for i := range tests {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
-			initContainer := generateInitContainerDef(test.name, test.initContainerDef, test.mountPaths)
+			initContainer := generateInitContainerDef(test.initContainerName, test.initContainerDef, test.mountPaths)
 			assert.Equal(t, initContainer, test.expectedInitContainerDef, "Init Container Configuration")
 		})
 	}
@@ -926,6 +1195,421 @@ func Test_getExporterEnvironmentVariables(t *testing.T) {
 			actualEnvironment := getExporterEnvironmentVariables(tt.params)
 
 			assert.ElementsMatch(t, tt.expectedEnvironment, actualEnvironment)
+		})
+	}
+}
+
+func TestGenerateStatefulSetsDef(t *testing.T) {
+	tests := []struct {
+		name                string
+		statefulSetMeta     metav1.ObjectMeta
+		stsParams           statefulSetParameters
+		expectedStsDef      *appsv1.StatefulSet
+		stsOwnerDef         metav1.OwnerReference
+		initContainerParams initContainerParameters
+		containerParams     containerParameters
+		sideCareContainer   []redisv1beta2.Sidecar
+	}{
+		{
+			name: "Test1_With_cluster_mode_ExternalConfig_tls",
+			statefulSetMeta: metav1.ObjectMeta{
+				Name:      "test-sts",
+				Namespace: "test-sts",
+				Annotations: map[string]string{
+					"redis.opstreelabs.in":       "true",
+					"redis.opstreelabs.instance": "test-sts",
+				},
+			},
+			stsOwnerDef: metav1.OwnerReference{
+				Kind:       "StatefulSet",
+				APIVersion: "apps/v1",
+				Name:       "test-sts",
+			},
+			stsParams: statefulSetParameters{
+				Replicas:       ptr.To(int32(3)),
+				ClusterMode:    true,
+				NodeConfVolume: true,
+				ExternalConfig: ptr.To(""),
+				Tolerations: &[]v1.Toleration{
+					{
+						Key:      "node.kubernetes.io/unreachable",
+						Operator: corev1.TolerationOpExists,
+						Effect:   corev1.TaintEffectNoExecute,
+					},
+				},
+				ServiceAccountName: ptr.To("redis"),
+			},
+			expectedStsDef: &appsv1.StatefulSet{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "StatefulSet",
+					APIVersion: "apps/v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-sts",
+					Namespace: "test-sts",
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							Kind:       "StatefulSet",
+							APIVersion: "apps/v1",
+							Name:       "test-sts",
+						},
+					},
+					Annotations: map[string]string{
+						"redis.opstreelabs.in":       "true",
+						"redis.opstreelabs.instance": "test-sts",
+					},
+				},
+				Spec: appsv1.StatefulSetSpec{
+					ServiceName: "test-sts-headless",
+					Selector:    &metav1.LabelSelector{},
+					Replicas:    ptr.To(int32(3)),
+					Template: v1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								"redis.opstreelabs.in":       "true",
+								"redis.opstreelabs.instance": "test-sts",
+							},
+						},
+						Spec: v1.PodSpec{
+							Tolerations: []v1.Toleration{
+								{
+									Key:      "node.kubernetes.io/unreachable",
+									Operator: corev1.TolerationOpExists,
+									Effect:   corev1.TaintEffectNoExecute,
+								},
+							},
+							ServiceAccountName: "redis",
+							Containers: []corev1.Container{
+								{
+									Name:  "test-sts",
+									Image: "redis:latest",
+									Env: []corev1.EnvVar{
+										{
+											Name:  "ACL_MODE",
+											Value: "true",
+										},
+										{
+											Name:  "REDIS_ADDR",
+											Value: "redis://localhost:6379",
+										},
+										{
+											Name:  "REDIS_MAJOR_VERSION",
+											Value: "1.0",
+										},
+										{
+											Name:  "REDIS_TLS_CA_KEY",
+											Value: path.Join("/tls/", "ca.crt"),
+										},
+										{
+											Name:  "REDIS_TLS_CERT",
+											Value: path.Join("/tls/", "tls.crt"),
+										},
+										{
+											Name:  "REDIS_TLS_CERT_KEY",
+											Value: path.Join("/tls/", "tls.key"),
+										},
+										{
+											Name:  "SERVER_MODE",
+											Value: "",
+										},
+										{
+											Name:  "SETUP_MODE",
+											Value: "",
+										},
+										{
+											Name:  "TLS_MODE",
+											Value: "true",
+										},
+									},
+									ReadinessProbe: &corev1.Probe{
+										ProbeHandler: corev1.ProbeHandler{
+											Exec: &corev1.ExecAction{
+												Command: []string{"sh", "-c", "redis-cli -h $(hostname) -p ${REDIS_PORT} --tls --cert ${REDIS_TLS_CERT} --key ${REDIS_TLS_CERT_KEY} --cacert ${REDIS_TLS_CA_KEY} ping"},
+											},
+										},
+									},
+									LivenessProbe: &corev1.Probe{
+										ProbeHandler: corev1.ProbeHandler{
+											Exec: &corev1.ExecAction{
+												Command: []string{"sh", "-c", "redis-cli -h $(hostname) -p ${REDIS_PORT} --tls --cert ${REDIS_TLS_CERT} --key ${REDIS_TLS_CERT_KEY} --cacert ${REDIS_TLS_CA_KEY} ping"},
+											},
+										},
+									},
+									VolumeMounts: []v1.VolumeMount{
+										{
+											Name:      "tls-certs",
+											MountPath: "/tls",
+											ReadOnly:  true,
+										},
+										{
+											Name:      "acl-secret",
+											MountPath: "/etc/redis/user.acl",
+											SubPath:   "user.acl",
+										},
+										{
+											Name:      "external-config",
+											MountPath: "/etc/redis/external.conf.d",
+										},
+									},
+								},
+							},
+							Volumes: []v1.Volume{
+								{
+									Name: "external-config",
+									VolumeSource: v1.VolumeSource{
+										ConfigMap: &v1.ConfigMapVolumeSource{},
+									},
+								},
+								{
+									Name: "tls-certs",
+									VolumeSource: v1.VolumeSource{
+										Secret: &v1.SecretVolumeSource{
+											SecretName: "sts-secret",
+										},
+									},
+								},
+								{
+									Name: "acl-secret",
+									VolumeSource: v1.VolumeSource{
+										Secret: &v1.SecretVolumeSource{
+											SecretName: "sts-acl",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			initContainerParams: initContainerParameters{},
+			containerParams: containerParameters{
+				Image: "redis:latest",
+				EnvVars: &[]v1.EnvVar{
+					{
+						Name:  "REDIS_MAJOR_VERSION",
+						Value: "1.0",
+					},
+				},
+				TLSConfig: &redisv1beta2.TLSConfig{
+					TLSConfig: common.TLSConfig{
+						Secret: v1.SecretVolumeSource{
+							SecretName: "sts-secret",
+						},
+					},
+				},
+				ACLConfig: &redisv1beta2.ACLConfig{
+					Secret: &v1.SecretVolumeSource{
+						SecretName: "sts-acl",
+					},
+				},
+			},
+			sideCareContainer: []redisv1beta2.Sidecar{},
+		},
+		{
+			name: "Test2_With_initcontainer_sidecare_enabledMetrics_enable_volume_clustermode",
+			statefulSetMeta: metav1.ObjectMeta{
+				Name:      "test-sts",
+				Namespace: "test-sts",
+				Annotations: map[string]string{
+					"redis.opstreelabs.in":       "true",
+					"redis.opstreelabs.instance": "test-sts",
+				},
+			},
+			stsOwnerDef: metav1.OwnerReference{
+				Kind:       "StatefulSet",
+				APIVersion: "apps/v1",
+				Name:       "test-sts",
+			},
+			stsParams: statefulSetParameters{
+				Replicas:       ptr.To(int32(3)),
+				EnableMetrics:  true,
+				ClusterMode:    true,
+				NodeConfVolume: true,
+				ImagePullSecrets: &[]v1.LocalObjectReference{
+					{
+						Name: "redis-secret",
+					},
+				},
+			},
+			expectedStsDef: &appsv1.StatefulSet{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "StatefulSet",
+					APIVersion: "apps/v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-sts",
+					Namespace: "test-sts",
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							Kind:       "StatefulSet",
+							APIVersion: "apps/v1",
+							Name:       "test-sts",
+						},
+					},
+					Annotations: map[string]string{
+						"redis.opstreelabs.in":       "true",
+						"redis.opstreelabs.instance": "test-sts",
+					},
+				},
+				Spec: appsv1.StatefulSetSpec{
+					ServiceName: "test-sts-headless",
+					Selector:    &metav1.LabelSelector{},
+					Replicas:    ptr.To(int32(3)),
+					Template: v1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								"redis.opstreelabs.in":       "true",
+								"redis.opstreelabs.instance": "test-sts",
+							},
+						},
+						Spec: v1.PodSpec{
+							InitContainers: []corev1.Container{
+								{
+									Name:  "inittest-sts",
+									Image: "redis-init:latest",
+								},
+							},
+							Containers: []corev1.Container{
+								{
+									Name:  "test-sts",
+									Image: "redis:latest",
+									Env: []corev1.EnvVar{
+										{
+											Name:  "PERSISTENCE_ENABLED",
+											Value: "true",
+										},
+										{
+											Name:  "REDIS_ADDR",
+											Value: "redis://localhost:6379",
+										},
+										{
+											Name:  "SERVER_MODE",
+											Value: "",
+										},
+										{
+											Name:  "SETUP_MODE",
+											Value: "",
+										},
+									},
+									ReadinessProbe: &corev1.Probe{
+										ProbeHandler: corev1.ProbeHandler{
+											Exec: &corev1.ExecAction{
+												Command: []string{"sh", "-c", "redis-cli -h $(hostname) -p ${REDIS_PORT} ping"},
+											},
+										},
+									},
+									LivenessProbe: &corev1.Probe{
+										ProbeHandler: corev1.ProbeHandler{
+											Exec: &corev1.ExecAction{
+												Command: []string{"sh", "-c", "redis-cli -h $(hostname) -p ${REDIS_PORT} ping"},
+											},
+										},
+									},
+									VolumeMounts: []v1.VolumeMount{
+										{
+											Name:      "node-conf",
+											MountPath: "/node-conf",
+											ReadOnly:  false,
+										},
+										{
+											Name:      "test-sts",
+											MountPath: "/data",
+											ReadOnly:  false,
+										},
+									},
+								},
+								{
+									Name: "redis-exporter",
+									Ports: []corev1.ContainerPort{
+										{
+											Name:          "redis-exporter",
+											ContainerPort: 9121,
+											Protocol:      corev1.ProtocolTCP,
+										},
+									},
+								},
+								{
+									Name:            "redis-sidecare",
+									Image:           "redis-sidecar:latest",
+									ImagePullPolicy: corev1.PullAlways,
+								},
+							},
+							Volumes: []v1.Volume{
+								{
+									Name: "additional-vol",
+								},
+							},
+							ImagePullSecrets: []v1.LocalObjectReference{
+								{
+									Name: "redis-secret",
+								},
+							},
+						},
+					},
+					VolumeClaimTemplates: []v1.PersistentVolumeClaim{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "node-conf",
+								Annotations: map[string]string{
+									"redis.opstreelabs.in":       "true",
+									"redis.opstreelabs.instance": "test-sts",
+								},
+							},
+							Spec: v1.PersistentVolumeClaimSpec{
+								AccessModes: []v1.PersistentVolumeAccessMode{
+									v1.ReadWriteOnce,
+								},
+								VolumeMode: ptr.To(v1.PersistentVolumeFilesystem),
+							},
+						},
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "test-sts",
+								Annotations: map[string]string{
+									"redis.opstreelabs.in":       "true",
+									"redis.opstreelabs.instance": "test-sts",
+								},
+							},
+							Spec: v1.PersistentVolumeClaimSpec{
+								AccessModes: []v1.PersistentVolumeAccessMode{
+									v1.ReadWriteOnce,
+								},
+								VolumeMode: ptr.To(v1.PersistentVolumeFilesystem),
+							},
+						},
+					},
+				},
+			},
+			initContainerParams: initContainerParameters{
+				Enabled: ptr.To(true),
+				Image:   "redis-init:latest",
+			},
+			containerParams: containerParameters{
+				Image:              "redis:latest",
+				PersistenceEnabled: ptr.To(true),
+				AdditionalVolume: []v1.Volume{
+					{
+						Name: "additional-vol",
+					},
+				},
+			},
+			sideCareContainer: []redisv1beta2.Sidecar{
+				{
+					Sidecar: common.Sidecar{
+						Name:            "redis-sidecare",
+						Image:           "redis-sidecar:latest",
+						ImagePullPolicy: corev1.PullAlways,
+					},
+				},
+			},
+		},
+	}
+
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			stsDef := generateStatefulSetsDef(test.statefulSetMeta, test.stsParams, test.stsOwnerDef, test.initContainerParams, test.containerParams, test.sideCareContainer)
+			assert.Equal(t, stsDef, test.expectedStsDef, "StatefulSet Configration")
 		})
 	}
 }
