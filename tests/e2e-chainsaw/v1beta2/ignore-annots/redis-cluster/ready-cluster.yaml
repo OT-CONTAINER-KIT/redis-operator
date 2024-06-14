@@ -8,3 +8,5 @@ metadata:
 status:
   readyFollowerReplicas: 3
   readyLeaderReplicas: 3
+  state: Ready
+  reason: RedisCluster is ready

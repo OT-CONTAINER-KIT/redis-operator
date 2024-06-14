@@ -32,10 +32,7 @@ spec:
             selector: control-plane=redis-operator
             container: manager
             tail: -1  # tail all logs
-    - name: Sleep for five minutes
-      try:
-        - sleep:
-            duration: 5m
+
     - name: Ping Cluster Nodes
       try:
         - script:
