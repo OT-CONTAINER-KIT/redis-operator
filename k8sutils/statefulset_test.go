@@ -1432,3 +1432,89 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 		})
 	}
 }
+
+func TestPatchStatefulSet(t *testing.T) {
+	logger := logr.Discard()
+	tests := []struct {
+		name                string
+		existingSts         *appsv1.StatefulSet
+		newSts              *appsv1.StatefulSet
+		recreateStateFulSet bool
+		present             bool
+	}{
+		{
+			name: "Test1",
+			existingSts: &appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-sts",
+					Namespace: "test-sts",
+				},
+				Spec: appsv1.StatefulSetSpec{
+					Replicas: ptr.To(int32(2)),
+				},
+			},
+			newSts: &appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-sts",
+					Namespace: "test-sts",
+				},
+				Spec: appsv1.StatefulSetSpec{
+					Replicas: ptr.To(int32(3)),
+				},
+			},
+			recreateStateFulSet: true,
+			present:             true,
+		},
+		{
+			name: "Test1_With_Volume",
+			existingSts: &appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-sts",
+					Namespace: "test-sts",
+				},
+				Spec: appsv1.StatefulSetSpec{
+					Replicas: ptr.To(int32(2)),
+				},
+			},
+			newSts: &appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-sts",
+					Namespace: "test-sts",
+				},
+				Spec: appsv1.StatefulSetSpec{
+					Replicas: ptr.To(int32(4)),
+					Template: v1.PodTemplateSpec{
+						Spec: v1.PodSpec{
+							Volumes: []v1.Volume{
+								{
+									Name: "sts-volume",
+								},
+							},
+						},
+					},
+				},
+			},
+			recreateStateFulSet: true,
+			present:             true,
+		},
+	}
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			var client *k8sClientFake.Clientset
+			if test.present {
+				client = k8sClientFake.NewSimpleClientset(test.existingSts.DeepCopyObject())
+				err := patchStatefulSet(test.existingSts, test.newSts, test.newSts.GetObjectMeta().GetNamespace(), test.recreateStateFulSet, client)
+				if err == nil {
+					getSts, err := GetStatefulSet(client, logger, test.newSts.GetObjectMeta().GetNamespace(), test.newSts.Name)
+					if err != nil {
+						assert.NoError(t, err, "Error getting Updted StatefulSet")
+						assert.NotEqual(t, getSts.DeepCopy(), test.existingSts.DeepCopy(), "StatefulSet not updated")
+					}
+				}
+			} else {
+				// client = k8sClientFake.NewSimpleClientset()
+			}
+		})
+	}
+}
