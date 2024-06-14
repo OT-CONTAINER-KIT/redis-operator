@@ -423,7 +423,7 @@ func TestCreateOrUpdateStateFul(t *testing.T) {
 		existingStatefulSet appsv1.StatefulSetSpec
 		updatedStatefulSet  appsv1.StatefulSetSpec
 		stsPresent          bool
-		expectErr           bool
+		expectErr           error
 	}{
 		{
 			name: "Test1_Create_Statefulset",
@@ -438,19 +438,11 @@ func TestCreateOrUpdateStateFul(t *testing.T) {
 			},
 			containerParams: containerParameters{
 				Image: "redis:latest",
-				ReadinessProbe: &common.Probe{
+				ReadinessProbe: &corev1.Probe{
 					InitialDelaySeconds: int32(5),
-					TimeoutSeconds:      int32(0),
-					PeriodSeconds:       int32(0),
-					SuccessThreshold:    int32(0),
-					FailureThreshold:    int32(0),
 				},
-				LivenessProbe: &common.Probe{
+				LivenessProbe: &corev1.Probe{
 					InitialDelaySeconds: int32(5),
-					TimeoutSeconds:      int32(0),
-					PeriodSeconds:       int32(0),
-					SuccessThreshold:    int32(0),
-					FailureThreshold:    int32(0),
 				},
 			},
 			sidecar: &[]redisv1beta2.Sidecar{
@@ -465,7 +457,6 @@ func TestCreateOrUpdateStateFul(t *testing.T) {
 				Replicas: ptr.To(int32(4)),
 			},
 			stsPresent: false,
-			expectErr:  false,
 		},
 		{
 			name: "Test2_udpate_Statefulset",
@@ -480,10 +471,10 @@ func TestCreateOrUpdateStateFul(t *testing.T) {
 			},
 			containerParams: containerParameters{
 				Image: "redis:latest",
-				ReadinessProbe: &common.Probe{
+				ReadinessProbe: &corev1.Probe{
 					InitialDelaySeconds: int32(5),
 				},
-				LivenessProbe: &common.Probe{
+				LivenessProbe: &corev1.Probe{
 					InitialDelaySeconds: int32(5),
 				},
 			},
@@ -502,7 +493,6 @@ func TestCreateOrUpdateStateFul(t *testing.T) {
 				Replicas: ptr.To(int32(6)),
 			},
 			stsPresent: true,
-			expectErr:  false,
 		},
 		{
 			name: "Test3_Create_Statefulset_With_Error",
@@ -517,10 +507,10 @@ func TestCreateOrUpdateStateFul(t *testing.T) {
 			},
 			containerParams: containerParameters{
 				Image: "redis:latest",
-				ReadinessProbe: &common.Probe{
+				ReadinessProbe: &corev1.Probe{
 					InitialDelaySeconds: int32(5),
 				},
-				LivenessProbe: &common.Probe{
+				LivenessProbe: &corev1.Probe{
 					InitialDelaySeconds: int32(5),
 				},
 			},
@@ -539,7 +529,7 @@ func TestCreateOrUpdateStateFul(t *testing.T) {
 				Replicas: ptr.To(int32(-6)),
 			},
 			stsPresent: false,
-			expectErr:  true,
+			expectErr:  kerrors.NewNotFound(schema.GroupResource{Group: "apps", Resource: "statefulsets"}, "test-sts"),
 		},
 	}
 
@@ -572,10 +562,11 @@ func TestCreateOrUpdateStateFul(t *testing.T) {
 					client = k8sClientFake.NewSimpleClientset()
 				}
 				err := CreateOrUpdateStateFul(client, logger, updatedSts.GetNamespace(), updatedSts.ObjectMeta, test.stsParams, test.stsOwnerDef, test.initContainerParams, test.containerParams, test.sidecar)
-				if test.expectErr {
-					assert.Error(err, "Expected error while updating Statefulset")
+				if test.expectErr != nil {
+					assert.Error(err, "Expected Error while updating Statefulset")
+					assert.Equal(test.expectErr, err)
 				} else {
-					assert.NoError(err)
+					assert.NoError(err, "Error while updating Statefulset")
 				}
 				if err == nil {
 					getUpdatedSts, err := client.AppsV1().StatefulSets(updatedSts.GetNamespace()).Get(context.TODO(), updatedSts.GetName(), metav1.GetOptions{})
