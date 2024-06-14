@@ -172,7 +172,7 @@ func generateRedisClusterContainerParams(cl kubernetes.Interface, logger logr.Lo
 	if cr.Spec.RedisExporter != nil {
 		containerProp.RedisExporterImage = cr.Spec.RedisExporter.Image
 		containerProp.RedisExporterImagePullPolicy = cr.Spec.RedisExporter.ImagePullPolicy
-		containerProp.SecurityContext = cr.Spec.RedisExporter.SecurityContext
+		containerProp.RedisExporterSecurityContext = cr.Spec.RedisExporter.SecurityContext
 
 		if cr.Spec.RedisExporter.Resources != nil {
 			containerProp.RedisExporterResources = cr.Spec.RedisExporter.Resources
