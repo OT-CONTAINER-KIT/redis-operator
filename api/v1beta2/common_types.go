@@ -60,6 +60,7 @@ type ClusterStorage struct {
 // RedisExporter interface will have the information for redis exporter related stuff
 type RedisExporter struct {
 	common.RedisExporter `json:",inline"`
+	SecurityContext      *corev1.SecurityContext `json:"securityContext,omitempty"`
 }
 
 // TLS Configuration for redis instances
@@ -73,10 +74,11 @@ type ACLConfig struct {
 
 // Sidecar for each Redis pods
 type Sidecar struct {
-	common.Sidecar `json:",inline"`
-	Volumes        *[]corev1.VolumeMount   `json:"mountPath,omitempty"`
-	Command        []string                `json:"command,omitempty" protobuf:"bytes,3,rep,name=command"`
-	Ports          *[]corev1.ContainerPort `json:"ports,omitempty" patchStrategy:"merge" patchMergeKey:"containerPort" protobuf:"bytes,6,rep,name=ports"`
+	common.Sidecar  `json:",inline"`
+	Volumes         *[]corev1.VolumeMount   `json:"mountPath,omitempty"`
+	Command         []string                `json:"command,omitempty" protobuf:"bytes,3,rep,name=command"`
+	Ports           *[]corev1.ContainerPort `json:"ports,omitempty" patchStrategy:"merge" patchMergeKey:"containerPort" protobuf:"bytes,6,rep,name=ports"`
+	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
 }
 
 // InitContainer for each Redis pods
@@ -88,4 +90,5 @@ type InitContainer struct {
 	EnvVars         *[]corev1.EnvVar             `json:"env,omitempty"`
 	Command         []string                     `json:"command,omitempty"`
 	Args            []string                     `json:"args,omitempty"`
+	SecurityContext *corev1.SecurityContext      `json:"securityContext,omitempty"`
 }

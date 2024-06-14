@@ -1,11 +1,9 @@
-
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.4.1
-    # cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ .Values.certificate.name }}
   creationTimestamp: null
   name: redis.redis.redis.opstreelabs.in
 spec:
@@ -345,7 +343,8 @@ spec:
                               properties:
                                 labelSelector:
                                   description: A label query over a set of resources,
-                                    in this case pods.
+                                    in this case pods. If it's null, this PodAffinityTerm
+                                    matches with no Pods.
                                   properties:
                                     matchExpressions:
                                       description: matchExpressions is a list of label
@@ -394,6 +393,44 @@ spec:
                                         The requirements are ANDed.
                                       type: object
                                   type: object
+                                matchLabelKeys:
+                                  description: MatchLabelKeys is a set of pod label
+                                    keys to select which pods will be taken into consideration.
+                                    The keys are used to lookup values from the incoming
+                                    pod labels, those key-value labels are merged
+                                    with `LabelSelector` as `key in (value)` to select
+                                    the group of existing pods which pods will be
+                                    taken into consideration for the incoming pod's
+                                    pod (anti) affinity. Keys that don't exist in
+                                    the incoming pod labels will be ignored. The default
+                                    value is empty. The same key is forbidden to exist
+                                    in both MatchLabelKeys and LabelSelector. Also,
+                                    MatchLabelKeys cannot be set when LabelSelector
+                                    isn't set. This is an alpha field and requires
+                                    enabling MatchLabelKeysInPodAffinity feature gate.
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                                mismatchLabelKeys:
+                                  description: MismatchLabelKeys is a set of pod label
+                                    keys to select which pods will be taken into consideration.
+                                    The keys are used to lookup values from the incoming
+                                    pod labels, those key-value labels are merged
+                                    with `LabelSelector` as `key notin (value)` to
+                                    select the group of existing pods which pods will
+                                    be taken into consideration for the incoming pod's
+                                    pod (anti) affinity. Keys that don't exist in
+                                    the incoming pod labels will be ignored. The default
+                                    value is empty. The same key is forbidden to exist
+                                    in both MismatchLabelKeys and LabelSelector. Also,
+                                    MismatchLabelKeys cannot be set when LabelSelector
+                                    isn't set. This is an alpha field and requires
+                                    enabling MatchLabelKeysInPodAffinity feature gate.
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
                                 namespaceSelector:
                                   description: A label query over the set of namespaces
                                     that the term applies to. The term is applied
@@ -503,7 +540,8 @@ spec:
                           properties:
                             labelSelector:
                               description: A label query over a set of resources,
-                                in this case pods.
+                                in this case pods. If it's null, this PodAffinityTerm
+                                matches with no Pods.
                               properties:
                                 matchExpressions:
                                   description: matchExpressions is a list of label
@@ -548,6 +586,43 @@ spec:
                                     requirements are ANDed.
                                   type: object
                               type: object
+                            matchLabelKeys:
+                              description: MatchLabelKeys is a set of pod label keys
+                                to select which pods will be taken into consideration.
+                                The keys are used to lookup values from the incoming
+                                pod labels, those key-value labels are merged with
+                                `LabelSelector` as `key in (value)` to select the
+                                group of existing pods which pods will be taken into
+                                consideration for the incoming pod's pod (anti) affinity.
+                                Keys that don't exist in the incoming pod labels will
+                                be ignored. The default value is empty. The same key
+                                is forbidden to exist in both MatchLabelKeys and LabelSelector.
+                                Also, MatchLabelKeys cannot be set when LabelSelector
+                                isn't set. This is an alpha field and requires enabling
+                                MatchLabelKeysInPodAffinity feature gate.
+                              items:
+                                type: string
+                              type: array
+                              x-kubernetes-list-type: atomic
+                            mismatchLabelKeys:
+                              description: MismatchLabelKeys is a set of pod label
+                                keys to select which pods will be taken into consideration.
+                                The keys are used to lookup values from the incoming
+                                pod labels, those key-value labels are merged with
+                                `LabelSelector` as `key notin (value)` to select the
+                                group of existing pods which pods will be taken into
+                                consideration for the incoming pod's pod (anti) affinity.
+                                Keys that don't exist in the incoming pod labels will
+                                be ignored. The default value is empty. The same key
+                                is forbidden to exist in both MismatchLabelKeys and
+                                LabelSelector. Also, MismatchLabelKeys cannot be set
+                                when LabelSelector isn't set. This is an alpha field
+                                and requires enabling MatchLabelKeysInPodAffinity
+                                feature gate.
+                              items:
+                                type: string
+                              type: array
+                              x-kubernetes-list-type: atomic
                             namespaceSelector:
                               description: A label query over the set of namespaces
                                 that the term applies to. The term is applied to the
@@ -650,7 +725,8 @@ spec:
                               properties:
                                 labelSelector:
                                   description: A label query over a set of resources,
-                                    in this case pods.
+                                    in this case pods. If it's null, this PodAffinityTerm
+                                    matches with no Pods.
                                   properties:
                                     matchExpressions:
                                       description: matchExpressions is a list of label
@@ -699,6 +775,44 @@ spec:
                                         The requirements are ANDed.
                                       type: object
                                   type: object
+                                matchLabelKeys:
+                                  description: MatchLabelKeys is a set of pod label
+                                    keys to select which pods will be taken into consideration.
+                                    The keys are used to lookup values from the incoming
+                                    pod labels, those key-value labels are merged
+                                    with `LabelSelector` as `key in (value)` to select
+                                    the group of existing pods which pods will be
+                                    taken into consideration for the incoming pod's
+                                    pod (anti) affinity. Keys that don't exist in
+                                    the incoming pod labels will be ignored. The default
+                                    value is empty. The same key is forbidden to exist
+                                    in both MatchLabelKeys and LabelSelector. Also,
+                                    MatchLabelKeys cannot be set when LabelSelector
+                                    isn't set. This is an alpha field and requires
+                                    enabling MatchLabelKeysInPodAffinity feature gate.
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                                mismatchLabelKeys:
+                                  description: MismatchLabelKeys is a set of pod label
+                                    keys to select which pods will be taken into consideration.
+                                    The keys are used to lookup values from the incoming
+                                    pod labels, those key-value labels are merged
+                                    with `LabelSelector` as `key notin (value)` to
+                                    select the group of existing pods which pods will
+                                    be taken into consideration for the incoming pod's
+                                    pod (anti) affinity. Keys that don't exist in
+                                    the incoming pod labels will be ignored. The default
+                                    value is empty. The same key is forbidden to exist
+                                    in both MismatchLabelKeys and LabelSelector. Also,
+                                    MismatchLabelKeys cannot be set when LabelSelector
+                                    isn't set. This is an alpha field and requires
+                                    enabling MatchLabelKeysInPodAffinity feature gate.
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
                                 namespaceSelector:
                                   description: A label query over the set of namespaces
                                     that the term applies to. The term is applied
@@ -808,7 +922,8 @@ spec:
                           properties:
                             labelSelector:
                               description: A label query over a set of resources,
-                                in this case pods.
+                                in this case pods. If it's null, this PodAffinityTerm
+                                matches with no Pods.
                               properties:
                                 matchExpressions:
                                   description: matchExpressions is a list of label
@@ -853,6 +968,43 @@ spec:
                                     requirements are ANDed.
                                   type: object
                               type: object
+                            matchLabelKeys:
+                              description: MatchLabelKeys is a set of pod label keys
+                                to select which pods will be taken into consideration.
+                                The keys are used to lookup values from the incoming
+                                pod labels, those key-value labels are merged with
+                                `LabelSelector` as `key in (value)` to select the
+                                group of existing pods which pods will be taken into
+                                consideration for the incoming pod's pod (anti) affinity.
+                                Keys that don't exist in the incoming pod labels will
+                                be ignored. The default value is empty. The same key
+                                is forbidden to exist in both MatchLabelKeys and LabelSelector.
+                                Also, MatchLabelKeys cannot be set when LabelSelector
+                                isn't set. This is an alpha field and requires enabling
+                                MatchLabelKeysInPodAffinity feature gate.
+                              items:
+                                type: string
+                              type: array
+                              x-kubernetes-list-type: atomic
+                            mismatchLabelKeys:
+                              description: MismatchLabelKeys is a set of pod label
+                                keys to select which pods will be taken into consideration.
+                                The keys are used to lookup values from the incoming
+                                pod labels, those key-value labels are merged with
+                                `LabelSelector` as `key notin (value)` to select the
+                                group of existing pods which pods will be taken into
+                                consideration for the incoming pod's pod (anti) affinity.
+                                Keys that don't exist in the incoming pod labels will
+                                be ignored. The default value is empty. The same key
+                                is forbidden to exist in both MismatchLabelKeys and
+                                LabelSelector. Also, MismatchLabelKeys cannot be set
+                                when LabelSelector isn't set. This is an alpha field
+                                and requires enabling MatchLabelKeysInPodAffinity
+                                feature gate.
+                              items:
+                                type: string
+                              type: array
+                              x-kubernetes-list-type: atomic
                             namespaceSelector:
                               description: A label query over the set of namespaces
                                 that the term applies to. The term is applied to the
@@ -1073,38 +1225,147 @@ spec:
                 - image
                 type: object
               livenessProbe:
-                default:
-                  failureThreshold: 3
-                  initialDelaySeconds: 1
-                  periodSeconds: 10
-                  successThreshold: 1
-                  timeoutSeconds: 1
-                description: Probe is a interface for ReadinessProbe and LivenessProbe
+                description: Probe describes a health check to be performed against
+                  a container to determine whether it is alive or ready to receive
+                  traffic.
                 properties:
+                  exec:
+                    description: Exec specifies the action to take.
+                    properties:
+                      command:
+                        description: Command is the command line to execute inside
+                          the container, the working directory for the command  is
+                          root ('/') in the container's filesystem. The command is
+                          simply exec'd, it is not run inside a shell, so traditional
+                          shell instructions ('|', etc) won't work. To use a shell,
+                          you need to explicitly call out to that shell. Exit status
+                          of 0 is treated as live/healthy and non-zero is unhealthy.
+                        items:
+                          type: string
+                        type: array
+                    type: object
                   failureThreshold:
-                    default: 3
+                    description: Minimum consecutive failures for the probe to be
+                      considered failed after having succeeded. Defaults to 3. Minimum
+                      value is 1.
                     format: int32
-                    minimum: 1
                     type: integer
+                  grpc:
+                    description: GRPC specifies an action involving a GRPC port.
+                    properties:
+                      port:
+                        description: Port number of the gRPC service. Number must
+                          be in the range 1 to 65535.
+                        format: int32
+                        type: integer
+                      service:
+                        description: "Service is the name of the service to place
+                          in the gRPC HealthCheckRequest (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).
+                          \n If this is not specified, the default behavior is defined
+                          by gRPC."
+                        type: string
+                    required:
+                    - port
+                    type: object
+                  httpGet:
+                    description: HTTPGet specifies the http request to perform.
+                    properties:
+                      host:
+                        description: Host name to connect to, defaults to the pod
+                          IP. You probably want to set "Host" in httpHeaders instead.
+                        type: string
+                      httpHeaders:
+                        description: Custom headers to set in the request. HTTP allows
+                          repeated headers.
+                        items:
+                          description: HTTPHeader describes a custom header to be
+                            used in HTTP probes
+                          properties:
+                            name:
+                              description: The header field name. This will be canonicalized
+                                upon output, so case-variant names will be understood
+                                as the same header.
+                              type: string
+                            value:
+                              description: The header field value
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
+                      path:
+                        description: Path to access on the HTTP server.
+                        type: string
+                      port:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        description: Name or number of the port to access on the container.
+                          Number must be in the range 1 to 65535. Name must be an
+                          IANA_SVC_NAME.
+                        x-kubernetes-int-or-string: true
+                      scheme:
+                        description: Scheme to use for connecting to the host. Defaults
+                          to HTTP.
+                        type: string
+                    required:
+                    - port
+                    type: object
                   initialDelaySeconds:
-                    default: 1
+                    description: 'Number of seconds after the container has started
+                      before liveness probes are initiated. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes'
                     format: int32
-                    minimum: 1
                     type: integer
                   periodSeconds:
-                    default: 10
+                    description: How often (in seconds) to perform the probe. Default
+                      to 10 seconds. Minimum value is 1.
                     format: int32
-                    minimum: 1
                     type: integer
                   successThreshold:
-                    default: 1
+                    description: Minimum consecutive successes for the probe to be
+                      considered successful after having failed. Defaults to 1. Must
+                      be 1 for liveness and startup. Minimum value is 1.
                     format: int32
-                    minimum: 1
+                    type: integer
+                  tcpSocket:
+                    description: TCPSocket specifies an action involving a TCP port.
+                    properties:
+                      host:
+                        description: 'Optional: Host name to connect to, defaults
+                          to the pod IP.'
+                        type: string
+                      port:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        description: Number or name of the port to access on the container.
+                          Number must be in the range 1 to 65535. Name must be an
+                          IANA_SVC_NAME.
+                        x-kubernetes-int-or-string: true
+                    required:
+                    - port
+                    type: object
+                  terminationGracePeriodSeconds:
+                    description: Optional duration in seconds the pod needs to terminate
+                      gracefully upon probe failure. The grace period is the duration
+                      in seconds after the processes running in the pod are sent a
+                      termination signal and the time when the processes are forcibly
+                      halted with a kill signal. Set this value longer than the expected
+                      cleanup time for your process. If this value is nil, the pod's
+                      terminationGracePeriodSeconds will be used. Otherwise, this
+                      value overrides the value provided by the pod spec. Value must
+                      be non-negative integer. The value zero indicates stop immediately
+                      via the kill signal (no opportunity to shut down). This is a
+                      beta field and requires enabling ProbeTerminationGracePeriod
+                      feature gate. Minimum value is 1. spec.terminationGracePeriodSeconds
+                      is used if unset.
+                    format: int64
                     type: integer
                   timeoutSeconds:
-                    default: 1
+                    description: 'Number of seconds after which the probe times out.
+                      Defaults to 1 second. Minimum value is 1. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes'
                     format: int32
-                    minimum: 1
                     type: integer
                 type: object
               nodeSelector:
@@ -1114,38 +1375,147 @@ spec:
               priorityClassName:
                 type: string
               readinessProbe:
-                default:
-                  failureThreshold: 3
-                  initialDelaySeconds: 1
-                  periodSeconds: 10
-                  successThreshold: 1
-                  timeoutSeconds: 1
-                description: Probe is a interface for ReadinessProbe and LivenessProbe
+                description: Probe describes a health check to be performed against
+                  a container to determine whether it is alive or ready to receive
+                  traffic.
                 properties:
+                  exec:
+                    description: Exec specifies the action to take.
+                    properties:
+                      command:
+                        description: Command is the command line to execute inside
+                          the container, the working directory for the command  is
+                          root ('/') in the container's filesystem. The command is
+                          simply exec'd, it is not run inside a shell, so traditional
+                          shell instructions ('|', etc) won't work. To use a shell,
+                          you need to explicitly call out to that shell. Exit status
+                          of 0 is treated as live/healthy and non-zero is unhealthy.
+                        items:
+                          type: string
+                        type: array
+                    type: object
                   failureThreshold:
-                    default: 3
+                    description: Minimum consecutive failures for the probe to be
+                      considered failed after having succeeded. Defaults to 3. Minimum
+                      value is 1.
                     format: int32
-                    minimum: 1
                     type: integer
+                  grpc:
+                    description: GRPC specifies an action involving a GRPC port.
+                    properties:
+                      port:
+                        description: Port number of the gRPC service. Number must
+                          be in the range 1 to 65535.
+                        format: int32
+                        type: integer
+                      service:
+                        description: "Service is the name of the service to place
+                          in the gRPC HealthCheckRequest (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).
+                          \n If this is not specified, the default behavior is defined
+                          by gRPC."
+                        type: string
+                    required:
+                    - port
+                    type: object
+                  httpGet:
+                    description: HTTPGet specifies the http request to perform.
+                    properties:
+                      host:
+                        description: Host name to connect to, defaults to the pod
+                          IP. You probably want to set "Host" in httpHeaders instead.
+                        type: string
+                      httpHeaders:
+                        description: Custom headers to set in the request. HTTP allows
+                          repeated headers.
+                        items:
+                          description: HTTPHeader describes a custom header to be
+                            used in HTTP probes
+                          properties:
+                            name:
+                              description: The header field name. This will be canonicalized
+                                upon output, so case-variant names will be understood
+                                as the same header.
+                              type: string
+                            value:
+                              description: The header field value
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
+                      path:
+                        description: Path to access on the HTTP server.
+                        type: string
+                      port:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        description: Name or number of the port to access on the container.
+                          Number must be in the range 1 to 65535. Name must be an
+                          IANA_SVC_NAME.
+                        x-kubernetes-int-or-string: true
+                      scheme:
+                        description: Scheme to use for connecting to the host. Defaults
+                          to HTTP.
+                        type: string
+                    required:
+                    - port
+                    type: object
                   initialDelaySeconds:
-                    default: 1
+                    description: 'Number of seconds after the container has started
+                      before liveness probes are initiated. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes'
                     format: int32
-                    minimum: 1
                     type: integer
                   periodSeconds:
-                    default: 10
+                    description: How often (in seconds) to perform the probe. Default
+                      to 10 seconds. Minimum value is 1.
                     format: int32
-                    minimum: 1
                     type: integer
                   successThreshold:
-                    default: 1
+                    description: Minimum consecutive successes for the probe to be
+                      considered successful after having failed. Defaults to 1. Must
+                      be 1 for liveness and startup. Minimum value is 1.
                     format: int32
-                    minimum: 1
+                    type: integer
+                  tcpSocket:
+                    description: TCPSocket specifies an action involving a TCP port.
+                    properties:
+                      host:
+                        description: 'Optional: Host name to connect to, defaults
+                          to the pod IP.'
+                        type: string
+                      port:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        description: Number or name of the port to access on the container.
+                          Number must be in the range 1 to 65535. Name must be an
+                          IANA_SVC_NAME.
+                        x-kubernetes-int-or-string: true
+                    required:
+                    - port
+                    type: object
+                  terminationGracePeriodSeconds:
+                    description: Optional duration in seconds the pod needs to terminate
+                      gracefully upon probe failure. The grace period is the duration
+                      in seconds after the processes running in the pod are sent a
+                      termination signal and the time when the processes are forcibly
+                      halted with a kill signal. Set this value longer than the expected
+                      cleanup time for your process. If this value is nil, the pod's
+                      terminationGracePeriodSeconds will be used. Otherwise, this
+                      value overrides the value provided by the pod spec. Value must
+                      be non-negative integer. The value zero indicates stop immediately
+                      via the kill signal (no opportunity to shut down). This is a
+                      beta field and requires enabling ProbeTerminationGracePeriod
+                      feature gate. Minimum value is 1. spec.terminationGracePeriodSeconds
+                      is used if unset.
+                    format: int64
                     type: integer
                   timeoutSeconds:
-                    default: 1
+                    description: 'Number of seconds after which the probe times out.
+                      Defaults to 1 second. Minimum value is 1. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes'
                     format: int32
-                    minimum: 1
                     type: integer
                 type: object
               redisConfig:
@@ -1275,6 +1645,9 @@ spec:
                     description: PullPolicy describes a policy for if/when to pull
                       a container image
                     type: string
+                  port:
+                    default: 9121
+                    type: integer
                   resources:
                     description: ResourceRequirements describes the compute resource
                       requirements.
@@ -1683,6 +2056,8 @@ spec:
                 description: Storage is the inteface to add pvc and pv support in
                   redis
                 properties:
+                  keepAfterDelete:
+                    type: boolean
                   volumeClaimTemplate:
                     description: PersistentVolumeClaim is a user's request for and
                       claim to a persistent volume
@@ -1805,30 +2180,6 @@ spec:
                               must still be higher than capacity recorded in the status
                               field of the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
                             properties:
-                              claims:
-                                description: "Claims lists the names of resources,
-                                  defined in spec.resourceClaims, that are used by
-                                  this container. \n This is an alpha field and requires
-                                  enabling the DynamicResourceAllocation feature gate.
-                                  \n This field is immutable. It can only be set for
-                                  containers."
-                                items:
-                                  description: ResourceClaim references one entry
-                                    in PodSpec.ResourceClaims.
-                                  properties:
-                                    name:
-                                      description: Name must match the name of one
-                                        entry in pod.spec.resourceClaims of the Pod
-                                        where this field is used. It makes that resource
-                                        available inside a container.
-                                      type: string
-                                  required:
-                                  - name
-                                  type: object
-                                type: array
-                                x-kubernetes-list-map-keys:
-                                - name
-                                x-kubernetes-list-type: map
                               limits:
                                 additionalProperties:
                                   anyOf:
@@ -1903,6 +2254,26 @@ spec:
                           storageClassName:
                             description: 'storageClassName is the name of the StorageClass
                               required by the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1'
+                            type: string
+                          volumeAttributesClassName:
+                            description: 'volumeAttributesClassName may be used to
+                              set the VolumeAttributesClass used by this claim. If
+                              specified, the CSI driver will create or update the
+                              volume with the attributes defined in the corresponding
+                              VolumeAttributesClass. This has a different purpose
+                              than storageClassName, it can be changed after the claim
+                              is created. An empty string value means that no VolumeAttributesClass
+                              will be applied to the claim but it''s not allowed to
+                              reset this field to empty string once it is set. If
+                              unspecified and the PersistentVolumeClaim is unbound,
+                              the default VolumeAttributesClass will be set by the
+                              persistentvolume controller if it exists. If the resource
+                              referred to by volumeAttributesClass does not exist,
+                              this PersistentVolumeClaim will be set to a Pending
+                              state, as reflected by the modifyVolumeStatus field,
+                              until such as a resource exists. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#volumeattributesclass
+                              (Alpha) Using this field requires the VolumeAttributesClass
+                              feature gate to be enabled.'
                             type: string
                           volumeMode:
                             description: volumeMode defines what type of volume is
@@ -2052,6 +2423,42 @@ spec:
                               - type
                               type: object
                             type: array
+                          currentVolumeAttributesClassName:
+                            description: currentVolumeAttributesClassName is the current
+                              name of the VolumeAttributesClass the PVC is using.
+                              When unset, there is no VolumeAttributeClass applied
+                              to this PersistentVolumeClaim This is an alpha field
+                              and requires enabling VolumeAttributesClass feature.
+                            type: string
+                          modifyVolumeStatus:
+                            description: ModifyVolumeStatus represents the status
+                              object of ControllerModifyVolume operation. When this
+                              is unset, there is no ModifyVolume operation being attempted.
+                              This is an alpha field and requires enabling VolumeAttributesClass
+                              feature.
+                            properties:
+                              status:
+                                description: "status is the status of the ControllerModifyVolume
+                                  operation. It can be in any of following states:
+                                  \ - Pending    Pending indicates that the PersistentVolumeClaim
+                                  cannot be modified due to unmet requirements, such
+                                  as    the specified VolumeAttributesClass not existing.
+                                  \ - InProgress    InProgress indicates that the
+                                  volume is being modified.  - Infeasible   Infeasible
+                                  indicates that the request has been rejected as
+                                  invalid by the CSI driver. To \t  resolve the error,
+                                  a valid VolumeAttributesClass needs to be specified.
+                                  Note: New statuses can be added in the future. Consumers
+                                  should check for unknown statuses and fail appropriately."
+                                type: string
+                              targetVolumeAttributesClassName:
+                                description: targetVolumeAttributesClassName is the
+                                  name of the VolumeAttributesClass the PVC currently
+                                  being reconciled
+                                type: string
+                            required:
+                            - status
+                            type: object
                           phase:
                             description: phase represents the current phase of PersistentVolumeClaim.
                             type: string
@@ -2703,32 +3110,6 @@ spec:
                                             status field of the claim. More info:
                                             https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
                                           properties:
-                                            claims:
-                                              description: "Claims lists the names
-                                                of resources, defined in spec.resourceClaims,
-                                                that are used by this container. \n
-                                                This is an alpha field and requires
-                                                enabling the DynamicResourceAllocation
-                                                feature gate. \n This field is immutable.
-                                                It can only be set for containers."
-                                              items:
-                                                description: ResourceClaim references
-                                                  one entry in PodSpec.ResourceClaims.
-                                                properties:
-                                                  name:
-                                                    description: Name must match the
-                                                      name of one entry in pod.spec.resourceClaims
-                                                      of the Pod where this field
-                                                      is used. It makes that resource
-                                                      available inside a container.
-                                                    type: string
-                                                required:
-                                                - name
-                                                type: object
-                                              type: array
-                                              x-kubernetes-list-map-keys:
-                                              - name
-                                              x-kubernetes-list-type: map
                                             limits:
                                               additionalProperties:
                                                 anyOf:
@@ -2816,6 +3197,32 @@ spec:
                                           description: 'storageClassName is the name
                                             of the StorageClass required by the claim.
                                             More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1'
+                                          type: string
+                                        volumeAttributesClassName:
+                                          description: 'volumeAttributesClassName
+                                            may be used to set the VolumeAttributesClass
+                                            used by this claim. If specified, the
+                                            CSI driver will create or update the volume
+                                            with the attributes defined in the corresponding
+                                            VolumeAttributesClass. This has a different
+                                            purpose than storageClassName, it can
+                                            be changed after the claim is created.
+                                            An empty string value means that no VolumeAttributesClass
+                                            will be applied to the claim but it''s
+                                            not allowed to reset this field to empty
+                                            string once it is set. If unspecified
+                                            and the PersistentVolumeClaim is unbound,
+                                            the default VolumeAttributesClass will
+                                            be set by the persistentvolume controller
+                                            if it exists. If the resource referred
+                                            to by volumeAttributesClass does not exist,
+                                            this PersistentVolumeClaim will be set
+                                            to a Pending state, as reflected by the
+                                            modifyVolumeStatus field, until such as
+                                            a resource exists. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#volumeattributesclass
+                                            (Alpha) Using this field requires the
+                                            VolumeAttributesClass feature gate to
+                                            be enabled.'
                                           type: string
                                         volumeMode:
                                           description: volumeMode defines what type
@@ -3216,6 +3623,113 @@ spec:
                                     description: Projection that may be projected
                                       along with other supported volume types
                                     properties:
+                                      clusterTrustBundle:
+                                        description: "ClusterTrustBundle allows a
+                                          pod to access the `.spec.trustBundle` field
+                                          of ClusterTrustBundle objects in an auto-updating
+                                          file. \n Alpha, gated by the ClusterTrustBundleProjection
+                                          feature gate. \n ClusterTrustBundle objects
+                                          can either be selected by name, or by the
+                                          combination of signer name and a label selector.
+                                          \n Kubelet performs aggressive normalization
+                                          of the PEM contents written into the pod
+                                          filesystem.  Esoteric PEM features such
+                                          as inter-block comments and block headers
+                                          are stripped.  Certificates are deduplicated.
+                                          The ordering of certificates within the
+                                          file is arbitrary, and Kubelet may change
+                                          the order over time."
+                                        properties:
+                                          labelSelector:
+                                            description: Select all ClusterTrustBundles
+                                              that match this label selector.  Only
+                                              has effect if signerName is set.  Mutually-exclusive
+                                              with name.  If unset, interpreted as
+                                              "match nothing".  If set but empty,
+                                              interpreted as "match everything".
+                                            properties:
+                                              matchExpressions:
+                                                description: matchExpressions is a
+                                                  list of label selector requirements.
+                                                  The requirements are ANDed.
+                                                items:
+                                                  description: A label selector requirement
+                                                    is a selector that contains values,
+                                                    a key, and an operator that relates
+                                                    the key and values.
+                                                  properties:
+                                                    key:
+                                                      description: key is the label
+                                                        key that the selector applies
+                                                        to.
+                                                      type: string
+                                                    operator:
+                                                      description: operator represents
+                                                        a key's relationship to a
+                                                        set of values. Valid operators
+                                                        are In, NotIn, Exists and
+                                                        DoesNotExist.
+                                                      type: string
+                                                    values:
+                                                      description: values is an array
+                                                        of string values. If the operator
+                                                        is In or NotIn, the values
+                                                        array must be non-empty. If
+                                                        the operator is Exists or
+                                                        DoesNotExist, the values array
+                                                        must be empty. This array
+                                                        is replaced during a strategic
+                                                        merge patch.
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                  required:
+                                                  - key
+                                                  - operator
+                                                  type: object
+                                                type: array
+                                              matchLabels:
+                                                additionalProperties:
+                                                  type: string
+                                                description: matchLabels is a map
+                                                  of {key,value} pairs. A single {key,value}
+                                                  in the matchLabels map is equivalent
+                                                  to an element of matchExpressions,
+                                                  whose key field is "key", the operator
+                                                  is "In", and the values array contains
+                                                  only "value". The requirements are
+                                                  ANDed.
+                                                type: object
+                                            type: object
+                                          name:
+                                            description: Select a single ClusterTrustBundle
+                                              by object name.  Mutually-exclusive
+                                              with signerName and labelSelector.
+                                            type: string
+                                          optional:
+                                            description: If true, don't block pod
+                                              startup if the referenced ClusterTrustBundle(s)
+                                              aren't available.  If using name, then
+                                              the named ClusterTrustBundle is allowed
+                                              not to exist.  If using signerName,
+                                              then the combination of signerName and
+                                              labelSelector is allowed to match zero
+                                              ClusterTrustBundles.
+                                            type: boolean
+                                          path:
+                                            description: Relative path from the volume
+                                              root to write the bundle.
+                                            type: string
+                                          signerName:
+                                            description: Select all ClusterTrustBundles
+                                              that match this signer name. Mutually-exclusive
+                                              with name.  The contents of all selected
+                                              ClusterTrustBundles will be unified
+                                              and deduplicated.
+                                            type: string
+                                        required:
+                                        - path
+                                        type: object
                                       configMap:
                                         description: configMap information about the
                                           configMap data to project
@@ -4232,7 +4746,8 @@ spec:
                               properties:
                                 labelSelector:
                                   description: A label query over a set of resources,
-                                    in this case pods.
+                                    in this case pods. If it's null, this PodAffinityTerm
+                                    matches with no Pods.
                                   properties:
                                     matchExpressions:
                                       description: matchExpressions is a list of label
@@ -4281,6 +4796,44 @@ spec:
                                         The requirements are ANDed.
                                       type: object
                                   type: object
+                                matchLabelKeys:
+                                  description: MatchLabelKeys is a set of pod label
+                                    keys to select which pods will be taken into consideration.
+                                    The keys are used to lookup values from the incoming
+                                    pod labels, those key-value labels are merged
+                                    with `LabelSelector` as `key in (value)` to select
+                                    the group of existing pods which pods will be
+                                    taken into consideration for the incoming pod's
+                                    pod (anti) affinity. Keys that don't exist in
+                                    the incoming pod labels will be ignored. The default
+                                    value is empty. The same key is forbidden to exist
+                                    in both MatchLabelKeys and LabelSelector. Also,
+                                    MatchLabelKeys cannot be set when LabelSelector
+                                    isn't set. This is an alpha field and requires
+                                    enabling MatchLabelKeysInPodAffinity feature gate.
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                                mismatchLabelKeys:
+                                  description: MismatchLabelKeys is a set of pod label
+                                    keys to select which pods will be taken into consideration.
+                                    The keys are used to lookup values from the incoming
+                                    pod labels, those key-value labels are merged
+                                    with `LabelSelector` as `key notin (value)` to
+                                    select the group of existing pods which pods will
+                                    be taken into consideration for the incoming pod's
+                                    pod (anti) affinity. Keys that don't exist in
+                                    the incoming pod labels will be ignored. The default
+                                    value is empty. The same key is forbidden to exist
+                                    in both MismatchLabelKeys and LabelSelector. Also,
+                                    MismatchLabelKeys cannot be set when LabelSelector
+                                    isn't set. This is an alpha field and requires
+                                    enabling MatchLabelKeysInPodAffinity feature gate.
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
                                 namespaceSelector:
                                   description: A label query over the set of namespaces
                                     that the term applies to. The term is applied
@@ -4390,7 +4943,8 @@ spec:
                           properties:
                             labelSelector:
                               description: A label query over a set of resources,
-                                in this case pods.
+                                in this case pods. If it's null, this PodAffinityTerm
+                                matches with no Pods.
                               properties:
                                 matchExpressions:
                                   description: matchExpressions is a list of label
@@ -4435,6 +4989,43 @@ spec:
                                     requirements are ANDed.
                                   type: object
                               type: object
+                            matchLabelKeys:
+                              description: MatchLabelKeys is a set of pod label keys
+                                to select which pods will be taken into consideration.
+                                The keys are used to lookup values from the incoming
+                                pod labels, those key-value labels are merged with
+                                `LabelSelector` as `key in (value)` to select the
+                                group of existing pods which pods will be taken into
+                                consideration for the incoming pod's pod (anti) affinity.
+                                Keys that don't exist in the incoming pod labels will
+                                be ignored. The default value is empty. The same key
+                                is forbidden to exist in both MatchLabelKeys and LabelSelector.
+                                Also, MatchLabelKeys cannot be set when LabelSelector
+                                isn't set. This is an alpha field and requires enabling
+                                MatchLabelKeysInPodAffinity feature gate.
+                              items:
+                                type: string
+                              type: array
+                              x-kubernetes-list-type: atomic
+                            mismatchLabelKeys:
+                              description: MismatchLabelKeys is a set of pod label
+                                keys to select which pods will be taken into consideration.
+                                The keys are used to lookup values from the incoming
+                                pod labels, those key-value labels are merged with
+                                `LabelSelector` as `key notin (value)` to select the
+                                group of existing pods which pods will be taken into
+                                consideration for the incoming pod's pod (anti) affinity.
+                                Keys that don't exist in the incoming pod labels will
+                                be ignored. The default value is empty. The same key
+                                is forbidden to exist in both MismatchLabelKeys and
+                                LabelSelector. Also, MismatchLabelKeys cannot be set
+                                when LabelSelector isn't set. This is an alpha field
+                                and requires enabling MatchLabelKeysInPodAffinity
+                                feature gate.
+                              items:
+                                type: string
+                              type: array
+                              x-kubernetes-list-type: atomic
                             namespaceSelector:
                               description: A label query over the set of namespaces
                                 that the term applies to. The term is applied to the
@@ -4537,7 +5128,8 @@ spec:
                               properties:
                                 labelSelector:
                                   description: A label query over a set of resources,
-                                    in this case pods.
+                                    in this case pods. If it's null, this PodAffinityTerm
+                                    matches with no Pods.
                                   properties:
                                     matchExpressions:
                                       description: matchExpressions is a list of label
@@ -4586,6 +5178,44 @@ spec:
                                         The requirements are ANDed.
                                       type: object
                                   type: object
+                                matchLabelKeys:
+                                  description: MatchLabelKeys is a set of pod label
+                                    keys to select which pods will be taken into consideration.
+                                    The keys are used to lookup values from the incoming
+                                    pod labels, those key-value labels are merged
+                                    with `LabelSelector` as `key in (value)` to select
+                                    the group of existing pods which pods will be
+                                    taken into consideration for the incoming pod's
+                                    pod (anti) affinity. Keys that don't exist in
+                                    the incoming pod labels will be ignored. The default
+                                    value is empty. The same key is forbidden to exist
+                                    in both MatchLabelKeys and LabelSelector. Also,
+                                    MatchLabelKeys cannot be set when LabelSelector
+                                    isn't set. This is an alpha field and requires
+                                    enabling MatchLabelKeysInPodAffinity feature gate.
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                                mismatchLabelKeys:
+                                  description: MismatchLabelKeys is a set of pod label
+                                    keys to select which pods will be taken into consideration.
+                                    The keys are used to lookup values from the incoming
+                                    pod labels, those key-value labels are merged
+                                    with `LabelSelector` as `key notin (value)` to
+                                    select the group of existing pods which pods will
+                                    be taken into consideration for the incoming pod's
+                                    pod (anti) affinity. Keys that don't exist in
+                                    the incoming pod labels will be ignored. The default
+                                    value is empty. The same key is forbidden to exist
+                                    in both MismatchLabelKeys and LabelSelector. Also,
+                                    MismatchLabelKeys cannot be set when LabelSelector
+                                    isn't set. This is an alpha field and requires
+                                    enabling MatchLabelKeysInPodAffinity feature gate.
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
                                 namespaceSelector:
                                   description: A label query over the set of namespaces
                                     that the term applies to. The term is applied
@@ -4695,7 +5325,8 @@ spec:
                           properties:
                             labelSelector:
                               description: A label query over a set of resources,
-                                in this case pods.
+                                in this case pods. If it's null, this PodAffinityTerm
+                                matches with no Pods.
                               properties:
                                 matchExpressions:
                                   description: matchExpressions is a list of label
@@ -4740,6 +5371,43 @@ spec:
                                     requirements are ANDed.
                                   type: object
                               type: object
+                            matchLabelKeys:
+                              description: MatchLabelKeys is a set of pod label keys
+                                to select which pods will be taken into consideration.
+                                The keys are used to lookup values from the incoming
+                                pod labels, those key-value labels are merged with
+                                `LabelSelector` as `key in (value)` to select the
+                                group of existing pods which pods will be taken into
+                                consideration for the incoming pod's pod (anti) affinity.
+                                Keys that don't exist in the incoming pod labels will
+                                be ignored. The default value is empty. The same key
+                                is forbidden to exist in both MatchLabelKeys and LabelSelector.
+                                Also, MatchLabelKeys cannot be set when LabelSelector
+                                isn't set. This is an alpha field and requires enabling
+                                MatchLabelKeysInPodAffinity feature gate.
+                              items:
+                                type: string
+                              type: array
+                              x-kubernetes-list-type: atomic
+                            mismatchLabelKeys:
+                              description: MismatchLabelKeys is a set of pod label
+                                keys to select which pods will be taken into consideration.
+                                The keys are used to lookup values from the incoming
+                                pod labels, those key-value labels are merged with
+                                `LabelSelector` as `key notin (value)` to select the
+                                group of existing pods which pods will be taken into
+                                consideration for the incoming pod's pod (anti) affinity.
+                                Keys that don't exist in the incoming pod labels will
+                                be ignored. The default value is empty. The same key
+                                is forbidden to exist in both MismatchLabelKeys and
+                                LabelSelector. Also, MismatchLabelKeys cannot be set
+                                when LabelSelector isn't set. This is an alpha field
+                                and requires enabling MatchLabelKeysInPodAffinity
+                                feature gate.
+                              items:
+                                type: string
+                              type: array
+                              x-kubernetes-list-type: atomic
                             namespaceSelector:
                               description: A label query over the set of namespaces
                                 that the term applies to. The term is applied to the
@@ -5098,6 +5766,175 @@ spec:
                           Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                         type: object
                     type: object
+                  securityContext:
+                    description: SecurityContext holds security configuration that
+                      will be applied to a container. Some fields are present in both
+                      SecurityContext and PodSecurityContext.  When both are set,
+                      the values in SecurityContext take precedence.
+                    properties:
+                      allowPrivilegeEscalation:
+                        description: 'AllowPrivilegeEscalation controls whether a
+                          process can gain more privileges than its parent process.
+                          This bool directly controls if the no_new_privs flag will
+                          be set on the container process. AllowPrivilegeEscalation
+                          is true always when the container is: 1) run as Privileged
+                          2) has CAP_SYS_ADMIN Note that this field cannot be set
+                          when spec.os.name is windows.'
+                        type: boolean
+                      capabilities:
+                        description: The capabilities to add/drop when running containers.
+                          Defaults to the default set of capabilities granted by the
+                          container runtime. Note that this field cannot be set when
+                          spec.os.name is windows.
+                        properties:
+                          add:
+                            description: Added capabilities
+                            items:
+                              description: Capability represent POSIX capabilities
+                                type
+                              type: string
+                            type: array
+                          drop:
+                            description: Removed capabilities
+                            items:
+                              description: Capability represent POSIX capabilities
+                                type
+                              type: string
+                            type: array
+                        type: object
+                      privileged:
+                        description: Run container in privileged mode. Processes in
+                          privileged containers are essentially equivalent to root
+                          on the host. Defaults to false. Note that this field cannot
+                          be set when spec.os.name is windows.
+                        type: boolean
+                      procMount:
+                        description: procMount denotes the type of proc mount to use
+                          for the containers. The default is DefaultProcMount which
+                          uses the container runtime defaults for readonly paths and
+                          masked paths. This requires the ProcMountType feature flag
+                          to be enabled. Note that this field cannot be set when spec.os.name
+                          is windows.
+                        type: string
+                      readOnlyRootFilesystem:
+                        description: Whether this container has a read-only root filesystem.
+                          Default is false. Note that this field cannot be set when
+                          spec.os.name is windows.
+                        type: boolean
+                      runAsGroup:
+                        description: The GID to run the entrypoint of the container
+                          process. Uses runtime default if unset. May also be set
+                          in PodSecurityContext.  If set in both SecurityContext and
+                          PodSecurityContext, the value specified in SecurityContext
+                          takes precedence. Note that this field cannot be set when
+                          spec.os.name is windows.
+                        format: int64
+                        type: integer
+                      runAsNonRoot:
+                        description: Indicates that the container must run as a non-root
+                          user. If true, the Kubelet will validate the image at runtime
+                          to ensure that it does not run as UID 0 (root) and fail
+                          to start the container if it does. If unset or false, no
+                          such validation will be performed. May also be set in PodSecurityContext.  If
+                          set in both SecurityContext and PodSecurityContext, the
+                          value specified in SecurityContext takes precedence.
+                        type: boolean
+                      runAsUser:
+                        description: The UID to run the entrypoint of the container
+                          process. Defaults to user specified in image metadata if
+                          unspecified. May also be set in PodSecurityContext.  If
+                          set in both SecurityContext and PodSecurityContext, the
+                          value specified in SecurityContext takes precedence. Note
+                          that this field cannot be set when spec.os.name is windows.
+                        format: int64
+                        type: integer
+                      seLinuxOptions:
+                        description: The SELinux context to be applied to the container.
+                          If unspecified, the container runtime will allocate a random
+                          SELinux context for each container.  May also be set in
+                          PodSecurityContext.  If set in both SecurityContext and
+                          PodSecurityContext, the value specified in SecurityContext
+                          takes precedence. Note that this field cannot be set when
+                          spec.os.name is windows.
+                        properties:
+                          level:
+                            description: Level is SELinux level label that applies
+                              to the container.
+                            type: string
+                          role:
+                            description: Role is a SELinux role label that applies
+                              to the container.
+                            type: string
+                          type:
+                            description: Type is a SELinux type label that applies
+                              to the container.
+                            type: string
+                          user:
+                            description: User is a SELinux user label that applies
+                              to the container.
+                            type: string
+                        type: object
+                      seccompProfile:
+                        description: The seccomp options to use by this container.
+                          If seccomp options are provided at both the pod & container
+                          level, the container options override the pod options. Note
+                          that this field cannot be set when spec.os.name is windows.
+                        properties:
+                          localhostProfile:
+                            description: localhostProfile indicates a profile defined
+                              in a file on the node should be used. The profile must
+                              be preconfigured on the node to work. Must be a descending
+                              path, relative to the kubelet's configured seccomp profile
+                              location. Must be set if type is "Localhost". Must NOT
+                              be set for any other type.
+                            type: string
+                          type:
+                            description: "type indicates which kind of seccomp profile
+                              will be applied. Valid options are: \n Localhost - a
+                              profile defined in a file on the node should be used.
+                              RuntimeDefault - the container runtime default profile
+                              should be used. Unconfined - no profile should be applied."
+                            type: string
+                        required:
+                        - type
+                        type: object
+                      windowsOptions:
+                        description: The Windows specific settings applied to all
+                          containers. If unspecified, the options from the PodSecurityContext
+                          will be used. If set in both SecurityContext and PodSecurityContext,
+                          the value specified in SecurityContext takes precedence.
+                          Note that this field cannot be set when spec.os.name is
+                          linux.
+                        properties:
+                          gmsaCredentialSpec:
+                            description: GMSACredentialSpec is where the GMSA admission
+                              webhook (https://github.com/kubernetes-sigs/windows-gmsa)
+                              inlines the contents of the GMSA credential spec named
+                              by the GMSACredentialSpecName field.
+                            type: string
+                          gmsaCredentialSpecName:
+                            description: GMSACredentialSpecName is the name of the
+                              GMSA credential spec to use.
+                            type: string
+                          hostProcess:
+                            description: HostProcess determines if a container should
+                              be run as a 'Host Process' container. All of a Pod's
+                              containers must have the same effective HostProcess
+                              value (it is not allowed to have a mix of HostProcess
+                              containers and non-HostProcess containers). In addition,
+                              if HostProcess is true then HostNetwork must also be
+                              set to true.
+                            type: boolean
+                          runAsUserName:
+                            description: The UserName in Windows to run the entrypoint
+                              of the container process. Defaults to the user specified
+                              in image metadata if unspecified. May also be set in
+                              PodSecurityContext. If set in both SecurityContext and
+                              PodSecurityContext, the value specified in SecurityContext
+                              takes precedence.
+                            type: string
+                        type: object
+                    type: object
                 required:
                 - image
                 type: object
@@ -5245,38 +6082,147 @@ spec:
                 - image
                 type: object
               livenessProbe:
-                default:
-                  failureThreshold: 3
-                  initialDelaySeconds: 1
-                  periodSeconds: 10
-                  successThreshold: 1
-                  timeoutSeconds: 1
-                description: Probe is a interface for ReadinessProbe and LivenessProbe
+                description: Probe describes a health check to be performed against
+                  a container to determine whether it is alive or ready to receive
+                  traffic.
                 properties:
+                  exec:
+                    description: Exec specifies the action to take.
+                    properties:
+                      command:
+                        description: Command is the command line to execute inside
+                          the container, the working directory for the command  is
+                          root ('/') in the container's filesystem. The command is
+                          simply exec'd, it is not run inside a shell, so traditional
+                          shell instructions ('|', etc) won't work. To use a shell,
+                          you need to explicitly call out to that shell. Exit status
+                          of 0 is treated as live/healthy and non-zero is unhealthy.
+                        items:
+                          type: string
+                        type: array
+                    type: object
                   failureThreshold:
-                    default: 3
+                    description: Minimum consecutive failures for the probe to be
+                      considered failed after having succeeded. Defaults to 3. Minimum
+                      value is 1.
                     format: int32
-                    minimum: 1
                     type: integer
+                  grpc:
+                    description: GRPC specifies an action involving a GRPC port.
+                    properties:
+                      port:
+                        description: Port number of the gRPC service. Number must
+                          be in the range 1 to 65535.
+                        format: int32
+                        type: integer
+                      service:
+                        description: "Service is the name of the service to place
+                          in the gRPC HealthCheckRequest (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).
+                          \n If this is not specified, the default behavior is defined
+                          by gRPC."
+                        type: string
+                    required:
+                    - port
+                    type: object
+                  httpGet:
+                    description: HTTPGet specifies the http request to perform.
+                    properties:
+                      host:
+                        description: Host name to connect to, defaults to the pod
+                          IP. You probably want to set "Host" in httpHeaders instead.
+                        type: string
+                      httpHeaders:
+                        description: Custom headers to set in the request. HTTP allows
+                          repeated headers.
+                        items:
+                          description: HTTPHeader describes a custom header to be
+                            used in HTTP probes
+                          properties:
+                            name:
+                              description: The header field name. This will be canonicalized
+                                upon output, so case-variant names will be understood
+                                as the same header.
+                              type: string
+                            value:
+                              description: The header field value
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
+                      path:
+                        description: Path to access on the HTTP server.
+                        type: string
+                      port:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        description: Name or number of the port to access on the container.
+                          Number must be in the range 1 to 65535. Name must be an
+                          IANA_SVC_NAME.
+                        x-kubernetes-int-or-string: true
+                      scheme:
+                        description: Scheme to use for connecting to the host. Defaults
+                          to HTTP.
+                        type: string
+                    required:
+                    - port
+                    type: object
                   initialDelaySeconds:
-                    default: 1
+                    description: 'Number of seconds after the container has started
+                      before liveness probes are initiated. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes'
                     format: int32
-                    minimum: 1
                     type: integer
                   periodSeconds:
-                    default: 10
+                    description: How often (in seconds) to perform the probe. Default
+                      to 10 seconds. Minimum value is 1.
                     format: int32
-                    minimum: 1
                     type: integer
                   successThreshold:
-                    default: 1
+                    description: Minimum consecutive successes for the probe to be
+                      considered successful after having failed. Defaults to 1. Must
+                      be 1 for liveness and startup. Minimum value is 1.
                     format: int32
-                    minimum: 1
+                    type: integer
+                  tcpSocket:
+                    description: TCPSocket specifies an action involving a TCP port.
+                    properties:
+                      host:
+                        description: 'Optional: Host name to connect to, defaults
+                          to the pod IP.'
+                        type: string
+                      port:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        description: Number or name of the port to access on the container.
+                          Number must be in the range 1 to 65535. Name must be an
+                          IANA_SVC_NAME.
+                        x-kubernetes-int-or-string: true
+                    required:
+                    - port
+                    type: object
+                  terminationGracePeriodSeconds:
+                    description: Optional duration in seconds the pod needs to terminate
+                      gracefully upon probe failure. The grace period is the duration
+                      in seconds after the processes running in the pod are sent a
+                      termination signal and the time when the processes are forcibly
+                      halted with a kill signal. Set this value longer than the expected
+                      cleanup time for your process. If this value is nil, the pod's
+                      terminationGracePeriodSeconds will be used. Otherwise, this
+                      value overrides the value provided by the pod spec. Value must
+                      be non-negative integer. The value zero indicates stop immediately
+                      via the kill signal (no opportunity to shut down). This is a
+                      beta field and requires enabling ProbeTerminationGracePeriod
+                      feature gate. Minimum value is 1. spec.terminationGracePeriodSeconds
+                      is used if unset.
+                    format: int64
                     type: integer
                   timeoutSeconds:
-                    default: 1
+                    description: 'Number of seconds after which the probe times out.
+                      Defaults to 1 second. Minimum value is 1. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes'
                     format: int32
-                    minimum: 1
                     type: integer
                 type: object
               nodeSelector:
@@ -5455,38 +6401,147 @@ spec:
               priorityClassName:
                 type: string
               readinessProbe:
-                default:
-                  failureThreshold: 3
-                  initialDelaySeconds: 1
-                  periodSeconds: 10
-                  successThreshold: 1
-                  timeoutSeconds: 1
-                description: Probe is a interface for ReadinessProbe and LivenessProbe
+                description: Probe describes a health check to be performed against
+                  a container to determine whether it is alive or ready to receive
+                  traffic.
                 properties:
+                  exec:
+                    description: Exec specifies the action to take.
+                    properties:
+                      command:
+                        description: Command is the command line to execute inside
+                          the container, the working directory for the command  is
+                          root ('/') in the container's filesystem. The command is
+                          simply exec'd, it is not run inside a shell, so traditional
+                          shell instructions ('|', etc) won't work. To use a shell,
+                          you need to explicitly call out to that shell. Exit status
+                          of 0 is treated as live/healthy and non-zero is unhealthy.
+                        items:
+                          type: string
+                        type: array
+                    type: object
                   failureThreshold:
-                    default: 3
+                    description: Minimum consecutive failures for the probe to be
+                      considered failed after having succeeded. Defaults to 3. Minimum
+                      value is 1.
                     format: int32
-                    minimum: 1
                     type: integer
+                  grpc:
+                    description: GRPC specifies an action involving a GRPC port.
+                    properties:
+                      port:
+                        description: Port number of the gRPC service. Number must
+                          be in the range 1 to 65535.
+                        format: int32
+                        type: integer
+                      service:
+                        description: "Service is the name of the service to place
+                          in the gRPC HealthCheckRequest (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).
+                          \n If this is not specified, the default behavior is defined
+                          by gRPC."
+                        type: string
+                    required:
+                    - port
+                    type: object
+                  httpGet:
+                    description: HTTPGet specifies the http request to perform.
+                    properties:
+                      host:
+                        description: Host name to connect to, defaults to the pod
+                          IP. You probably want to set "Host" in httpHeaders instead.
+                        type: string
+                      httpHeaders:
+                        description: Custom headers to set in the request. HTTP allows
+                          repeated headers.
+                        items:
+                          description: HTTPHeader describes a custom header to be
+                            used in HTTP probes
+                          properties:
+                            name:
+                              description: The header field name. This will be canonicalized
+                                upon output, so case-variant names will be understood
+                                as the same header.
+                              type: string
+                            value:
+                              description: The header field value
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
+                      path:
+                        description: Path to access on the HTTP server.
+                        type: string
+                      port:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        description: Name or number of the port to access on the container.
+                          Number must be in the range 1 to 65535. Name must be an
+                          IANA_SVC_NAME.
+                        x-kubernetes-int-or-string: true
+                      scheme:
+                        description: Scheme to use for connecting to the host. Defaults
+                          to HTTP.
+                        type: string
+                    required:
+                    - port
+                    type: object
                   initialDelaySeconds:
-                    default: 1
+                    description: 'Number of seconds after the container has started
+                      before liveness probes are initiated. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes'
                     format: int32
-                    minimum: 1
                     type: integer
                   periodSeconds:
-                    default: 10
+                    description: How often (in seconds) to perform the probe. Default
+                      to 10 seconds. Minimum value is 1.
                     format: int32
-                    minimum: 1
                     type: integer
                   successThreshold:
-                    default: 1
+                    description: Minimum consecutive successes for the probe to be
+                      considered successful after having failed. Defaults to 1. Must
+                      be 1 for liveness and startup. Minimum value is 1.
                     format: int32
-                    minimum: 1
+                    type: integer
+                  tcpSocket:
+                    description: TCPSocket specifies an action involving a TCP port.
+                    properties:
+                      host:
+                        description: 'Optional: Host name to connect to, defaults
+                          to the pod IP.'
+                        type: string
+                      port:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        description: Number or name of the port to access on the container.
+                          Number must be in the range 1 to 65535. Name must be an
+                          IANA_SVC_NAME.
+                        x-kubernetes-int-or-string: true
+                    required:
+                    - port
+                    type: object
+                  terminationGracePeriodSeconds:
+                    description: Optional duration in seconds the pod needs to terminate
+                      gracefully upon probe failure. The grace period is the duration
+                      in seconds after the processes running in the pod are sent a
+                      termination signal and the time when the processes are forcibly
+                      halted with a kill signal. Set this value longer than the expected
+                      cleanup time for your process. If this value is nil, the pod's
+                      terminationGracePeriodSeconds will be used. Otherwise, this
+                      value overrides the value provided by the pod spec. Value must
+                      be non-negative integer. The value zero indicates stop immediately
+                      via the kill signal (no opportunity to shut down). This is a
+                      beta field and requires enabling ProbeTerminationGracePeriod
+                      feature gate. Minimum value is 1. spec.terminationGracePeriodSeconds
+                      is used if unset.
+                    format: int64
                     type: integer
                   timeoutSeconds:
-                    default: 1
+                    description: 'Number of seconds after which the probe times out.
+                      Defaults to 1 second. Minimum value is 1. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes'
                     format: int32
-                    minimum: 1
                     type: integer
                 type: object
               redisConfig:
@@ -5616,6 +6671,9 @@ spec:
                     description: PullPolicy describes a policy for if/when to pull
                       a container image
                     type: string
+                  port:
+                    default: 9121
+                    type: integer
                   resources:
                     description: ResourceRequirements describes the compute resource
                       requirements.
@@ -5664,6 +6722,175 @@ spec:
                           it defaults to Limits if that is explicitly specified, otherwise
                           to an implementation-defined value. Requests cannot exceed
                           Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                        type: object
+                    type: object
+                  securityContext:
+                    description: SecurityContext holds security configuration that
+                      will be applied to a container. Some fields are present in both
+                      SecurityContext and PodSecurityContext.  When both are set,
+                      the values in SecurityContext take precedence.
+                    properties:
+                      allowPrivilegeEscalation:
+                        description: 'AllowPrivilegeEscalation controls whether a
+                          process can gain more privileges than its parent process.
+                          This bool directly controls if the no_new_privs flag will
+                          be set on the container process. AllowPrivilegeEscalation
+                          is true always when the container is: 1) run as Privileged
+                          2) has CAP_SYS_ADMIN Note that this field cannot be set
+                          when spec.os.name is windows.'
+                        type: boolean
+                      capabilities:
+                        description: The capabilities to add/drop when running containers.
+                          Defaults to the default set of capabilities granted by the
+                          container runtime. Note that this field cannot be set when
+                          spec.os.name is windows.
+                        properties:
+                          add:
+                            description: Added capabilities
+                            items:
+                              description: Capability represent POSIX capabilities
+                                type
+                              type: string
+                            type: array
+                          drop:
+                            description: Removed capabilities
+                            items:
+                              description: Capability represent POSIX capabilities
+                                type
+                              type: string
+                            type: array
+                        type: object
+                      privileged:
+                        description: Run container in privileged mode. Processes in
+                          privileged containers are essentially equivalent to root
+                          on the host. Defaults to false. Note that this field cannot
+                          be set when spec.os.name is windows.
+                        type: boolean
+                      procMount:
+                        description: procMount denotes the type of proc mount to use
+                          for the containers. The default is DefaultProcMount which
+                          uses the container runtime defaults for readonly paths and
+                          masked paths. This requires the ProcMountType feature flag
+                          to be enabled. Note that this field cannot be set when spec.os.name
+                          is windows.
+                        type: string
+                      readOnlyRootFilesystem:
+                        description: Whether this container has a read-only root filesystem.
+                          Default is false. Note that this field cannot be set when
+                          spec.os.name is windows.
+                        type: boolean
+                      runAsGroup:
+                        description: The GID to run the entrypoint of the container
+                          process. Uses runtime default if unset. May also be set
+                          in PodSecurityContext.  If set in both SecurityContext and
+                          PodSecurityContext, the value specified in SecurityContext
+                          takes precedence. Note that this field cannot be set when
+                          spec.os.name is windows.
+                        format: int64
+                        type: integer
+                      runAsNonRoot:
+                        description: Indicates that the container must run as a non-root
+                          user. If true, the Kubelet will validate the image at runtime
+                          to ensure that it does not run as UID 0 (root) and fail
+                          to start the container if it does. If unset or false, no
+                          such validation will be performed. May also be set in PodSecurityContext.  If
+                          set in both SecurityContext and PodSecurityContext, the
+                          value specified in SecurityContext takes precedence.
+                        type: boolean
+                      runAsUser:
+                        description: The UID to run the entrypoint of the container
+                          process. Defaults to user specified in image metadata if
+                          unspecified. May also be set in PodSecurityContext.  If
+                          set in both SecurityContext and PodSecurityContext, the
+                          value specified in SecurityContext takes precedence. Note
+                          that this field cannot be set when spec.os.name is windows.
+                        format: int64
+                        type: integer
+                      seLinuxOptions:
+                        description: The SELinux context to be applied to the container.
+                          If unspecified, the container runtime will allocate a random
+                          SELinux context for each container.  May also be set in
+                          PodSecurityContext.  If set in both SecurityContext and
+                          PodSecurityContext, the value specified in SecurityContext
+                          takes precedence. Note that this field cannot be set when
+                          spec.os.name is windows.
+                        properties:
+                          level:
+                            description: Level is SELinux level label that applies
+                              to the container.
+                            type: string
+                          role:
+                            description: Role is a SELinux role label that applies
+                              to the container.
+                            type: string
+                          type:
+                            description: Type is a SELinux type label that applies
+                              to the container.
+                            type: string
+                          user:
+                            description: User is a SELinux user label that applies
+                              to the container.
+                            type: string
+                        type: object
+                      seccompProfile:
+                        description: The seccomp options to use by this container.
+                          If seccomp options are provided at both the pod & container
+                          level, the container options override the pod options. Note
+                          that this field cannot be set when spec.os.name is windows.
+                        properties:
+                          localhostProfile:
+                            description: localhostProfile indicates a profile defined
+                              in a file on the node should be used. The profile must
+                              be preconfigured on the node to work. Must be a descending
+                              path, relative to the kubelet's configured seccomp profile
+                              location. Must be set if type is "Localhost". Must NOT
+                              be set for any other type.
+                            type: string
+                          type:
+                            description: "type indicates which kind of seccomp profile
+                              will be applied. Valid options are: \n Localhost - a
+                              profile defined in a file on the node should be used.
+                              RuntimeDefault - the container runtime default profile
+                              should be used. Unconfined - no profile should be applied."
+                            type: string
+                        required:
+                        - type
+                        type: object
+                      windowsOptions:
+                        description: The Windows specific settings applied to all
+                          containers. If unspecified, the options from the PodSecurityContext
+                          will be used. If set in both SecurityContext and PodSecurityContext,
+                          the value specified in SecurityContext takes precedence.
+                          Note that this field cannot be set when spec.os.name is
+                          linux.
+                        properties:
+                          gmsaCredentialSpec:
+                            description: GMSACredentialSpec is where the GMSA admission
+                              webhook (https://github.com/kubernetes-sigs/windows-gmsa)
+                              inlines the contents of the GMSA credential spec named
+                              by the GMSACredentialSpecName field.
+                            type: string
+                          gmsaCredentialSpecName:
+                            description: GMSACredentialSpecName is the name of the
+                              GMSA credential spec to use.
+                            type: string
+                          hostProcess:
+                            description: HostProcess determines if a container should
+                              be run as a 'Host Process' container. All of a Pod's
+                              containers must have the same effective HostProcess
+                              value (it is not allowed to have a mix of HostProcess
+                              containers and non-HostProcess containers). In addition,
+                              if HostProcess is true then HostNetwork must also be
+                              set to true.
+                            type: boolean
+                          runAsUserName:
+                            description: The UserName in Windows to run the entrypoint
+                              of the container process. Defaults to the user specified
+                              in image metadata if unspecified. May also be set in
+                              PodSecurityContext. If set in both SecurityContext and
+                              PodSecurityContext, the value specified in SecurityContext
+                              takes precedence.
+                            type: string
                         type: object
                     type: object
                 required:
@@ -6084,6 +7311,178 @@ spec:
                             cannot exceed Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                           type: object
                       type: object
+                    securityContext:
+                      description: SecurityContext holds security configuration that
+                        will be applied to a container. Some fields are present in
+                        both SecurityContext and PodSecurityContext.  When both are
+                        set, the values in SecurityContext take precedence.
+                      properties:
+                        allowPrivilegeEscalation:
+                          description: 'AllowPrivilegeEscalation controls whether
+                            a process can gain more privileges than its parent process.
+                            This bool directly controls if the no_new_privs flag will
+                            be set on the container process. AllowPrivilegeEscalation
+                            is true always when the container is: 1) run as Privileged
+                            2) has CAP_SYS_ADMIN Note that this field cannot be set
+                            when spec.os.name is windows.'
+                          type: boolean
+                        capabilities:
+                          description: The capabilities to add/drop when running containers.
+                            Defaults to the default set of capabilities granted by
+                            the container runtime. Note that this field cannot be
+                            set when spec.os.name is windows.
+                          properties:
+                            add:
+                              description: Added capabilities
+                              items:
+                                description: Capability represent POSIX capabilities
+                                  type
+                                type: string
+                              type: array
+                            drop:
+                              description: Removed capabilities
+                              items:
+                                description: Capability represent POSIX capabilities
+                                  type
+                                type: string
+                              type: array
+                          type: object
+                        privileged:
+                          description: Run container in privileged mode. Processes
+                            in privileged containers are essentially equivalent to
+                            root on the host. Defaults to false. Note that this field
+                            cannot be set when spec.os.name is windows.
+                          type: boolean
+                        procMount:
+                          description: procMount denotes the type of proc mount to
+                            use for the containers. The default is DefaultProcMount
+                            which uses the container runtime defaults for readonly
+                            paths and masked paths. This requires the ProcMountType
+                            feature flag to be enabled. Note that this field cannot
+                            be set when spec.os.name is windows.
+                          type: string
+                        readOnlyRootFilesystem:
+                          description: Whether this container has a read-only root
+                            filesystem. Default is false. Note that this field cannot
+                            be set when spec.os.name is windows.
+                          type: boolean
+                        runAsGroup:
+                          description: The GID to run the entrypoint of the container
+                            process. Uses runtime default if unset. May also be set
+                            in PodSecurityContext.  If set in both SecurityContext
+                            and PodSecurityContext, the value specified in SecurityContext
+                            takes precedence. Note that this field cannot be set when
+                            spec.os.name is windows.
+                          format: int64
+                          type: integer
+                        runAsNonRoot:
+                          description: Indicates that the container must run as a
+                            non-root user. If true, the Kubelet will validate the
+                            image at runtime to ensure that it does not run as UID
+                            0 (root) and fail to start the container if it does. If
+                            unset or false, no such validation will be performed.
+                            May also be set in PodSecurityContext.  If set in both
+                            SecurityContext and PodSecurityContext, the value specified
+                            in SecurityContext takes precedence.
+                          type: boolean
+                        runAsUser:
+                          description: The UID to run the entrypoint of the container
+                            process. Defaults to user specified in image metadata
+                            if unspecified. May also be set in PodSecurityContext.  If
+                            set in both SecurityContext and PodSecurityContext, the
+                            value specified in SecurityContext takes precedence. Note
+                            that this field cannot be set when spec.os.name is windows.
+                          format: int64
+                          type: integer
+                        seLinuxOptions:
+                          description: The SELinux context to be applied to the container.
+                            If unspecified, the container runtime will allocate a
+                            random SELinux context for each container.  May also be
+                            set in PodSecurityContext.  If set in both SecurityContext
+                            and PodSecurityContext, the value specified in SecurityContext
+                            takes precedence. Note that this field cannot be set when
+                            spec.os.name is windows.
+                          properties:
+                            level:
+                              description: Level is SELinux level label that applies
+                                to the container.
+                              type: string
+                            role:
+                              description: Role is a SELinux role label that applies
+                                to the container.
+                              type: string
+                            type:
+                              description: Type is a SELinux type label that applies
+                                to the container.
+                              type: string
+                            user:
+                              description: User is a SELinux user label that applies
+                                to the container.
+                              type: string
+                          type: object
+                        seccompProfile:
+                          description: The seccomp options to use by this container.
+                            If seccomp options are provided at both the pod & container
+                            level, the container options override the pod options.
+                            Note that this field cannot be set when spec.os.name is
+                            windows.
+                          properties:
+                            localhostProfile:
+                              description: localhostProfile indicates a profile defined
+                                in a file on the node should be used. The profile
+                                must be preconfigured on the node to work. Must be
+                                a descending path, relative to the kubelet's configured
+                                seccomp profile location. Must be set if type is "Localhost".
+                                Must NOT be set for any other type.
+                              type: string
+                            type:
+                              description: "type indicates which kind of seccomp profile
+                                will be applied. Valid options are: \n Localhost -
+                                a profile defined in a file on the node should be
+                                used. RuntimeDefault - the container runtime default
+                                profile should be used. Unconfined - no profile should
+                                be applied."
+                              type: string
+                          required:
+                          - type
+                          type: object
+                        windowsOptions:
+                          description: The Windows specific settings applied to all
+                            containers. If unspecified, the options from the PodSecurityContext
+                            will be used. If set in both SecurityContext and PodSecurityContext,
+                            the value specified in SecurityContext takes precedence.
+                            Note that this field cannot be set when spec.os.name is
+                            linux.
+                          properties:
+                            gmsaCredentialSpec:
+                              description: GMSACredentialSpec is where the GMSA admission
+                                webhook (https://github.com/kubernetes-sigs/windows-gmsa)
+                                inlines the contents of the GMSA credential spec named
+                                by the GMSACredentialSpecName field.
+                              type: string
+                            gmsaCredentialSpecName:
+                              description: GMSACredentialSpecName is the name of the
+                                GMSA credential spec to use.
+                              type: string
+                            hostProcess:
+                              description: HostProcess determines if a container should
+                                be run as a 'Host Process' container. All of a Pod's
+                                containers must have the same effective HostProcess
+                                value (it is not allowed to have a mix of HostProcess
+                                containers and non-HostProcess containers). In addition,
+                                if HostProcess is true then HostNetwork must also
+                                be set to true.
+                              type: boolean
+                            runAsUserName:
+                              description: The UserName in Windows to run the entrypoint
+                                of the container process. Defaults to the user specified
+                                in image metadata if unspecified. May also be set
+                                in PodSecurityContext. If set in both SecurityContext
+                                and PodSecurityContext, the value specified in SecurityContext
+                                takes precedence.
+                              type: string
+                          type: object
+                      type: object
                   required:
                   - image
                   - name
@@ -6093,6 +7492,8 @@ spec:
                 description: Storage is the inteface to add pvc and pv support in
                   redis
                 properties:
+                  keepAfterDelete:
+                    type: boolean
                   volumeClaimTemplate:
                     description: PersistentVolumeClaim is a user's request for and
                       claim to a persistent volume
@@ -6215,30 +7616,6 @@ spec:
                               must still be higher than capacity recorded in the status
                               field of the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
                             properties:
-                              claims:
-                                description: "Claims lists the names of resources,
-                                  defined in spec.resourceClaims, that are used by
-                                  this container. \n This is an alpha field and requires
-                                  enabling the DynamicResourceAllocation feature gate.
-                                  \n This field is immutable. It can only be set for
-                                  containers."
-                                items:
-                                  description: ResourceClaim references one entry
-                                    in PodSpec.ResourceClaims.
-                                  properties:
-                                    name:
-                                      description: Name must match the name of one
-                                        entry in pod.spec.resourceClaims of the Pod
-                                        where this field is used. It makes that resource
-                                        available inside a container.
-                                      type: string
-                                  required:
-                                  - name
-                                  type: object
-                                type: array
-                                x-kubernetes-list-map-keys:
-                                - name
-                                x-kubernetes-list-type: map
                               limits:
                                 additionalProperties:
                                   anyOf:
@@ -6313,6 +7690,26 @@ spec:
                           storageClassName:
                             description: 'storageClassName is the name of the StorageClass
                               required by the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1'
+                            type: string
+                          volumeAttributesClassName:
+                            description: 'volumeAttributesClassName may be used to
+                              set the VolumeAttributesClass used by this claim. If
+                              specified, the CSI driver will create or update the
+                              volume with the attributes defined in the corresponding
+                              VolumeAttributesClass. This has a different purpose
+                              than storageClassName, it can be changed after the claim
+                              is created. An empty string value means that no VolumeAttributesClass
+                              will be applied to the claim but it''s not allowed to
+                              reset this field to empty string once it is set. If
+                              unspecified and the PersistentVolumeClaim is unbound,
+                              the default VolumeAttributesClass will be set by the
+                              persistentvolume controller if it exists. If the resource
+                              referred to by volumeAttributesClass does not exist,
+                              this PersistentVolumeClaim will be set to a Pending
+                              state, as reflected by the modifyVolumeStatus field,
+                              until such as a resource exists. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#volumeattributesclass
+                              (Alpha) Using this field requires the VolumeAttributesClass
+                              feature gate to be enabled.'
                             type: string
                           volumeMode:
                             description: volumeMode defines what type of volume is
@@ -6462,6 +7859,42 @@ spec:
                               - type
                               type: object
                             type: array
+                          currentVolumeAttributesClassName:
+                            description: currentVolumeAttributesClassName is the current
+                              name of the VolumeAttributesClass the PVC is using.
+                              When unset, there is no VolumeAttributeClass applied
+                              to this PersistentVolumeClaim This is an alpha field
+                              and requires enabling VolumeAttributesClass feature.
+                            type: string
+                          modifyVolumeStatus:
+                            description: ModifyVolumeStatus represents the status
+                              object of ControllerModifyVolume operation. When this
+                              is unset, there is no ModifyVolume operation being attempted.
+                              This is an alpha field and requires enabling VolumeAttributesClass
+                              feature.
+                            properties:
+                              status:
+                                description: "status is the status of the ControllerModifyVolume
+                                  operation. It can be in any of following states:
+                                  \ - Pending    Pending indicates that the PersistentVolumeClaim
+                                  cannot be modified due to unmet requirements, such
+                                  as    the specified VolumeAttributesClass not existing.
+                                  \ - InProgress    InProgress indicates that the
+                                  volume is being modified.  - Infeasible   Infeasible
+                                  indicates that the request has been rejected as
+                                  invalid by the CSI driver. To \t  resolve the error,
+                                  a valid VolumeAttributesClass needs to be specified.
+                                  Note: New statuses can be added in the future. Consumers
+                                  should check for unknown statuses and fail appropriately."
+                                type: string
+                              targetVolumeAttributesClassName:
+                                description: targetVolumeAttributesClassName is the
+                                  name of the VolumeAttributesClass the PVC currently
+                                  being reconciled
+                                type: string
+                            required:
+                            - status
+                            type: object
                           phase:
                             description: phase represents the current phase of PersistentVolumeClaim.
                             type: string
@@ -7113,32 +8546,6 @@ spec:
                                             status field of the claim. More info:
                                             https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
                                           properties:
-                                            claims:
-                                              description: "Claims lists the names
-                                                of resources, defined in spec.resourceClaims,
-                                                that are used by this container. \n
-                                                This is an alpha field and requires
-                                                enabling the DynamicResourceAllocation
-                                                feature gate. \n This field is immutable.
-                                                It can only be set for containers."
-                                              items:
-                                                description: ResourceClaim references
-                                                  one entry in PodSpec.ResourceClaims.
-                                                properties:
-                                                  name:
-                                                    description: Name must match the
-                                                      name of one entry in pod.spec.resourceClaims
-                                                      of the Pod where this field
-                                                      is used. It makes that resource
-                                                      available inside a container.
-                                                    type: string
-                                                required:
-                                                - name
-                                                type: object
-                                              type: array
-                                              x-kubernetes-list-map-keys:
-                                              - name
-                                              x-kubernetes-list-type: map
                                             limits:
                                               additionalProperties:
                                                 anyOf:
@@ -7226,6 +8633,32 @@ spec:
                                           description: 'storageClassName is the name
                                             of the StorageClass required by the claim.
                                             More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1'
+                                          type: string
+                                        volumeAttributesClassName:
+                                          description: 'volumeAttributesClassName
+                                            may be used to set the VolumeAttributesClass
+                                            used by this claim. If specified, the
+                                            CSI driver will create or update the volume
+                                            with the attributes defined in the corresponding
+                                            VolumeAttributesClass. This has a different
+                                            purpose than storageClassName, it can
+                                            be changed after the claim is created.
+                                            An empty string value means that no VolumeAttributesClass
+                                            will be applied to the claim but it''s
+                                            not allowed to reset this field to empty
+                                            string once it is set. If unspecified
+                                            and the PersistentVolumeClaim is unbound,
+                                            the default VolumeAttributesClass will
+                                            be set by the persistentvolume controller
+                                            if it exists. If the resource referred
+                                            to by volumeAttributesClass does not exist,
+                                            this PersistentVolumeClaim will be set
+                                            to a Pending state, as reflected by the
+                                            modifyVolumeStatus field, until such as
+                                            a resource exists. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#volumeattributesclass
+                                            (Alpha) Using this field requires the
+                                            VolumeAttributesClass feature gate to
+                                            be enabled.'
                                           type: string
                                         volumeMode:
                                           description: volumeMode defines what type
@@ -7626,6 +9059,113 @@ spec:
                                     description: Projection that may be projected
                                       along with other supported volume types
                                     properties:
+                                      clusterTrustBundle:
+                                        description: "ClusterTrustBundle allows a
+                                          pod to access the `.spec.trustBundle` field
+                                          of ClusterTrustBundle objects in an auto-updating
+                                          file. \n Alpha, gated by the ClusterTrustBundleProjection
+                                          feature gate. \n ClusterTrustBundle objects
+                                          can either be selected by name, or by the
+                                          combination of signer name and a label selector.
+                                          \n Kubelet performs aggressive normalization
+                                          of the PEM contents written into the pod
+                                          filesystem.  Esoteric PEM features such
+                                          as inter-block comments and block headers
+                                          are stripped.  Certificates are deduplicated.
+                                          The ordering of certificates within the
+                                          file is arbitrary, and Kubelet may change
+                                          the order over time."
+                                        properties:
+                                          labelSelector:
+                                            description: Select all ClusterTrustBundles
+                                              that match this label selector.  Only
+                                              has effect if signerName is set.  Mutually-exclusive
+                                              with name.  If unset, interpreted as
+                                              "match nothing".  If set but empty,
+                                              interpreted as "match everything".
+                                            properties:
+                                              matchExpressions:
+                                                description: matchExpressions is a
+                                                  list of label selector requirements.
+                                                  The requirements are ANDed.
+                                                items:
+                                                  description: A label selector requirement
+                                                    is a selector that contains values,
+                                                    a key, and an operator that relates
+                                                    the key and values.
+                                                  properties:
+                                                    key:
+                                                      description: key is the label
+                                                        key that the selector applies
+                                                        to.
+                                                      type: string
+                                                    operator:
+                                                      description: operator represents
+                                                        a key's relationship to a
+                                                        set of values. Valid operators
+                                                        are In, NotIn, Exists and
+                                                        DoesNotExist.
+                                                      type: string
+                                                    values:
+                                                      description: values is an array
+                                                        of string values. If the operator
+                                                        is In or NotIn, the values
+                                                        array must be non-empty. If
+                                                        the operator is Exists or
+                                                        DoesNotExist, the values array
+                                                        must be empty. This array
+                                                        is replaced during a strategic
+                                                        merge patch.
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                  required:
+                                                  - key
+                                                  - operator
+                                                  type: object
+                                                type: array
+                                              matchLabels:
+                                                additionalProperties:
+                                                  type: string
+                                                description: matchLabels is a map
+                                                  of {key,value} pairs. A single {key,value}
+                                                  in the matchLabels map is equivalent
+                                                  to an element of matchExpressions,
+                                                  whose key field is "key", the operator
+                                                  is "In", and the values array contains
+                                                  only "value". The requirements are
+                                                  ANDed.
+                                                type: object
+                                            type: object
+                                          name:
+                                            description: Select a single ClusterTrustBundle
+                                              by object name.  Mutually-exclusive
+                                              with signerName and labelSelector.
+                                            type: string
+                                          optional:
+                                            description: If true, don't block pod
+                                              startup if the referenced ClusterTrustBundle(s)
+                                              aren't available.  If using name, then
+                                              the named ClusterTrustBundle is allowed
+                                              not to exist.  If using signerName,
+                                              then the combination of signerName and
+                                              labelSelector is allowed to match zero
+                                              ClusterTrustBundles.
+                                            type: boolean
+                                          path:
+                                            description: Relative path from the volume
+                                              root to write the bundle.
+                                            type: string
+                                          signerName:
+                                            description: Select all ClusterTrustBundles
+                                              that match this signer name. Mutually-exclusive
+                                              with name.  The contents of all selected
+                                              ClusterTrustBundles will be unified
+                                              and deduplicated.
+                                            type: string
+                                        required:
+                                        - path
+                                        type: object
                                       configMap:
                                         description: configMap information about the
                                           configMap data to project
@@ -8248,15 +9788,6 @@ spec:
     storage: true
     subresources:
       status: {}
-  conversion:
-    strategy: Webhook
-    webhook:
-      conversionReviewVersions: ["v1beta1","v1beta2"]
-      clientConfig:
-        service:
-          namespace: redis-operator
-          name: webhook-service
-          path: /convert
 status:
   acceptedNames:
     kind: ""

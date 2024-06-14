@@ -117,6 +117,7 @@ type containerParameters struct {
 	RedisExporterResources       *corev1.ResourceRequirements
 	RedisExporterEnv             *[]corev1.EnvVar
 	RedisExporterPort            *int
+	RedisExporterSecurityContext *corev1.SecurityContext
 	Role                         string
 	EnabledPassword              *bool
 	SecretName                   *string
@@ -145,6 +146,7 @@ type initContainerParameters struct {
 	AdditionalEnvVariable *[]corev1.EnvVar
 	AdditionalVolume      []corev1.Volume
 	AdditionalMountPath   []corev1.VolumeMount
+	SecurityContext       *corev1.SecurityContext
 }
 
 // CreateOrUpdateStateFul method will create or update Redis service
@@ -436,6 +438,7 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 			Name:            sidecar.Name,
 			Image:           sidecar.Image,
 			ImagePullPolicy: sidecar.ImagePullPolicy,
+			SecurityContext: sidecar.SecurityContext,
 		}
 		if sidecar.Command != nil {
 			container.Command = sidecar.Command
@@ -471,6 +474,7 @@ func generateInitContainerDef(name string, initcontainerParams initContainerPara
 			Command:         initcontainerParams.Command,
 			Args:            initcontainerParams.Arguments,
 			VolumeMounts:    getVolumeMount(name, initcontainerParams.PersistenceEnabled, false, false, nil, mountpath, nil, nil),
+			SecurityContext: initcontainerParams.SecurityContext,
 		},
 	}
 
@@ -538,6 +542,7 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 				Protocol:      corev1.ProtocolTCP,
 			},
 		},
+		SecurityContext: params.RedisExporterSecurityContext,
 	}
 	if params.RedisExporterResources != nil {
 		exporterDefinition.Resources = *params.RedisExporterResources
