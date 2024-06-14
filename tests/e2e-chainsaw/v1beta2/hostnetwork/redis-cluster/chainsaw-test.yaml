@@ -20,6 +20,14 @@ spec:
             file: ready-pvc.yaml
         - assert:
             file: ready-pod.yaml
+      catch:
+        - description: Redis Operator Logs
+          podLogs:
+            namespace: redis-operator-system
+            selector: control-plane=redis-operator
+            container: manager
+            tail: -1  # tail all logs
+
     - name: Install Redis Cli
       try:
         - script:
