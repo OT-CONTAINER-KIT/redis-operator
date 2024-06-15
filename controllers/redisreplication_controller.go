@@ -2,13 +2,13 @@ package controllers
 
 import (
 	"context"
-	"strconv"
 	"time"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/k8sutils"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllerutil"
 	"github.com/go-logr/logr"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
@@ -21,6 +21,7 @@ import (
 type RedisReplicationReconciler struct {
 	client.Client
 	k8sutils.Pod
+	k8sutils.StatefulSet
 	K8sClient  kubernetes.Interface
 	Dk8sClient dynamic.Interface
 	Log        logr.Logger
@@ -45,15 +46,9 @@ func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	if _, found := instance.ObjectMeta.GetAnnotations()["redisreplication.opstreelabs.in/skip-reconcile"]; found {
 		return intctrlutil.RequeueAfter(reqLogger, time.Second*10, "found skip reconcile annotation")
 	}
-
-	leaderReplicas := int32(1)
-	followerReplicas := instance.Spec.GetReplicationCounts("replication") - leaderReplicas
-	totalReplicas := leaderReplicas + followerReplicas
-
 	if err = k8sutils.AddFinalizer(instance, k8sutils.RedisReplicationFinalizer, r.Client); err != nil {
 		return intctrlutil.RequeueWithError(err, reqLogger, "")
 	}
-
 	err = k8sutils.CreateReplicationRedis(instance, r.K8sClient)
 	if err != nil {
 		return intctrlutil.RequeueWithError(err, reqLogger, "")
@@ -62,23 +57,14 @@ func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	if err != nil {
 		return intctrlutil.RequeueWithError(err, reqLogger, "")
 	}
-
-	// Set Pod distruptiuon Budget Later
-
-	redisReplicationInfo, err := k8sutils.GetStatefulSet(r.K8sClient, r.Log, instance.GetNamespace(), instance.GetName())
-	if err != nil {
-		return intctrlutil.RequeueAfter(reqLogger, time.Second*60, "")
-	}
-
-	// Check that the Leader and Follower are ready in redis replication
-	if redisReplicationInfo.Status.ReadyReplicas != totalReplicas {
-		return intctrlutil.RequeueAfter(reqLogger, time.Second*60, "Redis replication nodes are not ready yet", "Ready.Replicas", redisReplicationInfo.Status.ReadyReplicas, "Expected.Replicas", totalReplicas)
+	if !r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name) {
+		return intctrlutil.Reconciled()
 	}
 
 	var realMaster string
 	masterNodes := k8sutils.GetRedisNodesByRole(ctx, r.K8sClient, r.Log, instance, "master")
-	if len(masterNodes) > int(leaderReplicas) {
-		reqLogger.Info("Creating redis replication by executing replication creation commands", "Replication.Ready", strconv.Itoa(int(redisReplicationInfo.Status.ReadyReplicas)))
+	if len(masterNodes) > 1 {
+		reqLogger.Info("Creating redis replication by executing replication creation commands")
 		slaveNodes := k8sutils.GetRedisNodesByRole(ctx, r.K8sClient, r.Log, instance, "slave")
 		realMaster = k8sutils.GetRedisReplicationRealMaster(ctx, r.K8sClient, r.Log, instance, masterNodes)
 		if len(slaveNodes) == 0 {
@@ -138,5 +124,6 @@ func (r *RedisReplicationReconciler) UpdateRedisPodRoleLabel(ctx context.Context
 func (r *RedisReplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&redisv1beta2.RedisReplication{}).
+		Owns(&appsv1.StatefulSet{}).
 		Complete(r)
 }

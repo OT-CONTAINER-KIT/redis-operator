@@ -101,21 +101,24 @@ var _ = BeforeSuite(func() {
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
-	rrLog := ctrl.Log.WithName("controllers").WithName("RedisReplication")
+	rcLog := ctrl.Log.WithName("controllers").WithName("RedisCluster")
 	err = (&RedisClusterReconciler{
 		Client:      k8sManager.GetClient(),
 		K8sClient:   k8sClient,
 		Dk8sClient:  dk8sClient,
 		Scheme:      k8sManager.GetScheme(),
-		StatefulSet: k8sutils.NewStatefulSetService(k8sClient, rrLog),
+		StatefulSet: k8sutils.NewStatefulSetService(k8sClient, rcLog),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
+	rrLog := ctrl.Log.WithName("controllers").WithName("RedisReplication")
 	err = (&RedisReplicationReconciler{
-		Client:     k8sManager.GetClient(),
-		K8sClient:  k8sClient,
-		Dk8sClient: dk8sClient,
-		Scheme:     k8sManager.GetScheme(),
+		Client:      k8sManager.GetClient(),
+		K8sClient:   k8sClient,
+		Dk8sClient:  dk8sClient,
+		Scheme:      k8sManager.GetScheme(),
+		Pod:         k8sutils.NewPodService(k8sClient, rrLog),
+		StatefulSet: k8sutils.NewStatefulSetService(k8sClient, rrLog),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 

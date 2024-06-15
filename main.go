@@ -138,12 +138,13 @@ func main() {
 	}
 	rrLog := ctrl.Log.WithName("controllers").WithName("RedisReplication")
 	if err = (&controllers.RedisReplicationReconciler{
-		Client:     mgr.GetClient(),
-		K8sClient:  k8sclient,
-		Dk8sClient: dk8sClient,
-		Log:        rrLog,
-		Scheme:     mgr.GetScheme(),
-		Pod:        k8sutils.NewPodService(k8sclient, rrLog),
+		Client:      mgr.GetClient(),
+		K8sClient:   k8sclient,
+		Dk8sClient:  dk8sClient,
+		Log:         rrLog,
+		Scheme:      mgr.GetScheme(),
+		Pod:         k8sutils.NewPodService(k8sclient, rrLog),
+		StatefulSet: k8sutils.NewStatefulSetService(k8sclient, rrLog),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RedisReplication")
 		os.Exit(1)

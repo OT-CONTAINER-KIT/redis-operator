@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"strconv"
 	"time"
 
 	"github.com/OT-CONTAINER-KIT/redis-operator/api/status"
@@ -26,7 +25,7 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/k8sutils"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllerutil"
 	"github.com/go-logr/logr"
-	"k8s.io/apimachinery/pkg/api/errors"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -126,9 +125,6 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// todo: remove me after watch statefulset in controller
 	redisLeaderInfo, err := k8sutils.GetStatefulSet(r.K8sClient, r.Log, instance.GetNamespace(), instance.GetName()+"-leader")
 	if err != nil {
-		if errors.IsNotFound(err) {
-			return intctrlutil.RequeueAfter(reqLogger, time.Second*60, "")
-		}
 		return intctrlutil.RequeueWithError(err, reqLogger, "")
 	}
 
@@ -160,18 +156,11 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// todo: remove me after watch statefulset in controller
 	redisFollowerInfo, err := k8sutils.GetStatefulSet(r.K8sClient, r.Log, instance.GetNamespace(), instance.GetName()+"-follower")
 	if err != nil {
-		if errors.IsNotFound(err) {
-			return intctrlutil.RequeueAfter(reqLogger, time.Second*60, "")
-		}
 		return intctrlutil.RequeueWithError(err, reqLogger, "")
 	}
 
-	if leaderReplicas == 0 {
-		return intctrlutil.RequeueAfter(reqLogger, time.Second*60, "Redis leaders Cannot be 0", "Ready.Replicas", strconv.Itoa(int(redisLeaderInfo.Status.ReadyReplicas)), "Expected.Replicas", leaderReplicas)
-	}
-
 	if !(r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-leader") && r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-follower")) {
-		return intctrlutil.RequeueAfter(reqLogger, time.Second*60, "Redis leader and follower nodes are not ready yet")
+		return intctrlutil.Reconciled()
 	}
 
 	// Mark the cluster status as bootstrapping if all the leader and follower nodes are ready
@@ -239,5 +228,6 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 func (r *RedisClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&redisv1beta2.RedisCluster{}).
+		Owns(&appsv1.StatefulSet{}).
 		Complete(r)
 }
