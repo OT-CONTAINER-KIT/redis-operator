@@ -13,9 +13,8 @@ redisOperator:
 
   # Additional arguments for redis-operator container
   extraArgs: []
-
-  #  - -zap-log-level=error
-  watch_namespace: ""
+  # When not specified, the operator will watch all namespaces. It can be set to a specific namespace or multiple namespaces separated by commas.
+  watchNamespace: ""
   env: []
   webhook: false
 

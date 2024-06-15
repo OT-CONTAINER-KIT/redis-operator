@@ -48,10 +48,10 @@ spec:
       {{- end }}
         env:
         - name: ENABLE_WEBHOOKS
-          value: "{{ .Values.redisOperator.webhook | toString }}"
-        {{- if .WATCH_NAMESPACE }}
+          value: {{ .Values.redisOperator.webhook | quote }}
+        {{- if .Values.redisOperator.watchNamespace }}
         - name: WATCH_NAMESPACE
-          value: {{ .WATCH_NAMESPACE }}
+          value: {{ .Values.redisOperator.watchNamespace | quote }}
         {{- end }}
         {{- range $env := .Values.redisOperator.env }}
         - name: {{ $env.name }}
