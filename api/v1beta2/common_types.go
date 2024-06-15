@@ -60,7 +60,6 @@ type ClusterStorage struct {
 // RedisExporter interface will have the information for redis exporter related stuff
 type RedisExporter struct {
 	common.RedisExporter `json:",inline"`
-	SecurityContext      *corev1.SecurityContext `json:"securityContext,omitempty"`
 }
 
 // TLS Configuration for redis instances
