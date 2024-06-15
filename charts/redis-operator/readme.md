@@ -74,39 +74,41 @@ kubectl create secret tls <webhook-server-cert> --key tls.key --cert tls.crt -n 
 
 ## Default Values
 
-| Parameter                           | Description                        | Default                                                      |
-|-------------------------------------|------------------------------------|--------------------------------------------------------------|
-| `redisOperator.name`                | Operator name                      | `redis-operator`                                             |
-| `redisOperator.imageName`           | Image repository                   | `quay.io/opstree/redis-operator`                             |
-| `redisOperator.imageTag`            | Image tag                          |  `{{appVersion}}`                                                        |
-| `redisOperator.imagePullPolicy`     | Image pull policy                  | `Always`                                                     |
-| `redisOperator.podAnnotations`        | Additional pod annotations         | `{}`                                                         |
-| `redisOperator.podLabels`             | Additional Pod labels             | `{}`                                                         |
-| `redisOperator.extraArgs`             | Additional arguments for the operator | `{}`                                                         |
-| `redisOperator.watch_namespace`       | Namespace for the operator to watch  | `""`                                                         |
-| `redisOperator.env`                  | Environment variables for the operator | `{}`                                                         |
-| `redisOperator.webhook`              | Enable webhook                     | `false`                                                     |
-| `resources.limits.cpu`              | CPU limit                          | `500m`                                                      |
-| `resources.limits.memory`           | Memory limit                       | `500Mi`                                                     |
-| `resources.requests.cpu`            | CPU request                        | `500m`                                                      |
-| `resources.requests.memory`         | Memory request                     | `500Mi`                                                     |
-| `replicas`                          | Number of replicas                 | `1`                                                         |
-| `serviceAccountName`                | Service account name               | `redis-operator`                                             |
-| `certificate.name`                  | Certificate name                   | `serving-cert`                                               |
-| `certificate.secretName`            | Certificate secret name            | `webhook-server-cert`                                      |
-| `issuer.type`                      | Issuer type                       | `selfSigned`                                                   |
-| `issuer.name`                       | Issuer name                        | `redis-operator-issuer`                                           |
-| `issuer.email`                      | Issuer email                       | `shubham.gupta@opstree.com`                                  |
-| `issuer.server`                     | Issuer server URL                  | `https://acme-v02.api.letsencrypt.org/directory`            |
-| `issuer.privateKeySecretName`       | Private key secret name            | `letsencrypt-prod`                                           |
-| `certManager.enabled`              | Enable cert-manager                | `false`                                                       |
+| Parameter                                     | Description                            | Default                                          |
+|-----------------------------------------------|----------------------------------------|--------------------------------------------------|
+| `redisOperator.name`                          | Operator name                          | `redis-operator`                                 |
+| `redisOperator.imageName`                     | Image repository                       | `quay.io/opstree/redis-operator`                 |
+| `redisOperator.imageTag`                      | Image tag                              | `{{appVersion}}`                                 |
+| `redisOperator.imagePullPolicy`               | Image pull policy                      | `Always`                                         |
+| `redisOperator.podAnnotations`                | Additional pod annotations             | `{}`                                             |
+| `redisOperator.podLabels`                     | Additional Pod labels                  | `{}`                                             |
+| `redisOperator.extraArgs`                     | Additional arguments for the operator  | `{}`                                             |
+| `redisOperator.watchNamespace`                | Namespace for the operator to watch    | `""`                                             |
+| `redisOperator.env`                           | Environment variables for the operator | `{}`                                             |
+| `redisOperator.webhook`                       | Enable webhook                         | `false`                                          |
+| `redisOperator.automountServiceAccountToken`  | Automount service account token        | `true`                                           |
+| `resources.limits.cpu`                        | CPU limit                              | `500m`                                           |
+| `resources.limits.memory`                     | Memory limit                           | `500Mi`                                          |
+| `resources.requests.cpu`                      | CPU request                            | `500m`                                           |
+| `resources.requests.memory`                   | Memory request                         | `500Mi`                                          |
+| `replicas`                                    | Number of replicas                     | `1`                                              |
+| `serviceAccountName`                          | Service account name                   | `redis-operator`                                 |
+| `serviceAccount.automountServiceAccountToken` | Automount service account token        | `true`                                           |
+| `certificate.name`                            | Certificate name                       | `serving-cert`                                   |
+| `certificate.secretName`                      | Certificate secret name                | `webhook-server-cert`                            |
+| `issuer.type`                                 | Issuer type                            | `selfSigned`                                     |
+| `issuer.name`                                 | Issuer name                            | `redis-operator-issuer`                          |
+| `issuer.email`                                | Issuer email                           | `shubham.gupta@opstree.com`                      |
+| `issuer.server`                               | Issuer server URL                      | `https://acme-v02.api.letsencrypt.org/directory` |
+| `issuer.privateKeySecretName`                 | Private key secret name                | `letsencrypt-prod`                               |
+| `certManager.enabled`                         | Enable cert-manager                    | `false`                                          |
 
 ## Scheduling Parameters
 
-| Parameter               | Description                                | Default  |
-|-------------------------|--------------------------------------------|----------|
-| `priorityClassName`     | Priority class name for the pods           | `""`     |
-| `nodeSelector`          | Labels for pod assignment                  | `{}`     |
-| `tolerateAllTaints`     | Whether to tolerate all node taints         | `false`  |
-| `tolerations`           | Taints to tolerate                         | `[]`     |
-| `affinity`              | Affinity rules for pod assignment          | `{}`     |
+| Parameter           | Description                         | Default |
+|---------------------|-------------------------------------|---------|
+| `priorityClassName` | Priority class name for the pods    | `""`    |
+| `nodeSelector`      | Labels for pod assignment           | `{}`    |
+| `tolerateAllTaints` | Whether to tolerate all node taints | `false` |
+| `tolerations`       | Taints to tolerate                  | `[]`    |
+| `affinity`          | Affinity rules for pod assignment   | `{}`    |
