@@ -132,6 +132,7 @@ func generateRedisSentinelInitContainerParams(cr *redisv1beta2.RedisSentinel) in
 			AdditionalEnvVariable: initContainer.EnvVars,
 			Command:               initContainer.Command,
 			Arguments:             initContainer.Args,
+			SecurityContext:       initContainer.SecurityContext,
 		}
 	}
 	return initcontainerProp
@@ -162,6 +163,7 @@ func generateRedisSentinelContainerParams(ctx context.Context, client kubernetes
 	if cr.Spec.RedisExporter != nil {
 		containerProp.RedisExporterImage = cr.Spec.RedisExporter.Image
 		containerProp.RedisExporterImagePullPolicy = cr.Spec.RedisExporter.ImagePullPolicy
+		containerProp.RedisExporterSecurityContext = cr.Spec.RedisExporter.SecurityContext
 
 		if cr.Spec.RedisExporter.Resources != nil {
 			containerProp.RedisExporterResources = cr.Spec.RedisExporter.Resources

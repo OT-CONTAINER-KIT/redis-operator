@@ -150,6 +150,7 @@ func generateRedisStandaloneContainerParams(cr *redisv1beta2.Redis) containerPar
 		if cr.Spec.RedisExporter.EnvVars != nil {
 			containerProp.RedisExporterEnv = cr.Spec.RedisExporter.EnvVars
 		}
+		containerProp.RedisExporterSecurityContext = cr.Spec.RedisExporter.SecurityContext
 	}
 	if cr.Spec.ReadinessProbe != nil {
 		containerProp.ReadinessProbe = cr.Spec.ReadinessProbe
@@ -186,6 +187,7 @@ func generateRedisStandaloneInitContainerParams(cr *redisv1beta2.Redis) initCont
 			AdditionalEnvVariable: initContainer.EnvVars,
 			Command:               initContainer.Command,
 			Arguments:             initContainer.Args,
+			SecurityContext:       initContainer.SecurityContext,
 		}
 
 		if cr.Spec.Storage != nil {

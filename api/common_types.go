@@ -43,6 +43,7 @@ type RedisExporter struct {
 	Resources       *corev1.ResourceRequirements `json:"resources,omitempty"`
 	ImagePullPolicy corev1.PullPolicy            `json:"imagePullPolicy,omitempty"`
 	EnvVars         *[]corev1.EnvVar             `json:"env,omitempty"`
+	SecurityContext *corev1.SecurityContext      `json:"securityContext,omitempty"`
 }
 
 // RedisConfig defines the external configuration of Redis

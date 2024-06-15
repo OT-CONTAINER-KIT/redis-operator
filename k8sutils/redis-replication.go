@@ -145,6 +145,7 @@ func generateRedisReplicationContainerParams(cr *redisv1beta2.RedisReplication) 
 	if cr.Spec.RedisExporter != nil {
 		containerProp.RedisExporterImage = cr.Spec.RedisExporter.Image
 		containerProp.RedisExporterImagePullPolicy = cr.Spec.RedisExporter.ImagePullPolicy
+		containerProp.RedisExporterSecurityContext = cr.Spec.RedisExporter.SecurityContext
 
 		if cr.Spec.RedisExporter.Resources != nil {
 			containerProp.RedisExporterResources = cr.Spec.RedisExporter.Resources
@@ -188,6 +189,7 @@ func generateRedisReplicationInitContainerParams(cr *redisv1beta2.RedisReplicati
 			AdditionalEnvVariable: initContainer.EnvVars,
 			Command:               initContainer.Command,
 			Arguments:             initContainer.Args,
+			SecurityContext:       initContainer.SecurityContext,
 		}
 
 		if cr.Spec.Storage != nil {
