@@ -6924,28 +6924,18 @@ spec:
                           spec.os.name is windows.
                         properties:
                           add:
-                            allOf:
-                            - items:
-                                description: Capability represent POSIX capabilities
-                                  type
-                                type: string
-                            - items:
-                                description: Capability represent POSIX capabilities
-                                  type
-                                type: string
                             description: Added capabilities
+                            items:
+                              description: Capability represent POSIX capabilities
+                                type
+                              type: string
                             type: array
                           drop:
-                            allOf:
-                            - items:
-                                description: Capability represent POSIX capabilities
-                                  type
-                                type: string
-                            - items:
-                                description: Capability represent POSIX capabilities
-                                  type
-                                type: string
                             description: Removed capabilities
+                            items:
+                              description: Capability represent POSIX capabilities
+                                type
+                              type: string
                             type: array
                         type: object
                       privileged:
