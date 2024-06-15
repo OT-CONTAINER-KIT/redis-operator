@@ -17,6 +17,7 @@ redisOperator:
   watchNamespace: ""
   env: []
   webhook: false
+  automountServiceAccountToken: true
 
 
 resources:
@@ -30,6 +31,9 @@ resources:
 replicas: 1
 
 serviceAccountName: redis-operator
+
+serviceAccount:
+  automountServiceAccountToken: true
 
 service:
   name: webhook-service
