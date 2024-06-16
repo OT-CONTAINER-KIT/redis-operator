@@ -74,7 +74,10 @@ func (s *StatefulSetService) IsStatefulSetReady(ctx context.Context, namespace, 
 		logger.V(1).Info("StatefulSet is not ready", "Status.ObservedGeneration", sts.Status.ObservedGeneration, "ObjectMeta.Generation", sts.ObjectMeta.Generation)
 		return false
 	}
-
+	if int(sts.Status.ReadyReplicas) != replicas {
+		logger.V(1).Info("StatefulSet is not ready", "Status.ReadyReplicas", sts.Status.ReadyReplicas, "Replicas", replicas)
+		return false
+	}
 	return true
 }
 
