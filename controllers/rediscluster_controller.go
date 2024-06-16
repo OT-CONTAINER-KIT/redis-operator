@@ -116,14 +116,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if err != nil {
 		return intctrlutil.RequeueWithError(err, reqLogger, "")
 	}
-
 	err = k8sutils.ReconcileRedisPodDisruptionBudget(instance, "leader", instance.Spec.RedisLeader.PodDisruptionBudget, r.K8sClient)
-	if err != nil {
-		return intctrlutil.RequeueWithError(err, reqLogger, "")
-	}
-
-	// todo: remove me after watch statefulset in controller
-	redisLeaderInfo, err := k8sutils.GetStatefulSet(r.K8sClient, r.Log, instance.GetNamespace(), instance.GetName()+"-leader")
 	if err != nil {
 		return intctrlutil.RequeueWithError(err, reqLogger, "")
 	}
@@ -153,11 +146,6 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return intctrlutil.RequeueWithError(err, reqLogger, "")
 		}
 	}
-	// todo: remove me after watch statefulset in controller
-	redisFollowerInfo, err := k8sutils.GetStatefulSet(r.K8sClient, r.Log, instance.GetNamespace(), instance.GetName()+"-follower")
-	if err != nil {
-		return intctrlutil.RequeueWithError(err, reqLogger, "")
-	}
 
 	if !(r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-leader") && r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-follower")) {
 		return intctrlutil.Reconciled()
@@ -172,7 +160,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	if nc := k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, r.Log, instance, ""); nc != totalReplicas {
-		reqLogger.Info("Creating redis cluster by executing cluster creation commands", "Leaders.Ready", redisLeaderInfo.Status.ReadyReplicas, "Followers.Ready", redisFollowerInfo.Status.ReadyReplicas)
+		reqLogger.Info("Creating redis cluster by executing cluster creation commands")
 		leaderCount := k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, r.Log, instance, "leader")
 		if leaderCount != leaderReplicas {
 			reqLogger.Info("Not all leader are part of the cluster...", "Leaders.Count", leaderCount, "Instance.Size", leaderReplicas)
@@ -188,7 +176,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				}
 			}
 		} else {
-			if followerReplicas > 0 && redisFollowerInfo.Status.ReadyReplicas == followerReplicas {
+			if followerReplicas > 0 {
 				reqLogger.Info("All leader are part of the cluster, adding follower/replicas", "Leaders.Count", leaderCount, "Instance.Size", leaderReplicas, "Follower.Replicas", followerReplicas)
 				k8sutils.ExecuteRedisReplicationCommand(ctx, r.K8sClient, r.Log, instance)
 			} else {
