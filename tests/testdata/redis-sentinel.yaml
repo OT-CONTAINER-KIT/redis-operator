@@ -116,3 +116,10 @@ spec:
           secretKeyRef:
             name: env-secrets
             key: CLUSTER_NAMESPACE
+  volumeMount:
+    mountPath:
+      - mountPath: /etc/redis
+        name: redis-config
+    volume:
+      - emptyDir: {}
+        name: redis-config
