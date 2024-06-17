@@ -28,6 +28,7 @@ type RedisSentinelSpec struct {
 	ServiceAccountName            *string                          `json:"serviceAccountName,omitempty"`
 	TerminationGracePeriodSeconds *int64                           `json:"terminationGracePeriodSeconds,omitempty" protobuf:"varint,4,opt,name=terminationGracePeriodSeconds"`
 	EnvVars                       *[]corev1.EnvVar                 `json:"env,omitempty"`
+	VolumeMount                   *common.AdditionalVolume         `json:"volumeMount,omitempty"`
 }
 
 func (cr *RedisSentinelSpec) GetSentinelCounts(t string) int32 {
