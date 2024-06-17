@@ -191,7 +191,6 @@ _Appears in:_
 | `livenessProbe` _[Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#probe-v1-core)_ |  |
 | `sidecars` _[Sidecar](#sidecar)_ |  |
 | `serviceAccountName` _string_ |  |
-| `volumeMount` _[VolumeMount](#volumemount)_ |  |
 
 #### RedisSentinelSpec
 
@@ -216,6 +215,7 @@ _Appears in:_
 | `livenessProbe` _[Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#probe-v1-core)_ |  |
 | `sidecars` _[Sidecar](#sidecar)_ |  |
 | `serviceAccountName` _string_ |  |
+| `volumeMount` _[VolumeMount](#volumemount)_ |  |
 
 #### RedisConfig
 
