@@ -1432,3 +1432,42 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 		})
 	}
 }
+
+func TestGetSidecars(t *testing.T) {
+	tests := []struct {
+		name            string
+		sideCars        *[]redisv1beta2.Sidecar
+		expectedSidecar []redisv1beta2.Sidecar
+	}{
+		{
+			name: "TEST1_Present",
+			sideCars: &[]redisv1beta2.Sidecar{
+				{
+					Command: []string{"sh", "-c", "redis-cli -h $(hostname) -p ${REDIS_PORT} ping"},
+				},
+			},
+			expectedSidecar: []redisv1beta2.Sidecar{
+				{
+					Command: []string{"sh", "-c", "redis-cli -h $(hostname) -p ${REDIS_PORT} ping"},
+				},
+			},
+		},
+		{
+			name:            "TEST2_Not_Present",
+			sideCars:        &[]redisv1beta2.Sidecar{},
+			expectedSidecar: []redisv1beta2.Sidecar{},
+		},
+		{
+			name:            "TEST2_Nil",
+			sideCars:        nil,
+			expectedSidecar: []redisv1beta2.Sidecar{},
+		},
+	}
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			result := getSidecars(test.sideCars)
+			assert.Equal(t, test.expectedSidecar, result)
+		})
+	}
+}
