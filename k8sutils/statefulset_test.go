@@ -514,22 +514,15 @@ func TestCreateOrUpdateStateFul(t *testing.T) {
 					InitialDelaySeconds: int32(5),
 				},
 			},
-			sidecar: &[]redisv1beta2.Sidecar{
-				{
-					Sidecar: common.Sidecar{
-						Name: "redis-sidecare",
-					},
-					Command: []string{"/bin/bash", "-c", "/app/restore.bash"},
-				},
-			},
+			sidecar: &[]redisv1beta2.Sidecar{},
 			existingStatefulSet: appsv1.StatefulSetSpec{
-				Replicas: ptr.To(int32(-4)),
+				Replicas: ptr.To(int32(4)),
 			},
 			updatedStatefulSet: appsv1.StatefulSetSpec{
 				Replicas: ptr.To(int32(-6)),
 			},
 			stsPresent: false,
-			expectErr:  kerrors.NewNotFound(schema.GroupResource{Group: "apps", Resource: "statefulsets"}, "test-sts"),
+			expectErr:  kerrors.NewBadRequest("Invalid Value of Replicas"),
 		},
 	}
 
@@ -540,15 +533,15 @@ func TestCreateOrUpdateStateFul(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			var client *k8sClientFake.Clientset
 
-			existingSts := appsv1.StatefulSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-sts",
-					Namespace: "test-ns",
-				},
-				Spec: *test.existingStatefulSet.DeepCopy(),
-			}
-
 			if test.stsPresent {
+				existingSts := appsv1.StatefulSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-sts",
+						Namespace: "test-ns",
+					},
+					Spec: *test.existingStatefulSet.DeepCopy(),
+				}
+
 				updatedSts := appsv1.StatefulSet{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test-sts",
@@ -574,9 +567,17 @@ func TestCreateOrUpdateStateFul(t *testing.T) {
 					assert.NotEqual(getUpdatedSts.DeepCopy(), existingSts.DeepCopy(), "StatefulSet Updated")
 				}
 			} else {
-				client = k8sClientFake.NewSimpleClientset(existingSts.DeepCopy())
+				updatedSts := appsv1.StatefulSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-sts",
+						Namespace: "",
+					},
+					Spec: *test.updatedStatefulSet.DeepCopy(),
+				}
 
-				err := CreateOrUpdateStateFul(client, logger, existingSts.GetNamespace(), existingSts.ObjectMeta, test.stsParams, test.stsOwnerDef, test.initContainerParams, test.containerParams, test.sidecar)
+				client = k8sClientFake.NewSimpleClientset()
+
+				err := CreateOrUpdateStateFul(client, logger, updatedSts.GetNamespace(), updatedSts.ObjectMeta, test.stsParams, test.stsOwnerDef, test.initContainerParams, test.containerParams, test.sidecar)
 				assert.Nil(err)
 			}
 		})
