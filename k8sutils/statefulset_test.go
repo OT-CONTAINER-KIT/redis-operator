@@ -411,6 +411,179 @@ func TestUpdateStatefulSet(t *testing.T) {
 	}
 }
 
+func TestCreateOrUpdateStateFul(t *testing.T) {
+	logger := logr.Discard()
+	tests := []struct {
+		name                string
+		stsParams           statefulSetParameters
+		stsOwnerDef         metav1.OwnerReference
+		initContainerParams initContainerParameters
+		containerParams     containerParameters
+		sidecar             *[]redisv1beta2.Sidecar
+		existingStatefulSet appsv1.StatefulSetSpec
+		updatedStatefulSet  appsv1.StatefulSetSpec
+		stsPresent          bool
+		expectErr           error
+	}{
+		{
+			name: "Test1_Create_Statefulset",
+			stsParams: statefulSetParameters{
+				Replicas: ptr.To(int32(4)),
+			},
+			stsOwnerDef: metav1.OwnerReference{
+				Name: "test-sts",
+			},
+			initContainerParams: initContainerParameters{
+				Image: "redis-init:latest",
+			},
+			containerParams: containerParameters{
+				Image: "redis:latest",
+				ReadinessProbe: &corev1.Probe{
+					InitialDelaySeconds: int32(5),
+				},
+				LivenessProbe: &corev1.Probe{
+					InitialDelaySeconds: int32(5),
+				},
+			},
+			sidecar: &[]redisv1beta2.Sidecar{
+				{
+					Sidecar: common.Sidecar{
+						Name: "redis-sidecare",
+					},
+					Command: []string{"/bin/bash", "-c", "/app/restore.bash"},
+				},
+			},
+			existingStatefulSet: appsv1.StatefulSetSpec{
+				Replicas: ptr.To(int32(4)),
+			},
+			stsPresent: false,
+		},
+		{
+			name: "Test2_udpate_Statefulset",
+			stsParams: statefulSetParameters{
+				Replicas: ptr.To(int32(4)),
+			},
+			stsOwnerDef: metav1.OwnerReference{
+				Name: "test-sts",
+			},
+			initContainerParams: initContainerParameters{
+				Image: "redis-init:latest",
+			},
+			containerParams: containerParameters{
+				Image: "redis:latest",
+				ReadinessProbe: &corev1.Probe{
+					InitialDelaySeconds: int32(5),
+				},
+				LivenessProbe: &corev1.Probe{
+					InitialDelaySeconds: int32(5),
+				},
+			},
+			sidecar: &[]redisv1beta2.Sidecar{
+				{
+					Sidecar: common.Sidecar{
+						Name: "redis-sidecare",
+					},
+					Command: []string{"/bin/bash", "-c", "/app/restore.bash"},
+				},
+			},
+			existingStatefulSet: appsv1.StatefulSetSpec{
+				Replicas: ptr.To(int32(4)),
+			},
+			updatedStatefulSet: appsv1.StatefulSetSpec{
+				Replicas: ptr.To(int32(6)),
+			},
+			stsPresent: true,
+		},
+		{
+			name: "Test3_Create_Statefulset_With_Error",
+			stsParams: statefulSetParameters{
+				Replicas: ptr.To(int32(4)),
+			},
+			stsOwnerDef: metav1.OwnerReference{
+				Name: "test-sts",
+			},
+			initContainerParams: initContainerParameters{
+				Image: "redis-init:latest",
+			},
+			containerParams: containerParameters{
+				Image: "redis:latest",
+				ReadinessProbe: &corev1.Probe{
+					InitialDelaySeconds: int32(5),
+				},
+				LivenessProbe: &corev1.Probe{
+					InitialDelaySeconds: int32(5),
+				},
+			},
+			sidecar: &[]redisv1beta2.Sidecar{},
+			existingStatefulSet: appsv1.StatefulSetSpec{
+				Replicas: ptr.To(int32(4)),
+			},
+			updatedStatefulSet: appsv1.StatefulSetSpec{
+				Replicas: ptr.To(int32(-6)),
+			},
+			stsPresent: false,
+			expectErr:  kerrors.NewBadRequest("Invalid Value of Replicas"),
+		},
+	}
+
+	assert := assert.New(t)
+
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			var client *k8sClientFake.Clientset
+
+			if test.stsPresent {
+				existingSts := appsv1.StatefulSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-sts",
+						Namespace: "test-ns",
+					},
+					Spec: *test.existingStatefulSet.DeepCopy(),
+				}
+
+				updatedSts := appsv1.StatefulSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-sts",
+						Namespace: "test-ns",
+					},
+					Spec: *test.updatedStatefulSet.DeepCopy(),
+				}
+				if test.stsPresent {
+					client = k8sClientFake.NewSimpleClientset(existingSts.DeepCopy())
+				} else {
+					client = k8sClientFake.NewSimpleClientset()
+				}
+				err := CreateOrUpdateStateFul(client, logger, updatedSts.GetNamespace(), updatedSts.ObjectMeta, test.stsParams, test.stsOwnerDef, test.initContainerParams, test.containerParams, test.sidecar)
+				if test.expectErr != nil {
+					assert.Error(err, "Expected Error while updating Statefulset")
+					assert.Equal(test.expectErr, err)
+				} else {
+					assert.NoError(err, "Error while updating Statefulset")
+				}
+				if err == nil {
+					getUpdatedSts, err := client.AppsV1().StatefulSets(updatedSts.GetNamespace()).Get(context.TODO(), updatedSts.GetName(), metav1.GetOptions{})
+					assert.NoError(err)
+					assert.NotEqual(getUpdatedSts.DeepCopy(), existingSts.DeepCopy(), "StatefulSet Updated")
+				}
+			} else {
+				updatedSts := appsv1.StatefulSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-sts",
+						Namespace: "",
+					},
+					Spec: *test.updatedStatefulSet.DeepCopy(),
+				}
+
+				client = k8sClientFake.NewSimpleClientset()
+
+				err := CreateOrUpdateStateFul(client, logger, updatedSts.GetNamespace(), updatedSts.ObjectMeta, test.stsParams, test.stsOwnerDef, test.initContainerParams, test.containerParams, test.sidecar)
+				assert.Nil(err)
+			}
+		})
+	}
+}
+
 func TestEnableRedisMonitoring(t *testing.T) {
 	tests := []struct {
 		name                  string
