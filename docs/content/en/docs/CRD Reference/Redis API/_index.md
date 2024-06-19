@@ -57,6 +57,19 @@ _Appears in:_
 | `imagePullSecrets` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ |  |
 | `updateStrategy` _[StatefulSetUpdateStrategy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#statefulsetupdatestrategy-v1-apps)_ |  |
 
+#### VolumeMount
+
+Mount External Volumes
+
+_Appears in:_
+
+- [RedisSentinel](#redissentinelspec)
+
+| Field | Description |
+| --- | --- |
+| `volume` _[Volume Array](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volume-v1-core)_ |  |
+| `mountPath` _[VolumeMount Array](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volumemount-v1-core)_ |  |
+
 #### Redis
 
 Redis is the Schema for the redis API
@@ -202,6 +215,7 @@ _Appears in:_
 | `livenessProbe` _[Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#probe-v1-core)_ |  |
 | `sidecars` _[Sidecar](#sidecar)_ |  |
 | `serviceAccountName` _string_ |  |
+| `volumeMount` _[VolumeMount](#volumemount)_ |  |
 
 #### RedisConfig
 

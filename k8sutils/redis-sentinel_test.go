@@ -12,6 +12,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/yaml"
@@ -175,6 +176,23 @@ func Test_generateRedisSentinelContainerParams(t *testing.T) {
 				Value: "custom_value_2",
 			},
 		},
+		AdditionalVolume: []v1.Volume{
+			{
+				Name: "redis-config",
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &v1.EmptyDirVolumeSource{},
+				},
+			},
+		},
+		AdditionalMountPath: []v1.VolumeMount{
+			{
+				Name:        "redis-config",
+				ReadOnly:    false,
+				MountPath:   "/etc/redis",
+				SubPath:     "",
+				SubPathExpr: "",
+			},
+		},
 	}
 
 	data, err := os.ReadFile(path)
@@ -233,6 +251,23 @@ func Test_generateRedisSentinelInitContainerParams(t *testing.T) {
 						Key: "CLUSTER_NAMESPACE",
 					},
 				},
+			},
+		},
+		AdditionalVolume: []v1.Volume{
+			{
+				Name: "redis-config",
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &v1.EmptyDirVolumeSource{},
+				},
+			},
+		},
+		AdditionalMountPath: []v1.VolumeMount{
+			{
+				Name:        "redis-config",
+				ReadOnly:    false,
+				MountPath:   "/etc/redis",
+				SubPath:     "",
+				SubPathExpr: "",
 			},
 		},
 	}

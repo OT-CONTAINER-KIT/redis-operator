@@ -134,6 +134,10 @@ func generateRedisSentinelInitContainerParams(cr *redisv1beta2.RedisSentinel) in
 			Arguments:             initContainer.Args,
 			SecurityContext:       initContainer.SecurityContext,
 		}
+		if cr.Spec.VolumeMount != nil {
+			initcontainerProp.AdditionalVolume = cr.Spec.VolumeMount.Volume
+			initcontainerProp.AdditionalMountPath = cr.Spec.VolumeMount.MountPath
+		}
 	}
 	return initcontainerProp
 }
@@ -152,6 +156,10 @@ func generateRedisSentinelContainerParams(ctx context.Context, client kubernetes
 	}
 	if cr.Spec.EnvVars != nil {
 		containerProp.EnvVars = cr.Spec.EnvVars
+	}
+	if cr.Spec.VolumeMount != nil {
+		containerProp.AdditionalVolume = cr.Spec.VolumeMount.Volume
+		containerProp.AdditionalMountPath = cr.Spec.VolumeMount.MountPath
 	}
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
 		containerProp.EnabledPassword = &trueProperty
