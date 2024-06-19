@@ -121,7 +121,7 @@ func generateRedisStandaloneContainerParams(cr *redisv1beta2.Redis) containerPar
 		ImagePullPolicy: cr.Spec.KubernetesConfig.ImagePullPolicy,
 		Resources:       cr.Spec.KubernetesConfig.Resources,
 		SecurityContext: cr.Spec.SecurityContext,
-		Port:            ptr.To(6379),
+		Port:            ptr.To(redisPort),
 	}
 
 	if cr.Spec.EnvVars != nil {

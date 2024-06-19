@@ -176,6 +176,7 @@ func Test_generateRedisSentinelContainerParams(t *testing.T) {
 				Value: "custom_value_2",
 			},
 		},
+		Port: ptr.To(26379),
 		AdditionalVolume: []v1.Volume{
 			{
 				Name: "redis-config",
