@@ -12,4 +12,4 @@ spec:
           namespace: ot-operators
           name: webhook-service
           path: /convert
-      conversionReviewVersions: ["v1beta2", "v1beta1"]
+      conversionReviewVersions: ["v1beta1"]
