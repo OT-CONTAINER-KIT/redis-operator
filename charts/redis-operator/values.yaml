@@ -30,6 +30,8 @@ resources:
 
 replicas: 1
 
+rbac:
+  enabled: true
 serviceAccountName: redis-operator
 
 serviceAccount:
