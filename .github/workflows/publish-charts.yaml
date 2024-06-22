@@ -59,7 +59,7 @@ jobs:
       - name: Install and test Redis Related Helm charts
         run: |
           kubectl cluster-info --context kind-kind
-          chart_dirs=("redis-operator")
+          chart_dirs=("redis-operator" "redis" "redis-cluster" "redis-replication" "redis-sentinel")
           for dir in "${chart_dirs[@]}"
           do
             if [[ -f ./charts/$dir/Chart.yaml ]]; then
@@ -104,8 +104,15 @@ jobs:
         run: |
           helm repo add jetstack https://charts.jetstack.io
           helm repo update
-          helm dependency update charts/redis-operator
-          helm package charts/redis-operator -d .cr-release-packages
+          
+          chart_dirs=("redis-operator" "redis" "redis-cluster" "redis-replication" "redis-sentinel")
+          for dir in "${chart_dirs[@]}"
+          do
+            if [[ -f ./charts/$dir/Chart.yaml ]]; then
+              helm dependency update ./charts/$dir/
+            fi
+            helm package charts/$dir -d .cr-release-packages
+          done                    
 
       - name: Install chart-releaser
         uses: helm/chart-releaser-action@v1.5.0

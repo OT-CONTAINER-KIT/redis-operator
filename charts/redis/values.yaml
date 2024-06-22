@@ -1,0 +1,145 @@
+---
+redisStandalone:
+  name: ""
+  image: quay.io/opstree/redis
+  tag: v7.0.12
+  imagePullPolicy: IfNotPresent
+  imagePullSecrets: []
+    # - name:  Secret with Registry credentials
+  redisSecret:
+    secretName: ""
+    secretKey: ""
+  serviceType: ClusterIP
+  resources: {}
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ignoreAnnotations: []
+    # - "redis.opstreelabs.in/ignore"
+
+labels: {}
+#   foo: bar
+#   test: echo
+
+externalConfig:
+  enabled: false
+  data: |
+    tcp-keepalive 400
+    slowlog-max-len 158
+    stream-node-max-bytes 2048
+
+externalService:
+  enabled: false
+  # annotations:
+  #   foo: bar
+  serviceType: NodePort
+  port: 6379
+
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  scrapeTimeout: 10s
+  namespace: monitoring
+
+redisExporter:
+  enabled: false
+  image: quay.io/opstree/redis-exporter
+  tag: "v1.44.0"
+  imagePullPolicy: IfNotPresent
+  resources: {}
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+  env: []
+    # - name: VAR_NAME
+    #   value: "value1"
+
+initContainer:
+  enabled: false
+  image: ""
+  imagePullPolicy: "IfNotPresent"
+  resources: {}
+    # requests:
+    #   memory: "64Mi"
+    #   cpu: "250m"
+    # limits:
+    #   memory: "128Mi"
+    #   cpu: "500m"
+  env: []
+  command: []
+  args: []
+
+sidecars:
+  name: ""
+  image: ""
+  imagePullPolicy: "IfNotPresent"
+  resources:
+    limits:
+      cpu: "100m"
+      memory: "128Mi"
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+  env: []
+    # - name: MY_ENV_VAR
+    #   value: "my-env-var-value"
+
+priorityClassName: ""
+
+nodeSelector: {}
+  # memory: medium
+
+storageSpec:
+  volumeClaimTemplate:
+    spec:
+      # storageClassName: standard
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 1Gi
+  #   selector: {}
+
+podSecurityContext:
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext: {}
+
+affinity: {}
+  # nodeAffinity:
+  #   requiredDuringSchedulingIgnoredDuringExecution:
+  #     nodeSelectorTerms:
+  #     - matchExpressions:
+  #       - key: disktype
+  #         operator: In
+  #         values:
+  #         - ssd
+
+tolerations: []
+  # - key: "key"
+  #   operator: "Equal"
+  #   value: "value"
+  #   effect: "NoSchedule"
+
+serviceAccountName: ""
+
+TLS:
+  ca: ca.key
+  cert: tls.crt
+  key: tls.key
+  secret:
+    secretName: ""
+
+acl:
+  secret:
+    secretName: ""
+
+env: []
+  # - name: VAR_NAME
+  #   value: "value1"

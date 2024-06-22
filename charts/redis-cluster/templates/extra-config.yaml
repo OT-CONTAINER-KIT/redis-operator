@@ -1,0 +1,17 @@
+{{- if eq .Values.externalConfig.enabled true }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.redisCluster.name | default .Release.Name }}-ext-config
+  labels:
+    app.kubernetes.io/name: {{ .Values.redisCluster.name | default .Release.Name }}
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/instance: {{ .Values.redisCluster.name | default .Release.Name }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    app.kubernetes.io/component: middleware
+data:
+  redis-additional.conf: |
+    {{ .Values.externalConfig.data | nindent 4 }}
+{{- end }}
