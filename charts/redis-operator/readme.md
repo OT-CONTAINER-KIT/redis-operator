@@ -92,6 +92,7 @@ kubectl create secret tls <webhook-server-cert> --key tls.key --cert tls.crt -n 
 | `resources.requests.cpu`                      | CPU request                            | `500m`                                           |
 | `resources.requests.memory`                   | Memory request                         | `500Mi`                                          |
 | `replicas`                                    | Number of replicas                     | `1`                                              |
+| `rbac.enabled`                                | Feature flag for rbac resources        | `true`                                           |
 | `serviceAccountName`                          | Service account name                   | `redis-operator`                                 |
 | `serviceAccount.automountServiceAccountToken` | Automount service account token        | `true`                                           |
 | `certificate.name`                            | Certificate name                       | `serving-cert`                                   |
