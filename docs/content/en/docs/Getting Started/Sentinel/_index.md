@@ -47,19 +47,19 @@ redis-sentinel-2      1/1     Running   0          2m10s
 
 ## YAML Installation
 
-[Examples](https://github.com/OT-CONTAINER-KIT/redis-operator/tree/master/example) folder has different types of manifests for different scenarios and features. There are these YAML examples present in this directory:
+[Examples](https://github.com/OT-CONTAINER-KIT/redis-operator/tree/master/example/v1beta2) folder has different types of manifests for different scenarios and features. There are these YAML examples present in this directory:
 
-- [additional_config](https://github.com/OT-CONTAINER-KIT/redis-operator/tree/master/example/additional_config)
-- [advance_config](https://github.com/OT-CONTAINER-KIT/redis-operator/tree/master/example/advance_config)
-- [affinity](https://github.com/OT-CONTAINER-KIT/redis-operator/tree/master/example/affinity)
-- [disruption_budget](https://github.com/OT-CONTAINER-KIT/redis-operator/tree/master/example/disruption_budget)
-- [external_service](https://github.com/OT-CONTAINER-KIT/redis-operator/tree/master/example/external_service)
-- [password_protected](https://github.com/OT-CONTAINER-KIT/redis-operator/tree/master/example/password_protected)
-- [private_registry](https://github.com/OT-CONTAINER-KIT/redis-operator/tree/master/example/private_registry)
-- [probes](https://github.com/OT-CONTAINER-KIT/redis-operator/tree/master/example/probes)
-- [redis_monitoring](https://github.com/OT-CONTAINER-KIT/redis-operator/tree/master/example/redis_monitoring)
-- [tls_enabled](https://github.com/OT-CONTAINER-KIT/redis-operator/tree/master/example/tls_enabled)
-- [upgrade_strategy](https://github.com/OT-CONTAINER-KIT/redis-operator/tree/master/example/upgrade-strategy)
+- [additional_config](https://github.com/OT-CONTAINER-KIT/redis-operator/tree/master/example/v1beta2/additional_config)
+- [advance_config](https://github.com/OT-CONTAINER-KIT/redis-operator/tree/master/example/v1beta2/advance_config)
+- [affinity](https://github.com/OT-CONTAINER-KIT/redis-operator/tree/master/example/v1beta2/affinity)
+- [disruption_budget](https://github.com/OT-CONTAINER-KIT/redis-operator/tree/master/example/v1beta2/disruption_budget)
+- [external_service](https://github.com/OT-CONTAINER-KIT/redis-operator/tree/master/example/v1beta2/external_service)
+- [password_protected](https://github.com/OT-CONTAINER-KIT/redis-operator/tree/master/example/v1beta2/password_protected)
+- [private_registry](https://github.com/OT-CONTAINER-KIT/redis-operator/tree/master/example/v1beta2/private_registry)
+- [probes](https://github.com/OT-CONTAINER-KIT/redis-operator/tree/master/example/v1beta2/probes)
+- [redis_monitoring](https://github.com/OT-CONTAINER-KIT/redis-operator/tree/master/example/v1beta2/redis_monitoring)
+- [tls_enabled](https://github.com/OT-CONTAINER-KIT/redis-operator/tree/master/example/v1beta2/tls_enabled)
+- [upgrade_strategy](https://github.com/OT-CONTAINER-KIT/redis-operator/tree/master/example/v1beta2/upgrade-strategy)
 
 A basic sample manifest for sentinel redis:
 
