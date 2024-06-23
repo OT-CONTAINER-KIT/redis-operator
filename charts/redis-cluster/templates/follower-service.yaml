@@ -1,0 +1,29 @@
+{{- if and (gt (int .Values.redisCluster.follower.replicas) 0) (eq .Values.externalService.enabled true) }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.redisCluster.name | default .Release.Name }}-follower-external-service
+{{- if .Values.externalService.annotations }}
+  annotations:
+{{ toYaml .Values.externalService.annotations | indent 4 }}
+{{- end }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.redisCluster.name | default .Release.Name }}
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/instance: {{ .Values.redisCluster.name | default .Release.Name }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    app.kubernetes.io/component: middleware
+spec:
+  type: {{ .Values.externalService.serviceType }}
+  selector:
+    app: {{ .Values.redisCluster.name | default .Release.Name }}-follower
+    redis_setup_type: cluster
+    role: follower
+  ports:
+    - protocol: TCP
+      port: {{ .Values.externalService.port }}
+      targetPort: 6379
+      name: client
+{{- end }}

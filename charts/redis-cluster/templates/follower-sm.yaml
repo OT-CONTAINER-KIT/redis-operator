@@ -1,0 +1,27 @@
+{{- if and (eq .Values.serviceMonitor.enabled true)  (gt (int .Values.redisCluster.follower.replicas) 0) }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ .Values.redisCluster.name | default .Release.Name }}-follower-prometheus-monitoring
+  labels:
+    app.kubernetes.io/name: {{ .Values.redisCluster.name | default .Release.Name }}
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/instance: {{ .Values.redisCluster.name | default .Release.Name }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    app.kubernetes.io/component: middleware
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.redisCluster.name | default .Release.Name }}-follower
+      redis_setup_type: cluster
+      role: follower
+  endpoints:
+  - port: redis-exporter
+    interval: {{ .Values.serviceMonitor.interval }}
+    scrapeTimeout: {{ .Values.serviceMonitor.scrapeTimeout }}
+  namespaceSelector:
+    matchNames:
+    - {{ .Values.serviceMonitor.namespace }}
+{{- end }}
