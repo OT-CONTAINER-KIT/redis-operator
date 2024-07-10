@@ -61,6 +61,7 @@ func CreateReplicationRedis(cr *redisv1beta2.RedisReplication, cl kubernetes.Int
 	labels := getRedisLabels(cr.ObjectMeta.Name, replication, "replication", cr.ObjectMeta.Labels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, annotations)
+
 	err := CreateOrUpdateStateFul(
 		cl,
 		logger,
@@ -81,6 +82,10 @@ func CreateReplicationRedis(cr *redisv1beta2.RedisReplication, cl kubernetes.Int
 
 func generateRedisReplicationParams(cr *redisv1beta2.RedisReplication) statefulSetParameters {
 	replicas := cr.Spec.GetReplicationCounts("Replication")
+	var minreadyseconds int32 = 0
+	if cr.Spec.KubernetesConfig.MinReadySeconds != nil {
+		minreadyseconds = *cr.Spec.KubernetesConfig.MinReadySeconds
+	}
 	res := statefulSetParameters{
 		Replicas:                      &replicas,
 		ClusterMode:                   false,
@@ -93,6 +98,7 @@ func generateRedisReplicationParams(cr *redisv1beta2.RedisReplication) statefulS
 		TerminationGracePeriodSeconds: cr.Spec.TerminationGracePeriodSeconds,
 		UpdateStrategy:                cr.Spec.KubernetesConfig.UpdateStrategy,
 		IgnoreAnnotations:             cr.Spec.KubernetesConfig.IgnoreAnnotations,
+		MinReadySeconds:               minreadyseconds,
 	}
 	if cr.Spec.KubernetesConfig.ImagePullSecrets != nil {
 		res.ImagePullSecrets = cr.Spec.KubernetesConfig.ImagePullSecrets

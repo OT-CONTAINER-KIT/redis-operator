@@ -33,6 +33,10 @@ type RedisClusterService struct {
 
 // generateRedisClusterParams generates Redis cluster information
 func generateRedisClusterParams(cr *redisv1beta2.RedisCluster, replicas int32, externalConfig *string, params RedisClusterSTS) statefulSetParameters {
+	var minreadyseconds int32 = 0
+	if cr.Spec.KubernetesConfig.MinReadySeconds != nil {
+		minreadyseconds = *cr.Spec.KubernetesConfig.MinReadySeconds
+	}
 	res := statefulSetParameters{
 		Replicas:                      &replicas,
 		ClusterMode:                   true,
@@ -47,6 +51,7 @@ func generateRedisClusterParams(cr *redisv1beta2.RedisCluster, replicas int32, e
 		UpdateStrategy:                cr.Spec.KubernetesConfig.UpdateStrategy,
 		IgnoreAnnotations:             cr.Spec.KubernetesConfig.IgnoreAnnotations,
 		HostNetwork:                   cr.Spec.HostNetwork,
+		MinReadySeconds:               minreadyseconds,
 	}
 	if cr.Spec.RedisExporter != nil {
 		res.EnableMetrics = cr.Spec.RedisExporter.Enabled

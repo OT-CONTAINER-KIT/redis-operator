@@ -77,6 +77,10 @@ func CreateStandaloneRedis(cr *redisv1beta2.Redis, cl kubernetes.Interface) erro
 // generateRedisStandalone generates Redis standalone information
 func generateRedisStandaloneParams(cr *redisv1beta2.Redis) statefulSetParameters {
 	replicas := int32(1)
+	var minreadyseconds int32 = 0
+	if cr.Spec.KubernetesConfig.MinReadySeconds != nil {
+		minreadyseconds = *cr.Spec.KubernetesConfig.MinReadySeconds
+	}
 	res := statefulSetParameters{
 		Replicas:                      &replicas,
 		ClusterMode:                   false,
@@ -89,6 +93,7 @@ func generateRedisStandaloneParams(cr *redisv1beta2.Redis) statefulSetParameters
 		Tolerations:                   cr.Spec.Tolerations,
 		UpdateStrategy:                cr.Spec.KubernetesConfig.UpdateStrategy,
 		IgnoreAnnotations:             cr.Spec.KubernetesConfig.IgnoreAnnotations,
+		MinReadySeconds:               minreadyseconds,
 	}
 	if cr.Spec.KubernetesConfig.ImagePullSecrets != nil {
 		res.ImagePullSecrets = cr.Spec.KubernetesConfig.ImagePullSecrets

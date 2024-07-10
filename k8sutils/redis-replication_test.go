@@ -28,6 +28,7 @@ func Test_generateRedisReplicationParams(t *testing.T) {
 			FSGroup:   ptr.To(int64(1000)),
 		},
 		PriorityClassName: "high-priority",
+		MinReadySeconds:   5,
 		Affinity: &corev1.Affinity{
 			NodeAffinity: &corev1.NodeAffinity{
 				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
@@ -86,7 +87,6 @@ func Test_generateRedisReplicationParams(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to unmarshal file %s: %v", path, err)
 	}
-
 	actual := generateRedisReplicationParams(input)
 	assert.EqualValues(t, expected, actual, "Expected %+v, got %+v", expected, actual)
 }

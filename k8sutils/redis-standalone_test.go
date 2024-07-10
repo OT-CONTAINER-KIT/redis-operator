@@ -17,9 +17,10 @@ import (
 func Test_generateRedisStandaloneParams(t *testing.T) {
 	path := filepath.Join("..", "tests", "testdata", "redis-standalone.yaml")
 	expected := statefulSetParameters{
-		Replicas:       ptr.To(int32(1)),
-		ClusterMode:    false,
-		NodeConfVolume: false,
+		Replicas:        ptr.To(int32(1)),
+		ClusterMode:     false,
+		NodeConfVolume:  false,
+		MinReadySeconds: 5,
 		// Metadata: metav1.ObjectMeta{
 		// 	Name:      "redis-standalone",
 		// 	Namespace: "redis",

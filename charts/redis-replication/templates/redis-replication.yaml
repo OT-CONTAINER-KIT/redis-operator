@@ -23,6 +23,7 @@ spec:
     {{- if .Values.redisReplication.ignoreAnnotations}}
     ignoreAnnotations: {{ toYaml .Values.redisReplication.ignoreAnnotations | nindent 6 }}
     {{- end }}
+    minReadySeconds: {{ .Values.redisReplication.minReadySeconds | default 0 }} 
 
   redisExporter:
     enabled: {{ .Values.redisExporter.enabled }}

@@ -43,7 +43,8 @@ redisCluster:
       enabled: false
       maxUnavailable: 1
       minAvailable: 1
-
+    # minReadySeconds: 0
+    
   follower:
     replicas: 3
     serviceType: ClusterIP
