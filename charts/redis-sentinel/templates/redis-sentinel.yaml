@@ -9,6 +9,12 @@ spec:
 # Sentinel Config 
   redisSentinelConfig:
     redisReplicationName: {{ .Values.redisSentinelConfig.redisReplicationName}}
+    {{- if and .Values.redisSentinelConfig.redisReplicationPassword.secretName .Values.redisSentinelConfig.redisReplicationPassword.secretKey }}
+    redisReplicationPassword:
+      secretKeyRef:
+        name: {{ .Values.redisSentinelConfig.redisReplicationPassword.secretName | quote }}
+        key: {{ .Values.redisSentinelConfig.redisReplicationPassword.secretKey | quote }}
+    {{- end }}
     masterGroupName : {{ .Values.redisSentinelConfig.masterGroupName | default "myMaster" | quote}}
     redisPort:  {{ .Values.redisSentinelConfig.redisPort | default "6379" | quote}}
     quorum: {{ .Values.redisSentinelConfig.quorum | default "2" | quote}}
