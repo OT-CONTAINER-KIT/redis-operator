@@ -30,6 +30,9 @@ labels: {}
 
 redisSentinelConfig:
   redisReplicationName: "redis-replication"
+  redisReplicationPassword:
+    secretName: ""
+    secretKey: ""
   masterGroupName: ""
   redisPort: ""
   quorum: ""
