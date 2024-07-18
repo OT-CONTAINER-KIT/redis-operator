@@ -1,6 +1,7 @@
 module github.com/OT-CONTAINER-KIT/redis-operator
 
 go 1.21
+toolchain go1.22.5
 
 require (
 	github.com/banzaicloud/k8s-objectmatcher v1.8.0
@@ -11,8 +12,8 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/redis/go-redis/v9 v9.5.1
 	github.com/stretchr/testify v1.9.0
-	k8s.io/api v0.29.4
-	k8s.io/apimachinery v0.29.4
+	k8s.io/api v0.30.3
+	k8s.io/apimachinery v0.30.3
 	k8s.io/client-go v0.29.3
 	k8s.io/utils v0.0.0-20240310230437-4693a0247e57
 	sigs.k8s.io/controller-runtime v0.17.2
