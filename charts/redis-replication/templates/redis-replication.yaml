@@ -36,8 +36,8 @@ spec:
     {{- end }}
   
   {{- if .Values.externalConfig.enabled }}
-    redisConfig:
-      additionalRedisConfig: "{{ .Values.redisReplication.name | default .Release.Name }}-ext-config"
+  redisConfig:
+    additionalRedisConfig: "{{ .Values.redisReplication.name | default .Release.Name }}-ext-config"
   {{- end }}
   {{- if .Values.storageSpec }}
   storage: {{ toYaml .Values.storageSpec | nindent 4 }}
