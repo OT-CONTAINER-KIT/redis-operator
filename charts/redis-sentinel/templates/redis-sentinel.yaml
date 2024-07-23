@@ -42,6 +42,7 @@ spec:
     {{- if .Values.redisSentinel.ignoreAnnotations}}
     ignoreAnnotations: {{ toYaml .Values.redisSentinel.ignoreAnnotations | nindent 6 }}
     {{- end }}
+    minReadySeconds: {{ .Values.redisSentinel.minReadySeconds | default 0 }} 
 
   redisExporter:
     enabled: {{ .Values.redisExporter.enabled }}

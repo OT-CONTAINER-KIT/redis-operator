@@ -86,6 +86,10 @@ func (service RedisSentinelSTS) CreateRedisSentinelSetup(ctx context.Context, cl
 
 // Create Redis Sentile Params for the statefulset
 func generateRedisSentinelParams(cr *redisv1beta2.RedisSentinel, replicas int32, externalConfig *string, affinity *corev1.Affinity) statefulSetParameters {
+	var minreadyseconds int32 = 0
+	if cr.Spec.KubernetesConfig.MinReadySeconds != nil {
+		minreadyseconds = *cr.Spec.KubernetesConfig.MinReadySeconds
+	}
 	res := statefulSetParameters{
 		Replicas:                      &replicas,
 		ClusterMode:                   false,
@@ -99,6 +103,7 @@ func generateRedisSentinelParams(cr *redisv1beta2.RedisSentinel, replicas int32,
 		ServiceAccountName:            cr.Spec.ServiceAccountName,
 		UpdateStrategy:                cr.Spec.KubernetesConfig.UpdateStrategy,
 		IgnoreAnnotations:             cr.Spec.KubernetesConfig.IgnoreAnnotations,
+		MinReadySeconds:               minreadyseconds,
 	}
 
 	if cr.Spec.KubernetesConfig.ImagePullSecrets != nil {

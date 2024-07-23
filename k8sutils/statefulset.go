@@ -107,6 +107,7 @@ type statefulSetParameters struct {
 	TerminationGracePeriodSeconds *int64
 	IgnoreAnnotations             []string
 	HostNetwork                   bool
+	MinReadySeconds               int32
 }
 
 // containerParameters will define container input params
@@ -279,10 +280,11 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 		TypeMeta:   generateMetaInformation("StatefulSet", "apps/v1"),
 		ObjectMeta: stsMeta,
 		Spec: appsv1.StatefulSetSpec{
-			Selector:       LabelSelectors(stsMeta.GetLabels()),
-			ServiceName:    fmt.Sprintf("%s-headless", stsMeta.Name),
-			Replicas:       params.Replicas,
-			UpdateStrategy: params.UpdateStrategy,
+			Selector:        LabelSelectors(stsMeta.GetLabels()),
+			ServiceName:     fmt.Sprintf("%s-headless", stsMeta.Name),
+			Replicas:        params.Replicas,
+			UpdateStrategy:  params.UpdateStrategy,
+			MinReadySeconds: params.MinReadySeconds,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      stsMeta.GetLabels(),

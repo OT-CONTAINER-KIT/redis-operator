@@ -28,6 +28,7 @@ func Test_generateRedisClusterParams(t *testing.T) {
 			FSGroup:   ptr.To(int64(1000)),
 		},
 		PriorityClassName: "high-priority",
+		MinReadySeconds:   5,
 		Affinity: &corev1.Affinity{
 			NodeAffinity: &corev1.NodeAffinity{
 				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
@@ -94,6 +95,7 @@ func Test_generateRedisClusterParams(t *testing.T) {
 			FSGroup:   ptr.To(int64(1000)),
 		},
 		PriorityClassName: "high-priority",
+		MinReadySeconds:   5,
 		Affinity: &corev1.Affinity{
 			NodeAffinity: &corev1.NodeAffinity{
 				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{

@@ -48,6 +48,7 @@ spec:
       name: {{ .Values.redisCluster.redisSecret.secretName | quote }}
       key: {{ .Values.redisCluster.redisSecret.secretKey | quote }}
     {{- end }}
+    minReadySeconds: {{ .Values.redisCluster.minReadySeconds | default 0 }} 
 
   {{- if .Values.storageSpec }}
   storage: {{ toYaml .Values.storageSpec | nindent 4 }}

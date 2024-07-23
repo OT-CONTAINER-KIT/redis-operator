@@ -39,6 +39,7 @@ spec:
       name: redis-secret
       key: password
     ignoreAnnotations: [opstreelabs.in/ignore]
+    minReadySeconds: 5
   redisExporter:
     enabled: true
     image: quay.io/opstree/redis-exporter:v1.44.0

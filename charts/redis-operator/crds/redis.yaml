@@ -1107,6 +1107,9 @@ spec:
                           type: string
                       type: object
                     type: array
+                  minReadySeconds:
+                    format: int32
+                    type: integer
                   redisSecret:
                     description: ExistingPasswordSecret is the struct to access the
                       existing secret
@@ -6133,6 +6136,9 @@ spec:
                           type: string
                       type: object
                     type: array
+                  minReadySeconds:
+                    format: int32
+                    type: integer
                   redisSecret:
                     description: ExistingPasswordSecret is the struct to access the
                       existing secret

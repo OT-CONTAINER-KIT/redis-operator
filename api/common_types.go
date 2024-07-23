@@ -16,6 +16,7 @@ type KubernetesConfig struct {
 	UpdateStrategy         appsv1.StatefulSetUpdateStrategy `json:"updateStrategy,omitempty"`
 	Service                *ServiceConfig                   `json:"service,omitempty"`
 	IgnoreAnnotations      []string                         `json:"ignoreAnnotations,omitempty"`
+	MinReadySeconds        *int32                           `json:"minReadySeconds,omitempty"`
 }
 
 // ServiceConfig define the type of service to be created and its annotations

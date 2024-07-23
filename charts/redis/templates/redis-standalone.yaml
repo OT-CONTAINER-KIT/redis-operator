@@ -22,7 +22,8 @@ spec:
     {{- if .Values.redisStandalone.ignoreAnnotations}}
     ignoreAnnotations: {{ toYaml .Values.redisStandalone.ignoreAnnotations | nindent 6 }}
     {{- end }}
-
+    minReadySeconds: {{ .Values.redisStandalone.minReadySeconds | default 0 }}
+    
   redisExporter:
     enabled: {{ .Values.redisExporter.enabled }}
     image: "{{ .Values.redisExporter.image }}:{{ .Values.redisExporter.tag }}"
