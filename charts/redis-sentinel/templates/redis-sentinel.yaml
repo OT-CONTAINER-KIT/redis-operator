@@ -54,10 +54,6 @@ spec:
     env: {{ toYaml .Values.redisExporter.env | nindent 6 }}
     {{- end }}
   
-  {{- if .Values.externalConfig.enabled }}
-    redisConfig:
-      additionalRedisConfig: "{{ .Values.redisSentinel.name | default .Release.Name }}-ext-config"
-  {{- end }}
   {{- if .Values.nodeSelector }}
   nodeSelector: {{ toYaml .Values.nodeSelector | nindent 4 }}
   {{- end }}
