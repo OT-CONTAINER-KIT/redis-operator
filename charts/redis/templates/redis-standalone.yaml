@@ -22,7 +22,9 @@ spec:
     {{- if .Values.redisStandalone.ignoreAnnotations}}
     ignoreAnnotations: {{ toYaml .Values.redisStandalone.ignoreAnnotations | nindent 6 }}
     {{- end }}
-    minReadySeconds: {{ .Values.redisStandalone.minReadySeconds | default 0 }}
+    {{- if .Values.redisStandalone.minReadySeconds }}
+    minReadySeconds: {{ .Values.redisStandalone.minReadySeconds }}
+    {{- end }}
     
   redisExporter:
     enabled: {{ .Values.redisExporter.enabled }}
