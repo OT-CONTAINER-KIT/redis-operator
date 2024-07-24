@@ -19,6 +19,7 @@ redisCluster:
     # limits:
     #   cpu: 100m
     #   memory: 128Mi
+  minReadySeconds: 0
   leader:
     replicas: 3
     serviceType: ClusterIP
@@ -43,7 +44,6 @@ redisCluster:
       enabled: false
       maxUnavailable: 1
       minAvailable: 1
-    # minReadySeconds: 0
     
   follower:
     replicas: 3

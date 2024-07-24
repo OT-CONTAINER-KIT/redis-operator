@@ -9,8 +9,8 @@ maintainers:
   - name: shubham-cmyk
 sources:
   - https://github.com/ot-container-kit/redis-operator
-version: 0.16.1
-appVersion: "0.16.1"
+version: 0.16.2
+appVersion: "0.16.2"
 home: https://github.com/ot-container-kit/redis-operator
 keywords:
 - operator
