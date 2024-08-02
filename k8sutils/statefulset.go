@@ -26,7 +26,7 @@ import (
 )
 
 type StatefulSet interface {
-	IsStatefulSetReady(ctx context.Context, client kubernetes.Interface, cr runtime.Object, name, namespace string) bool
+	IsStatefulSetReady(ctx context.Context, client kubernetes.Interface, cr runtime.Object, namespace, name string) bool
 }
 
 type StatefulSetService struct {
@@ -42,7 +42,7 @@ func NewStatefulSetService(kubeClient kubernetes.Interface, log logr.Logger) *St
 	}
 }
 
-func (s *StatefulSetService) IsStatefulSetReady(ctx context.Context, client kubernetes.Interface, cr runtime.Object, namespace string, name string) bool {
+func (s *StatefulSetService) IsStatefulSetReady(ctx context.Context, client kubernetes.Interface, cr runtime.Object, namespace, name string) bool {
 	var (
 		partition = 0
 		replicas  = 1
