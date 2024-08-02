@@ -9,6 +9,7 @@ import (
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/go-logr/logr"
 	redis "github.com/redis/go-redis/v9"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -104,6 +105,31 @@ func getRedisClusterSlots(ctx context.Context, redisClient *redis.Client, logger
 
 	logger.V(1).Info("Total cluster slots to be transferred from", "node", nodeID, "is", totalSlots)
 	return strconv.Itoa(totalSlots)
+}
+
+// pingRedisNode will ping the redis node to check if it is up and running
+func pingRedisNode(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr runtime.Object, pod RedisDetails) bool {
+	var redisClient *redis.Client
+
+	switch cr := cr.(type) {
+	case *redisv1beta2.RedisCluster:
+		redisClient = configureRedisClient(client, logger, cr, pod.PodName)
+	case *redisv1beta2.RedisReplication:
+		redisClient = configureRedisReplicationClient(client, logger, cr, pod.PodName)
+	default:
+		logger.Error(nil, "Unknown CR type")
+		return false
+	}
+
+	defer redisClient.Close()
+
+	pong, err := redisClient.Ping(ctx).Result()
+	if err != nil || pong != "PONG" {
+		logger.Error(err, "Failed to ping Redis server")
+		return false
+	}
+
+	return true
 }
 
 // getRedisNodeID would return nodeID of a redis node by passing pod
