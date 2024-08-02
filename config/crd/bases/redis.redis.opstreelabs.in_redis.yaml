@@ -1110,6 +1110,10 @@ spec:
                   minReadySeconds:
                     format: int32
                     type: integer
+                  podManagementPolicy:
+                    description: PodManagementPolicyType defines the policy for creating
+                      pods under a stateful set.
+                    type: string
                   redisSecret:
                     description: ExistingPasswordSecret is the struct to access the
                       existing secret
@@ -6139,6 +6143,10 @@ spec:
                   minReadySeconds:
                     format: int32
                     type: integer
+                  podManagementPolicy:
+                    description: PodManagementPolicyType defines the policy for creating
+                      pods under a stateful set.
+                    type: string
                   redisSecret:
                     description: ExistingPasswordSecret is the struct to access the
                       existing secret

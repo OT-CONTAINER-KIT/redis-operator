@@ -118,6 +118,7 @@ type statefulSetParameters struct {
 	IgnoreAnnotations             []string
 	HostNetwork                   bool
 	MinReadySeconds               int32
+	PodManagementPolicy           appsv1.PodManagementPolicyType
 }
 
 // containerParameters will define container input params
@@ -290,11 +291,12 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 		TypeMeta:   generateMetaInformation("StatefulSet", "apps/v1"),
 		ObjectMeta: stsMeta,
 		Spec: appsv1.StatefulSetSpec{
-			Selector:        LabelSelectors(stsMeta.GetLabels()),
-			ServiceName:     fmt.Sprintf("%s-headless", stsMeta.Name),
-			Replicas:        params.Replicas,
-			UpdateStrategy:  params.UpdateStrategy,
-			MinReadySeconds: params.MinReadySeconds,
+			Selector:            LabelSelectors(stsMeta.GetLabels()),
+			ServiceName:         fmt.Sprintf("%s-headless", stsMeta.Name),
+			Replicas:            params.Replicas,
+			UpdateStrategy:      params.UpdateStrategy,
+			MinReadySeconds:     params.MinReadySeconds,
+			PodManagementPolicy: params.PodManagementPolicy,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      stsMeta.GetLabels(),

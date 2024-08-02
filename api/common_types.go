@@ -17,6 +17,7 @@ type KubernetesConfig struct {
 	Service                *ServiceConfig                   `json:"service,omitempty"`
 	IgnoreAnnotations      []string                         `json:"ignoreAnnotations,omitempty"`
 	MinReadySeconds        *int32                           `json:"minReadySeconds,omitempty"`
+	PodManagementPolicy    appsv1.PodManagementPolicyType   `json:"podManagementPolicy,omitempty"`
 }
 
 // ServiceConfig define the type of service to be created and its annotations
