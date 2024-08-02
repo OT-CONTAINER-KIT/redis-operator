@@ -148,7 +148,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	if !(r.IsStatefulSetReady(ctx, r.K8sClient, instance, instance.Name+"-leader", instance.Namespace) && r.IsStatefulSetReady(ctx, r.K8sClient, instance, instance.Name+"-follower", instance.Namespace)) {
-		return intctrlutil.Reconciled()
+		return intctrlutil.RequeueAfter(reqLogger, time.Second*10, "Redis cluster is not ready")
 	}
 
 	// Mark the cluster status as bootstrapping if all the leader and follower nodes are ready

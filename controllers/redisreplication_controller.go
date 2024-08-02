@@ -58,7 +58,7 @@ func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return intctrlutil.RequeueWithError(err, reqLogger, "")
 	}
 	if !r.IsStatefulSetReady(ctx, r.K8sClient, instance, instance.Name, instance.Namespace) {
-		return intctrlutil.Reconciled()
+		return intctrlutil.RequeueAfter(reqLogger, time.Second*10, "")
 	}
 
 	var realMaster string
