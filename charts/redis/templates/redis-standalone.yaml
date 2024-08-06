@@ -25,21 +25,21 @@ spec:
     {{- if .Values.redisStandalone.minReadySeconds }}
     minReadySeconds: {{ .Values.redisStandalone.minReadySeconds }}
     {{- end }}
-    
+
   redisExporter:
     enabled: {{ .Values.redisExporter.enabled }}
     image: "{{ .Values.redisExporter.image }}:{{ .Values.redisExporter.tag }}"
     imagePullPolicy: "{{ .Values.redisExporter.imagePullPolicy }}"
     {{- if .Values.redisExporter.resources}}
     resources: {{ toYaml .Values.redisExporter.resources | nindent 6 }}
-    {{- end }}  
+    {{- end }}
     {{- if .Values.redisExporter.env }}
     env: {{ toYaml .Values.redisExporter.env | nindent 6 }}
     {{- end }}
-  
+
   {{- if .Values.externalConfig.enabled }}
-    redisConfig:
-      additionalRedisConfig: "{{ .Values.redisStandalone.name | default .Release.Name }}-ext-config"
+  redisConfig:
+    additionalRedisConfig: "{{ .Values.redisStandalone.name | default .Release.Name }}-ext-config"
   {{- end }}
   {{- if .Values.storageSpec }}
   storage: {{ toYaml .Values.storageSpec | nindent 4 }}
