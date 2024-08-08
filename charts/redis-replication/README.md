@@ -27,15 +27,13 @@ Redis is a key-value based distributed database, this helm chart is for redis cl
 ```shell
 helm repo add ot-helm https://ot-container-kit.github.io/helm-charts/
 
-helm install <my-release> ot-helm/redis-cluster \
-    --set redisCluster.clusterSize=3 --namespace <namespace>
+helm install <my-release> ot-helm/redis-replication --namespace <namespace>
 ```
 
 Redis setup can be upgraded by using `helm upgrade` command:-
 
 ```shell
-helm upgrade <my-release> ot-helm/redis-cluster --install \
-    --set redisCluster.clusterSize=5 --namespace <namespace>
+helm upgrade <my-release> ot-helm/redis-replication --install --namespace <namespace>
 ```
 
 For uninstalling the chart:-
@@ -53,12 +51,13 @@ helm delete <my-release> --namespace <namespace>
 | TLS.key | string | `"tls.key"` |  |
 | TLS.secret.secretName | string | `""` |  |
 | acl.secret.secretName | string | `""` |  |
+| affinity | object | `{}` |  |
 | env | list | `[]` |  |
 | externalConfig.data | string | `"tcp-keepalive 400\nslowlog-max-len 158\nstream-node-max-bytes 2048\n"` |  |
 | externalConfig.enabled | bool | `false` |  |
 | externalService.enabled | bool | `false` |  |
 | externalService.port | int | `6379` |  |
-| externalService.serviceType | string | `"LoadBalancer"` |  |
+| externalService.serviceType | string | `"NodePort"` |  |
 | initContainer.args | list | `[]` |  |
 | initContainer.command | list | `[]` |  |
 | initContainer.enabled | bool | `false` |  |
@@ -67,51 +66,35 @@ helm delete <my-release> --namespace <namespace>
 | initContainer.imagePullPolicy | string | `"IfNotPresent"` |  |
 | initContainer.resources | object | `{}` |  |
 | labels | object | `{}` |  |
+| nodeSelector | object | `{}` |  |
 | podSecurityContext.fsGroup | int | `1000` |  |
 | podSecurityContext.runAsUser | int | `1000` |  |
 | priorityClassName | string | `""` |  |
-| redisCluster.clusterSize | int | `3` |  |
-| redisCluster.clusterVersion | string | `"v7"` |  |
-| redisCluster.follower.affinity | string | `nil` |  |
-| redisCluster.follower.nodeSelector | string | `nil` |  |
-| redisCluster.follower.pdb.enabled | bool | `false` |  |
-| redisCluster.follower.pdb.maxUnavailable | int | `1` |  |
-| redisCluster.follower.pdb.minAvailable | int | `1` |  |
-| redisCluster.follower.replicas | int | `3` |  |
-| redisCluster.follower.securityContext | object | `{}` |  |
-| redisCluster.follower.serviceType | string | `"ClusterIP"` |  |
-| redisCluster.follower.tolerations | list | `[]` |  |
-| redisCluster.image | string | `"quay.io/opstree/redis"` |  |
-| redisCluster.imagePullPolicy | string | `"IfNotPresent"` |  |
-| redisCluster.imagePullSecrets | object | `{}` |  |
-| redisCluster.leader.affinity | object | `{}` |  |
-| redisCluster.leader.nodeSelector | string | `nil` |  |
-| redisCluster.leader.pdb.enabled | bool | `false` |  |
-| redisCluster.leader.pdb.maxUnavailable | int | `1` |  |
-| redisCluster.leader.pdb.minAvailable | int | `1` |  |
-| redisCluster.leader.replicas | int | `3` |  |
-| redisCluster.leader.securityContext | object | `{}` |  |
-| redisCluster.leader.serviceType | string | `"ClusterIP"` |  |
-| redisCluster.leader.tolerations | list | `[]` |  |
-| redisCluster.minReadySeconds | int | `0` |  |
-| redisCluster.name | string | `""` |  |
-| redisCluster.persistenceEnabled | bool | `true` |  |
-| redisCluster.redisSecret.secretKey | string | `""` |  |
-| redisCluster.redisSecret.secretName | string | `""` |  |
-| redisCluster.resources | object | `{}` |  |
-| redisCluster.tag | string | `"v7.0.12"` |  |
 | redisExporter.enabled | bool | `false` |  |
 | redisExporter.env | list | `[]` |  |
 | redisExporter.image | string | `"quay.io/opstree/redis-exporter"` |  |
 | redisExporter.imagePullPolicy | string | `"IfNotPresent"` |  |
 | redisExporter.resources | object | `{}` |  |
 | redisExporter.tag | string | `"v1.44.0"` |  |
+| redisReplication.clusterSize | int | `3` |  |
+| redisReplication.ignoreAnnotations | list | `[]` |  |
+| redisReplication.image | string | `"quay.io/opstree/redis"` |  |
+| redisReplication.imagePullPolicy | string | `"IfNotPresent"` |  |
+| redisReplication.imagePullSecrets | list | `[]` |  |
+| redisReplication.minReadySeconds | int | `0` |  |
+| redisReplication.name | string | `""` |  |
+| redisReplication.redisSecret.secretKey | string | `""` |  |
+| redisReplication.redisSecret.secretName | string | `""` |  |
+| redisReplication.resources | object | `{}` |  |
+| redisReplication.serviceType | string | `"ClusterIP"` |  |
+| redisReplication.tag | string | `"v7.0.12"` |  |
+| securityContext | object | `{}` |  |
 | serviceAccountName | string | `""` |  |
 | serviceMonitor.enabled | bool | `false` |  |
 | serviceMonitor.interval | string | `"30s"` |  |
 | serviceMonitor.namespace | string | `"monitoring"` |  |
 | serviceMonitor.scrapeTimeout | string | `"10s"` |  |
-| sidecars.env | object | `{}` |  |
+| sidecars.env | list | `[]` |  |
 | sidecars.image | string | `""` |  |
 | sidecars.imagePullPolicy | string | `"IfNotPresent"` |  |
 | sidecars.name | string | `""` |  |
@@ -119,8 +102,6 @@ helm delete <my-release> --namespace <namespace>
 | sidecars.resources.limits.memory | string | `"128Mi"` |  |
 | sidecars.resources.requests.cpu | string | `"50m"` |  |
 | sidecars.resources.requests.memory | string | `"64Mi"` |  |
-| storageSpec.nodeConfVolume | bool | `true` |  |
-| storageSpec.nodeConfVolumeClaimTemplate.spec.accessModes[0] | string | `"ReadWriteOnce"` |  |
-| storageSpec.nodeConfVolumeClaimTemplate.spec.resources.requests.storage | string | `"1Gi"` |  |
 | storageSpec.volumeClaimTemplate.spec.accessModes[0] | string | `"ReadWriteOnce"` |  |
 | storageSpec.volumeClaimTemplate.spec.resources.requests.storage | string | `"1Gi"` |  |
+| tolerations | list | `[]` |  |
