@@ -1,6 +1,6 @@
 # redis
 
-Redis is a key-value based distributed database, this helm chart is for only standalone setup. This helm chart needs [Redis Operator](../redis-operator) inside Kubernetes cluster. The redis definition can be modified or changed by [values.yaml](./values.yaml).
+Redis is a key-value based distributed database, this helm chart is for redis cluster setup. This helm chart needs [Redis Operator](../redis-operator) inside Kubernetes cluster. The redis cluster definition can be modified or changed by [values.yaml](./values.yaml).
 
 **Homepage:** <https://github.com/ot-container-kit/redis-operator>
 
@@ -24,13 +24,14 @@ Redis is a key-value based distributed database, this helm chart is for only sta
 
 ```shell
 helm repo add ot-helm https://ot-container-kit.github.io/helm-charts/
-helm install <my-release> ot-helm/redis --namespace <namespace>
+
+helm install <my-release> ot-helm/redis-sentinel --namespace <namespace>
 ```
 
 Redis setup can be upgraded by using `helm upgrade` command:-
 
 ```shell
-helm upgrade <my-release> ot-helm/redis --install --namespace <namespace>
+helm upgrade <my-release> ot-helm/redis-sentinel --install --namespace <namespace>
 ```
 
 For uninstalling the chart:-
@@ -53,7 +54,7 @@ helm delete <my-release> --namespace <namespace>
 | externalConfig.data | string | `"tcp-keepalive 400\nslowlog-max-len 158\nstream-node-max-bytes 2048\n"` |  |
 | externalConfig.enabled | bool | `false` |  |
 | externalService.enabled | bool | `false` |  |
-| externalService.port | int | `6379` |  |
+| externalService.port | int | `26379` |  |
 | externalService.serviceType | string | `"NodePort"` |  |
 | initContainer.args | list | `[]` |  |
 | initContainer.command | list | `[]` |  |
@@ -73,17 +74,27 @@ helm delete <my-release> --namespace <namespace>
 | redisExporter.imagePullPolicy | string | `"IfNotPresent"` |  |
 | redisExporter.resources | object | `{}` |  |
 | redisExporter.tag | string | `"v1.44.0"` |  |
-| redisStandalone.ignoreAnnotations | list | `[]` |  |
-| redisStandalone.image | string | `"quay.io/opstree/redis"` |  |
-| redisStandalone.imagePullPolicy | string | `"IfNotPresent"` |  |
-| redisStandalone.imagePullSecrets | list | `[]` |  |
-| redisStandalone.minReadySeconds | int | `0` |  |
-| redisStandalone.name | string | `""` |  |
-| redisStandalone.redisSecret.secretKey | string | `""` |  |
-| redisStandalone.redisSecret.secretName | string | `""` |  |
-| redisStandalone.resources | object | `{}` |  |
-| redisStandalone.serviceType | string | `"ClusterIP"` |  |
-| redisStandalone.tag | string | `"v7.0.12"` |  |
+| redisSentinel.clusterSize | int | `3` |  |
+| redisSentinel.ignoreAnnotations | list | `[]` |  |
+| redisSentinel.image | string | `"quay.io/opstree/redis-sentinel"` |  |
+| redisSentinel.imagePullPolicy | string | `"IfNotPresent"` |  |
+| redisSentinel.imagePullSecrets | list | `[]` |  |
+| redisSentinel.minReadySeconds | int | `0` |  |
+| redisSentinel.name | string | `""` |  |
+| redisSentinel.redisSecret.secretKey | string | `""` |  |
+| redisSentinel.redisSecret.secretName | string | `""` |  |
+| redisSentinel.resources | object | `{}` |  |
+| redisSentinel.serviceType | string | `"ClusterIP"` |  |
+| redisSentinel.tag | string | `"v7.0.12"` |  |
+| redisSentinelConfig.downAfterMilliseconds | string | `""` |  |
+| redisSentinelConfig.failoverTimeout | string | `""` |  |
+| redisSentinelConfig.masterGroupName | string | `""` |  |
+| redisSentinelConfig.parallelSyncs | string | `""` |  |
+| redisSentinelConfig.quorum | string | `""` |  |
+| redisSentinelConfig.redisPort | string | `""` |  |
+| redisSentinelConfig.redisReplicationName | string | `"redis-replication"` |  |
+| redisSentinelConfig.redisReplicationPassword.secretKey | string | `""` |  |
+| redisSentinelConfig.redisReplicationPassword.secretName | string | `""` |  |
 | securityContext | object | `{}` |  |
 | serviceAccountName | string | `""` |  |
 | serviceMonitor.enabled | bool | `false` |  |
@@ -98,6 +109,4 @@ helm delete <my-release> --namespace <namespace>
 | sidecars.resources.limits.memory | string | `"128Mi"` |  |
 | sidecars.resources.requests.cpu | string | `"50m"` |  |
 | sidecars.resources.requests.memory | string | `"64Mi"` |  |
-| storageSpec.volumeClaimTemplate.spec.accessModes[0] | string | `"ReadWriteOnce"` |  |
-| storageSpec.volumeClaimTemplate.spec.resources.requests.storage | string | `"1Gi"` |  |
 | tolerations | list | `[]` |  |

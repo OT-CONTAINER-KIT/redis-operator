@@ -1,6 +1,6 @@
 # redis
 
-Redis is a key-value based distributed database, this helm chart is for only standalone setup. This helm chart needs [Redis Operator](../redis-operator) inside Kubernetes cluster. The redis definition can be modified or changed by [values.yaml](./values.yaml).
+Redis is a key-value based distributed database, this helm chart is for redis cluster setup. This helm chart needs [Redis Operator](../redis-operator) inside Kubernetes cluster. The redis cluster definition can be modified or changed by [values.yaml](./values.yaml).
 
 **Homepage:** <https://github.com/ot-container-kit/redis-operator>
 
@@ -24,13 +24,14 @@ Redis is a key-value based distributed database, this helm chart is for only sta
 
 ```shell
 helm repo add ot-helm https://ot-container-kit.github.io/helm-charts/
-helm install <my-release> ot-helm/redis --namespace <namespace>
+
+helm install <my-release> ot-helm/redis-replication --namespace <namespace>
 ```
 
 Redis setup can be upgraded by using `helm upgrade` command:-
 
 ```shell
-helm upgrade <my-release> ot-helm/redis --install --namespace <namespace>
+helm upgrade <my-release> ot-helm/redis-replication --install --namespace <namespace>
 ```
 
 For uninstalling the chart:-
@@ -73,17 +74,18 @@ helm delete <my-release> --namespace <namespace>
 | redisExporter.imagePullPolicy | string | `"IfNotPresent"` |  |
 | redisExporter.resources | object | `{}` |  |
 | redisExporter.tag | string | `"v1.44.0"` |  |
-| redisStandalone.ignoreAnnotations | list | `[]` |  |
-| redisStandalone.image | string | `"quay.io/opstree/redis"` |  |
-| redisStandalone.imagePullPolicy | string | `"IfNotPresent"` |  |
-| redisStandalone.imagePullSecrets | list | `[]` |  |
-| redisStandalone.minReadySeconds | int | `0` |  |
-| redisStandalone.name | string | `""` |  |
-| redisStandalone.redisSecret.secretKey | string | `""` |  |
-| redisStandalone.redisSecret.secretName | string | `""` |  |
-| redisStandalone.resources | object | `{}` |  |
-| redisStandalone.serviceType | string | `"ClusterIP"` |  |
-| redisStandalone.tag | string | `"v7.0.12"` |  |
+| redisReplication.clusterSize | int | `3` |  |
+| redisReplication.ignoreAnnotations | list | `[]` |  |
+| redisReplication.image | string | `"quay.io/opstree/redis"` |  |
+| redisReplication.imagePullPolicy | string | `"IfNotPresent"` |  |
+| redisReplication.imagePullSecrets | list | `[]` |  |
+| redisReplication.minReadySeconds | int | `0` |  |
+| redisReplication.name | string | `""` |  |
+| redisReplication.redisSecret.secretKey | string | `""` |  |
+| redisReplication.redisSecret.secretName | string | `""` |  |
+| redisReplication.resources | object | `{}` |  |
+| redisReplication.serviceType | string | `"ClusterIP"` |  |
+| redisReplication.tag | string | `"v7.0.12"` |  |
 | securityContext | object | `{}` |  |
 | serviceAccountName | string | `""` |  |
 | serviceMonitor.enabled | bool | `false` |  |
