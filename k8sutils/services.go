@@ -55,6 +55,7 @@ func generateServiceDef(serviceMeta metav1.ObjectMeta, epp exporterPortProvider,
 	}
 	if headless {
 		service.Spec.ClusterIP = "None"
+		service.Spec.PublishNotReadyAddresses = true
 	}
 	if exporterPort, ok := epp(); ok {
 		redisExporterService := enableMetricsPort(exporterPort)
