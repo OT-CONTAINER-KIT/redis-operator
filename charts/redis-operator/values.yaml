@@ -5,6 +5,7 @@ redisOperator:
   # Overrides the image tag whose default is the chart appVersion.
   imageTag: ""
   imagePullPolicy: Always
+  imagePullSecrets: []
 
   # Additional pod annotations
   podAnnotations: {}
