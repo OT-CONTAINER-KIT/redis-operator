@@ -70,6 +70,9 @@ spec:
       {{- with .Values.affinity }}
       affinity: {{ toYaml . | nindent 8 }}
       {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations: {{ toYaml . | nindent 8 }}
+      {{- end }}
       serviceAccountName: "{{ .Values.serviceAccountName }}"
       serviceAccount: "{{ .Values.serviceAccountName }}"
       {{- if .Values.redisOperator.webhook }}
