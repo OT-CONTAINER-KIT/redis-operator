@@ -22,6 +22,10 @@ spec:
       {{- end }}
     spec:
       automountServiceAccountToken: {{ .Values.redisOperator.automountServiceAccountToken }}
+      {{- if .Values.redisOperator.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml .Values.redisOperator.imagePullSecrets | nindent 8 }}
+      {{- end }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
