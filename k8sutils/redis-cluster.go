@@ -52,6 +52,7 @@ func generateRedisClusterParams(cr *redisv1beta2.RedisCluster, replicas int32, e
 		IgnoreAnnotations:             cr.Spec.KubernetesConfig.IgnoreAnnotations,
 		HostNetwork:                   cr.Spec.HostNetwork,
 		MinReadySeconds:               minreadyseconds,
+		PodManagementPolicy:           cr.Spec.KubernetesConfig.PodManagementPolicy,
 	}
 	if cr.Spec.RedisExporter != nil {
 		res.EnableMetrics = cr.Spec.RedisExporter.Enabled

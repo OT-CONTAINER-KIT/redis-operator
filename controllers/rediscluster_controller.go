@@ -121,7 +121,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return intctrlutil.RequeueWithError(err, reqLogger, "")
 	}
 
-	if r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-leader") {
+	if r.IsStatefulSetReady(ctx, r.K8sClient, instance, instance.Namespace, instance.Name+"-leader") {
 		// Mark the cluster status as initializing if there are no follower nodes
 		if (instance.Status.ReadyLeaderReplicas == 0 && instance.Status.ReadyFollowerReplicas == 0) ||
 			instance.Status.ReadyFollowerReplicas != followerReplicas {
@@ -147,8 +147,8 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	}
 
-	if !(r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-leader") && r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-follower")) {
-		return intctrlutil.Reconciled()
+	if !(r.IsStatefulSetReady(ctx, r.K8sClient, instance, instance.Namespace, instance.Name+"-leader") && r.IsStatefulSetReady(ctx, r.K8sClient, instance, instance.Namespace, instance.Name+"-follower")) {
+		return intctrlutil.RequeueAfter(reqLogger, time.Second*10, "Redis cluster is not ready")
 	}
 
 	// Mark the cluster status as bootstrapping if all the leader and follower nodes are ready

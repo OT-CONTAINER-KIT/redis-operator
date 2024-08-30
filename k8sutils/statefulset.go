@@ -19,13 +19,14 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/env"
 	"k8s.io/utils/ptr"
 )
 
 type StatefulSet interface {
-	IsStatefulSetReady(ctx context.Context, namespace, name string) bool
+	IsStatefulSetReady(ctx context.Context, client kubernetes.Interface, cr runtime.Object, namespace, name string) bool
 }
 
 type StatefulSetService struct {
@@ -41,7 +42,7 @@ func NewStatefulSetService(kubeClient kubernetes.Interface, log logr.Logger) *St
 	}
 }
 
-func (s *StatefulSetService) IsStatefulSetReady(ctx context.Context, namespace, name string) bool {
+func (s *StatefulSetService) IsStatefulSetReady(ctx context.Context, client kubernetes.Interface, cr runtime.Object, namespace, name string) bool {
 	var (
 		partition = 0
 		replicas  = 1
@@ -74,10 +75,19 @@ func (s *StatefulSetService) IsStatefulSetReady(ctx context.Context, namespace, 
 		logger.V(1).Info("StatefulSet is not ready", "Status.ObservedGeneration", sts.Status.ObservedGeneration, "ObjectMeta.Generation", sts.ObjectMeta.Generation)
 		return false
 	}
-	if int(sts.Status.ReadyReplicas) != replicas {
-		logger.V(1).Info("StatefulSet is not ready", "Status.ReadyReplicas", sts.Status.ReadyReplicas, "Replicas", replicas)
-		return false
+
+	for i := 0; i < replicas; i++ {
+		pod := RedisDetails{
+			PodName:   fmt.Sprintf("%s-%d", name, i),
+			Namespace: namespace,
+		}
+
+		if !pingRedisNode(ctx, client, logger, cr, pod) {
+			logger.V(1).Info("StatefulSet is not ready", "PingRedisNode", pod.PodName)
+			return false
+		}
 	}
+
 	return true
 }
 
@@ -108,6 +118,7 @@ type statefulSetParameters struct {
 	IgnoreAnnotations             []string
 	HostNetwork                   bool
 	MinReadySeconds               int32
+	PodManagementPolicy           appsv1.PodManagementPolicyType
 }
 
 // containerParameters will define container input params
@@ -280,11 +291,12 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 		TypeMeta:   generateMetaInformation("StatefulSet", "apps/v1"),
 		ObjectMeta: stsMeta,
 		Spec: appsv1.StatefulSetSpec{
-			Selector:        LabelSelectors(stsMeta.GetLabels()),
-			ServiceName:     fmt.Sprintf("%s-headless", stsMeta.Name),
-			Replicas:        params.Replicas,
-			UpdateStrategy:  params.UpdateStrategy,
-			MinReadySeconds: params.MinReadySeconds,
+			Selector:            LabelSelectors(stsMeta.GetLabels()),
+			ServiceName:         fmt.Sprintf("%s-headless", stsMeta.Name),
+			Replicas:            params.Replicas,
+			UpdateStrategy:      params.UpdateStrategy,
+			MinReadySeconds:     params.MinReadySeconds,
+			PodManagementPolicy: params.PodManagementPolicy,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      stsMeta.GetLabels(),
