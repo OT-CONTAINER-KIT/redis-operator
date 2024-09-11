@@ -71,7 +71,7 @@ jobs:
           fail-on-diff: "true"
 
   validate_examples:
-    needs: [gotest]
+    needs: [gotest, helm_docs_test]
     name: Validate Examples
     runs-on: ubuntu-latest
     steps:
