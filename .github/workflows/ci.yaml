@@ -19,11 +19,26 @@ env:
   DOCKERFILE_PATH: "**/Dockerfile"
 
 jobs:
-  gotest:
-    name: Go Test
+  lint:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+          cache: false
+
+      - name: Run GolangCI-Lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.54.0
+
+  gotest:
     needs:
       - lint
+    name: Go Test
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Set up Go
@@ -41,20 +56,84 @@ jobs:
           fail_ci_if_error: false
           verbose: true
 
-  lint:
+  helm_docs_test:
+    needs: [lint]
+    name: Helm Docs Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - name: Checkout
+        uses: actions/checkout@v3
         with:
-          go-version: ${{ env.GOLANG_VERSION }}
-          cache: false
+          ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Run GolangCI-Lint
-        uses: golangci/golangci-lint-action@v6
+      - name: Ensure documentation is updated
+        uses: docker://jnorwood/helm-docs:latest
+
+      - name: Check for changes
+        run: |
+          if git diff --exit-code; then
+            echo -e "\n####### Helm docs are up-to-date! #######\n"
+          else
+            git status
+            echo -e "\n####### Helm docs are not up-to-date! Please run generate helm docs locally and push the changes #######\n"
+            exit 1
+          fi
+
+  validate_examples:
+    needs: [gotest, helm_docs_test]
+    name: Validate Examples
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install yamllint
+        run: sudo apt-get install -y yamllint
+
+      - name: Lint YAML files
+        run: yamllint --strict ./example
+
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+
+      - name: Create k8s Kind Cluster
+        uses: helm/kind-action@v1.10.0
         with:
-          version: v1.54.0
+          cluster_name: kind
+
+      - name: Apply CRD
+        run: |
+          for crd in $(find ./config/crd/bases -type f -name '*.yaml'); do
+            kubectl create -f $crd
+          done
+
+      - name: Validate CRD Installation
+        run: |
+          CRDs=("redis" "redissentinels" "redisclusters" "redisreplications")
+          for crd in "${CRDs[@]}"; do
+            kubectl get crd $crd.redis.redis.opstreelabs.in || exit 1
+          done
+
+      - name: Validate CR
+        run: |
+          for example in $(find ./example -type f -name '*.yaml'); do
+            kubectl apply --dry-run=server -f $example
+          done
+
+  validate_yaml:
+    needs: [validate_examples]
+    name: Validate YAML
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install yamllint
+        run: sudo apt-get install -y yamllint
+      - name: Lint YAML files
+        run: yamllint --strict ./tests/
 
   container_quality_dockerfile_lint:
     runs-on: ubuntu-latest
@@ -89,6 +168,7 @@ jobs:
         run: |
           mkdir -p ${{ github.workspace }}/compiled/${{ matrix.arch }}
           zip ${{ github.workspace }}/compiled/${{ matrix.arch }}/${{ env.APPLICATION_NAME }}-${{ matrix.arch }}.zip ${{ github.workspace }}/${{ env.APPLICATION_NAME }}
+
   build_scan_container_image:
     needs: [container_quality_dockerfile_lint]
     runs-on: ubuntu-latest
@@ -121,21 +201,8 @@ jobs:
 
           GOSEC_OUTPUT: "junit-xml:/github/workspace/gosec-results.xml"
 
-  validate-yaml:
-    name: Validate YAML
-    runs-on: ubuntu-latest
-    needs:
-      - gotest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Install yamllint
-        run: sudo apt-get install -y yamllint
-      - name: Lint YAML files
-        run: yamllint --strict ./tests/
-
-  e2e-test:
-    needs: [validate-yaml]
+  e2e_test:
+    needs: [validate_yaml]
     name: ${{ matrix.testpath }}
     runs-on: ubuntu-latest
     strategy:
