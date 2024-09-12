@@ -61,14 +61,23 @@ jobs:
     name: Helm Docs Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Render helm docs inside the README.md and push changes back to PR branch
-        uses: shaybentk/helm-docs-action@v0.0.1
+      - name: Checkout
+        uses: actions/checkout@v3
         with:
-          working-dir: charts
-          git-push: "false"
-          fail-on-diff: "true"
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Ensure documentation is updated
+        uses: docker://jnorwood/helm-docs:latest
+
+      - name: Check for changes
+        run: |
+          if git diff --exit-code; then
+            echo -e "\n####### Helm docs are up-to-date! #######\n"
+          else
+            git status
+            echo -e "\n####### Helm docs are not up-to-date! Please run generate helm docs locally and push the changes #######\n"
+            exit 1
+          fi
 
   validate_examples:
     needs: [gotest, helm_docs_test]
