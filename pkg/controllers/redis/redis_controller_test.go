@@ -1,4 +1,4 @@
-package controllers
+package redis
 
 import (
 	"context"
@@ -14,108 +14,108 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-var _ = Describe("Redis replication test", func() {
+var _ = Describe("Redis standalone test", func() {
 	var (
-		redisReplicationCR     redisv1beta2.RedisReplication
-		redisReplicationCRName string
-		size                   int32
+		redisCR     redisv1beta2.Redis
+		redisCRName string
 		// Used to create unique name for each test
 		testCount int
 	)
 
 	JustBeforeEach(func() {
-		size = 3
-		redisReplicationCR = redisv1beta2.RedisReplication{
+		redisCR = redisv1beta2.Redis{
 			TypeMeta: metav1.TypeMeta{
-				APIVersion: "redis.redis.opstreelabs.in/v1beta2",
-				Kind:       "RedisReplication",
+				APIVersion: "redisv1beta2/apiVersion",
+				Kind:       "Redis",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      redisReplicationCRName,
+				Name:      redisCRName,
 				Namespace: ns,
 			},
-			Spec: redisv1beta2.RedisReplicationSpec{
-				Size:    &size,
-				Storage: &redisv1beta2.Storage{},
-			},
 		}
-		Expect(k8sClient.Create(context.TODO(), &redisReplicationCR)).Should(Succeed())
+		err := k8sClient.Create(context.TODO(), &redisCR)
+		Expect(err).Should(Succeed())
 		testCount++
 	})
 
 	BeforeEach(func() {
-		redisReplicationCRName = fmt.Sprintf("redis-replication-%d", testCount)
+		redisCRName = fmt.Sprintf("redis-%d", testCount)
 	})
 
-	Context("When creating a redis replication CR", func() {
+	Context("When creating a redis standalone CR", func() {
 		It("should create a statefulset, service", func() {
-			svc := &corev1.Service{}
 			sts := &appsv1.StatefulSet{}
+			svc := &corev1.Service{}
 
 			Eventually(func() error {
 				return k8sClient.Get(context.TODO(), types.NamespacedName{
-					Name:      redisReplicationCRName,
+					Name:      redisCRName,
 					Namespace: ns,
 				}, sts)
 			}, timeout, interval).Should(BeNil())
 
-			Expect(*sts.Spec.Replicas).To(BeEquivalentTo(3))
-			Expect(sts.Spec.ServiceName).To(Equal(redisReplicationCRName + "-headless"))
+			Expect(sts.Labels).To(Equal(map[string]string{
+				"app":              redisCRName,
+				"redis_setup_type": "standalone",
+				"role":             "standalone",
+			}))
+
+			Expect(*sts.Spec.Replicas).To(BeEquivalentTo(1))
+			Expect(sts.Spec.ServiceName).To(Equal(redisCRName + "-headless"))
 
 			Eventually(func() error {
 				return k8sClient.Get(context.TODO(), types.NamespacedName{
-					Name:      redisReplicationCRName,
+					Name:      redisCR.Name,
 					Namespace: ns,
 				}, svc)
 			}, timeout, interval).Should(BeNil())
 
 			Expect(svc.Labels).To(Equal(map[string]string{
-				"app":              redisReplicationCRName,
-				"redis_setup_type": "replication",
-				"role":             "replication",
+				"app":              redisCRName,
+				"redis_setup_type": "standalone",
+				"role":             "standalone",
 			}))
 
 			Eventually(func() error {
 				return k8sClient.Get(context.TODO(), types.NamespacedName{
-					Name:      redisReplicationCRName + "-headless",
+					Name:      redisCR.Name + "-headless",
 					Namespace: ns,
 				}, svc)
 			}, timeout, interval).Should(BeNil())
 
 			Expect(svc.Labels).To(Equal(map[string]string{
-				"app":              redisReplicationCRName,
-				"redis_setup_type": "replication",
-				"role":             "replication",
+				"app":              redisCRName,
+				"redis_setup_type": "standalone",
+				"role":             "standalone",
 			}))
-
 			Eventually(func() error {
 				return k8sClient.Get(context.TODO(), types.NamespacedName{
-					Name:      redisReplicationCRName + "-additional",
+					Name:      redisCR.Name + "-additional",
 					Namespace: ns,
 				}, svc)
 			}, timeout, interval).Should(BeNil())
 
 			Expect(svc.Labels).To(Equal(map[string]string{
-				"app":              redisReplicationCRName,
-				"redis_setup_type": "replication",
-				"role":             "replication",
+				"app":              redisCRName,
+				"redis_setup_type": "standalone",
+				"role":             "standalone",
 			}))
 		})
 
-		Context("then deleting the redis replication CR", func() {
+		Context("then deleting the redis standalone CR", func() {
 			It("should delete the statefulset", func() {
-				redisReplicationCR := &redisv1beta2.RedisReplication{
+				redisCR := &redisv1beta2.Redis{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      redisReplicationCRName,
+						Name:      redisCRName,
 						Namespace: ns,
 					},
 				}
-				Expect(k8sClient.Delete(context.TODO(), redisReplicationCR)).To(BeNil())
+				Expect(k8sClient.Delete(context.TODO(), redisCR)).To(BeNil())
 
 				Eventually(func() bool {
 					sts := &appsv1.StatefulSet{}
 					err := k8sClient.Get(context.TODO(), types.NamespacedName{
-						Name:      redisReplicationCRName,
+						Name:      redisCRName,
 						Namespace: ns,
 					}, sts)
 					return errors.IsNotFound(err)

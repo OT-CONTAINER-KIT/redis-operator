@@ -15,7 +15,7 @@ import (
 )
 
 func Test_generateRedisStandaloneParams(t *testing.T) {
-	path := filepath.Join("..", "tests", "testdata", "redis-standalone.yaml")
+	path := filepath.Join("..", "..", "tests", "testdata", "redis-standalone.yaml")
 	expected := statefulSetParameters{
 		Replicas:        ptr.To(int32(1)),
 		ClusterMode:     false,
@@ -101,7 +101,7 @@ func Test_generateRedisStandaloneParams(t *testing.T) {
 }
 
 func Test_generateRedisStandaloneContainerParams(t *testing.T) {
-	path := filepath.Join("..", "tests", "testdata", "redis-standalone.yaml")
+	path := filepath.Join("..", "..", "tests", "testdata", "redis-standalone.yaml")
 	expected := containerParameters{
 		Image:           "quay.io/opstree/redis:v7.0.12",
 		Port:            ptr.To(6379),
@@ -232,7 +232,7 @@ func Test_generateRedisStandaloneContainerParams(t *testing.T) {
 }
 
 func Test_generateRedisStandaloneInitContainerParams(t *testing.T) {
-	path := filepath.Join("..", "tests", "testdata", "redis-standalone.yaml")
+	path := filepath.Join("..", "..", "tests", "testdata", "redis-standalone.yaml")
 	expected := initContainerParameters{
 		Enabled:         ptr.To(true),
 		Image:           "quay.io/opstree/redis-operator-restore:latest",

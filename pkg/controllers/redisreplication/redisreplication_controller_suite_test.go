@@ -14,15 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controllers
+package redisreplication
 
 import (
+	"context"
 	"path/filepath"
 	"testing"
 	"time"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
-	"github.com/OT-CONTAINER-KIT/redis-operator/k8sutils"
+	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/k8sutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
@@ -34,11 +35,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
 var (
 	k8sClient client.Client
 	testEnv   *envtest.Environment
+	ctx       context.Context
+	cancel    context.CancelFunc
 )
 
 const (
@@ -51,7 +55,7 @@ const (
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 
-	RunSpecs(t, "Controller suite")
+	RunSpecs(t, "RedisReplication Controller suite")
 }
 
 var _ = BeforeSuite(func() {
@@ -59,7 +63,7 @@ var _ = BeforeSuite(func() {
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "config", "crd", "bases")},
+		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "..", "config", "crd", "bases")},
 		ErrorIfCRDPathMissing: true,
 		CRDInstallOptions: envtest.CRDInstallOptions{
 			MaxTime: 60 * time.Second,
@@ -84,6 +88,9 @@ var _ = BeforeSuite(func() {
 
 	k8sManager, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme: scheme.Scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: "0",
+		},
 	})
 	Expect(err).ToNot(HaveOccurred())
 
@@ -91,24 +98,6 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 
 	dk8sClient, err := dynamic.NewForConfig(cfg)
-	Expect(err).ToNot(HaveOccurred())
-
-	err = (&RedisReconciler{
-		Client:     k8sManager.GetClient(),
-		K8sClient:  k8sClient,
-		Dk8sClient: dk8sClient,
-		Scheme:     k8sManager.GetScheme(),
-	}).SetupWithManager(k8sManager)
-	Expect(err).ToNot(HaveOccurred())
-
-	rcLog := ctrl.Log.WithName("controllers").WithName("RedisCluster")
-	err = (&RedisClusterReconciler{
-		Client:      k8sManager.GetClient(),
-		K8sClient:   k8sClient,
-		Dk8sClient:  dk8sClient,
-		Scheme:      k8sManager.GetScheme(),
-		StatefulSet: k8sutils.NewStatefulSetService(k8sClient, rcLog),
-	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
 	rrLog := ctrl.Log.WithName("controllers").WithName("RedisReplication")
@@ -122,22 +111,20 @@ var _ = BeforeSuite(func() {
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
-	err = (&RedisSentinelReconciler{
-		Client:     k8sManager.GetClient(),
-		K8sClient:  k8sClient,
-		Dk8sClient: dk8sClient,
-		Scheme:     k8sManager.GetScheme(),
-	}).SetupWithManager(k8sManager)
-	Expect(err).ToNot(HaveOccurred())
+	ctx, cancel = context.WithCancel(context.Background())
 
 	go func() {
 		defer GinkgoRecover()
-		err = k8sManager.Start(ctrl.SetupSignalHandler())
+		err = k8sManager.Start(ctx)
 		Expect(err).ToNot(HaveOccurred(), "failed to run manager")
 		gexec.KillAndWait(4 * time.Second)
-
-		// Teardown the test environment once controller is fnished.
-		err := testEnv.Stop()
-		Expect(err).ToNot(HaveOccurred())
 	}()
+})
+
+var _ = AfterSuite(func() {
+	cancel()
+	By("tearing down the test environment")
+	Eventually(func() error {
+		return testEnv.Stop()
+	}, 30*time.Second, 5*time.Second).ShouldNot(HaveOccurred())
 })

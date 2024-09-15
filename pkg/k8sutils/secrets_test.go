@@ -114,9 +114,9 @@ func Test_getRedisTLSConfig(t *testing.T) {
 						Namespace: "default",
 					},
 					Data: map[string][]byte{
-						"ca.crt":  helperReadFile(filepath.Join("..", "tests", "testdata", "secrets", "ca.crt")),
-						"tls.crt": helperReadFile(filepath.Join("..", "tests", "testdata", "secrets", "tls.crt")),
-						"tls.key": helperReadFile(filepath.Join("..", "tests", "testdata", "secrets", "tls.key")),
+						"ca.crt":  helperReadFile(filepath.Join("..", "..", "tests", "testdata", "secrets", "ca.crt")),
+						"tls.crt": helperReadFile(filepath.Join("..", "..", "tests", "testdata", "secrets", "tls.crt")),
+						"tls.key": helperReadFile(filepath.Join("..", "..", "tests", "testdata", "secrets", "tls.key")),
 					},
 				}
 				client := k8sClientFake.NewSimpleClientset(tlsSecret)
@@ -185,7 +185,7 @@ func Test_getRedisTLSConfig(t *testing.T) {
 						Namespace: "default",
 					},
 					Data: map[string][]byte{
-						"ca.crt": helperReadFile(filepath.Join("..", "tests", "testdata", "secrets", "ca.crt")),
+						"ca.crt": helperReadFile(filepath.Join("..", "..", "tests", "testdata", "secrets", "ca.crt")),
 						// Missing tls.crt and tls.key
 					},
 				}
