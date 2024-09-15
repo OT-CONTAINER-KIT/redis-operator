@@ -22,7 +22,7 @@ var _ = Describe("Redis sentinel test", func() {
 	)
 
 	BeforeEach(func() {
-		redisSentinelCRName = fmt.Sprintf("redis-sentinel-%d", rand.Int31()) // nolint:gosec
+		redisSentinelCRName = fmt.Sprintf("redis-sentinel-%d", rand.Int31()) //nolint:gosec
 		size := int32(3)
 		redisSentinelCR = redisv1beta2.RedisSentinel{
 			TypeMeta: metav1.TypeMeta{
