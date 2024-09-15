@@ -3,6 +3,7 @@ package redissentinel
 import (
 	"context"
 	"fmt"
+	"math/rand"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	. "github.com/onsi/ginkgo/v2"
@@ -18,13 +19,11 @@ var _ = Describe("Redis sentinel test", func() {
 	var (
 		redisSentinelCR     redisv1beta2.RedisSentinel
 		redisSentinelCRName string
-		size                int32
-		// Used to create unique name for each test
-		testCount int
 	)
 
-	JustBeforeEach(func() {
-		size = 3
+	BeforeEach(func() {
+		redisSentinelCRName = fmt.Sprintf("redis-sentinel-%d", rand.Int31())
+		size := int32(3)
 		redisSentinelCR = redisv1beta2.RedisSentinel{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "redis.redis.opstreelabs.in/v1beta2",
@@ -40,11 +39,6 @@ var _ = Describe("Redis sentinel test", func() {
 		}
 		err := k8sClient.Create(context.TODO(), &redisSentinelCR)
 		Expect(err).Should(Succeed())
-		testCount++
-	})
-
-	BeforeEach(func() {
-		redisSentinelCRName = fmt.Sprintf("redis-sentinel-%d", testCount)
 	})
 
 	Context("When creating a redis sentinel CR", func() {
