@@ -18,7 +18,6 @@ import (
 )
 
 var _ = Describe("Redis cluster test", func() {
-
 	Describe("When creating a redis cluster without custom fields", func() {
 		var (
 			redisClusterCR     *redisv1beta2.RedisCluster

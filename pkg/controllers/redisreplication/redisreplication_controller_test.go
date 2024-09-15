@@ -18,7 +18,6 @@ import (
 )
 
 var _ = Describe("Redis test", func() {
-
 	Describe("When creating a redis without custom fields", func() {
 		var (
 			cr     *redisv1beta2.RedisReplication
