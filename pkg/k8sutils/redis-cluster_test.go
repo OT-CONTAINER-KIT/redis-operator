@@ -17,7 +17,7 @@ import (
 )
 
 func Test_generateRedisClusterParams(t *testing.T) {
-	path := filepath.Join("..", "tests", "testdata", "redis-cluster.yaml")
+	path := filepath.Join("..", "..", "tests", "testdata", "redis-cluster.yaml")
 
 	expectedLeaderSTS := statefulSetParameters{
 		Replicas:       ptr.To(int32(3)),
@@ -193,7 +193,7 @@ func Test_generateRedisClusterParams(t *testing.T) {
 }
 
 func Test_generateRedisClusterContainerParams(t *testing.T) {
-	path := filepath.Join("..", "tests", "testdata", "redis-cluster.yaml")
+	path := filepath.Join("..", "..", "tests", "testdata", "redis-cluster.yaml")
 	expectedLeaderContainer := containerParameters{
 		Image:           "quay.io/opstree/redis:v7.0.12",
 		ImagePullPolicy: corev1.PullPolicy("IfNotPresent"),
@@ -440,7 +440,7 @@ func Test_generateRedisClusterContainerParams(t *testing.T) {
 }
 
 func Test_generateRedisClusterInitContainerParams(t *testing.T) {
-	path := filepath.Join("..", "tests", "testdata", "redis-cluster.yaml")
+	path := filepath.Join("..", "..", "tests", "testdata", "redis-cluster.yaml")
 	expected := initContainerParameters{
 		Enabled:         ptr.To(true),
 		Image:           "quay.io/opstree/redis-operator-restore:latest",

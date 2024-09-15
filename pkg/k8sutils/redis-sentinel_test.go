@@ -1,21 +1,28 @@
 package k8sutils
 
 import (
+	"context"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/client-go/dynamic/fake"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 )
 
-func Test_generateRedisReplicationParams(t *testing.T) {
-	path := filepath.Join("..", "tests", "testdata", "redis-replication.yaml")
+func Test_generateRedisSentinelParams(t *testing.T) {
+	path := filepath.Join("..", "..", "tests", "testdata", "redis-sentinel.yaml")
 	expected := statefulSetParameters{
 		Replicas:       ptr.To(int32(3)),
 		ClusterMode:    false,
@@ -58,20 +65,8 @@ func Test_generateRedisReplicationParams(t *testing.T) {
 				Effect:   corev1.TaintEffectNoExecute,
 			},
 		},
-		PersistentVolumeClaim: corev1.PersistentVolumeClaim{
-			Spec: corev1.PersistentVolumeClaimSpec{
-				StorageClassName: ptr.To("standard"),
-				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-				Resources: corev1.VolumeResourceRequirements{
-					Requests: corev1.ResourceList{
-						corev1.ResourceStorage: resource.MustParse("1Gi"),
-					},
-				},
-			},
-		},
 		EnableMetrics:                 true,
 		ImagePullSecrets:              &[]corev1.LocalObjectReference{{Name: "mysecret"}},
-		ExternalConfig:                ptr.To("redis-external-config"),
 		ServiceAccountName:            ptr.To("redis-sa"),
 		TerminationGracePeriodSeconds: ptr.To(int64(30)),
 		IgnoreAnnotations:             []string{"opstreelabs.in/ignore"},
@@ -82,20 +77,20 @@ func Test_generateRedisReplicationParams(t *testing.T) {
 		t.Fatalf("Failed to read file %s: %v", path, err)
 	}
 
-	input := &redisv1beta2.RedisReplication{}
+	input := &redisv1beta2.RedisSentinel{}
 	err = yaml.UnmarshalStrict(data, input)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal file %s: %v", path, err)
 	}
-	actual := generateRedisReplicationParams(input)
+
+	actual := generateRedisSentinelParams(input, *input.Spec.Size, nil, input.Spec.Affinity)
 	assert.EqualValues(t, expected, actual, "Expected %+v, got %+v", expected, actual)
 }
 
-func Test_generateRedisReplicationContainerParams(t *testing.T) {
-	path := filepath.Join("..", "tests", "testdata", "redis-replication.yaml")
+func Test_generateRedisSentinelContainerParams(t *testing.T) {
+	path := filepath.Join("..", "..", "tests", "testdata", "redis-sentinel.yaml")
 	expected := containerParameters{
 		Image:           "quay.io/opstree/redis:v7.0.12",
-		Port:            ptr.To(6379),
 		ImagePullPolicy: corev1.PullPolicy("IfNotPresent"),
 		Resources: &corev1.ResourceRequirements{
 			Requests: corev1.ResourceList{
@@ -157,11 +152,10 @@ func Test_generateRedisReplicationContainerParams(t *testing.T) {
 				},
 			},
 		},
-		Role:               "replication",
-		EnabledPassword:    ptr.To(true),
-		SecretName:         ptr.To("redis-secret"),
-		SecretKey:          ptr.To("password"),
-		PersistenceEnabled: ptr.To(true),
+		Role:            "sentinel",
+		EnabledPassword: ptr.To(true),
+		SecretName:      ptr.To("redis-secret"),
+		SecretKey:       ptr.To("password"),
 		TLSConfig: &redisv1beta2.TLSConfig{
 			TLSConfig: common.TLSConfig{
 				CaKeyFile:   "ca.key",
@@ -172,11 +166,7 @@ func Test_generateRedisReplicationContainerParams(t *testing.T) {
 				},
 			},
 		},
-		ACLConfig: &redisv1beta2.ACLConfig{
-			Secret: &corev1.SecretVolumeSource{
-				SecretName: "acl-secret",
-			},
-		},
+		AdditionalEnvVariable: &[]corev1.EnvVar{},
 		EnvVars: &[]corev1.EnvVar{
 			{
 				Name:  "CUSTOM_ENV_VAR_1",
@@ -187,22 +177,22 @@ func Test_generateRedisReplicationContainerParams(t *testing.T) {
 				Value: "custom_value_2",
 			},
 		},
-		AdditionalVolume: []corev1.Volume{
+		Port: ptr.To(26379),
+		AdditionalVolume: []v1.Volume{
 			{
-				Name: "example-config",
+				Name: "redis-config",
 				VolumeSource: corev1.VolumeSource{
-					ConfigMap: &corev1.ConfigMapVolumeSource{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: "example-configmap",
-						},
-					},
+					EmptyDir: &v1.EmptyDirVolumeSource{},
 				},
 			},
 		},
-		AdditionalMountPath: []corev1.VolumeMount{
+		AdditionalMountPath: []v1.VolumeMount{
 			{
-				MountPath: "/config",
-				Name:      "example-config",
+				Name:        "redis-config",
+				ReadOnly:    false,
+				MountPath:   "/etc/redis",
+				SubPath:     "",
+				SubPathExpr: "",
 			},
 		},
 	}
@@ -212,18 +202,18 @@ func Test_generateRedisReplicationContainerParams(t *testing.T) {
 		t.Fatalf("Failed to read file %s: %v", path, err)
 	}
 
-	input := &redisv1beta2.RedisReplication{}
+	input := &redisv1beta2.RedisSentinel{}
 	err = yaml.UnmarshalStrict(data, input)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal file %s: %v", path, err)
 	}
 
-	actual := generateRedisReplicationContainerParams(input)
+	actual := generateRedisSentinelContainerParams(context.TODO(), nil, logr.Logger{}, input, nil, nil, nil)
 	assert.EqualValues(t, expected, actual, "Expected %+v, got %+v", expected, actual)
 }
 
-func Test_generateRedisReplicationInitContainerParams(t *testing.T) {
-	path := filepath.Join("..", "tests", "testdata", "redis-replication.yaml")
+func Test_generateRedisSentinelInitContainerParams(t *testing.T) {
+	path := filepath.Join("..", "..", "tests", "testdata", "redis-sentinel.yaml")
 	expected := initContainerParameters{
 		Enabled:         ptr.To(true),
 		Image:           "quay.io/opstree/redis-operator-restore:latest",
@@ -238,10 +228,9 @@ func Test_generateRedisReplicationInitContainerParams(t *testing.T) {
 				corev1.ResourceMemory: resource.MustParse("128Mi"),
 			},
 		},
-		Role:               "replication",
-		Command:            []string{"/bin/bash", "-c", "/app/restore.bash"},
-		Arguments:          []string{"--restore-from", "redis-replication-restore"},
-		PersistenceEnabled: ptr.To(true),
+		Role:      "sentinel",
+		Command:   []string{"/bin/bash", "-c", "/app/restore.bash"},
+		Arguments: []string{"--restore-from", "redis-sentinel-restore"},
 		AdditionalEnvVariable: &[]corev1.EnvVar{
 			{
 				Name: "CLUSTER_NAME",
@@ -266,22 +255,21 @@ func Test_generateRedisReplicationInitContainerParams(t *testing.T) {
 				},
 			},
 		},
-		AdditionalVolume: []corev1.Volume{
+		AdditionalVolume: []v1.Volume{
 			{
-				Name: "example-config",
+				Name: "redis-config",
 				VolumeSource: corev1.VolumeSource{
-					ConfigMap: &corev1.ConfigMapVolumeSource{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: "example-configmap",
-						},
-					},
+					EmptyDir: &v1.EmptyDirVolumeSource{},
 				},
 			},
 		},
-		AdditionalMountPath: []corev1.VolumeMount{
+		AdditionalMountPath: []v1.VolumeMount{
 			{
-				MountPath: "/config",
-				Name:      "example-config",
+				Name:        "redis-config",
+				ReadOnly:    false,
+				MountPath:   "/etc/redis",
+				SubPath:     "",
+				SubPathExpr: "",
 			},
 		},
 	}
@@ -291,12 +279,94 @@ func Test_generateRedisReplicationInitContainerParams(t *testing.T) {
 		t.Fatalf("Failed to read file %s: %v", path, err)
 	}
 
-	input := &redisv1beta2.RedisReplication{}
+	input := &redisv1beta2.RedisSentinel{}
 	err = yaml.UnmarshalStrict(data, input)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal file %s: %v", path, err)
 	}
 
-	actual := generateRedisReplicationInitContainerParams(input)
+	actual := generateRedisSentinelInitContainerParams(input)
 	assert.EqualValues(t, expected, actual, "Expected %+v, got %+v", expected, actual)
+}
+
+func Test_getSentinelEnvVariable(t *testing.T) {
+	type args struct {
+		client kubernetes.Interface
+		logger logr.Logger
+		cr     *redisv1beta2.RedisSentinel
+	}
+	tests := []struct {
+		name string
+		args args
+		want *[]corev1.EnvVar
+	}{
+		{
+			name: "When RedisSentinelConfig is nil",
+			args: args{
+				client: nil,
+				logger: logr.Logger{},
+				cr:     &redisv1beta2.RedisSentinel{},
+			},
+			want: &[]corev1.EnvVar{},
+		},
+		{
+			name: "When RedisSentinelConfig is not nil",
+			args: args{
+				client: nil,
+				logger: logr.Logger{},
+				cr: &redisv1beta2.RedisSentinel{
+					Spec: redisv1beta2.RedisSentinelSpec{
+						RedisSentinelConfig: &redisv1beta2.RedisSentinelConfig{
+							RedisSentinelConfig: common.RedisSentinelConfig{
+								MasterGroupName:       "master",
+								RedisPort:             "6379",
+								Quorum:                "2",
+								DownAfterMilliseconds: "30000",
+								ParallelSyncs:         "1",
+								FailoverTimeout:       "180000",
+							},
+						},
+					},
+				},
+			},
+			want: &[]corev1.EnvVar{
+				{
+					Name:  "MASTER_GROUP_NAME",
+					Value: "master",
+				},
+				{
+					Name:  "IP",
+					Value: "",
+				},
+				{
+					Name:  "PORT",
+					Value: "6379",
+				},
+				{
+					Name:  "QUORUM",
+					Value: "2",
+				},
+				{
+					Name:  "DOWN_AFTER_MILLISECONDS",
+					Value: "30000",
+				},
+				{
+					Name:  "PARALLEL_SYNCS",
+					Value: "1",
+				},
+				{
+					Name:  "FAILOVER_TIMEOUT",
+					Value: "180000",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.TODO()
+			if got := getSentinelEnvVariable(ctx, tt.args.client, tt.args.logger, tt.args.cr, fake.NewSimpleDynamicClient(&runtime.Scheme{})); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getSentinelEnvVariable() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

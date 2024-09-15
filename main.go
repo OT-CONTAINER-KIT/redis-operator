@@ -23,8 +23,11 @@ import (
 
 	redisv1beta1 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta1"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
-	"github.com/OT-CONTAINER-KIT/redis-operator/controllers"
-	"github.com/OT-CONTAINER-KIT/redis-operator/k8sutils"
+	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/redis"
+	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/rediscluster"
+	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/redisreplication"
+	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/redissentinel"
+	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/k8sutils"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -114,7 +117,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.RedisReconciler{
+	if err = (&redis.RedisReconciler{
 		Client:     mgr.GetClient(),
 		K8sClient:  k8sclient,
 		Dk8sClient: dk8sClient,
@@ -125,7 +128,7 @@ func main() {
 		os.Exit(1)
 	}
 	rcLog := ctrl.Log.WithName("controllers").WithName("RedisCluster")
-	if err = (&controllers.RedisClusterReconciler{
+	if err = (&rediscluster.RedisClusterReconciler{
 		Client:      mgr.GetClient(),
 		K8sClient:   k8sclient,
 		Dk8sClient:  dk8sClient,
@@ -137,7 +140,7 @@ func main() {
 		os.Exit(1)
 	}
 	rrLog := ctrl.Log.WithName("controllers").WithName("RedisReplication")
-	if err = (&controllers.RedisReplicationReconciler{
+	if err = (&redisreplication.RedisReplicationReconciler{
 		Client:      mgr.GetClient(),
 		K8sClient:   k8sclient,
 		Dk8sClient:  dk8sClient,
@@ -149,7 +152,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "RedisReplication")
 		os.Exit(1)
 	}
-	if err = (&controllers.RedisSentinelReconciler{
+	if err = (&redissentinel.RedisSentinelReconciler{
 		Client:     mgr.GetClient(),
 		K8sClient:  k8sclient,
 		Dk8sClient: dk8sClient,

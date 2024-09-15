@@ -1,4 +1,4 @@
-package controllers
+package redis
 
 import (
 	"context"
@@ -33,7 +33,8 @@ var _ = Describe("Redis standalone test", func() {
 				Namespace: ns,
 			},
 		}
-		Expect(k8sClient.Create(context.TODO(), &redisCR)).Should(Succeed())
+		err := k8sClient.Create(context.TODO(), &redisCR)
+		Expect(err).Should(Succeed())
 		testCount++
 	})
 
