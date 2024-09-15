@@ -25,7 +25,7 @@ var _ = Describe("Redis test", func() {
 			redisCRName string
 		)
 		BeforeEach(func() {
-			redisCRName = fmt.Sprintf("redis-%d", rand.Int31())
+			redisCRName = fmt.Sprintf("redis-%d", rand.Int31()) // nolint:gosec
 			redisCR = factories.New(redisCRName)
 			Expect(k8sClient.Create(context.TODO(), redisCR)).Should(Succeed())
 		})
@@ -73,7 +73,7 @@ var _ = Describe("Redis test", func() {
 			redisCRName string
 		)
 		BeforeEach(func() {
-			redisCRName = fmt.Sprintf("redis-%d", rand.Int31())
+			redisCRName = fmt.Sprintf("redis-%d", rand.Int31()) // nolint:gosec
 			redisCR = factories.New(
 				redisCRName,
 				factories.WithAnnotations(map[string]string{

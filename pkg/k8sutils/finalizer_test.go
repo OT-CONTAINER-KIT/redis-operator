@@ -271,7 +271,7 @@ func TestHandleRedisClusterFinalizer(t *testing.T) {
 			}
 
 			// Verify that the PVC was created
-			if tc.existingPVC != nil && len(tc.existingPVC) != 0 {
+			if len(tc.existingPVC) != 0 {
 				for _, pvc := range tc.existingPVC {
 					pvcName := pvc.GetName()
 					_, err := k8sClient.CoreV1().PersistentVolumeClaims(tc.cr.Namespace).Get(context.TODO(), pvcName, metav1.GetOptions{})
@@ -470,7 +470,7 @@ func TestHandleRedisReplicationFinalizer(t *testing.T) {
 			}
 
 			// Verify that the PVC was created
-			if tc.existingPVC != nil && len(tc.existingPVC) != 0 {
+			if len(tc.existingPVC) != 0 {
 				for _, pvc := range tc.existingPVC {
 					pvcName := pvc.GetName()
 					_, err := k8sClient.CoreV1().PersistentVolumeClaims(tc.cr.Namespace).Get(context.TODO(), pvcName, metav1.GetOptions{})
