@@ -25,7 +25,7 @@ var _ = Describe("Redis cluster test", func() {
 			redisClusterCRName string
 		)
 		BeforeEach(func() {
-			redisClusterCRName = fmt.Sprintf("redis-cluster-%d", rand.Int31())
+			redisClusterCRName = fmt.Sprintf("redis-cluster-%d", rand.Int31()) //nolint:gosec
 			redisClusterCR = factories.New(redisClusterCRName)
 			Expect(k8sClient.Create(context.TODO(), redisClusterCR)).Should(Succeed())
 		})
@@ -74,7 +74,7 @@ var _ = Describe("Redis cluster test", func() {
 			redisClusterCRName string
 		)
 		BeforeEach(func() {
-			redisClusterCRName = fmt.Sprintf("redis-cluster-%d", rand.Int31())
+			redisClusterCRName = fmt.Sprintf("redis-cluster-%d", rand.Int31()) //nolint:gosec
 			redisClusterCR = factories.New(redisClusterCRName, factories.DisablePersistence())
 			Expect(k8sClient.Create(context.TODO(), redisClusterCR)).Should(Succeed())
 		})
@@ -96,7 +96,7 @@ var _ = Describe("Redis cluster test", func() {
 			redisClusterCRName string
 		)
 		BeforeEach(func() {
-			redisClusterCRName = fmt.Sprintf("redis-cluster-%d", rand.Int31())
+			redisClusterCRName = fmt.Sprintf("redis-cluster-%d", rand.Int31()) //nolint:gosec
 			redisClusterCR = factories.New(
 				redisClusterCRName,
 				factories.WithAnnotations(map[string]string{
