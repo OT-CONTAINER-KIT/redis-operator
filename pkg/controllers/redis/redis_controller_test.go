@@ -3,8 +3,10 @@ package redis
 import (
 	"context"
 	"fmt"
+	"math/rand"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	factories "github.com/OT-CONTAINER-KIT/redis-operator/pkg/testutil/factories/redis"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -12,97 +14,37 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("Redis standalone test", func() {
-	var (
-		redisCR     redisv1beta2.Redis
-		redisCRName string
-		// Used to create unique name for each test
-		testCount int
-	)
-
-	JustBeforeEach(func() {
-		redisCR = redisv1beta2.Redis{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "redisv1beta2/apiVersion",
-				Kind:       "Redis",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      redisCRName,
-				Namespace: ns,
-			},
-		}
-		err := k8sClient.Create(context.TODO(), &redisCR)
-		Expect(err).Should(Succeed())
-		testCount++
-	})
-
-	BeforeEach(func() {
-		redisCRName = fmt.Sprintf("redis-%d", testCount)
-	})
-
-	Context("When creating a redis standalone CR", func() {
-		It("should create a statefulset, service", func() {
-			sts := &appsv1.StatefulSet{}
-			svc := &corev1.Service{}
-
-			Eventually(func() error {
-				return k8sClient.Get(context.TODO(), types.NamespacedName{
-					Name:      redisCRName,
-					Namespace: ns,
-				}, sts)
-			}, timeout, interval).Should(BeNil())
-
-			Expect(sts.Labels).To(Equal(map[string]string{
-				"app":              redisCRName,
-				"redis_setup_type": "standalone",
-				"role":             "standalone",
-			}))
-
-			Expect(*sts.Spec.Replicas).To(BeEquivalentTo(1))
-			Expect(sts.Spec.ServiceName).To(Equal(redisCRName + "-headless"))
-
-			Eventually(func() error {
-				return k8sClient.Get(context.TODO(), types.NamespacedName{
-					Name:      redisCR.Name,
-					Namespace: ns,
-				}, svc)
-			}, timeout, interval).Should(BeNil())
-
-			Expect(svc.Labels).To(Equal(map[string]string{
-				"app":              redisCRName,
-				"redis_setup_type": "standalone",
-				"role":             "standalone",
-			}))
-
-			Eventually(func() error {
-				return k8sClient.Get(context.TODO(), types.NamespacedName{
-					Name:      redisCR.Name + "-headless",
-					Namespace: ns,
-				}, svc)
-			}, timeout, interval).Should(BeNil())
-
-			Expect(svc.Labels).To(Equal(map[string]string{
-				"app":              redisCRName,
-				"redis_setup_type": "standalone",
-				"role":             "standalone",
-			}))
-			Eventually(func() error {
-				return k8sClient.Get(context.TODO(), types.NamespacedName{
-					Name:      redisCR.Name + "-additional",
-					Namespace: ns,
-				}, svc)
-			}, timeout, interval).Should(BeNil())
-
-			Expect(svc.Labels).To(Equal(map[string]string{
-				"app":              redisCRName,
-				"redis_setup_type": "standalone",
-				"role":             "standalone",
-			}))
+var _ = Describe("Redis test", func() {
+	Describe("When creating a redis without custom fields", func() {
+		var (
+			redisCR     *redisv1beta2.Redis
+			redisCRName string
+		)
+		BeforeEach(func() {
+			redisCRName = fmt.Sprintf("redis-%d", rand.Int31()) //nolint:gosec
+			redisCR = factories.New(redisCRName)
+			Expect(k8sClient.Create(context.TODO(), redisCR)).Should(Succeed())
 		})
 
-		Context("then deleting the redis standalone CR", func() {
+		DescribeTable("the reconciler",
+			func(nameFmt string, obj client.Object) {
+				key := types.NamespacedName{
+					Name:      fmt.Sprintf(nameFmt, redisCRName),
+					Namespace: ns,
+				}
+
+				By("creating the resource when the cluster is created")
+				Eventually(func() error { return k8sClient.Get(context.TODO(), key, obj) }, timeout).Should(Succeed())
+			},
+			Entry("reconciles the leader statefulset", "%s", &appsv1.StatefulSet{}),
+			Entry("reconciles the leader headless service", "%s-headless", &corev1.Service{}),
+			Entry("reconciles the leader additional service", "%s-additional", &corev1.Service{}),
+		)
+
+		Context("then deleting the redis CR", func() {
 			It("should delete the statefulset", func() {
 				redisCR := &redisv1beta2.Redis{
 					ObjectMeta: metav1.ObjectMeta{
@@ -120,6 +62,37 @@ var _ = Describe("Redis standalone test", func() {
 					}, sts)
 					return errors.IsNotFound(err)
 				}, timeout, interval).Should(BeTrue())
+			})
+		})
+	})
+
+	Describe("When creating a redis, ignore annotations", func() {
+		var (
+			redisCR     *redisv1beta2.Redis
+			redisCRName string
+		)
+		BeforeEach(func() {
+			redisCRName = fmt.Sprintf("redis-%d", rand.Int31()) //nolint:gosec
+			redisCR = factories.New(
+				redisCRName,
+				factories.WithAnnotations(map[string]string{
+					"key1": "value1",
+					"key2": "value2",
+				}),
+				factories.WithIgnoredKeys([]string{"key1"}),
+			)
+			Expect(k8sClient.Create(context.TODO(), redisCR)).Should(Succeed())
+		})
+		Describe("the reconciler", func() {
+			It("should ignore key in statefulset", func() {
+				stsLeader := &appsv1.StatefulSet{}
+				stsLeaderNN := types.NamespacedName{
+					Name:      redisCRName,
+					Namespace: ns,
+				}
+				Eventually(func() error { return k8sClient.Get(context.TODO(), stsLeaderNN, stsLeader) }, timeout, interval).Should(BeNil())
+				Expect(stsLeader.Annotations).To(HaveKey("key2"))
+				Expect(stsLeader.Annotations).NotTo(HaveKey("key1"))
 			})
 		})
 	})

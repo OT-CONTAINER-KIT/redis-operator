@@ -1,7 +1,0 @@
----
-apiVersion: redis.redis.opstreelabs.in/v1beta2
-kind: Redis
-metadata:
-  name: redis-standalone-v1beta2
-  annotations:
-    need-ignore-key: need-ignore-value
