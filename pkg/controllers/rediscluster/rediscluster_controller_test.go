@@ -40,7 +40,7 @@ var _ = Describe("Redis cluster test", func() {
 				By("setting the owner reference")
 				ownerRefs := obj.GetOwnerReferences()
 				Expect(ownerRefs).To(HaveLen(1))
-				Expect(ownerRefs[0].Name).To(Equal(redisClusterCR))
+				Expect(ownerRefs[0].Name).To(Equal(redisClusterCRName))
 			},
 			Entry("reconciles the leader statefulset", "%s-leader", &appsv1.StatefulSet{}),
 			Entry("reconciles the leader service", "%s-leader", &corev1.Service{}),
