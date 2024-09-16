@@ -202,22 +202,9 @@ jobs:
           GOSEC_OUTPUT: "junit-xml:/github/workspace/gosec-results.xml"
 
   e2e_test:
-    needs: [validate_yaml]
+#    needs: [validate_yaml]
     name: ${{ matrix.testpath }}
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        testpath:
-          - ./tests/e2e-chainsaw/v1beta2/teardown/
-          - ./tests/e2e-chainsaw/v1beta2/setup/
-          - ./tests/e2e-chainsaw/v1beta2/hostnetwork/
-          - ./tests/e2e-chainsaw/v1beta2/password/
-          - ./tests/e2e-chainsaw/v1beta2/ha-setup/
-          - ./tests/e2e-chainsaw/v1beta2/ha-failover/
-          - ./tests/e2e-chainsaw/v1beta2/nodeport/
-          - ./tests/e2e-chainsaw/v1beta2/keep-pvc/
-          - ./tests/e2e-chainsaw/v1beta2/acl-user/
-          - ./tests/e2e-chainsaw/v1beta2/scaling/
 
     steps:
       - name: Checkout code
@@ -265,4 +252,4 @@ jobs:
           kubectl wait --for=condition=available --timeout=300s deployment/redis-operator-redis-operator -n redis-operator-system
 
       - name: Run chainsaw test
-        run: chainsaw test --test-dir ${{ matrix.testpath }} --config tests/_config/chainsaw-configuration.yaml
+        run: chainsaw test --test-dir ./tests/e2e-chainsaw/v1beta2/ --config tests/_config/chainsaw-configuration.yaml
