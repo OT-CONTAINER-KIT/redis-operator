@@ -203,39 +203,22 @@ jobs:
 
   e2e_test:
     needs: [validate_yaml]
-    name: ${{ matrix.testpath }}
+    name: E2E Test
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        testpath:
-          - ./tests/e2e-chainsaw/v1beta2/teardown/
-          - ./tests/e2e-chainsaw/v1beta2/setup/
-          - ./tests/e2e-chainsaw/v1beta2/hostnetwork/
-          - ./tests/e2e-chainsaw/v1beta2/password/
-          - ./tests/e2e-chainsaw/v1beta2/ha-setup/
-          - ./tests/e2e-chainsaw/v1beta2/ha-failover/
-          - ./tests/e2e-chainsaw/v1beta2/nodeport/
-          - ./tests/e2e-chainsaw/v1beta2/keep-pvc/
-          - ./tests/e2e-chainsaw/v1beta2/acl-user/
-          - ./tests/e2e-chainsaw/v1beta2/scaling/
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Build Dockerfile
         run: docker build . --file Dockerfile --tag redis-operator:e2e
-
       - name: Install Cosign
         uses: sigstore/cosign-installer@v3.6.0
       - name: Install chainsaw
         uses: kyverno/action-install-chainsaw@v0.2.9
         with:
           verify: true
-
       - name: Check install
         run: chainsaw version
-
       - name: Install kubectl
         run: |
           curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
@@ -265,4 +248,4 @@ jobs:
           kubectl wait --for=condition=available --timeout=300s deployment/redis-operator-redis-operator -n redis-operator-system
 
       - name: Run chainsaw test
-        run: chainsaw test --test-dir ${{ matrix.testpath }} --config tests/_config/chainsaw-configuration.yaml
+        run: chainsaw test --test-dir ./tests/e2e-chainsaw/v1beta2/ --config tests/_config/chainsaw-configuration.yaml
