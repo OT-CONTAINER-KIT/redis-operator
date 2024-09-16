@@ -202,28 +202,23 @@ jobs:
           GOSEC_OUTPUT: "junit-xml:/github/workspace/gosec-results.xml"
 
   e2e_test:
-    # todo: Add needs: [validate_yaml]
-#    needs: [validate_yaml]
+    needs: [validate_yaml]
     name: E2E Test
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Build Dockerfile
         run: docker build . --file Dockerfile --tag redis-operator:e2e
-
       - name: Install Cosign
         uses: sigstore/cosign-installer@v3.6.0
       - name: Install chainsaw
         uses: kyverno/action-install-chainsaw@v0.2.9
         with:
           verify: true
-
       - name: Check install
         run: chainsaw version
-
       - name: Install kubectl
         run: |
           curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
