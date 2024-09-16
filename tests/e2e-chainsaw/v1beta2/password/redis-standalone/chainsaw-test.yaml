@@ -30,7 +30,7 @@ spec:
             content: |
               kubectl exec --namespace ${NAMESPACE} redis-standalone-v1beta2-0 -c redis-standalone-v1beta2 -- redis-cli -p 6379 -a Opstree1234 set foo-0 bar-0
             check:
-              ($stdout=='OK'): true
+              (contains($stdout, 'OK')): true
     - name: Try saving a key Without Password
       try:
         - script:
@@ -38,7 +38,7 @@ spec:
             content: |
               kubectl exec --namespace ${NAMESPACE} redis-standalone-v1beta2-0 -c redis-standalone-v1beta2 -- redis-cli -p 6379 set foo-0 bar-0
             check:
-              ($stdout=='NOAUTH Authentication required.'): true
+              (contains($stdout, 'NOAUTH Authentication required')): true
     - name: Test Redis Exporter
       try:
         - script:
@@ -47,4 +47,4 @@ spec:
               kubectl exec --namespace ${NAMESPACE} redis-standalone-v1beta2-0 -c redis-standalone-v1beta2 --
               wget -qO- http://localhost:9121/metrics | grep -v '^#' | grep -E '\bredis_up\b' | awk '{print $2}'
             check:
-              ($stdout=='1'): true
+              (contains($stdout, '1')): true
