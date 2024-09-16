@@ -11,8 +11,6 @@ import (
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -38,33 +36,17 @@ var _ = Describe("Redis cluster test", func() {
 
 				By("creating the resource when the cluster is created")
 				Eventually(func() error { return k8sClient.Get(context.TODO(), key, obj) }, timeout).Should(Succeed())
+
+				By("setting the owner reference")
+				ownerRefs := obj.GetOwnerReferences()
+				Expect(ownerRefs).To(HaveLen(1))
+				Expect(ownerRefs[0].Name).To(Equal(redisClusterCR))
 			},
 			Entry("reconciles the leader statefulset", "%s-leader", &appsv1.StatefulSet{}),
 			Entry("reconciles the leader service", "%s-leader", &corev1.Service{}),
 			Entry("reconciles the leader headless service", "%s-leader-headless", &corev1.Service{}),
 			Entry("reconciles the leader additional service", "%s-leader-additional", &corev1.Service{}),
 		)
-
-		Context("then deleting the redis cluster CR", func() {
-			It("should delete the statefulset", func() {
-				redisClusterCR := &redisv1beta2.RedisCluster{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      redisClusterCRName,
-						Namespace: ns,
-					},
-				}
-				Expect(k8sClient.Delete(context.TODO(), redisClusterCR)).To(BeNil())
-
-				Eventually(func() bool {
-					sts := &appsv1.StatefulSet{}
-					err := k8sClient.Get(context.TODO(), types.NamespacedName{
-						Name:      redisClusterCRName + "-leader",
-						Namespace: ns,
-					}, sts)
-					return errors.IsNotFound(err)
-				}, timeout, interval).Should(BeTrue())
-			})
-		})
 	})
 
 	Describe("When creating a redis cluster with DisablePersistence", func() {
