@@ -202,8 +202,9 @@ jobs:
           GOSEC_OUTPUT: "junit-xml:/github/workspace/gosec-results.xml"
 
   e2e_test:
+    # todo: Add needs: [validate_yaml]
 #    needs: [validate_yaml]
-    name: ${{ matrix.testpath }}
+    name: E2E Test
     runs-on: ubuntu-latest
 
     steps:
