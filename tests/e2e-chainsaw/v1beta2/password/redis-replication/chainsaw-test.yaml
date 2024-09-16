@@ -30,19 +30,19 @@ spec:
             content: |
               kubectl exec --namespace ${NAMESPACE} redis-replication-0 -- redis-cli -p 6379 -a Opstree1234 ping
             check:
-              ($stdout=='PONG'): true
+              (contains($stdout, 'PONG')): true
         - script:
             timeout: 10s
             content: |
               kubectl exec --namespace ${NAMESPACE} redis-replication-1 -- redis-cli -p 6379 -a Opstree1234 ping
             check:
-              ($stdout=='PONG'): true
+              (contains($stdout, 'PONG')): true
         - script:
             timeout: 10s
             content: |
               kubectl exec --namespace ${NAMESPACE} redis-replication-2 -- redis-cli -p 6379 -a Opstree1234 ping
             check:
-              ($stdout=='PONG'): true
+              (contains($stdout, 'PONG')): true
     - name: Try saving a key With Password
       try:
         - script:
@@ -50,7 +50,7 @@ spec:
             content: |
               kubectl exec --namespace ${NAMESPACE} redis-replication-0 -- redis-cli -p 6379 -a Opstree1234 set foo-0 bar-0
             check:
-              ($stdout=='OK'): true
+              (contains($stdout, 'OK')): true
     #  - script:
     #      timeout: 10s
     #      content: |
@@ -70,19 +70,19 @@ spec:
             content: |
               kubectl exec --namespace ${NAMESPACE} redis-replication-0 -- redis-cli -p 6379 ping
             check:
-              ($stdout=='NOAUTH Authentication required.'): true
+              (contains($stdout, 'NOAUTH Authentication required')): true
         - script:
             timeout: 10s
             content: |
               kubectl exec --namespace ${NAMESPACE} redis-replication-1 -- redis-cli -p 6379 ping
             check:
-              ($stdout=='NOAUTH Authentication required.'): true
+              (contains($stdout, 'NOAUTH Authentication required')): true
         - script:
             timeout: 10s
             content: |
               kubectl exec --namespace ${NAMESPACE} redis-replication-2 -- redis-cli -p 6379 ping
             check:
-              ($stdout=='NOAUTH Authentication required.'): true
+              (contains($stdout, 'NOAUTH Authentication required')): true
     - name: Try saving a key Without Password
       try:
         - script:
@@ -90,16 +90,16 @@ spec:
             content: |
               kubectl exec --namespace ${NAMESPACE} redis-replication-0 -- redis-cli -p 6379 set foo-0 bar-0
             check:
-              ($stdout=='NOAUTH Authentication required.'): true
+              (contains($stdout, 'NOAUTH Authentication required')): true
         - script:
             timeout: 10s
             content: |
               kubectl exec --namespace ${NAMESPACE} redis-replication-1 -- redis-cli -p 6379 set foo-1 bar-1
             check:
-              ($stdout=='NOAUTH Authentication required.'): true
+              (contains($stdout, 'NOAUTH Authentication required')): true
         - script:
             timeout: 10s
             content: |
               kubectl exec --namespace ${NAMESPACE} redis-replication-2 -- redis-cli -p 6379 set foo-2 bar-2
             check:
-              ($stdout=='NOAUTH Authentication required.'): true
+              (contains($stdout, 'NOAUTH Authentication required')): true

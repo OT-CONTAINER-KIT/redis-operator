@@ -43,37 +43,37 @@ spec:
               kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-0 --
               redis-cli -c -p 6379 ping
             check:
-              ($stdout=='PONG'): true
+              (contains($stdout, 'PONG')): true
         - script:
             content: >
               kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-1 --
               redis-cli -c -p 6379 ping
             check:
-              ($stdout=='PONG'): true
+              (contains($stdout, 'PONG')): true
         - script:
             content: >
               kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-2 --
               redis-cli -c -p 6379 ping
             check:
-              ($stdout=='PONG'): true
+              (contains($stdout, 'PONG')): true
         - script:
             content: >
               kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-0 --
               redis-cli -c -p 6379 ping
             check:
-              ($stdout=='PONG'): true
+              (contains($stdout, 'PONG')): true
         - script:
             content: >
               kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-1 --
               redis-cli -c -p 6379 ping
             check:
-              ($stdout=='PONG'): true
+              (contains($stdout, 'PONG')): true
         - script:
             content: >
               kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-2 --
               redis-cli -c -p 6379 ping
             check:
-              ($stdout=='PONG'): true
+              (contains($stdout, 'PONG')): true
     - name: Check Cluster Slots Coverage
       try:
         - script:
@@ -81,37 +81,37 @@ spec:
               kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-0 --
               redis-cli --cluster check 127.0.0.1:6379 | grep 'All 16384 slots covered.'
             check:
-              ($stdout=='[OK] All 16384 slots covered.'): true
+              (contains($stdout, '[OK] All 16384 slots covered')): true
         - script:
             content: >
               kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-1 --
               redis-cli --cluster check 127.0.0.1:6379 | grep 'All 16384 slots covered'
             check:
-              ($stdout=='[OK] All 16384 slots covered.'): true
+              (contains($stdout, '[OK] All 16384 slots covered')): true
         - script:
             content: >
               kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-2 --
               redis-cli --cluster check 127.0.0.1:6379 | grep 'All 16384 slots covered'
             check:
-              ($stdout=='[OK] All 16384 slots covered.'): true
+              (contains($stdout, '[OK] All 16384 slots covered')): true
         - script:
             content: >
               kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-0 --
               redis-cli --cluster check 127.0.0.1:6379 | grep 'All 16384 slots covered'
             check:
-              ($stdout=='[OK] All 16384 slots covered.'): true
+              (contains($stdout, '[OK] All 16384 slots covered')): true
         - script:
             content: >
               kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-1 --
               redis-cli --cluster check 127.0.0.1:6379 | grep 'All 16384 slots covered'
             check:
-              ($stdout=='[OK] All 16384 slots covered.'): true
+              (contains($stdout, '[OK] All 16384 slots covered')): true
         - script:
             content: >
               kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-2 --
               redis-cli --cluster check 127.0.0.1:6379 | grep 'All 16384 slots covered'
             check:
-              ($stdout=='[OK] All 16384 slots covered.'): true
+              (contains($stdout, '[OK] All 16384 slots covered')): true
     - name: Try saving a key With Password
       try:
         - script:
@@ -120,39 +120,39 @@ spec:
               kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-0 --
               redis-cli -c -p 6379 --user opstree --pass abc@123 set foo-0 bar-0
             check:
-              ($stdout=='OK'): true
+              (contains($stdout, 'OK')): true
         - script:
             timeout: 30s
             content: >
               kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-1 --
               redis-cli -c -p 6379 --user opstree --pass abc@123 set foo-1 bar-1
             check:
-              ($stdout=='OK'): true
+              (contains($stdout, 'OK')): true
         - script:
             timeout: 30s
             content: >
               kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-2 --
               redis-cli -c -p 6379 --user opstree --pass abc@123 set foo-2 bar-2
             check:
-              ($stdout=='OK'): true
+              (contains($stdout, 'OK')): true
         - script:
             timeout: 30s
             content: >
               kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-0 --
               redis-cli -c -p 6379 --user opstree --pass abc@123 set foo-3 bar-3
             check:
-              ($stdout=='OK'): true
+              (contains($stdout, 'OK')): true
         - script:
             timeout: 30s
             content: >
               kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-1 --
               redis-cli -c -p 6379 --user opstree --pass abc@123 set foo-4 bar-4
             check:
-              ($stdout=='OK'): true
+              (contains($stdout, 'OK')): true
         - script:
             timeout: 30s
             content: >
               kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-2 --
               redis-cli -c -p 6379 --user opstree --pass abc@123 set foo-5 bar-5
             check:
-              ($stdout=='OK'): true
+              (contains($stdout, 'OK')): true

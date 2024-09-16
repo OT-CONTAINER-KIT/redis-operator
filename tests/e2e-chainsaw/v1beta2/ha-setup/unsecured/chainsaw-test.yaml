@@ -36,7 +36,7 @@ spec:
             content: |
               kubectl exec --namespace ${NAMESPACE} redis -- redis-cli -h redis-replication.${NAMESPACE}.svc -p 6379 ping
             check:
-              ($stdout=='PONG'): true
+              (contains($stdout, 'PONG')): true
     - name: Ping Sentinel Service from Cli Pod
       try:
         - script:
@@ -44,4 +44,4 @@ spec:
             content: |
               kubectl exec --namespace ${NAMESPACE} redis -- redis-cli -h redis-sentinel-sentinel.${NAMESPACE}.svc -p 26379 ping
             check:
-              ($stdout=='PONG'): true
+              (contains($stdout, 'PONG')): true

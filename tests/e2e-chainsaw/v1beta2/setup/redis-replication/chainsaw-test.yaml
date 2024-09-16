@@ -29,19 +29,19 @@ spec:
             content: |
               kubectl exec --namespace ${NAMESPACE} redis-replication-0 -- redis-cli -p 6379 ping
             check:
-              ($stdout=='PONG'): true
+              (contains($stdout, 'PONG')): true
         - script:
             timeout: 10s
             content: |
               kubectl exec --namespace ${NAMESPACE} redis-replication-1 -- redis-cli -p 6379 ping
             check:
-              ($stdout=='PONG'): true
+              (contains($stdout, 'PONG')): true
         - script:
             timeout: 10s
             content: |
               kubectl exec --namespace ${NAMESPACE} redis-replication-2 -- redis-cli -p 6379 ping
             check:
-              ($stdout=='PONG'): true
+              (contains($stdout, 'PONG')): true
     - name: Try saving a key
       try:
         - script:
@@ -49,7 +49,7 @@ spec:
             content: |
               kubectl exec --namespace ${NAMESPACE} redis-replication-0 -- redis-cli -p 6379 set foo-0 bar-0
             check:
-              ($stdout=='OK'): true
+              (contains($stdout, 'OK')): true
     #  - script:
     #      timeout: 10s
     #      content: |

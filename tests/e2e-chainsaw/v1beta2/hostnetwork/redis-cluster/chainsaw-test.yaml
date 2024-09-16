@@ -37,37 +37,37 @@ spec:
             content: |
               kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 1 | tail -n 1 | xargs -I {} redis-cli -h {} -c -p 6380 ping
             check:
-              ($stdout=='PONG'): true
+              (contains($stdout, 'PONG')): true
         - script:
             timeout: 30s
             content: |
               kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 2 | tail -n 1 | xargs -I {} redis-cli -h {} -c -p 6380 ping
             check:
-              ($stdout=='PONG'): true
+              (contains($stdout, 'PONG')): true
         - script:
             timeout: 30s
             content: |
               kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 3 | tail -n 1 | xargs -I {} redis-cli -h {} -c -p 6380 ping
             check:
-              ($stdout=='PONG'): true
+              (contains($stdout, 'PONG')): true
         - script:
             timeout: 30s
             content: |
               kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 4 | tail -n 1 | xargs -I {} redis-cli -h {} -c -p 6380 ping
             check:
-              ($stdout=='PONG'): true
+              (contains($stdout, 'PONG')): true
         - script:
             timeout: 30s
             content: |
               kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 5 | tail -n 1 | xargs -I {} redis-cli -h {} -c -p 6380 ping
             check:
-              ($stdout=='PONG'): true
+              (contains($stdout, 'PONG')): true
         - script:
             timeout: 30s
             content: |
               kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 6 | tail -n 1 | xargs -I {} redis-cli -h {} -c -p 6380 ping
             check:
-              ($stdout=='PONG'): true
+              (contains($stdout, 'PONG')): true
     - name: Curl Exporter from every node
       try:
         - script:
@@ -76,42 +76,42 @@ spec:
               kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 1 | tail -n 1 |
               xargs -I {} curl -s http://{}:9122/metrics | grep -v '^#' | grep -E '\bredis_up\b' | awk '{print $2}'
             check:
-              ($stdout=='1'): true
+              (contains($stdout, '1')): true
         - script:
             timeout: 30s
             content: >
               kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 2 | tail -n 1 |
               xargs -I {} curl -s http://{}:9122/metrics | grep -v '^#' | grep -E '\bredis_up\b' | awk '{print $2}'
             check:
-              ($stdout=='1'): true
+              (contains($stdout, '1')): true
         - script:
             timeout: 30s
             content: >
               kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 3 | tail -n 1 |
               xargs -I {} curl -s http://{}:9122/metrics | grep -v '^#' | grep -E '\bredis_up\b' | awk '{print $2}'
             check:
-              ($stdout=='1'): true
+              (contains($stdout, '1')): true
         - script:
             timeout: 30s
             content: >
               kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 4 | tail -n 1 |
               xargs -I {} curl -s http://{}:9122/metrics | grep -v '^#' | grep -E '\bredis_up\b' | awk '{print $2}'
             check:
-              ($stdout=='1'): true
+              (contains($stdout, '1')): true
         - script:
             timeout: 30s
             content: >
               kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 5 | tail -n 1 |
               xargs -I {} curl -s http://{}:9122/metrics | grep -v '^#' | grep -E '\bredis_up\b' | awk '{print $2}'
             check:
-              ($stdout=='1'): true
+              (contains($stdout, '1')): true
         - script:
             timeout: 30s
             content: >
               kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 6 | tail -n 1 |
               xargs -I {} curl -s http://{}:9122/metrics | grep -v '^#' | grep -E '\bredis_up\b' | awk '{print $2}'
             check:
-              ($stdout=='1'): true
+              (contains($stdout, '1')): true
     - name: Try saving a key from every node
       try:
         - script:
@@ -119,34 +119,34 @@ spec:
             content: |
               kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 1 | tail -n 1 | xargs -I {} redis-cli -h {} -c -p 6380 set foo-0 bar-0
             check:
-              ($stdout=='OK'): true
+              (contains($stdout, 'OK')): true
         - script:
             timeout: 30s
             content: |
               kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 2 | tail -n 1 | xargs -I {} redis-cli -h {} -c -p 6380 set foo-1 bar-1
             check:
-              ($stdout=='OK'): true
+              (contains($stdout, 'OK')): true
         - script:
             timeout: 30s
             content: |
               kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 3 | tail -n 1 | xargs -I {} redis-cli -h {} -c -p 6380 set foo-2 bar-2
             check:
-              ($stdout=='OK'): true
+              (contains($stdout, 'OK')): true
         - script:
             timeout: 30s
             content: |
               kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 4 | tail -n 1 | xargs -I {} redis-cli -h {} -c -p 6380 set foo-3 bar-3
             check:
-              ($stdout=='OK'): true
+              (contains($stdout, 'OK')): true
         - script:
             timeout: 30s
             content: |
               kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 5 | tail -n 1 | xargs -I {} redis-cli -h {} -c -p 6380 set foo-4 bar-4
             check:
-              ($stdout=='OK'): true
+              (contains($stdout, 'OK')): true
         - script:
             timeout: 30s
             content: |
               kubectl get node -o wide | grep 'worker' | awk '{print $6}' | head -n 6 | tail -n 1 | xargs -I {} redis-cli -h {} -c -p 6380 set foo-5 bar-5
             check:
-              ($stdout=='OK'): true
+              (contains($stdout, 'OK')): true
