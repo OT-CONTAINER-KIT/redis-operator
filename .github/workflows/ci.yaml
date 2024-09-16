@@ -205,7 +205,9 @@ jobs:
     needs: [validate_yaml]
     name: E2E Test
     runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        redis-version: ["v7.0.15"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -246,6 +248,11 @@ jobs:
       - name: Wait for Redis Operator to be ready
         run: |
           kubectl wait --for=condition=available --timeout=300s deployment/redis-operator-redis-operator -n redis-operator-system
+
+      - name: Replace Redis Image Version
+        run: |
+          find ./tests/e2e-chainsaw/v1beta2/ -type f -exec gsed -i 's/quay.io\/opstree\/redis:latest/quay.io\/opstree\/redis:${{ matrix.redis-version }}/g' {} \;
+          find ./tests/e2e-chainsaw/v1beta2/ -type f -exec gsed -i 's/quay.io\/opstree\/redis-sentinel:latest/quay.io\/opstree\/redis-sentinel:${{ matrix.redis-version }}/g' {} \;
 
       - name: Run chainsaw test
         run: chainsaw test --test-dir ./tests/e2e-chainsaw/v1beta2/ --config tests/_config/chainsaw-configuration.yaml
