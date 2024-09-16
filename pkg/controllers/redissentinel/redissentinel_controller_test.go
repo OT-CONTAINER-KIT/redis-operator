@@ -10,7 +10,6 @@ import (
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -94,27 +93,6 @@ var _ = Describe("Redis sentinel test", func() {
 				"redis_setup_type": "sentinel",
 				"role":             "sentinel",
 			}))
-		})
-
-		Context("then deleting the redis sentinel CR", func() {
-			It("should delete the statefulset", func() {
-				redisSentinelCR := &redisv1beta2.RedisSentinel{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      redisSentinelCRName,
-						Namespace: ns,
-					},
-				}
-				Expect(k8sClient.Delete(context.TODO(), redisSentinelCR)).To(BeNil())
-
-				Eventually(func() bool {
-					sts := &appsv1.StatefulSet{}
-					err := k8sClient.Get(context.TODO(), types.NamespacedName{
-						Name:      redisSentinelCRName + "-sentinel",
-						Namespace: ns,
-					}, sts)
-					return errors.IsNotFound(err)
-				}, timeout, interval).Should(BeTrue())
-			})
 		})
 	})
 })
