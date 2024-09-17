@@ -1,0 +1,27 @@
+{{- if eq .Values.serviceMonitor.enabled true }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ .Values.redisSentinel.name | default .Release.Name }}-prometheus-monitoring
+  labels:
+    app.kubernetes.io/name: {{ .Values.redisSentinel.name | default .Release.Name }}
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/instance: {{ .Values.redisSentinel.name | default .Release.Name }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    app.kubernetes.io/component: middleware
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.redisSentinel.name | default .Release.Name }}
+      redis_setup_type: sentinel
+      role: sentinel
+  endpoints:
+  - port: redis-exporter
+    interval: {{ .Values.serviceMonitor.interval }}
+    scrapeTimeout: {{ .Values.serviceMonitor.scrapeTimeout }}
+  namespaceSelector:
+    matchNames:
+    - {{ .Values.serviceMonitor.namespace }}
+{{- end }}
