@@ -207,7 +207,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        redis-version: ["v7.0.15"]
+        redis-version: ["v7.0.15", "v6.2.14"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
