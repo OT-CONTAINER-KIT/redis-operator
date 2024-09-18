@@ -75,7 +75,7 @@ TLS is a security protocol that makes packet and network transfer encrypted betw
 The architecture with TLS setup looks like this:
 
 <div align="center">
-    <img src="../../../../../static/images/redis-tls.png">
+    <img src="../../../static/images/redis-tls.png">
 </div>
 
 ### Certificate creation
