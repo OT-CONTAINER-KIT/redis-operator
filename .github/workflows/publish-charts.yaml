@@ -1,12 +1,6 @@
 name: Release Charts
 
 on:
-  pull_request:
-    paths:
-      - 'charts/**'
-      - '.github/workflows/publish-charts.yaml'
-    branches:
-      - master
   push:
     paths:
       - 'charts/**'
