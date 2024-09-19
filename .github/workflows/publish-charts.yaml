@@ -1,6 +1,12 @@
 name: Release Charts
 
 on:
+  pull_request:
+    paths:
+      - 'charts/**'
+      - '.github/workflows/publish-charts.yaml'
+    branches:
+      - master
   push:
     paths:
       - 'charts/**'
@@ -104,7 +110,7 @@ jobs:
         run: |
           helm repo add jetstack https://charts.jetstack.io
           helm repo update
-          
+
           chart_dirs=("redis-operator" "redis" "redis-cluster" "redis-replication" "redis-sentinel")
           for dir in "${chart_dirs[@]}"
           do
@@ -112,7 +118,7 @@ jobs:
               helm dependency update ./charts/$dir/
             fi
             helm package charts/$dir -d .cr-release-packages
-          done                    
+          done
 
       - name: Install chart-releaser
         uses: helm/chart-releaser-action@v1.5.0
