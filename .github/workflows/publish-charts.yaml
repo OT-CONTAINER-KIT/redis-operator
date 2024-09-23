@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Create k8s Kind Cluster
         uses: helm/kind-action@v1.10.0
@@ -76,14 +76,14 @@ jobs:
       - test-charts
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: "${{ github.repository_owner }}/redis-operator"
           path: "redis-operator"
           fetch-depth: 0
 
       - name: Checkout helm-charts
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: "${{ github.repository_owner }}/helm-charts"
           # use token for helm-charts repo
