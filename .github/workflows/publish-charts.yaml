@@ -18,7 +18,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install Helm
-        uses: azure/setup-helm@v3
+        uses: azure/setup-helm@v4
         with:
           version: v3.5.4
 
@@ -48,7 +48,7 @@ jobs:
           cluster_name: kind
 
       - name: Install Helm
-        uses: azure/setup-helm@v3
+        uses: azure/setup-helm@v4
         with:
           version: v3.5.4
 
@@ -96,7 +96,7 @@ jobs:
           echo "chart_version=$(echo ${GITHUB_REF##*/v})" >> $GITHUB_ENV
 
       - name: Install Helm
-        uses: azure/setup-helm@v4.2.0
+        uses: azure/setup-helm@v4
 
       - name: Make charts
         shell: bash
