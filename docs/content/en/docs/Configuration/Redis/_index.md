@@ -17,7 +17,7 @@ Redis standalone configuration can be customized by [values.yaml](https://github
 | `redisStandalone.secretName`      | redis-secret                   | Name of the existing secret in Kubernetes                                                     |
 | `redisStandalone.secretKey`       | password                       | Name of the existing secret key in Kubernetes                                                 |
 | `redisStandalone.image`           | quay.io/opstree/redis          | Name of the redis image                                                                       |
-| `redisStandalone.tag`             | v7.0.5                         | Tag of the redis image                                                                        |
+| `redisStandalone.tag`             | v7.0.15                        | Tag of the redis image                                                                        |
 | `redisStandalone.imagePullPolicy` | IfNotPresent                   | Image Pull Policy of the redis image                                                          |
 | `redisStandalone.resources`       | {}                             | Request and limits for redis statefulset                                                      |
 | `externalService.enabled`         | false                          | If redis service needs to be exposed using LoadBalancer or NodePort                           |

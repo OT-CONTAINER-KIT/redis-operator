@@ -83,7 +83,7 @@ helm delete <my-release> --namespace <namespace>
 | redisStandalone.redisSecret.secretName | string | `""` |  |
 | redisStandalone.resources | object | `{}` |  |
 | redisStandalone.serviceType | string | `"ClusterIP"` |  |
-| redisStandalone.tag | string | `"v7.0.12"` |  |
+| redisStandalone.tag | string | `"v7.0.15"` |  |
 | securityContext | object | `{}` |  |
 | serviceAccountName | string | `""` |  |
 | serviceMonitor.enabled | bool | `false` |  |

@@ -56,7 +56,7 @@ For YAML manifest based upgrade, please update the `spec` section of Redis Objec
 ```yaml
 spec:
   kubernetesConfig:
-    image: "quay.io/opstree/redis:v7.0.5"
+    image: "quay.io/opstree/redis:v7.0.15"
     imagePullPolicy: "IfNotPresent"
 ```
 
@@ -158,7 +158,7 @@ For YAML manifest based upgrade, please update the `spec` section of Redis Objec
 ```yaml
 spec:
   kubernetesConfig:
-    image: "quay.io/opstree/redis:v7.0.5"
+    image: "quay.io/opstree/redis:v7.0.15"
     imagePullPolicy: "IfNotPresent"
 ```
 

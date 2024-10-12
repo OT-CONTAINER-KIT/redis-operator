@@ -85,7 +85,7 @@ helm delete <my-release> --namespace <namespace>
 | redisReplication.redisSecret.secretName | string | `""` |  |
 | redisReplication.resources | object | `{}` |  |
 | redisReplication.serviceType | string | `"ClusterIP"` |  |
-| redisReplication.tag | string | `"v7.0.12"` |  |
+| redisReplication.tag | string | `"v7.0.15"` |  |
 | securityContext | object | `{}` |  |
 | serviceAccountName | string | `""` |  |
 | serviceMonitor.enabled | bool | `false` |  |
