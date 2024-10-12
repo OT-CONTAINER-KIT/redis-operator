@@ -20,7 +20,7 @@ Redis cluster can be customized by [values.yaml](https://github.com/OT-CONTAINER
 | `redisCluster.secretName`          | redis-secret                   | Name of the existing secret in Kubernetes                                                    |
 | `redisCluster.secretKey`           | password                       | Name of the existing secret key in Kubernetes                                                |
 | `redisCluster.image`               | quay.io/opstree/redis          | Name of the redis image                                                                      |
-| `redisCluster.tag`                 | v7.0.5                         | Tag of the redis image                                                                       |
+| `redisCluster.tag`                 | v7.0.15                        | Tag of the redis image                                                                       |
 | `redisCluster.imagePullPolicy`     | IfNotPresent                   | Image Pull Policy of the redis image                                                         |
 | `redisCluster.leaderServiceType`   | ClusterIP                      | Kubernetes service type for Redis Leader                                                     |
 | `redisCluster.followerServiceType` | ClusterIP                      | Kubernetes service type for Redis Follower                                                   |
