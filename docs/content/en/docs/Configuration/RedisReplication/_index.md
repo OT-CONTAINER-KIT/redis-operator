@@ -17,7 +17,7 @@ Redis replication configuration can be customized by [values.yaml](https://githu
 | `redisReplication.secretName`      | redis-secret                   | Name of the existing secret in Kubernetes                                                     |
 | `redisReplication.secretKey`       | password                       | Name of the existing secret key in Kubernetes                                                 |
 | `redisReplication.image`           | quay.io/opstree/redis          | Name of the redis image                                                                       |
-| `redisReplication.tag`             | v7.0.5                         | Tag of the redis image                                                                        |
+| `redisReplication.tag`             | v7.0.15                        | Tag of the redis image                                                                        |
 | `redisReplication.imagePullPolicy` | IfNotPresent                   | Image Pull Policy of the redis image                                                          |
 | `redisReplication.resources`       | {}                             | Request and limits for redis statefulset                                                      |
 | `externalService.enabled`         | false                          | If redis service needs to be exposed using LoadBalancer or NodePort                           |

@@ -85,7 +85,7 @@ helm delete <my-release> --namespace <namespace>
 | redisSentinel.redisSecret.secretName | string | `""` |  |
 | redisSentinel.resources | object | `{}` |  |
 | redisSentinel.serviceType | string | `"ClusterIP"` |  |
-| redisSentinel.tag | string | `"v7.0.12"` |  |
+| redisSentinel.tag | string | `"v7.0.15"` |  |
 | redisSentinelConfig.downAfterMilliseconds | string | `""` |  |
 | redisSentinelConfig.failoverTimeout | string | `""` |  |
 | redisSentinelConfig.masterGroupName | string | `""` |  |

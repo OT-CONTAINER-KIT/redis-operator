@@ -5,7 +5,7 @@ redisCluster:
   clusterVersion: v7
   persistenceEnabled: true
   image: quay.io/opstree/redis
-  tag: v7.0.12
+  tag: v7.0.15
   imagePullPolicy: IfNotPresent
   imagePullSecrets: {}
     # - name:  Secret with Registry credentials

@@ -97,7 +97,7 @@ helm delete <my-release> --namespace <namespace>
 | redisCluster.redisSecret.secretKey | string | `""` |  |
 | redisCluster.redisSecret.secretName | string | `""` |  |
 | redisCluster.resources | object | `{}` |  |
-| redisCluster.tag | string | `"v7.0.12"` |  |
+| redisCluster.tag | string | `"v7.0.15"` |  |
 | redisExporter.enabled | bool | `false` |  |
 | redisExporter.env | list | `[]` |  |
 | redisExporter.image | string | `"quay.io/opstree/redis-exporter"` |  |
