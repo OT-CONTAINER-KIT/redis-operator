@@ -29,10 +29,15 @@ func TestCheckRedisNodePresence(t *testing.T) {
 	csvOutput := csv.NewReader(strings.NewReader(output))
 	csvOutput.Comma = ' '
 	csvOutput.FieldsPerRecord = -1
-	nodes, _ := csvOutput.ReadAll()
+	rawNodes, _ := csvOutput.ReadAll()
+
+	nodes := make([]clusterNodesResponse, 0, len(rawNodes))
+	for _, node := range nodes {
+		nodes = append(nodes, node)
+	}
 
 	tests := []struct {
-		nodes [][]string
+		nodes []clusterNodesResponse
 		ip    string
 		want  bool
 	}{
@@ -814,7 +819,8 @@ e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@31001,hostname1 myself,
 			} else {
 				mock.ExpectClusterNodes().SetVal(tc.clusterNodesOutput)
 			}
-			result := checkRedisCluster(context.TODO(), db, logger)
+			result, err := clusterNodes(context.TODO(), db, logger)
+			assert.NoError(t, err)
 
 			if tc.expectError != nil {
 				assert.Nil(t, result)

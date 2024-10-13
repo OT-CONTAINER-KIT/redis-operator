@@ -186,11 +186,19 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return intctrlutil.RequeueAfter(reqLogger, time.Second*60, "Redis cluster count is not desired", "Current.Count", nc, "Desired.Count", totalReplicas)
 	}
 
-	reqLogger.Info("Redis cluster count is desired")
-	if int(totalReplicas) > 1 && k8sutils.CheckRedisClusterState(ctx, r.K8sClient, r.Log, instance) >= int(totalReplicas)-1 {
-		reqLogger.Info("Redis leader is not desired, executing failover operation")
-		err = k8sutils.ExecuteFailoverOperation(ctx, r.K8sClient, r.Log, instance)
-		if err != nil {
+	reqLogger.Info("Number of Redis nodes match desired")
+	unhealthyNodeCount, err := k8sutils.UnhealthyNodesInCluster(ctx, r.K8sClient, r.Log, instance)
+	if err != nil {
+		reqLogger.Error(err, "failed to determine unhealthy node count in cluster")
+	}
+	if int(totalReplicas) > 1 && unhealthyNodeCount >= int(totalReplicas)-1 {
+		reqLogger.Info("healthy leader count does not match desired; attempting to repair disconnected masters")
+		if err := k8sutils.RepairDisconnectedMasters(ctx, r.K8sClient, r.Log, instance); err == nil {
+			// requeue after 30 seconds, allowing cluster time to become healthy after issuing CLUSTER MEET
+			return intctrlutil.RequeueAfter(reqLogger, time.Second*30, "successfully repaired disconnected masters")
+		}
+		reqLogger.Info("failed to repair disconnected masters; starting failover")
+		if err := k8sutils.ExecuteFailoverOperation(ctx, r.K8sClient, r.Log, instance); err != nil {
 			return intctrlutil.RequeueWithError(err, reqLogger, "")
 		}
 	}
