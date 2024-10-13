@@ -85,6 +85,8 @@ func CreateSingleLeaderRedisCommand(logger logr.Logger, cr *redisv1beta2.RedisCl
 	return cmd
 }
 
+// RepairDisconnectedMasters attempts to repair disconnected/failed masters by issuing
+// a CLUSTER MEET with the updated address of the host
 func RepairDisconnectedMasters(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster) error {
 	redisClient := configureRedisClient(client, logger, cr, cr.ObjectMeta.Name+"-leader-0")
 	defer redisClient.Close()
@@ -92,8 +94,12 @@ func RepairDisconnectedMasters(ctx context.Context, client kubernetes.Interface,
 	if err != nil {
 		return err
 	}
+	masterNodeType := "master"
 	for _, node := range nodes {
-		if !nodeFailed(node) {
+		if !nodeIsOfType(node, masterNodeType) {
+			continue
+		}
+		if !nodeFailedOrDisconnected(node) {
 			continue
 		}
 		log.V(1).Info("found disconnected master node", "node", node)
@@ -352,7 +358,7 @@ func CheckRedisNodeCount(ctx context.Context, client kubernetes.Interface, logge
 	if nodeType != "" {
 		count = 0
 		for _, node := range clusterNodes {
-			if strings.Contains(node[2], redisNodeType) {
+			if nodeIsOfType(node, redisNodeType) {
 				count++
 			}
 		}
@@ -401,7 +407,7 @@ func UnhealthyNodesInCluster(ctx context.Context, client kubernetes.Interface, l
 	}
 	count := 0
 	for _, node := range clusterNodes {
-		if nodeFailed(node) {
+		if nodeFailedOrDisconnected(node) {
 			count++
 		}
 	}
@@ -409,7 +415,11 @@ func UnhealthyNodesInCluster(ctx context.Context, client kubernetes.Interface, l
 	return count, nil
 }
 
-func nodeFailed(node clusterNodesResponse) bool {
+func nodeIsOfType(node clusterNodesResponse, nodeType string) bool {
+	return strings.Contains(node[2], nodeType)
+}
+
+func nodeFailedOrDisconnected(node clusterNodesResponse) bool {
 	return strings.Contains(node[2], "fail") || strings.Contains(node[7], "disconnected")
 }
 
