@@ -3,7 +3,7 @@ VERSION ?= 0.18.0
 # Default bundle image tag
 BUNDLE_IMG ?= controller-bundle:$(VERSION)
 # Kubernetes version to use for envtest
-ENVTEST_K8S_VERSION=1.30.0
+ENVTEST_K8S_VERSION=1.31.0
 
 # Options for 'bundle-build'
 ifneq ($(origin CHANNELS), undefined)
@@ -141,8 +141,8 @@ unit-tests:
 	@go tool cover -html=coverage.out
 
 .PHONY: e2e-test
-e2e-test: e2e-kind-setup install-kuttl
-	$(shell pwd)/bin/kuttl test --config tests/_config/kuttl-test.yaml
+e2e-test: e2e-kind-setup kuttl
+	$(LOCALBIN)/kuttl test --config tests/_config/kuttl-test.yaml
 
 .PHONY: integration-test-setup
 integration-test-setup:
