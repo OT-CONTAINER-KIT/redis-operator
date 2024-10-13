@@ -103,22 +103,29 @@ func RepairDisconnectedMasters(ctx context.Context, client kubernetes.Interface,
 			continue
 		}
 		log.V(1).Info("found disconnected master node", "node", node)
-		podName := getPodNameFromClusterNode(node)
+		podName, err := getMasterHostFromClusterNode(node)
+		if err != nil {
+			return err
+		}
 		ip := getRedisServerIP(client, logger, RedisDetails{
 			PodName:   podName,
 			Namespace: cr.Namespace,
 		})
-		err := redisClient.ClusterMeet(ctx, ip, strconv.Itoa(*cr.Spec.Port)).Err()
+		err = redisClient.ClusterMeet(ctx, ip, strconv.Itoa(*cr.Spec.Port)).Err()
 		if err != nil {
-			logger.Error(err, "failed to issue cluster meet", "address", ip, "port", cr.Spec.Port)
+			return fmt.Errorf("failed to issue cluster meet: %w", err)
 		}
 	}
 	return nil
 }
 
-func getPodNameFromClusterNode(node clusterNodesResponse) string {
+func getMasterHostFromClusterNode(node clusterNodesResponse) (string, error) {
 	addressAndHost := node[1]
-	return strings.Split(addressAndHost, ",")[1]
+	s := strings.Split(addressAndHost, ",")
+	if len(s) != 2 {
+		return "", fmt.Errorf("failed to extract host from host and address string, unexpected number of elements: %d", len(s))
+	}
+	return strings.Split(addressAndHost, ",")[1], nil
 }
 
 // CreateMultipleLeaderRedisCommand will create command for single leader cluster creation
