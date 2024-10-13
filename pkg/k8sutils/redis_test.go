@@ -32,7 +32,7 @@ func TestCheckRedisNodePresence(t *testing.T) {
 	rawNodes, _ := csvOutput.ReadAll()
 
 	nodes := make([]clusterNodesResponse, 0, len(rawNodes))
-	for _, node := range nodes {
+	for _, node := range rawNodes {
 		nodes = append(nodes, node)
 	}
 
@@ -777,14 +777,14 @@ func Test_checkRedisServerRole(t *testing.T) {
 	}
 }
 
-func TestCheckRedisCluster(t *testing.T) {
+func TestClusterNodes(t *testing.T) {
 	logger := logr.Discard() // Discard logs
 
 	tests := []struct {
 		name               string
 		expectError        error
 		clusterNodesOutput string
-		expectedResult     [][]string
+		expectedResult     []clusterNodesResponse
 	}{
 		{
 			name: "Detailed cluster nodes output",
@@ -794,7 +794,7 @@ func TestCheckRedisCluster(t *testing.T) {
 6ec23923021cf3ffec47632106199cb7f496ce01 127.0.0.1:30005@31005,hostname5 slave 67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1 0 1426238316232 5 connected
 824fe116063bc5fcf9f4ffd895bc17aee7731ac3 127.0.0.1:30006@31006,hostname6 slave 292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f 0 1426238317741 6 connected
 e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@31001,hostname1 myself,master - 0 0 1 connected 0-5460`,
-			expectedResult: [][]string{
+			expectedResult: []clusterNodesResponse{
 				{"07c37dfeb235213a872192d90877d0cd55635b91", "127.0.0.1:30004@31004,hostname4", "slave", "e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca", "0", "1426238317239", "4", "connected"},
 				{"67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1", "127.0.0.1:30002@31002,hostname2", "master", "-", "0", "1426238316232", "2", "connected", "5461-10922"},
 				{"292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f", "127.0.0.1:30003@31003,hostname3", "master", "-", "0", "1426238318243", "3", "connected", "10923-16383"},
@@ -820,11 +820,12 @@ e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@31001,hostname1 myself,
 				mock.ExpectClusterNodes().SetVal(tc.clusterNodesOutput)
 			}
 			result, err := clusterNodes(context.TODO(), db, logger)
-			assert.NoError(t, err)
 
 			if tc.expectError != nil {
 				assert.Nil(t, result)
+				assert.Error(t, err)
 			} else {
+				assert.NoError(t, err)
 				assert.ElementsMatch(t, tc.expectedResult, result)
 			}
 
