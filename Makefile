@@ -152,8 +152,8 @@ integration-test-setup:
 .PHONY: e2e-kind-setup
 e2e-kind-setup:
 	${CONTAINER_ENGINE} build -t redis-operator:e2e -f Dockerfile .
-	kind create cluster --config tests/_config/kind-config.yaml
-	kind load docker-image redis-operator:e2e --name kind
+	$(KIND) create cluster --config tests/_config/kind-config.yaml
+	$(KIND) load docker-image redis-operator:e2e --name kind
 	make deploy IMG=redis-operator:e2e
 
 
@@ -171,6 +171,7 @@ CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen-$(CONTROLLER_TOOLS_VERSION)
 ENVTEST ?= $(LOCALBIN)/setup-envtest-$(ENVTEST_VERSION)
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
 KUTTL=$(LOCALBIN)/kuttl-$(KUTTL_VERSION)
+KIND=$(LOCALBIN)/kind-$(KIND_VERSION)
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.3.0
@@ -178,6 +179,7 @@ CONTROLLER_TOOLS_VERSION ?= v0.14.0
 ENVTEST_VERSION ?= release-0.17
 GOLANGCI_LINT_VERSION ?= v1.57.2
 KUTTL_VERSION ?= 0.15.0
+KIND_VERSION ?= v0.24.0
 
 
 .PHONY: kustomize
@@ -199,6 +201,12 @@ $(ENVTEST): $(LOCALBIN)
 golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
 $(GOLANGCI_LINT): $(LOCALBIN)
 	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint,${GOLANGCI_LINT_VERSION})
+
+.PHONY: kind
+kind: $(KIND) ## Download golangci-lint locally if necessary.
+$(KIND): $(LOCALBIN)
+	$(call go-install-tool,$(KIND),sigs.k8s.io/kind,${KIND_VERSION})
+
 
 
 .PHONY: kuttl
