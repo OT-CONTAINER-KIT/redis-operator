@@ -18,12 +18,14 @@ package rediscluster
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/OT-CONTAINER-KIT/redis-operator/api/status"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllerutil"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/k8sutils"
+	retry "github.com/avast/retry-go"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -193,11 +195,26 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 	if int(totalReplicas) > 1 && unhealthyNodeCount >= int(totalReplicas)-1 {
 		reqLogger.Info("healthy leader count does not match desired; attempting to repair disconnected masters")
-		if err := k8sutils.RepairDisconnectedMasters(ctx, r.K8sClient, r.Log, instance); err == nil {
-			// requeue after 30 seconds, allowing cluster time to become healthy after issuing CLUSTER MEET
-			return intctrlutil.RequeueAfter(reqLogger, time.Second*30, "successfully repaired disconnected masters")
+		if err := k8sutils.RepairDisconnectedMasters(ctx, r.K8sClient, r.Log, instance); err != nil {
+			reqLogger.Error(err, "failed to repair disconnected masters")
 		}
-		reqLogger.Info("failed to repair disconnected masters; starting failover")
+
+		err := retry.Do(func() error {
+			unhealthyNodeCount, err := k8sutils.UnhealthyNodesInCluster(ctx, r.K8sClient, r.Log, instance)
+			if err != nil {
+				return err
+			}
+			if unhealthyNodeCount == 0 {
+				return nil
+			}
+			return fmt.Errorf("%d unhealthy nodes", unhealthyNodeCount)
+		}, retry.Attempts(3), retry.Delay(time.Second*5))
+
+		if err == nil {
+			reqLogger.Info("repairing unhealthy masters successful, no unhealthy masters left")
+			return intctrlutil.RequeueAfter(reqLogger, time.Second*30, "no unhealthy nodes found after repairing disconnected masters")
+		}
+		reqLogger.Info("unhealthy nodes exist after attempting to repair disconnected masters; starting failover")
 		if err := k8sutils.ExecuteFailoverOperation(ctx, r.K8sClient, r.Log, instance); err != nil {
 			return intctrlutil.RequeueWithError(err, reqLogger, "")
 		}
