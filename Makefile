@@ -3,7 +3,7 @@ VERSION ?= 0.18.0
 # Default bundle image tag
 BUNDLE_IMG ?= controller-bundle:$(VERSION)
 # Kubernetes version to use for envtest
-ENVTEST_K8S_VERSION=1.24.1
+ENVTEST_K8S_VERSION=1.30.0
 
 # Options for 'bundle-build'
 ifneq ($(origin CHANNELS), undefined)
