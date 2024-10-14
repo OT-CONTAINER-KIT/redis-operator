@@ -70,6 +70,9 @@ fmt:
 vet:
 	go vet ./...
 
+lint: golangci-lint
+	$(GOLANGCI_LINT) run
+
 # Generate code
 generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
@@ -206,8 +209,6 @@ $(GOLANGCI_LINT): $(LOCALBIN)
 kind: $(KIND) ## Download golangci-lint locally if necessary.
 $(KIND): $(LOCALBIN)
 	$(call go-install-tool,$(KIND),sigs.k8s.io/kind,${KIND_VERSION})
-
-
 
 .PHONY: kuttl
 kuttl: $(KUTTL) ## Download kuttl locally if necessary.
