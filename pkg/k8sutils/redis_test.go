@@ -57,6 +57,39 @@ func TestCheckRedisNodePresence(t *testing.T) {
 	}
 }
 
+func TestRepairDisconnectedMasters(t *testing.T) {
+	ctx := context.Background()
+	redisClient, mock := redismock.NewClientMock()
+	mock.ExpectClusterNodes().SetVal(`
+07c37dfeb235213a872192d90877d0cd55635b91 127.0.0.1:30004@31004,redis-cluster-follower-0 slave e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 0 1426238317239 4 connected
+67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1 127.0.0.1:30002@31002,redis-cluster-leader-0 master - 0 1426238316232 2 disconnected 5461-10922
+824fe116063bc5fcf9f4ffd895bc17aee7731ac3 127.0.0.1:30006@31006,redis-cluster-follower-1 slave 292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f 0 1426238317741 6 disconnected
+e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@31001,redis-cluster-leader-1 myself,master - 0 0 1 connected 0-5460
+`)
+
+	namespace := "default"
+	k8sClient := k8sClientFake.NewSimpleClientset(&corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "redis-cluster-leader-0",
+			Namespace: namespace,
+		},
+		Status: corev1.PodStatus{
+			PodIP: "10.10.10.8",
+		},
+	})
+	mock.ExpectClusterMeet("10.10.10.8", "6379").SetVal("OK")
+	port := 6379
+	err := repairDisconnectedMasters(ctx, k8sClient, logr.Discard(), &redisv1beta2.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+		},
+		Spec: redisv1beta2.RedisClusterSpec{
+			Port: &port,
+		},
+	}, redisClient)
+	assert.NoError(t, err)
+}
+
 func TestGetRedisServerIP(t *testing.T) {
 	tests := []struct {
 		name        string
