@@ -153,7 +153,7 @@ integration-test-setup:
 
 
 .PHONY: e2e-kind-setup
-e2e-kind-setup:
+e2e-kind-setup: kind
 	${CONTAINER_ENGINE} build -t redis-operator:e2e -f Dockerfile .
 	$(KIND) create cluster --config tests/_config/kind-config.yaml
 	$(KIND) load docker-image redis-operator:e2e --name kind
