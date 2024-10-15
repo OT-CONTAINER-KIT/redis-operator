@@ -90,6 +90,10 @@ func CreateSingleLeaderRedisCommand(logger logr.Logger, cr *redisv1beta2.RedisCl
 func RepairDisconnectedMasters(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster) error {
 	redisClient := configureRedisClient(client, logger, cr, cr.ObjectMeta.Name+"-leader-0")
 	defer redisClient.Close()
+	return repairDisconnectedMasters(ctx, client, logger, cr, redisClient)
+}
+
+func repairDisconnectedMasters(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster, redisClient *redis.Client) error {
 	nodes, err := clusterNodes(ctx, redisClient, logger)
 	if err != nil {
 		return err
