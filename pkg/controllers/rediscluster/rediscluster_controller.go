@@ -18,12 +18,14 @@ package rediscluster
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/OT-CONTAINER-KIT/redis-operator/api/status"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllerutil"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/k8sutils"
+	retry "github.com/avast/retry-go"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -186,11 +188,34 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return intctrlutil.RequeueAfter(reqLogger, time.Second*60, "Redis cluster count is not desired", "Current.Count", nc, "Desired.Count", totalReplicas)
 	}
 
-	reqLogger.Info("Redis cluster count is desired")
-	if int(totalReplicas) > 1 && k8sutils.CheckRedisClusterState(ctx, r.K8sClient, r.Log, instance) >= int(totalReplicas)-1 {
-		reqLogger.Info("Redis leader is not desired, executing failover operation")
-		err = k8sutils.ExecuteFailoverOperation(ctx, r.K8sClient, r.Log, instance)
-		if err != nil {
+	reqLogger.Info("Number of Redis nodes match desired")
+	unhealthyNodeCount, err := k8sutils.UnhealthyNodesInCluster(ctx, r.K8sClient, r.Log, instance)
+	if err != nil {
+		reqLogger.Error(err, "failed to determine unhealthy node count in cluster")
+	}
+	if int(totalReplicas) > 1 && unhealthyNodeCount >= int(totalReplicas)-1 {
+		reqLogger.Info("healthy leader count does not match desired; attempting to repair disconnected masters")
+		if err = k8sutils.RepairDisconnectedMasters(ctx, r.K8sClient, r.Log, instance); err != nil {
+			reqLogger.Error(err, "failed to repair disconnected masters")
+		}
+
+		err = retry.Do(func() error {
+			nc, nErr := k8sutils.UnhealthyNodesInCluster(ctx, r.K8sClient, r.Log, instance)
+			if nErr != nil {
+				return nErr
+			}
+			if nc == 0 {
+				return nil
+			}
+			return fmt.Errorf("%d unhealthy nodes", nc)
+		}, retry.Attempts(3), retry.Delay(time.Second*5))
+
+		if err == nil {
+			reqLogger.Info("repairing unhealthy masters successful, no unhealthy masters left")
+			return intctrlutil.RequeueAfter(reqLogger, time.Second*30, "no unhealthy nodes found after repairing disconnected masters")
+		}
+		reqLogger.Info("unhealthy nodes exist after attempting to repair disconnected masters; starting failover")
+		if err = k8sutils.ExecuteFailoverOperation(ctx, r.K8sClient, r.Log, instance); err != nil {
 			return intctrlutil.RequeueWithError(err, reqLogger, "")
 		}
 	}
