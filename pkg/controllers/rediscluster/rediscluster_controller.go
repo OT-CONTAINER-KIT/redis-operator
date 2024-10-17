@@ -47,7 +47,7 @@ type RedisClusterReconciler struct {
 
 func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	reqLogger := r.Log.WithValues("Request.Namespace", req.Namespace, "Request.Name", req.Name)
-	reqLogger.Info("Reconciling opstree redis Cluster controller")
+	reqLogger.V(1).Info("Reconciling opstree redis Cluster controller")
 	instance := &redisv1beta2.RedisCluster{}
 
 	err := r.Client.Get(context.TODO(), req.NamespacedName, instance)
@@ -188,12 +188,18 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return intctrlutil.RequeueAfter(reqLogger, time.Second*60, "Redis cluster count is not desired", "Current.Count", nc, "Desired.Count", totalReplicas)
 	}
 
-	reqLogger.Info("Number of Redis nodes match desired")
+	reqLogger.V(1).Info("Number of Redis nodes match desired")
 	unhealthyNodeCount, err := k8sutils.UnhealthyNodesInCluster(ctx, r.K8sClient, r.Log, instance)
 	if err != nil {
 		reqLogger.Error(err, "failed to determine unhealthy node count in cluster")
 	}
 	if int(totalReplicas) > 1 && unhealthyNodeCount >= int(totalReplicas)-1 {
+
+		err = k8sutils.UpdateRedisClusterStatus(instance, status.RedisClusterFailed, "RedisCluster has too many unhealthy nodes", leaderReplicas, followerReplicas, r.Dk8sClient)
+		if err != nil {
+			return intctrlutil.RequeueWithError(err, reqLogger, "")
+		}
+
 		reqLogger.Info("healthy leader count does not match desired; attempting to repair disconnected masters")
 		if err = k8sutils.RepairDisconnectedMasters(ctx, r.K8sClient, r.Log, instance); err != nil {
 			reqLogger.Error(err, "failed to repair disconnected masters")
