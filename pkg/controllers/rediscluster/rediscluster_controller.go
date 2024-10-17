@@ -194,7 +194,6 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		reqLogger.Error(err, "failed to determine unhealthy node count in cluster")
 	}
 	if int(totalReplicas) > 1 && unhealthyNodeCount >= int(totalReplicas)-1 {
-
 		err = k8sutils.UpdateRedisClusterStatus(instance, status.RedisClusterFailed, "RedisCluster has too many unhealthy nodes", leaderReplicas, followerReplicas, r.Dk8sClient)
 		if err != nil {
 			return intctrlutil.RequeueWithError(err, reqLogger, "")
