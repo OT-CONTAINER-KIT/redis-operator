@@ -8,7 +8,8 @@ spec:
   execution:
     failFast: true
     parallel: 100
-  delayBeforeCleanup: 10s
+  cleanup:
+    delayBeforeCleanup: 10s
   timeouts:
     apply: 5m
     delete: 5m
