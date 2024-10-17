@@ -24,10 +24,10 @@ spec:
 
     - name: Restart pods at same time
       try:
-          - script:
-              timeout: 30s
-              content: >
-                kubectl delete pod --namespace ${NAMESPACE} -l app=redis-cluster-v1beta2-leader
+        - script:
+            timeout: 30s
+            content: >
+              kubectl delete pod --namespace ${NAMESPACE} -l app=redis-cluster-v1beta2-leader
 
     - name: Wait cluster to be failed
       try:
@@ -48,4 +48,3 @@ spec:
               redis-cli -c get foo-0
             check:
               (contains($stdout, 'bar-0')): true
-
