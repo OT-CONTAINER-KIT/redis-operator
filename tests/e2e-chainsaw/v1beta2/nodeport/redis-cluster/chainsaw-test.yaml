@@ -18,10 +18,6 @@ spec:
             file: ready-svc.yaml
         - assert:
             file: ready-pvc.yaml
-    - name: Sleep for five minutes
-      try:
-        - sleep:
-            duration: 5m
     - name: Ping Cluster
       try:
         - script:

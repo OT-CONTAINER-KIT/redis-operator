@@ -21,10 +21,6 @@ spec:
             file: ready-pvc.yaml
         - assert:
             file: secret.yaml
-    - name: Sleep for five minutes
-      try:
-        - sleep:
-            duration: 5m
     - name: Ping Cluster With Password
       try:
         - script:

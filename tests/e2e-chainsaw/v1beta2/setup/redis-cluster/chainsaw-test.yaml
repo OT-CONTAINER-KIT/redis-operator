@@ -24,11 +24,6 @@ spec:
             selector: control-plane=redis-operator
             container: manager
             tail: -1  # tail all logs
-     # no need to wait for 5 minutes, when we have ready-cluster.yaml, we can proceed
-#    - name: Sleep for five minutes
-#      try:
-#        - sleep:
-#            duration: 3m
     - name: Ping Cluster
       try:
         - script:

@@ -26,10 +26,6 @@ spec:
             timeout: 5m
             content: |
               sudo apt install redis-tools -y
-    - name: Sleep for five minutes
-      try:
-        - sleep:
-            duration: 5m
     - name: Ping Redis Cluster from every node
       try:
         - script:

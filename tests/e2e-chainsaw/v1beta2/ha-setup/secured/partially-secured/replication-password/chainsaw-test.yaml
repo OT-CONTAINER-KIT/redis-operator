@@ -31,10 +31,6 @@ spec:
             file: cli-pod.yaml
         - assert:
             file: cli-pod.yaml
-    - name: Sleep for five minutes
-      try:
-        - sleep:
-            duration: 5m
     - name: Ping Replicated Service from Cli Pod
       try:
         - script:
