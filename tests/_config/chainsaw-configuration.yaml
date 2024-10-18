@@ -7,7 +7,6 @@ metadata:
 spec:
   execution:
     failFast: true
-    parallel: 100
   cleanup:
     delayBeforeCleanup: 10s
   timeouts:
