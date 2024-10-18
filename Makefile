@@ -66,6 +66,9 @@ manifests: controller-gen
 fmt:
 	go fmt ./...
 
+lint: golangci-lint
+	$(GOLANGCI_LINT) run
+
 # Run go vet against code
 vet:
 	go vet ./...

@@ -85,6 +85,53 @@ func CreateSingleLeaderRedisCommand(logger logr.Logger, cr *redisv1beta2.RedisCl
 	return cmd
 }
 
+// RepairDisconnectedMasters attempts to repair disconnected/failed masters by issuing
+// a CLUSTER MEET with the updated address of the host
+func RepairDisconnectedMasters(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster) error {
+	redisClient := configureRedisClient(client, logger, cr, cr.ObjectMeta.Name+"-leader-0")
+	defer redisClient.Close()
+	return repairDisconnectedMasters(ctx, client, logger, cr, redisClient)
+}
+
+func repairDisconnectedMasters(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster, redisClient *redis.Client) error {
+	nodes, err := clusterNodes(ctx, redisClient, logger)
+	if err != nil {
+		return err
+	}
+	masterNodeType := "master"
+	for _, node := range nodes {
+		if !nodeIsOfType(node, masterNodeType) {
+			continue
+		}
+		if !nodeFailedOrDisconnected(node) {
+			continue
+		}
+		log.V(1).Info("found disconnected master node", "node", node)
+		podName, err := getMasterHostFromClusterNode(node)
+		if err != nil {
+			return err
+		}
+		ip := getRedisServerIP(client, logger, RedisDetails{
+			PodName:   podName,
+			Namespace: cr.Namespace,
+		})
+		err = redisClient.ClusterMeet(ctx, ip, strconv.Itoa(*cr.Spec.Port)).Err()
+		if err != nil {
+			return fmt.Errorf("failed to issue cluster meet: %w", err)
+		}
+	}
+	return nil
+}
+
+func getMasterHostFromClusterNode(node clusterNodesResponse) (string, error) {
+	addressAndHost := node[1]
+	s := strings.Split(addressAndHost, ",")
+	if len(s) != 2 {
+		return "", fmt.Errorf("failed to extract host from host and address string, unexpected number of elements: %d", len(s))
+	}
+	return strings.Split(addressAndHost, ",")[1], nil
+}
+
 // CreateMultipleLeaderRedisCommand will create command for single leader cluster creation
 func CreateMultipleLeaderRedisCommand(client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster) []string {
 	cmd := []string{"redis-cli", "--cluster", "create"}
@@ -189,7 +236,10 @@ func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Inter
 	redisClient := configureRedisClient(client, logger, cr, cr.ObjectMeta.Name+"-leader-0")
 	defer redisClient.Close()
 
-	nodes := checkRedisCluster(ctx, redisClient, logger)
+	nodes, err := clusterNodes(ctx, redisClient, logger)
+	if err != nil {
+		logger.Error(err, "failed to get cluster nodes")
+	}
 	for followerIdx := 0; followerIdx <= int(followerCounts)-1; {
 		for i := 0; i < int(followerPerLeader) && followerIdx <= int(followerCounts)-1; i++ {
 			followerPod := RedisDetails{
@@ -225,22 +275,27 @@ func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Inter
 	}
 }
 
-// checkRedisCluster will check the redis cluster have sufficient nodes or not
-func checkRedisCluster(ctx context.Context, redisClient *redis.Client, logger logr.Logger) [][]string {
+type clusterNodesResponse []string
+
+// clusterNodes will returns the response of CLUSTER NODES
+func clusterNodes(ctx context.Context, redisClient *redis.Client, logger logr.Logger) ([]clusterNodesResponse, error) {
 	output, err := redisClient.ClusterNodes(ctx).Result()
 	if err != nil {
-		logger.Error(err, "Error in getting Redis cluster nodes")
+		return nil, err
 	}
-	logger.V(1).Info("Redis cluster nodes are listed", "Output", output)
 
 	csvOutput := csv.NewReader(strings.NewReader(output))
 	csvOutput.Comma = ' '
 	csvOutput.FieldsPerRecord = -1
 	csvOutputRecords, err := csvOutput.ReadAll()
 	if err != nil {
-		logger.Error(err, "Error parsing Node Counts", "output", output)
+		return nil, err
 	}
-	return csvOutputRecords
+	response := make([]clusterNodesResponse, 0, len(csvOutputRecords))
+	for _, record := range csvOutputRecords {
+		response = append(response, record)
+	}
+	return response, nil
 }
 
 // ExecuteFailoverOperation will execute redis failover operations
@@ -297,7 +352,10 @@ func CheckRedisNodeCount(ctx context.Context, client kubernetes.Interface, logge
 	redisClient := configureRedisClient(client, logger, cr, cr.ObjectMeta.Name+"-leader-0")
 	defer redisClient.Close()
 	var redisNodeType string
-	clusterNodes := checkRedisCluster(ctx, redisClient, logger)
+	clusterNodes, err := clusterNodes(ctx, redisClient, logger)
+	if err != nil {
+		logger.Error(err, "failed to get cluster nodes")
+	}
 	count := len(clusterNodes)
 
 	switch nodeType {
@@ -311,7 +369,7 @@ func CheckRedisNodeCount(ctx context.Context, client kubernetes.Interface, logge
 	if nodeType != "" {
 		count = 0
 		for _, node := range clusterNodes {
-			if strings.Contains(node[2], redisNodeType) {
+			if nodeIsOfType(node, redisNodeType) {
 				count++
 			}
 		}
@@ -350,19 +408,30 @@ func RedisClusterStatusHealth(ctx context.Context, client kubernetes.Interface, 
 	return true
 }
 
-// CheckRedisClusterState will check the redis cluster state
-func CheckRedisClusterState(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster) int {
+// UnhealthyNodesInCluster returns the number of unhealthy nodes in the cluster cr
+func UnhealthyNodesInCluster(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster) (int, error) {
 	redisClient := configureRedisClient(client, logger, cr, cr.ObjectMeta.Name+"-leader-0")
 	defer redisClient.Close()
-	clusterNodes := checkRedisCluster(ctx, redisClient, logger)
+	clusterNodes, err := clusterNodes(ctx, redisClient, logger)
+	if err != nil {
+		return 0, err
+	}
 	count := 0
 	for _, node := range clusterNodes {
-		if strings.Contains(node[2], "fail") || strings.Contains(node[7], "disconnected") {
+		if nodeFailedOrDisconnected(node) {
 			count++
 		}
 	}
 	logger.V(1).Info("Number of failed nodes in cluster", "Failed Node Count", count)
-	return count
+	return count, nil
+}
+
+func nodeIsOfType(node clusterNodesResponse, nodeType string) bool {
+	return strings.Contains(node[2], nodeType)
+}
+
+func nodeFailedOrDisconnected(node clusterNodesResponse) bool {
+	return strings.Contains(node[2], "fail") || strings.Contains(node[7], "disconnected")
 }
 
 // configureRedisClient will configure the Redis Client
@@ -469,7 +538,7 @@ func getContainerID(client kubernetes.Interface, logger logr.Logger, cr *redisv1
 }
 
 // checkRedisNodePresence will check if the redis node exist in cluster or not
-func checkRedisNodePresence(cr *redisv1beta2.RedisCluster, nodeList [][]string, nodeName string) bool {
+func checkRedisNodePresence(cr *redisv1beta2.RedisCluster, nodeList []clusterNodesResponse, nodeName string) bool {
 	logger := generateRedisManagerLogger(cr.Namespace, cr.ObjectMeta.Name)
 	logger.V(1).Info("Checking if Node is in cluster", "Node", nodeName)
 	for _, node := range nodeList {
