@@ -20,3 +20,16 @@ spec:
             selector: control-plane=redis-operator
             container: manager
             tail: -1  # tail all logs
+
+    - name: redis-sentinel-uninstall
+      description: Uninstall Redis Sentinel
+      try:
+        - delete:
+            ref:
+              name: redis-sentinel
+              kind: RedisSentinel
+              apiVersion: redis.redis.opstreelabs.in/v1beta2
+        - error:
+            file: ready-sts.yaml
+        - error:
+            file: ready-svc.yaml

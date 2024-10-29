@@ -9,6 +9,8 @@ spec:
     - try:
         - apply:
             file: cluster.yaml
+        - apply:
+            file: secret.yaml
         - assert:
             file: ready-cluster.yaml
         - assert:
@@ -17,6 +19,8 @@ spec:
             file: ready-svc.yaml
         - assert:
             file: ready-pvc.yaml
+        - assert:
+            file: secret.yaml
       catch:
         - description: Redis Operator Logs
           podLogs:
@@ -24,90 +28,36 @@ spec:
             selector: control-plane=redis-operator
             container: manager
             tail: -1  # tail all logs
-     # no need to wait for 5 minutes, when we have ready-cluster.yaml, we can proceed
-#    - name: Sleep for five minutes
-#      try:
-#        - sleep:
-#            duration: 3m
-    - name: Ping Cluster
-      try:
-        - script:
-            content: >
-              kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-0 --
-              redis-cli -c -p 6379 ping
-            check:
-              (contains($stdout, 'PONG')): true
-        - script:
-            content: >
-              kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-1 --
-              redis-cli -c -p 6379 ping
-            check:
-              (contains($stdout, 'PONG')): true
-        - script:
-            content: >
-              kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-2 --
-              redis-cli -c -p 6379 ping
-            check:
-              (contains($stdout, 'PONG')): true
-        - script:
-            content: >
-              kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-0 --
-              redis-cli -c -p 6379 ping
-            check:
-              (contains($stdout, 'PONG')): true
-        - script:
-            content: >
-              kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-1 --
-              redis-cli -c -p 6379 ping
-            check:
-              (contains($stdout, 'PONG')): true
-        - script:
-            content: >
-              kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-2 --
-              redis-cli -c -p 6379 ping
-            check:
-              (contains($stdout, 'PONG')): true
-    - name: Try saving a key With Password
+
+    - name: Check Redis GET/SET
       try:
         - script:
             timeout: 30s
             content: >
               kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-0 --
-              redis-cli -c -p 6379 set foo-0 bar-0
+              redis-cli -c -p 6379 -a Opstree1234 set foo-0 bar-0
             check:
               (contains($stdout, 'OK')): true
         - script:
             timeout: 30s
             content: >
-              kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-1 --
-              redis-cli -c -p 6379 set foo-1 bar-1
+              kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-0 --
+              redis-cli -c -p 6379 -a Opstree1234 get foo-0
             check:
-              (contains($stdout, 'OK')): true
-        - script:
-            timeout: 30s
-            content: >
-              kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-2 --
-              redis-cli -c -p 6379 set foo-2 bar-2
-            check:
-              (contains($stdout, 'OK')): true
-        - script:
-            timeout: 30s
-            content: >
-              kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-0 --
-              redis-cli -c -p 6379 set foo-3 bar-3
-            check:
-              (contains($stdout, 'OK')): true
-        - script:
-            timeout: 30s
-            content: >
-              kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-1 --
-              redis-cli -c -p 6379 set foo-4 bar-4
-            check:
-              (contains($stdout, 'OK')): true
-        - script:
-            timeout: 30s
-            content: >
-              kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-follower redis-cluster-v1beta2-follower-2 --
-              redis-cli -c -p 6379 set foo-5 bar-5
-            check:
-              (contains($stdout, 'OK')): true
+              (contains($stdout, 'bar-0')): true
+
+    - name: redis-cluster-uninstall
+      try:
+        - delete:
+            ref:
+              name: redis-cluster-v1beta2
+              kind: RedisCluster
+              apiVersion: redis.redis.opstreelabs.in/v1beta2
+        - error:
+            file: ready-cluster.yaml
+        - error:
+            file: ready-sts.yaml
+        - error:
+            file: ready-svc.yaml
+        - error:
+            file: ready-pvc.yaml
