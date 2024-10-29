@@ -46,6 +46,38 @@ spec:
             check:
               (contains($stdout, 'bar-0')): true
 
+    - name: Scale Out Redis Cluster
+      try:
+        - apply:
+            file: cluster-scale-out.yaml
+
+    - name: Check Status 00
+      try:
+        - assert:
+            file: cluster-scale-out-status-00.yaml
+
+    - name: Check Status 01
+      try:
+        - assert:
+            file: cluster-scale-out-status-01.yaml
+
+    - name: Check Status 02
+      try:
+        - assert:
+            file: cluster-scale-out-status-02.yaml
+
+    - name: Check Status 03
+      try:
+        - assert:
+            file: cluster-scale-out-status-03.yaml
+
+    - name: Scale In Redis Cluster
+      try:
+        - apply:
+            file: cluster.yaml
+        - assert:
+            file: ready-cluster.yaml
+
     - name: redis-cluster-uninstall
       try:
         - delete:
