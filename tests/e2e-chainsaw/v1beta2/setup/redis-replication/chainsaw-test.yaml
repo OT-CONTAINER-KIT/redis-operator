@@ -18,6 +18,8 @@ spec:
         - assert:
             file: ready-pvc.yaml
         - assert:
+            file: ready-replication.yaml
+        - assert:
             file: secret.yaml
       catch:
         - description: Redis Operator Logs
@@ -26,11 +28,6 @@ spec:
             selector: control-plane=redis-operator
             container: manager
             tail: -1  # tail all logs
-
-    - name: Sleep for five minutes
-      try:
-        - sleep:
-            duration: 5m
 
     - name: Ping Replicated Cluster
       try:
