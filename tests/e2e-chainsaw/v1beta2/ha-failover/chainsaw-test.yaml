@@ -2,7 +2,7 @@
 apiVersion: chainsaw.kyverno.io/v1alpha1
 kind: Test
 metadata:
-  name: redis-ha-failover
+  name: ha-failover
 spec:
   steps:
     - try:

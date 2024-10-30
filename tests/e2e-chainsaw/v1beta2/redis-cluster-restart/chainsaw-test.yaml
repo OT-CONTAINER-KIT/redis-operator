@@ -3,7 +3,7 @@
 apiVersion: chainsaw.kyverno.io/v1alpha1
 kind: Test
 metadata:
-  name: redis-cluster
+  name: redis-cluster-restart
 spec:
   steps:
     - try:

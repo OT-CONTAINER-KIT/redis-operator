@@ -3,7 +3,7 @@
 apiVersion: chainsaw.kyverno.io/v1alpha1
 kind: Test
 metadata:
-  name: host-network
+  name: hostnetwork-redis-cluster
 spec:
   steps:
     - name: Setup redis cluster on host network
