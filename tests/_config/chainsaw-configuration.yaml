@@ -8,7 +8,7 @@ spec:
   execution:
     failFast: true
   cleanup:
-    delayBeforeCleanup: 10s
+    skipDelete: true
   timeouts:
     apply: 5m
     delete: 5m
