@@ -21,13 +21,6 @@ spec:
             file: ready-pvc.yaml
         - assert:
             file: secret.yaml
-      catch:
-        - description: Redis Operator Logs
-          podLogs:
-            namespace: redis-operator-system
-            selector: control-plane=redis-operator
-            container: manager
-            tail: -1  # tail all logs
 
     - name: Check Redis GET/SET
       try:

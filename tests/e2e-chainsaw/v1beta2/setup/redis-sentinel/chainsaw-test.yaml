@@ -13,13 +13,6 @@ spec:
             file: ready-sts.yaml
         - assert:
             file: ready-svc.yaml
-      catch:
-        - description: Redis Operator Logs
-          podLogs:
-            namespace: redis-operator-system
-            selector: control-plane=redis-operator
-            container: manager
-            tail: -1  # tail all logs
 
     - name: redis-sentinel-uninstall
       description: Uninstall Redis Sentinel
