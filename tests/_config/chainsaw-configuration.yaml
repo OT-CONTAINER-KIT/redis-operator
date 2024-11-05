@@ -7,8 +7,9 @@ metadata:
 spec:
   execution:
     failFast: true
+    parallel: 10
   cleanup:
-    delayBeforeCleanup: 10s
+    skipDelete: true
   timeouts:
     apply: 5m
     delete: 5m

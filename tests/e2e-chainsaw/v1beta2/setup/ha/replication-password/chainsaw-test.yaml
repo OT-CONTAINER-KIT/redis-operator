@@ -3,10 +3,14 @@
 apiVersion: chainsaw.kyverno.io/v1alpha1
 kind: Test
 metadata:
-  name: redis-ha-setup-unsecured
+  name: setup-ha-replication-password
 spec:
   steps:
     - try:
+        - create:
+            file: secret.yaml
+        - assert:
+            file: secret.yaml
         - apply:
             file: replication.yaml
         - assert:
@@ -15,6 +19,8 @@ spec:
             file: ready-replication-svc.yaml
         - assert:
             file: ready-replication-pvc.yaml
+        - create:
+            file: password.yaml
         - apply:
             file: sentinel.yaml
         - assert:
@@ -34,7 +40,7 @@ spec:
         - script:
             timeout: 10s
             content: |
-              kubectl exec --namespace ${NAMESPACE} redis -- redis-cli -h redis-replication.${NAMESPACE}.svc -p 6379 ping
+              kubectl exec --namespace ${NAMESPACE} redis -- redis-cli -h redis-replication.${NAMESPACE}.svc -p 6379 -a Opstree@1234 ping
             check:
               (contains($stdout, 'PONG')): true
     - name: Ping Sentinel Service from Cli Pod

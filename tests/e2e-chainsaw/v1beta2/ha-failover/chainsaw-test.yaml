@@ -2,7 +2,7 @@
 apiVersion: chainsaw.kyverno.io/v1alpha1
 kind: Test
 metadata:
-  name: redis-ha-failover
+  name: ha-failover
 spec:
   steps:
     - try:
@@ -12,13 +12,6 @@ spec:
             file: sentinel.yaml
         - create:
             file: cli-pod.yaml
-      catch:
-        - description: Redis Operator Logs
-          podLogs:
-            namespace: redis-operator-system
-            selector: control-plane=redis-operator
-            container: manager
-            tail: -1  # tail all logs
 
     - name: Sleep for 3 minutes
       try:
@@ -35,13 +28,6 @@ spec:
               if [ "$MASTER_IP_FROM_SENTINEL" = "$MASTER_IP_FROM_LABEL" ]; then echo "OK"; else echo "FAIL"; fi
             check:
               (contains($stdout, 'OK')): true
-      catch:
-        - description: Redis Operator Logs
-          podLogs:
-            namespace: redis-operator-system
-            selector: control-plane=redis-operator
-            container: manager
-            tail: -1  # tail all logs
 
     # New created cluster, the first pod is master
     - name: Terminate the redis-replication-0 pod
@@ -66,10 +52,3 @@ spec:
               if [ $MASTER_IP_FROM_SENTINEL = $MASTER_IP_FROM_LABEL ]; then echo "OK"; else echo "FAIL"; fi
             check:
               (contains($stdout, 'OK')): true
-      catch:
-        - description: Redis Operator Logs
-          podLogs:
-            namespace: redis-operator-system
-            selector: control-plane=redis-operator
-            container: manager
-            tail: -1  # tail all logs

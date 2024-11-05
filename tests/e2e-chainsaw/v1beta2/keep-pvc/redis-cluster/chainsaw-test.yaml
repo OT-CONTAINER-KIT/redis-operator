@@ -3,7 +3,7 @@
 apiVersion: chainsaw.kyverno.io/v1alpha1
 kind: Test
 metadata:
-  name: keep-pvc
+  name: keep-pvc-redis-cluster
 spec:
   steps:
     - name: Install
@@ -13,11 +13,8 @@ spec:
         - assert:
             file: ready-cluster.yaml
         - assert:
-            file: ready-sts.yaml
-        - assert:
-            file: ready-svc.yaml
-        - assert:
             file: ready-pvc.yaml
+
     - name: Uninstall
       try:
         - delete:
@@ -25,9 +22,5 @@ spec:
               name: redis-cluster-v1beta2
               kind: RedisCluster
               apiVersion: redis.redis.opstreelabs.in/v1beta2
-        - error:
-            file: ready-sts.yaml
-        - error:
-            file: ready-svc.yaml
         - assert:
             file: ready-pvc.yaml

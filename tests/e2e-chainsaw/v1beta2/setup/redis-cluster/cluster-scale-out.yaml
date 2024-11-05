@@ -4,10 +4,8 @@ kind: RedisCluster
 metadata:
   name: redis-cluster-v1beta2
 spec:
-  hostNetwork: true
-  port: 6380
-  clusterSize: 3
-  clusterVersion: v6  # hostNetwork only works with v6
+  clusterSize: 6
+  clusterVersion: v7
   persistenceEnabled: true
   podSecurityContext:
     runAsUser: 1000
@@ -22,9 +20,11 @@ spec:
       limits:
         cpu: 101m
         memory: 128Mi
+    redisSecret:
+      name: redis-secret
+      key: password
   redisExporter:
     enabled: true
-    port: 9122
     image: quay.io/opstree/redis-exporter:v1.44.0
     imagePullPolicy: Always
     resources:

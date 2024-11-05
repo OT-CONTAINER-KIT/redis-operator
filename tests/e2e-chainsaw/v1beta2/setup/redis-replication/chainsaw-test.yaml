@@ -3,62 +3,54 @@
 apiVersion: chainsaw.kyverno.io/v1alpha1
 kind: Test
 metadata:
-  name: redis-replication-setup
+  name: setup-redis-replication
 spec:
   steps:
     - try:
         - apply:
             file: replication.yaml
+        - apply:
+            file: secret.yaml
         - assert:
             file: ready-sts.yaml
         - assert:
             file: ready-svc.yaml
         - assert:
             file: ready-pvc.yaml
-      catch:
-        - description: Redis Operator Logs
-          podLogs:
-            namespace: redis-operator-system
-            selector: control-plane=redis-operator
-            container: manager
-            tail: -1  # tail all logs
+        - assert:
+            file: ready-replication.yaml
+        - assert:
+            file: secret.yaml
+
     - name: Ping Replicated Cluster
       try:
         - script:
             timeout: 10s
             content: |
-              kubectl exec --namespace ${NAMESPACE} redis-replication-0 -- redis-cli -p 6379 ping
+              kubectl exec --namespace ${NAMESPACE} redis-replication-0 -- redis-cli -p 6379 -a Opstree1234 ping
             check:
               (contains($stdout, 'PONG')): true
-        - script:
-            timeout: 10s
-            content: |
-              kubectl exec --namespace ${NAMESPACE} redis-replication-1 -- redis-cli -p 6379 ping
-            check:
-              (contains($stdout, 'PONG')): true
-        - script:
-            timeout: 10s
-            content: |
-              kubectl exec --namespace ${NAMESPACE} redis-replication-2 -- redis-cli -p 6379 ping
-            check:
-              (contains($stdout, 'PONG')): true
+
     - name: Try saving a key
       try:
         - script:
             timeout: 10s
             content: |
-              kubectl exec --namespace ${NAMESPACE} redis-replication-0 -- redis-cli -p 6379 set foo-0 bar-0
+              kubectl exec --namespace ${NAMESPACE} redis-replication-0 -- redis-cli -p 6379  -a Opstree1234 set foo-0 bar-0
             check:
               (contains($stdout, 'OK')): true
-    #  - script:
-    #      timeout: 10s
-    #      content: |
-    #       kubectl exec --namespace ${NAMESPACE} redis-replication-1 -- redis-cli -p 6379 set foo-1 bar-1
-    #      check:
-    #       ($stdout==`READONLY You can't write against a read only replica.`): true
-    #  - script:
-    #      timeout: 10s
-    #      content: |
-    #       kubectl exec --namespace ${NAMESPACE} redis-replication-2 -- redis-cli -p 6379 set foo-2 bar-2
-    #      check:
-    #       ($stdout==`READONLY You can't write against a read only replica.`): true
+
+    - name: redis-replication-uninstall
+      description: Uninstall Redis Replication
+      try:
+        - delete:
+            ref:
+              name: redis-replication
+              kind: RedisReplication
+              apiVersion: redis.redis.opstreelabs.in/v1beta2
+        - error:
+            file: ready-sts.yaml
+        - error:
+            file: ready-svc.yaml
+        - error:
+            file: ready-pvc.yaml

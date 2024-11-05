@@ -3,7 +3,7 @@
 apiVersion: chainsaw.kyverno.io/v1alpha1
 kind: Test
 metadata:
-  name: redis-sentinel-setup
+  name: setup-redis-sentinel
 spec:
   steps:
     - try:
@@ -13,10 +13,16 @@ spec:
             file: ready-sts.yaml
         - assert:
             file: ready-svc.yaml
-      catch:
-        - description: Redis Operator Logs
-          podLogs:
-            namespace: redis-operator-system
-            selector: control-plane=redis-operator
-            container: manager
-            tail: -1  # tail all logs
+
+    - name: redis-sentinel-uninstall
+      description: Uninstall Redis Sentinel
+      try:
+        - delete:
+            ref:
+              name: redis-sentinel
+              kind: RedisSentinel
+              apiVersion: redis.redis.opstreelabs.in/v1beta2
+        - error:
+            file: ready-sts.yaml
+        - error:
+            file: ready-svc.yaml
