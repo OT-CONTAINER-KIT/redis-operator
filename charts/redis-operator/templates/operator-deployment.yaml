@@ -34,6 +34,14 @@ spec:
           {{- toYaml .Values.securityContext | nindent 10 }}
         image: "{{ .Values.redisOperator.imageName }}:{{ .Values.redisOperator.imageTag | default (printf "v%s" .Chart.AppVersion) }}"
         imagePullPolicy: {{ .Values.redisOperator.imagePullPolicy }}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
         command:
         - /manager
         args:
@@ -46,12 +54,6 @@ spec:
         - containerPort: 9443
           name: webhook-server
           protocol: TCP
-        readinessProbe:
-          initialDelaySeconds: 15
-          timeoutSeconds: 3
-        livenessProbe:
-          initialDelaySeconds: 10
-          timeoutSeconds: 3
         volumeMounts:
         - mountPath: /tmp/k8s-webhook-server/serving-certs
           name: cert
