@@ -2,6 +2,7 @@ package redissentinel
 
 import (
 	"context"
+	"k8s.io/apimachinery/pkg/types"
 	"time"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
@@ -22,6 +23,8 @@ type RedisSentinelReconciler struct {
 	Dk8sClient dynamic.Interface
 	Log        logr.Logger
 	Scheme     *runtime.Scheme
+
+	ReplicationWatcher *intctrlutil.ResourceWatcher
 }
 
 func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -55,6 +58,17 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return intctrlutil.RequeueAfter(reqLogger, time.Second*10, "Redis Replication is specified but not ready")
 	}
 
+	if instance.Spec.RedisSentinelConfig != nil {
+		r.ReplicationWatcher.Watch(
+			ctx,
+			types.NamespacedName{
+				Namespace: req.Namespace,
+				Name:      instance.Spec.RedisSentinelConfig.RedisReplicationName,
+			},
+			req.NamespacedName,
+		)
+	}
+
 	// Create Redis Sentinel
 	err = k8sutils.CreateRedisSentinel(ctx, r.K8sClient, r.Log, instance, r.K8sClient, r.Dk8sClient)
 	if err != nil {
@@ -71,12 +85,13 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	if err != nil {
 		return intctrlutil.RequeueWithError(err, reqLogger, "")
 	}
-	return intctrlutil.RequeueAfter(reqLogger, time.Second*10, "")
+	return intctrlutil.Reconciled()
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *RedisSentinelReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&redisv1beta2.RedisSentinel{}).
+		Watches(&redisv1beta2.RedisReplication{}, r.ReplicationWatcher).
 		Complete(r)
 }

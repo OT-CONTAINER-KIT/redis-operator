@@ -20,9 +20,9 @@ spec:
       limits:
         cpu: 101m
         memory: 128Mi
-    redisSecret:
-      name: redis-secret
-      key: password
+#    redisSecret:
+#      name: redis-secret
+#      key: password
       # imagePullSecrets:
       #   - name: regcred
   redisExporter:

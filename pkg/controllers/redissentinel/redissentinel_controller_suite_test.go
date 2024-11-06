@@ -18,6 +18,7 @@ package redissentinel
 
 import (
 	"context"
+	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllerutil"
 	"path/filepath"
 	"testing"
 	"time"
@@ -100,10 +101,11 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 
 	err = (&RedisSentinelReconciler{
-		Client:     k8sManager.GetClient(),
-		K8sClient:  k8sClient,
-		Dk8sClient: dk8sClient,
-		Scheme:     k8sManager.GetScheme(),
+		Client:             k8sManager.GetClient(),
+		K8sClient:          k8sClient,
+		Dk8sClient:         dk8sClient,
+		Scheme:             k8sManager.GetScheme(),
+		ReplicationWatcher: intctrlutil.NewResourceWatcher(),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
