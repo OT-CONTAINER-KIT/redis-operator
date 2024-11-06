@@ -27,6 +27,7 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/rediscluster"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/redisreplication"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/redissentinel"
+	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllerutil"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/k8sutils"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -153,11 +154,12 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&redissentinel.RedisSentinelReconciler{
-		Client:     mgr.GetClient(),
-		K8sClient:  k8sclient,
-		Dk8sClient: dk8sClient,
-		Log:        ctrl.Log.WithName("controllers").WithName("RedisSentinel"),
-		Scheme:     mgr.GetScheme(),
+		Client:             mgr.GetClient(),
+		K8sClient:          k8sclient,
+		Dk8sClient:         dk8sClient,
+		Log:                ctrl.Log.WithName("controllers").WithName("RedisSentinel"),
+		Scheme:             mgr.GetScheme(),
+		ReplicationWatcher: intctrlutil.NewResourceWatcher(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RedisSentinel")
 		os.Exit(1)

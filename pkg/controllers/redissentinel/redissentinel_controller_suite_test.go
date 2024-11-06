@@ -23,6 +23,7 @@ import (
 	"time"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllerutil"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
@@ -100,10 +101,11 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 
 	err = (&RedisSentinelReconciler{
-		Client:     k8sManager.GetClient(),
-		K8sClient:  k8sClient,
-		Dk8sClient: dk8sClient,
-		Scheme:     k8sManager.GetScheme(),
+		Client:             k8sManager.GetClient(),
+		K8sClient:          k8sClient,
+		Dk8sClient:         dk8sClient,
+		Scheme:             k8sManager.GetScheme(),
+		ReplicationWatcher: intctrlutil.NewResourceWatcher(),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
