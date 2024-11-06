@@ -4,15 +4,19 @@ kind: RedisSentinel
 metadata:
   name: redis-sentinel
 spec:
-  clusterSize: 3
+  clusterSize: 1
   podSecurityContext:
     runAsUser: 1000
     fsGroup: 1000
-  # redisSentinelConfig:
-  #   redisReplicationName : redis-replication
+  redisSentinelConfig:
+    redisReplicationName: redis-replication
+    quorum: '1'
   kubernetesConfig:
     image: quay.io/opstree/redis-sentinel:latest
     imagePullPolicy: Always
+    redisSecret:
+      name: redis-secret
+      key: password
     resources:
       requests:
         cpu: 101m
