@@ -6,7 +6,7 @@ metadata:
   labels: {{- include "common.labels" . | nindent 4 }}
 spec:
   clusterSize: {{ .Values.redisSentinel.clusterSize }}
-# Sentinel Config 
+  # Sentinel Config
   redisSentinelConfig:
     redisReplicationName: {{ .Values.redisSentinelConfig.redisReplicationName}}
     {{- if and .Values.redisSentinelConfig.redisReplicationPassword.secretName .Values.redisSentinelConfig.redisReplicationPassword.secretKey }}
@@ -52,11 +52,11 @@ spec:
     imagePullPolicy: "{{ .Values.redisExporter.imagePullPolicy }}"
     {{- if .Values.redisExporter.resources}}
     resources: {{ toYaml .Values.redisExporter.resources | nindent 6 }}
-    {{- end }}  
+    {{- end }}
     {{- if .Values.redisExporter.env }}
     env: {{ toYaml .Values.redisExporter.env | nindent 6 }}
     {{- end }}
-  
+
   {{- if .Values.nodeSelector }}
   nodeSelector: {{ toYaml .Values.nodeSelector | nindent 4 }}
   {{- end }}
@@ -83,10 +83,19 @@ spec:
     secret:
       secretName: {{ .Values.TLS.secret.secretName | quote }}
   {{- end }}
-  {{- if and .Values.acl.secret (ne .Values.acl.secret.secretName "") }}
-  acl:
-    secret:
-      secretName: {{ .Values.acl.secret.secretName | quote }}
+  {{- if .Values.pdb.enabled }}
+  pdb:
+    enabled: {{ .enabled }}
+    minAvailable: {{ .minAvailable }}
+    maxUnavailable: {{ .maxUnavailable }}
+  {{- end }}
+  {{- with .Values.livenessProbe }}
+  livenessProbe:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.readinessProbe }}
+  readinessProbe:
+    {{- toYaml . | nindent 4 }}
   {{- end }}
   {{- if and .Values.initContainer .Values.initContainer.enabled (ne .Values.initContainer.image "") }}
   initContainer: {{ include "initContainer.properties" | nindent 4 }}

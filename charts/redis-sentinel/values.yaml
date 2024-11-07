@@ -21,7 +21,7 @@ redisSentinel:
   ignoreAnnotations: []
     # - "redis.opstreelabs.in/ignore"
   minReadySeconds: 0
-  
+
 # Overwite name for resources
 # name: ""
 
@@ -143,9 +143,24 @@ TLS:
   secret:
     secretName: ""
 
-acl:
-  secret:
-    secretName: ""
+pdb:
+  enabled: false
+  minAvailable: 1
+  maxUnavailable: null
+
+livenessProbe:
+  failureThreshold: 3
+  initialDelaySeconds: 1
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 1
+
+readinessProbe:
+  failureThreshold: 3
+  initialDelaySeconds: 1
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 1
 
 env: []
   # - name: VAR_NAME
