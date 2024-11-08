@@ -119,7 +119,7 @@ func generateRedisClusterContainerParams(cl kubernetes.Interface, logger logr.Lo
 	if cr.Spec.EnvVars != nil {
 		containerProp.EnvVars = cr.Spec.EnvVars
 	}
-	if cr.Spec.KubernetesConfig.Service != nil && cr.Spec.KubernetesConfig.Service.ServiceType == "NodePort" {
+	if cr.Spec.KubernetesConfig.GetServiceType() == "NodePort" {
 		envVars := util.Coalesce(containerProp.EnvVars, &[]corev1.EnvVar{})
 		*envVars = append(*envVars, corev1.EnvVar{
 			Name:  "NODEPORT",
@@ -306,13 +306,9 @@ func (service RedisClusterService) CreateRedisClusterService(cr *redisv1beta2.Re
 		epp = disableMetrics
 	}
 	annotations := generateServiceAnots(cr.ObjectMeta, nil, epp)
-	additionalServiceAnnotations := map[string]string{}
-	if cr.Spec.KubernetesConfig.Service != nil {
-		additionalServiceAnnotations = cr.Spec.KubernetesConfig.Service.ServiceAnnotations
-	}
 	objectMetaInfo := generateObjectMetaInformation(serviceName, cr.Namespace, labels, annotations)
 	headlessObjectMetaInfo := generateObjectMetaInformation(serviceName+"-headless", cr.Namespace, labels, annotations)
-	additionalObjectMetaInfo := generateObjectMetaInformation(serviceName+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, additionalServiceAnnotations, epp))
+	additionalObjectMetaInfo := generateObjectMetaInformation(serviceName+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.GetServiceAnnotations(), epp))
 	err := CreateOrUpdateService(cr.Namespace, headlessObjectMetaInfo, redisClusterAsOwner(cr), disableMetrics, true, "ClusterIP", *cr.Spec.Port, cl)
 	if err != nil {
 		logger.Error(err, "Cannot create headless service for Redis", "Setup.Type", service.RedisServiceRole)
@@ -323,17 +319,14 @@ func (service RedisClusterService) CreateRedisClusterService(cr *redisv1beta2.Re
 		logger.Error(err, "Cannot create service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err
 	}
-	additionalServiceType := "ClusterIP"
-	if cr.Spec.KubernetesConfig.Service != nil {
-		additionalServiceType = cr.Spec.KubernetesConfig.Service.ServiceType
-		if additionalServiceType == "NodePort" {
-			// If NodePort is enabled, we need to create a service for every redis pod.
-			// Then use --cluster-announce-ip --cluster-announce-port --cluster-announce-bus-port to make cluster.
-			err = service.createOrUpdateClusterNodePortService(cr, cl)
-			if err != nil {
-				logger.Error(err, "Cannot create nodeport service for Redis", "Setup.Type", service.RedisServiceRole)
-				return err
-			}
+	additionalServiceType := cr.Spec.KubernetesConfig.GetServiceType()
+	if additionalServiceType == "NodePort" {
+		// If NodePort is enabled, we need to create a service for every redis pod.
+		// Then use --cluster-announce-ip --cluster-announce-port --cluster-announce-bus-port to make cluster.
+		err = service.createOrUpdateClusterNodePortService(cr, cl)
+		if err != nil {
+			logger.Error(err, "Cannot create nodeport service for Redis", "Setup.Type", service.RedisServiceRole)
+			return err
 		}
 	}
 	err = CreateOrUpdateService(cr.Namespace, additionalObjectMetaInfo, redisClusterAsOwner(cr), disableMetrics, false, additionalServiceType, *cr.Spec.Port, cl)

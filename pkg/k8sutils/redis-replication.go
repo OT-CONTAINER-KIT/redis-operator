@@ -25,13 +25,9 @@ func CreateReplicationService(cr *redisv1beta2.RedisReplication, cl kubernetes.I
 		epp = disableMetrics
 	}
 	annotations := generateServiceAnots(cr.ObjectMeta, nil, epp)
-	additionalServiceAnnotations := map[string]string{}
-	if cr.Spec.KubernetesConfig.Service != nil {
-		additionalServiceAnnotations = cr.Spec.KubernetesConfig.Service.ServiceAnnotations
-	}
 	objectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name, cr.Namespace, labels, annotations)
 	headlessObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-headless", cr.Namespace, labels, annotations)
-	additionalObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, additionalServiceAnnotations, epp))
+	additionalObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.GetServiceAnnotations(), epp))
 	err := CreateOrUpdateService(cr.Namespace, headlessObjectMetaInfo, redisReplicationAsOwner(cr), disableMetrics, true, "ClusterIP", redisPort, cl)
 	if err != nil {
 		logger.Error(err, "Cannot create replication headless service for Redis")
@@ -42,11 +38,16 @@ func CreateReplicationService(cr *redisv1beta2.RedisReplication, cl kubernetes.I
 		logger.Error(err, "Cannot create replication service for Redis")
 		return err
 	}
-	additionalServiceType := "ClusterIP"
-	if cr.Spec.KubernetesConfig.Service != nil {
-		additionalServiceType = cr.Spec.KubernetesConfig.Service.ServiceType
-	}
-	err = CreateOrUpdateService(cr.Namespace, additionalObjectMetaInfo, redisReplicationAsOwner(cr), disableMetrics, false, additionalServiceType, redisPort, cl)
+	err = CreateOrUpdateService(
+		cr.Namespace,
+		additionalObjectMetaInfo,
+		redisReplicationAsOwner(cr),
+		disableMetrics,
+		false,
+		cr.Spec.KubernetesConfig.GetServiceType(),
+		redisPort,
+		cl,
+	)
 	if err != nil {
 		logger.Error(err, "Cannot create additional service for Redis Replication")
 		return err
