@@ -11,36 +11,81 @@ Redis cluster can be customized by [values.yaml](https://github.com/OT-CONTAINER
 
 ## Helm Configuration Parameters
 
-| **Name**                           | **Default Value**              | **Description**                                                                              |
-|------------------------------------|--------------------------------|----------------------------------------------------------------------------------------------|
-| `imagePullSecrets`                 | []                             | List of image pull secrets, in case redis image is getting pull from private registry        |
-| `redisCluster.clusterSize`         | 3                              | Size of the redis cluster leader and follower nodes                                          |
-| `redisCluster.clusterVersion`      | v7                             | Major version of Redis setup, values can be v6 or v7                                         |
-| `redisCluster.persistenceEnabled`  | true                           | Persistence should be enabled or not in the Redis cluster setup                              |
-| `redisCluster.secretName`          | redis-secret                   | Name of the existing secret in Kubernetes                                                    |
-| `redisCluster.secretKey`           | password                       | Name of the existing secret key in Kubernetes                                                |
-| `redisCluster.image`               | quay.io/opstree/redis          | Name of the redis image                                                                      |
-| `redisCluster.tag`                 | v7.0.15                        | Tag of the redis image                                                                       |
-| `redisCluster.imagePullPolicy`     | IfNotPresent                   | Image Pull Policy of the redis image                                                         |
-| `redisCluster.leaderServiceType`   | ClusterIP                      | Kubernetes service type for Redis Leader                                                     |
-| `redisCluster.followerServiceType` | ClusterIP                      | Kubernetes service type for Redis Follower                                                   |
-| `externalService.enabled`          | false                          | If redis service needs to be exposed using LoadBalancer or NodePort                          |
-| `externalService.annotations`      | {}                             | Kubernetes service related annotations                                                       |
-| `externalService.serviceType`      | NodePort                       | Kubernetes service type for exposing service, values - ClusterIP, NodePort, and LoadBalancer |
-| `externalService.port`             | 6379                           | Port number on which redis external service should be exposed                                |
-| `serviceMonitor.enabled`           | false                          | Servicemonitor to monitor redis with Prometheus                                              |
-| `serviceMonitor.interval`          | 30s                            | Interval at which metrics should be scraped.                                                 |
-| `serviceMonitor.scrapeTimeout`     | 10s                            | Timeout after which the scrape is ended                                                      |
-| `serviceMonitor.namespace`         | monitoring                     | Namespace in which Prometheus operator is running                                            |
-| `redisExporter.enabled`            | true                           | Redis exporter should be deployed or not                                                     |
-| `redisExporter.image`              | quay.io/opstree/redis-exporter | Name of the redis exporter image                                                             |
-| `redisExporter.tag`                | v1.44.0                        | Tag of the redis exporter image                                                              |
-| `redisExporter.imagePullPolicy`    | IfNotPresent                   | Image Pull Policy of the redis exporter image                                                |
-| `redisExporter.env`                | []                             | Extra environment variables which needs to be added in redis exporter                        |
-| `sidecars`                         | []                             | Sidecar container to run alongside Redis pods                                                |
-| `nodeSelector`                     | {}                             | NodeSelector for redis statefulset                                                           |
-| `priorityClassName`                | ""                             | Priority class name for the redis statefulset                                                |
-| `storageSpec`                      | {}                             | Storage configuration for redis setup                                                        |
-| `securityContext`                  | {}                             | Security Context for redis pods for changing system or kernel level parameters               |
-| `affinity`                         | {}                             | Affinity for node and pods for redis statefulset                                             |
-| `tolerations`                      | []                             | Tolerations for redis statefulset management                                                 |
+| Key                                                                     | Type   | Default                                                                  | Description |
+|-------------------------------------------------------------------------|--------|--------------------------------------------------------------------------|-------------|
+| TLS.ca                                                                  | string | `"ca.key"`                                                               |             |
+| TLS.cert                                                                | string | `"tls.crt"`                                                              |             |
+| TLS.key                                                                 | string | `"tls.key"`                                                              |             |
+| TLS.secret.secretName                                                   | string | `""`                                                                     |             |
+| acl.secret.secretName                                                   | string | `""`                                                                     |             |
+| env                                                                     | list   | `[]`                                                                     |             |
+| externalConfig.data                                                     | string | `"tcp-keepalive 400\nslowlog-max-len 158\nstream-node-max-bytes 2048\n"` |             |
+| externalConfig.enabled                                                  | bool   | `false`                                                                  |             |
+| externalService.enabled                                                 | bool   | `false`                                                                  |             |
+| externalService.port                                                    | int    | `6379`                                                                   |             |
+| externalService.serviceType                                             | string | `"LoadBalancer"`                                                         |             |
+| initContainer.args                                                      | list   | `[]`                                                                     |             |
+| initContainer.command                                                   | list   | `[]`                                                                     |             |
+| initContainer.enabled                                                   | bool   | `false`                                                                  |             |
+| initContainer.env                                                       | list   | `[]`                                                                     |             |
+| initContainer.image                                                     | string | `""`                                                                     |             |
+| initContainer.imagePullPolicy                                           | string | `"IfNotPresent"`                                                         |             |
+| initContainer.resources                                                 | object | `{}`                                                                     |             |
+| labels                                                                  | object | `{}`                                                                     |             |
+| podSecurityContext.fsGroup                                              | int    | `1000`                                                                   |             |
+| podSecurityContext.runAsUser                                            | int    | `1000`                                                                   |             |
+| priorityClassName                                                       | string | `""`                                                                     |             |
+| redisCluster.clusterSize                                                | int    | `3`                                                                      |             |
+| redisCluster.clusterVersion                                             | string | `"v7"`                                                                   |             |
+| redisCluster.follower.affinity                                          | string | `nil`                                                                    |             |
+| redisCluster.follower.nodeSelector                                      | string | `nil`                                                                    |             |
+| redisCluster.follower.pdb.enabled                                       | bool   | `false`                                                                  |             |
+| redisCluster.follower.pdb.maxUnavailable                                | int    | `1`                                                                      |             |
+| redisCluster.follower.pdb.minAvailable                                  | int    | `1`                                                                      |             |
+| redisCluster.follower.replicas                                          | int    | `3`                                                                      |             |
+| redisCluster.follower.securityContext                                   | object | `{}`                                                                     |             |
+| redisCluster.follower.serviceType                                       | string | `"ClusterIP"`                                                            |             |
+| redisCluster.follower.tolerations                                       | list   | `[]`                                                                     |             |
+| redisCluster.image                                                      | string | `"quay.io/opstree/redis"`                                                |             |
+| redisCluster.imagePullPolicy                                            | string | `"IfNotPresent"`                                                         |             |
+| redisCluster.imagePullSecrets                                           | object | `{}`                                                                     |             |
+| redisCluster.leader.affinity                                            | object | `{}`                                                                     |             |
+| redisCluster.leader.nodeSelector                                        | string | `nil`                                                                    |             |
+| redisCluster.leader.pdb.enabled                                         | bool   | `false`                                                                  |             |
+| redisCluster.leader.pdb.maxUnavailable                                  | int    | `1`                                                                      |             |
+| redisCluster.leader.pdb.minAvailable                                    | int    | `1`                                                                      |             |
+| redisCluster.leader.replicas                                            | int    | `3`                                                                      |             |
+| redisCluster.leader.securityContext                                     | object | `{}`                                                                     |             |
+| redisCluster.leader.serviceType                                         | string | `"ClusterIP"`                                                            |             |
+| redisCluster.leader.tolerations                                         | list   | `[]`                                                                     |             |
+| redisCluster.minReadySeconds                                            | int    | `0`                                                                      |             |
+| redisCluster.name                                                       | string | `""`                                                                     |             |
+| redisCluster.persistenceEnabled                                         | bool   | `true`                                                                   |             |
+| redisCluster.redisSecret.secretKey                                      | string | `""`                                                                     |             |
+| redisCluster.redisSecret.secretName                                     | string | `""`                                                                     |             |
+| redisCluster.resources                                                  | object | `{}`                                                                     |             |
+| redisCluster.tag                                                        | string | `"v7.0.15"`                                                              |             |
+| redisExporter.enabled                                                   | bool   | `false`                                                                  |             |
+| redisExporter.env                                                       | list   | `[]`                                                                     |             |
+| redisExporter.image                                                     | string | `"quay.io/opstree/redis-exporter"`                                       |             |
+| redisExporter.imagePullPolicy                                           | string | `"IfNotPresent"`                                                         |             |
+| redisExporter.resources                                                 | object | `{}`                                                                     |             |
+| redisExporter.tag                                                       | string | `"v1.44.0"`                                                              |             |
+| serviceAccountName                                                      | string | `""`                                                                     |             |
+| serviceMonitor.enabled                                                  | bool   | `false`                                                                  |             |
+| serviceMonitor.interval                                                 | string | `"30s"`                                                                  |             |
+| serviceMonitor.namespace                                                | string | `"monitoring"`                                                           |             |
+| serviceMonitor.scrapeTimeout                                            | string | `"10s"`                                                                  |             |
+| sidecars.env                                                            | object | `{}`                                                                     |             |
+| sidecars.image                                                          | string | `""`                                                                     |             |
+| sidecars.imagePullPolicy                                                | string | `"IfNotPresent"`                                                         |             |
+| sidecars.name                                                           | string | `""`                                                                     |             |
+| sidecars.resources.limits.cpu                                           | string | `"100m"`                                                                 |             |
+| sidecars.resources.limits.memory                                        | string | `"128Mi"`                                                                |             |
+| sidecars.resources.requests.cpu                                         | string | `"50m"`                                                                  |             |
+| sidecars.resources.requests.memory                                      | string | `"64Mi"`                                                                 |             |
+| storageSpec.nodeConfVolume                                              | bool   | `true`                                                                   |             |
+| storageSpec.nodeConfVolumeClaimTemplate.spec.accessModes[0]             | string | `"ReadWriteOnce"`                                                        |             |
+| storageSpec.nodeConfVolumeClaimTemplate.spec.resources.requests.storage | string | `"1Gi"`                                                                  |             |
+| storageSpec.volumeClaimTemplate.spec.accessModes[0]                     | string | `"ReadWriteOnce"`                                                        |             |
+| storageSpec.volumeClaimTemplate.spec.resources.requests.storage         | string | `"1Gi"`                                                                  |             |
