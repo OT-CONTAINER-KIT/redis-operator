@@ -15,43 +15,49 @@ import (
 func CreateReplicationService(cr *redisv1beta2.RedisReplication, cl kubernetes.Interface) error {
 	logger := serviceLogger(cr.Namespace, cr.ObjectMeta.Name)
 	labels := getRedisLabels(cr.ObjectMeta.Name, replication, "replication", cr.ObjectMeta.Labels)
-	var epp exporterPortProvider
+
+	epp := disableMetrics
 	if cr.Spec.RedisExporter != nil {
 		epp = func() (port int, enable bool) {
 			defaultP := ptr.To(redisExporterPort)
 			return *util.Coalesce(cr.Spec.RedisExporter.Port, defaultP), cr.Spec.RedisExporter.Enabled
 		}
-	} else {
-		epp = disableMetrics
 	}
+
 	annotations := generateServiceAnots(cr.ObjectMeta, nil, epp)
 	objectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name, cr.Namespace, labels, annotations)
 	headlessObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-headless", cr.Namespace, labels, annotations)
 	additionalObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.GetServiceAnnotations(), epp))
-	err := CreateOrUpdateService(cr.Namespace, headlessObjectMetaInfo, redisReplicationAsOwner(cr), disableMetrics, true, "ClusterIP", redisPort, cl)
-	if err != nil {
+	masterLabels := util.MergeMap(
+		labels, map[string]string{RedisRoleLabelKey: RedisRoleLabelMaster},
+	)
+	replicaLabels := util.MergeMap(
+		labels, map[string]string{RedisRoleLabelKey: RedisRoleLabelSlave},
+	)
+	masterObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-master", cr.Namespace, masterLabels, annotations)
+	replicaObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-replica", cr.Namespace, replicaLabels, annotations)
+
+	if err := CreateOrUpdateService(cr.Namespace, headlessObjectMetaInfo, redisReplicationAsOwner(cr), disableMetrics, true, "ClusterIP", redisPort, cl); err != nil {
 		logger.Error(err, "Cannot create replication headless service for Redis")
 		return err
 	}
-	err = CreateOrUpdateService(cr.Namespace, objectMetaInfo, redisReplicationAsOwner(cr), epp, false, "ClusterIP", redisPort, cl)
-	if err != nil {
+	if err := CreateOrUpdateService(cr.Namespace, objectMetaInfo, redisReplicationAsOwner(cr), epp, false, "ClusterIP", redisPort, cl); err != nil {
 		logger.Error(err, "Cannot create replication service for Redis")
 		return err
 	}
-	err = CreateOrUpdateService(
-		cr.Namespace,
-		additionalObjectMetaInfo,
-		redisReplicationAsOwner(cr),
-		disableMetrics,
-		false,
-		cr.Spec.KubernetesConfig.GetServiceType(),
-		redisPort,
-		cl,
-	)
-	if err != nil {
+	if err := CreateOrUpdateService(cr.Namespace, additionalObjectMetaInfo, redisReplicationAsOwner(cr), disableMetrics, false, cr.Spec.KubernetesConfig.GetServiceType(), redisPort, cl); err != nil {
 		logger.Error(err, "Cannot create additional service for Redis Replication")
 		return err
 	}
+	if err := CreateOrUpdateService(cr.Namespace, masterObjectMetaInfo, redisReplicationAsOwner(cr), disableMetrics, false, "ClusterIP", redisPort, cl); err != nil {
+		logger.Error(err, "Cannot create master service for Redis")
+		return err
+	}
+	if err := CreateOrUpdateService(cr.Namespace, replicaObjectMetaInfo, redisReplicationAsOwner(cr), disableMetrics, false, "ClusterIP", redisPort, cl); err != nil {
+		logger.Error(err, "Cannot create replica service for Redis")
+		return err
+	}
+
 	return nil
 }
 
