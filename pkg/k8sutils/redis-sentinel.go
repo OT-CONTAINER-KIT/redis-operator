@@ -220,14 +220,9 @@ func (service RedisSentinelService) CreateRedisSentinelService(cr *redisv1beta2.
 		epp = disableMetrics
 	}
 	annotations := generateServiceAnots(cr.ObjectMeta, nil, epp)
-	additionalServiceAnnotations := map[string]string{}
-	if cr.Spec.KubernetesConfig.Service != nil {
-		additionalServiceAnnotations = cr.Spec.KubernetesConfig.Service.ServiceAnnotations
-	}
-
 	objectMetaInfo := generateObjectMetaInformation(serviceName, cr.Namespace, labels, annotations)
 	headlessObjectMetaInfo := generateObjectMetaInformation(serviceName+"-headless", cr.Namespace, labels, annotations)
-	additionalObjectMetaInfo := generateObjectMetaInformation(serviceName+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, additionalServiceAnnotations, epp))
+	additionalObjectMetaInfo := generateObjectMetaInformation(serviceName+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.GetServiceAnnotations(), epp))
 
 	err := CreateOrUpdateService(cr.Namespace, headlessObjectMetaInfo, redisSentinelAsOwner(cr), disableMetrics, true, "ClusterIP", sentinelPort, cl)
 	if err != nil {
@@ -240,11 +235,16 @@ func (service RedisSentinelService) CreateRedisSentinelService(cr *redisv1beta2.
 		return err
 	}
 
-	additionalServiceType := "ClusterIP"
-	if cr.Spec.KubernetesConfig.Service != nil {
-		additionalServiceType = cr.Spec.KubernetesConfig.Service.ServiceType
-	}
-	err = CreateOrUpdateService(cr.Namespace, additionalObjectMetaInfo, redisSentinelAsOwner(cr), disableMetrics, false, additionalServiceType, sentinelPort, cl)
+	err = CreateOrUpdateService(
+		cr.Namespace,
+		additionalObjectMetaInfo,
+		redisSentinelAsOwner(cr),
+		disableMetrics,
+		false,
+		cr.Spec.KubernetesConfig.GetServiceType(),
+		sentinelPort,
+		cl,
+	)
 	if err != nil {
 		logger.Error(err, "Cannot create additional service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err
