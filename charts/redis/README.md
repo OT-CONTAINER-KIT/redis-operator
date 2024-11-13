@@ -79,6 +79,7 @@ helm delete <my-release> --namespace <namespace>
 | redisStandalone.imagePullSecrets | list | `[]` |  |
 | redisStandalone.minReadySeconds | int | `0` |  |
 | redisStandalone.name | string | `""` |  |
+| redisStandalone.recreateStatefulSetOnUpdateInvalid | bool | `false` | Some fields of statefulset are immutable, such as volumeClaimTemplates. When set to true, the operator will delete the statefulset and recreate it. Default is false. |
 | redisStandalone.redisSecret.secretKey | string | `""` |  |
 | redisStandalone.redisSecret.secretName | string | `""` |  |
 | redisStandalone.resources | object | `{}` |  |

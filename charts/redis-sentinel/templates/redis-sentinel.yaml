@@ -4,6 +4,10 @@ kind: RedisSentinel
 metadata:
   name: {{ .Values.redisSentinel.name | default .Release.Name }}
   labels: {{- include "common.labels" . | nindent 4 }}
+  annotations:
+    {{ if .Values.redisSentinel.recreateStatefulSetOnUpdateInvalid }}
+    redis.opstreelabs.in/recreate-statefulset: "true"
+    {{ end }}
 spec:
   clusterSize: {{ .Values.redisSentinel.clusterSize }}
   # Sentinel Config
