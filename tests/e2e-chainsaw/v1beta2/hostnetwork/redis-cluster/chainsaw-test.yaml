@@ -20,12 +20,14 @@ spec:
             file: ready-pvc.yaml
         - assert:
             file: ready-pod.yaml
+
     - name: Install Redis Cli
       try:
         - script:
             timeout: 5m
             content: |
               sudo apt install redis-tools -y
+
     - name: Ping Redis Cluster from every node
       try:
         - script:
