@@ -4,6 +4,10 @@ kind: RedisReplication
 metadata:
   name: {{ .Values.redisReplication.name | default .Release.Name }}
   labels: {{- include "common.labels" . | nindent 4 }}
+  annotations:
+    {{ if .Values.redisReplication.recreateStatefulSetOnUpdateInvalid }}
+    redis.opstreelabs.in/recreate-statefulset: "true"
+    {{ end }}
 spec:
   clusterSize: {{ .Values.redisReplication.clusterSize }}  
   kubernetesConfig:

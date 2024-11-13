@@ -94,6 +94,7 @@ helm delete <my-release> --namespace <namespace>
 | redisCluster.minReadySeconds | int | `0` |  |
 | redisCluster.name | string | `""` |  |
 | redisCluster.persistenceEnabled | bool | `true` |  |
+| redisCluster.recreateStatefulSetOnUpdateInvalid | bool | `false` | Some fields of statefulset are immutable, such as volumeClaimTemplates. When set to true, the operator will delete the statefulset and recreate it. Default is false. |
 | redisCluster.redisSecret.secretKey | string | `""` |  |
 | redisCluster.redisSecret.secretName | string | `""` |  |
 | redisCluster.resources | object | `{}` |  |

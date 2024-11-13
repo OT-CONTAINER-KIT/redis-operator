@@ -4,11 +4,14 @@ kind: RedisCluster
 metadata:
   name: {{ .Values.redisCluster.name | default .Release.Name }}
   labels: {{- include "common.labels" . | nindent 4 }}
+  annotations:
+    {{ if .Values.redisCluster.recreateStatefulSetOnUpdateInvalid }}
+    redis.opstreelabs.in/recreate-statefulset: "true"
+    {{ end }}
 spec:
   clusterSize: {{ .Values.redisCluster.clusterSize }}
   persistenceEnabled: {{ .Values.redisCluster.persistenceEnabled }}
   clusterVersion: {{ .Values.redisCluster.clusterVersion }}
-
   redisLeader: {{- include "redis.role" .Values.redisCluster.leader | nindent 4 }}
     replicas: {{ .Values.redisCluster.leader.replicas }}
   {{- if .Values.externalConfig.enabled }}
