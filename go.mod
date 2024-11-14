@@ -1,6 +1,6 @@
 module github.com/OT-CONTAINER-KIT/redis-operator
 
-go 1.21
+go 1.22
 
 require (
 	github.com/banzaicloud/k8s-objectmatcher v1.8.0

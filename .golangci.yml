@@ -47,7 +47,7 @@ linters:
 
 run:
   timeout: 15m
-  go: "1.21"
+  go: "1.22"
   tests: true
   show-stats: true
   skip-files:
