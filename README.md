@@ -25,7 +25,7 @@
 
 A Golang based redis operator that will make/oversee Redis standalone and cluster mode setup on top of the Kubernetes. It can create a redis cluster setup with best practices on Cloud as well as the Bare metal environment. Also, it provides an in-built monitoring capability using redis-exporter.
 
-For documentation, please refer to https://ot-redis-operator.netlify.app/
+For documentation, please refer to <https://ot-redis-operator.netlify.app/>
 
 Organizations that are using Redis Operator to manage their redis workload can be found [here](./USED_BY_ORGANIZATIONS.md). If your organization is also using Redis Operator, please free to add by creating a [pull request](https://github.com/OT-CONTAINER-KIT/redis-operator/pulls)
 
@@ -68,11 +68,15 @@ Redis operator requires a Kubernetes cluster of version `>=1.18.0`. If you have 
 The following table shows the compatibility between the Operator Version, Redis Image, Sentinel Image, and Exporter Image:
 
 | Operator Version | Redis Image | Sentinel Image | Exporter Image |
-|------------------|-------------|----------------|----------------|
-| v0.15.0          | v7.0.12     | v7.0.12        | v1.48.0        |
-| v0.15.0          | v7.0.11     | v7.0.11        | v1.48.0        |
-| v0.14.0          | v7.0.7      | v7.0.7         | v1.48.0        |
-| v0.13.0          | v6.2.5      | nil            | v1.48.0        |
+| ---------------- | ----------- | -------------- | -------------- |
+| v0.18.1          | v7.0.12     | v7.0.12        | v1.44.0        |
+| v0.18.0          | v7.0.12     | v7.0.12        | v1.44.0        |
+| v0.17.0          | v7.0.12     | v7.0.12        | v1.44.0        |
+| v0.16.0          | v7.0.12     | v7.0.12        | v1.44.0        |
+| v0.15.1          | v7.0.12     | v7.0.12        | v1.44.0        |
+| v0.15.0          | v7.0.11     | v7.0.11        | v1.44.0        |
+| v0.14.0          | v7.0.7      | v7.0.7         | v1.44.0        |
+| v0.13.0          | v6.2.5      | nil            | v1.44.0        |
 
 ## Quickstart
 
@@ -102,7 +106,7 @@ Creating redis cluster, standalone, replication and sentinel setup.
 ```shell
 # Create redis cluster setup
 $ helm upgrade redis-cluster ot-helm/redis-cluster \
-  --set redisCluster.clusterSize=3 --install \ 
+  --set redisCluster.clusterSize=3 --install \
   --namespace ot-operators
 ```
 
