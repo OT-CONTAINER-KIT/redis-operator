@@ -2,10 +2,10 @@ package controllerutil
 
 import (
 	"context"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 

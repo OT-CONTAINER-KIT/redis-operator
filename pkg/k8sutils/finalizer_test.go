@@ -261,7 +261,6 @@ func TestHandleRedisClusterFinalizer(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-
 			var k8sClient *k8sClientFake.Clientset
 			if tc.existingPVC != nil {
 				k8sClient = k8sClientFake.NewSimpleClientset(helperToRuntimeObjects(tc.existingPVC)...)
@@ -460,7 +459,6 @@ func TestHandleRedisReplicationFinalizer(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-
 			var k8sClient *k8sClientFake.Clientset
 			if tc.existingPVC != nil {
 				k8sClient = k8sClientFake.NewSimpleClientset(helperToRuntimeObjects(tc.existingPVC)...)
