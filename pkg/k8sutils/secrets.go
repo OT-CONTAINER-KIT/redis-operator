@@ -16,7 +16,7 @@ import (
 var log = logf.Log.WithName("controller_redis")
 
 // getRedisPassword method will return the redis password from the secret
-func getRedisPassword(client kubernetes.Interface, logger logr.Logger, namespace, name, secretKey string) (string, error) {
+func getRedisPassword(ctx context.Context, client kubernetes.Interface, logger logr.Logger, namespace, name, secretKey string) (string, error) {
 	secretName, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		logger.Error(err, "Failed in getting existing secret for redis")
@@ -32,7 +32,7 @@ func getRedisPassword(client kubernetes.Interface, logger logr.Logger, namespace
 	return "", nil
 }
 
-func getRedisTLSConfig(client kubernetes.Interface, logger logr.Logger, namespace, tlsSecretName, podName string) *tls.Config {
+func getRedisTLSConfig(ctx context.Context, client kubernetes.Interface, logger logr.Logger, namespace, tlsSecretName, podName string) *tls.Config {
 	secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), tlsSecretName, metav1.GetOptions{})
 	if err != nil {
 		logger.V(1).Error(err, "Failed in getting TLS secret", "secretName", tlsSecretName, "namespace", namespace)

@@ -1,6 +1,7 @@
 package k8sutils
 
 import (
+	"context"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
 	"k8s.io/client-go/kubernetes"
@@ -8,7 +9,7 @@ import (
 )
 
 // CreateStandaloneService method will create standalone service for Redis
-func CreateStandaloneService(cr *redisv1beta2.Redis, cl kubernetes.Interface) error {
+func CreateStandaloneService(ctx context.Context, cr *redisv1beta2.Redis, cl kubernetes.Interface) error {
 	logger := serviceLogger(cr.Namespace, cr.ObjectMeta.Name)
 	labels := getRedisLabels(cr.ObjectMeta.Name, standalone, "standalone", cr.ObjectMeta.Labels)
 	var epp exporterPortProvider
@@ -52,12 +53,13 @@ func CreateStandaloneService(cr *redisv1beta2.Redis, cl kubernetes.Interface) er
 }
 
 // CreateStandaloneRedis will create a standalone redis setup
-func CreateStandaloneRedis(cr *redisv1beta2.Redis, cl kubernetes.Interface) error {
+func CreateStandaloneRedis(ctx context.Context, cr *redisv1beta2.Redis, cl kubernetes.Interface) error {
 	logger := statefulSetLogger(cr.Namespace, cr.ObjectMeta.Name)
 	labels := getRedisLabels(cr.ObjectMeta.Name, standalone, "standalone", cr.ObjectMeta.Labels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 	objectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name, cr.Namespace, labels, annotations)
 	err := CreateOrUpdateStateFul(
+		ctx,
 		cl,
 		logger,
 		cr.GetNamespace(),

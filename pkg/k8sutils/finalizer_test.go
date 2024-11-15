@@ -147,7 +147,7 @@ func TestHandleRedisFinalizer(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			err := HandleRedisFinalizer(tc.mockClient, k8sClient, logger, tc.cr)
+			err := HandleRedisFinalizer(context.TODO(), tc.mockClient, k8sClient, logger, tc.cr)
 			if tc.expectError {
 				assert.Error(t, err)
 			} else {
@@ -279,7 +279,7 @@ func TestHandleRedisClusterFinalizer(t *testing.T) {
 				}
 			}
 
-			err := HandleRedisClusterFinalizer(tc.mockClient, k8sClient, logger, tc.cr)
+			err := HandleRedisClusterFinalizer(context.TODO(), tc.mockClient, k8sClient, logger, tc.cr)
 			if tc.expectError {
 				assert.Error(t, err)
 			} else {
@@ -478,7 +478,7 @@ func TestHandleRedisReplicationFinalizer(t *testing.T) {
 				}
 			}
 
-			err := HandleRedisReplicationFinalizer(tc.mockClient, k8sClient, logger, tc.cr)
+			err := HandleRedisReplicationFinalizer(context.TODO(), tc.mockClient, k8sClient, logger, tc.cr)
 			if tc.expectError {
 				assert.Error(t, err)
 			} else {
@@ -558,7 +558,7 @@ func TestHandleRedisSentinelFinalizer(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			logger := testr.New(t)
-			err := HandleRedisSentinelFinalizer(tc.mockClient, logger, tc.cr)
+			err := HandleRedisSentinelFinalizer(context.TODO(), tc.mockClient, logger, tc.cr)
 			if tc.expectError {
 				assert.Error(t, err)
 			} else {
@@ -618,7 +618,7 @@ func TestFinalizeRedisPVC(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			err := finalizeRedisPVC(k8sClient, logger, cr)
+			err := finalizeRedisPVC(context.TODO(), k8sClient, logger, cr)
 			if tc.expectError {
 				assert.Error(t, err)
 				assert.Equal(t, tc.errorExpected, err)
@@ -702,7 +702,7 @@ func TestFinalizeRedisReplicationPVC(t *testing.T) {
 				k8sClient = k8sClientFake.NewSimpleClientset()
 			}
 
-			err := finalizeRedisReplicationPVC(k8sClient, logger, tc.redisReplication)
+			err := finalizeRedisReplicationPVC(context.TODO(), k8sClient, logger, tc.redisReplication)
 			if tc.expectError {
 				assert.Error(t, err)
 			} else {
@@ -773,7 +773,7 @@ func TestFinalizeRedisClusterPVC(t *testing.T) {
 				k8sClient = k8sClientFake.NewSimpleClientset()
 			}
 
-			err := finalizeRedisClusterPVC(k8sClient, logger, tc.redisCluster)
+			err := finalizeRedisClusterPVC(context.TODO(), k8sClient, logger, tc.redisCluster)
 			if tc.expectError {
 				assert.Error(t, err)
 			} else {
@@ -886,7 +886,7 @@ func TestAddFinalizer(t *testing.T) {
 					return nil
 				},
 			}
-			err := AddFinalizer(tt.args.cr, tt.args.finalizer, mc)
+			err := AddFinalizer(context.TODO(), tt.args.cr, tt.args.finalizer, mc)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("AddFinalizer() error = %v, wantErr %v", err, tt.wantErr)
 			}

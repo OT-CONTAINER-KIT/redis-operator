@@ -53,11 +53,11 @@ func CreateRedisSentinel(ctx context.Context, client kubernetes.Interface, logge
 }
 
 // Create RedisSentinel Service
-func CreateRedisSentinelService(cr *redisv1beta2.RedisSentinel, cl kubernetes.Interface) error {
+func CreateRedisSentinelService(ctx context.Context, cr *redisv1beta2.RedisSentinel, cl kubernetes.Interface) error {
 	prop := RedisSentinelService{
 		RedisServiceRole: "sentinel",
 	}
-	return prop.CreateRedisSentinelService(cr, cl)
+	return prop.CreateRedisSentinelService(ctx, cr, cl)
 }
 
 // Create Redis Sentinel Cluster Setup
@@ -67,11 +67,12 @@ func (service RedisSentinelSTS) CreateRedisSentinelSetup(ctx context.Context, cl
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, annotations)
 	err := CreateOrUpdateStateFul(
+		ctx,
 		cl,
 		logger,
 		cr.GetNamespace(),
 		objectMetaInfo,
-		generateRedisSentinelParams(cr, service.getSentinelCount(cr), service.ExternalConfig, service.Affinity),
+		generateRedisSentinelParams(ctx, cr, service.getSentinelCount(cr), service.ExternalConfig, service.Affinity),
 		redisSentinelAsOwner(cr),
 		generateRedisSentinelInitContainerParams(cr),
 		generateRedisSentinelContainerParams(ctx, client, logger, cr, service.ReadinessProbe, service.LivenessProbe, dcl),
@@ -85,7 +86,7 @@ func (service RedisSentinelSTS) CreateRedisSentinelSetup(ctx context.Context, cl
 }
 
 // Create Redis Sentile Params for the statefulset
-func generateRedisSentinelParams(cr *redisv1beta2.RedisSentinel, replicas int32, externalConfig *string, affinity *corev1.Affinity) statefulSetParameters {
+func generateRedisSentinelParams(ctx context.Context, cr *redisv1beta2.RedisSentinel, replicas int32, externalConfig *string, affinity *corev1.Affinity) statefulSetParameters {
 	var minreadyseconds int32 = 0
 	if cr.Spec.KubernetesConfig.MinReadySeconds != nil {
 		minreadyseconds = *cr.Spec.KubernetesConfig.MinReadySeconds
@@ -206,7 +207,7 @@ func (service RedisSentinelSTS) getSentinelCount(cr *redisv1beta2.RedisSentinel)
 }
 
 // Create the Service for redis sentinel
-func (service RedisSentinelService) CreateRedisSentinelService(cr *redisv1beta2.RedisSentinel, cl kubernetes.Interface) error {
+func (service RedisSentinelService) CreateRedisSentinelService(ctx context.Context, cr *redisv1beta2.RedisSentinel, cl kubernetes.Interface) error {
 	serviceName := cr.ObjectMeta.Name + "-" + service.RedisServiceRole
 	logger := serviceLogger(cr.Namespace, serviceName)
 	labels := getRedisLabels(serviceName, sentinel, service.RedisServiceRole, cr.ObjectMeta.Labels)
@@ -337,7 +338,7 @@ func getRedisReplicationMasterIP(ctx context.Context, client kubernetes.Interfac
 		return ""
 	}
 	for _, podName := range masterPods {
-		redisClient := configureRedisReplicationClient(client, logger, &replicationInstance, podName)
+		redisClient := configureRedisReplicationClient(ctx, client, logger, &replicationInstance, podName)
 		defer redisClient.Close()
 
 		if checkAttachedSlave(ctx, redisClient, logger, podName) > 0 {
@@ -354,5 +355,5 @@ func getRedisReplicationMasterIP(ctx context.Context, client kubernetes.Interfac
 		PodName:   realMasterPod,
 		Namespace: replicationNamespace,
 	}
-	return getRedisServerIP(client, logger, realMasterInfo)
+	return getRedisServerIP(ctx, client, logger, realMasterInfo)
 }

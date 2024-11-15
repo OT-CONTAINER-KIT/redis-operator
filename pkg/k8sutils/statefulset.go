@@ -154,8 +154,8 @@ type initContainerParameters struct {
 }
 
 // CreateOrUpdateStateFul method will create or update Redis service
-func CreateOrUpdateStateFul(cl kubernetes.Interface, logger logr.Logger, namespace string, stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, initcontainerParams initContainerParameters, containerParams containerParameters, sidecars *[]redisv1beta2.Sidecar) error {
-	storedStateful, err := GetStatefulSet(cl, logger, namespace, stsMeta.Name)
+func CreateOrUpdateStateFul(ctx context.Context, cl kubernetes.Interface, logger logr.Logger, namespace string, stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, initcontainerParams initContainerParameters, containerParams containerParameters, sidecars *[]redisv1beta2.Sidecar) error {
+	storedStateful, err := GetStatefulSet(ctx, cl, logger, namespace, stsMeta.Name)
 	statefulSetDef := generateStatefulSetsDef(stsMeta, params, ownerDef, initcontainerParams, containerParams, getSidecars(sidecars))
 	if err != nil {
 		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(statefulSetDef); err != nil { //nolint
@@ -163,15 +163,15 @@ func CreateOrUpdateStateFul(cl kubernetes.Interface, logger logr.Logger, namespa
 			return err
 		}
 		if apierrors.IsNotFound(err) {
-			return createStatefulSet(cl, logger, namespace, statefulSetDef)
+			return createStatefulSet(ctx, cl, logger, namespace, statefulSetDef)
 		}
 		return err
 	}
-	return patchStatefulSet(storedStateful, statefulSetDef, namespace, params.RecreateStatefulSet, cl)
+	return patchStatefulSet(ctx, storedStateful, statefulSetDef, namespace, params.RecreateStatefulSet, cl)
 }
 
 // patchStateFulSet will patch Redis Kubernetes StateFulSet
-func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.StatefulSet, namespace string, recreateStateFulSet bool, cl kubernetes.Interface) error {
+func patchStatefulSet(ctx context.Context, storedStateful *appsv1.StatefulSet, newStateful *appsv1.StatefulSet, namespace string, recreateStateFulSet bool, cl kubernetes.Interface) error {
 	logger := statefulSetLogger(namespace, storedStateful.Name)
 	// We want to try and keep this atomic as possible.
 	newStateful.ResourceVersion = storedStateful.ResourceVersion
@@ -268,7 +268,7 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 			logger.Error(err, "Unable to patch redis statefulset with comparison object")
 			return err
 		}
-		return updateStatefulSet(cl, logger, namespace, newStateful, recreateStateFulSet)
+		return updateStatefulSet(ctx, cl, logger, namespace, newStateful, recreateStateFulSet)
 	}
 	logger.V(1).Info("Reconciliation Complete, no Changes required.")
 	return nil
@@ -767,7 +767,7 @@ func getEnvironmentVariables(role string, enabledPassword *bool, secretName *str
 }
 
 // createStatefulSet is a method to create statefulset in Kubernetes
-func createStatefulSet(cl kubernetes.Interface, logger logr.Logger, namespace string, stateful *appsv1.StatefulSet) error {
+func createStatefulSet(ctx context.Context, cl kubernetes.Interface, logger logr.Logger, namespace string, stateful *appsv1.StatefulSet) error {
 	_, err := cl.AppsV1().StatefulSets(namespace).Create(context.TODO(), stateful, metav1.CreateOptions{})
 	if err != nil {
 		logger.Error(err, "Redis stateful creation failed")
@@ -778,7 +778,7 @@ func createStatefulSet(cl kubernetes.Interface, logger logr.Logger, namespace st
 }
 
 // updateStatefulSet is a method to update statefulset in Kubernetes
-func updateStatefulSet(cl kubernetes.Interface, logger logr.Logger, namespace string, stateful *appsv1.StatefulSet, recreateStateFulSet bool) error {
+func updateStatefulSet(ctx context.Context, cl kubernetes.Interface, logger logr.Logger, namespace string, stateful *appsv1.StatefulSet, recreateStateFulSet bool) error {
 	_, err := cl.AppsV1().StatefulSets(namespace).Update(context.TODO(), stateful, metav1.UpdateOptions{})
 	if recreateStateFulSet {
 		sErr, ok := err.(*apierrors.StatusError)
@@ -803,7 +803,7 @@ func updateStatefulSet(cl kubernetes.Interface, logger logr.Logger, namespace st
 }
 
 // GetStateFulSet is a method to get statefulset in Kubernetes
-func GetStatefulSet(cl kubernetes.Interface, logger logr.Logger, namespace string, name string) (*appsv1.StatefulSet, error) {
+func GetStatefulSet(ctx context.Context, cl kubernetes.Interface, logger logr.Logger, namespace string, name string) (*appsv1.StatefulSet, error) {
 	getOpts := metav1.GetOptions{
 		TypeMeta: generateMetaInformation("StatefulSet", "apps/v1"),
 	}

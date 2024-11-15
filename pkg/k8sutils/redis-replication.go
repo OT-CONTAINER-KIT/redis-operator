@@ -12,7 +12,7 @@ import (
 )
 
 // CreateReplicationService method will create replication service for Redis
-func CreateReplicationService(cr *redisv1beta2.RedisReplication, cl kubernetes.Interface) error {
+func CreateReplicationService(ctx context.Context, cr *redisv1beta2.RedisReplication, cl kubernetes.Interface) error {
 	logger := serviceLogger(cr.Namespace, cr.ObjectMeta.Name)
 	labels := getRedisLabels(cr.ObjectMeta.Name, replication, "replication", cr.ObjectMeta.Labels)
 
@@ -62,7 +62,7 @@ func CreateReplicationService(cr *redisv1beta2.RedisReplication, cl kubernetes.I
 }
 
 // CreateReplicationRedis will create a replication redis setup
-func CreateReplicationRedis(cr *redisv1beta2.RedisReplication, cl kubernetes.Interface) error {
+func CreateReplicationRedis(ctx context.Context, cr *redisv1beta2.RedisReplication, cl kubernetes.Interface) error {
 	stateFulName := cr.ObjectMeta.Name
 	logger := statefulSetLogger(cr.Namespace, cr.ObjectMeta.Name)
 	labels := getRedisLabels(cr.ObjectMeta.Name, replication, "replication", cr.ObjectMeta.Labels)
@@ -70,6 +70,7 @@ func CreateReplicationRedis(cr *redisv1beta2.RedisReplication, cl kubernetes.Int
 	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, annotations)
 
 	err := CreateOrUpdateStateFul(
+		ctx,
 		cl,
 		logger,
 		cr.GetNamespace(),
@@ -218,7 +219,7 @@ func generateRedisReplicationInitContainerParams(cr *redisv1beta2.RedisReplicati
 
 func IsRedisReplicationReady(ctx context.Context, logger logr.Logger, client kubernetes.Interface, dClient dynamic.Interface, rs *redisv1beta2.RedisSentinel) bool {
 	// statefulset name the same as the redis replication name
-	sts, err := GetStatefulSet(client, logger, rs.GetNamespace(), rs.Spec.RedisSentinelConfig.RedisReplicationName)
+	sts, err := GetStatefulSet(ctx, client, logger, rs.GetNamespace(), rs.Spec.RedisSentinelConfig.RedisReplicationName)
 	if err != nil {
 		return false
 	}

@@ -1,6 +1,7 @@
 package k8sutils
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -85,7 +86,7 @@ func Test_getRedisPassword(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			client := tt.setup()
 			logger := testr.New(t)
-			got, err := getRedisPassword(client, logger, tt.namespace, tt.secretName, tt.secretKey)
+			got, err := getRedisPassword(context.TODO(), client, logger, tt.namespace, tt.secretName, tt.secretKey)
 
 			if tt.expectedErr {
 				require.Error(t, err, "Expected an error but didn't get one")
@@ -222,7 +223,7 @@ func Test_getRedisTLSConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			client := tt.setup()
 			logger := testr.New(t)
-			tlsConfig := getRedisTLSConfig(client, logger, tt.redisCluster.Namespace, tt.redisCluster.Spec.TLS.Secret.SecretName, tt.redisInfo.PodName)
+			tlsConfig := getRedisTLSConfig(context.TODO(), client, logger, tt.redisCluster.Namespace, tt.redisCluster.Spec.TLS.Secret.SecretName, tt.redisInfo.PodName)
 
 			if tt.expectTLS {
 				require.NotNil(t, tlsConfig, "Expected TLS configuration but got nil")

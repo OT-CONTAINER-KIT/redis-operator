@@ -37,7 +37,7 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return intctrlutil.RequeueWithErrorChecking(err, reqLogger, "")
 	}
 	if instance.ObjectMeta.GetDeletionTimestamp() != nil {
-		if err = k8sutils.HandleRedisSentinelFinalizer(r.Client, r.Log, instance); err != nil {
+		if err = k8sutils.HandleRedisSentinelFinalizer(ctx, r.Client, r.Log, instance); err != nil {
 			return intctrlutil.RequeueWithError(err, reqLogger, "")
 		}
 		return intctrlutil.Reconciled()
@@ -50,7 +50,7 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// Get total Sentinel Replicas
 	// sentinelReplicas := instance.Spec.GetSentinelCounts("sentinel")
 
-	if err = k8sutils.AddFinalizer(instance, k8sutils.RedisSentinelFinalizer, r.Client); err != nil {
+	if err = k8sutils.AddFinalizer(ctx, instance, k8sutils.RedisSentinelFinalizer, r.Client); err != nil {
 		return intctrlutil.RequeueWithError(err, reqLogger, "")
 	}
 
@@ -75,13 +75,13 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return intctrlutil.RequeueWithError(err, reqLogger, "")
 	}
 
-	err = k8sutils.ReconcileSentinelPodDisruptionBudget(instance, instance.Spec.PodDisruptionBudget, r.K8sClient)
+	err = k8sutils.ReconcileSentinelPodDisruptionBudget(ctx, instance, instance.Spec.PodDisruptionBudget, r.K8sClient)
 	if err != nil {
 		return intctrlutil.RequeueWithError(err, reqLogger, "")
 	}
 
 	// Create the Service for Redis Sentinel
-	err = k8sutils.CreateRedisSentinelService(instance, r.K8sClient)
+	err = k8sutils.CreateRedisSentinelService(ctx, instance, r.K8sClient)
 	if err != nil {
 		return intctrlutil.RequeueWithError(err, reqLogger, "")
 	}

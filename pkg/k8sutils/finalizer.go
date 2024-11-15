@@ -22,11 +22,11 @@ const (
 )
 
 // HandleRedisFinalizer finalize resource if instance is marked to be deleted
-func HandleRedisFinalizer(ctrlclient client.Client, k8sClient kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.Redis) error {
+func HandleRedisFinalizer(ctx context.Context, ctrlclient client.Client, k8sClient kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.Redis) error {
 	if cr.GetDeletionTimestamp() != nil {
 		if controllerutil.ContainsFinalizer(cr, RedisFinalizer) {
 			if cr.Spec.Storage != nil && !cr.Spec.Storage.KeepAfterDelete {
-				if err := finalizeRedisPVC(k8sClient, logger, cr); err != nil {
+				if err := finalizeRedisPVC(ctx, k8sClient, logger, cr); err != nil {
 					return err
 				}
 			}
@@ -41,11 +41,11 @@ func HandleRedisFinalizer(ctrlclient client.Client, k8sClient kubernetes.Interfa
 }
 
 // HandleRedisClusterFinalizer finalize resource if instance is marked to be deleted
-func HandleRedisClusterFinalizer(ctrlclient client.Client, k8sClient kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster) error {
+func HandleRedisClusterFinalizer(ctx context.Context, ctrlclient client.Client, k8sClient kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster) error {
 	if cr.GetDeletionTimestamp() != nil {
 		if controllerutil.ContainsFinalizer(cr, RedisClusterFinalizer) {
 			if cr.Spec.Storage != nil && !cr.Spec.Storage.KeepAfterDelete {
-				if err := finalizeRedisClusterPVC(k8sClient, logger, cr); err != nil {
+				if err := finalizeRedisClusterPVC(ctx, k8sClient, logger, cr); err != nil {
 					return err
 				}
 			}
@@ -60,11 +60,11 @@ func HandleRedisClusterFinalizer(ctrlclient client.Client, k8sClient kubernetes.
 }
 
 // Handle RedisReplicationFinalizer finalize resource if instance is marked to be deleted
-func HandleRedisReplicationFinalizer(ctrlclient client.Client, k8sClient kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication) error {
+func HandleRedisReplicationFinalizer(ctx context.Context, ctrlclient client.Client, k8sClient kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication) error {
 	if cr.GetDeletionTimestamp() != nil {
 		if controllerutil.ContainsFinalizer(cr, RedisReplicationFinalizer) {
 			if cr.Spec.Storage != nil && !cr.Spec.Storage.KeepAfterDelete {
-				if err := finalizeRedisReplicationPVC(k8sClient, logger, cr); err != nil {
+				if err := finalizeRedisReplicationPVC(ctx, k8sClient, logger, cr); err != nil {
 					return err
 				}
 			}
@@ -79,7 +79,7 @@ func HandleRedisReplicationFinalizer(ctrlclient client.Client, k8sClient kuberne
 }
 
 // HandleRedisSentinelFinalizer finalize resource if instance is marked to be deleted
-func HandleRedisSentinelFinalizer(ctrlclient client.Client, logger logr.Logger, cr *redisv1beta2.RedisSentinel) error {
+func HandleRedisSentinelFinalizer(ctx context.Context, ctrlclient client.Client, logger logr.Logger, cr *redisv1beta2.RedisSentinel) error {
 	if cr.GetDeletionTimestamp() != nil {
 		if controllerutil.ContainsFinalizer(cr, RedisSentinelFinalizer) {
 			controllerutil.RemoveFinalizer(cr, RedisSentinelFinalizer)
@@ -93,7 +93,7 @@ func HandleRedisSentinelFinalizer(ctrlclient client.Client, logger logr.Logger, 
 }
 
 // AddFinalizer add finalizer for graceful deletion
-func AddFinalizer(cr client.Object, finalizer string, cl client.Client) error {
+func AddFinalizer(ctx context.Context, cr client.Object, finalizer string, cl client.Client) error {
 	if !controllerutil.ContainsFinalizer(cr, finalizer) {
 		controllerutil.AddFinalizer(cr, finalizer)
 		return cl.Update(context.TODO(), cr)
@@ -102,7 +102,7 @@ func AddFinalizer(cr client.Object, finalizer string, cl client.Client) error {
 }
 
 // finalizeRedisPVC delete PVC
-func finalizeRedisPVC(client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.Redis) error {
+func finalizeRedisPVC(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.Redis) error {
 	pvcTemplateName := env.GetString(EnvOperatorSTSPVCTemplateName, cr.Name)
 	PVCName := fmt.Sprintf("%s-%s-0", pvcTemplateName, cr.Name)
 	err := client.CoreV1().PersistentVolumeClaims(cr.Namespace).Delete(context.TODO(), PVCName, metav1.DeleteOptions{})
@@ -114,7 +114,7 @@ func finalizeRedisPVC(client kubernetes.Interface, logger logr.Logger, cr *redis
 }
 
 // finalizeRedisClusterPVC delete PVCs
-func finalizeRedisClusterPVC(client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster) error {
+func finalizeRedisClusterPVC(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster) error {
 	for _, role := range []string{"leader", "follower"} {
 		for i := 0; i < int(cr.Spec.GetReplicaCounts(role)); i++ {
 			pvcTemplateName := env.GetString(EnvOperatorSTSPVCTemplateName, cr.Name+"-"+role)
@@ -140,7 +140,7 @@ func finalizeRedisClusterPVC(client kubernetes.Interface, logger logr.Logger, cr
 }
 
 // finalizeRedisReplicationPVC delete PVCs
-func finalizeRedisReplicationPVC(client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication) error {
+func finalizeRedisReplicationPVC(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisReplication) error {
 	for i := 0; i < int(cr.Spec.GetReplicationCounts("replication")); i++ {
 		pvcTemplateName := env.GetString(EnvOperatorSTSPVCTemplateName, cr.Name)
 		PVCName := fmt.Sprintf("%s-%s-%d", pvcTemplateName, cr.Name, i)

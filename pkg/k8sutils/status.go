@@ -21,7 +21,7 @@ func statusLogger(namespace string, name string) logr.Logger {
 }
 
 // UpdateRedisClusterStatus will update the status of the RedisCluster
-func UpdateRedisClusterStatus(cr *redisv1beta2.RedisCluster, state status.RedisClusterState, reason string, readyLeaderReplicas, readyFollowerReplicas int32, dcl dynamic.Interface) error {
+func UpdateRedisClusterStatus(ctx context.Context, cr *redisv1beta2.RedisCluster, state status.RedisClusterState, reason string, readyLeaderReplicas, readyFollowerReplicas int32, dcl dynamic.Interface) error {
 	logger := statusLogger(cr.Namespace, cr.Name)
 	newStatus := redisv1beta2.RedisClusterStatus{
 		State:                 state,

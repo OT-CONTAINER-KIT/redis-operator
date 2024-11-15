@@ -229,7 +229,7 @@ func Test_GetStatefulSet(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			client := k8sClientFake.NewSimpleClientset(test.sts.DeepCopy())
-			_, err := GetStatefulSet(client, logger, test.stsNamespace, test.stsName)
+			_, err := GetStatefulSet(context.TODO(), client, logger, test.stsNamespace, test.stsName)
 			if test.present {
 				assert.Nil(t, err)
 			} else {
@@ -279,7 +279,7 @@ func Test_createStatefulSet(t *testing.T) {
 			} else {
 				client = k8sClientFake.NewSimpleClientset()
 			}
-			err := createStatefulSet(client, logger, test.sts.GetNamespace(), &test.sts)
+			err := createStatefulSet(context.TODO(), client, logger, test.sts.GetNamespace(), &test.sts)
 			if test.present {
 				assert.NotNil(t, err)
 			} else {
@@ -395,7 +395,7 @@ func TestUpdateStatefulSet(t *testing.T) {
 			} else {
 				client = k8sClientFake.NewSimpleClientset()
 			}
-			err := updateStatefulSet(client, logger, updatedSts.GetNamespace(), &updatedSts, test.recreateSts)
+			err := updateStatefulSet(context.TODO(), client, logger, updatedSts.GetNamespace(), &updatedSts, test.recreateSts)
 			if test.expectErr != nil {
 				assert.Error(err, "Expected Error while updating Statefulset")
 				assert.Equal(test.expectErr, err)
@@ -554,7 +554,7 @@ func TestCreateOrUpdateStateFul(t *testing.T) {
 				} else {
 					client = k8sClientFake.NewSimpleClientset()
 				}
-				err := CreateOrUpdateStateFul(client, logger, updatedSts.GetNamespace(), updatedSts.ObjectMeta, test.stsParams, test.stsOwnerDef, test.initContainerParams, test.containerParams, test.sidecar)
+				err := CreateOrUpdateStateFul(context.TODO(), client, logger, updatedSts.GetNamespace(), updatedSts.ObjectMeta, test.stsParams, test.stsOwnerDef, test.initContainerParams, test.containerParams, test.sidecar)
 				if test.expectErr != nil {
 					assert.Error(err, "Expected Error while updating Statefulset")
 					assert.Equal(test.expectErr, err)
@@ -577,7 +577,7 @@ func TestCreateOrUpdateStateFul(t *testing.T) {
 
 				client = k8sClientFake.NewSimpleClientset()
 
-				err := CreateOrUpdateStateFul(client, logger, updatedSts.GetNamespace(), updatedSts.ObjectMeta, test.stsParams, test.stsOwnerDef, test.initContainerParams, test.containerParams, test.sidecar)
+				err := CreateOrUpdateStateFul(context.TODO(), client, logger, updatedSts.GetNamespace(), updatedSts.ObjectMeta, test.stsParams, test.stsOwnerDef, test.initContainerParams, test.containerParams, test.sidecar)
 				assert.Nil(err)
 			}
 		})

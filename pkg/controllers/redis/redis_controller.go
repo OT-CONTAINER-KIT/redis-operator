@@ -50,7 +50,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return intctrlutil.RequeueWithErrorChecking(err, reqLogger, "failed to get redis instance")
 	}
 	if instance.ObjectMeta.GetDeletionTimestamp() != nil {
-		if err = k8sutils.HandleRedisFinalizer(r.Client, r.K8sClient, r.Log, instance); err != nil {
+		if err = k8sutils.HandleRedisFinalizer(ctx, r.Client, r.K8sClient, r.Log, instance); err != nil {
 			return intctrlutil.RequeueWithError(err, reqLogger, "failed to handle redis finalizer")
 		}
 		return intctrlutil.Reconciled()
@@ -58,14 +58,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if _, found := instance.ObjectMeta.GetAnnotations()["redis.opstreelabs.in/skip-reconcile"]; found {
 		return intctrlutil.RequeueAfter(reqLogger, time.Second*10, "found skip reconcile annotation")
 	}
-	if err = k8sutils.AddFinalizer(instance, k8sutils.RedisFinalizer, r.Client); err != nil {
+	if err = k8sutils.AddFinalizer(ctx, instance, k8sutils.RedisFinalizer, r.Client); err != nil {
 		return intctrlutil.RequeueWithError(err, reqLogger, "failed to add finalizer")
 	}
-	err = k8sutils.CreateStandaloneRedis(instance, r.K8sClient)
+	err = k8sutils.CreateStandaloneRedis(ctx, instance, r.K8sClient)
 	if err != nil {
 		return intctrlutil.RequeueWithError(err, reqLogger, "failed to create redis")
 	}
-	err = k8sutils.CreateStandaloneService(instance, r.K8sClient)
+	err = k8sutils.CreateStandaloneService(ctx, instance, r.K8sClient)
 	if err != nil {
 		return intctrlutil.RequeueWithError(err, reqLogger, "failed to create service")
 	}

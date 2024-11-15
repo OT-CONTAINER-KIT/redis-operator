@@ -49,7 +49,7 @@ func TestCheckRedisNodePresence(t *testing.T) {
 	for _, tt := range tests {
 		testname := fmt.Sprintf("%s,%s", tt.nodes, tt.ip)
 		t.Run(testname, func(t *testing.T) {
-			ans := checkRedisNodePresence(cr, tt.nodes, tt.ip)
+			ans := checkRedisNodePresence(context.TODO(), cr, tt.nodes, tt.ip)
 			if ans != tt.want {
 				t.Errorf("got %t, want %t", ans, tt.want)
 			}
@@ -176,7 +176,7 @@ func TestGetRedisServerIP(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			client := tt.setup()
 			logger := testr.New(t)
-			redisIP := getRedisServerIP(client, logger, tt.redisInfo)
+			redisIP := getRedisServerIP(context.TODO(), client, logger, tt.redisInfo)
 
 			if tt.expectEmpty {
 				assert.Empty(t, redisIP, "Expected an empty IP address")
@@ -241,7 +241,7 @@ func TestGetRedisServerAddress(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			client := tt.setup()
 			logger := testr.New(t)
-			redisIP := getRedisServerAddress(client, logger, tt.redisInfo, 6379)
+			redisIP := getRedisServerAddress(context.TODO(), client, logger, tt.redisInfo, 6379)
 
 			if tt.expectEmpty {
 				assert.Empty(t, redisIP, "Expected an empty address")
@@ -355,7 +355,7 @@ func TestCreateMultipleLeaderRedisCommand(t *testing.T) {
 			client := mock_utils.CreateFakeClientWithPodIPs_LeaderPods(tt.redisCluster)
 			logger := testr.New(t)
 
-			cmd := CreateMultipleLeaderRedisCommand(client, logger, tt.redisCluster)
+			cmd := CreateMultipleLeaderRedisCommand(context.TODO(), client, logger, tt.redisCluster)
 			assert.Equal(t, tt.expectedCommands, cmd)
 		})
 	}
@@ -530,7 +530,7 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 			objects = append(objects, secret...)
 
 			client := fake.NewSimpleClientset(objects...)
-			cmd := createRedisReplicationCommand(client, logger, tt.redisCluster, tt.leaderPod, tt.followerPod)
+			cmd := createRedisReplicationCommand(context.TODO(), client, logger, tt.redisCluster, tt.leaderPod, tt.followerPod)
 
 			// Assert the command is as expected using testify
 			assert.Equal(t, tt.expectedCommand, cmd)
@@ -615,7 +615,7 @@ func TestGetContainerID(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			client := k8sClientFake.NewSimpleClientset(test.setupPod)
 			logger := testr.New(t)
-			id, pod := getContainerID(client, logger, test.redisCluster, test.setupPod.Name)
+			id, pod := getContainerID(context.TODO(), client, logger, test.redisCluster, test.setupPod.Name)
 			if test.expectError {
 				assert.Nil(t, pod, "Expected no pod but got one")
 				assert.Equal(t, test.expectedID, id, "Expected ID does not match")

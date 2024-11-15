@@ -83,7 +83,7 @@ func Test_generateRedisSentinelParams(t *testing.T) {
 		t.Fatalf("Failed to unmarshal file %s: %v", path, err)
 	}
 
-	actual := generateRedisSentinelParams(input, *input.Spec.Size, nil, input.Spec.Affinity)
+	actual := generateRedisSentinelParams(context.TODO(), input, *input.Spec.Size, nil, input.Spec.Affinity)
 	assert.EqualValues(t, expected, actual, "Expected %+v, got %+v", expected, actual)
 }
 

@@ -1,6 +1,7 @@
 package k8sutils
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -165,7 +166,7 @@ func Test_generateRedisClusterParams(t *testing.T) {
 		t.Fatalf("Failed to unmarshal file %s: %v", path, err)
 	}
 
-	actualLeaderSTS := generateRedisClusterParams(input, *input.Spec.Size, input.Spec.RedisLeader.RedisConfig.AdditionalRedisConfig, RedisClusterSTS{
+	actualLeaderSTS := generateRedisClusterParams(context.TODO(), input, *input.Spec.Size, input.Spec.RedisLeader.RedisConfig.AdditionalRedisConfig, RedisClusterSTS{
 		RedisStateFulType:             "leader",
 		ExternalConfig:                input.Spec.RedisLeader.RedisConfig.AdditionalRedisConfig,
 		SecurityContext:               input.Spec.RedisLeader.SecurityContext,
@@ -178,7 +179,7 @@ func Test_generateRedisClusterParams(t *testing.T) {
 	})
 	assert.EqualValues(t, expectedLeaderSTS, actualLeaderSTS, "Expected %+v, got %+v", expectedLeaderSTS, actualLeaderSTS)
 
-	actualFollowerSTS := generateRedisClusterParams(input, *input.Spec.Size, input.Spec.RedisFollower.RedisConfig.AdditionalRedisConfig, RedisClusterSTS{
+	actualFollowerSTS := generateRedisClusterParams(context.TODO(), input, *input.Spec.Size, input.Spec.RedisFollower.RedisConfig.AdditionalRedisConfig, RedisClusterSTS{
 		RedisStateFulType:             "follower",
 		ExternalConfig:                input.Spec.RedisFollower.RedisConfig.AdditionalRedisConfig,
 		SecurityContext:               input.Spec.RedisFollower.SecurityContext,
@@ -432,10 +433,10 @@ func Test_generateRedisClusterContainerParams(t *testing.T) {
 	}
 	logger := testr.New(t)
 
-	actualLeaderContainer := generateRedisClusterContainerParams(fake.NewSimpleClientset(), logger, input, input.Spec.RedisLeader.SecurityContext, input.Spec.RedisLeader.ReadinessProbe, input.Spec.RedisLeader.LivenessProbe, "leader")
+	actualLeaderContainer := generateRedisClusterContainerParams(context.TODO(), fake.NewSimpleClientset(), logger, input, input.Spec.RedisLeader.SecurityContext, input.Spec.RedisLeader.ReadinessProbe, input.Spec.RedisLeader.LivenessProbe, "leader")
 	assert.EqualValues(t, expectedLeaderContainer, actualLeaderContainer, "Expected %+v, got %+v", expectedLeaderContainer, actualLeaderContainer)
 
-	actualFollowerContainer := generateRedisClusterContainerParams(fake.NewSimpleClientset(), logger, input, input.Spec.RedisFollower.SecurityContext, input.Spec.RedisFollower.ReadinessProbe, input.Spec.RedisFollower.LivenessProbe, "follower")
+	actualFollowerContainer := generateRedisClusterContainerParams(context.TODO(), fake.NewSimpleClientset(), logger, input, input.Spec.RedisFollower.SecurityContext, input.Spec.RedisFollower.ReadinessProbe, input.Spec.RedisFollower.LivenessProbe, "follower")
 	assert.EqualValues(t, expectedFollowerContainer, actualFollowerContainer, "Expected %+v, got %+v", expectedFollowerContainer, actualFollowerContainer)
 }
 

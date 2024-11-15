@@ -38,7 +38,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return intctrlutil.RequeueWithErrorChecking(err, reqLogger, "")
 	}
 	if instance.ObjectMeta.GetDeletionTimestamp() != nil {
-		if err = k8sutils.HandleRedisReplicationFinalizer(r.Client, r.K8sClient, r.Log, instance); err != nil {
+		if err = k8sutils.HandleRedisReplicationFinalizer(ctx, r.Client, r.K8sClient, r.Log, instance); err != nil {
 			return intctrlutil.RequeueWithError(err, reqLogger, "")
 		}
 		return intctrlutil.Reconciled()
@@ -46,14 +46,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if _, found := instance.ObjectMeta.GetAnnotations()["redisreplication.opstreelabs.in/skip-reconcile"]; found {
 		return intctrlutil.RequeueAfter(reqLogger, time.Second*10, "found skip reconcile annotation")
 	}
-	if err = k8sutils.AddFinalizer(instance, k8sutils.RedisReplicationFinalizer, r.Client); err != nil {
+	if err = k8sutils.AddFinalizer(ctx, instance, k8sutils.RedisReplicationFinalizer, r.Client); err != nil {
 		return intctrlutil.RequeueWithError(err, reqLogger, "")
 	}
-	err = k8sutils.CreateReplicationRedis(instance, r.K8sClient)
+	err = k8sutils.CreateReplicationRedis(ctx, instance, r.K8sClient)
 	if err != nil {
 		return intctrlutil.RequeueWithError(err, reqLogger, "")
 	}
-	err = k8sutils.CreateReplicationService(instance, r.K8sClient)
+	err = k8sutils.CreateReplicationService(ctx, instance, r.K8sClient)
 	if err != nil {
 		return intctrlutil.RequeueWithError(err, reqLogger, "")
 	}
