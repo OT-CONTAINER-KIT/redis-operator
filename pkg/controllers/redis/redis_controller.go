@@ -23,7 +23,6 @@ import (
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllerutil"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/k8sutils"
-	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -36,13 +35,10 @@ type Reconciler struct {
 	client.Client
 	K8sClient  kubernetes.Interface
 	Dk8sClient dynamic.Interface
-	Log        logr.Logger
 	Scheme     *runtime.Scheme
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	reqLogger := r.Log.WithValues("Request.Namespace", req.Namespace, "Request.Name", req.Name)
-	reqLogger.Info("Reconciling opstree redis controller")
 	instance := &redisv1beta2.Redis{}
 
 	err := r.Client.Get(context.TODO(), req.NamespacedName, instance)

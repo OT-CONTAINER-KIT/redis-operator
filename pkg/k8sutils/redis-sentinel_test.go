@@ -9,7 +9,6 @@ import (
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
-	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -292,7 +291,6 @@ func Test_generateRedisSentinelInitContainerParams(t *testing.T) {
 func Test_getSentinelEnvVariable(t *testing.T) {
 	type args struct {
 		client kubernetes.Interface
-		logger logr.Logger
 		cr     *redisv1beta2.RedisSentinel
 	}
 	tests := []struct {
@@ -304,7 +302,6 @@ func Test_getSentinelEnvVariable(t *testing.T) {
 			name: "When RedisSentinelConfig is nil",
 			args: args{
 				client: nil,
-				logger: logr.Logger{},
 				cr:     &redisv1beta2.RedisSentinel{},
 			},
 			want: &[]corev1.EnvVar{},
@@ -313,7 +310,6 @@ func Test_getSentinelEnvVariable(t *testing.T) {
 			name: "When RedisSentinelConfig is not nil",
 			args: args{
 				client: nil,
-				logger: logr.Logger{},
 				cr: &redisv1beta2.RedisSentinel{
 					Spec: redisv1beta2.RedisSentinelSpec{
 						RedisSentinelConfig: &redisv1beta2.RedisSentinelConfig{

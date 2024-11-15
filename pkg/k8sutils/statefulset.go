@@ -12,7 +12,6 @@ import (
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
-	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -31,14 +30,11 @@ type StatefulSet interface {
 
 type StatefulSetService struct {
 	kubeClient kubernetes.Interface
-	log        logr.Logger
 }
 
-func NewStatefulSetService(kubeClient kubernetes.Interface, log logr.Logger) *StatefulSetService {
-	log = log.WithValues("service", "k8s.statefulset")
+func NewStatefulSetService(kubeClient kubernetes.Interface) *StatefulSetService {
 	return &StatefulSetService{
 		kubeClient: kubeClient,
-		log:        log,
 	}
 }
 

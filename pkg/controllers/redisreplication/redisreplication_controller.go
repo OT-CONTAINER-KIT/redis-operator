@@ -2,12 +2,12 @@ package redisreplication
 
 import (
 	"context"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"time"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllerutil"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/k8sutils"
-	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -24,13 +24,11 @@ type Reconciler struct {
 	k8sutils.StatefulSet
 	K8sClient  kubernetes.Interface
 	Dk8sClient dynamic.Interface
-	Log        logr.Logger
 	Scheme     *runtime.Scheme
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	reqLogger := r.Log.WithValues("Request.Namespace", req.Namespace, "Request.Name", req.Name)
-	reqLogger.Info("Reconciling opstree redis replication controller")
+	logger := log.FromContext(ctx, "Request.Namespace", req.Namespace, "Request.Name", req.Name)
 	instance := &redisv1beta2.RedisReplication{}
 
 	err := r.Client.Get(context.TODO(), req.NamespacedName, instance)
@@ -64,7 +62,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	var realMaster string
 	masterNodes := k8sutils.GetRedisNodesByRole(ctx, r.K8sClient, instance, "master")
 	if len(masterNodes) > 1 {
-		reqLogger.Info("Creating redis replication by executing replication creation commands")
+		logger.Info("Creating redis replication by executing replication creation commands")
 		slaveNodes := k8sutils.GetRedisNodesByRole(ctx, r.K8sClient, instance, "slave")
 		realMaster = k8sutils.GetRedisReplicationRealMaster(ctx, r.K8sClient, instance, masterNodes)
 		if len(slaveNodes) == 0 {

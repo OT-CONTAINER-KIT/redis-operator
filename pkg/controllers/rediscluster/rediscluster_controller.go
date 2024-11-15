@@ -27,7 +27,6 @@ import (
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllerutil"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/k8sutils"
 	retry "github.com/avast/retry-go"
-	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
@@ -42,7 +41,6 @@ type Reconciler struct {
 	k8sutils.StatefulSet
 	K8sClient  kubernetes.Interface
 	Dk8sClient dynamic.Interface
-	Log        logr.Logger
 	Scheme     *runtime.Scheme
 }
 
