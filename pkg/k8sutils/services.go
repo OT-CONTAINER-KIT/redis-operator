@@ -2,9 +2,9 @@ package k8sutils
 
 import (
 	"context"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -94,66 +94,59 @@ func generateServiceType(k8sServiceType string) corev1.ServiceType {
 }
 
 // createService is a method to create service is Kubernetes
-func createService(kusClient kubernetes.Interface, logger logr.Logger, namespace string, service *corev1.Service) error {
+func createService(ctx context.Context, kusClient kubernetes.Interface, namespace string, service *corev1.Service) error {
 	_, err := kusClient.CoreV1().Services(namespace).Create(context.TODO(), service, metav1.CreateOptions{})
 	if err != nil {
-		logger.Error(err, "Redis service creation is failed")
+		log.FromContext(ctx).Error(err, "Redis service creation is failed")
 		return err
 	}
-	logger.V(1).Info("Redis service creation is successful")
+	log.FromContext(ctx).Info("Redis service creation is successful")
 	return nil
 }
 
 // updateService is a method to update service is Kubernetes
-func updateService(k8sClient kubernetes.Interface, logger logr.Logger, namespace string, service *corev1.Service) error {
+func updateService(ctx context.Context, k8sClient kubernetes.Interface, namespace string, service *corev1.Service) error {
 	_, err := k8sClient.CoreV1().Services(namespace).Update(context.TODO(), service, metav1.UpdateOptions{})
 	if err != nil {
-		logger.Error(err, "Redis service update failed")
+		log.FromContext(ctx).Error(err, "Redis service update failed")
 		return err
 	}
-	logger.V(1).Info("Redis service updated successfully")
+	log.FromContext(ctx).Info("Redis service updated successfully")
 	return nil
 }
 
 // getService is a method to get service is Kubernetes
-func getService(k8sClient kubernetes.Interface, logger logr.Logger, namespace string, name string) (*corev1.Service, error) {
+func getService(ctx context.Context, k8sClient kubernetes.Interface, namespace string, name string) (*corev1.Service, error) {
 	getOpts := metav1.GetOptions{
 		TypeMeta: generateMetaInformation("Service", "v1"),
 	}
 	serviceInfo, err := k8sClient.CoreV1().Services(namespace).Get(context.TODO(), name, getOpts)
 	if err != nil {
-		logger.V(1).Info("Redis service get action is failed")
+		log.FromContext(ctx).Info("Redis service get action is failed")
 		return nil, err
 	}
-	logger.V(1).Info("Redis service get action is successful")
+	log.FromContext(ctx).Info("Redis service get action is successful")
 	return serviceInfo, nil
 }
 
-func serviceLogger(namespace string, name string) logr.Logger {
-	reqLogger := log.WithValues("Request.Service.Namespace", namespace, "Request.Service.Name", name)
-	return reqLogger
-}
-
 // CreateOrUpdateService method will create or update Redis service
-func CreateOrUpdateService(namespace string, serviceMeta metav1.ObjectMeta, ownerDef metav1.OwnerReference, epp exporterPortProvider, headless bool, serviceType string, port int, cl kubernetes.Interface, extra ...corev1.ServicePort) error {
-	logger := serviceLogger(namespace, serviceMeta.Name)
+func CreateOrUpdateService(ctx context.Context, namespace string, serviceMeta metav1.ObjectMeta, ownerDef metav1.OwnerReference, epp exporterPortProvider, headless bool, serviceType string, port int, cl kubernetes.Interface, extra ...corev1.ServicePort) error {
 	serviceDef := generateServiceDef(serviceMeta, epp, ownerDef, headless, serviceType, port, extra...)
-	storedService, err := getService(cl, logger, namespace, serviceMeta.GetName())
+	storedService, err := getService(ctx, cl, namespace, serviceMeta.GetName())
 	if err != nil {
 		if errors.IsNotFound(err) {
 			if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(serviceDef); err != nil { //nolint
-				logger.Error(err, "Unable to patch redis service with compare annotations")
+				log.FromContext(ctx).Error(err, "Unable to patch redis service with compare annotations")
 			}
-			return createService(cl, logger, namespace, serviceDef)
+			return createService(ctx, cl, namespace, serviceDef)
 		}
 		return err
 	}
-	return patchService(storedService, serviceDef, namespace, cl)
+	return patchService(ctx, storedService, serviceDef, namespace, cl)
 }
 
 // patchService will patch Redis Kubernetes service
-func patchService(storedService *corev1.Service, newService *corev1.Service, namespace string, cl kubernetes.Interface) error {
-	logger := serviceLogger(namespace, storedService.Name)
+func patchService(ctx context.Context, storedService *corev1.Service, newService *corev1.Service, namespace string, cl kubernetes.Interface) error {
 	// We want to try and keep this atomic as possible.
 	newService.ResourceVersion = storedService.ResourceVersion
 	newService.CreationTimestamp = storedService.CreationTimestamp
@@ -169,11 +162,11 @@ func patchService(storedService *corev1.Service, newService *corev1.Service, nam
 		patch.IgnoreField("apiVersion"),
 	)
 	if err != nil {
-		logger.Error(err, "Unable to patch redis service with comparison object")
+		log.FromContext(ctx).Error(err, "Unable to patch redis service with comparison object")
 		return err
 	}
 	if !patchResult.IsEmpty() {
-		logger.V(1).Info("Changes in service Detected, Updating...", "patch", string(patchResult.Patch))
+		log.FromContext(ctx).Info("Changes in service Detected, Updating...", "patch", string(patchResult.Patch))
 
 		for key, value := range storedService.Annotations {
 			if _, present := newService.Annotations[key]; !present {
@@ -181,12 +174,12 @@ func patchService(storedService *corev1.Service, newService *corev1.Service, nam
 			}
 		}
 		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(newService); err != nil {
-			logger.Error(err, "Unable to patch redis service with comparison object")
+			log.FromContext(ctx).Error(err, "Unable to patch redis service with comparison object")
 			return err
 		}
-		logger.V(1).Info("Syncing Redis service with defined properties")
-		return updateService(cl, logger, namespace, newService)
+		log.FromContext(ctx).Info("Syncing Redis service with defined properties")
+		return updateService(ctx, cl, namespace, newService)
 	}
-	logger.V(1).Info("Redis service is already in-sync")
+	log.FromContext(ctx).Info("Redis service is already in-sync")
 	return nil
 }

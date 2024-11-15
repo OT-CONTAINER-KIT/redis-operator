@@ -35,53 +35,53 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	err := r.Client.Get(context.TODO(), req.NamespacedName, instance)
 	if err != nil {
-		return intctrlutil.RequeueWithErrorChecking(err, reqLogger, "")
+		return intctrlutil.RequeueWithErrorChecking(ctx, err, "")
 	}
 	if instance.ObjectMeta.GetDeletionTimestamp() != nil {
-		if err = k8sutils.HandleRedisReplicationFinalizer(ctx, r.Client, r.K8sClient, r.Log, instance); err != nil {
-			return intctrlutil.RequeueWithError(err, reqLogger, "")
+		if err = k8sutils.HandleRedisReplicationFinalizer(ctx, r.Client, r.K8sClient, instance); err != nil {
+			return intctrlutil.RequeueWithError(ctx, err, "")
 		}
 		return intctrlutil.Reconciled()
 	}
 	if _, found := instance.ObjectMeta.GetAnnotations()["redisreplication.opstreelabs.in/skip-reconcile"]; found {
-		return intctrlutil.RequeueAfter(reqLogger, time.Second*10, "found skip reconcile annotation")
+		return intctrlutil.RequeueAfter(ctx, time.Second*10, "found skip reconcile annotation")
 	}
 	if err = k8sutils.AddFinalizer(ctx, instance, k8sutils.RedisReplicationFinalizer, r.Client); err != nil {
-		return intctrlutil.RequeueWithError(err, reqLogger, "")
+		return intctrlutil.RequeueWithError(ctx, err, "")
 	}
 	err = k8sutils.CreateReplicationRedis(ctx, instance, r.K8sClient)
 	if err != nil {
-		return intctrlutil.RequeueWithError(err, reqLogger, "")
+		return intctrlutil.RequeueWithError(ctx, err, "")
 	}
 	err = k8sutils.CreateReplicationService(ctx, instance, r.K8sClient)
 	if err != nil {
-		return intctrlutil.RequeueWithError(err, reqLogger, "")
+		return intctrlutil.RequeueWithError(ctx, err, "")
 	}
 	if !r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name) {
 		return intctrlutil.Reconciled()
 	}
 
 	var realMaster string
-	masterNodes := k8sutils.GetRedisNodesByRole(ctx, r.K8sClient, r.Log, instance, "master")
+	masterNodes := k8sutils.GetRedisNodesByRole(ctx, r.K8sClient, instance, "master")
 	if len(masterNodes) > 1 {
 		reqLogger.Info("Creating redis replication by executing replication creation commands")
-		slaveNodes := k8sutils.GetRedisNodesByRole(ctx, r.K8sClient, r.Log, instance, "slave")
-		realMaster = k8sutils.GetRedisReplicationRealMaster(ctx, r.K8sClient, r.Log, instance, masterNodes)
+		slaveNodes := k8sutils.GetRedisNodesByRole(ctx, r.K8sClient, instance, "slave")
+		realMaster = k8sutils.GetRedisReplicationRealMaster(ctx, r.K8sClient, instance, masterNodes)
 		if len(slaveNodes) == 0 {
 			realMaster = masterNodes[0]
 		}
-		if err = k8sutils.CreateMasterSlaveReplication(ctx, r.K8sClient, r.Log, instance, masterNodes, realMaster); err != nil {
-			return intctrlutil.RequeueAfter(reqLogger, time.Second*60, "")
+		if err = k8sutils.CreateMasterSlaveReplication(ctx, r.K8sClient, instance, masterNodes, realMaster); err != nil {
+			return intctrlutil.RequeueAfter(ctx, time.Second*60, "")
 		}
 	}
-	realMaster = k8sutils.GetRedisReplicationRealMaster(ctx, r.K8sClient, r.Log, instance, masterNodes)
+	realMaster = k8sutils.GetRedisReplicationRealMaster(ctx, r.K8sClient, instance, masterNodes)
 	if err = r.UpdateRedisReplicationMaster(ctx, instance, realMaster); err != nil {
-		return intctrlutil.RequeueWithError(err, reqLogger, "")
+		return intctrlutil.RequeueWithError(ctx, err, "")
 	}
 	if err = r.UpdateRedisPodRoleLabel(ctx, instance, realMaster); err != nil {
-		return intctrlutil.RequeueWithError(err, reqLogger, "")
+		return intctrlutil.RequeueWithError(ctx, err, "")
 	}
-	return intctrlutil.RequeueAfter(reqLogger, time.Second*10, "")
+	return intctrlutil.RequeueAfter(ctx, time.Second*10, "")
 }
 
 func (r *Reconciler) UpdateRedisReplicationMaster(ctx context.Context, instance *redisv1beta2.RedisReplication, masterNode string) error {

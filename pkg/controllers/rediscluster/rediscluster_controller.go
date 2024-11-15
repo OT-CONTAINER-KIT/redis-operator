@@ -19,6 +19,7 @@ package rediscluster
 import (
 	"context"
 	"fmt"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"time"
 
 	"github.com/OT-CONTAINER-KIT/redis-operator/api/status"
@@ -46,22 +47,21 @@ type Reconciler struct {
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	reqLogger := r.Log.WithValues("Request.Namespace", req.Namespace, "Request.Name", req.Name)
-	reqLogger.V(1).Info("Reconciling opstree redis Cluster controller")
+	logger := log.FromContext(ctx)
 	instance := &redisv1beta2.RedisCluster{}
 
 	err := r.Client.Get(context.TODO(), req.NamespacedName, instance)
 	if err != nil {
-		return intctrlutil.RequeueWithErrorChecking(err, reqLogger, "failed to get redis cluster instance")
+		return intctrlutil.RequeueWithErrorChecking(ctx, err, "failed to get redis cluster instance")
 	}
 	if instance.ObjectMeta.GetDeletionTimestamp() != nil {
-		if err = k8sutils.HandleRedisClusterFinalizer(ctx, r.Client, r.K8sClient, r.Log, instance); err != nil {
-			return intctrlutil.RequeueWithError(err, reqLogger, "failed to handle redis cluster finalizer")
+		if err = k8sutils.HandleRedisClusterFinalizer(ctx, r.Client, r.K8sClient, instance); err != nil {
+			return intctrlutil.RequeueWithError(ctx, err, "failed to handle redis cluster finalizer")
 		}
 		return intctrlutil.Reconciled()
 	}
 	if _, found := instance.ObjectMeta.GetAnnotations()["rediscluster.opstreelabs.in/skip-reconcile"]; found {
-		return intctrlutil.RequeueAfter(reqLogger, time.Second*10, "found skip reconcile annotation")
+		return intctrlutil.RequeueAfter(ctx, time.Second*10, "found skip reconcile annotation")
 	}
 	instance.SetDefault()
 
@@ -70,33 +70,33 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	totalReplicas := leaderReplicas + followerReplicas
 
 	if err = k8sutils.AddFinalizer(ctx, instance, k8sutils.RedisClusterFinalizer, r.Client); err != nil {
-		return intctrlutil.RequeueWithError(err, reqLogger, "failed to add finalizer")
+		return intctrlutil.RequeueWithError(ctx, err, "failed to add finalizer")
 	}
 
 	// Check if the cluster is downscaled
-	if leaderCount := k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, r.Log, instance, "leader"); leaderReplicas < leaderCount {
-		reqLogger.Info("Redis cluster is downscaling...", "Current.LeaderReplicas", leaderCount, "Desired.LeaderReplicas", leaderReplicas)
+	if leaderCount := k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, "leader"); leaderReplicas < leaderCount {
+		logger.Info("Redis cluster is downscaling...", "Current.LeaderReplicas", leaderCount, "Desired.LeaderReplicas", leaderReplicas)
 		for shardIdx := leaderCount - 1; shardIdx >= leaderReplicas; shardIdx-- {
-			reqLogger.Info("Remove the shard", "Shard.Index", shardIdx)
+			logger.Info("Remove the shard", "Shard.Index", shardIdx)
 			//  Imp if the last index of leader sts is not leader make it then
 			// check whether the redis is leader or not ?
 			// if not true then make it leader pod
-			if !(k8sutils.VerifyLeaderPod(ctx, r.K8sClient, r.Log, instance)) {
+			if !(k8sutils.VerifyLeaderPod(ctx, r.K8sClient, instance)) {
 				// lastLeaderPod is slaving right now Make it the master Pod
 				// We have to bring a manual failover here to make it a leaderPod
 				// clusterFailover should also include the clusterReplicate since we have to map the followers to new leader
-				k8sutils.ClusterFailover(ctx, r.K8sClient, r.Log, instance)
+				k8sutils.ClusterFailover(ctx, r.K8sClient, instance)
 			}
 			// Step 1 Remove the Follower Node
-			k8sutils.RemoveRedisFollowerNodesFromCluster(ctx, r.K8sClient, r.Log, instance)
+			k8sutils.RemoveRedisFollowerNodesFromCluster(ctx, r.K8sClient, instance)
 			// Step 2 Reshard the Cluster
-			k8sutils.ReshardRedisCluster(ctx, r.K8sClient, r.Log, instance, true)
+			k8sutils.ReshardRedisCluster(ctx, r.K8sClient, instance, true)
 		}
-		reqLogger.Info("Redis cluster is downscaled... Rebalancing the cluster")
+		logger.Info("Redis cluster is downscaled... Rebalancing the cluster")
 		// Step 3 Rebalance the cluster
-		k8sutils.RebalanceRedisCluster(ctx, r.K8sClient, r.Log, instance)
-		reqLogger.Info("Redis cluster is downscaled... Rebalancing the cluster is done")
-		return intctrlutil.RequeueAfter(reqLogger, time.Second*10, "")
+		k8sutils.RebalanceRedisCluster(ctx, r.K8sClient, instance)
+		logger.Info("Redis cluster is downscaled... Rebalancing the cluster is done")
+		return intctrlutil.RequeueAfter(ctx, time.Second*10, "")
 	}
 
 	// Mark the cluster status as initializing if there are no leader or follower nodes
@@ -104,23 +104,23 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		instance.Status.ReadyLeaderReplicas != leaderReplicas {
 		err = k8sutils.UpdateRedisClusterStatus(ctx, instance, status.RedisClusterInitializing, status.InitializingClusterLeaderReason, instance.Status.ReadyLeaderReplicas, instance.Status.ReadyFollowerReplicas, r.Dk8sClient)
 		if err != nil {
-			return intctrlutil.RequeueWithError(err, reqLogger, "")
+			return intctrlutil.RequeueWithError(ctx, err, "")
 		}
 	}
 
 	if leaderReplicas != 0 {
 		err = k8sutils.CreateRedisLeaderService(ctx, instance, r.K8sClient)
 		if err != nil {
-			return intctrlutil.RequeueWithError(err, reqLogger, "")
+			return intctrlutil.RequeueWithError(ctx, err, "")
 		}
 	}
 	err = k8sutils.CreateRedisLeader(ctx, instance, r.K8sClient)
 	if err != nil {
-		return intctrlutil.RequeueWithError(err, reqLogger, "")
+		return intctrlutil.RequeueWithError(ctx, err, "")
 	}
 	err = k8sutils.ReconcileRedisPodDisruptionBudget(ctx, instance, "leader", instance.Spec.RedisLeader.PodDisruptionBudget, r.K8sClient)
 	if err != nil {
-		return intctrlutil.RequeueWithError(err, reqLogger, "")
+		return intctrlutil.RequeueWithError(ctx, err, "")
 	}
 
 	if r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-leader") {
@@ -129,23 +129,23 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			instance.Status.ReadyFollowerReplicas != followerReplicas {
 			err = k8sutils.UpdateRedisClusterStatus(ctx, instance, status.RedisClusterInitializing, status.InitializingClusterFollowerReason, leaderReplicas, instance.Status.ReadyFollowerReplicas, r.Dk8sClient)
 			if err != nil {
-				return intctrlutil.RequeueWithError(err, reqLogger, "")
+				return intctrlutil.RequeueWithError(ctx, err, "")
 			}
 		}
 		// if we have followers create their service.
 		if followerReplicas != 0 {
 			err = k8sutils.CreateRedisFollowerService(ctx, instance, r.K8sClient)
 			if err != nil {
-				return intctrlutil.RequeueWithError(err, reqLogger, "")
+				return intctrlutil.RequeueWithError(ctx, err, "")
 			}
 		}
 		err = k8sutils.CreateRedisFollower(ctx, instance, r.K8sClient)
 		if err != nil {
-			return intctrlutil.RequeueWithError(err, reqLogger, "")
+			return intctrlutil.RequeueWithError(ctx, err, "")
 		}
 		err = k8sutils.ReconcileRedisPodDisruptionBudget(ctx, instance, "follower", instance.Spec.RedisFollower.PodDisruptionBudget, r.K8sClient)
 		if err != nil {
-			return intctrlutil.RequeueWithError(err, reqLogger, "")
+			return intctrlutil.RequeueWithError(ctx, err, "")
 		}
 	}
 
@@ -157,55 +157,55 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if !(instance.Status.ReadyLeaderReplicas == leaderReplicas && instance.Status.ReadyFollowerReplicas == followerReplicas) {
 		err = k8sutils.UpdateRedisClusterStatus(ctx, instance, status.RedisClusterBootstrap, status.BootstrapClusterReason, leaderReplicas, followerReplicas, r.Dk8sClient)
 		if err != nil {
-			return intctrlutil.RequeueWithError(err, reqLogger, "")
+			return intctrlutil.RequeueWithError(ctx, err, "")
 		}
 	}
 
-	if nc := k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, r.Log, instance, ""); nc != totalReplicas {
-		reqLogger.Info("Creating redis cluster by executing cluster creation commands")
-		leaderCount := k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, r.Log, instance, "leader")
+	if nc := k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, ""); nc != totalReplicas {
+		logger.Info("Creating redis cluster by executing cluster creation commands")
+		leaderCount := k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, "leader")
 		if leaderCount != leaderReplicas {
-			reqLogger.Info("Not all leader are part of the cluster...", "Leaders.Count", leaderCount, "Instance.Size", leaderReplicas)
+			logger.Info("Not all leader are part of the cluster...", "Leaders.Count", leaderCount, "Instance.Size", leaderReplicas)
 			if leaderCount <= 2 {
-				k8sutils.ExecuteRedisClusterCommand(ctx, r.K8sClient, r.Log, instance)
+				k8sutils.ExecuteRedisClusterCommand(ctx, r.K8sClient, instance)
 			} else {
 				if leaderCount < leaderReplicas {
 					// Scale up the cluster
 					// Step 2 : Add Redis Node
-					k8sutils.AddRedisNodeToCluster(ctx, r.K8sClient, r.Log, instance)
+					k8sutils.AddRedisNodeToCluster(ctx, r.K8sClient, instance)
 					// Step 3 Rebalance the cluster using the empty masters
-					k8sutils.RebalanceRedisClusterEmptyMasters(ctx, r.K8sClient, r.Log, instance)
+					k8sutils.RebalanceRedisClusterEmptyMasters(ctx, r.K8sClient, instance)
 				}
 			}
 		} else {
 			if followerReplicas > 0 {
-				reqLogger.Info("All leader are part of the cluster, adding follower/replicas", "Leaders.Count", leaderCount, "Instance.Size", leaderReplicas, "Follower.Replicas", followerReplicas)
-				k8sutils.ExecuteRedisReplicationCommand(ctx, r.K8sClient, r.Log, instance)
+				logger.Info("All leader are part of the cluster, adding follower/replicas", "Leaders.Count", leaderCount, "Instance.Size", leaderReplicas, "Follower.Replicas", followerReplicas)
+				k8sutils.ExecuteRedisReplicationCommand(ctx, r.K8sClient, instance)
 			} else {
-				reqLogger.Info("no follower/replicas configured, skipping replication configuration", "Leaders.Count", leaderCount, "Leader.Size", leaderReplicas, "Follower.Replicas", followerReplicas)
+				logger.Info("no follower/replicas configured, skipping replication configuration", "Leaders.Count", leaderCount, "Leader.Size", leaderReplicas, "Follower.Replicas", followerReplicas)
 			}
 		}
-		return intctrlutil.RequeueAfter(reqLogger, time.Second*60, "Redis cluster count is not desired", "Current.Count", nc, "Desired.Count", totalReplicas)
+		return intctrlutil.RequeueAfter(ctx, time.Second*60, "Redis cluster count is not desired", "Current.Count", nc, "Desired.Count", totalReplicas)
 	}
 
-	reqLogger.V(1).Info("Number of Redis nodes match desired")
-	unhealthyNodeCount, err := k8sutils.UnhealthyNodesInCluster(ctx, r.K8sClient, r.Log, instance)
+	logger.Info("Number of Redis nodes match desired")
+	unhealthyNodeCount, err := k8sutils.UnhealthyNodesInCluster(ctx, r.K8sClient, instance)
 	if err != nil {
-		reqLogger.Error(err, "failed to determine unhealthy node count in cluster")
+		logger.Error(err, "failed to determine unhealthy node count in cluster")
 	}
 	if int(totalReplicas) > 1 && unhealthyNodeCount >= int(totalReplicas)-1 {
 		err = k8sutils.UpdateRedisClusterStatus(ctx, instance, status.RedisClusterFailed, "RedisCluster has too many unhealthy nodes", leaderReplicas, followerReplicas, r.Dk8sClient)
 		if err != nil {
-			return intctrlutil.RequeueWithError(err, reqLogger, "")
+			return intctrlutil.RequeueWithError(ctx, err, "")
 		}
 
-		reqLogger.Info("healthy leader count does not match desired; attempting to repair disconnected masters")
-		if err = k8sutils.RepairDisconnectedMasters(ctx, r.K8sClient, r.Log, instance); err != nil {
-			reqLogger.Error(err, "failed to repair disconnected masters")
+		logger.Info("healthy leader count does not match desired; attempting to repair disconnected masters")
+		if err = k8sutils.RepairDisconnectedMasters(ctx, r.K8sClient, instance); err != nil {
+			logger.Error(err, "failed to repair disconnected masters")
 		}
 
 		err = retry.Do(func() error {
-			nc, nErr := k8sutils.UnhealthyNodesInCluster(ctx, r.K8sClient, r.Log, instance)
+			nc, nErr := k8sutils.UnhealthyNodesInCluster(ctx, r.K8sClient, instance)
 			if nErr != nil {
 				return nErr
 			}
@@ -216,30 +216,30 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}, retry.Attempts(3), retry.Delay(time.Second*5))
 
 		if err == nil {
-			reqLogger.Info("repairing unhealthy masters successful, no unhealthy masters left")
-			return intctrlutil.RequeueAfter(reqLogger, time.Second*30, "no unhealthy nodes found after repairing disconnected masters")
+			logger.Info("repairing unhealthy masters successful, no unhealthy masters left")
+			return intctrlutil.RequeueAfter(ctx, time.Second*30, "no unhealthy nodes found after repairing disconnected masters")
 		}
-		reqLogger.Info("unhealthy nodes exist after attempting to repair disconnected masters; starting failover")
-		if err = k8sutils.ExecuteFailoverOperation(ctx, r.K8sClient, r.Log, instance); err != nil {
-			return intctrlutil.RequeueWithError(err, reqLogger, "")
+		logger.Info("unhealthy nodes exist after attempting to repair disconnected masters; starting failover")
+		if err = k8sutils.ExecuteFailoverOperation(ctx, r.K8sClient, instance); err != nil {
+			return intctrlutil.RequeueWithError(ctx, err, "")
 		}
 	}
 
 	// Check If there is No Empty Master Node
-	if k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, r.Log, instance, "") == totalReplicas {
-		k8sutils.CheckIfEmptyMasters(ctx, r.K8sClient, r.Log, instance)
+	if k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, "") == totalReplicas {
+		k8sutils.CheckIfEmptyMasters(ctx, r.K8sClient, instance)
 	}
 
 	// Mark the cluster status as ready if all the leader and follower nodes are ready
 	if instance.Status.ReadyLeaderReplicas == leaderReplicas && instance.Status.ReadyFollowerReplicas == followerReplicas {
-		if k8sutils.RedisClusterStatusHealth(ctx, r.K8sClient, r.Log, instance) {
+		if k8sutils.RedisClusterStatusHealth(ctx, r.K8sClient, instance) {
 			err = k8sutils.UpdateRedisClusterStatus(ctx, instance, status.RedisClusterReady, status.ReadyClusterReason, leaderReplicas, followerReplicas, r.Dk8sClient)
 			if err != nil {
-				return intctrlutil.RequeueWithError(err, reqLogger, "")
+				return intctrlutil.RequeueWithError(ctx, err, "")
 			}
 		}
 	}
-	return intctrlutil.RequeueAfter(reqLogger, time.Second*10, "")
+	return intctrlutil.RequeueAfter(ctx, time.Second*10, "")
 }
 
 // SetupWithManager sets up the controller with the Manager.

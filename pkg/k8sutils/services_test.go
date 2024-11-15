@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/go-logr/logr/testr"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -311,7 +310,7 @@ func Test_createService(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			logger := testr.New(t)
+
 			var k8sClient *k8sClientFake.Clientset
 			if tt.exist {
 				k8sClient = k8sClientFake.NewSimpleClientset(tt.service.DeepCopyObject())
@@ -319,7 +318,7 @@ func Test_createService(t *testing.T) {
 				k8sClient = k8sClientFake.NewSimpleClientset()
 			}
 
-			err := createService(k8sClient, logger, tt.service.GetNamespace(), tt.service)
+			err := createService(context.TODO(), k8sClient, tt.service.GetNamespace(), tt.service)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -407,10 +406,10 @@ func Test_updateService(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			logger := testr.New(t)
+
 			k8sClient := k8sClientFake.NewSimpleClientset(tt.current.DeepCopyObject())
 
-			err := updateService(k8sClient, logger, tt.servinceNamespace, tt.updated)
+			err := updateService(context.TODO(), k8sClient, tt.servinceNamespace, tt.updated)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -460,7 +459,7 @@ func Test_getService(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			logger := testr.New(t)
+
 			var k8sClient *k8sClientFake.Clientset
 			if tt.have != nil {
 				k8sClient = k8sClientFake.NewSimpleClientset(tt.have.DeepCopyObject())
@@ -468,7 +467,7 @@ func Test_getService(t *testing.T) {
 				k8sClient = k8sClientFake.NewSimpleClientset()
 			}
 
-			got, err := getService(k8sClient, logger, tt.want.GetNamespace(), tt.want.GetName())
+			got, err := getService(context.TODO(), k8sClient, tt.want.GetNamespace(), tt.want.GetName())
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {

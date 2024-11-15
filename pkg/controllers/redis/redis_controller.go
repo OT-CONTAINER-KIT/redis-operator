@@ -47,29 +47,29 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	err := r.Client.Get(context.TODO(), req.NamespacedName, instance)
 	if err != nil {
-		return intctrlutil.RequeueWithErrorChecking(err, reqLogger, "failed to get redis instance")
+		return intctrlutil.RequeueWithErrorChecking(ctx, err, "failed to get redis instance")
 	}
 	if instance.ObjectMeta.GetDeletionTimestamp() != nil {
-		if err = k8sutils.HandleRedisFinalizer(ctx, r.Client, r.K8sClient, r.Log, instance); err != nil {
-			return intctrlutil.RequeueWithError(err, reqLogger, "failed to handle redis finalizer")
+		if err = k8sutils.HandleRedisFinalizer(ctx, r.Client, r.K8sClient, instance); err != nil {
+			return intctrlutil.RequeueWithError(ctx, err, "failed to handle redis finalizer")
 		}
 		return intctrlutil.Reconciled()
 	}
 	if _, found := instance.ObjectMeta.GetAnnotations()["redis.opstreelabs.in/skip-reconcile"]; found {
-		return intctrlutil.RequeueAfter(reqLogger, time.Second*10, "found skip reconcile annotation")
+		return intctrlutil.RequeueAfter(ctx, time.Second*10, "found skip reconcile annotation")
 	}
 	if err = k8sutils.AddFinalizer(ctx, instance, k8sutils.RedisFinalizer, r.Client); err != nil {
-		return intctrlutil.RequeueWithError(err, reqLogger, "failed to add finalizer")
+		return intctrlutil.RequeueWithError(ctx, err, "failed to add finalizer")
 	}
 	err = k8sutils.CreateStandaloneRedis(ctx, instance, r.K8sClient)
 	if err != nil {
-		return intctrlutil.RequeueWithError(err, reqLogger, "failed to create redis")
+		return intctrlutil.RequeueWithError(ctx, err, "failed to create redis")
 	}
 	err = k8sutils.CreateStandaloneService(ctx, instance, r.K8sClient)
 	if err != nil {
-		return intctrlutil.RequeueWithError(err, reqLogger, "failed to create service")
+		return intctrlutil.RequeueWithError(ctx, err, "failed to create service")
 	}
-	return intctrlutil.RequeueAfter(reqLogger, time.Second*10, "requeue after 10 seconds")
+	return intctrlutil.RequeueAfter(ctx, time.Second*10, "requeue after 10 seconds")
 }
 
 // SetupWithManager sets up the controller with the Manager.

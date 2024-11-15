@@ -208,7 +208,7 @@ func Test_generateRedisSentinelContainerParams(t *testing.T) {
 		t.Fatalf("Failed to unmarshal file %s: %v", path, err)
 	}
 
-	actual := generateRedisSentinelContainerParams(context.TODO(), nil, logr.Logger{}, input, nil, nil, nil)
+	actual := generateRedisSentinelContainerParams(context.TODO(), nil, input, nil, nil, nil)
 	assert.EqualValues(t, expected, actual, "Expected %+v, got %+v", expected, actual)
 }
 
@@ -364,7 +364,7 @@ func Test_getSentinelEnvVariable(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.TODO()
-			if got := getSentinelEnvVariable(ctx, tt.args.client, tt.args.logger, tt.args.cr, fake.NewSimpleDynamicClient(&runtime.Scheme{})); !reflect.DeepEqual(got, tt.want) {
+			if got := getSentinelEnvVariable(ctx, tt.args.client, tt.args.cr, fake.NewSimpleDynamicClient(&runtime.Scheme{})); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("getSentinelEnvVariable() = %v, want %v", got, tt.want)
 			}
 		})
