@@ -6,9 +6,10 @@ import (
 	"encoding/csv"
 	"fmt"
 	"net"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	"strconv"
 	"strings"
+
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	redis "github.com/redis/go-redis/v9"
@@ -321,7 +322,6 @@ func executeFailoverCommand(ctx context.Context, client kubernetes.Interface, cr
 		cmd := redis.NewStringCmd(ctx, "cluster", "reset")
 		err := client.Process(ctx, cmd)
 		if err != nil {
-
 			log.FromContext(ctx).Error(err, "Redis command failed with this error")
 			flushcommand := redis.NewStringCmd(ctx, "flushall")
 			err = client.Process(ctx, flushcommand)
