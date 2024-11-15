@@ -45,7 +45,7 @@ type patchStringValue struct {
 }
 
 func (s *PodService) PatchPodLabels(ctx context.Context, namespace, podName string, labels map[string]string) error {
-	log.FromContext(ctx).Info("Patch pod labels", "namespace", namespace, "podName", podName, "labels", labels)
+	log.FromContext(ctx).V(1).Info("Patch pod labels", "namespace", namespace, "podName", podName, "labels", labels)
 
 	var payloads []interface{}
 	for labelKey, labelValue := range labels {

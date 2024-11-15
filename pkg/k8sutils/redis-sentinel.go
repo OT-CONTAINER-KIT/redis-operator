@@ -315,7 +315,7 @@ func getRedisReplicationMasterIP(ctx context.Context, client kubernetes.Interfac
 		log.FromContext(ctx).Error(err, "Failed to Execute Get Request", "replication name", replicationName, "namespace", replicationNamespace)
 		return ""
 	} else {
-		log.FromContext(ctx).Info("Successfully Execute the Get Request", "replication name", replicationName, "namespace", replicationNamespace)
+		log.FromContext(ctx).V(1).Info("Successfully Execute the Get Request", "replication name", replicationName, "namespace", replicationNamespace)
 	}
 
 	// Marshal CustomObject to JSON

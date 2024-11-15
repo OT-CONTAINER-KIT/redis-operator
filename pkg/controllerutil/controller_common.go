@@ -18,7 +18,7 @@ func RequeueAfter(ctx context.Context, duration time.Duration, msg string, keysA
 	if msg == "" {
 		msg = "requeue-after"
 	}
-	log.FromContext(ctx).Info(msg, keysAndValues...)
+	log.FromContext(ctx).V(1).Info(msg, keysAndValues...)
 	return reconcile.Result{
 		Requeue:      true,
 		RequeueAfter: duration,

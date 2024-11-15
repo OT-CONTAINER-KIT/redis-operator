@@ -100,7 +100,7 @@ func createService(ctx context.Context, kusClient kubernetes.Interface, namespac
 		log.FromContext(ctx).Error(err, "Redis service creation is failed")
 		return err
 	}
-	log.FromContext(ctx).Info("Redis service creation is successful")
+	log.FromContext(ctx).V(1).Info("Redis service creation is successful")
 	return nil
 }
 
@@ -111,7 +111,7 @@ func updateService(ctx context.Context, k8sClient kubernetes.Interface, namespac
 		log.FromContext(ctx).Error(err, "Redis service update failed")
 		return err
 	}
-	log.FromContext(ctx).Info("Redis service updated successfully")
+	log.FromContext(ctx).V(1).Info("Redis service updated successfully")
 	return nil
 }
 
@@ -122,10 +122,10 @@ func getService(ctx context.Context, k8sClient kubernetes.Interface, namespace s
 	}
 	serviceInfo, err := k8sClient.CoreV1().Services(namespace).Get(context.TODO(), name, getOpts)
 	if err != nil {
-		log.FromContext(ctx).Info("Redis service get action is failed")
+		log.FromContext(ctx).V(1).Info("Redis service get action is failed")
 		return nil, err
 	}
-	log.FromContext(ctx).Info("Redis service get action is successful")
+	log.FromContext(ctx).V(1).Info("Redis service get action is successful")
 	return serviceInfo, nil
 }
 
@@ -166,7 +166,7 @@ func patchService(ctx context.Context, storedService *corev1.Service, newService
 		return err
 	}
 	if !patchResult.IsEmpty() {
-		log.FromContext(ctx).Info("Changes in service Detected, Updating...", "patch", string(patchResult.Patch))
+		log.FromContext(ctx).V(1).Info("Changes in service Detected, Updating...", "patch", string(patchResult.Patch))
 
 		for key, value := range storedService.Annotations {
 			if _, present := newService.Annotations[key]; !present {
@@ -177,9 +177,9 @@ func patchService(ctx context.Context, storedService *corev1.Service, newService
 			log.FromContext(ctx).Error(err, "Unable to patch redis service with comparison object")
 			return err
 		}
-		log.FromContext(ctx).Info("Syncing Redis service with defined properties")
+		log.FromContext(ctx).V(1).Info("Syncing Redis service with defined properties")
 		return updateService(ctx, cl, namespace, newService)
 	}
-	log.FromContext(ctx).Info("Redis service is already in-sync")
+	log.FromContext(ctx).V(1).Info("Redis service is already in-sync")
 	return nil
 }

@@ -70,10 +70,10 @@ func ReshardRedisCluster(ctx context.Context, client kubernetes.Interface, cr *r
 
 	cmd = append(cmd, "--cluster-yes")
 
-	log.FromContext(ctx).Info("Redis cluster reshard command is", "Command", cmd)
+	log.FromContext(ctx).V(1).Info("Redis cluster reshard command is", "Command", cmd)
 
 	if slot == "0" {
-		log.FromContext(ctx).Info("Skipped the execution of", "Cmd", cmd)
+		log.FromContext(ctx).V(1).Info("Skipped the execution of", "Cmd", cmd)
 		return
 	}
 	executeCommand(ctx, client, cr, cmd, cr.ObjectMeta.Name+"-leader-0")
@@ -101,7 +101,7 @@ func getRedisClusterSlots(ctx context.Context, redisClient *redis.Client, nodeID
 		}
 	}
 
-	log.FromContext(ctx).Info("Total cluster slots to be transferred from", "node", nodeID, "is", totalSlots)
+	log.FromContext(ctx).V(1).Info("Total cluster slots to be transferred from", "node", nodeID, "is", totalSlots)
 	return strconv.Itoa(totalSlots)
 }
 
@@ -128,7 +128,7 @@ func getRedisNodeID(ctx context.Context, client kubernetes.Interface, cr *redisv
 		log.FromContext(ctx).Error(err, "Redis command failed with this error")
 		return ""
 	}
-	log.FromContext(ctx).Info("Redis node ID ", "is", output)
+	log.FromContext(ctx).V(1).Info("Redis node ID ", "is", output)
 	return output
 }
 
@@ -161,7 +161,7 @@ func RebalanceRedisClusterEmptyMasters(ctx context.Context, client kubernetes.In
 
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.ObjectMeta.Name+"-leader-0")...)
 
-	log.FromContext(ctx).Info("Redis cluster rebalance command is", "Command", cmd)
+	log.FromContext(ctx).V(1).Info("Redis cluster rebalance command is", "Command", cmd)
 	executeCommand(ctx, client, cr, cmd, cr.ObjectMeta.Name+"-leader-1")
 }
 
@@ -179,7 +179,7 @@ func CheckIfEmptyMasters(ctx context.Context, client kubernetes.Interface, cr *r
 		podSlots := getRedisClusterSlots(ctx, redisClient, podNodeID)
 
 		if podSlots == "0" || podSlots == "" {
-			log.FromContext(ctx).Info("Found Empty Redis Leader Node", "pod", pod)
+			log.FromContext(ctx).V(1).Info("Found Empty Redis Leader Node", "pod", pod)
 			RebalanceRedisClusterEmptyMasters(ctx, client, cr)
 			break
 		}
@@ -213,7 +213,7 @@ func RebalanceRedisCluster(ctx context.Context, client kubernetes.Interface, cr 
 
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.ObjectMeta.Name+"-leader-0")...)
 
-	log.FromContext(ctx).Info("Redis cluster rebalance command is", "Command", cmd)
+	log.FromContext(ctx).V(1).Info("Redis cluster rebalance command is", "Command", cmd)
 	executeCommand(ctx, client, cr, cmd, cr.ObjectMeta.Name+"-leader-1")
 }
 
@@ -252,7 +252,7 @@ func AddRedisNodeToCluster(ctx context.Context, client kubernetes.Interface, cr 
 
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.ObjectMeta.Name+"-leader-0")...)
 
-	log.FromContext(ctx).Info("Redis cluster add-node command is", "Command", cmd)
+	log.FromContext(ctx).V(1).Info("Redis cluster add-node command is", "Command", cmd)
 	executeCommand(ctx, client, cr, cmd, cr.ObjectMeta.Name+"-leader-0")
 }
 
@@ -269,7 +269,7 @@ func getAttachedFollowerNodeIDs(ctx context.Context, redisClient *redis.Client, 
 		stringSlice := strings.Split(slave, " ")
 		slaveIDs = append(slaveIDs, stringSlice[0])
 	}
-	log.FromContext(ctx).Info("Slaves Nodes attached to", "node", masterNodeID, "are", slaveIDs)
+	log.FromContext(ctx).V(1).Info("Slaves Nodes attached to", "node", masterNodeID, "are", slaveIDs)
 	return slaveIDs
 }
 
@@ -313,7 +313,7 @@ func RemoveRedisFollowerNodesFromCluster(ctx context.Context, client kubernetes.
 
 	for _, followerNodeID := range followerNodeIDs {
 		cmd = append(cmd, followerNodeID)
-		log.FromContext(ctx).Info("Redis cluster follower remove command is", "Command", cmd)
+		log.FromContext(ctx).V(1).Info("Redis cluster follower remove command is", "Command", cmd)
 		executeCommand(ctx, client, cr, cmd, cr.ObjectMeta.Name+"-leader-0")
 		cmd = cmd[:len(cmd)-1]
 	}
@@ -357,9 +357,9 @@ func RemoveRedisNodeFromCluster(ctx context.Context, client kubernetes.Interface
 
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.ObjectMeta.Name+"-leader-0")...)
 
-	log.FromContext(ctx).Info("Redis cluster leader remove command is", "Command", cmd)
+	log.FromContext(ctx).V(1).Info("Redis cluster leader remove command is", "Command", cmd)
 	if getRedisClusterSlots(ctx, redisClient, removePodNodeID) != "0" {
-		log.FromContext(ctx).Info("Skipping execution remove leader not empty", "cmd", cmd)
+		log.FromContext(ctx).V(1).Info("Skipping execution remove leader not empty", "cmd", cmd)
 	}
 	executeCommand(ctx, client, cr, cmd, cr.ObjectMeta.Name+"-leader-0")
 }
@@ -419,6 +419,6 @@ func ClusterFailover(ctx context.Context, client kubernetes.Interface, cr *redis
 
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, slavePodName)...)
 
-	log.FromContext(ctx).Info("Redis cluster failover command is", "Command", cmd)
+	log.FromContext(ctx).V(1).Info("Redis cluster failover command is", "Command", cmd)
 	executeCommand(ctx, client, cr, cmd, slavePodName)
 }

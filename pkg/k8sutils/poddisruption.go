@@ -30,7 +30,7 @@ func ReconcileRedisPodDisruptionBudget(ctx context.Context, cr *redisv1beta2.Red
 		if err == nil {
 			return deletePodDisruptionBudget(ctx, cr.Namespace, pdbName, cl)
 		} else if err != nil && errors.IsNotFound(err) {
-			log.FromContext(ctx).Info("Reconciliation Successful, no PodDisruptionBudget Found.")
+			log.FromContext(ctx).V(1).Info("Reconciliation Successful, no PodDisruptionBudget Found.")
 			// Its ok if its not found, as we're deleting anyway
 			return nil
 		}
@@ -52,7 +52,7 @@ func ReconcileSentinelPodDisruptionBudget(ctx context.Context, cr *redisv1beta2.
 		if err == nil {
 			return deletePodDisruptionBudget(ctx, cr.Namespace, pdbName, cl)
 		} else if err != nil && errors.IsNotFound(err) {
-			log.FromContext(ctx).Info("Reconciliation Successful, no PodDisruptionBudget Found.")
+			log.FromContext(ctx).V(1).Info("Reconciliation Successful, no PodDisruptionBudget Found.")
 			// Its ok if its not found, as we're deleting anyway
 			return nil
 		}
@@ -151,7 +151,7 @@ func patchPodDisruptionBudget(ctx context.Context, storedPdb *policyv1.PodDisrup
 		return err
 	}
 	if !patchResult.IsEmpty() {
-		log.FromContext(ctx).Info("Changes in PodDisruptionBudget Detected, Updating...",
+		log.FromContext(ctx).V(1).Info("Changes in PodDisruptionBudget Detected, Updating...",
 			"patch", string(patchResult.Patch),
 			"Current", string(patchResult.Current),
 			"Original", string(patchResult.Original),
@@ -178,7 +178,7 @@ func createPodDisruptionBudget(ctx context.Context, namespace string, pdb *polic
 		log.FromContext(ctx).Error(err, "Redis PodDisruptionBudget creation failed")
 		return err
 	}
-	log.FromContext(ctx).Info("Redis PodDisruptionBudget creation was successful")
+	log.FromContext(ctx).V(1).Info("Redis PodDisruptionBudget creation was successful")
 	return nil
 }
 
@@ -189,7 +189,7 @@ func updatePodDisruptionBudget(ctx context.Context, namespace string, pdb *polic
 		log.FromContext(ctx).Error(err, "Redis PodDisruptionBudget update failed")
 		return err
 	}
-	log.FromContext(ctx).Info("Redis PodDisruptionBudget update was successful", "PDB.Spec", pdb.Spec)
+	log.FromContext(ctx).V(1).Info("Redis PodDisruptionBudget update was successful", "PDB.Spec", pdb.Spec)
 	return nil
 }
 
@@ -200,7 +200,7 @@ func deletePodDisruptionBudget(ctx context.Context, namespace string, pdbName st
 		log.FromContext(ctx).Error(err, "Redis PodDisruption deletion failed")
 		return err
 	}
-	log.FromContext(ctx).Info("Redis PodDisruption delete was successful")
+	log.FromContext(ctx).V(1).Info("Redis PodDisruption delete was successful")
 	return nil
 }
 
@@ -211,9 +211,9 @@ func GetPodDisruptionBudget(ctx context.Context, namespace string, pdb string, c
 	}
 	pdbInfo, err := cl.PolicyV1().PodDisruptionBudgets(namespace).Get(context.TODO(), pdb, getOpts)
 	if err != nil {
-		log.FromContext(ctx).Info("Redis PodDisruptionBudget get action failed")
+		log.FromContext(ctx).V(1).Info("Redis PodDisruptionBudget get action failed")
 		return nil, err
 	}
-	log.FromContext(ctx).Info("Redis PodDisruptionBudget get action was successful")
+	log.FromContext(ctx).V(1).Info("Redis PodDisruptionBudget get action was successful")
 	return pdbInfo, err
 }

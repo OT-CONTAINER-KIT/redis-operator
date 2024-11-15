@@ -58,19 +58,19 @@ func (s *StatefulSetService) IsStatefulSetReady(ctx context.Context, namespace, 
 	}
 
 	if expectedUpdateReplicas := replicas - partition; sts.Status.UpdatedReplicas < int32(expectedUpdateReplicas) {
-		log.FromContext(ctx).Info("StatefulSet is not ready", "Status.UpdatedReplicas", sts.Status.UpdatedReplicas, "ExpectedUpdateReplicas", expectedUpdateReplicas)
+		log.FromContext(ctx).V(1).Info("StatefulSet is not ready", "Status.UpdatedReplicas", sts.Status.UpdatedReplicas, "ExpectedUpdateReplicas", expectedUpdateReplicas)
 		return false
 	}
 	if partition == 0 && sts.Status.CurrentRevision != sts.Status.UpdateRevision {
-		log.FromContext(ctx).Info("StatefulSet is not ready", "Status.CurrentRevision", sts.Status.CurrentRevision, "Status.UpdateRevision", sts.Status.UpdateRevision)
+		log.FromContext(ctx).V(1).Info("StatefulSet is not ready", "Status.CurrentRevision", sts.Status.CurrentRevision, "Status.UpdateRevision", sts.Status.UpdateRevision)
 		return false
 	}
 	if sts.Status.ObservedGeneration != sts.ObjectMeta.Generation {
-		log.FromContext(ctx).Info("StatefulSet is not ready", "Status.ObservedGeneration", sts.Status.ObservedGeneration, "ObjectMeta.Generation", sts.ObjectMeta.Generation)
+		log.FromContext(ctx).V(1).Info("StatefulSet is not ready", "Status.ObservedGeneration", sts.Status.ObservedGeneration, "ObjectMeta.Generation", sts.ObjectMeta.Generation)
 		return false
 	}
 	if int(sts.Status.ReadyReplicas) != replicas {
-		log.FromContext(ctx).Info("StatefulSet is not ready", "Status.ReadyReplicas", sts.Status.ReadyReplicas, "Replicas", replicas)
+		log.FromContext(ctx).V(1).Info("StatefulSet is not ready", "Status.ReadyReplicas", sts.Status.ReadyReplicas, "Replicas", replicas)
 		return false
 	}
 	return true
@@ -183,7 +183,7 @@ func patchStatefulSet(ctx context.Context, storedStateful *appsv1.StatefulSet, n
 		return err
 	}
 	if !patchResult.IsEmpty() {
-		log.FromContext(ctx).Info("Changes in statefulset Detected, Updating...", "patch", string(patchResult.Patch))
+		log.FromContext(ctx).V(1).Info("Changes in statefulset Detected, Updating...", "patch", string(patchResult.Patch))
 		if len(newStateful.Spec.VolumeClaimTemplates) >= 1 && len(newStateful.Spec.VolumeClaimTemplates) == len(storedStateful.Spec.VolumeClaimTemplates) {
 			// Field is immutable therefore we MUST keep it as is.
 			if !apiequality.Semantic.DeepEqual(newStateful.Spec.VolumeClaimTemplates[0].Spec, storedStateful.Spec.VolumeClaimTemplates[0].Spec) {
@@ -240,9 +240,9 @@ func patchStatefulSet(ctx context.Context, storedStateful *appsv1.StatefulSet, n
 							annotations["storageCapacity"] = fmt.Sprintf("%d", stateCapacity)
 							storedStateful.Annotations = annotations
 							if realUpdate {
-								log.FromContext(ctx).Info(fmt.Sprintf("redis:%s resize pvc from  %d to %d", storedStateful.Name, storedCapacity, stateCapacity))
+								log.FromContext(ctx).V(1).Info(fmt.Sprintf("redis:%s resize pvc from  %d to %d", storedStateful.Name, storedCapacity, stateCapacity))
 							} else {
-								log.FromContext(ctx).Info(fmt.Sprintf("redis:%s resize noting,just set annotations", storedStateful.Name))
+								log.FromContext(ctx).V(1).Info(fmt.Sprintf("redis:%s resize noting,just set annotations", storedStateful.Name))
 							}
 						}
 					}
@@ -264,7 +264,7 @@ func patchStatefulSet(ctx context.Context, storedStateful *appsv1.StatefulSet, n
 		}
 		return updateStatefulSet(ctx, cl, namespace, newStateful, recreateStateFulSet)
 	}
-	log.FromContext(ctx).Info("Reconciliation Complete, no Changes required.")
+	log.FromContext(ctx).V(1).Info("Reconciliation Complete, no Changes required.")
 	return nil
 }
 
@@ -767,7 +767,7 @@ func createStatefulSet(ctx context.Context, cl kubernetes.Interface, namespace s
 		log.FromContext(ctx).Error(err, "Redis stateful creation failed")
 		return err
 	}
-	log.FromContext(ctx).Info("Redis stateful successfully created")
+	log.FromContext(ctx).V(1).Info("Redis stateful successfully created")
 	return nil
 }
 
@@ -781,7 +781,7 @@ func updateStatefulSet(ctx context.Context, cl kubernetes.Interface, namespace s
 			for messageCount, cause := range sErr.ErrStatus.Details.Causes {
 				failMsg[messageCount] = cause.Message
 			}
-			log.FromContext(ctx).Info("recreating StatefulSet because the update operation wasn't possible", "reason", strings.Join(failMsg, ", "))
+			log.FromContext(ctx).V(1).Info("recreating StatefulSet because the update operation wasn't possible", "reason", strings.Join(failMsg, ", "))
 			propagationPolicy := metav1.DeletePropagationForeground
 			if err := cl.AppsV1().StatefulSets(namespace).Delete(context.TODO(), stateful.GetName(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}); err != nil { //nolint
 				return errors.Wrap(err, "failed to delete StatefulSet to avoid forbidden action")
@@ -792,7 +792,7 @@ func updateStatefulSet(ctx context.Context, cl kubernetes.Interface, namespace s
 		log.FromContext(ctx).Error(err, "Redis statefulset update failed")
 		return err
 	}
-	log.FromContext(ctx).Info("Redis statefulset successfully updated ")
+	log.FromContext(ctx).V(1).Info("Redis statefulset successfully updated ")
 	return nil
 }
 
@@ -803,10 +803,10 @@ func GetStatefulSet(ctx context.Context, cl kubernetes.Interface, namespace stri
 	}
 	statefulInfo, err := cl.AppsV1().StatefulSets(namespace).Get(context.TODO(), name, getOpts)
 	if err != nil {
-		log.FromContext(ctx).Info("Redis statefulset get action failed")
+		log.FromContext(ctx).V(1).Info("Redis statefulset get action failed")
 		return nil, err
 	}
-	log.FromContext(ctx).Info("Redis statefulset get action was successful")
+	log.FromContext(ctx).V(1).Info("Redis statefulset get action was successful")
 	return statefulInfo, nil
 }
 
