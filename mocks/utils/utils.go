@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 
@@ -76,7 +77,7 @@ func CreateFakeObjectWithSecret(name, namespace, key string) []runtime.Object {
 	return []runtime.Object{secret}
 }
 
-func CreateFakeClientWithSecrets(cr *redisv1beta2.RedisCluster, secretName, secretKey, secretValue string) *fake.Clientset {
+func CreateFakeClientWithSecrets(ctx context.Context, cr *redisv1beta2.RedisCluster, secretName, secretKey, secretValue string) *fake.Clientset {
 	leaderReplicas := cr.Spec.GetReplicaCounts("leader")
 	followerReplicas := cr.Spec.GetReplicaCounts("follower")
 	pods := make([]runtime.Object, 0)

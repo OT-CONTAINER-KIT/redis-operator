@@ -5,15 +5,14 @@ import (
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
-	"github.com/go-logr/logr"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // CreateReplicationService method will create replication service for Redis
-func CreateReplicationService(cr *redisv1beta2.RedisReplication, cl kubernetes.Interface) error {
-	logger := serviceLogger(cr.Namespace, cr.ObjectMeta.Name)
+func CreateReplicationService(ctx context.Context, cr *redisv1beta2.RedisReplication, cl kubernetes.Interface) error {
 	labels := getRedisLabels(cr.ObjectMeta.Name, replication, "replication", cr.ObjectMeta.Labels)
 
 	epp := disableMetrics
@@ -37,24 +36,24 @@ func CreateReplicationService(cr *redisv1beta2.RedisReplication, cl kubernetes.I
 	masterObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-master", cr.Namespace, masterLabels, annotations)
 	replicaObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-replica", cr.Namespace, replicaLabels, annotations)
 
-	if err := CreateOrUpdateService(cr.Namespace, headlessObjectMetaInfo, redisReplicationAsOwner(cr), disableMetrics, true, "ClusterIP", redisPort, cl); err != nil {
-		logger.Error(err, "Cannot create replication headless service for Redis")
+	if err := CreateOrUpdateService(ctx, cr.Namespace, headlessObjectMetaInfo, redisReplicationAsOwner(cr), disableMetrics, true, "ClusterIP", redisPort, cl); err != nil {
+		log.FromContext(ctx).Error(err, "Cannot create replication headless service for Redis")
 		return err
 	}
-	if err := CreateOrUpdateService(cr.Namespace, objectMetaInfo, redisReplicationAsOwner(cr), epp, false, "ClusterIP", redisPort, cl); err != nil {
-		logger.Error(err, "Cannot create replication service for Redis")
+	if err := CreateOrUpdateService(ctx, cr.Namespace, objectMetaInfo, redisReplicationAsOwner(cr), epp, false, "ClusterIP", redisPort, cl); err != nil {
+		log.FromContext(ctx).Error(err, "Cannot create replication service for Redis")
 		return err
 	}
-	if err := CreateOrUpdateService(cr.Namespace, additionalObjectMetaInfo, redisReplicationAsOwner(cr), disableMetrics, false, cr.Spec.KubernetesConfig.GetServiceType(), redisPort, cl); err != nil {
-		logger.Error(err, "Cannot create additional service for Redis Replication")
+	if err := CreateOrUpdateService(ctx, cr.Namespace, additionalObjectMetaInfo, redisReplicationAsOwner(cr), disableMetrics, false, cr.Spec.KubernetesConfig.GetServiceType(), redisPort, cl); err != nil {
+		log.FromContext(ctx).Error(err, "Cannot create additional service for Redis Replication")
 		return err
 	}
-	if err := CreateOrUpdateService(cr.Namespace, masterObjectMetaInfo, redisReplicationAsOwner(cr), disableMetrics, false, "ClusterIP", redisPort, cl); err != nil {
-		logger.Error(err, "Cannot create master service for Redis")
+	if err := CreateOrUpdateService(ctx, cr.Namespace, masterObjectMetaInfo, redisReplicationAsOwner(cr), disableMetrics, false, "ClusterIP", redisPort, cl); err != nil {
+		log.FromContext(ctx).Error(err, "Cannot create master service for Redis")
 		return err
 	}
-	if err := CreateOrUpdateService(cr.Namespace, replicaObjectMetaInfo, redisReplicationAsOwner(cr), disableMetrics, false, "ClusterIP", redisPort, cl); err != nil {
-		logger.Error(err, "Cannot create replica service for Redis")
+	if err := CreateOrUpdateService(ctx, cr.Namespace, replicaObjectMetaInfo, redisReplicationAsOwner(cr), disableMetrics, false, "ClusterIP", redisPort, cl); err != nil {
+		log.FromContext(ctx).Error(err, "Cannot create replica service for Redis")
 		return err
 	}
 
@@ -62,16 +61,15 @@ func CreateReplicationService(cr *redisv1beta2.RedisReplication, cl kubernetes.I
 }
 
 // CreateReplicationRedis will create a replication redis setup
-func CreateReplicationRedis(cr *redisv1beta2.RedisReplication, cl kubernetes.Interface) error {
+func CreateReplicationRedis(ctx context.Context, cr *redisv1beta2.RedisReplication, cl kubernetes.Interface) error {
 	stateFulName := cr.ObjectMeta.Name
-	logger := statefulSetLogger(cr.Namespace, cr.ObjectMeta.Name)
 	labels := getRedisLabels(cr.ObjectMeta.Name, replication, "replication", cr.ObjectMeta.Labels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, annotations)
 
 	err := CreateOrUpdateStateFul(
+		ctx,
 		cl,
-		logger,
 		cr.GetNamespace(),
 		objectMetaInfo,
 		generateRedisReplicationParams(cr),
@@ -81,7 +79,7 @@ func CreateReplicationRedis(cr *redisv1beta2.RedisReplication, cl kubernetes.Int
 		cr.Spec.Sidecars,
 	)
 	if err != nil {
-		logger.Error(err, "Cannot create replication statefulset for Redis")
+		log.FromContext(ctx).Error(err, "Cannot create replication statefulset for Redis")
 		return err
 	}
 	return nil
@@ -216,9 +214,9 @@ func generateRedisReplicationInitContainerParams(cr *redisv1beta2.RedisReplicati
 	return initcontainerProp
 }
 
-func IsRedisReplicationReady(ctx context.Context, logger logr.Logger, client kubernetes.Interface, dClient dynamic.Interface, rs *redisv1beta2.RedisSentinel) bool {
+func IsRedisReplicationReady(ctx context.Context, client kubernetes.Interface, dClient dynamic.Interface, rs *redisv1beta2.RedisSentinel) bool {
 	// statefulset name the same as the redis replication name
-	sts, err := GetStatefulSet(client, logger, rs.GetNamespace(), rs.Spec.RedisSentinelConfig.RedisReplicationName)
+	sts, err := GetStatefulSet(ctx, client, rs.GetNamespace(), rs.Spec.RedisSentinelConfig.RedisReplicationName)
 	if err != nil {
 		return false
 	}
@@ -234,7 +232,7 @@ func IsRedisReplicationReady(ctx context.Context, logger logr.Logger, client kub
 	// Enhanced check: When the pod is ready, it may not have been
 	// created as part of a replication cluster, so we should verify
 	// whether there is an actual master node.
-	if master := getRedisReplicationMasterIP(ctx, client, logger, rs, dClient); master == "" {
+	if master := getRedisReplicationMasterIP(ctx, client, rs, dClient); master == "" {
 		return false
 	}
 	return true

@@ -1,13 +1,13 @@
 package k8sutils
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
-	"github.com/go-logr/logr/testr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -84,8 +84,8 @@ func Test_getRedisPassword(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client := tt.setup()
-			logger := testr.New(t)
-			got, err := getRedisPassword(client, logger, tt.namespace, tt.secretName, tt.secretKey)
+
+			got, err := getRedisPassword(context.TODO(), client, tt.namespace, tt.secretName, tt.secretKey)
 
 			if tt.expectedErr {
 				require.Error(t, err, "Expected an error but didn't get one")
@@ -221,8 +221,8 @@ func Test_getRedisTLSConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client := tt.setup()
-			logger := testr.New(t)
-			tlsConfig := getRedisTLSConfig(client, logger, tt.redisCluster.Namespace, tt.redisCluster.Spec.TLS.Secret.SecretName, tt.redisInfo.PodName)
+
+			tlsConfig := getRedisTLSConfig(context.TODO(), client, tt.redisCluster.Namespace, tt.redisCluster.Spec.TLS.Secret.SecretName, tt.redisInfo.PodName)
 
 			if tt.expectTLS {
 				require.NotNil(t, tlsConfig, "Expected TLS configuration but got nil")

@@ -23,7 +23,6 @@ import (
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllerutil"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/k8sutils"
-	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -31,49 +30,46 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// RedisReconciler reconciles a Redis object
-type RedisReconciler struct {
+// Reconciler reconciles a Redis object
+type Reconciler struct {
 	client.Client
 	K8sClient  kubernetes.Interface
 	Dk8sClient dynamic.Interface
-	Log        logr.Logger
 	Scheme     *runtime.Scheme
 }
 
-func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	reqLogger := r.Log.WithValues("Request.Namespace", req.Namespace, "Request.Name", req.Name)
-	reqLogger.Info("Reconciling opstree redis controller")
+func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	instance := &redisv1beta2.Redis{}
 
 	err := r.Client.Get(context.TODO(), req.NamespacedName, instance)
 	if err != nil {
-		return intctrlutil.RequeueWithErrorChecking(err, reqLogger, "failed to get redis instance")
+		return intctrlutil.RequeueWithErrorChecking(ctx, err, "failed to get redis instance")
 	}
 	if instance.ObjectMeta.GetDeletionTimestamp() != nil {
-		if err = k8sutils.HandleRedisFinalizer(r.Client, r.K8sClient, r.Log, instance); err != nil {
-			return intctrlutil.RequeueWithError(err, reqLogger, "failed to handle redis finalizer")
+		if err = k8sutils.HandleRedisFinalizer(ctx, r.Client, r.K8sClient, instance); err != nil {
+			return intctrlutil.RequeueWithError(ctx, err, "failed to handle redis finalizer")
 		}
 		return intctrlutil.Reconciled()
 	}
 	if _, found := instance.ObjectMeta.GetAnnotations()["redis.opstreelabs.in/skip-reconcile"]; found {
-		return intctrlutil.RequeueAfter(reqLogger, time.Second*10, "found skip reconcile annotation")
+		return intctrlutil.RequeueAfter(ctx, time.Second*10, "found skip reconcile annotation")
 	}
-	if err = k8sutils.AddFinalizer(instance, k8sutils.RedisFinalizer, r.Client); err != nil {
-		return intctrlutil.RequeueWithError(err, reqLogger, "failed to add finalizer")
+	if err = k8sutils.AddFinalizer(ctx, instance, k8sutils.RedisFinalizer, r.Client); err != nil {
+		return intctrlutil.RequeueWithError(ctx, err, "failed to add finalizer")
 	}
-	err = k8sutils.CreateStandaloneRedis(instance, r.K8sClient)
+	err = k8sutils.CreateStandaloneRedis(ctx, instance, r.K8sClient)
 	if err != nil {
-		return intctrlutil.RequeueWithError(err, reqLogger, "failed to create redis")
+		return intctrlutil.RequeueWithError(ctx, err, "failed to create redis")
 	}
-	err = k8sutils.CreateStandaloneService(instance, r.K8sClient)
+	err = k8sutils.CreateStandaloneService(ctx, instance, r.K8sClient)
 	if err != nil {
-		return intctrlutil.RequeueWithError(err, reqLogger, "failed to create service")
+		return intctrlutil.RequeueWithError(ctx, err, "failed to create service")
 	}
-	return intctrlutil.RequeueAfter(reqLogger, time.Second*10, "requeue after 10 seconds")
+	return intctrlutil.RequeueAfter(ctx, time.Second*10, "requeue after 10 seconds")
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *RedisReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&redisv1beta2.Redis{}).
 		Complete(r)

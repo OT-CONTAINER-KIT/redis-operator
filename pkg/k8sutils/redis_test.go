@@ -10,8 +10,6 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	mock_utils "github.com/OT-CONTAINER-KIT/redis-operator/mocks/utils"
-	"github.com/go-logr/logr"
-	"github.com/go-logr/logr/testr"
 	"github.com/go-redis/redismock/v9"
 	redis "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
@@ -49,7 +47,7 @@ func TestCheckRedisNodePresence(t *testing.T) {
 	for _, tt := range tests {
 		testname := fmt.Sprintf("%s,%s", tt.nodes, tt.ip)
 		t.Run(testname, func(t *testing.T) {
-			ans := checkRedisNodePresence(cr, tt.nodes, tt.ip)
+			ans := checkRedisNodePresence(context.TODO(), cr, tt.nodes, tt.ip)
 			if ans != tt.want {
 				t.Errorf("got %t, want %t", ans, tt.want)
 			}
@@ -80,7 +78,7 @@ e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@31001,redis-cluster-lea
 	})
 	mock.ExpectClusterMeet(newPodIP, "6379").SetVal("OK")
 	port := 6379
-	err := repairDisconnectedMasters(ctx, k8sClient, logr.Discard(), &redisv1beta2.RedisCluster{
+	err := repairDisconnectedMasters(ctx, k8sClient, &redisv1beta2.RedisCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
 		},
@@ -175,8 +173,8 @@ func TestGetRedisServerIP(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client := tt.setup()
-			logger := testr.New(t)
-			redisIP := getRedisServerIP(client, logger, tt.redisInfo)
+
+			redisIP := getRedisServerIP(context.TODO(), client, tt.redisInfo)
 
 			if tt.expectEmpty {
 				assert.Empty(t, redisIP, "Expected an empty IP address")
@@ -240,8 +238,8 @@ func TestGetRedisServerAddress(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client := tt.setup()
-			logger := testr.New(t)
-			redisIP := getRedisServerAddress(client, logger, tt.redisInfo, 6379)
+
+			redisIP := getRedisServerAddress(context.TODO(), client, tt.redisInfo, 6379)
 
 			if tt.expectEmpty {
 				assert.Empty(t, redisIP, "Expected an empty address")
@@ -286,9 +284,8 @@ func TestGetRedisHostname(t *testing.T) {
 }
 
 func TestCreateSingleLeaderRedisCommand(t *testing.T) {
-	logger := testr.New(t)
 	cr := &redisv1beta2.RedisCluster{}
-	cmd := CreateSingleLeaderRedisCommand(logger, cr)
+	cmd := CreateSingleLeaderRedisCommand(context.TODO(), cr)
 
 	assert.Equal(t, "redis-cli", cmd[0])
 	assert.Equal(t, "CLUSTER", cmd[1])
@@ -353,9 +350,8 @@ func TestCreateMultipleLeaderRedisCommand(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client := mock_utils.CreateFakeClientWithPodIPs_LeaderPods(tt.redisCluster)
-			logger := testr.New(t)
 
-			cmd := CreateMultipleLeaderRedisCommand(client, logger, tt.redisCluster)
+			cmd := CreateMultipleLeaderRedisCommand(context.TODO(), client, tt.redisCluster)
 			assert.Equal(t, tt.expectedCommands, cmd)
 		})
 	}
@@ -391,7 +387,6 @@ func TestGetRedisTLSArgs(t *testing.T) {
 }
 
 func TestCreateRedisReplicationCommand(t *testing.T) {
-	logger := logr.Discard()
 	type secret struct {
 		name      string
 		namespace string
@@ -530,7 +525,7 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 			objects = append(objects, secret...)
 
 			client := fake.NewSimpleClientset(objects...)
-			cmd := createRedisReplicationCommand(client, logger, tt.redisCluster, tt.leaderPod, tt.followerPod)
+			cmd := createRedisReplicationCommand(context.TODO(), client, tt.redisCluster, tt.leaderPod, tt.followerPod)
 
 			// Assert the command is as expected using testify
 			assert.Equal(t, tt.expectedCommand, cmd)
@@ -614,8 +609,7 @@ func TestGetContainerID(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			client := k8sClientFake.NewSimpleClientset(test.setupPod)
-			logger := testr.New(t)
-			id, pod := getContainerID(client, logger, test.redisCluster, test.setupPod.Name)
+			id, pod := getContainerID(context.TODO(), client, test.redisCluster, test.setupPod.Name)
 			if test.expectError {
 				assert.Nil(t, pod, "Expected no pod but got one")
 				assert.Equal(t, test.expectedID, id, "Expected ID does not match")
@@ -630,8 +624,6 @@ func TestGetContainerID(t *testing.T) {
 }
 
 func Test_checkAttachedSlave(t *testing.T) {
-	logger := logr.Discard()
-
 	tests := []struct {
 		name               string
 		podName            string
@@ -709,7 +701,7 @@ func Test_checkAttachedSlave(t *testing.T) {
 				mock.ExpectInfo("Replication").SetVal(tt.infoReturn)
 			}
 
-			slaveCount := checkAttachedSlave(ctx, client, logger, tt.podName)
+			slaveCount := checkAttachedSlave(ctx, client, tt.podName)
 			assert.Equal(t, tt.expectedSlaveCount, slaveCount, "Test case: "+tt.name)
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Errorf("there were unmet expectations: %s", err)
@@ -719,8 +711,6 @@ func Test_checkAttachedSlave(t *testing.T) {
 }
 
 func Test_checkRedisServerRole(t *testing.T) {
-	logger := logr.Discard()
-
 	tests := []struct {
 		name           string
 		podName        string
@@ -798,7 +788,7 @@ func Test_checkRedisServerRole(t *testing.T) {
 				mock.ExpectInfo("Replication").SetVal(tt.infoReturn)
 			}
 
-			role := checkRedisServerRole(ctx, client, logger, tt.podName)
+			role := checkRedisServerRole(ctx, client, tt.podName)
 			if tt.shouldFail {
 				assert.Empty(t, role, "Test case: "+tt.name)
 			} else {
@@ -812,7 +802,7 @@ func Test_checkRedisServerRole(t *testing.T) {
 }
 
 func TestClusterNodes(t *testing.T) {
-	logger := logr.Discard() // Discard logs
+	// Discard logs
 
 	tests := []struct {
 		name               string
@@ -853,7 +843,7 @@ e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@31001,hostname1 myself,
 			} else {
 				mock.ExpectClusterNodes().SetVal(tc.clusterNodesOutput)
 			}
-			result, err := clusterNodes(context.TODO(), db, logger)
+			result, err := clusterNodes(context.TODO(), db)
 
 			if tc.expectError != nil {
 				assert.Nil(t, result)

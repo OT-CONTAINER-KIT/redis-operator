@@ -11,7 +11,6 @@ import (
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
-	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -22,6 +21,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/env"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 type StatefulSet interface {
@@ -30,14 +30,11 @@ type StatefulSet interface {
 
 type StatefulSetService struct {
 	kubeClient kubernetes.Interface
-	log        logr.Logger
 }
 
-func NewStatefulSetService(kubeClient kubernetes.Interface, log logr.Logger) *StatefulSetService {
-	log = log.WithValues("service", "k8s.statefulset")
+func NewStatefulSetService(kubeClient kubernetes.Interface) *StatefulSetService {
 	return &StatefulSetService{
 		kubeClient: kubeClient,
-		log:        log,
 	}
 }
 
@@ -45,13 +42,11 @@ func (s *StatefulSetService) IsStatefulSetReady(ctx context.Context, namespace, 
 	var (
 		partition = 0
 		replicas  = 1
-
-		logger = s.log.WithValues("namespace", namespace, "name", name)
 	)
 
 	sts, err := s.kubeClient.AppsV1().StatefulSets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		logger.Error(err, "failed to get statefulset")
+		log.FromContext(ctx).Error(err, "failed to get statefulset")
 		return false
 	}
 
@@ -63,19 +58,19 @@ func (s *StatefulSetService) IsStatefulSetReady(ctx context.Context, namespace, 
 	}
 
 	if expectedUpdateReplicas := replicas - partition; sts.Status.UpdatedReplicas < int32(expectedUpdateReplicas) {
-		logger.V(1).Info("StatefulSet is not ready", "Status.UpdatedReplicas", sts.Status.UpdatedReplicas, "ExpectedUpdateReplicas", expectedUpdateReplicas)
+		log.FromContext(ctx).V(1).Info("StatefulSet is not ready", "Status.UpdatedReplicas", sts.Status.UpdatedReplicas, "ExpectedUpdateReplicas", expectedUpdateReplicas)
 		return false
 	}
 	if partition == 0 && sts.Status.CurrentRevision != sts.Status.UpdateRevision {
-		logger.V(1).Info("StatefulSet is not ready", "Status.CurrentRevision", sts.Status.CurrentRevision, "Status.UpdateRevision", sts.Status.UpdateRevision)
+		log.FromContext(ctx).V(1).Info("StatefulSet is not ready", "Status.CurrentRevision", sts.Status.CurrentRevision, "Status.UpdateRevision", sts.Status.UpdateRevision)
 		return false
 	}
 	if sts.Status.ObservedGeneration != sts.ObjectMeta.Generation {
-		logger.V(1).Info("StatefulSet is not ready", "Status.ObservedGeneration", sts.Status.ObservedGeneration, "ObjectMeta.Generation", sts.ObjectMeta.Generation)
+		log.FromContext(ctx).V(1).Info("StatefulSet is not ready", "Status.ObservedGeneration", sts.Status.ObservedGeneration, "ObjectMeta.Generation", sts.ObjectMeta.Generation)
 		return false
 	}
 	if int(sts.Status.ReadyReplicas) != replicas {
-		logger.V(1).Info("StatefulSet is not ready", "Status.ReadyReplicas", sts.Status.ReadyReplicas, "Replicas", replicas)
+		log.FromContext(ctx).V(1).Info("StatefulSet is not ready", "Status.ReadyReplicas", sts.Status.ReadyReplicas, "Replicas", replicas)
 		return false
 	}
 	return true
@@ -154,25 +149,24 @@ type initContainerParameters struct {
 }
 
 // CreateOrUpdateStateFul method will create or update Redis service
-func CreateOrUpdateStateFul(cl kubernetes.Interface, logger logr.Logger, namespace string, stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, initcontainerParams initContainerParameters, containerParams containerParameters, sidecars *[]redisv1beta2.Sidecar) error {
-	storedStateful, err := GetStatefulSet(cl, logger, namespace, stsMeta.Name)
+func CreateOrUpdateStateFul(ctx context.Context, cl kubernetes.Interface, namespace string, stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, initcontainerParams initContainerParameters, containerParams containerParameters, sidecars *[]redisv1beta2.Sidecar) error {
+	storedStateful, err := GetStatefulSet(ctx, cl, namespace, stsMeta.Name)
 	statefulSetDef := generateStatefulSetsDef(stsMeta, params, ownerDef, initcontainerParams, containerParams, getSidecars(sidecars))
 	if err != nil {
 		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(statefulSetDef); err != nil { //nolint
-			logger.Error(err, "Unable to patch redis statefulset with comparison object")
+			log.FromContext(ctx).Error(err, "Unable to patch redis statefulset with comparison object")
 			return err
 		}
 		if apierrors.IsNotFound(err) {
-			return createStatefulSet(cl, logger, namespace, statefulSetDef)
+			return createStatefulSet(ctx, cl, namespace, statefulSetDef)
 		}
 		return err
 	}
-	return patchStatefulSet(storedStateful, statefulSetDef, namespace, params.RecreateStatefulSet, cl)
+	return patchStatefulSet(ctx, storedStateful, statefulSetDef, namespace, params.RecreateStatefulSet, cl)
 }
 
 // patchStateFulSet will patch Redis Kubernetes StateFulSet
-func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.StatefulSet, namespace string, recreateStateFulSet bool, cl kubernetes.Interface) error {
-	logger := statefulSetLogger(namespace, storedStateful.Name)
+func patchStatefulSet(ctx context.Context, storedStateful *appsv1.StatefulSet, newStateful *appsv1.StatefulSet, namespace string, recreateStateFulSet bool, cl kubernetes.Interface) error {
 	// We want to try and keep this atomic as possible.
 	newStateful.ResourceVersion = storedStateful.ResourceVersion
 	newStateful.CreationTimestamp = storedStateful.CreationTimestamp
@@ -185,11 +179,11 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 		patch.IgnoreField("apiVersion"),
 	)
 	if err != nil {
-		logger.Error(err, "Unable to patch redis statefulset with comparison object")
+		log.FromContext(ctx).Error(err, "Unable to patch redis statefulset with comparison object")
 		return err
 	}
 	if !patchResult.IsEmpty() {
-		logger.V(1).Info("Changes in statefulset Detected, Updating...", "patch", string(patchResult.Patch))
+		log.FromContext(ctx).V(1).Info("Changes in statefulset Detected, Updating...", "patch", string(patchResult.Patch))
 		if len(newStateful.Spec.VolumeClaimTemplates) >= 1 && len(newStateful.Spec.VolumeClaimTemplates) == len(storedStateful.Spec.VolumeClaimTemplates) {
 			// Field is immutable therefore we MUST keep it as is.
 			if !apiequality.Semantic.DeepEqual(newStateful.Spec.VolumeClaimTemplates[0].Spec, storedStateful.Spec.VolumeClaimTemplates[0].Spec) {
@@ -237,7 +231,7 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 									if !updateFailed {
 										updateFailed = true
 									}
-									logger.Error(fmt.Errorf("redis:%s resize pvc failed:%s", storedStateful.Name, err.Error()), "")
+									log.FromContext(ctx).Error(fmt.Errorf("redis:%s resize pvc failed:%s", storedStateful.Name, err.Error()), "")
 								}
 							}
 						}
@@ -246,9 +240,9 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 							annotations["storageCapacity"] = fmt.Sprintf("%d", stateCapacity)
 							storedStateful.Annotations = annotations
 							if realUpdate {
-								logger.Info(fmt.Sprintf("redis:%s resize pvc from  %d to %d", storedStateful.Name, storedCapacity, stateCapacity))
+								log.FromContext(ctx).V(1).Info(fmt.Sprintf("redis:%s resize pvc from  %d to %d", storedStateful.Name, storedCapacity, stateCapacity))
 							} else {
-								logger.Info(fmt.Sprintf("redis:%s resize noting,just set annotations", storedStateful.Name))
+								log.FromContext(ctx).V(1).Info(fmt.Sprintf("redis:%s resize noting,just set annotations", storedStateful.Name))
 							}
 						}
 					}
@@ -265,12 +259,12 @@ func patchStatefulSet(storedStateful *appsv1.StatefulSet, newStateful *appsv1.St
 			}
 		}
 		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(newStateful); err != nil {
-			logger.Error(err, "Unable to patch redis statefulset with comparison object")
+			log.FromContext(ctx).Error(err, "Unable to patch redis statefulset with comparison object")
 			return err
 		}
-		return updateStatefulSet(cl, logger, namespace, newStateful, recreateStateFulSet)
+		return updateStatefulSet(ctx, cl, namespace, newStateful, recreateStateFulSet)
 	}
-	logger.V(1).Info("Reconciliation Complete, no Changes required.")
+	log.FromContext(ctx).V(1).Info("Reconciliation Complete, no Changes required.")
 	return nil
 }
 
@@ -767,18 +761,18 @@ func getEnvironmentVariables(role string, enabledPassword *bool, secretName *str
 }
 
 // createStatefulSet is a method to create statefulset in Kubernetes
-func createStatefulSet(cl kubernetes.Interface, logger logr.Logger, namespace string, stateful *appsv1.StatefulSet) error {
+func createStatefulSet(ctx context.Context, cl kubernetes.Interface, namespace string, stateful *appsv1.StatefulSet) error {
 	_, err := cl.AppsV1().StatefulSets(namespace).Create(context.TODO(), stateful, metav1.CreateOptions{})
 	if err != nil {
-		logger.Error(err, "Redis stateful creation failed")
+		log.FromContext(ctx).Error(err, "Redis stateful creation failed")
 		return err
 	}
-	logger.V(1).Info("Redis stateful successfully created")
+	log.FromContext(ctx).V(1).Info("Redis stateful successfully created")
 	return nil
 }
 
 // updateStatefulSet is a method to update statefulset in Kubernetes
-func updateStatefulSet(cl kubernetes.Interface, logger logr.Logger, namespace string, stateful *appsv1.StatefulSet, recreateStateFulSet bool) error {
+func updateStatefulSet(ctx context.Context, cl kubernetes.Interface, namespace string, stateful *appsv1.StatefulSet, recreateStateFulSet bool) error {
 	_, err := cl.AppsV1().StatefulSets(namespace).Update(context.TODO(), stateful, metav1.UpdateOptions{})
 	if recreateStateFulSet {
 		sErr, ok := err.(*apierrors.StatusError)
@@ -787,7 +781,7 @@ func updateStatefulSet(cl kubernetes.Interface, logger logr.Logger, namespace st
 			for messageCount, cause := range sErr.ErrStatus.Details.Causes {
 				failMsg[messageCount] = cause.Message
 			}
-			logger.V(1).Info("recreating StatefulSet because the update operation wasn't possible", "reason", strings.Join(failMsg, ", "))
+			log.FromContext(ctx).V(1).Info("recreating StatefulSet because the update operation wasn't possible", "reason", strings.Join(failMsg, ", "))
 			propagationPolicy := metav1.DeletePropagationForeground
 			if err := cl.AppsV1().StatefulSets(namespace).Delete(context.TODO(), stateful.GetName(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}); err != nil { //nolint
 				return errors.Wrap(err, "failed to delete StatefulSet to avoid forbidden action")
@@ -795,31 +789,25 @@ func updateStatefulSet(cl kubernetes.Interface, logger logr.Logger, namespace st
 		}
 	}
 	if err != nil {
-		logger.Error(err, "Redis statefulset update failed")
+		log.FromContext(ctx).Error(err, "Redis statefulset update failed")
 		return err
 	}
-	logger.V(1).Info("Redis statefulset successfully updated ")
+	log.FromContext(ctx).V(1).Info("Redis statefulset successfully updated ")
 	return nil
 }
 
 // GetStateFulSet is a method to get statefulset in Kubernetes
-func GetStatefulSet(cl kubernetes.Interface, logger logr.Logger, namespace string, name string) (*appsv1.StatefulSet, error) {
+func GetStatefulSet(ctx context.Context, cl kubernetes.Interface, namespace string, name string) (*appsv1.StatefulSet, error) {
 	getOpts := metav1.GetOptions{
 		TypeMeta: generateMetaInformation("StatefulSet", "apps/v1"),
 	}
 	statefulInfo, err := cl.AppsV1().StatefulSets(namespace).Get(context.TODO(), name, getOpts)
 	if err != nil {
-		logger.V(1).Info("Redis statefulset get action failed")
+		log.FromContext(ctx).V(1).Info("Redis statefulset get action failed")
 		return nil, err
 	}
-	logger.V(1).Info("Redis statefulset get action was successful")
+	log.FromContext(ctx).V(1).Info("Redis statefulset get action was successful")
 	return statefulInfo, nil
-}
-
-// statefulSetLogger will generate logging interface for Statfulsets
-func statefulSetLogger(namespace string, name string) logr.Logger {
-	reqLogger := log.WithValues("Request.StatefulSet.Namespace", namespace, "Request.StatefulSet.Name", name)
-	return reqLogger
 }
 
 func getSidecars(sidecars *[]redisv1beta2.Sidecar) []redisv1beta2.Sidecar {

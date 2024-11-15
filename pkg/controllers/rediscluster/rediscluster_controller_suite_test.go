@@ -100,13 +100,12 @@ var _ = BeforeSuite(func() {
 	dk8sClient, err := dynamic.NewForConfig(cfg)
 	Expect(err).ToNot(HaveOccurred())
 
-	rcLog := ctrl.Log.WithName("controllers").WithName("RedisCluster")
-	err = (&RedisClusterReconciler{
+	err = (&Reconciler{
 		Client:      k8sManager.GetClient(),
 		K8sClient:   k8sClient,
 		Dk8sClient:  dk8sClient,
 		Scheme:      k8sManager.GetScheme(),
-		StatefulSet: k8sutils.NewStatefulSetService(k8sClient, rcLog),
+		StatefulSet: k8sutils.NewStatefulSetService(k8sClient),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 

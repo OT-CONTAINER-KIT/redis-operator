@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 type Pod interface {
@@ -20,14 +20,11 @@ type Pod interface {
 
 type PodService struct {
 	kubeClient kubernetes.Interface
-	log        logr.Logger
 }
 
-func NewPodService(kubeClient kubernetes.Interface, log logr.Logger) *PodService {
-	log = log.WithValues("service", "k8s.pod")
+func NewPodService(kubeClient kubernetes.Interface) *PodService {
 	return &PodService{
 		kubeClient: kubeClient,
-		log:        log,
 	}
 }
 
@@ -48,7 +45,7 @@ type patchStringValue struct {
 }
 
 func (s *PodService) PatchPodLabels(ctx context.Context, namespace, podName string, labels map[string]string) error {
-	s.log.Info("Patch pod labels", "namespace", namespace, "podName", podName, "labels", labels)
+	log.FromContext(ctx).V(1).Info("Patch pod labels", "namespace", namespace, "podName", podName, "labels", labels)
 
 	var payloads []interface{}
 	for labelKey, labelValue := range labels {
@@ -63,7 +60,7 @@ func (s *PodService) PatchPodLabels(ctx context.Context, namespace, podName stri
 
 	_, err := s.kubeClient.CoreV1().Pods(namespace).Patch(ctx, podName, types.JSONPatchType, payloadBytes, metav1.PatchOptions{})
 	if err != nil {
-		s.log.Error(err, "Patch pod labels failed", "namespace", namespace, "podName", podName)
+		log.FromContext(ctx).Error(err, "Patch pod labels failed", "namespace", namespace, "podName", podName)
 	}
 	return err
 }

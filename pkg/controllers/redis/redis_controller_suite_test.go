@@ -99,7 +99,7 @@ var _ = BeforeSuite(func() {
 	dk8sClient, err := dynamic.NewForConfig(cfg)
 	Expect(err).ToNot(HaveOccurred())
 
-	err = (&RedisReconciler{
+	err = (&Reconciler{
 		Client:     k8sManager.GetClient(),
 		K8sClient:  k8sClient,
 		Dk8sClient: dk8sClient,
