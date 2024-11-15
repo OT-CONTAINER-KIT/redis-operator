@@ -101,7 +101,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 
 	rcLog := ctrl.Log.WithName("controllers").WithName("RedisCluster")
-	err = (&RedisClusterReconciler{
+	err = (&Reconciler{
 		Client:      k8sManager.GetClient(),
 		K8sClient:   k8sClient,
 		Dk8sClient:  dk8sClient,

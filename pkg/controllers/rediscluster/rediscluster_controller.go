@@ -35,8 +35,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// RedisClusterReconciler reconciles a RedisCluster object
-type RedisClusterReconciler struct {
+// Reconciler reconciles a RedisCluster object
+type Reconciler struct {
 	client.Client
 	k8sutils.StatefulSet
 	K8sClient  kubernetes.Interface
@@ -45,7 +45,7 @@ type RedisClusterReconciler struct {
 	Scheme     *runtime.Scheme
 }
 
-func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	reqLogger := r.Log.WithValues("Request.Namespace", req.Namespace, "Request.Name", req.Name)
 	reqLogger.V(1).Info("Reconciling opstree redis Cluster controller")
 	instance := &redisv1beta2.RedisCluster{}
@@ -243,7 +243,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *RedisClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&redisv1beta2.RedisCluster{}).
 		Owns(&appsv1.StatefulSet{}).

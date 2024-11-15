@@ -17,8 +17,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// RedisReplicationReconciler reconciles a RedisReplication object
-type RedisReplicationReconciler struct {
+// Reconciler reconciles a RedisReplication object
+type Reconciler struct {
 	client.Client
 	k8sutils.Pod
 	k8sutils.StatefulSet
@@ -28,7 +28,7 @@ type RedisReplicationReconciler struct {
 	Scheme     *runtime.Scheme
 }
 
-func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	reqLogger := r.Log.WithValues("Request.Namespace", req.Namespace, "Request.Name", req.Name)
 	reqLogger.Info("Reconciling opstree redis replication controller")
 	instance := &redisv1beta2.RedisReplication{}
@@ -84,7 +84,7 @@ func (r *RedisReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	return intctrlutil.RequeueAfter(reqLogger, time.Second*10, "")
 }
 
-func (r *RedisReplicationReconciler) UpdateRedisReplicationMaster(ctx context.Context, instance *redisv1beta2.RedisReplication, masterNode string) error {
+func (r *Reconciler) UpdateRedisReplicationMaster(ctx context.Context, instance *redisv1beta2.RedisReplication, masterNode string) error {
 	if instance.Status.MasterNode == masterNode {
 		return nil
 	}
@@ -95,7 +95,7 @@ func (r *RedisReplicationReconciler) UpdateRedisReplicationMaster(ctx context.Co
 	return nil
 }
 
-func (r *RedisReplicationReconciler) UpdateRedisPodRoleLabel(ctx context.Context, cr *redisv1beta2.RedisReplication, masterNode string) error {
+func (r *Reconciler) UpdateRedisPodRoleLabel(ctx context.Context, cr *redisv1beta2.RedisReplication, masterNode string) error {
 	labels := k8sutils.GetRedisReplicationLabels(cr)
 	pods, err := r.ListPods(ctx, cr.GetNamespace(), labels)
 	if err != nil {
@@ -121,7 +121,7 @@ func (r *RedisReplicationReconciler) UpdateRedisPodRoleLabel(ctx context.Context
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *RedisReplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&redisv1beta2.RedisReplication{}).
 		Owns(&appsv1.StatefulSet{}).

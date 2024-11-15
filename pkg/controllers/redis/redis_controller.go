@@ -31,8 +31,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// RedisReconciler reconciles a Redis object
-type RedisReconciler struct {
+// Reconciler reconciles a Redis object
+type Reconciler struct {
 	client.Client
 	K8sClient  kubernetes.Interface
 	Dk8sClient dynamic.Interface
@@ -40,7 +40,7 @@ type RedisReconciler struct {
 	Scheme     *runtime.Scheme
 }
 
-func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	reqLogger := r.Log.WithValues("Request.Namespace", req.Namespace, "Request.Name", req.Name)
 	reqLogger.Info("Reconciling opstree redis controller")
 	instance := &redisv1beta2.Redis{}
@@ -73,7 +73,7 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *RedisReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&redisv1beta2.Redis{}).
 		Complete(r)
