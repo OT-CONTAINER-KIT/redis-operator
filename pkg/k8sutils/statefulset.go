@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"path"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sort"
 	"strconv"
 	"strings"
@@ -22,6 +21,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/env"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 type StatefulSet interface {

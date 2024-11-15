@@ -3,7 +3,6 @@ package k8sutils
 import (
 	"context"
 	"fmt"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
@@ -13,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // CreateRedisLeaderPodDisruptionBudget check and create a PodDisruptionBudget for Leaders

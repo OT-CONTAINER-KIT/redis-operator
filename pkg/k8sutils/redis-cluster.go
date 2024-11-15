@@ -2,7 +2,6 @@ package k8sutils
 
 import (
 	"context"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	"strconv"
 	"strings"
 
@@ -12,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // RedisClusterSTS is a interface to call Redis Statefulset function

@@ -310,7 +310,6 @@ func Test_createService(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			var k8sClient *k8sClientFake.Clientset
 			if tt.exist {
 				k8sClient = k8sClientFake.NewSimpleClientset(tt.service.DeepCopyObject())
@@ -406,7 +405,6 @@ func Test_updateService(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			k8sClient := k8sClientFake.NewSimpleClientset(tt.current.DeepCopyObject())
 
 			err := updateService(context.TODO(), k8sClient, tt.servinceNamespace, tt.updated)
@@ -459,7 +457,6 @@ func Test_getService(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			var k8sClient *k8sClientFake.Clientset
 			if tt.have != nil {
 				k8sClient = k8sClientFake.NewSimpleClientset(tt.have.DeepCopyObject())

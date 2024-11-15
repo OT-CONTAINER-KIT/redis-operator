@@ -2,7 +2,6 @@ package k8sutils
 
 import (
 	"context"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	corev1 "k8s.io/api/core/v1"
@@ -10,6 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (

@@ -2,7 +2,6 @@ package redisreplication
 
 import (
 	"context"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	"time"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
@@ -15,6 +14,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // Reconciler reconciles a RedisReplication object

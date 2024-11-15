@@ -284,7 +284,6 @@ func TestGetRedisHostname(t *testing.T) {
 }
 
 func TestCreateSingleLeaderRedisCommand(t *testing.T) {
-
 	cr := &redisv1beta2.RedisCluster{}
 	cmd := CreateSingleLeaderRedisCommand(context.TODO(), cr)
 
@@ -388,7 +387,6 @@ func TestGetRedisTLSArgs(t *testing.T) {
 }
 
 func TestCreateRedisReplicationCommand(t *testing.T) {
-
 	type secret struct {
 		name      string
 		namespace string
@@ -626,7 +624,6 @@ func TestGetContainerID(t *testing.T) {
 }
 
 func Test_checkAttachedSlave(t *testing.T) {
-
 	tests := []struct {
 		name               string
 		podName            string

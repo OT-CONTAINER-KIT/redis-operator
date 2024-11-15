@@ -2,13 +2,13 @@ package k8sutils
 
 import (
 	"context"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // CreateReplicationService method will create replication service for Redis

@@ -592,7 +592,6 @@ func TestFinalizeRedisPVC(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-
 			cr := &v1beta2.Redis{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-redis",
@@ -689,7 +688,6 @@ func TestFinalizeRedisReplicationPVC(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-
 			var k8sClient *k8sClientFake.Clientset
 			if tc.existingPVCs != nil {
 				k8sClient = k8sClientFake.NewSimpleClientset(helperToRuntimeObjects(tc.existingPVCs)...)
@@ -760,7 +758,6 @@ func TestFinalizeRedisClusterPVC(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-
 			var k8sClient *k8sClientFake.Clientset
 			if tc.existingPVCs != nil {
 				k8sClient = k8sClientFake.NewSimpleClientset(helperToRuntimeObjects(tc.existingPVCs)...)

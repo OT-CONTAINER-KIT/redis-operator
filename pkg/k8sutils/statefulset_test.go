@@ -195,7 +195,6 @@ func TestGetVolumeMount(t *testing.T) {
 }
 
 func Test_GetStatefulSet(t *testing.T) {
-
 	tests := []struct {
 		name         string
 		sts          appsv1.StatefulSet
@@ -238,7 +237,6 @@ func Test_GetStatefulSet(t *testing.T) {
 }
 
 func Test_createStatefulSet(t *testing.T) {
-
 	tests := []struct {
 		name    string
 		sts     appsv1.StatefulSet
@@ -287,7 +285,6 @@ func Test_createStatefulSet(t *testing.T) {
 }
 
 func TestUpdateStatefulSet(t *testing.T) {
-
 	tests := []struct {
 		name            string
 		existingStsSpec appsv1.StatefulSetSpec
@@ -409,7 +406,6 @@ func TestUpdateStatefulSet(t *testing.T) {
 }
 
 func TestCreateOrUpdateStateFul(t *testing.T) {
-
 	tests := []struct {
 		name                string
 		stsParams           statefulSetParameters

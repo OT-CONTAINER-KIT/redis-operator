@@ -9,8 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"sigs.k8s.io/controller-runtime/pkg/log"
-
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	redis "github.com/redis/go-redis/v9"
 	corev1 "k8s.io/api/core/v1"
@@ -18,6 +16,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/remotecommand"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // RedisDetails will hold the information for Redis Pod

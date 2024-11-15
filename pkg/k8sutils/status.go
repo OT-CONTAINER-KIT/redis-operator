@@ -3,7 +3,6 @@ package k8sutils
 import (
 	"context"
 	"reflect"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/OT-CONTAINER-KIT/redis-operator/api/status"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
@@ -12,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // UpdateRedisClusterStatus will update the status of the RedisCluster
