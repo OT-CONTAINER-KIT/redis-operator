@@ -89,9 +89,9 @@ spec:
   {{- end }}
   {{- if .Values.pdb.enabled }}
   pdb:
-    enabled: {{ .enabled }}
-    minAvailable: {{ .minAvailable }}
-    maxUnavailable: {{ .maxUnavailable }}
+    enabled: {{ .Values.pdb.enabled }}
+    minAvailable: {{ .Values.pdb.minAvailable }}
+    maxUnavailable: {{ .Values.pdb.maxUnavailable }}
   {{- end }}
   {{- with .Values.livenessProbe }}
   livenessProbe:
