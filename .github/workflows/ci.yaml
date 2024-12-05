@@ -216,7 +216,7 @@ jobs:
       - name: Install Cosign
         uses: sigstore/cosign-installer@v3.7.0
       - name: Install chainsaw
-        uses: kyverno/action-install-chainsaw@v0.2.11
+        uses: kyverno/action-install-chainsaw@v0.2.12
         with:
           verify: true
       - name: Check install
