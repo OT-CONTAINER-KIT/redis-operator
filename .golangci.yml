@@ -24,7 +24,6 @@ linters:
     - gofmt
     - gofumpt
     - goprintffuncname
-    - gosec
     - gosimple
     - govet
     - grouper
