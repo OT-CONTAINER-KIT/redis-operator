@@ -1,7 +1,6 @@
 # This case is to test the HA setup of the Redis Replication and Sentinel
 # It will create a Redis Replication and Sentinel, then terminate the Redis Replication master pod
 # and check if the Sentinel can promote a new master pod.
-# 
 # It check three place the same pod IP:
 #   1. Status from RedisReplication
 #   2. Label from RedisReplication
