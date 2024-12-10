@@ -39,7 +39,7 @@ spec:
             content: |
               kubectl -n ${NAMESPACE} delete pod redis-replication-0
         - sleep:
-            duration: 30s
+            duration: 60s
 
     - name: Test Master IP consistency
       try:
