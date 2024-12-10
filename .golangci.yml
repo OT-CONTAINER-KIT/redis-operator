@@ -39,7 +39,6 @@ linters:
     - tenv
     - thelper
     - tparallel
-    - typecheck
     - unconvert
     - unused
     - wastedassign
