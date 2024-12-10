@@ -43,6 +43,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	} else {
 		reconcilers = []reconciler{
 			{typ: "annotation", rec: r.reconcileAnnotation},
+			{typ: "finalizer", rec: r.reconcileFinalizer},
 			{typ: "statefulset", rec: r.reconcileStatefulSet},
 			{typ: "service", rec: r.reconcileService},
 			{typ: "redis", rec: r.reconcileRedis},
