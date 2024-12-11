@@ -41,6 +41,8 @@ type RedisReplicationStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
+// +kubebuilder:printcolumn:name="Master",type="string",JSONPath=".status.masterNode"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
 // Redis is the Schema for the redis API
 type RedisReplication struct {

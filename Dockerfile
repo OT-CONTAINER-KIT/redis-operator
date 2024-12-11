@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM golang:1.22 as builder
+FROM golang:1.23-alpine as builder
 ARG BUILDOS
 ARG BUILDPLATFORM
 ARG BUILDARCH

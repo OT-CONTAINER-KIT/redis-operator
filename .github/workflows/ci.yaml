@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 env:
-  GOLANG_VERSION: 1.22
+  GOLANG_VERSION: 1.23.4
   APPLICATION_NAME: redis-operator
   DockerImagName: docker.io/opstree/redis-operator
   BuildDocs: true
@@ -32,7 +32,7 @@ jobs:
       - name: Run GolangCI-Lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.54.0
+          version: v1.62.2
 
   gotest:
     needs:
