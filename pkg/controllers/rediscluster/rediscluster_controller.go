@@ -73,6 +73,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// Check if the cluster is downscaled
 	if leaderCount := k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, "leader"); leaderReplicas < leaderCount {
+		if !(r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-leader") && r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-follower")) {
+			return intctrlutil.Reconciled()
+		}
 		logger.Info("Redis cluster is downscaling...", "Current.LeaderReplicas", leaderCount, "Desired.LeaderReplicas", leaderReplicas)
 		for shardIdx := leaderCount - 1; shardIdx >= leaderReplicas; shardIdx-- {
 			logger.Info("Remove the shard", "Shard.Index", shardIdx)
