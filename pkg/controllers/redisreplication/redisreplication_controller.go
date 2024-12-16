@@ -46,6 +46,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			{typ: "finalizer", rec: r.reconcileFinalizer},
 			{typ: "statefulset", rec: r.reconcileStatefulSet},
 			{typ: "service", rec: r.reconcileService},
+			{typ: "poddisruptionbudget", rec: r.reconcilePDB},
 			{typ: "redis", rec: r.reconcileRedis},
 			{typ: "status", rec: r.reconcileStatus},
 		}
@@ -127,6 +128,13 @@ func (r *Reconciler) reconcileFinalizer(ctx context.Context, instance *redisv1be
 func (r *Reconciler) reconcileAnnotation(ctx context.Context, instance *redisv1beta2.RedisReplication) (ctrl.Result, error) {
 	if _, found := instance.ObjectMeta.GetAnnotations()["redisreplication.opstreelabs.in/skip-reconcile"]; found {
 		return intctrlutil.RequeueAfter(ctx, time.Second*10, "found skip reconcile annotation")
+	}
+	return intctrlutil.Reconciled()
+}
+
+func (r *Reconciler) reconcilePDB(ctx context.Context, instance *redisv1beta2.RedisReplication) (ctrl.Result, error) {
+	if err := k8sutils.ReconcileReplicationPodDisruptionBudget(ctx, instance, instance.Spec.PodDisruptionBudget, r.K8sClient); err != nil {
+		return intctrlutil.RequeueAfter(ctx, time.Second*60, "")
 	}
 	return intctrlutil.Reconciled()
 }
