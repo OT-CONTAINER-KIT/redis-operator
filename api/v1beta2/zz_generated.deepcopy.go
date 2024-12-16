@@ -593,6 +593,11 @@ func (in *RedisReplicationSpec) DeepCopyInto(out *RedisReplicationSpec) {
 		*out = new(TLSConfig)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.PodDisruptionBudget != nil {
+		in, out := &in.PodDisruptionBudget, &out.PodDisruptionBudget
+		*out = new(api.RedisPodDisruptionBudget)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.ACL != nil {
 		in, out := &in.ACL, &out.ACL
 		*out = new(ACLConfig)
