@@ -4,6 +4,10 @@ kind: RedisReplication
 metadata:
   name: {{ .Values.redisReplication.name | default .Release.Name }}
   labels: {{- include "common.labels" . | nindent 4 }}
+  annotations:
+    {{ if .Values.redisReplication.recreateStatefulSetOnUpdateInvalid }}
+    redis.opstreelabs.in/recreate-statefulset: "true"
+    {{ end }}
 spec:
   clusterSize: {{ .Values.redisReplication.clusterSize }}  
   kubernetesConfig:
@@ -77,10 +81,10 @@ spec:
       secretName: {{ .Values.acl.secret.secretName | quote }}
   {{- end }}
   {{- if and .Values.initContainer .Values.initContainer.enabled (ne .Values.initContainer.image "") }}
-  initContainer: {{ include "initContainer.properties" | nindent 4 }}
+  initContainer: {{ include "initContainer.properties" . | nindent 4 }}
   {{- end }}
   {{- if and .Values.sidecars (ne .Values.sidecars.name "") (ne .Values.sidecars.image "") }}
-  sidecars: {{ include "sidecar.properties" | nindent 4 }}
+  sidecars: {{ include "sidecar.properties" . | nindent 4 }}
   {{- end }}
   {{- if and .Values.serviceAccountName (ne .Values.serviceAccountName "") }}
   serviceAccountName: "{{ .Values.serviceAccountName }}"

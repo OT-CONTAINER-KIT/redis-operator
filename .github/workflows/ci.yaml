@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 env:
-  GOLANG_VERSION: 1.21
+  GOLANG_VERSION: 1.23.4
   APPLICATION_NAME: redis-operator
   DockerImagName: docker.io/opstree/redis-operator
   BuildDocs: true
@@ -32,7 +32,7 @@ jobs:
       - name: Run GolangCI-Lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.54.0
+          version: v1.62.2
 
   gotest:
     needs:
@@ -50,7 +50,7 @@ jobs:
       - name: Run Go Tests with coverage
         run: go test ./... -coverprofile=coverage.txt -covermode=atomic
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           file: ./coverage.txt
           fail_ci_if_error: false
@@ -216,7 +216,7 @@ jobs:
       - name: Install Cosign
         uses: sigstore/cosign-installer@v3.7.0
       - name: Install chainsaw
-        uses: kyverno/action-install-chainsaw@v0.2.11
+        uses: kyverno/action-install-chainsaw@v0.2.12
         with:
           verify: true
       - name: Check install

@@ -7,7 +7,6 @@ import (
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
-	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -196,8 +195,6 @@ func TestGetVolumeMount(t *testing.T) {
 }
 
 func Test_GetStatefulSet(t *testing.T) {
-	logger := logr.Discard()
-
 	tests := []struct {
 		name         string
 		sts          appsv1.StatefulSet
@@ -229,7 +226,7 @@ func Test_GetStatefulSet(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			client := k8sClientFake.NewSimpleClientset(test.sts.DeepCopy())
-			_, err := GetStatefulSet(client, logger, test.stsNamespace, test.stsName)
+			_, err := GetStatefulSet(context.TODO(), client, test.stsNamespace, test.stsName)
 			if test.present {
 				assert.Nil(t, err)
 			} else {
@@ -240,8 +237,6 @@ func Test_GetStatefulSet(t *testing.T) {
 }
 
 func Test_createStatefulSet(t *testing.T) {
-	logger := logr.Discard()
-
 	tests := []struct {
 		name    string
 		sts     appsv1.StatefulSet
@@ -279,7 +274,7 @@ func Test_createStatefulSet(t *testing.T) {
 			} else {
 				client = k8sClientFake.NewSimpleClientset()
 			}
-			err := createStatefulSet(client, logger, test.sts.GetNamespace(), &test.sts)
+			err := createStatefulSet(context.TODO(), client, test.sts.GetNamespace(), &test.sts)
 			if test.present {
 				assert.NotNil(t, err)
 			} else {
@@ -290,7 +285,6 @@ func Test_createStatefulSet(t *testing.T) {
 }
 
 func TestUpdateStatefulSet(t *testing.T) {
-	logger := logr.Discard()
 	tests := []struct {
 		name            string
 		existingStsSpec appsv1.StatefulSetSpec
@@ -395,7 +389,7 @@ func TestUpdateStatefulSet(t *testing.T) {
 			} else {
 				client = k8sClientFake.NewSimpleClientset()
 			}
-			err := updateStatefulSet(client, logger, updatedSts.GetNamespace(), &updatedSts, test.recreateSts)
+			err := updateStatefulSet(context.TODO(), client, updatedSts.GetNamespace(), &updatedSts, test.recreateSts)
 			if test.expectErr != nil {
 				assert.Error(err, "Expected Error while updating Statefulset")
 				assert.Equal(test.expectErr, err)
@@ -412,7 +406,6 @@ func TestUpdateStatefulSet(t *testing.T) {
 }
 
 func TestCreateOrUpdateStateFul(t *testing.T) {
-	logger := logr.Discard()
 	tests := []struct {
 		name                string
 		stsParams           statefulSetParameters
@@ -554,7 +547,7 @@ func TestCreateOrUpdateStateFul(t *testing.T) {
 				} else {
 					client = k8sClientFake.NewSimpleClientset()
 				}
-				err := CreateOrUpdateStateFul(client, logger, updatedSts.GetNamespace(), updatedSts.ObjectMeta, test.stsParams, test.stsOwnerDef, test.initContainerParams, test.containerParams, test.sidecar)
+				err := CreateOrUpdateStateFul(context.TODO(), client, updatedSts.GetNamespace(), updatedSts.ObjectMeta, test.stsParams, test.stsOwnerDef, test.initContainerParams, test.containerParams, test.sidecar)
 				if test.expectErr != nil {
 					assert.Error(err, "Expected Error while updating Statefulset")
 					assert.Equal(test.expectErr, err)
@@ -577,7 +570,7 @@ func TestCreateOrUpdateStateFul(t *testing.T) {
 
 				client = k8sClientFake.NewSimpleClientset()
 
-				err := CreateOrUpdateStateFul(client, logger, updatedSts.GetNamespace(), updatedSts.ObjectMeta, test.stsParams, test.stsOwnerDef, test.initContainerParams, test.containerParams, test.sidecar)
+				err := CreateOrUpdateStateFul(context.TODO(), client, updatedSts.GetNamespace(), updatedSts.ObjectMeta, test.stsParams, test.stsOwnerDef, test.initContainerParams, test.containerParams, test.sidecar)
 				assert.Nil(err)
 			}
 		})

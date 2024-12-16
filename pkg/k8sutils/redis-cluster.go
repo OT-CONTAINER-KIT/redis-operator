@@ -1,16 +1,17 @@
 package k8sutils
 
 import (
+	"context"
 	"strconv"
 	"strings"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // RedisClusterSTS is a interface to call Redis Statefulset function
@@ -32,7 +33,7 @@ type RedisClusterService struct {
 }
 
 // generateRedisClusterParams generates Redis cluster information
-func generateRedisClusterParams(cr *redisv1beta2.RedisCluster, replicas int32, externalConfig *string, params RedisClusterSTS) statefulSetParameters {
+func generateRedisClusterParams(ctx context.Context, cr *redisv1beta2.RedisCluster, replicas int32, externalConfig *string, params RedisClusterSTS) statefulSetParameters {
 	var minreadyseconds int32 = 0
 	if cr.Spec.KubernetesConfig.MinReadySeconds != nil {
 		minreadyseconds = *cr.Spec.KubernetesConfig.MinReadySeconds
@@ -105,7 +106,7 @@ func generateRedisClusterInitContainerParams(cr *redisv1beta2.RedisCluster) init
 }
 
 // generateRedisClusterContainerParams generates Redis container information
-func generateRedisClusterContainerParams(cl kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster, securityContext *corev1.SecurityContext, readinessProbeDef *corev1.Probe, livenessProbeDef *corev1.Probe, role string) containerParameters {
+func generateRedisClusterContainerParams(ctx context.Context, cl kubernetes.Interface, cr *redisv1beta2.RedisCluster, securityContext *corev1.SecurityContext, readinessProbeDef *corev1.Probe, livenessProbeDef *corev1.Probe, role string) containerParameters {
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{
@@ -119,7 +120,7 @@ func generateRedisClusterContainerParams(cl kubernetes.Interface, logger logr.Lo
 	if cr.Spec.EnvVars != nil {
 		containerProp.EnvVars = cr.Spec.EnvVars
 	}
-	if cr.Spec.KubernetesConfig.Service != nil && cr.Spec.KubernetesConfig.Service.ServiceType == "NodePort" {
+	if cr.Spec.KubernetesConfig.GetServiceType() == "NodePort" {
 		envVars := util.Coalesce(containerProp.EnvVars, &[]corev1.EnvVar{})
 		*envVars = append(*envVars, corev1.EnvVar{
 			Name:  "NODEPORT",
@@ -141,9 +142,9 @@ func generateRedisClusterContainerParams(cl kubernetes.Interface, logger logr.Lo
 		nps := map[string]ports{} // pod name to ports
 		replicas := cr.Spec.GetReplicaCounts(role)
 		for i := 0; i < int(replicas); i++ {
-			svc, err := getService(cl, logger, cr.Namespace, cr.ObjectMeta.Name+"-"+role+"-"+strconv.Itoa(i))
+			svc, err := getService(ctx, cl, cr.Namespace, cr.ObjectMeta.Name+"-"+role+"-"+strconv.Itoa(i))
 			if err != nil {
-				log.Error(err, "Cannot get service for Redis", "Setup.Type", role)
+				log.FromContext(ctx).Error(err, "Cannot get service for Redis", "Setup.Type", role)
 			} else {
 				nps[svc.Name] = ports{
 					announcePort:    int(svc.Spec.Ports[0].NodePort),
@@ -211,7 +212,7 @@ func generateRedisClusterContainerParams(cl kubernetes.Interface, logger logr.Lo
 }
 
 // CreateRedisLeader will create a leader redis setup
-func CreateRedisLeader(cr *redisv1beta2.RedisCluster, cl kubernetes.Interface) error {
+func CreateRedisLeader(ctx context.Context, cr *redisv1beta2.RedisCluster, cl kubernetes.Interface) error {
 	prop := RedisClusterSTS{
 		RedisStateFulType:             "leader",
 		SecurityContext:               cr.Spec.RedisLeader.SecurityContext,
@@ -225,11 +226,11 @@ func CreateRedisLeader(cr *redisv1beta2.RedisCluster, cl kubernetes.Interface) e
 	if cr.Spec.RedisLeader.RedisConfig != nil {
 		prop.ExternalConfig = cr.Spec.RedisLeader.RedisConfig.AdditionalRedisConfig
 	}
-	return prop.CreateRedisClusterSetup(cr, cl)
+	return prop.CreateRedisClusterSetup(ctx, cr, cl)
 }
 
 // CreateRedisFollower will create a follower redis setup
-func CreateRedisFollower(cr *redisv1beta2.RedisCluster, cl kubernetes.Interface) error {
+func CreateRedisFollower(ctx context.Context, cr *redisv1beta2.RedisCluster, cl kubernetes.Interface) error {
 	prop := RedisClusterSTS{
 		RedisStateFulType:             "follower",
 		SecurityContext:               cr.Spec.RedisFollower.SecurityContext,
@@ -243,23 +244,23 @@ func CreateRedisFollower(cr *redisv1beta2.RedisCluster, cl kubernetes.Interface)
 	if cr.Spec.RedisFollower.RedisConfig != nil {
 		prop.ExternalConfig = cr.Spec.RedisFollower.RedisConfig.AdditionalRedisConfig
 	}
-	return prop.CreateRedisClusterSetup(cr, cl)
+	return prop.CreateRedisClusterSetup(ctx, cr, cl)
 }
 
 // CreateRedisLeaderService method will create service for Redis Leader
-func CreateRedisLeaderService(cr *redisv1beta2.RedisCluster, cl kubernetes.Interface) error {
+func CreateRedisLeaderService(ctx context.Context, cr *redisv1beta2.RedisCluster, cl kubernetes.Interface) error {
 	prop := RedisClusterService{
 		RedisServiceRole: "leader",
 	}
-	return prop.CreateRedisClusterService(cr, cl)
+	return prop.CreateRedisClusterService(ctx, cr, cl)
 }
 
 // CreateRedisFollowerService method will create service for Redis Follower
-func CreateRedisFollowerService(cr *redisv1beta2.RedisCluster, cl kubernetes.Interface) error {
+func CreateRedisFollowerService(ctx context.Context, cr *redisv1beta2.RedisCluster, cl kubernetes.Interface) error {
 	prop := RedisClusterService{
 		RedisServiceRole: "follower",
 	}
-	return prop.CreateRedisClusterService(cr, cl)
+	return prop.CreateRedisClusterService(ctx, cr, cl)
 }
 
 func (service RedisClusterSTS) getReplicaCount(cr *redisv1beta2.RedisCluster) int32 {
@@ -267,34 +268,32 @@ func (service RedisClusterSTS) getReplicaCount(cr *redisv1beta2.RedisCluster) in
 }
 
 // CreateRedisClusterSetup will create Redis Setup for leader and follower
-func (service RedisClusterSTS) CreateRedisClusterSetup(cr *redisv1beta2.RedisCluster, cl kubernetes.Interface) error {
+func (service RedisClusterSTS) CreateRedisClusterSetup(ctx context.Context, cr *redisv1beta2.RedisCluster, cl kubernetes.Interface) error {
 	stateFulName := cr.ObjectMeta.Name + "-" + service.RedisStateFulType
-	logger := statefulSetLogger(cr.Namespace, stateFulName)
 	labels := getRedisLabels(stateFulName, cluster, service.RedisStateFulType, cr.ObjectMeta.Labels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, annotations)
 	err := CreateOrUpdateStateFul(
+		ctx,
 		cl,
-		logger,
 		cr.GetNamespace(),
 		objectMetaInfo,
-		generateRedisClusterParams(cr, service.getReplicaCount(cr), service.ExternalConfig, service),
+		generateRedisClusterParams(ctx, cr, service.getReplicaCount(cr), service.ExternalConfig, service),
 		redisClusterAsOwner(cr),
 		generateRedisClusterInitContainerParams(cr),
-		generateRedisClusterContainerParams(cl, logger, cr, service.SecurityContext, service.ReadinessProbe, service.LivenessProbe, service.RedisStateFulType),
+		generateRedisClusterContainerParams(ctx, cl, cr, service.SecurityContext, service.ReadinessProbe, service.LivenessProbe, service.RedisStateFulType),
 		cr.Spec.Sidecars,
 	)
 	if err != nil {
-		logger.Error(err, "Cannot create statefulset for Redis", "Setup.Type", service.RedisStateFulType)
+		log.FromContext(ctx).Error(err, "Cannot create statefulset for Redis", "Setup.Type", service.RedisStateFulType)
 		return err
 	}
 	return nil
 }
 
 // CreateRedisClusterService method will create service for Redis
-func (service RedisClusterService) CreateRedisClusterService(cr *redisv1beta2.RedisCluster, cl kubernetes.Interface) error {
+func (service RedisClusterService) CreateRedisClusterService(ctx context.Context, cr *redisv1beta2.RedisCluster, cl kubernetes.Interface) error {
 	serviceName := cr.ObjectMeta.Name + "-" + service.RedisServiceRole
-	logger := serviceLogger(cr.Namespace, serviceName)
 	labels := getRedisLabels(serviceName, cluster, service.RedisServiceRole, cr.ObjectMeta.Labels)
 	var epp exporterPortProvider
 	if cr.Spec.RedisExporter != nil {
@@ -306,50 +305,42 @@ func (service RedisClusterService) CreateRedisClusterService(cr *redisv1beta2.Re
 		epp = disableMetrics
 	}
 	annotations := generateServiceAnots(cr.ObjectMeta, nil, epp)
-	additionalServiceAnnotations := map[string]string{}
-	if cr.Spec.KubernetesConfig.Service != nil {
-		additionalServiceAnnotations = cr.Spec.KubernetesConfig.Service.ServiceAnnotations
-	}
 	objectMetaInfo := generateObjectMetaInformation(serviceName, cr.Namespace, labels, annotations)
 	headlessObjectMetaInfo := generateObjectMetaInformation(serviceName+"-headless", cr.Namespace, labels, annotations)
-	additionalObjectMetaInfo := generateObjectMetaInformation(serviceName+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, additionalServiceAnnotations, epp))
-	err := CreateOrUpdateService(cr.Namespace, headlessObjectMetaInfo, redisClusterAsOwner(cr), disableMetrics, true, "ClusterIP", *cr.Spec.Port, cl)
+	additionalObjectMetaInfo := generateObjectMetaInformation(serviceName+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.GetServiceAnnotations(), epp))
+	err := CreateOrUpdateService(ctx, cr.Namespace, headlessObjectMetaInfo, redisClusterAsOwner(cr), disableMetrics, true, "ClusterIP", *cr.Spec.Port, cl)
 	if err != nil {
-		logger.Error(err, "Cannot create headless service for Redis", "Setup.Type", service.RedisServiceRole)
+		log.FromContext(ctx).Error(err, "Cannot create headless service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err
 	}
-	err = CreateOrUpdateService(cr.Namespace, objectMetaInfo, redisClusterAsOwner(cr), epp, false, "ClusterIP", *cr.Spec.Port, cl)
+	err = CreateOrUpdateService(ctx, cr.Namespace, objectMetaInfo, redisClusterAsOwner(cr), epp, false, "ClusterIP", *cr.Spec.Port, cl)
 	if err != nil {
-		logger.Error(err, "Cannot create service for Redis", "Setup.Type", service.RedisServiceRole)
+		log.FromContext(ctx).Error(err, "Cannot create service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err
 	}
-	additionalServiceType := "ClusterIP"
-	if cr.Spec.KubernetesConfig.Service != nil {
-		additionalServiceType = cr.Spec.KubernetesConfig.Service.ServiceType
-		if additionalServiceType == "NodePort" {
-			// If NodePort is enabled, we need to create a service for every redis pod.
-			// Then use --cluster-announce-ip --cluster-announce-port --cluster-announce-bus-port to make cluster.
-			err = service.createOrUpdateClusterNodePortService(cr, cl)
-			if err != nil {
-				logger.Error(err, "Cannot create nodeport service for Redis", "Setup.Type", service.RedisServiceRole)
-				return err
-			}
+	additionalServiceType := cr.Spec.KubernetesConfig.GetServiceType()
+	if additionalServiceType == "NodePort" {
+		// If NodePort is enabled, we need to create a service for every redis pod.
+		// Then use --cluster-announce-ip --cluster-announce-port --cluster-announce-bus-port to make cluster.
+		err = service.createOrUpdateClusterNodePortService(ctx, cr, cl)
+		if err != nil {
+			log.FromContext(ctx).Error(err, "Cannot create nodeport service for Redis", "Setup.Type", service.RedisServiceRole)
+			return err
 		}
 	}
-	err = CreateOrUpdateService(cr.Namespace, additionalObjectMetaInfo, redisClusterAsOwner(cr), disableMetrics, false, additionalServiceType, *cr.Spec.Port, cl)
+	err = CreateOrUpdateService(ctx, cr.Namespace, additionalObjectMetaInfo, redisClusterAsOwner(cr), disableMetrics, false, additionalServiceType, *cr.Spec.Port, cl)
 	if err != nil {
-		logger.Error(err, "Cannot create additional service for Redis", "Setup.Type", service.RedisServiceRole)
+		log.FromContext(ctx).Error(err, "Cannot create additional service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err
 	}
 	return nil
 }
 
-func (service RedisClusterService) createOrUpdateClusterNodePortService(cr *redisv1beta2.RedisCluster, cl kubernetes.Interface) error {
+func (service RedisClusterService) createOrUpdateClusterNodePortService(ctx context.Context, cr *redisv1beta2.RedisCluster, cl kubernetes.Interface) error {
 	replicas := cr.Spec.GetReplicaCounts(service.RedisServiceRole)
 
 	for i := 0; i < int(replicas); i++ {
 		serviceName := cr.ObjectMeta.Name + "-" + service.RedisServiceRole + "-" + strconv.Itoa(i)
-		logger := serviceLogger(cr.Namespace, serviceName)
 		labels := getRedisLabels(cr.ObjectMeta.Name+"-"+service.RedisServiceRole, cluster, service.RedisServiceRole, map[string]string{
 			"statefulset.kubernetes.io/pod-name": serviceName,
 		})
@@ -364,9 +355,9 @@ func (service RedisClusterService) createOrUpdateClusterNodePortService(cr *redi
 				IntVal: int32(*cr.Spec.Port + 10000),
 			},
 		}
-		err := CreateOrUpdateService(cr.Namespace, objectMetaInfo, redisClusterAsOwner(cr), disableMetrics, false, "NodePort", *cr.Spec.Port, cl, busPort)
+		err := CreateOrUpdateService(ctx, cr.Namespace, objectMetaInfo, redisClusterAsOwner(cr), disableMetrics, false, "NodePort", *cr.Spec.Port, cl, busPort)
 		if err != nil {
-			logger.Error(err, "Cannot create nodeport service for Redis", "Setup.Type", service.RedisServiceRole)
+			log.FromContext(ctx).Error(err, "Cannot create nodeport service for Redis", "Setup.Type", service.RedisServiceRole)
 			return err
 		}
 	}

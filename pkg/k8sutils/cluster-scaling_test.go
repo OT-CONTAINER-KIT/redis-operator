@@ -5,15 +5,12 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/go-logr/logr"
 	"github.com/go-redis/redismock/v9"
 	redis "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_verifyLeaderPodInfo(t *testing.T) {
-	logger := logr.Discard()
-
 	tests := []struct {
 		name         string
 		section      string
@@ -52,7 +49,7 @@ func Test_verifyLeaderPodInfo(t *testing.T) {
 				mock.ExpectInfo(tt.section).SetVal(tt.response)
 			}
 
-			result := verifyLeaderPodInfo(ctx, client, logger, "test-pod")
+			result := verifyLeaderPodInfo(ctx, client, "test-pod")
 
 			assert.Equal(t, tt.expectedBool, result, "Test case: "+tt.name)
 
@@ -64,8 +61,6 @@ func Test_verifyLeaderPodInfo(t *testing.T) {
 }
 
 func Test_getRedisClusterSlots(t *testing.T) {
-	logger := logr.Discard()
-
 	tests := []struct {
 		name            string
 		nodeID          string
@@ -138,7 +133,7 @@ func Test_getRedisClusterSlots(t *testing.T) {
 				mock.ExpectClusterSlots().SetVal(tt.clusterSlots)
 			}
 
-			result := getRedisClusterSlots(ctx, client, logger, tt.nodeID)
+			result := getRedisClusterSlots(ctx, client, tt.nodeID)
 
 			assert.Equal(t, tt.expectedResult, result, "Test case: "+tt.name)
 
@@ -150,8 +145,6 @@ func Test_getRedisClusterSlots(t *testing.T) {
 }
 
 func Test_getAttachedFollowerNodeIDs(t *testing.T) {
-	logger := logr.Discard()
-
 	tests := []struct {
 		name                 string
 		masterNodeID         string
@@ -209,7 +202,7 @@ func Test_getAttachedFollowerNodeIDs(t *testing.T) {
 				mock.ExpectClusterSlaves(tt.masterNodeID).SetVal(tt.slaveNodeIDs)
 			}
 
-			result := getAttachedFollowerNodeIDs(ctx, client, logger, tt.masterNodeID)
+			result := getAttachedFollowerNodeIDs(ctx, client, tt.masterNodeID)
 
 			assert.ElementsMatch(t, tt.expectedslaveNodeIDs, result, "Test case: "+tt.name)
 

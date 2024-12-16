@@ -9,7 +9,6 @@ import (
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
-	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -83,7 +82,7 @@ func Test_generateRedisSentinelParams(t *testing.T) {
 		t.Fatalf("Failed to unmarshal file %s: %v", path, err)
 	}
 
-	actual := generateRedisSentinelParams(input, *input.Spec.Size, nil, input.Spec.Affinity)
+	actual := generateRedisSentinelParams(context.TODO(), input, *input.Spec.Size, nil, input.Spec.Affinity)
 	assert.EqualValues(t, expected, actual, "Expected %+v, got %+v", expected, actual)
 }
 
@@ -208,7 +207,7 @@ func Test_generateRedisSentinelContainerParams(t *testing.T) {
 		t.Fatalf("Failed to unmarshal file %s: %v", path, err)
 	}
 
-	actual := generateRedisSentinelContainerParams(context.TODO(), nil, logr.Logger{}, input, nil, nil, nil)
+	actual := generateRedisSentinelContainerParams(context.TODO(), nil, input, nil, nil, nil)
 	assert.EqualValues(t, expected, actual, "Expected %+v, got %+v", expected, actual)
 }
 
@@ -292,7 +291,6 @@ func Test_generateRedisSentinelInitContainerParams(t *testing.T) {
 func Test_getSentinelEnvVariable(t *testing.T) {
 	type args struct {
 		client kubernetes.Interface
-		logger logr.Logger
 		cr     *redisv1beta2.RedisSentinel
 	}
 	tests := []struct {
@@ -304,7 +302,6 @@ func Test_getSentinelEnvVariable(t *testing.T) {
 			name: "When RedisSentinelConfig is nil",
 			args: args{
 				client: nil,
-				logger: logr.Logger{},
 				cr:     &redisv1beta2.RedisSentinel{},
 			},
 			want: &[]corev1.EnvVar{},
@@ -313,7 +310,6 @@ func Test_getSentinelEnvVariable(t *testing.T) {
 			name: "When RedisSentinelConfig is not nil",
 			args: args{
 				client: nil,
-				logger: logr.Logger{},
 				cr: &redisv1beta2.RedisSentinel{
 					Spec: redisv1beta2.RedisSentinelSpec{
 						RedisSentinelConfig: &redisv1beta2.RedisSentinelConfig{
@@ -364,7 +360,7 @@ func Test_getSentinelEnvVariable(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.TODO()
-			if got := getSentinelEnvVariable(ctx, tt.args.client, tt.args.logger, tt.args.cr, fake.NewSimpleDynamicClient(&runtime.Scheme{})); !reflect.DeepEqual(got, tt.want) {
+			if got := getSentinelEnvVariable(ctx, tt.args.client, tt.args.cr, fake.NewSimpleDynamicClient(&runtime.Scheme{})); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("getSentinelEnvVariable() = %v, want %v", got, tt.want)
 			}
 		})

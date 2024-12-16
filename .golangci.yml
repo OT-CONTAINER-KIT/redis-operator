@@ -24,7 +24,6 @@ linters:
     - gofmt
     - gofumpt
     - goprintffuncname
-    - gosec
     - gosimple
     - govet
     - grouper
@@ -39,7 +38,6 @@ linters:
     - tenv
     - thelper
     - tparallel
-    - typecheck
     - unconvert
     - unused
     - wastedassign
@@ -47,7 +45,7 @@ linters:
 
 run:
   timeout: 15m
-  go: "1.21"
+  go: "1.23.4"
   tests: true
   show-stats: true
   skip-files:

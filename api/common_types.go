@@ -19,6 +19,20 @@ type KubernetesConfig struct {
 	MinReadySeconds        *int32                           `json:"minReadySeconds,omitempty"`
 }
 
+func (in *KubernetesConfig) GetServiceType() string {
+	if in.Service == nil {
+		return "ClusterIP"
+	}
+	return in.Service.ServiceType
+}
+
+func (in *KubernetesConfig) GetServiceAnnotations() map[string]string {
+	if in.Service == nil {
+		return nil
+	}
+	return in.Service.ServiceAnnotations
+}
+
 // ServiceConfig define the type of service to be created and its annotations
 // +k8s:deepcopy-gen=true
 type ServiceConfig struct {

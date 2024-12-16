@@ -4397,7 +4397,14 @@ spec:
     storage: false
     subresources:
       status: {}
-  - name: v1beta2
+  - additionalPrinterColumns:
+    - jsonPath: .status.masterNode
+      name: Master
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1beta2
     schema:
       openAPIV3Schema:
         description: Redis is the Schema for the redis API
@@ -6232,6 +6239,19 @@ spec:
               nodeSelector:
                 additionalProperties:
                   type: string
+                type: object
+              pdb:
+                description: RedisPodDisruptionBudget configure a PodDisruptionBudget
+                  on the resource (leader/follower)
+                properties:
+                  enabled:
+                    type: boolean
+                  maxUnavailable:
+                    format: int32
+                    type: integer
+                  minAvailable:
+                    format: int32
+                    type: integer
                 type: object
               podSecurityContext:
                 description: |-

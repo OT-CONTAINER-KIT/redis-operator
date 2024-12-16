@@ -25,6 +25,7 @@ GOBIN=$(shell go env GOBIN)
 endif
 
 CONTAINER_ENGINE ?= docker
+PLATFORMS="linux/arm64,linux/amd64"
 
 all: manager
 
@@ -78,15 +79,15 @@ generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 docker-create:
-	${CONTAINER_ENGINE} buildx create --platform "linux/amd64,linux/arm64" --use
+	${CONTAINER_ENGINE} buildx create --platform $(PLATFORMS) --use
 
 # Build the docker image
 docker-build:
-	${CONTAINER_ENGINE} buildx build --platform="linux/arm64,linux/amd64" -t ${IMG} .
+	${CONTAINER_ENGINE} buildx build --platform=$(PLATFORMS) -t ${IMG} .
 
 # Push the docker image
 docker-push:
-	${CONTAINER_ENGINE} buildx build --push --platform="linux/arm64,linux/amd64" -t ${IMG} .
+	${CONTAINER_ENGINE} buildx build --push --platform="$(PLATFORMS)" -t ${IMG} .
 
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
@@ -114,7 +115,7 @@ bundle: manifests kustomize
 # Build the bundle image.
 .PHONY: bundle-build
 bundle-build:
-	${CONTAINER_ENGINE} buildx build --platform="linux/arm64,linux/amd64" -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+	${CONTAINER_ENGINE} buildx build --platform="$(PLATFORMS)" -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
 # Generate bundle manifests and metadata, then validate generated files.
 .PHONY: codegen

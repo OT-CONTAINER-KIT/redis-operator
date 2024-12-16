@@ -118,37 +118,32 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&redis.RedisReconciler{
+	if err = (&redis.Reconciler{
 		Client:     mgr.GetClient(),
 		K8sClient:  k8sclient,
 		Dk8sClient: dk8sClient,
-		Log:        ctrl.Log.WithName("controllers").WithName("Redis"),
 		Scheme:     mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Redis")
 		os.Exit(1)
 	}
-	rcLog := ctrl.Log.WithName("controllers").WithName("RedisCluster")
-	if err = (&rediscluster.RedisClusterReconciler{
+	if err = (&rediscluster.Reconciler{
 		Client:      mgr.GetClient(),
 		K8sClient:   k8sclient,
 		Dk8sClient:  dk8sClient,
-		Log:         rcLog,
 		Scheme:      mgr.GetScheme(),
-		StatefulSet: k8sutils.NewStatefulSetService(k8sclient, rcLog),
+		StatefulSet: k8sutils.NewStatefulSetService(k8sclient),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RedisCluster")
 		os.Exit(1)
 	}
-	rrLog := ctrl.Log.WithName("controllers").WithName("RedisReplication")
-	if err = (&redisreplication.RedisReplicationReconciler{
+	if err = (&redisreplication.Reconciler{
 		Client:      mgr.GetClient(),
 		K8sClient:   k8sclient,
 		Dk8sClient:  dk8sClient,
-		Log:         rrLog,
 		Scheme:      mgr.GetScheme(),
-		Pod:         k8sutils.NewPodService(k8sclient, rrLog),
-		StatefulSet: k8sutils.NewStatefulSetService(k8sclient, rrLog),
+		Pod:         k8sutils.NewPodService(k8sclient),
+		StatefulSet: k8sutils.NewStatefulSetService(k8sclient),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RedisReplication")
 		os.Exit(1)
@@ -157,7 +152,6 @@ func main() {
 		Client:             mgr.GetClient(),
 		K8sClient:          k8sclient,
 		Dk8sClient:         dk8sClient,
-		Log:                ctrl.Log.WithName("controllers").WithName("RedisSentinel"),
 		Scheme:             mgr.GetScheme(),
 		ReplicationWatcher: intctrlutil.NewResourceWatcher(),
 	}).SetupWithManager(mgr); err != nil {

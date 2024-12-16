@@ -1,3 +1,10 @@
+# This case is to test the HA setup of the Redis Replication and Sentinel
+# It will create a Redis Replication and Sentinel, then terminate the Redis Replication master pod
+# and check if the Sentinel can promote a new master pod.
+# It check three place the same pod IP:
+#   1. Status from RedisReplication
+#   2. Label from RedisReplication
+#   3. get-master-addr-by-name from Sentinel
 ---
 apiVersion: chainsaw.kyverno.io/v1alpha1
 kind: Test
@@ -7,25 +14,20 @@ spec:
   steps:
     - try:
         - apply:
-            file: replication.yaml
-        - apply:
-            file: sentinel.yaml
-        - create:
-            file: cli-pod.yaml
+            file: ha.yaml
 
-    - name: Sleep for 3 minutes
+    - name: Test Master IP consistency
       try:
         - sleep:
-            duration: 3m
-
-    - name: Test sentinel monitoring
-      try:
+            duration: 180s
         - script:
             timeout: 10s
             content: |
-              export MASTER_IP_FROM_SENTINEL=$(kubectl exec --namespace ${NAMESPACE} redis-sentinel-sentinel-0 -- redis-cli -p 26379 sentinel get-master-addr-by-name myMaster | head -n 1);
+              export MASTER_POD_FROM_STATUS=$(kubectl -n ${NAMESPACE} get redisreplication redis-replication -o jsonpath='{.status.masterNode}');
+              export MASTER_IP_FROM_STATUS=$(kubectl -n ${NAMESPACE} get pod ${MASTER_POD_FROM_STATUS} -o jsonpath='{.status.podIP}');
+              export MASTER_IP_FROM_SENTINEL=$(kubectl -n ${NAMESPACE} exec redis-sentinel-sentinel-0 -- redis-cli -p 26379 sentinel get-master-addr-by-name myMaster | head -n 1);
               export MASTER_IP_FROM_LABEL=$(kubectl -n ${NAMESPACE} get pod -l app=redis-replication,redis-role=master,redis_setup_type=replication -o jsonpath='{.items[0].status.podIP}');
-              if [ "$MASTER_IP_FROM_SENTINEL" = "$MASTER_IP_FROM_LABEL" ]; then echo "OK"; else echo "FAIL"; fi
+              if [ "$MASTER_IP_FROM_SENTINEL" = "$MASTER_IP_FROM_LABEL" ] && [ "$MASTER_IP_FROM_SENTINEL" = "$MASTER_IP_FROM_STATUS" ]; then echo "OK"; else echo "FAIL"; fi
             check:
               (contains($stdout, 'OK')): true
 
@@ -35,20 +37,19 @@ spec:
         - script:
             timeout: 10s
             content: |
-              kubectl --namespace ${NAMESPACE} delete pod redis-replication-0
-
-    - name: Sleep for 5 minutes
-      try:
+              kubectl -n ${NAMESPACE} delete pod redis-replication-0
         - sleep:
-            duration: 5m
+            duration: 120s
 
-    - name: Test sentinel monitoring
+    - name: Test Master IP consistency
       try:
         - script:
             timeout: 10s
             content: |
-              export MASTER_IP_FROM_SENTINEL=$(kubectl exec --namespace ${NAMESPACE} redis-sentinel-sentinel-0 -- redis-cli -p 26379 sentinel get-master-addr-by-name myMaster | head -n 1);
+              export MASTER_POD_FROM_STATUS=$(kubectl -n ${NAMESPACE} get redisreplication redis-replication -o jsonpath='{.status.masterNode}');
+              export MASTER_IP_FROM_STATUS=$(kubectl -n ${NAMESPACE} get pod ${MASTER_POD_FROM_STATUS} -o jsonpath='{.status.podIP}');
+              export MASTER_IP_FROM_SENTINEL=$(kubectl -n ${NAMESPACE} exec redis-sentinel-sentinel-0 -- redis-cli -p 26379 sentinel get-master-addr-by-name myMaster | head -n 1);
               export MASTER_IP_FROM_LABEL=$(kubectl -n ${NAMESPACE} get pod -l app=redis-replication,redis-role=master,redis_setup_type=replication -o jsonpath='{.items[0].status.podIP}');
-              if [ $MASTER_IP_FROM_SENTINEL = $MASTER_IP_FROM_LABEL ]; then echo "OK"; else echo "FAIL"; fi
+              if [ "$MASTER_IP_FROM_SENTINEL" = "$MASTER_IP_FROM_LABEL" ] && [ "$MASTER_IP_FROM_SENTINEL" = "$MASTER_IP_FROM_STATUS" ]; then echo "OK"; else echo "FAIL"; fi
             check:
               (contains($stdout, 'OK')): true

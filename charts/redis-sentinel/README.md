@@ -48,7 +48,6 @@ helm delete <my-release> --namespace <namespace>
 | TLS.cert | string | `"tls.crt"` |  |
 | TLS.key | string | `"tls.key"` |  |
 | TLS.secret.secretName | string | `""` |  |
-| acl.secret.secretName | string | `""` |  |
 | affinity | object | `{}` |  |
 | env | list | `[]` |  |
 | externalConfig.data | string | `"tcp-keepalive 400\nslowlog-max-len 158\nstream-node-max-bytes 2048\n"` |  |
@@ -64,10 +63,23 @@ helm delete <my-release> --namespace <namespace>
 | initContainer.imagePullPolicy | string | `"IfNotPresent"` |  |
 | initContainer.resources | object | `{}` |  |
 | labels | object | `{}` |  |
+| livenessProbe.failureThreshold | int | `3` |  |
+| livenessProbe.initialDelaySeconds | int | `1` |  |
+| livenessProbe.periodSeconds | int | `10` |  |
+| livenessProbe.successThreshold | int | `1` |  |
+| livenessProbe.timeoutSeconds | int | `1` |  |
 | nodeSelector | object | `{}` |  |
+| pdb.enabled | bool | `false` |  |
+| pdb.maxUnavailable | string | `nil` |  |
+| pdb.minAvailable | int | `1` |  |
 | podSecurityContext.fsGroup | int | `1000` |  |
 | podSecurityContext.runAsUser | int | `1000` |  |
 | priorityClassName | string | `""` |  |
+| readinessProbe.failureThreshold | int | `3` |  |
+| readinessProbe.initialDelaySeconds | int | `1` |  |
+| readinessProbe.periodSeconds | int | `10` |  |
+| readinessProbe.successThreshold | int | `1` |  |
+| readinessProbe.timeoutSeconds | int | `1` |  |
 | redisExporter.enabled | bool | `false` |  |
 | redisExporter.env | list | `[]` |  |
 | redisExporter.image | string | `"quay.io/opstree/redis-exporter"` |  |
@@ -81,6 +93,7 @@ helm delete <my-release> --namespace <namespace>
 | redisSentinel.imagePullSecrets | list | `[]` |  |
 | redisSentinel.minReadySeconds | int | `0` |  |
 | redisSentinel.name | string | `""` |  |
+| redisSentinel.recreateStatefulSetOnUpdateInvalid | bool | `false` | Some fields of statefulset are immutable, such as volumeClaimTemplates. When set to true, the operator will delete the statefulset and recreate it. Default is false. |
 | redisSentinel.redisSecret.secretKey | string | `""` |  |
 | redisSentinel.redisSecret.secretName | string | `""` |  |
 | redisSentinel.resources | object | `{}` |  |

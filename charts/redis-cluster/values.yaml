@@ -20,6 +20,9 @@ redisCluster:
     #   cpu: 100m
     #   memory: 128Mi
   minReadySeconds: 0
+  # -- Some fields of statefulset are immutable, such as volumeClaimTemplates.
+  # When set to true, the operator will delete the statefulset and recreate it. Default is false.
+  recreateStatefulSetOnUpdateInvalid: false
   leader:
     replicas: 3
     serviceType: ClusterIP

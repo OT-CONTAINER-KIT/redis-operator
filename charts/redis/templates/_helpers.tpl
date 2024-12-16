@@ -19,6 +19,7 @@ app.kubernetes.io/component: middleware
 {{- define "initContainer.properties" -}}
 {{- with .Values.initContainer }}
 {{- if .enabled }}
+enabled: {{ .enabled }}
 image: {{ .image }}
 {{- if .imagePullPolicy }}
 imagePullPolicy: {{ .imagePullPolicy }}

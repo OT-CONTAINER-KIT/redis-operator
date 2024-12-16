@@ -9,7 +9,6 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/api"
 	"github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	mockClient "github.com/OT-CONTAINER-KIT/redis-operator/mocks/client"
-	"github.com/go-logr/logr/testr"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -132,7 +131,6 @@ func TestHandleRedisFinalizer(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			logger := testr.New(t)
 			var k8sClient *k8sClientFake.Clientset
 			if tc.existingPVC != nil {
 				k8sClient = k8sClientFake.NewSimpleClientset(tc.existingPVC.DeepCopyObject())
@@ -147,7 +145,7 @@ func TestHandleRedisFinalizer(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			err := HandleRedisFinalizer(tc.mockClient, k8sClient, logger, tc.cr)
+			err := HandleRedisFinalizer(context.TODO(), tc.mockClient, k8sClient, tc.cr)
 			if tc.expectError {
 				assert.Error(t, err)
 			} else {
@@ -262,7 +260,6 @@ func TestHandleRedisClusterFinalizer(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			logger := testr.New(t)
 			var k8sClient *k8sClientFake.Clientset
 			if tc.existingPVC != nil {
 				k8sClient = k8sClientFake.NewSimpleClientset(helperToRuntimeObjects(tc.existingPVC)...)
@@ -279,7 +276,7 @@ func TestHandleRedisClusterFinalizer(t *testing.T) {
 				}
 			}
 
-			err := HandleRedisClusterFinalizer(tc.mockClient, k8sClient, logger, tc.cr)
+			err := HandleRedisClusterFinalizer(context.TODO(), tc.mockClient, k8sClient, tc.cr)
 			if tc.expectError {
 				assert.Error(t, err)
 			} else {
@@ -461,7 +458,6 @@ func TestHandleRedisReplicationFinalizer(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			logger := testr.New(t)
 			var k8sClient *k8sClientFake.Clientset
 			if tc.existingPVC != nil {
 				k8sClient = k8sClientFake.NewSimpleClientset(helperToRuntimeObjects(tc.existingPVC)...)
@@ -478,7 +474,7 @@ func TestHandleRedisReplicationFinalizer(t *testing.T) {
 				}
 			}
 
-			err := HandleRedisReplicationFinalizer(tc.mockClient, k8sClient, logger, tc.cr)
+			err := HandleRedisReplicationFinalizer(context.TODO(), tc.mockClient, k8sClient, tc.cr)
 			if tc.expectError {
 				assert.Error(t, err)
 			} else {
@@ -557,8 +553,7 @@ func TestHandleRedisSentinelFinalizer(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			logger := testr.New(t)
-			err := HandleRedisSentinelFinalizer(tc.mockClient, logger, tc.cr)
+			err := HandleRedisSentinelFinalizer(context.TODO(), tc.mockClient, tc.cr)
 			if tc.expectError {
 				assert.Error(t, err)
 			} else {
@@ -597,7 +592,6 @@ func TestFinalizeRedisPVC(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			logger := testr.New(t)
 			cr := &v1beta2.Redis{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-redis",
@@ -618,7 +612,7 @@ func TestFinalizeRedisPVC(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			err := finalizeRedisPVC(k8sClient, logger, cr)
+			err := finalizeRedisPVC(context.TODO(), k8sClient, cr)
 			if tc.expectError {
 				assert.Error(t, err)
 				assert.Equal(t, tc.errorExpected, err)
@@ -694,7 +688,6 @@ func TestFinalizeRedisReplicationPVC(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			logger := testr.New(t)
 			var k8sClient *k8sClientFake.Clientset
 			if tc.existingPVCs != nil {
 				k8sClient = k8sClientFake.NewSimpleClientset(helperToRuntimeObjects(tc.existingPVCs)...)
@@ -702,7 +695,7 @@ func TestFinalizeRedisReplicationPVC(t *testing.T) {
 				k8sClient = k8sClientFake.NewSimpleClientset()
 			}
 
-			err := finalizeRedisReplicationPVC(k8sClient, logger, tc.redisReplication)
+			err := finalizeRedisReplicationPVC(context.TODO(), k8sClient, tc.redisReplication)
 			if tc.expectError {
 				assert.Error(t, err)
 			} else {
@@ -765,7 +758,6 @@ func TestFinalizeRedisClusterPVC(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			logger := testr.New(t)
 			var k8sClient *k8sClientFake.Clientset
 			if tc.existingPVCs != nil {
 				k8sClient = k8sClientFake.NewSimpleClientset(helperToRuntimeObjects(tc.existingPVCs)...)
@@ -773,7 +765,7 @@ func TestFinalizeRedisClusterPVC(t *testing.T) {
 				k8sClient = k8sClientFake.NewSimpleClientset()
 			}
 
-			err := finalizeRedisClusterPVC(k8sClient, logger, tc.redisCluster)
+			err := finalizeRedisClusterPVC(context.TODO(), k8sClient, tc.redisCluster)
 			if tc.expectError {
 				assert.Error(t, err)
 			} else {
@@ -886,7 +878,7 @@ func TestAddFinalizer(t *testing.T) {
 					return nil
 				},
 			}
-			err := AddFinalizer(tt.args.cr, tt.args.finalizer, mc)
+			err := AddFinalizer(context.TODO(), tt.args.cr, tt.args.finalizer, mc)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("AddFinalizer() error = %v, wantErr %v", err, tt.wantErr)
 			}
