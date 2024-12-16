@@ -88,7 +88,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				// We have to bring a manual failover here to make it a leaderPod
 				// clusterFailover should also include the clusterReplicate since we have to map the followers to new leader
 				logger.Info("Cluster Failover is initiated", "Shard.Index", shardIdx)
-				if err := k8sutils.ClusterFailover(ctx, r.K8sClient, instance); err != nil {
+				if err = k8sutils.ClusterFailover(ctx, r.K8sClient, instance); err != nil {
 					logger.Error(err, "Failed to initiate cluster failover")
 					return intctrlutil.RequeueWithError(ctx, err, "")
 				}
