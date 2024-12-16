@@ -46,9 +46,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			{typ: "finalizer", rec: r.reconcileFinalizer},
 			{typ: "statefulset", rec: r.reconcileStatefulSet},
 			{typ: "service", rec: r.reconcileService},
+			{typ: "poddisruptionbudget", rec: r.reconcilePDB},
 			{typ: "redis", rec: r.reconcileRedis},
 			{typ: "status", rec: r.reconcileStatus},
-			{typ: "poddisruptionbudget", rec: r.reconcilePDB},
 		}
 	}
 	for _, reconciler := range reconcilers {
