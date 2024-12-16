@@ -26,7 +26,7 @@ func ReconcileRedisPodDisruptionBudget(ctx context.Context, cr *redisv1beta2.Red
 		return CreateOrUpdatePodDisruptionBudget(ctx, pdbDef, cl)
 	} else {
 		// Check if one exists, and delete it.
-		_, err := GetPodDisruptionBudget(ctx, cr.Namespace, pdbName, cl)
+		_, err := getPodDisruptionBudget(ctx, cr.Namespace, pdbName, cl)
 		if err == nil {
 			return deletePodDisruptionBudget(ctx, cr.Namespace, pdbName, cl)
 		} else if err != nil && errors.IsNotFound(err) {
@@ -48,7 +48,7 @@ func ReconcileSentinelPodDisruptionBudget(ctx context.Context, cr *redisv1beta2.
 		return CreateOrUpdatePodDisruptionBudget(ctx, pdbDef, cl)
 	} else {
 		// Check if one exists, and delete it.
-		_, err := GetPodDisruptionBudget(ctx, cr.Namespace, pdbName, cl)
+		_, err := getPodDisruptionBudget(ctx, cr.Namespace, pdbName, cl)
 		if err == nil {
 			return deletePodDisruptionBudget(ctx, cr.Namespace, pdbName, cl)
 		} else if err != nil && errors.IsNotFound(err) {
@@ -70,7 +70,7 @@ func ReconcileReplicationPodDisruptionBudget(ctx context.Context, cr *redisv1bet
 		return CreateOrUpdatePodDisruptionBudget(ctx, pdbDef, cl)
 	} else {
 		// Check if one exists, and delete it.
-		_, err := GetPodDisruptionBudget(ctx, cr.Namespace, pdbName, cl)
+		_, err := getPodDisruptionBudget(ctx, cr.Namespace, pdbName, cl)
 		if err == nil {
 			return deletePodDisruptionBudget(ctx, cr.Namespace, pdbName, cl)
 		} else if err != nil && errors.IsNotFound(err) {
@@ -165,7 +165,7 @@ func generateSentinelPodDisruptionBudgetDef(ctx context.Context, cr *redisv1beta
 
 // CreateOrUpdateService method will create or update Redis service
 func CreateOrUpdatePodDisruptionBudget(ctx context.Context, pdbDef *policyv1.PodDisruptionBudget, cl kubernetes.Interface) error {
-	storedPDB, err := GetPodDisruptionBudget(ctx, pdbDef.Namespace, pdbDef.Name, cl)
+	storedPDB, err := getPodDisruptionBudget(ctx, pdbDef.Namespace, pdbDef.Name, cl)
 	if err != nil {
 		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(pdbDef); err != nil { //nolint
 			log.FromContext(ctx).Error(err, "Unable to patch redis PodDisruptionBudget with comparison object")
@@ -253,8 +253,8 @@ func deletePodDisruptionBudget(ctx context.Context, namespace string, pdbName st
 	return nil
 }
 
-// GetPodDisruptionBudget is a method to get PodDisruptionBudgets in Kubernetes
-func GetPodDisruptionBudget(ctx context.Context, namespace string, pdb string, cl kubernetes.Interface) (*policyv1.PodDisruptionBudget, error) {
+// getPodDisruptionBudget is a method to get PodDisruptionBudgets in Kubernetes
+func getPodDisruptionBudget(ctx context.Context, namespace string, pdb string, cl kubernetes.Interface) (*policyv1.PodDisruptionBudget, error) {
 	getOpts := metav1.GetOptions{
 		TypeMeta: generateMetaInformation("PodDisruptionBudget", "policy/v1"),
 	}
