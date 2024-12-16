@@ -72,12 +72,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// Check if the cluster is downscaled
-	if leaderCount := k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, r.Log, instance, "leader"); leaderReplicas < leaderCount {
+	if leaderCount := k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, "leader"); leaderReplicas < leaderCount {
 		if !(r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-leader") && r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-follower")) {
 			return intctrlutil.Reconciled()
 		}
 
-		reqLogger.Info("Redis cluster is downscaling...", "Current.LeaderReplicas", leaderCount, "Desired.LeaderReplicas", leaderReplicas)
+		logger.Info("Redis cluster is downscaling...", "Current.LeaderReplicas", leaderCount, "Desired.LeaderReplicas", leaderReplicas)
 		for shardIdx := leaderCount - 1; shardIdx >= leaderReplicas; shardIdx-- {
 			logger.Info("Remove the shard", "Shard.Index", shardIdx)
 			//  Imp if the last index of leader sts is not leader make it then
@@ -87,10 +87,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				// lastLeaderPod is slaving right now Make it the master Pod
 				// We have to bring a manual failover here to make it a leaderPod
 				// clusterFailover should also include the clusterReplicate since we have to map the followers to new leader
-				reqLogger.Info("Cluster Failover is initiated", "Shard.Index", shardIdx)
-				if err := k8sutils.ClusterFailover(ctx, r.K8sClient, r.Log, instance); err != nil {
-					reqLogger.Error(err, "Failed to initiate cluster failover")
-					return intctrlutil.RequeueWithError(err, reqLogger, "")
+				logger.Info("Cluster Failover is initiated", "Shard.Index", shardIdx)
+				if err := k8sutils.ClusterFailover(ctx, r.K8sClient, instance); err != nil {
+					logger.Error(err, "Failed to initiate cluster failover")
+					return intctrlutil.RequeueWithError(ctx, err, "")
 				}
 			}
 			// Step 1 Remove the Follower Node

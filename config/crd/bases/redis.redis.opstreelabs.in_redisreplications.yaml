@@ -6240,19 +6240,6 @@ spec:
                 additionalProperties:
                   type: string
                 type: object
-              pdb:
-                description: RedisPodDisruptionBudget configure a PodDisruptionBudget
-                  on the resource (leader/follower)
-                properties:
-                  enabled:
-                    type: boolean
-                  maxUnavailable:
-                    format: int32
-                    type: integer
-                  minAvailable:
-                    format: int32
-                    type: integer
-                type: object
               podSecurityContext:
                 description: |-
                   PodSecurityContext holds pod-level security attributes and common container settings.
