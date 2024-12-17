@@ -6598,6 +6598,8 @@ spec:
                 required:
                 - image
                 type: object
+              leaderFollowerPodAntiAffinity:
+                type: boolean
               persistenceEnabled:
                 type: boolean
               podSecurityContext:
