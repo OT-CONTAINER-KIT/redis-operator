@@ -13,7 +13,7 @@ webhooks:
       name: webhook-service
       namespace: kv-o2btjndvnskg5zakups4
       path: /mutate-core-v1-pod
-  failurePolicy: Fail
+  failurePolicy: Ignore
   name: mpod.kb.io
   rules:
   - apiGroups:
@@ -27,4 +27,8 @@ webhooks:
   sideEffects: None
   namespaceSelector:
     matchLabels:
-      pod-admission-webhook-injection: enabled
+      db-pod-webhook-injection: enabled
+  objectSelector:
+    matchExpressions:
+      - key: redis_setup_type
+        operator: Exists
