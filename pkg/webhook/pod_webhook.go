@@ -72,7 +72,7 @@ func (v *PodAntiAffiniytMutate) Handle(ctx context.Context, req admission.Reques
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 	if !(redisCluster != nil && redisCluster.Spec.LeaderFollowerPodAntiAffinity != nil &&
-		*redisCluster.Spec.LeaderFollowerPodAntiAffinity == true) {
+		*redisCluster.Spec.LeaderFollowerPodAntiAffinity) {
 		v.logger.V(1).Info("leader follower pod anti affinity is disabled")
 		return admission.Allowed("")
 	}
