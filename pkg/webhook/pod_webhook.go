@@ -19,6 +19,7 @@ package webhook
 import (
 	"context"
 	"encoding/json"
+	"github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -65,6 +66,17 @@ func (v *PodAntiAffiniytMutate) Handle(ctx context.Context, req admission.Reques
 		return admission.Allowed("")
 	}
 
+	// determine whether to add anti affinity
+	redisCluster, err := v.getRedisClusterSpec(ctx, pod)
+	if err != nil {
+		return admission.Errored(http.StatusInternalServerError, err)
+	}
+	if !(redisCluster != nil && redisCluster.Spec.LeaderFollowerPodAntiAffinity != nil &&
+		*redisCluster.Spec.LeaderFollowerPodAntiAffinity == true) {
+		v.logger.V(1).Info("leader follower pod anti affinity is disabled")
+		return admission.Allowed("")
+	}
+
 	old := pod.DeepCopy()
 
 	v.AddPodAntiAffinity(pod)
@@ -96,8 +108,6 @@ func (m *PodAntiAffiniytMutate) InjectLogger(l logr.Logger) error {
 }
 
 func (v *PodAntiAffiniytMutate) AddPodAntiAffinity(pod *corev1.Pod) {
-	// todo: determine whether to add anti affinity,need add parameters to control
-
 	podName := pod.ObjectMeta.Name
 	antiLabelValue := v.getAntiAffinityValue(podName)
 
@@ -155,4 +165,21 @@ func (v *PodAntiAffiniytMutate) getAntiAffinityValue(podName string) string {
 		return strings.Replace(podName, "leader", "follower", -1)
 	}
 	return ""
+}
+
+func (v *PodAntiAffiniytMutate) getRedisClusterSpec(ctx context.Context, pod *corev1.Pod) (*v1beta2.RedisCluster, error) {
+	namespaceKey := client.ObjectKey{
+		Namespace: pod.Namespace,
+		Name:      pod.Annotations[podAnnotationsRedisClusterApp],
+	}
+
+	redisCluster := &v1beta2.RedisCluster{}
+
+	err := v.Client.Get(ctx, namespaceKey, redisCluster)
+	if err != nil {
+		v.logger.Error(err, "failed to get redis cluster")
+		return nil, err
+	}
+
+	return redisCluster, nil
 }
