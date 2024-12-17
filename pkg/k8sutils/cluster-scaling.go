@@ -392,7 +392,7 @@ func verifyLeaderPodInfo(ctx context.Context, redisClient *redis.Client, logger 
 	return false
 }
 
-func ClusterFailover(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster) {
+func ClusterFailover(ctx context.Context, client kubernetes.Interface, logger logr.Logger, cr *redisv1beta2.RedisCluster) error {
 	slavePodName := cr.Name + "-leader-" + strconv.Itoa(int(CheckRedisNodeCount(ctx, client, logger, cr, "leader"))-1)
 	// cmd = redis-cli cluster failover  -a <pass>
 	var cmd []string
@@ -401,13 +401,15 @@ func ClusterFailover(ctx context.Context, client kubernetes.Interface, logger lo
 		Namespace: cr.Namespace,
 	}
 
-	cmd = []string{"redis-cli", "cluster", "failover"}
+	cmd = []string{"redis-cli", "-h"}
 
 	if *cr.Spec.ClusterVersion == "v7" {
-		cmd = append(cmd, getRedisHostname(pod, cr, "leader")+fmt.Sprintf(":%d", *cr.Spec.Port))
+		cmd = append(cmd, getRedisHostname(pod, cr, "leader"))
 	} else {
-		cmd = append(cmd, getRedisServerAddress(client, logger, pod, *cr.Spec.Port))
+		cmd = append(cmd, getRedisServerIP(client, logger, pod))
 	}
+	cmd = append(cmd, "-p")
+	cmd = append(cmd, strconv.Itoa(*cr.Spec.Port))
 
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
 		pass, err := getRedisPassword(client, logger, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
@@ -419,7 +421,13 @@ func ClusterFailover(ctx context.Context, client kubernetes.Interface, logger lo
 	}
 
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, slavePodName)...)
+	cmd = append(cmd, "cluster", "failover")
 
 	logger.V(1).Info("Redis cluster failover command is", "Command", cmd)
-	executeCommand(client, logger, cr, cmd, slavePodName)
+	execOut, err := executeCommand1(client, logger, cr, cmd, slavePodName)
+	if err != nil {
+		logger.Error(err, "Failed to execute the command", "cmd", cmd, "output", execOut)
+		return err
+	}
+	return nil
 }
