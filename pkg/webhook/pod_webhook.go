@@ -38,13 +38,16 @@ type PodAntiAffiniytMutate struct {
 	logger  logr.Logger
 }
 
-func NewPodAffiniytMutate(c client.Client, d *admission.Decoder) admission.Handler {
-	return &PodAntiAffiniytMutate{Client: c, decoder: d}
+func NewPodAffiniytMutate(c client.Client, d *admission.Decoder, log logr.Logger) admission.Handler {
+	return &PodAntiAffiniytMutate{
+		Client:  c,
+		decoder: d,
+		logger:  log}
 }
 
 const (
 	podAnnotationsRedisClusterApp = "redis.opstreelabs.instance"
-	podNameLabel                  = "statefulset.kubernetes.io/pod-name"
+	podLabelsPodName              = "statefulset.kubernetes.io/pod-name"
 )
 
 func (v *PodAntiAffiniytMutate) Handle(ctx context.Context, req admission.Request) admission.Response {
@@ -90,13 +93,10 @@ func (m *PodAntiAffiniytMutate) InjectLogger(l logr.Logger) error {
 }
 
 func (v *PodAntiAffiniytMutate) AddPodAntiAffinity(pod *corev1.Pod) {
-	// todo: determine whether to add anti affinity
+	// todo: determine whether to add anti affinity,need add parameters to control
 
-	labels := pod.GetLabels()
-	if labels == nil || labels[podNameLabel] == "" {
-		return
-	}
-	antiAppLabel := v.reverseAppValue(labels[podNameLabel])
+	podName := pod.ObjectMeta.Name
+	antiLabelValue := v.getAntiAffinityValue(podName)
 
 	if pod.Spec.Affinity == nil {
 		pod.Spec.Affinity = &corev1.Affinity{}
@@ -111,9 +111,9 @@ func (v *PodAntiAffiniytMutate) AddPodAntiAffinity(pod *corev1.Pod) {
 		LabelSelector: &metav1.LabelSelector{
 			MatchExpressions: []metav1.LabelSelectorRequirement{
 				{
-					Key:      "app",
+					Key:      podLabelsPodName,
 					Operator: metav1.LabelSelectorOpIn,
-					Values:   []string{antiAppLabel},
+					Values:   []string{antiLabelValue},
 				},
 			},
 		},
@@ -135,12 +135,12 @@ func (v *PodAntiAffiniytMutate) isRedisClusterApp(pod *corev1.Pod) string {
 	return annotations[podAnnotationsRedisClusterApp]
 }
 
-func (v *PodAntiAffiniytMutate) reverseAppValue(app string) string {
-	if strings.Contains(app, "follower") {
-		return strings.Replace(app, "follower", "leader", -1)
+func (v *PodAntiAffiniytMutate) getAntiAffinityValue(podName string) string {
+	if strings.Contains(podName, "follower") {
+		return strings.Replace(podName, "follower", "leader", -1)
 	}
-	if strings.Contains(app, "leader") {
-		return strings.Replace(app, "leader", "follower", -1)
+	if strings.Contains(podName, "leader") {
+		return strings.Replace(podName, "leader", "follower", -1)
 	}
-	return app
+	return ""
 }
