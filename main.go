@@ -19,6 +19,7 @@ package main
 import (
 	"flag"
 	"os"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 	"strings"
 
 	redisv1beta1 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta1"
@@ -29,6 +30,7 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/redissentinel"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllerutil"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/k8sutils"
+	coreWebhook "github.com/OT-CONTAINER-KIT/redis-operator/pkg/webhook"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -176,6 +178,8 @@ func main() {
 			setupLog.Error(err, "unable to create webhook", "webhook", "RedisSentinel")
 			os.Exit(1)
 		}
+
+		mgr.GetWebhookServer().Register("/mutate-core-v1-pod", &webhook.Admission{Handler: coreWebhook.NewPodAffiniytMutate(mgr.GetClient(), admission.NewDecoder(scheme))})
 	}
 	// +kubebuilder:scaffold:builder
 
