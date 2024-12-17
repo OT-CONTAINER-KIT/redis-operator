@@ -48,6 +48,7 @@ func NewPodAffiniytMutate(c client.Client, d *admission.Decoder, log logr.Logger
 const (
 	podAnnotationsRedisClusterApp = "redis.opstreelabs.instance"
 	podLabelsPodName              = "statefulset.kubernetes.io/pod-name"
+	podLabelsRedisType            = "redis_setup_type"
 )
 
 func (v *PodAntiAffiniytMutate) Handle(ctx context.Context, req admission.Request) admission.Response {
@@ -58,7 +59,9 @@ func (v *PodAntiAffiniytMutate) Handle(ctx context.Context, req admission.Reques
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
-	if v.isRedisClusterApp(pod) == "" {
+
+	// only mutate pods that belong to redis cluster
+	if !v.isRedisClusterPod(pod) {
 		return admission.Allowed("")
 	}
 
@@ -130,9 +133,18 @@ func (v *PodAntiAffiniytMutate) getPodAnnotations(pod *corev1.Pod) map[string]st
 	return pod.Annotations
 }
 
-func (v *PodAntiAffiniytMutate) isRedisClusterApp(pod *corev1.Pod) string {
+func (v *PodAntiAffiniytMutate) isRedisClusterPod(pod *corev1.Pod) bool {
 	annotations := v.getPodAnnotations(pod)
-	return annotations[podAnnotationsRedisClusterApp]
+	if _, ok := annotations[podAnnotationsRedisClusterApp]; !ok {
+		return false
+	}
+
+	labels := pod.GetLabels()
+	if _, ok := labels[podLabelsRedisType]; !ok {
+		return false
+	}
+
+	return true
 }
 
 func (v *PodAntiAffiniytMutate) getAntiAffinityValue(podName string) string {
