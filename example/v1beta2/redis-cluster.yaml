@@ -76,3 +76,4 @@ spec:
             # priorityClassName:
             # Affinity:
             # Tolerations: []
+  leaderFollowerPodAntiAffinity: false
