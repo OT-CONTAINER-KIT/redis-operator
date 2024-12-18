@@ -105,29 +105,27 @@ type Sidecar struct {
 // RedisLeader interface will have the redis leader configuration
 // +k8s:deepcopy-gen=true
 type RedisLeader struct {
-	Replicas                  *int32                            `json:"replicas,omitempty"`
-	RedisConfig               *RedisConfig                      `json:"redisConfig,omitempty"`
-	Affinity                  *corev1.Affinity                  `json:"affinity,omitempty"`
-	PodDisruptionBudget       *RedisPodDisruptionBudget         `json:"pdb,omitempty"`
-	ReadinessProbe            *corev1.Probe                     `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
-	LivenessProbe             *corev1.Probe                     `json:"livenessProbe,omitempty" protobuf:"bytes,12,opt,name=livenessProbe"`
-	Tolerations               *[]corev1.Toleration              `json:"tolerations,omitempty"`
-	NodeSelector              map[string]string                 `json:"nodeSelector,omitempty"`
-	TopologySpreadConstraints []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
+	Replicas            *int32                    `json:"replicas,omitempty"`
+	RedisConfig         *RedisConfig              `json:"redisConfig,omitempty"`
+	Affinity            *corev1.Affinity          `json:"affinity,omitempty"`
+	PodDisruptionBudget *RedisPodDisruptionBudget `json:"pdb,omitempty"`
+	ReadinessProbe      *corev1.Probe             `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
+	LivenessProbe       *corev1.Probe             `json:"livenessProbe,omitempty" protobuf:"bytes,12,opt,name=livenessProbe"`
+	Tolerations         *[]corev1.Toleration      `json:"tolerations,omitempty"`
+	NodeSelector        map[string]string         `json:"nodeSelector,omitempty"`
 }
 
 // RedisFollower interface will have the redis follower configuration
 // +k8s:deepcopy-gen=true
 type RedisFollower struct {
-	Replicas                  *int32                            `json:"replicas,omitempty"`
-	RedisConfig               *RedisConfig                      `json:"redisConfig,omitempty"`
-	Affinity                  *corev1.Affinity                  `json:"affinity,omitempty"`
-	PodDisruptionBudget       *RedisPodDisruptionBudget         `json:"pdb,omitempty"`
-	ReadinessProbe            *corev1.Probe                     `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
-	LivenessProbe             *corev1.Probe                     `json:"livenessProbe,omitempty" protobuf:"bytes,12,opt,name=livenessProbe"`
-	Tolerations               *[]corev1.Toleration              `json:"tolerations,omitempty"`
-	NodeSelector              map[string]string                 `json:"nodeSelector,omitempty"`
-	TopologySpreadConstraints []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
+	Replicas            *int32                    `json:"replicas,omitempty"`
+	RedisConfig         *RedisConfig              `json:"redisConfig,omitempty"`
+	Affinity            *corev1.Affinity          `json:"affinity,omitempty"`
+	PodDisruptionBudget *RedisPodDisruptionBudget `json:"pdb,omitempty"`
+	ReadinessProbe      *corev1.Probe             `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
+	LivenessProbe       *corev1.Probe             `json:"livenessProbe,omitempty" protobuf:"bytes,12,opt,name=livenessProbe"`
+	Tolerations         *[]corev1.Toleration      `json:"tolerations,omitempty"`
+	NodeSelector        map[string]string         `json:"nodeSelector,omitempty"`
 }
 
 // RedisPodDisruptionBudget configure a PodDisruptionBudget on the resource (leader/follower)

@@ -24,7 +24,6 @@ type RedisClusterSTS struct {
 	ReadinessProbe                *corev1.Probe
 	LivenessProbe                 *corev1.Probe
 	NodeSelector                  map[string]string
-	TopologySpreadConstraints     []corev1.TopologySpreadConstraint
 	Tolerations                   *[]corev1.Toleration
 }
 
@@ -220,11 +219,9 @@ func CreateRedisLeader(ctx context.Context, cr *redisv1beta2.RedisCluster, cl ku
 		Affinity:                      cr.Spec.RedisLeader.Affinity,
 		TerminationGracePeriodSeconds: cr.Spec.RedisLeader.TerminationGracePeriodSeconds,
 		NodeSelector:                  cr.Spec.RedisLeader.NodeSelector,
-		TopologySpreadConstraints:     cr.Spec.RedisLeader.TopologySpreadConstraints,
-
-		Tolerations:    cr.Spec.RedisLeader.Tolerations,
-		ReadinessProbe: cr.Spec.RedisLeader.ReadinessProbe,
-		LivenessProbe:  cr.Spec.RedisLeader.LivenessProbe,
+		Tolerations:                   cr.Spec.RedisLeader.Tolerations,
+		ReadinessProbe:                cr.Spec.RedisLeader.ReadinessProbe,
+		LivenessProbe:                 cr.Spec.RedisLeader.LivenessProbe,
 	}
 	if cr.Spec.RedisLeader.RedisConfig != nil {
 		prop.ExternalConfig = cr.Spec.RedisLeader.RedisConfig.AdditionalRedisConfig

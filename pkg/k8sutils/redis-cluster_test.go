@@ -174,7 +174,6 @@ func Test_generateRedisClusterParams(t *testing.T) {
 		ReadinessProbe:                input.Spec.RedisLeader.ReadinessProbe,
 		LivenessProbe:                 input.Spec.RedisLeader.LivenessProbe,
 		NodeSelector:                  input.Spec.RedisLeader.NodeSelector,
-		TopologySpreadConstraints:     input.Spec.RedisLeader.TopologySpreadConstraints,
 		Tolerations:                   input.Spec.RedisLeader.Tolerations,
 	})
 	assert.EqualValues(t, expectedLeaderSTS, actualLeaderSTS, "Expected %+v, got %+v", expectedLeaderSTS, actualLeaderSTS)
@@ -188,7 +187,6 @@ func Test_generateRedisClusterParams(t *testing.T) {
 		ReadinessProbe:                input.Spec.RedisFollower.ReadinessProbe,
 		LivenessProbe:                 input.Spec.RedisFollower.LivenessProbe,
 		NodeSelector:                  input.Spec.RedisFollower.NodeSelector,
-		TopologySpreadConstraints:     input.Spec.RedisFollower.TopologySpreadConstraints,
 		Tolerations:                   input.Spec.RedisFollower.Tolerations,
 	})
 	assert.EqualValues(t, expectedFollowerSTS, actualFollowerSTS, "Expected %+v, got %+v", expectedFollowerSTS, actualFollowerSTS)
