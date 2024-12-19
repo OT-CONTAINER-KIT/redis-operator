@@ -64,6 +64,10 @@ jobs:
             docs
             release
             testdata
+            standalone
+            replication
+            sentinel
+            cluster
           ignoreLabels: |
             bot
             ignore-semantic-pull-request
