@@ -1,20 +1,21 @@
----
+{{ if .Values.redisOperator.webhook }}
+
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
   name: mutating-webhook-configuration
   annotations:
-    cert-manager.io/inject-ca-from: system/serving-cert
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/serving-cert
 webhooks:
 - admissionReviewVersions:
   - v1
   clientConfig:
     service:
       name: webhook-service
-      namespace: system
+      namespace: {{ .Release.Namespace }}
       path: /mutate-core-v1-pod
   failurePolicy: Fail
-  name: mpod.kb.io
+  name: ot-mutate-pod.opstree.com
   rules:
   - apiGroups:
     - ""
@@ -27,8 +28,10 @@ webhooks:
   sideEffects: None
   namespaceSelector:
     matchLabels:
-      dba-pod-webhook-injection: enabled
+      ot-mutate-pod-webhook-injection: enabled
   objectSelector:
     matchExpressions:
       - key: redis_setup_type
         operator: Exists
+
+{{ end }}
