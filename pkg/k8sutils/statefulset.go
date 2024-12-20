@@ -87,6 +87,7 @@ type statefulSetParameters struct {
 	ClusterVersion                *string
 	NodeConfVolume                bool
 	NodeSelector                  map[string]string
+	TopologySpreadConstraints     []corev1.TopologySpreadConstraint
 	PodSecurityContext            *corev1.PodSecurityContext
 	PriorityClassName             string
 	Affinity                      *corev1.Affinity
@@ -297,6 +298,7 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 						sidecars,
 					),
 					NodeSelector:                  params.NodeSelector,
+					TopologySpreadConstraints:     params.TopologySpreadConstraints,
 					SecurityContext:               params.PodSecurityContext,
 					PriorityClassName:             params.PriorityClassName,
 					Affinity:                      params.Affinity,
