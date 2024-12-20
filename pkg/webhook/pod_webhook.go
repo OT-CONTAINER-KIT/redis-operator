@@ -19,7 +19,6 @@ package webhook
 import (
 	"context"
 	"encoding/json"
-	"github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -154,21 +153,4 @@ func (v *PodAntiAffiniytMutate) getAntiAffinityValue(podName string) string {
 		return strings.Replace(podName, "leader", "follower", -1)
 	}
 	return ""
-}
-
-func (v *PodAntiAffiniytMutate) getRedisClusterSpec(ctx context.Context, pod *corev1.Pod) (*v1beta2.RedisCluster, error) {
-	namespaceKey := client.ObjectKey{
-		Namespace: pod.Namespace,
-		Name:      pod.Annotations[podAnnotationsRedisClusterApp],
-	}
-
-	redisCluster := &v1beta2.RedisCluster{}
-
-	err := v.Client.Get(ctx, namespaceKey, redisCluster)
-	if err != nil {
-		v.logger.Error(err, "failed to get redis cluster")
-		return nil, err
-	}
-
-	return redisCluster, nil
 }
