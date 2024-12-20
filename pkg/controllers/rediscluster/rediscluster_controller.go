@@ -73,37 +73,40 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// Check if the cluster is downscaled
-	if leaderCount := k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, "leader"); leaderReplicas < leaderCount {
+	if leaderCount := r.GetStatefulSetReplicas(ctx, instance.Namespace, instance.Name+"-leader"); leaderReplicas < leaderCount {
 		if !(r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-leader") && r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-follower")) {
 			return intctrlutil.Reconciled()
 		}
-
-		logger.Info("Redis cluster is downscaling...", "Current.LeaderReplicas", leaderCount, "Desired.LeaderReplicas", leaderReplicas)
-		for shardIdx := leaderCount - 1; shardIdx >= leaderReplicas; shardIdx-- {
-			logger.Info("Remove the shard", "Shard.Index", shardIdx)
-			//  Imp if the last index of leader sts is not leader make it then
-			// check whether the redis is leader or not ?
-			// if not true then make it leader pod
-			if !(k8sutils.VerifyLeaderPod(ctx, r.K8sClient, instance)) {
-				// lastLeaderPod is slaving right now Make it the master Pod
-				// We have to bring a manual failover here to make it a leaderPod
-				// clusterFailover should also include the clusterReplicate since we have to map the followers to new leader
-				logger.Info("Cluster Failover is initiated", "Shard.Index", shardIdx)
-				if err = k8sutils.ClusterFailover(ctx, r.K8sClient, instance); err != nil {
-					logger.Error(err, "Failed to initiate cluster failover")
-					return intctrlutil.RequeueWithError(ctx, err, "")
+		if masterCount := k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, "leader"); masterCount == leaderCount {
+			logger.Info("Redis cluster is downscaling...", "Current.LeaderReplicas", leaderCount, "Desired.LeaderReplicas", leaderReplicas)
+			for shardIdx := leaderCount - 1; shardIdx >= leaderReplicas; shardIdx-- {
+				logger.Info("Remove the shard", "Shard.Index", shardIdx)
+				//  Imp if the last index of leader sts is not leader make it then
+				// check whether the redis is leader or not ?
+				// if not true then make it leader pod
+				if !(k8sutils.VerifyLeaderPod(ctx, r.K8sClient, instance, shardIdx)) {
+					// lastLeaderPod is slaving right now Make it the master Pod
+					// We have to bring a manual failover here to make it a leaderPod
+					// clusterFailover should also include the clusterReplicate since we have to map the followers to new leader
+					logger.Info("Cluster Failover is initiated", "Shard.Index", shardIdx)
+					if err = k8sutils.ClusterFailover(ctx, r.K8sClient, instance, shardIdx); err != nil {
+						logger.Error(err, "Failed to initiate cluster failover")
+						return intctrlutil.RequeueWithError(ctx, err, "")
+					}
 				}
+				// Step 1 Remove the Follower Node
+				k8sutils.RemoveRedisFollowerNodesFromCluster(ctx, r.K8sClient, instance, shardIdx)
+				// Step 2 Reshard the Cluster
+				k8sutils.ReshardRedisCluster(ctx, r.K8sClient, instance, shardIdx, true)
 			}
-			// Step 1 Remove the Follower Node
-			k8sutils.RemoveRedisFollowerNodesFromCluster(ctx, r.K8sClient, instance)
-			// Step 2 Reshard the Cluster
-			k8sutils.ReshardRedisCluster(ctx, r.K8sClient, instance, true)
+			logger.Info("Redis cluster is downscaled... Rebalancing the cluster")
+			// Step 3 Rebalance the cluster
+			k8sutils.RebalanceRedisCluster(ctx, r.K8sClient, instance)
+			logger.Info("Redis cluster is downscaled... Rebalancing the cluster is done")
+			return intctrlutil.RequeueAfter(ctx, time.Second*10, "")
+		} else {
+			logger.Info("masterCount is not equal to leader statefulset replicas,skip downscale", "masterCount", masterCount, "leaderReplicas", leaderReplicas)
 		}
-		logger.Info("Redis cluster is downscaled... Rebalancing the cluster")
-		// Step 3 Rebalance the cluster
-		k8sutils.RebalanceRedisCluster(ctx, r.K8sClient, instance)
-		logger.Info("Redis cluster is downscaled... Rebalancing the cluster is done")
-		return intctrlutil.RequeueAfter(ctx, time.Second*10, "")
 	}
 
 	// Mark the cluster status as initializing if there are no leader or follower nodes
