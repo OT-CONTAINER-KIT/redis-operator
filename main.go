@@ -19,8 +19,9 @@ package main
 import (
 	"flag"
 	"os"
-	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 	"strings"
+
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	redisv1beta1 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta1"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
@@ -181,7 +182,8 @@ func main() {
 
 		wblog := ctrl.Log.WithName("webhook").WithName("PodAffiniytMutate")
 		mgr.GetWebhookServer().Register("/mutate-core-v1-pod", &webhook.Admission{
-			Handler: coreWebhook.NewPodAffiniytMutate(mgr.GetClient(), admission.NewDecoder(scheme), wblog)})
+			Handler: coreWebhook.NewPodAffiniytMutate(mgr.GetClient(), admission.NewDecoder(scheme), wblog),
+		})
 	}
 	// +kubebuilder:scaffold:builder
 

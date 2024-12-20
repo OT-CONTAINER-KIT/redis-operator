@@ -19,14 +19,16 @@ package webhook
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"reflect"
+	"strings"
+
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"net/http"
-	"reflect"
+
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-	"strings"
 )
 
 //+kubebuilder:webhook:path=/mutate-core-v1-pod,mutating=true,failurePolicy=fail,sideEffects=None,groups=core,resources=pods,verbs=create,versions=v1,name=mpod.kb.io,admissionReviewVersions=v1
@@ -42,7 +44,8 @@ func NewPodAffiniytMutate(c client.Client, d *admission.Decoder, log logr.Logger
 	return &PodAntiAffiniytMutate{
 		Client:  c,
 		decoder: d,
-		logger:  log}
+		logger:  log,
+	}
 }
 
 const (
