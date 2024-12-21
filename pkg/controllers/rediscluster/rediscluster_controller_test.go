@@ -113,7 +113,7 @@ var _ = Describe("Redis Cluster Controller", func() {
 			var exporterContainer *corev1.Container
 			for _, c := range leaderSts.Spec.Template.Spec.Containers {
 				if c.Name == "redis-exporter" {
-					exporterContainer = &c
+					exporterContainer = &c //nolint:exportloopref
 					break
 				}
 			}
