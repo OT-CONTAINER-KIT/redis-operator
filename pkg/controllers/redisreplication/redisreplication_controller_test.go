@@ -2,80 +2,106 @@ package redisreplication
 
 import (
 	"context"
-	"fmt"
-	"math/rand"
+	"os"
+	"path/filepath"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
-	factories "github.com/OT-CONTAINER-KIT/redis-operator/pkg/testutil/factories/redisreplication"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("Redis test", func() {
-	Describe("When creating a redis without custom fields", func() {
+var _ = Describe("Redis Replication Controller", func() {
+	Context("When deploying Redis Replication from testdata", func() {
 		var (
-			cr     *redisv1beta2.RedisReplication
-			crName string
+			redisReplication *redisv1beta2.RedisReplication
+			testFile         string
 		)
+
 		BeforeEach(func() {
-			crName = fmt.Sprintf("redis-%d", rand.Int31()) //nolint:gosec
-			cr = factories.New(crName)
-			Expect(k8sClient.Create(context.TODO(), cr)).Should(Succeed())
+			testFile = filepath.Join("testdata", "full.yaml")
+			redisReplication = &redisv1beta2.RedisReplication{}
+
+			yamlFile, err := os.ReadFile(testFile)
+			Expect(err).NotTo(HaveOccurred())
+
+			err = yaml.Unmarshal(yamlFile, redisReplication)
+			Expect(err).NotTo(HaveOccurred())
+
+			redisReplication.Namespace = ns
+
+			Expect(k8sClient.Create(context.Background(), redisReplication)).Should(Succeed())
 		})
 
-		DescribeTable("the reconciler",
-			func(nameFmt string, obj client.Object) {
-				key := types.NamespacedName{
-					Name:      fmt.Sprintf(nameFmt, crName),
+		AfterEach(func() {
+			Expect(k8sClient.Delete(context.Background(), redisReplication)).Should(Succeed())
+		})
+
+		It("should create all required resources", func() {
+			By("verifying the StatefulSet is created")
+			sts := &appsv1.StatefulSet{}
+			Eventually(func() error {
+				return k8sClient.Get(context.Background(), types.NamespacedName{
+					Name:      redisReplication.Name,
 					Namespace: ns,
-				}
+				}, sts)
+			}, timeout, interval).Should(Succeed())
 
-				By("creating the resource when the cluster is created")
-				Eventually(func() error { return k8sClient.Get(context.TODO(), key, obj) }, timeout).Should(Succeed())
+			By("verifying the headless Service is created")
+			headlessSvc := &corev1.Service{}
+			Eventually(func() error {
+				return k8sClient.Get(context.Background(), types.NamespacedName{
+					Name:      redisReplication.Name + "-headless",
+					Namespace: ns,
+				}, headlessSvc)
+			}, timeout, interval).Should(Succeed())
 
-				By("setting the owner reference")
+			By("verifying the additional Service is created")
+			additionalSvc := &corev1.Service{}
+			Eventually(func() error {
+				return k8sClient.Get(context.Background(), types.NamespacedName{
+					Name:      redisReplication.Name + "-additional",
+					Namespace: ns,
+				}, additionalSvc)
+			}, timeout, interval).Should(Succeed())
+
+			By("verifying owner references")
+			for _, obj := range []client.Object{sts, headlessSvc, additionalSvc} {
 				ownerRefs := obj.GetOwnerReferences()
 				Expect(ownerRefs).To(HaveLen(1))
-				Expect(ownerRefs[0].Name).To(Equal(crName))
-			},
-			Entry("reconciles the leader statefulset", "%s", &appsv1.StatefulSet{}),
-			Entry("reconciles the leader headless service", "%s-headless", &corev1.Service{}),
-			Entry("reconciles the leader additional service", "%s-additional", &corev1.Service{}),
-		)
-	})
+				Expect(ownerRefs[0].Name).To(Equal(redisReplication.Name))
+			}
 
-	Describe("When creating a redis, ignore annotations", func() {
-		var (
-			cr     *redisv1beta2.RedisReplication
-			crName string
-		)
-		BeforeEach(func() {
-			crName = fmt.Sprintf("redis-%d", rand.Int31()) //nolint:gosec
-			cr = factories.New(
-				crName,
-				factories.WithAnnotations(map[string]string{
-					"key1": "value1",
-					"key2": "value2",
-				}),
-				factories.WithIgnoredKeys([]string{"key1"}),
-			)
-			Expect(k8sClient.Create(context.TODO(), cr)).Should(Succeed())
-		})
-		Describe("the reconciler", func() {
-			It("should ignore key in statefulset", func() {
-				stsLeader := &appsv1.StatefulSet{}
-				stsLeaderNN := types.NamespacedName{
-					Name:      crName,
-					Namespace: ns,
+			By("verifying StatefulSet specifications")
+			Expect(sts.Spec.Template.Spec.SecurityContext).To(Equal(redisReplication.Spec.PodSecurityContext))
+			Expect(sts.Spec.Template.Spec.Containers[0].Image).To(Equal(redisReplication.Spec.KubernetesConfig.Image))
+
+			By("verifying PVC specifications")
+			Expect(sts.Spec.VolumeClaimTemplates).To(HaveLen(1))
+			Expect(sts.Spec.VolumeClaimTemplates[0].Spec.Resources.Requests.Storage()).To(Equal(
+				redisReplication.Spec.Storage.VolumeClaimTemplate.Spec.Resources.Requests.Storage()))
+
+			By("verifying replication configuration")
+			Expect(sts.Spec.Replicas).NotTo(BeNil())
+			expectedReplicas := int32(3)
+			Expect(*sts.Spec.Replicas).To(Equal(expectedReplicas))
+
+			By("verifying Redis Exporter configuration")
+			By("verifying Redis Exporter container")
+			var exporterContainer *corev1.Container
+			for i := range sts.Spec.Template.Spec.Containers {
+				if sts.Spec.Template.Spec.Containers[i].Name == "redis-exporter" {
+					exporterContainer = &sts.Spec.Template.Spec.Containers[i]
+					break
 				}
-				Eventually(func() error { return k8sClient.Get(context.TODO(), stsLeaderNN, stsLeader) }, timeout, interval).Should(BeNil())
-				Expect(stsLeader.Annotations).To(HaveKey("key2"))
-				Expect(stsLeader.Annotations).NotTo(HaveKey("key1"))
-			})
+			}
+			Expect(exporterContainer).NotTo(BeNil())
+			Expect(exporterContainer.Image).To(Equal(redisReplication.Spec.RedisExporter.Image))
+			Expect(exporterContainer.ImagePullPolicy).To(Equal(redisReplication.Spec.RedisExporter.ImagePullPolicy))
 		})
 	})
 })

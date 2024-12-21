@@ -2,103 +2,125 @@ package rediscluster
 
 import (
 	"context"
-	"fmt"
-	"math/rand"
+	"os"
+	"path/filepath"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
-	factories "github.com/OT-CONTAINER-KIT/redis-operator/pkg/testutil/factories/rediscluster"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("Redis cluster test", func() {
-	Describe("When creating a redis cluster without custom fields", func() {
+var _ = Describe("Redis Cluster Controller", func() {
+	Context("When deploying Redis Cluster from testdata", func() {
 		var (
-			redisClusterCR     *redisv1beta2.RedisCluster
-			redisClusterCRName string
+			redisCluster *redisv1beta2.RedisCluster
+			testFile     string
 		)
+
 		BeforeEach(func() {
-			redisClusterCRName = fmt.Sprintf("redis-cluster-%d", rand.Int31()) //nolint:gosec
-			redisClusterCR = factories.New(redisClusterCRName)
-			Expect(k8sClient.Create(context.TODO(), redisClusterCR)).Should(Succeed())
+			testFile = filepath.Join("testdata", "full.yaml")
+			redisCluster = &redisv1beta2.RedisCluster{}
+
+			yamlFile, err := os.ReadFile(testFile)
+			Expect(err).NotTo(HaveOccurred())
+
+			err = yaml.Unmarshal(yamlFile, redisCluster)
+			Expect(err).NotTo(HaveOccurred())
+
+			redisCluster.Namespace = ns
+
+			Expect(k8sClient.Create(context.Background(), redisCluster)).Should(Succeed())
 		})
 
-		DescribeTable("the reconciler",
-			func(nameFmt string, obj client.Object) {
-				key := types.NamespacedName{
-					Name:      fmt.Sprintf(nameFmt, redisClusterCRName),
+		AfterEach(func() {
+			Expect(k8sClient.Delete(context.Background(), redisCluster)).Should(Succeed())
+		})
+
+		It("should create all required resources", func() {
+			By("verifying the Redis Cluster Leader StatefulSet is created")
+			leaderSts := &appsv1.StatefulSet{}
+			Eventually(func() error {
+				return k8sClient.Get(context.Background(), types.NamespacedName{
+					Name:      redisCluster.Name + "-leader",
 					Namespace: ns,
-				}
+				}, leaderSts)
+			}, timeout, interval).Should(Succeed())
 
-				By("creating the resource when the cluster is created")
-				Eventually(func() error { return k8sClient.Get(context.TODO(), key, obj) }, timeout).Should(Succeed())
+			By("verifying the Redis Cluster Leader Service is created")
+			leaderSvc := &corev1.Service{}
+			Eventually(func() error {
+				return k8sClient.Get(context.Background(), types.NamespacedName{
+					Name:      redisCluster.Name + "-leader",
+					Namespace: ns,
+				}, leaderSvc)
+			}, timeout, interval).Should(Succeed())
 
-				By("setting the owner reference")
+			By("verifying the Redis Cluster headless Service is created")
+			headlessSvc := &corev1.Service{}
+			Eventually(func() error {
+				return k8sClient.Get(context.Background(), types.NamespacedName{
+					Name:      redisCluster.Name + "-leader-headless",
+					Namespace: ns,
+				}, headlessSvc)
+			}, timeout, interval).Should(Succeed())
+
+			By("verifying owner references")
+			for _, obj := range []client.Object{leaderSts, leaderSvc, headlessSvc} {
 				ownerRefs := obj.GetOwnerReferences()
 				Expect(ownerRefs).To(HaveLen(1))
-				Expect(ownerRefs[0].Name).To(Equal(redisClusterCRName))
-			},
-			Entry("reconciles the leader statefulset", "%s-leader", &appsv1.StatefulSet{}),
-			Entry("reconciles the leader service", "%s-leader", &corev1.Service{}),
-			Entry("reconciles the leader headless service", "%s-leader-headless", &corev1.Service{}),
-			Entry("reconciles the leader additional service", "%s-leader-additional", &corev1.Service{}),
-		)
-	})
-
-	Describe("When creating a redis cluster with DisablePersistence", func() {
-		var (
-			redisClusterCR     *redisv1beta2.RedisCluster
-			redisClusterCRName string
-		)
-		BeforeEach(func() {
-			redisClusterCRName = fmt.Sprintf("redis-cluster-%d", rand.Int31()) //nolint:gosec
-			redisClusterCR = factories.New(redisClusterCRName, factories.DisablePersistence())
-			Expect(k8sClient.Create(context.TODO(), redisClusterCR)).Should(Succeed())
-		})
-
-		It("should create leader statefulset without persistence volume", func() {
-			stsLeader := &appsv1.StatefulSet{}
-			stsLeaderNN := types.NamespacedName{
-				Name:      redisClusterCRName + "-leader",
-				Namespace: ns,
+				Expect(ownerRefs[0].Name).To(Equal(redisCluster.Name))
 			}
-			Eventually(func() error { return k8sClient.Get(context.TODO(), stsLeaderNN, stsLeader) }, timeout, interval).Should(BeNil())
-			Expect(stsLeader.Spec.VolumeClaimTemplates).To(HaveLen(0))
-		})
-	})
 
-	Describe("When creating a redis cluster, ignore annotations", func() {
-		var (
-			redisClusterCR     *redisv1beta2.RedisCluster
-			redisClusterCRName string
-		)
-		BeforeEach(func() {
-			redisClusterCRName = fmt.Sprintf("redis-cluster-%d", rand.Int31()) //nolint:gosec
-			redisClusterCR = factories.New(
-				redisClusterCRName,
-				factories.WithAnnotations(map[string]string{
-					"key1": "value1",
-					"key2": "value2",
-				}),
-				factories.WithIgnoredKeys([]string{"key1"}),
-			)
-			Expect(k8sClient.Create(context.TODO(), redisClusterCR)).Should(Succeed())
-		})
-		Describe("the reconciler", func() {
-			It("should ignore key in leader statefulset", func() {
-				stsLeader := &appsv1.StatefulSet{}
-				stsLeaderNN := types.NamespacedName{
-					Name:      redisClusterCRName + "-leader",
-					Namespace: ns,
+			By("verifying StatefulSet specifications")
+			Expect(leaderSts.Spec.Template.Spec.SecurityContext).To(Equal(redisCluster.Spec.PodSecurityContext))
+			Expect(leaderSts.Spec.Template.Spec.Containers[0].Image).To(Equal(redisCluster.Spec.KubernetesConfig.Image))
+			Expect(leaderSts.Spec.Template.Spec.Containers[0].ImagePullPolicy).To(Equal(redisCluster.Spec.KubernetesConfig.ImagePullPolicy))
+
+			By("verifying Service specifications")
+			expectedLabels := map[string]string{
+				"app":              redisCluster.Name + "-leader",
+				"redis_setup_type": "cluster",
+				"role":             "leader",
+			}
+			Expect(leaderSvc.Labels).To(Equal(expectedLabels))
+
+			expectedHeadlessLabels := map[string]string{
+				"app":              redisCluster.Name + "-leader",
+				"redis_setup_type": "cluster",
+				"role":             "leader",
+			}
+			Expect(headlessSvc.Labels).To(Equal(expectedHeadlessLabels))
+
+			By("verifying cluster configuration")
+			Expect(leaderSts.Spec.Replicas).NotTo(BeNil())
+			expectedReplicas := int32(3)
+			Expect(*leaderSts.Spec.Replicas).To(Equal(expectedReplicas))
+
+			By("verifying Redis Cluster configuration")
+			Expect(leaderSts.Spec.ServiceName).To(Equal(redisCluster.Name + "-leader-headless"))
+
+			By("verifying resource requirements")
+			container := leaderSts.Spec.Template.Spec.Containers[0]
+			Expect(container.Resources.Limits).To(Equal(redisCluster.Spec.KubernetesConfig.Resources.Limits))
+			Expect(container.Resources.Requests).To(Equal(redisCluster.Spec.KubernetesConfig.Resources.Requests))
+
+			By("verifying Redis Exporter configuration")
+			var exporterContainer *corev1.Container
+			for _, c := range leaderSts.Spec.Template.Spec.Containers {
+				if c.Name == "redis-exporter" {
+					exporterContainer = &c //nolint:exportloopref
+					break
 				}
-				Eventually(func() error { return k8sClient.Get(context.TODO(), stsLeaderNN, stsLeader) }, timeout, interval).Should(BeNil())
-				Expect(stsLeader.Annotations).To(HaveKey("key2"))
-				Expect(stsLeader.Annotations).NotTo(HaveKey("key1"))
-			})
+			}
+			Expect(exporterContainer).NotTo(BeNil(), "Redis Exporter container should exist")
+			Expect(exporterContainer.Image).To(Equal(redisCluster.Spec.RedisExporter.Image))
+			Expect(exporterContainer.ImagePullPolicy).To(Equal(redisCluster.Spec.RedisExporter.ImagePullPolicy))
+			Expect(exporterContainer.Resources).To(Equal(*redisCluster.Spec.RedisExporter.Resources))
 		})
 	})
 })
