@@ -48,6 +48,9 @@ func (src *RedisCluster) ConvertTo(dstRaw conversion.Hub) error {
 	if src.Spec.RedisLeader.NodeSelector != nil {
 		dst.Spec.RedisLeader.NodeSelector = src.Spec.RedisLeader.NodeSelector
 	}
+	if src.Spec.RedisLeader.TopologySpreadConstraints != nil {
+		dst.Spec.RedisLeader.TopologySpreadConstraints = src.Spec.RedisLeader.TopologySpreadConstraints
+	}
 
 	// RedisFollower
 	dst.Spec.RedisFollower = redisv1beta2.RedisFollower{}
@@ -74,6 +77,9 @@ func (src *RedisCluster) ConvertTo(dstRaw conversion.Hub) error {
 	}
 	if src.Spec.RedisFollower.NodeSelector != nil {
 		dst.Spec.RedisFollower.NodeSelector = src.Spec.RedisFollower.NodeSelector
+	}
+	if src.Spec.RedisFollower.TopologySpreadConstraints != nil {
+		dst.Spec.RedisFollower.TopologySpreadConstraints = src.Spec.RedisFollower.TopologySpreadConstraints
 	}
 	// RedisExporter
 	if src.Spec.RedisExporter != nil {
@@ -168,6 +174,9 @@ func (dst *RedisCluster) ConvertFrom(srcRaw conversion.Hub) error {
 	if src.Spec.RedisLeader.NodeSelector != nil {
 		dst.Spec.RedisLeader.NodeSelector = src.Spec.RedisLeader.NodeSelector
 	}
+	if src.Spec.RedisLeader.TopologySpreadConstraints != nil {
+		dst.Spec.RedisLeader.TopologySpreadConstraints = src.Spec.RedisLeader.TopologySpreadConstraints
+	}
 
 	// RedisFollower
 	dst.Spec.RedisFollower = RedisFollower{}
@@ -194,6 +203,9 @@ func (dst *RedisCluster) ConvertFrom(srcRaw conversion.Hub) error {
 	}
 	if src.Spec.RedisFollower.NodeSelector != nil {
 		dst.Spec.RedisFollower.NodeSelector = src.Spec.RedisFollower.NodeSelector
+	}
+	if src.Spec.RedisFollower.TopologySpreadConstraints != nil {
+		dst.Spec.RedisFollower.TopologySpreadConstraints = src.Spec.RedisFollower.TopologySpreadConstraints
 	}
 	// RedisExporter
 	if src.Spec.RedisExporter != nil {
