@@ -104,7 +104,7 @@ var _ = BeforeSuite(func() {
 		Client:      k8sManager.GetClient(),
 		K8sClient:   k8sClient,
 		Dk8sClient:  dk8sClient,
-		Scheme:      k8sManager.GetScheme(),
+		Recorder:    k8sManager.GetEventRecorderFor("rediscluster-controller"),
 		StatefulSet: k8sutils.NewStatefulSetService(k8sClient),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
