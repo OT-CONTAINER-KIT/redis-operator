@@ -131,6 +131,7 @@ func main() {
 		Client:      mgr.GetClient(),
 		K8sClient:   k8sclient,
 		Dk8sClient:  dk8sClient,
+		Recorder:    mgr.GetEventRecorderFor("rediscluster-controller"),
 		StatefulSet: k8sutils.NewStatefulSetService(k8sclient),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RedisCluster")
