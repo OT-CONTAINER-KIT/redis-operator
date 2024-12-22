@@ -122,7 +122,6 @@ func main() {
 		Client:     mgr.GetClient(),
 		K8sClient:  k8sclient,
 		Dk8sClient: dk8sClient,
-		Scheme:     mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Redis")
 		os.Exit(1)
@@ -141,7 +140,6 @@ func main() {
 		Client:      mgr.GetClient(),
 		K8sClient:   k8sclient,
 		Dk8sClient:  dk8sClient,
-		Scheme:      mgr.GetScheme(),
 		Pod:         k8sutils.NewPodService(k8sclient),
 		StatefulSet: k8sutils.NewStatefulSetService(k8sclient),
 	}).SetupWithManager(mgr); err != nil {
@@ -152,7 +150,6 @@ func main() {
 		Client:             mgr.GetClient(),
 		K8sClient:          k8sclient,
 		Dk8sClient:         dk8sClient,
-		Scheme:             mgr.GetScheme(),
 		ReplicationWatcher: intctrlutil.NewResourceWatcher(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RedisSentinel")
