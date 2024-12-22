@@ -112,7 +112,7 @@ type reconciler struct {
 
 func (r *Reconciler) reconcileFinalizer(ctx context.Context, instance *redisv1beta2.RedisReplication) (ctrl.Result, error) {
 	if k8sutils.IsDeleted(instance) {
-		if err := k8sutils.HandleRedisReplicationFinalizer(ctx, r.Client, r.K8sClient, instance); err != nil {
+		if err := k8sutils.HandleRedisReplicationFinalizer(ctx, r.Client, instance); err != nil {
 			return intctrlutil.RequeueWithError(ctx, err, "")
 		}
 		return intctrlutil.Reconciled()

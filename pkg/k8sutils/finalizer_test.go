@@ -145,7 +145,7 @@ func TestHandleRedisFinalizer(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			err := HandleRedisFinalizer(context.TODO(), tc.mockClient, k8sClient, tc.cr)
+			err := HandleRedisFinalizer(context.TODO(), tc.mockClient, tc.cr)
 			if tc.expectError {
 				assert.Error(t, err)
 			} else {
@@ -276,7 +276,7 @@ func TestHandleRedisClusterFinalizer(t *testing.T) {
 				}
 			}
 
-			err := HandleRedisClusterFinalizer(context.TODO(), tc.mockClient, k8sClient, tc.cr)
+			err := HandleRedisClusterFinalizer(context.TODO(), tc.mockClient, tc.cr)
 			if tc.expectError {
 				assert.Error(t, err)
 			} else {
@@ -474,7 +474,7 @@ func TestHandleRedisReplicationFinalizer(t *testing.T) {
 				}
 			}
 
-			err := HandleRedisReplicationFinalizer(context.TODO(), tc.mockClient, k8sClient, tc.cr)
+			err := HandleRedisReplicationFinalizer(context.TODO(), tc.mockClient, tc.cr)
 			if tc.expectError {
 				assert.Error(t, err)
 			} else {
@@ -612,7 +612,13 @@ func TestFinalizeRedisPVC(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			err := finalizeRedisPVC(context.TODO(), k8sClient, cr)
+			ctrlclient := &mockClient.MockClient{
+				DeleteFn: func(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
+					return nil
+				},
+			}
+
+			err := finalizeRedisPVC(context.TODO(), ctrlclient, cr)
 			if tc.expectError {
 				assert.Error(t, err)
 				assert.Equal(t, tc.errorExpected, err)
@@ -695,7 +701,13 @@ func TestFinalizeRedisReplicationPVC(t *testing.T) {
 				k8sClient = k8sClientFake.NewSimpleClientset()
 			}
 
-			err := finalizeRedisReplicationPVC(context.TODO(), k8sClient, tc.redisReplication)
+			ctrlclient := &mockClient.MockClient{
+				DeleteFn: func(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
+					return nil
+				},
+			}
+
+			err := finalizeRedisReplicationPVC(context.TODO(), ctrlclient, tc.redisReplication)
 			if tc.expectError {
 				assert.Error(t, err)
 			} else {
@@ -765,7 +777,13 @@ func TestFinalizeRedisClusterPVC(t *testing.T) {
 				k8sClient = k8sClientFake.NewSimpleClientset()
 			}
 
-			err := finalizeRedisClusterPVC(context.TODO(), k8sClient, tc.redisCluster)
+			ctrlclient := &mockClient.MockClient{
+				DeleteFn: func(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
+					return nil
+				},
+			}
+
+			err := finalizeRedisClusterPVC(context.TODO(), ctrlclient, tc.redisCluster)
 			if tc.expectError {
 				assert.Error(t, err)
 			} else {

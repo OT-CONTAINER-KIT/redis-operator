@@ -55,7 +55,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return intctrlutil.RequeueWithErrorChecking(ctx, err, "failed to get redis cluster instance")
 	}
 	if instance.ObjectMeta.GetDeletionTimestamp() != nil {
-		if err = k8sutils.HandleRedisClusterFinalizer(ctx, r.Client, r.K8sClient, instance); err != nil {
+		if err = k8sutils.HandleRedisClusterFinalizer(ctx, r.Client, instance); err != nil {
 			return intctrlutil.RequeueWithError(ctx, err, "failed to handle redis cluster finalizer")
 		}
 		return intctrlutil.Reconciled()
