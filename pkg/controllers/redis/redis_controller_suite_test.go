@@ -26,7 +26,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -96,13 +95,9 @@ var _ = BeforeSuite(func() {
 	k8sClient, err := kubernetes.NewForConfig(cfg)
 	Expect(err).ToNot(HaveOccurred())
 
-	dk8sClient, err := dynamic.NewForConfig(cfg)
-	Expect(err).ToNot(HaveOccurred())
-
 	err = (&Reconciler{
-		Client:     k8sManager.GetClient(),
-		K8sClient:  k8sClient,
-		Dk8sClient: dk8sClient,
+		Client:    k8sManager.GetClient(),
+		K8sClient: k8sClient,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 

@@ -119,9 +119,8 @@ func main() {
 	}
 
 	if err = (&redis.Reconciler{
-		Client:     mgr.GetClient(),
-		K8sClient:  k8sclient,
-		Dk8sClient: dk8sClient,
+		Client:    mgr.GetClient(),
+		K8sClient: k8sclient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Redis")
 		os.Exit(1)
