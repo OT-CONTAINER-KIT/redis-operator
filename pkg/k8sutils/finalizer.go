@@ -31,7 +31,7 @@ func HandleRedisFinalizer(ctx context.Context, ctrlclient client.Client, cr *red
 				}
 			}
 			controllerutil.RemoveFinalizer(cr, RedisFinalizer)
-			if err := ctrlclient.Update(context.TODO(), cr); err != nil {
+			if err := ctrlclient.Update(ctx, cr); err != nil {
 				log.FromContext(ctx).Error(err, "Could not remove finalizer", "finalizer", RedisFinalizer)
 				return err
 			}
@@ -50,7 +50,7 @@ func HandleRedisClusterFinalizer(ctx context.Context, ctrlclient client.Client, 
 				}
 			}
 			controllerutil.RemoveFinalizer(cr, RedisClusterFinalizer)
-			if err := ctrlclient.Update(context.TODO(), cr); err != nil {
+			if err := ctrlclient.Update(ctx, cr); err != nil {
 				log.FromContext(ctx).Error(err, "Could not remove finalizer "+RedisClusterFinalizer)
 				return err
 			}
@@ -69,7 +69,7 @@ func HandleRedisReplicationFinalizer(ctx context.Context, ctrlclient client.Clie
 				}
 			}
 			controllerutil.RemoveFinalizer(cr, RedisReplicationFinalizer)
-			if err := ctrlclient.Update(context.TODO(), cr); err != nil {
+			if err := ctrlclient.Update(ctx, cr); err != nil {
 				log.FromContext(ctx).Error(err, "Could not remove finalizer "+RedisReplicationFinalizer)
 				return err
 			}
@@ -83,7 +83,7 @@ func HandleRedisSentinelFinalizer(ctx context.Context, ctrlclient client.Client,
 	if cr.GetDeletionTimestamp() != nil {
 		if controllerutil.ContainsFinalizer(cr, RedisSentinelFinalizer) {
 			controllerutil.RemoveFinalizer(cr, RedisSentinelFinalizer)
-			if err := ctrlclient.Update(context.TODO(), cr); err != nil {
+			if err := ctrlclient.Update(ctx, cr); err != nil {
 				log.FromContext(ctx).Error(err, "Could not remove finalizer "+RedisSentinelFinalizer)
 				return err
 			}
@@ -96,7 +96,7 @@ func HandleRedisSentinelFinalizer(ctx context.Context, ctrlclient client.Client,
 func AddFinalizer(ctx context.Context, cr client.Object, finalizer string, cl client.Client) error {
 	if !controllerutil.ContainsFinalizer(cr, finalizer) {
 		controllerutil.AddFinalizer(cr, finalizer)
-		return cl.Update(context.TODO(), cr)
+		return cl.Update(ctx, cr)
 	}
 	return nil
 }
