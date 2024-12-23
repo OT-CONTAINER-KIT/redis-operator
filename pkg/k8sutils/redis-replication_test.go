@@ -15,14 +15,6 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-// topologySpreadConstraints:
-//   - maxSkew: 1
-//     topologyKey: kubernetes.io/hostname
-//     whenUnsatisfiable: ScheduleAnyway
-//     labelSelector:
-//     matchLabels:
-//     role: replication
-//     app: redis-replication
 func Test_generateRedisReplicationParams(t *testing.T) {
 	path := filepath.Join("..", "..", "tests", "testdata", "redis-replication.yaml")
 	expected := statefulSetParameters{
