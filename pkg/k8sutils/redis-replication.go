@@ -100,6 +100,7 @@ func generateRedisReplicationParams(cr *redisv1beta2.RedisReplication) statefulS
 		PriorityClassName:             cr.Spec.PriorityClassName,
 		Affinity:                      cr.Spec.Affinity,
 		Tolerations:                   cr.Spec.Tolerations,
+		TopologySpreadConstraints:     cr.Spec.TopologySpreadConstrains,
 		TerminationGracePeriodSeconds: cr.Spec.TerminationGracePeriodSeconds,
 		UpdateStrategy:                cr.Spec.KubernetesConfig.UpdateStrategy,
 		IgnoreAnnotations:             cr.Spec.KubernetesConfig.IgnoreAnnotations,

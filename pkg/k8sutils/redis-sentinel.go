@@ -100,6 +100,7 @@ func generateRedisSentinelParams(ctx context.Context, cr *redisv1beta2.RedisSent
 		Affinity:                      affinity,
 		TerminationGracePeriodSeconds: cr.Spec.TerminationGracePeriodSeconds,
 		Tolerations:                   cr.Spec.Tolerations,
+		TopologySpreadConstraints:     cr.Spec.TopologySpreadConstrains,
 		ServiceAccountName:            cr.Spec.ServiceAccountName,
 		UpdateStrategy:                cr.Spec.KubernetesConfig.UpdateStrategy,
 		IgnoreAnnotations:             cr.Spec.KubernetesConfig.IgnoreAnnotations,
