@@ -10,10 +10,19 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/utils/ptr"
 )
 
+// topologySpreadConstraints:
+//   - maxSkew: 1
+//     topologyKey: kubernetes.io/hostname
+//     whenUnsatisfiable: ScheduleAnyway
+//     labelSelector:
+//     matchLabels:
+//     role: replication
+//     app: redis-replication
 func Test_generateRedisReplicationParams(t *testing.T) {
 	path := filepath.Join("..", "..", "tests", "testdata", "redis-replication.yaml")
 	expected := statefulSetParameters{
@@ -22,6 +31,19 @@ func Test_generateRedisReplicationParams(t *testing.T) {
 		NodeConfVolume: false,
 		NodeSelector: map[string]string{
 			"node-role.kubernetes.io/infra": "worker",
+		},
+		TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
+			{
+				MaxSkew:           1,
+				TopologyKey:       "kubernetes.io/hostname",
+				WhenUnsatisfiable: corev1.ScheduleAnyway,
+				LabelSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"role": "replication",
+						"app":  "redis-replication",
+					},
+				},
+			},
 		},
 		PodSecurityContext: &corev1.PodSecurityContext{
 			RunAsUser: ptr.To(int64(1000)),
