@@ -31,4 +31,3 @@ spec:
         matchLabels:
           role: sentinel
           app: redis-sentinel-sentinel
-          
