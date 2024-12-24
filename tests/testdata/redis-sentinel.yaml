@@ -64,6 +64,14 @@ spec:
             key: username
   nodeSelector:
     node-role.kubernetes.io/infra: worker
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          role: sentinel
+          app: redis-sentinel-sentinel
   priorityClassName: high-priority
   affinity:
     nodeAffinity:

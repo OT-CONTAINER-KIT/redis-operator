@@ -9,26 +9,27 @@ import (
 type RedisSentinelSpec struct {
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:default=3
-	Size                          *int32                           `json:"clusterSize"`
-	KubernetesConfig              KubernetesConfig                 `json:"kubernetesConfig"`
-	RedisExporter                 *RedisExporter                   `json:"redisExporter,omitempty"`
-	RedisSentinelConfig           *RedisSentinelConfig             `json:"redisSentinelConfig,omitempty"`
-	NodeSelector                  map[string]string                `json:"nodeSelector,omitempty"`
-	PodSecurityContext            *corev1.PodSecurityContext       `json:"podSecurityContext,omitempty"`
-	SecurityContext               *corev1.SecurityContext          `json:"securityContext,omitempty"`
-	PriorityClassName             string                           `json:"priorityClassName,omitempty"`
-	Affinity                      *corev1.Affinity                 `json:"affinity,omitempty"`
-	Tolerations                   *[]corev1.Toleration             `json:"tolerations,omitempty"`
-	TLS                           *TLSConfig                       `json:"TLS,omitempty"`
-	PodDisruptionBudget           *common.RedisPodDisruptionBudget `json:"pdb,omitempty"`
-	ReadinessProbe                *corev1.Probe                    `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
-	LivenessProbe                 *corev1.Probe                    `json:"livenessProbe,omitempty" protobuf:"bytes,12,opt,name=livenessProbe"`
-	InitContainer                 *InitContainer                   `json:"initContainer,omitempty"`
-	Sidecars                      *[]Sidecar                       `json:"sidecars,omitempty"`
-	ServiceAccountName            *string                          `json:"serviceAccountName,omitempty"`
-	TerminationGracePeriodSeconds *int64                           `json:"terminationGracePeriodSeconds,omitempty" protobuf:"varint,4,opt,name=terminationGracePeriodSeconds"`
-	EnvVars                       *[]corev1.EnvVar                 `json:"env,omitempty"`
-	VolumeMount                   *common.AdditionalVolume         `json:"volumeMount,omitempty"`
+	Size                          *int32                            `json:"clusterSize"`
+	KubernetesConfig              KubernetesConfig                  `json:"kubernetesConfig"`
+	RedisExporter                 *RedisExporter                    `json:"redisExporter,omitempty"`
+	RedisSentinelConfig           *RedisSentinelConfig              `json:"redisSentinelConfig,omitempty"`
+	NodeSelector                  map[string]string                 `json:"nodeSelector,omitempty"`
+	PodSecurityContext            *corev1.PodSecurityContext        `json:"podSecurityContext,omitempty"`
+	SecurityContext               *corev1.SecurityContext           `json:"securityContext,omitempty"`
+	PriorityClassName             string                            `json:"priorityClassName,omitempty"`
+	Affinity                      *corev1.Affinity                  `json:"affinity,omitempty"`
+	Tolerations                   *[]corev1.Toleration              `json:"tolerations,omitempty"`
+	TLS                           *TLSConfig                        `json:"TLS,omitempty"`
+	PodDisruptionBudget           *common.RedisPodDisruptionBudget  `json:"pdb,omitempty"`
+	ReadinessProbe                *corev1.Probe                     `json:"readinessProbe,omitempty" protobuf:"bytes,11,opt,name=readinessProbe"`
+	LivenessProbe                 *corev1.Probe                     `json:"livenessProbe,omitempty" protobuf:"bytes,12,opt,name=livenessProbe"`
+	InitContainer                 *InitContainer                    `json:"initContainer,omitempty"`
+	Sidecars                      *[]Sidecar                        `json:"sidecars,omitempty"`
+	ServiceAccountName            *string                           `json:"serviceAccountName,omitempty"`
+	TerminationGracePeriodSeconds *int64                            `json:"terminationGracePeriodSeconds,omitempty" protobuf:"varint,4,opt,name=terminationGracePeriodSeconds"`
+	EnvVars                       *[]corev1.EnvVar                  `json:"env,omitempty"`
+	VolumeMount                   *common.AdditionalVolume          `json:"volumeMount,omitempty"`
+	TopologySpreadConstrains      []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
 }
 
 func (cr *RedisSentinelSpec) GetSentinelCounts(t string) int32 {

@@ -82,6 +82,14 @@ spec:
           name: example-config
   nodeSelector:
     node-role.kubernetes.io/infra: worker
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          role: replication
+          app: redis-replication
   priorityClassName: high-priority
   affinity:
     nodeAffinity:
