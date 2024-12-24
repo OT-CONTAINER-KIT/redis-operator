@@ -30,3 +30,4 @@ spec:
         matchLabels:
           role: replication
           app: redis-replication
+          
