@@ -52,6 +52,7 @@ const (
 	podLabelsPodName              = "statefulset.kubernetes.io/pod-name"
 	podLabelsRedisType            = "redis_setup_type"
 )
+const annotationKeyEnablePodAntiAffinity = "redis.opstreelabs/enable-pod-anti-affinity"
 
 func (v *PodAntiAffiniytMutate) Handle(ctx context.Context, req admission.Request) admission.Response {
 	logger := v.logger.WithValues("Request.Namespace", req.Namespace, "Request.Name", req.Name)
@@ -64,6 +65,15 @@ func (v *PodAntiAffiniytMutate) Handle(ctx context.Context, req admission.Reques
 
 	// only mutate pods that belong to redis cluster
 	if !v.isRedisClusterPod(pod) {
+		return admission.Allowed("")
+	}
+	// check if the pod anti-affinity is enabled
+	annotations := pod.GetAnnotations()
+	if annotations == nil {
+		return admission.Allowed("")
+	}
+	if enable, ok := annotations[annotationKeyEnablePodAntiAffinity]; !ok || enable != "true" {
+		logger.V(1).Info("pod anti-affinity is not enabled")
 		return admission.Allowed("")
 	}
 
