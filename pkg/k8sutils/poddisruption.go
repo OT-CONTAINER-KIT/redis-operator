@@ -112,7 +112,7 @@ func generatePodDisruptionBudgetDef(ctx context.Context, cr *redisv1beta2.RedisC
 // generatePodDisruptionBudgetDef will create a PodDisruptionBudget definition
 func generateReplicationPodDisruptionBudgetDef(ctx context.Context, cr *redisv1beta2.RedisReplication, role string, pdbMeta metav1.ObjectMeta, pdbParams *commonapi.RedisPodDisruptionBudget) *policyv1.PodDisruptionBudget {
 	lblSelector := LabelSelectors(map[string]string{
-		"app":  fmt.Sprintf("%s-%s", cr.ObjectMeta.Name, role),
+		"app":  cr.ObjectMeta.Name,
 		"role": role,
 	})
 	pdbTemplate := &policyv1.PodDisruptionBudget{
