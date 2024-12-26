@@ -119,7 +119,9 @@ helm delete <my-release> --namespace <namespace>
 | sidecars.resources.requests.cpu | string | `"50m"` |  |
 | sidecars.resources.requests.memory | string | `"64Mi"` |  |
 | storageSpec.nodeConfVolume | bool | `true` |  |
+| storageSpec.nodeConfVolumeClaimTemplate.spec.storageClassName | string | `"standard"` |  |
 | storageSpec.nodeConfVolumeClaimTemplate.spec.accessModes[0] | string | `"ReadWriteOnce"` |  |
 | storageSpec.nodeConfVolumeClaimTemplate.spec.resources.requests.storage | string | `"1Gi"` |  |
+| storageSpec.volumeClaimTemplate.spec.storageClassName | string | `"standard"` |  |
 | storageSpec.volumeClaimTemplate.spec.accessModes[0] | string | `"ReadWriteOnce"` |  |
 | storageSpec.volumeClaimTemplate.spec.resources.requests.storage | string | `"1Gi"` |  |

@@ -157,6 +157,7 @@ storageSpec:
   nodeConfVolume: true
   nodeConfVolumeClaimTemplate:
     spec:
+      # storageClassName: standard
       accessModes: ["ReadWriteOnce"]
       resources:
         requests:

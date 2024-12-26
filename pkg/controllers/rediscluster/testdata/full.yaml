@@ -34,6 +34,7 @@ spec:
   storage:
     volumeClaimTemplate:
       spec:
+        # storageClassName: standard
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
@@ -41,6 +42,7 @@ spec:
     nodeConfVolume: true
     nodeConfVolumeClaimTemplate:
       spec:
+        # storageClassName: standard
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:

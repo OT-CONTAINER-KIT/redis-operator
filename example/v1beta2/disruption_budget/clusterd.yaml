@@ -58,6 +58,7 @@ spec:
             storage: 1Gi
     nodeConfVolumeClaimTemplate:
       spec:
+        # storageClassName: standard
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
