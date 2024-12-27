@@ -1,0 +1,55 @@
+---
+# Redis Cluster Custom Resource Definition
+# This configuration file defines a Redis Cluster setup with anti-affinity rules
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisCluster
+metadata:
+  name: redis-cluster
+  annotations:
+    # Enable pod anti-affinity between leader and follower pods
+    # This ensures leader and follower pods are scheduled on different nodes
+    # for better high availability
+    # PS: you should enable operator webhook for this to work
+    redisclusters.redis.redis.opstreelabs.in/role-anti-affinity: "true"
+spec:
+  clusterSize: 3
+  clusterVersion: v7
+  persistenceEnabled: true
+  podSecurityContext:
+    runAsUser: 1000
+    fsGroup: 1000
+  kubernetesConfig:
+    image: quay.io/opstree/redis:v7.0.12
+    imagePullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 101m
+        memory: 128Mi
+      limits:
+        cpu: 101m
+        memory: 128Mi
+  redisExporter:
+    enabled: false
+    image: quay.io/opstree/redis-exporter:v1.44.0
+    imagePullPolicy: Always
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+  storage:
+    volumeClaimTemplate:
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+    nodeConfVolume: false
+    nodeConfVolumeClaimTemplate:
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
