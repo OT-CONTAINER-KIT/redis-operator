@@ -17,8 +17,7 @@ redisOperator:
   # When not specified, the operator will watch all namespaces. It can be set to a specific namespace or multiple namespaces separated by commas.
   watchNamespace: ""
   env: []
-  # if want to enable masterSalveAntiAffinity
-  # need to set webhook to true and label namespace ot-mutate-pod-webhook-injection=enabled
+  # If you want to enable masterSlaveAntiAffinity, you need to set webhook to true.
   webhook: false
   automountServiceAccountToken: true
 

@@ -26,9 +26,6 @@ webhooks:
     resources:
     - pods
   sideEffects: None
-  namespaceSelector:
-    matchLabels:
-      ot-mutate-pod-webhook-injection: enabled
   objectSelector:
     matchExpressions:
       - key: redis_setup_type
