@@ -18,6 +18,7 @@ import (
 type RedisClusterSTS struct {
 	RedisStateFulType             string
 	ExternalConfig                *string
+	Resources                     *corev1.ResourceRequirements
 	SecurityContext               *corev1.SecurityContext
 	Affinity                      *corev1.Affinity `json:"affinity,omitempty"`
 	TerminationGracePeriodSeconds *int64           `json:"terminationGracePeriodSeconds,omitempty" protobuf:"varint,4,opt,name=terminationGracePeriodSeconds"`
@@ -217,6 +218,7 @@ func generateRedisClusterContainerParams(ctx context.Context, cl kubernetes.Inte
 func CreateRedisLeader(ctx context.Context, cr *redisv1beta2.RedisCluster, cl kubernetes.Interface) error {
 	prop := RedisClusterSTS{
 		RedisStateFulType:             "leader",
+		Resources:                     cr.Spec.RedisLeader.Resources,
 		SecurityContext:               cr.Spec.RedisLeader.SecurityContext,
 		Affinity:                      cr.Spec.RedisLeader.Affinity,
 		TerminationGracePeriodSeconds: cr.Spec.RedisLeader.TerminationGracePeriodSeconds,
@@ -237,6 +239,7 @@ func CreateRedisLeader(ctx context.Context, cr *redisv1beta2.RedisCluster, cl ku
 func CreateRedisFollower(ctx context.Context, cr *redisv1beta2.RedisCluster, cl kubernetes.Interface) error {
 	prop := RedisClusterSTS{
 		RedisStateFulType:             "follower",
+		Resources:                     cr.Spec.RedisFollower.Resources,
 		SecurityContext:               cr.Spec.RedisFollower.SecurityContext,
 		Affinity:                      cr.Spec.RedisFollower.Affinity,
 		TerminationGracePeriodSeconds: cr.Spec.RedisFollower.TerminationGracePeriodSeconds,

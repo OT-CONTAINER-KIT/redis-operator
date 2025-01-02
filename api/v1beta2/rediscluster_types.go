@@ -61,15 +61,17 @@ func (cr *RedisClusterSpec) GetReplicaCounts(t string) int32 {
 // RedisLeader interface will have the redis leader configuration
 type RedisLeader struct {
 	common.RedisLeader            `json:",inline"`
-	SecurityContext               *corev1.SecurityContext `json:"securityContext,omitempty"`
-	TerminationGracePeriodSeconds *int64                  `json:"terminationGracePeriodSeconds,omitempty" protobuf:"varint,4,opt,name=terminationGracePeriodSeconds"`
+	SecurityContext               *corev1.SecurityContext      `json:"securityContext,omitempty"`
+	TerminationGracePeriodSeconds *int64                       `json:"terminationGracePeriodSeconds,omitempty" protobuf:"varint,4,opt,name=terminationGracePeriodSeconds"`
+	Resources                     *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
 // RedisFollower interface will have the redis follower configuration
 type RedisFollower struct {
 	common.RedisFollower          `json:",inline"`
-	SecurityContext               *corev1.SecurityContext `json:"securityContext,omitempty"`
-	TerminationGracePeriodSeconds *int64                  `json:"terminationGracePeriodSeconds,omitempty" protobuf:"varint,4,opt,name=terminationGracePeriodSeconds"`
+	SecurityContext               *corev1.SecurityContext      `json:"securityContext,omitempty"`
+	TerminationGracePeriodSeconds *int64                       `json:"terminationGracePeriodSeconds,omitempty" protobuf:"varint,4,opt,name=terminationGracePeriodSeconds"`
+	Resources                     *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
 // RedisClusterStatus defines the observed state of RedisCluster
