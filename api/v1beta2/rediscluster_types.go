@@ -31,13 +31,14 @@ type RedisClusterSpec struct {
 	// +kubebuilder:default:=6379
 	Port *int `json:"port,omitempty"`
 	// +kubebuilder:default:=v7
-	ClusterVersion     *string                      `json:"clusterVersion,omitempty"`
-	RedisLeader        RedisLeader                  `json:"redisLeader,omitempty"`
-	RedisFollower      RedisFollower                `json:"redisFollower,omitempty"`
-	RedisExporter      *RedisExporter               `json:"redisExporter,omitempty"`
-	Storage            *ClusterStorage              `json:"storage,omitempty"`
-	PodSecurityContext *corev1.PodSecurityContext   `json:"podSecurityContext,omitempty"`
-	PriorityClassName  string                       `json:"priorityClassName,omitempty"`
+	ClusterVersion     *string                    `json:"clusterVersion,omitempty"`
+	RedisLeader        RedisLeader                `json:"redisLeader,omitempty"`
+	RedisFollower      RedisFollower              `json:"redisFollower,omitempty"`
+	RedisExporter      *RedisExporter             `json:"redisExporter,omitempty"`
+	Storage            *ClusterStorage            `json:"storage,omitempty"`
+	PodSecurityContext *corev1.PodSecurityContext `json:"podSecurityContext,omitempty"`
+	PriorityClassName  string                     `json:"priorityClassName,omitempty"`
+	// Deprecated: use kubernetesConfig.Resources instead for both leader and follower
 	Resources          *corev1.ResourceRequirements `json:"resources,omitempty"`
 	TLS                *TLSConfig                   `json:"TLS,omitempty"`
 	ACL                *ACLConfig                   `json:"acl,omitempty"`
@@ -56,6 +57,24 @@ func (cr *RedisClusterSpec) GetReplicaCounts(t string) int32 {
 		replica = cr.RedisFollower.Replicas
 	}
 	return *replica
+}
+
+// GetRedisLeaderResources returns the resources for the redis leader, if not set, it will return the default resources
+func (cr *RedisClusterSpec) GetRedisLeaderResources() *corev1.ResourceRequirements {
+	if cr.RedisLeader.Resources != nil {
+		return cr.RedisLeader.Resources
+	}
+
+	return cr.KubernetesConfig.Resources
+}
+
+// GetRedisFollowerResources returns the resources for the redis follower, if not set, it will return the default resources
+func (cr *RedisClusterSpec) GetRedisFollowerResources() *corev1.ResourceRequirements {
+	if cr.RedisFollower.Resources != nil {
+		return cr.RedisFollower.Resources
+	}
+
+	return cr.KubernetesConfig.Resources
 }
 
 // RedisLeader interface will have the redis leader configuration
