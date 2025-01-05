@@ -88,6 +88,7 @@ helm delete <my-release> --namespace <namespace>
 | securityContext | object | `{}` |  |
 | serviceAccountName | string | `""` |  |
 | serviceMonitor.enabled | bool | `false` |  |
+| serviceMonitor.extraLabels | object | `{}` | extraLabels are added to the servicemonitor when enabled set to true |
 | serviceMonitor.interval | string | `"30s"` |  |
 | serviceMonitor.namespace | string | `"monitoring"` |  |
 | serviceMonitor.scrapeTimeout | string | `"10s"` |  |

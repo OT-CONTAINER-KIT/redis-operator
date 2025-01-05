@@ -51,6 +51,10 @@ serviceMonitor:
   interval: 30s
   scrapeTimeout: 10s
   namespace: monitoring
+  # -- extraLabels are added to the servicemonitor when enabled set to true
+  extraLabels: {}
+    # foo: bar
+    # team: devops
 
 redisExporter:
   enabled: false

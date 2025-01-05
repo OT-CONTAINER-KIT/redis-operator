@@ -11,6 +11,9 @@ metadata:
     app.kubernetes.io/instance: {{ .Values.redisReplication.name | default .Release.Name }}
     app.kubernetes.io/version: {{ .Chart.AppVersion }}
     app.kubernetes.io/component: middleware
+    {{- with .Values.serviceMonitor.extraLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
 spec:
   selector:
     matchLabels:
