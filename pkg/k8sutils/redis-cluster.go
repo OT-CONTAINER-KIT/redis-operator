@@ -109,14 +109,14 @@ func generateRedisClusterInitContainerParams(cr *redisv1beta2.RedisCluster) init
 }
 
 // generateRedisClusterContainerParams generates Redis container information
-func generateRedisClusterContainerParams(ctx context.Context, cl kubernetes.Interface, cr *redisv1beta2.RedisCluster, securityContext *corev1.SecurityContext, readinessProbeDef *corev1.Probe, livenessProbeDef *corev1.Probe, role string) containerParameters {
+func generateRedisClusterContainerParams(ctx context.Context, cl kubernetes.Interface, cr *redisv1beta2.RedisCluster, securityContext *corev1.SecurityContext, readinessProbeDef *corev1.Probe, livenessProbeDef *corev1.Probe, role string, resources *corev1.ResourceRequirements) containerParameters {
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{
 		Role:            "cluster",
 		Image:           cr.Spec.KubernetesConfig.Image,
 		ImagePullPolicy: cr.Spec.KubernetesConfig.ImagePullPolicy,
-		Resources:       cr.Spec.KubernetesConfig.Resources,
+		Resources:       resources,
 		SecurityContext: securityContext,
 		Port:            cr.Spec.Port,
 	}
@@ -218,7 +218,7 @@ func generateRedisClusterContainerParams(ctx context.Context, cl kubernetes.Inte
 func CreateRedisLeader(ctx context.Context, cr *redisv1beta2.RedisCluster, cl kubernetes.Interface) error {
 	prop := RedisClusterSTS{
 		RedisStateFulType:             "leader",
-		Resources:                     cr.Spec.RedisLeader.Resources,
+		Resources:                     cr.Spec.GetRedisLeaderResources(),
 		SecurityContext:               cr.Spec.RedisLeader.SecurityContext,
 		Affinity:                      cr.Spec.RedisLeader.Affinity,
 		TerminationGracePeriodSeconds: cr.Spec.RedisLeader.TerminationGracePeriodSeconds,
@@ -239,7 +239,7 @@ func CreateRedisLeader(ctx context.Context, cr *redisv1beta2.RedisCluster, cl ku
 func CreateRedisFollower(ctx context.Context, cr *redisv1beta2.RedisCluster, cl kubernetes.Interface) error {
 	prop := RedisClusterSTS{
 		RedisStateFulType:             "follower",
-		Resources:                     cr.Spec.RedisFollower.Resources,
+		Resources:                     cr.Spec.GetRedisFollowerResources(),
 		SecurityContext:               cr.Spec.RedisFollower.SecurityContext,
 		Affinity:                      cr.Spec.RedisFollower.Affinity,
 		TerminationGracePeriodSeconds: cr.Spec.RedisFollower.TerminationGracePeriodSeconds,
@@ -288,7 +288,7 @@ func (service RedisClusterSTS) CreateRedisClusterSetup(ctx context.Context, cr *
 		generateRedisClusterParams(ctx, cr, service.getReplicaCount(cr), service.ExternalConfig, service),
 		redisClusterAsOwner(cr),
 		generateRedisClusterInitContainerParams(cr),
-		generateRedisClusterContainerParams(ctx, cl, cr, service.SecurityContext, service.ReadinessProbe, service.LivenessProbe, service.RedisStateFulType),
+		generateRedisClusterContainerParams(ctx, cl, cr, service.SecurityContext, service.ReadinessProbe, service.LivenessProbe, service.RedisStateFulType, service.Resources),
 		cr.Spec.Sidecars,
 	)
 	if err != nil {

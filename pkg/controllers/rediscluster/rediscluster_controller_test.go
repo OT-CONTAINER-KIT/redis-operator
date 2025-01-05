@@ -42,7 +42,7 @@ var _ = Describe("Redis Cluster Controller", func() {
 		})
 
 		It("should create all required resources", func() {
-			By("verifying the Redis Cluster Leader StatefulSet is created")
+			By("verifying the Redis Cluster StatefulSet is created")
 			leaderSts := &appsv1.StatefulSet{}
 			Eventually(func() error {
 				return k8sClient.Get(context.Background(), types.NamespacedName{
@@ -80,6 +80,7 @@ var _ = Describe("Redis Cluster Controller", func() {
 			Expect(leaderSts.Spec.Template.Spec.SecurityContext).To(Equal(redisCluster.Spec.PodSecurityContext))
 			Expect(leaderSts.Spec.Template.Spec.Containers[0].Image).To(Equal(redisCluster.Spec.KubernetesConfig.Image))
 			Expect(leaderSts.Spec.Template.Spec.Containers[0].ImagePullPolicy).To(Equal(redisCluster.Spec.KubernetesConfig.ImagePullPolicy))
+			Expect(leaderSts.Spec.Template.Spec.Containers[0].Resources).To(Equal(*redisCluster.Spec.GetRedisLeaderResources()))
 
 			By("verifying Service specifications")
 			expectedLabels := map[string]string{
@@ -104,10 +105,10 @@ var _ = Describe("Redis Cluster Controller", func() {
 			By("verifying Redis Cluster configuration")
 			Expect(leaderSts.Spec.ServiceName).To(Equal(redisCluster.Name + "-leader-headless"))
 
-			By("verifying resource requirements")
+			By("verifying resource requirements") // when set resources in redisLeader, it should be used instead of kubernetesConfig.resources
 			container := leaderSts.Spec.Template.Spec.Containers[0]
-			Expect(container.Resources.Limits).To(Equal(redisCluster.Spec.KubernetesConfig.Resources.Limits))
-			Expect(container.Resources.Requests).To(Equal(redisCluster.Spec.KubernetesConfig.Resources.Requests))
+			Expect(container.Resources.Limits).To(Equal(redisCluster.Spec.RedisLeader.Resources.Limits))
+			Expect(container.Resources.Requests).To(Equal(redisCluster.Spec.RedisLeader.Resources.Requests))
 
 			By("verifying Redis Exporter configuration")
 			var exporterContainer *corev1.Container

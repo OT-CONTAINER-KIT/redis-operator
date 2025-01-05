@@ -125,11 +125,12 @@ codegen: generate manifests ## Rebuild all generated code
 .PHONY: verify-codegen
 verify-codegen: codegen
 	@echo Checking codegen is up to date... >&2
-	@git --no-pager diff -- .
-	@echo 'If this test fails, it is because the git diff is non-empty after running "make codegen".' >&2
-	@echo 'To correct this, locally run "make codegen", commit the changes, and re-run tests.' >&2
-	@git diff --quiet --exit-code -- .
-
+	@if [ -n "$$(git status --porcelain)" ]; then \
+		echo "There are uncommitted changes or untracked files after running codegen:" >&2; \
+		git status --porcelain >&2; \
+		echo "To correct this, locally run 'make codegen', commit the changes, and re-run tests." >&2; \
+		exit 1; \
+	fi
 
 ########
 # TEST #

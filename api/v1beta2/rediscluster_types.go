@@ -58,6 +58,24 @@ func (cr *RedisClusterSpec) GetReplicaCounts(t string) int32 {
 	return *replica
 }
 
+// GetRedisLeaderResources returns the resources for the redis leader, if not set, it will return the default resources
+func (cr *RedisClusterSpec) GetRedisLeaderResources() *corev1.ResourceRequirements {
+	if cr.RedisLeader.Resources != nil {
+		return cr.RedisLeader.Resources
+	}
+
+	return cr.KubernetesConfig.Resources
+}
+
+// GetRedisFollowerResources returns the resources for the redis follower, if not set, it will return the default resources
+func (cr *RedisClusterSpec) GetRedisFollowerResources() *corev1.ResourceRequirements {
+	if cr.RedisFollower.Resources != nil {
+		return cr.RedisFollower.Resources
+	}
+
+	return cr.KubernetesConfig.Resources
+}
+
 // RedisLeader interface will have the redis leader configuration
 type RedisLeader struct {
 	common.RedisLeader            `json:",inline"`
