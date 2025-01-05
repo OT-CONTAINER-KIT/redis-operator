@@ -10851,8 +10851,7 @@ spec:
                     type: array
                 type: object
               resources:
-                description: 'Deprecated: use kubernetesConfig.Resources instead for
-                  both leader and follower'
+                description: ResourceRequirements describes the compute resource requirements.
                 properties:
                   claims:
                     description: |-

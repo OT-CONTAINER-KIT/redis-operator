@@ -31,14 +31,13 @@ type RedisClusterSpec struct {
 	// +kubebuilder:default:=6379
 	Port *int `json:"port,omitempty"`
 	// +kubebuilder:default:=v7
-	ClusterVersion     *string                    `json:"clusterVersion,omitempty"`
-	RedisLeader        RedisLeader                `json:"redisLeader,omitempty"`
-	RedisFollower      RedisFollower              `json:"redisFollower,omitempty"`
-	RedisExporter      *RedisExporter             `json:"redisExporter,omitempty"`
-	Storage            *ClusterStorage            `json:"storage,omitempty"`
-	PodSecurityContext *corev1.PodSecurityContext `json:"podSecurityContext,omitempty"`
-	PriorityClassName  string                     `json:"priorityClassName,omitempty"`
-	// Deprecated: use kubernetesConfig.Resources instead for both leader and follower
+	ClusterVersion     *string                      `json:"clusterVersion,omitempty"`
+	RedisLeader        RedisLeader                  `json:"redisLeader,omitempty"`
+	RedisFollower      RedisFollower                `json:"redisFollower,omitempty"`
+	RedisExporter      *RedisExporter               `json:"redisExporter,omitempty"`
+	Storage            *ClusterStorage              `json:"storage,omitempty"`
+	PodSecurityContext *corev1.PodSecurityContext   `json:"podSecurityContext,omitempty"`
+	PriorityClassName  string                       `json:"priorityClassName,omitempty"`
 	Resources          *corev1.ResourceRequirements `json:"resources,omitempty"`
 	TLS                *TLSConfig                   `json:"TLS,omitempty"`
 	ACL                *ACLConfig                   `json:"acl,omitempty"`
