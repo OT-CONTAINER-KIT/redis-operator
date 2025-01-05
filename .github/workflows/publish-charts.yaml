@@ -74,6 +74,8 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - test-charts
+    permissions:
+      packages: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -112,6 +114,25 @@ jobs:
               helm dependency update ./charts/$dir/
             fi
             helm package charts/$dir -d .cr-release-packages
+          done
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3.3.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to OCI registry (ghcr.io)
+        shell: bash
+        working-directory: redis-operator
+        run: |
+          shopt -s nullglob
+          for pkg in .cr-release-packages/*; do
+            if [ -z "${pkg:-}" ]; then
+              break
+            fi
+            helm push "${pkg}" "oci://ghcr.io/ot-container-kit/charts"
           done
 
       - name: Install chart-releaser
