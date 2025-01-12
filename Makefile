@@ -1,5 +1,5 @@
 # Current Operator version
-VERSION ?= 0.18.1
+VERSION ?= 0.19.0
 # Default bundle image tag
 BUNDLE_IMG ?= controller-bundle:$(VERSION)
 # Kubernetes version to use for envtest

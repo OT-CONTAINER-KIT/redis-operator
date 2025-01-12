@@ -69,6 +69,7 @@ The following table shows the compatibility between the Operator Version, Redis 
 
 | Operator Version | Redis Image | Sentinel Image | Exporter Image |
 | ---------------- | ----------- | -------------- | -------------- |
+| v0.19.0          | > v7.0.12, >=v6.2.14     | > v7.0.12, >= v6.2.14        | v1.44.0        |
 | v0.18.1          | v7.0.12     | v7.0.12        | v1.44.0        |
 | v0.18.0          | v7.0.12     | v7.0.12        | v1.44.0        |
 | v0.17.0          | v7.0.12     | v7.0.12        | v1.44.0        |
