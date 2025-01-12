@@ -1,0 +1,44 @@
+{{ .Notice }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: data-assert
+data:
+  main.go: |
+{{ .Main }}
+  go.mod: |
+{{ .GoMod }}
+  go.sum: |
+{{ .GoSum }}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: data-assert
+spec:
+  containers:
+    - name: data-assert
+      image: docker.io/library/golang:1.23.4
+      command: ["/bin/sh", "-c"]
+      args:
+        - |
+          cp /configmap/* /go/src/data-assert/ && 
+          sleep 1000000000
+      resources:
+        limits:
+          cpu: "500m"
+          memory: "512Mi"
+        requests:
+          cpu: "100m"
+          memory: "128Mi"
+      volumeMounts:
+        - name: data-assert
+          mountPath: /go/src/data-assert
+        - name: configmap-data
+          mountPath: /configmap
+  volumes:
+    - name: data-assert
+      emptyDir: {}
+    - name: configmap-data
+      configMap:
+        name: data-assert
