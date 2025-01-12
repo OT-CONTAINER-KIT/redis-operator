@@ -40,3 +40,12 @@ To run all default tests ( \_config/chainsaw-configuration.yaml is the default c
 ```bash
 chainsaw test tests/e2e-chainsaw/v1beta2 --config tests/_config/chainsaw-configuration.yaml
 ```
+
+## **Data Assert**
+
+We assert the data in the redis cluster && redis replication test cases.
+
+The data assert have two actions:
+
+1. **Put data to redis**
+2. **Check data in redis**
