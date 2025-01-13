@@ -81,7 +81,7 @@ func (r *RedisSentinelReconciler) reconcileFinalizer(ctx context.Context, instan
 }
 
 func (r *RedisSentinelReconciler) reconcileAnnotation(ctx context.Context, instance *redisv1beta2.RedisSentinel) (ctrl.Result, error) {
-	if _, found := instance.ObjectMeta.GetAnnotations()["redissentinel.opstreelabs.in/skip-reconcile"]; found {
+	if value, found := instance.ObjectMeta.GetAnnotations()["redissentinel.opstreelabs.in/skip-reconcile"]; found && value == "true" {
 		log.FromContext(ctx).Info("found skip reconcile annotation", "namespace", instance.Namespace, "name", instance.Name)
 		return intctrlutil.RequeueAfter(ctx, time.Second*10, "found skip reconcile annotation")
 	}
