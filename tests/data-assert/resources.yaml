@@ -108,7 +108,7 @@ data:
     			return
     		}
     	}
-    	fmt.Printf("successfully generated %d keys\n", totalKey)
+    	fmt.Printf("[OK] successfully generated %d keys\n", totalKey)
     }
     
     // DataError represents data consistency check errors
@@ -131,7 +131,7 @@ data:
     		fmt.Printf("Error occurred during check: %v\n", err)
     		os.Exit(1)
     	}
-    	fmt.Printf("Data consistency check passed! All %d keys exist\n", totalKey)
+    	fmt.Printf("[OK] Data consistency check passed! All %d keys exist\n", totalKey)
     }
     
     func checkRedisData() error {
@@ -267,7 +267,7 @@ metadata:
 spec:
   containers:
     - name: data-assert
-      image: docker.m.daocloud.io/library/golang:1.23.4
+      image: docker.io/library/golang:1.23.4
       command: ["/bin/sh", "-c"]
       args:
         - |
