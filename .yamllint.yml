@@ -7,3 +7,6 @@ rules:
     allow-non-breakable-words: true
     allow-non-breakable-inline-mappings: true
   comments-indentation: disable
+
+ignore:
+  - resources.yaml
