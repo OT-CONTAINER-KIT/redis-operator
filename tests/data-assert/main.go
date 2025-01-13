@@ -67,16 +67,22 @@ func genRedisDataCmd(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
 	var rdb redis.UniversalClient
 
+	// Split host string by comma
+	hosts := strings.Split(host, ",")
+	for i := range hosts {
+		hosts[i] = strings.TrimSpace(hosts[i])
+	}
+
 	switch mode {
 	case "cluster":
 		rdb = redis.NewClusterClient(&redis.ClusterOptions{
-			Addrs:    []string{host},
+			Addrs:    hosts,
 			Password: pass,
 		})
 	case "sentinel":
 		rdb = redis.NewFailoverClient(&redis.FailoverOptions{
 			MasterName:    "mymaster",
-			SentinelAddrs: []string{host},
+			SentinelAddrs: hosts,
 			Password:      pass,
 		})
 	default:
@@ -95,7 +101,7 @@ func genRedisDataCmd(cmd *cobra.Command, args []string) {
 			return
 		}
 	}
-	fmt.Printf("successfully generated %d keys\n", totalKey)
+	fmt.Printf("[OK] successfully generated %d keys\n", totalKey)
 }
 
 // DataError represents data consistency check errors
@@ -118,23 +124,29 @@ func chkRedisDataCmd(cmd *cobra.Command, args []string) {
 		fmt.Printf("Error occurred during check: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Printf("Data consistency check passed! All %d keys exist\n", totalKey)
+	fmt.Printf("[OK] Data consistency check passed! All %d keys exist\n", totalKey)
 }
 
 func checkRedisData() error {
 	ctx := context.Background()
 	var rdb redis.UniversalClient
 
+	// Split host string by comma
+	hosts := strings.Split(host, ",")
+	for i := range hosts {
+		hosts[i] = strings.TrimSpace(hosts[i])
+	}
+
 	switch mode {
 	case "cluster":
 		rdb = redis.NewClusterClient(&redis.ClusterOptions{
-			Addrs:    []string{host},
+			Addrs:    hosts,
 			Password: pass,
 		})
 	case "sentinel":
 		rdb = redis.NewFailoverClient(&redis.FailoverOptions{
 			MasterName:    "mymaster",
-			SentinelAddrs: []string{host},
+			SentinelAddrs: hosts,
 			Password:      pass,
 		})
 	default:
@@ -198,4 +210,5 @@ func genResourceYamlCmd(cmd *cobra.Command, args []string) {
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println("✅resources.yaml generated")
 }

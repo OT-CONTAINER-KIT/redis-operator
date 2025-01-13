@@ -74,16 +74,22 @@ data:
     	ctx := context.Background()
     	var rdb redis.UniversalClient
     
+    	// Split host string by comma
+    	hosts := strings.Split(host, ",")
+    	for i := range hosts {
+    		hosts[i] = strings.TrimSpace(hosts[i])
+    	}
+    
     	switch mode {
     	case "cluster":
     		rdb = redis.NewClusterClient(&redis.ClusterOptions{
-    			Addrs:    []string{host},
+    			Addrs:    hosts,
     			Password: pass,
     		})
     	case "sentinel":
     		rdb = redis.NewFailoverClient(&redis.FailoverOptions{
     			MasterName:    "mymaster",
-    			SentinelAddrs: []string{host},
+    			SentinelAddrs: hosts,
     			Password:      pass,
     		})
     	default:
@@ -132,16 +138,22 @@ data:
     	ctx := context.Background()
     	var rdb redis.UniversalClient
     
+    	// Split host string by comma
+    	hosts := strings.Split(host, ",")
+    	for i := range hosts {
+    		hosts[i] = strings.TrimSpace(hosts[i])
+    	}
+    
     	switch mode {
     	case "cluster":
     		rdb = redis.NewClusterClient(&redis.ClusterOptions{
-    			Addrs:    []string{host},
+    			Addrs:    hosts,
     			Password: pass,
     		})
     	case "sentinel":
     		rdb = redis.NewFailoverClient(&redis.FailoverOptions{
     			MasterName:    "mymaster",
-    			SentinelAddrs: []string{host},
+    			SentinelAddrs: hosts,
     			Password:      pass,
     		})
     	default:
@@ -205,6 +217,7 @@ data:
     	if err != nil {
     		panic(err)
     	}
+    	fmt.Println("✅resources.yaml generated")
     }
     
   go.mod: |
@@ -254,7 +267,7 @@ metadata:
 spec:
   containers:
     - name: data-assert
-      image: docker.io/library/golang:1.23.4
+      image: docker.m.daocloud.io/library/golang:1.23.4
       command: ["/bin/sh", "-c"]
       args:
         - |
