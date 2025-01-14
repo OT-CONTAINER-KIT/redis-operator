@@ -30,7 +30,7 @@ spec:
             timeout: 30s
             content: >
               kubectl exec --namespace ${NAMESPACE} --container data-assert data-assert --
-              bash -c  "cd /go/src/data-assert && go run main.go gen-redis-data --host redis-cluster-v1beta2-leader.${NAMESPACE}.svc.cluster.local:6379 --mode cluster"
+              bash -c  "cd /go/src/data-assert && go run main.go gen-redis-data --host redis-cluster-v1beta2-leader.${NAMESPACE}.svc.cluster.local:6379 --mode cluster --pass Opstree1234"
             check:
               (contains($stdout, 'OK')): true
 
@@ -65,7 +65,7 @@ spec:
             timeout: 30s
             content: >
               kubectl exec --namespace ${NAMESPACE} --container data-assert data-assert --
-              bash -c "cd /go/src/data-assert && go run main.go chk-redis-data --host redis-cluster-v1beta2-leader.${NAMESPACE}.svc.cluster.local:6379 --mode cluster"
+              bash -c "cd /go/src/data-assert && go run main.go chk-redis-data --host redis-cluster-v1beta2-leader.${NAMESPACE}.svc.cluster.local:6379 --mode cluster --pass Opstree1234"
             check:
               (contains($stdout, 'OK')): true
 
