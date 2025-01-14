@@ -12,7 +12,7 @@ spec:
         - apply:
             file: secret.yaml
         - apply:
-            file: ../../../data-assert/resources.yaml
+            file: ../../../../data-assert/resources.yaml
         - assert:
             file: ready-cluster.yaml
         - assert:
