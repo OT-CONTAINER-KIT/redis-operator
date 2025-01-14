@@ -15,6 +15,18 @@ spec:
     - try:
         - apply:
             file: ha.yaml
+        - apply:
+            file: ../../../../data-assert/resources.yaml
+
+    - name: Put data
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container data-assert data-assert --
+              bash -c  "cd /go/src/data-assert && go run main.go gen-redis-data --host redis-sentinel-sentinel.${NAMESPACE}.svc.cluster.local:26379 --mode sentinel"
+            check:
+              (contains($stdout, 'OK')): true
 
     - name: Test Master IP consistency
       try:
@@ -40,6 +52,16 @@ spec:
               kubectl -n ${NAMESPACE} delete pod redis-replication-0
         - sleep:
             duration: 120s
+
+    - name: Assert data
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container data-assert data-assert --
+              bash -c "cd /go/src/data-assert && go run main.go chk-redis-data --host redis-sentinel-sentinel.${NAMESPACE}.svc.cluster.local:26379 --mode sentinel"
+            check:
+              (contains($stdout, 'OK')): true
 
     - name: Test Master IP consistency
       try:
