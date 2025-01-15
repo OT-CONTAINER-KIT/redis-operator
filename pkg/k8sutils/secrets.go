@@ -21,7 +21,7 @@ func getRedisPassword(ctx context.Context, client kubernetes.Interface, namespac
 	}
 	for key, value := range secretName.Data {
 		if key == secretKey {
-			logf.FromContext(ctx).Info("Secret key found in the secret", "secretKey", secretKey)
+			logf.FromContext(ctx).V(1).Info("Secret key found in the secret", "secretKey", secretKey)
 			return strings.TrimSpace(string(value)), nil
 		}
 	}
