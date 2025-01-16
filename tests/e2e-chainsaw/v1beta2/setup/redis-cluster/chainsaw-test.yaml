@@ -11,6 +11,8 @@ spec:
             file: cluster.yaml
         - apply:
             file: secret.yaml
+        - apply:
+            file: ../../../../data-assert/resources.yaml
         - assert:
             file: ready-cluster.yaml
         - assert:
@@ -22,22 +24,15 @@ spec:
         - assert:
             file: secret.yaml
 
-    - name: Check Redis GET/SET
+    - name: Put data
       try:
         - script:
             timeout: 30s
             content: >
-              kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-0 --
-              redis-cli -c -p 6379 -a Opstree1234 set foo-0 bar-0
+              kubectl exec --namespace ${NAMESPACE} --container data-assert data-assert --
+              bash -c  "cd /go/src/data-assert && go run main.go gen-redis-data --host redis-cluster-v1beta2-leader.${NAMESPACE}.svc.cluster.local:6379 --mode cluster --password Opstree1234"
             check:
               (contains($stdout, 'OK')): true
-        - script:
-            timeout: 30s
-            content: >
-              kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-0 --
-              redis-cli -c -p 6379 -a Opstree1234 get foo-0
-            check:
-              (contains($stdout, 'bar-0')): true
 
     - name: Scale Out Redis Cluster
       try:
@@ -64,12 +59,32 @@ spec:
         - assert:
             file: cluster-scale-out-status-03.yaml
 
+    - name: Assert data
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container data-assert data-assert --
+              bash -c "cd /go/src/data-assert && go run main.go chk-redis-data --host redis-cluster-v1beta2-leader.${NAMESPACE}.svc.cluster.local:6379 --mode cluster --password Opstree1234"
+            check:
+              (contains($stdout, 'OK')): true
+
     - name: Scale In Redis Cluster
       try:
         - apply:
             file: cluster.yaml
         - assert:
             file: ready-cluster.yaml
+
+    - name: Assert data
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container data-assert data-assert --
+              bash -c "cd /go/src/data-assert && go run main.go chk-redis-data --host redis-cluster-v1beta2-leader.${NAMESPACE}.svc.cluster.local:6379 --mode cluster --password Opstree1234"
+            check:
+              (contains($stdout, 'OK')): true
 
     - name: redis-cluster-uninstall
       try:

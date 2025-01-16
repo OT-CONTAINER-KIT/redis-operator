@@ -81,7 +81,7 @@ func genRedisDataCmd(cmd *cobra.Command, args []string) {
 		})
 	case "sentinel":
 		rdb = redis.NewFailoverClient(&redis.FailoverOptions{
-			MasterName:    "mymaster",
+			MasterName:    "myMaster",
 			SentinelAddrs: hosts,
 			Password:      pass,
 		})
@@ -145,7 +145,7 @@ func checkRedisData() error {
 		})
 	case "sentinel":
 		rdb = redis.NewFailoverClient(&redis.FailoverOptions{
-			MasterName:    "mymaster",
+			MasterName:    "myMaster",
 			SentinelAddrs: hosts,
 			Password:      pass,
 		})

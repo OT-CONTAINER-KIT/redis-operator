@@ -15,6 +15,8 @@ spec:
     - try:
         - apply:
             file: ha.yaml
+        - apply:
+            file: ../../../../data-assert/resources.yaml
 
     - name: Test Master IP consistency
       try:
@@ -28,6 +30,16 @@ spec:
               export MASTER_IP_FROM_SENTINEL=$(kubectl -n ${NAMESPACE} exec redis-sentinel-sentinel-0 -- redis-cli -p 26379 sentinel get-master-addr-by-name myMaster | head -n 1);
               export MASTER_IP_FROM_LABEL=$(kubectl -n ${NAMESPACE} get pod -l app=redis-replication,redis-role=master,redis_setup_type=replication -o jsonpath='{.items[0].status.podIP}');
               if [ "$MASTER_IP_FROM_SENTINEL" = "$MASTER_IP_FROM_LABEL" ] && [ "$MASTER_IP_FROM_SENTINEL" = "$MASTER_IP_FROM_STATUS" ]; then echo "OK"; else echo "FAIL"; fi
+            check:
+              (contains($stdout, 'OK')): true
+
+    - name: Put data
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container data-assert data-assert --
+              bash -c  "cd /go/src/data-assert && go run main.go gen-redis-data --host redis-sentinel-sentinel.${NAMESPACE}.svc.cluster.local:26379 --mode sentinel"
             check:
               (contains($stdout, 'OK')): true
 
@@ -51,5 +63,15 @@ spec:
               export MASTER_IP_FROM_SENTINEL=$(kubectl -n ${NAMESPACE} exec redis-sentinel-sentinel-0 -- redis-cli -p 26379 sentinel get-master-addr-by-name myMaster | head -n 1);
               export MASTER_IP_FROM_LABEL=$(kubectl -n ${NAMESPACE} get pod -l app=redis-replication,redis-role=master,redis_setup_type=replication -o jsonpath='{.items[0].status.podIP}');
               if [ "$MASTER_IP_FROM_SENTINEL" = "$MASTER_IP_FROM_LABEL" ] && [ "$MASTER_IP_FROM_SENTINEL" = "$MASTER_IP_FROM_STATUS" ]; then echo "OK"; else echo "FAIL"; fi
+            check:
+              (contains($stdout, 'OK')): true
+
+    - name: Assert data
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container data-assert data-assert --
+              bash -c "cd /go/src/data-assert && go run main.go chk-redis-data --host redis-sentinel-sentinel.${NAMESPACE}.svc.cluster.local:26379 --mode sentinel"
             check:
               (contains($stdout, 'OK')): true
