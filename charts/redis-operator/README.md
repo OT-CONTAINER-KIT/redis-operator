@@ -16,7 +16,7 @@ This Helm chart deploys the redis-operator into your Kubernetes cluster. The ope
 
 - Helm v3+
 - Kubernetes v1.16+
-- If you intend to use the cert-manager, ensure that the cert-manager CRDs are installed before deploying the redis-operator.
+- If you plan to use cert-manager integration (certmanager.enabled=true), cert-manager must be pre-installed in your cluster
 
 ## Source Code
 
@@ -30,13 +30,10 @@ This Helm chart deploys the redis-operator into your Kubernetes cluster. The ope
 helm repo add ot-helm https://ot-container-kit.github.io/helm-charts
 ```
 
-### 2. Install Cert-Manager CRDs (if using cert-manager)
+### 2. Install Cert-Manager (Optional)
 
-If you plan to use cert-manager with the redis-operator, you need to install the cert-manager CRDs before deploying the operator.
-
-```bash
-kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.12.4/cert-manager.crds.yaml
-```
+If you plan to use cert-manager with the redis-operator, you need to install cert-manager before deploying the operator.
+You can follow the [official cert-manager installation guide](https://cert-manager.io/docs/installation/).
 
 ### 3. Install Redis Operator
 
@@ -91,6 +88,7 @@ kubectl create secret tls <webhook-server-cert> --key tls.key --cert tls.crt -n 
 | affinity | object | `{}` |  |
 | certificate.name | string | `"serving-cert"` |  |
 | certificate.secretName | string | `"webhook-server-cert"` |  |
+| certmanager.apiVersion | string | `"cert-manager.io/v1"` |  |
 | certmanager.enabled | bool | `false` |  |
 | issuer.email | string | `"shubham.gupta@opstree.com"` |  |
 | issuer.name | string | `"redis-operator-issuer"` |  |

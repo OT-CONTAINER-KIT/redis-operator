@@ -32,3 +32,12 @@ app.kubernetes.io/part-of: {{ .Release.Name }}
 {{- define "redisOperator.selectorLabels" -}}
 name: {{ .Values.redisOperator.name }}
 {{- end }}
+
+{{/*
+Validate webhook and cert-manager configuration
+*/}}
+{{- define "redis-operator.validateConfig" -}}
+{{- if and (not .Values.redisOperator.webhook) .Values.certmanager.enabled -}}
+{{- fail "certmanager.enabled should not be true when webhook is disabled" -}}
+{{- end -}}
+{{- end -}}
