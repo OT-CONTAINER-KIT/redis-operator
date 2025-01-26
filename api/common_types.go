@@ -52,6 +52,8 @@ type ServiceConfig struct {
 	Headless           *Service          `json:"headless,omitempty"`
 }
 
+// Service is the struct to define the service type and its annotations
+// +k8s:deepcopy-gen=true
 type Service struct {
 	// +kubebuilder:validation:Enum=LoadBalancer;NodePort;ClusterIP
 	// +kubebuilder:default:=ClusterIP
