@@ -311,10 +311,24 @@ func (service RedisClusterService) CreateRedisClusterService(ctx context.Context
 	} else {
 		epp = disableMetrics
 	}
-	annotations := generateServiceAnots(cr.ObjectMeta, nil, epp)
-	objectMetaInfo := generateObjectMetaInformation(serviceName, cr.Namespace, labels, annotations)
-	headlessObjectMetaInfo := generateObjectMetaInformation(serviceName+"-headless", cr.Namespace, labels, annotations)
-	additionalObjectMetaInfo := generateObjectMetaInformation(serviceName+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.GetServiceAnnotations(), epp))
+	objectMetaInfo := generateObjectMetaInformation(
+		serviceName,
+		cr.Namespace,
+		labels,
+		generateServiceAnots(cr.ObjectMeta, nil, epp),
+	)
+	headlessObjectMetaInfo := generateObjectMetaInformation(
+		serviceName+"-headless",
+		cr.Namespace,
+		labels,
+		generateServiceAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.GetHeadlessServiceAnnotations(), epp),
+	)
+	additionalObjectMetaInfo := generateObjectMetaInformation(
+		serviceName+"-additional",
+		cr.Namespace,
+		labels,
+		generateServiceAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.GetServiceAnnotations(), epp),
+	)
 	err := CreateOrUpdateService(ctx, cr.Namespace, headlessObjectMetaInfo, redisClusterAsOwner(cr), disableMetrics, true, "ClusterIP", *cr.Spec.Port, cl)
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Cannot create headless service for Redis", "Setup.Type", service.RedisServiceRole)

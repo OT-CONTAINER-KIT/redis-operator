@@ -1105,6 +1105,22 @@ spec:
                         additionalProperties:
                           type: string
                         type: object
+                      headless:
+                        description: Service is the struct to define the service type
+                          and its annotations
+                        properties:
+                          additionalAnnotations:
+                            additionalProperties:
+                              type: string
+                            type: object
+                          type:
+                            default: ClusterIP
+                            enum:
+                            - LoadBalancer
+                            - NodePort
+                            - ClusterIP
+                            type: string
+                        type: object
                       serviceType:
                         enum:
                         - LoadBalancer
@@ -6036,6 +6052,22 @@ spec:
                       annotations:
                         additionalProperties:
                           type: string
+                        type: object
+                      headless:
+                        description: Service is the struct to define the service type
+                          and its annotations
+                        properties:
+                          additionalAnnotations:
+                            additionalProperties:
+                              type: string
+                            type: object
+                          type:
+                            default: ClusterIP
+                            enum:
+                            - LoadBalancer
+                            - NodePort
+                            - ClusterIP
+                            type: string
                         type: object
                       serviceType:
                         enum:
