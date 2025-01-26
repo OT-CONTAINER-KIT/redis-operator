@@ -240,6 +240,20 @@ spec:
                         additionalProperties:
                           type: string
                         type: object
+                      headless:
+                        properties:
+                          additionalAnnotations:
+                            additionalProperties:
+                              type: string
+                            type: object
+                          type:
+                            default: ClusterIP
+                            enum:
+                            - LoadBalancer
+                            - NodePort
+                            - ClusterIP
+                            type: string
+                        type: object
                       serviceType:
                         enum:
                         - LoadBalancer
@@ -6909,6 +6923,20 @@ spec:
                       annotations:
                         additionalProperties:
                           type: string
+                        type: object
+                      headless:
+                        properties:
+                          additionalAnnotations:
+                            additionalProperties:
+                              type: string
+                            type: object
+                          type:
+                            default: ClusterIP
+                            enum:
+                            - LoadBalancer
+                            - NodePort
+                            - ClusterIP
+                            type: string
                         type: object
                       serviceType:
                         enum:
