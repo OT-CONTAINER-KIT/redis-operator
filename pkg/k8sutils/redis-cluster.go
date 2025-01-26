@@ -244,6 +244,7 @@ func CreateRedisFollower(ctx context.Context, cr *redisv1beta2.RedisCluster, cl 
 		Affinity:                      cr.Spec.RedisFollower.Affinity,
 		TerminationGracePeriodSeconds: cr.Spec.RedisFollower.TerminationGracePeriodSeconds,
 		NodeSelector:                  cr.Spec.RedisFollower.NodeSelector,
+		TopologySpreadConstraints:     cr.Spec.RedisFollower.TopologySpreadConstraints,
 		Tolerations:                   cr.Spec.RedisFollower.Tolerations,
 		ReadinessProbe:                cr.Spec.RedisFollower.ReadinessProbe,
 		LivenessProbe:                 cr.Spec.RedisFollower.LivenessProbe,
