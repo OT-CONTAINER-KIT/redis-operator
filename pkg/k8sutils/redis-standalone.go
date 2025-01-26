@@ -22,10 +22,24 @@ func CreateStandaloneService(ctx context.Context, cr *redisv1beta2.Redis, cl kub
 	} else {
 		epp = disableMetrics
 	}
-	annotations := generateServiceAnots(cr.ObjectMeta, nil, epp)
-	objectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name, cr.Namespace, labels, annotations)
-	headlessObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-headless", cr.Namespace, labels, annotations)
-	additionalObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.GetServiceAnnotations(), epp))
+	objectMetaInfo := generateObjectMetaInformation(
+		cr.ObjectMeta.Name,
+		cr.Namespace,
+		labels,
+		generateServiceAnots(cr.ObjectMeta, nil, epp),
+	)
+	headlessObjectMetaInfo := generateObjectMetaInformation(
+		cr.ObjectMeta.Name+"-headless",
+		cr.Namespace,
+		labels,
+		generateServiceAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.GetHeadlessServiceAnnotations(), epp),
+	)
+	additionalObjectMetaInfo := generateObjectMetaInformation(
+		cr.ObjectMeta.Name+"-additional",
+		cr.Namespace,
+		labels,
+		generateServiceAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.GetServiceAnnotations(), epp),
+	)
 	err := CreateOrUpdateService(ctx, cr.Namespace, headlessObjectMetaInfo, redisAsOwner(cr), disableMetrics, true, "ClusterIP", redisPort, cl)
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Cannot create standalone headless service for Redis")

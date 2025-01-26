@@ -75,6 +75,7 @@ metadata:
     prometheus.io/scrape: 'true'
     redis.opstreelabs.in: 'true'
     redis.opstreelabs.instance: redis-cluster-v1beta2
+    test: test
   labels:
     app: redis-cluster-v1beta2-leader
     redis_setup_type: cluster
@@ -176,6 +177,7 @@ metadata:
     prometheus.io/scrape: 'true'
     redis.opstreelabs.in: 'true'
     redis.opstreelabs.instance: redis-cluster-v1beta2
+    test: test
   labels:
     app: redis-cluster-v1beta2-follower
     redis_setup_type: cluster

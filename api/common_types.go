@@ -33,12 +33,32 @@ func (in *KubernetesConfig) GetServiceAnnotations() map[string]string {
 	return in.Service.ServiceAnnotations
 }
 
+func (in *KubernetesConfig) GetHeadlessServiceAnnotations() map[string]string {
+	if in.Service == nil {
+		return nil
+	}
+	if in.Service.Headless == nil {
+		return nil
+	}
+	return in.Service.Headless.AdditionalAnnotations
+}
+
 // ServiceConfig define the type of service to be created and its annotations
 // +k8s:deepcopy-gen=true
 type ServiceConfig struct {
 	// +kubebuilder:validation:Enum=LoadBalancer;NodePort;ClusterIP
 	ServiceType        string            `json:"serviceType,omitempty"`
 	ServiceAnnotations map[string]string `json:"annotations,omitempty"`
+	Headless           *Service          `json:"headless,omitempty"`
+}
+
+// Service is the struct to define the service type and its annotations
+// +k8s:deepcopy-gen=true
+type Service struct {
+	// +kubebuilder:validation:Enum=LoadBalancer;NodePort;ClusterIP
+	// +kubebuilder:default:=ClusterIP
+	Type                  string            `json:"type,omitempty"`
+	AdditionalAnnotations map[string]string `json:"additionalAnnotations,omitempty"`
 }
 
 // ExistingPasswordSecret is the struct to access the existing secret
