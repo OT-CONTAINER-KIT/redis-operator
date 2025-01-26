@@ -17,7 +17,10 @@ redisOperator:
   # When not specified, the operator will watch all namespaces. It can be set to a specific namespace or multiple namespaces separated by commas.
   watchNamespace: ""
   env: []
-  # If you want to enable masterSlaveAntiAffinity, you need to set webhook to true.
+  # If set to true, webhook server will be enabled for masterSlaveAntiAffinity feature
+  # When enabled, you need to either:
+  # 1. Enable cert-manager (certmanager.enabled=true) for automatic certificate management, or
+  # 2. Manually create a certificate secret (see "How to generate private key" section in README)
   webhook: false
   automountServiceAccountToken: true
 
@@ -58,7 +61,12 @@ issuer:
     ingressClass: nginx
 
 certmanager:
+  # Whether to use cert-manager for certificate management
+  # Only effective when webhook=true
+  # If webhook=true and certmanager.enabled=false, you need to manually create certificate secret
   enabled: false
+  # API version of the cert-manager CRDs
+  apiVersion: "cert-manager.io/v1"
 
 priorityClassName: ""
 nodeSelector: {}
