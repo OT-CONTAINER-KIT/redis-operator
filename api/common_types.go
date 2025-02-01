@@ -43,6 +43,20 @@ func (in *KubernetesConfig) GetHeadlessServiceAnnotations() map[string]string {
 	return in.Service.Headless.AdditionalAnnotations
 }
 
+// ShouldCreateAdditionalService returns whether additional service should be created
+func (in *KubernetesConfig) ShouldCreateAdditionalService() bool {
+	if in.Service == nil {
+		return true
+	}
+	if in.Service.Additional == nil {
+		return true
+	}
+	if in.Service.Additional.Enabled == nil {
+		return true
+	}
+	return *in.Service.Additional.Enabled
+}
+
 // ServiceConfig define the type of service to be created and its annotations
 // +k8s:deepcopy-gen=true
 type ServiceConfig struct {
@@ -50,6 +64,7 @@ type ServiceConfig struct {
 	ServiceType        string            `json:"serviceType,omitempty"`
 	ServiceAnnotations map[string]string `json:"annotations,omitempty"`
 	Headless           *Service          `json:"headless,omitempty"`
+	Additional         *Service          `json:"additional,omitempty"`
 }
 
 // Service is the struct to define the service type and its annotations
@@ -59,6 +74,8 @@ type Service struct {
 	// +kubebuilder:default:=ClusterIP
 	Type                  string            `json:"type,omitempty"`
 	AdditionalAnnotations map[string]string `json:"additionalAnnotations,omitempty"`
+	// +kubebuilder:default:=true
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // ExistingPasswordSecret is the struct to access the existing secret
