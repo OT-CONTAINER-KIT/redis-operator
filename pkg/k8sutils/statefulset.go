@@ -631,6 +631,14 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nod
 		})
 	}
 
+	// merge with the same volume of data if nodeConfVolume is disabled
+	if persistenceEnabled != nil && clusterMode && !nodeConfVolume {
+		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
+			Name:      env.GetString(EnvOperatorSTSPVCTemplateName, name),
+			MountPath: "/node-conf",
+		})
+	}
+
 	if persistenceEnabled != nil && *persistenceEnabled {
 		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
 			Name:      env.GetString(EnvOperatorSTSPVCTemplateName, name),
