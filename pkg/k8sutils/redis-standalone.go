@@ -50,20 +50,22 @@ func CreateStandaloneService(ctx context.Context, cr *redisv1beta2.Redis, cl kub
 		log.FromContext(ctx).Error(err, "Cannot create standalone service for Redis")
 		return err
 	}
-	err = CreateOrUpdateService(
-		ctx,
-		cr.Namespace,
-		additionalObjectMetaInfo,
-		redisAsOwner(cr),
-		disableMetrics,
-		false,
-		cr.Spec.KubernetesConfig.GetServiceType(),
-		redisPort,
-		cl,
-	)
-	if err != nil {
-		log.FromContext(ctx).Error(err, "Cannot create additional service for Redis")
-		return err
+	if cr.Spec.KubernetesConfig.ShouldCreateAdditionalService() {
+		err = CreateOrUpdateService(
+			ctx,
+			cr.Namespace,
+			additionalObjectMetaInfo,
+			redisAsOwner(cr),
+			disableMetrics,
+			false,
+			cr.Spec.KubernetesConfig.GetServiceType(),
+			redisPort,
+			cl,
+		)
+		if err != nil {
+			log.FromContext(ctx).Error(err, "Cannot create additional service for Redis")
+			return err
+		}
 	}
 	return nil
 }
