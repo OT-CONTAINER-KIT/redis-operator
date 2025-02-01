@@ -7,7 +7,7 @@ require (
 	github.com/banzaicloud/k8s-objectmatcher v1.8.0
 	github.com/go-logr/logr v1.4.2
 	github.com/go-redis/redismock/v9 v9.2.0
-	github.com/onsi/ginkgo/v2 v2.22.1
+	github.com/onsi/ginkgo/v2 v2.22.2
 	github.com/onsi/gomega v1.36.2
 	github.com/pkg/errors v0.9.1
 	github.com/redis/go-redis/v9 v9.7.0
