@@ -28,7 +28,7 @@ jobs:
           check-latest: true
 
       - name: Set up chart-testing
-        uses: helm/chart-testing-action@v2.6.0
+        uses: helm/chart-testing-action@v2.7.0
 
       - name: Run chart-testing (lint)
         run: |
@@ -136,7 +136,7 @@ jobs:
           done
 
       - name: Install chart-releaser
-        uses: helm/chart-releaser-action@v1.6.0
+        uses: helm/chart-releaser-action@v1.7.0
         with:
           install_only: true
 

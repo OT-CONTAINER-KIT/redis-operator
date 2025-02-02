@@ -354,10 +354,13 @@ func (service RedisClusterService) CreateRedisClusterService(ctx context.Context
 			return err
 		}
 	}
-	err = CreateOrUpdateService(ctx, cr.Namespace, additionalObjectMetaInfo, redisClusterAsOwner(cr), disableMetrics, false, additionalServiceType, *cr.Spec.Port, cl)
-	if err != nil {
-		log.FromContext(ctx).Error(err, "Cannot create additional service for Redis", "Setup.Type", service.RedisServiceRole)
-		return err
+	// Only create additional service if it's enabled
+	if cr.Spec.KubernetesConfig.ShouldCreateAdditionalService() {
+		err = CreateOrUpdateService(ctx, cr.Namespace, additionalObjectMetaInfo, redisClusterAsOwner(cr), disableMetrics, false, additionalServiceType, *cr.Spec.Port, cl)
+		if err != nil {
+			log.FromContext(ctx).Error(err, "Cannot create additional service for Redis", "Setup.Type", service.RedisServiceRole)
+			return err
+		}
 	}
 	return nil
 }
