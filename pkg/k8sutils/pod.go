@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -47,20 +49,40 @@ type patchStringValue struct {
 func (s *PodService) PatchPodLabels(ctx context.Context, namespace, podName string, labels map[string]string) error {
 	log.FromContext(ctx).V(1).Info("Patch pod labels", "namespace", namespace, "podName", podName, "labels", labels)
 
-	var payloads []interface{}
-	for labelKey, labelValue := range labels {
-		payload := patchStringValue{
-			Op:    "replace",
-			Path:  "/metadata/labels/" + labelKey,
-			Value: labelValue,
-		}
-		payloads = append(payloads, payload)
+	if len(labels) == 0 {
+		return fmt.Errorf("empty labels, nothing to patch")
 	}
-	payloadBytes, _ := json.Marshal(payloads)
 
-	_, err := s.kubeClient.CoreV1().Pods(namespace).Patch(ctx, podName, types.JSONPatchType, payloadBytes, metav1.PatchOptions{})
-	if err != nil {
-		log.FromContext(ctx).Error(err, "Patch pod labels failed", "namespace", namespace, "podName", podName)
+	var payloads []interface{}
+	for k, v := range labels {
+		payloads = append(payloads, patchStringValue{
+			Op:    "add",
+			Path:  "/metadata/labels/" + util.EscapeJSONPointer(k),
+			Value: v,
+		})
 	}
-	return err
+	payloadBytes, err := json.Marshal(payloads)
+	if err != nil {
+		return fmt.Errorf("failed to marshal patch payload: %w", err)
+	}
+
+	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		_, updateErr := s.kubeClient.CoreV1().Pods(namespace).Patch(
+			ctx,
+			podName,
+			types.JSONPatchType,
+			payloadBytes,
+			metav1.PatchOptions{},
+		)
+		return updateErr
+	})
+
+	if retryErr != nil {
+		log.FromContext(ctx).Error(retryErr, "Patch pod labels failed after retries",
+			"namespace", namespace,
+			"podName", podName,
+			"labels", labels)
+		return fmt.Errorf("failed to patch labels after retries: %w", retryErr)
+	}
+	return nil
 }
