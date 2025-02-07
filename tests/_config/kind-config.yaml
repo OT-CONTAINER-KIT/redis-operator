@@ -13,9 +13,21 @@ nodes:
   - role: worker
     labels:
       redis-replication: "true"
+    taints:
+      - key: redis-replication
+        value: "true"
+        effect: NoSchedule
   - role: worker
     labels:
       redis-replication: "true"
+    taints:
+      - key: redis-replication
+        value: "true"
+        effect: NoSchedule
   - role: worker
     labels:
       redis-replication: "true"
+    taints:
+      - key: redis-replication
+        value: "true"
+        effect: NoSchedule

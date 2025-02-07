@@ -4,6 +4,10 @@ kind: RedisReplication
 metadata:
   name: redis-replication
 spec:
+  tolerations:
+    - key: redis-replication
+      operator: Exists
+      effect: NoSchedule
   nodeSelector:
     redis-replication: "true"
   # not to sentinel nodes；every redis pod will be scheduled to a different worker node
