@@ -4,6 +4,8 @@ kind: RedisReplication
 metadata:
   name: redis-replication
 spec:
+  nodeSelector:
+    redis-replication: "true"
   # not to sentinel nodes；every redis pod will be scheduled to a different worker node
   affinity:
     podAntiAffinity:

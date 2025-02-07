@@ -75,3 +75,10 @@ spec:
               bash -c "cd /go/src/data-assert && go run main.go chk-redis-data --host redis-sentinel-sentinel.${NAMESPACE}.svc.cluster.local:26379 --mode sentinel"
             check:
               (contains($stdout, 'OK')): true
+
+    - name: Start the node which redis-sentinel-sentinel-0 pod is scheduled to
+      try:
+        - script:
+            timeout: 10s
+            content: |
+              docker start $(kubectl -n ${NAMESPACE} get pod redis-sentinel-sentinel-0 -o jsonpath='{.spec.nodeName}')

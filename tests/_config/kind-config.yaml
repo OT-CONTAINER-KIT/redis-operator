@@ -10,3 +10,12 @@ nodes:
   - role: worker
   - role: worker
   - role: worker
+  - role: worker
+    labels:
+      redis-replication: "true"
+  - role: worker
+    labels:
+      redis-replication: "true"
+  - role: worker
+    labels:
+      redis-replication: "true"
