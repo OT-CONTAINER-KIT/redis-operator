@@ -47,11 +47,11 @@ spec:
   affinity:
     nodeAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
-        nodeSelectorTerm:
-          matchExpressions:
-            - key: kubernetes.io/hostname
-              operator: In
-              values: ["kind-worker"]
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values: ["kind-worker"]
   clusterSize: 1
   podSecurityContext:
     runAsUser: 1000
