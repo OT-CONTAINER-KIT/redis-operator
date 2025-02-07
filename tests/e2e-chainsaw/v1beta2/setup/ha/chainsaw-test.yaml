@@ -44,12 +44,12 @@ spec:
               (contains($stdout, 'OK')): true
 
     # New created cluster, the first pod is master
-    - name: Terminate the redis-replication-0 pod
+    - name: Shutdown the node which redis-replication-0 pod is scheduled to
       try:
         - script:
             timeout: 10s
             content: |
-              kubectl -n ${NAMESPACE} delete pod redis-replication-0
+              docker stop $(kubectl -n ${NAMESPACE} get pod redis-replication-0 -o jsonpath='{.spec.nodeName}')
         - sleep:
             duration: 120s
 

@@ -4,6 +4,18 @@ kind: RedisReplication
 metadata:
   name: redis-replication
 spec:
+  # not to sentinel nodes；every redis pod will be scheduled to a different worker node
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels:
+              redis_setup_type: sentinel
+          topologyKey: kubernetes.io/hostname
+        - labelSelector:
+            matchLabels:
+              redis_setup_type: replication
+          topologyKey: kubernetes.io/hostname
   clusterSize: 3
   podSecurityContext:
     runAsUser: 1000
@@ -31,6 +43,15 @@ kind: RedisSentinel
 metadata:
   name: redis-sentinel
 spec:
+  # sentinel schedule to first worker node
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerm:
+          matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values: ["kind-worker"]
   clusterSize: 1
   podSecurityContext:
     runAsUser: 1000

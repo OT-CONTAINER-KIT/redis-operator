@@ -155,14 +155,6 @@ func (r *Reconciler) reconcileService(ctx context.Context, instance *redisv1beta
 func (r *Reconciler) reconcileRedis(ctx context.Context, instance *redisv1beta2.RedisReplication) (ctrl.Result, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	logger := log.FromContext(ctx)
-
-	if !r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name) {
-		logger.Info("StatefulSet not ready yet, requeuing",
-			"namespace", instance.Namespace,
-			"name", instance.Name)
-		return intctrlutil.RequeueAfter(ctx, time.Second*60, "")
-	}
 
 	var realMaster string
 	masterNodes := k8sutils.GetRedisNodesByRole(ctx, r.K8sClient, instance, "master")
