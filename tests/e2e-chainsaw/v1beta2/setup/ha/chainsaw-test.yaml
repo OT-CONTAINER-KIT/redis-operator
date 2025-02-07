@@ -44,11 +44,12 @@ spec:
               (contains($stdout, 'OK')): true
 
     # New created cluster, the first pod is master
-    - name: Terminate the redis-replication-0 pod
+    - name: Cordon the node which redis-replication-0 pod is scheduled to
       try:
         - script:
             timeout: 10s
             content: |
+              kubectl cordon $(kubectl -n ${NAMESPACE} get pod redis-replication-0 -o jsonpath='{.spec.nodeName}');
               kubectl -n ${NAMESPACE} delete pod redis-replication-0
         - sleep:
             duration: 120s
@@ -75,3 +76,10 @@ spec:
               bash -c "cd /go/src/data-assert && go run main.go chk-redis-data --host redis-sentinel-sentinel.${NAMESPACE}.svc.cluster.local:26379 --mode sentinel"
             check:
               (contains($stdout, 'OK')): true
+
+    - name: Uncordon the node which redis-sentinel-sentinel-0 pod is scheduled to
+      try:
+        - script:
+            timeout: 10s
+            content: |
+              kubectl uncordon $(kubectl -n ${NAMESPACE} get pod redis-sentinel-sentinel-0 -o jsonpath='{.spec.nodeName}')
