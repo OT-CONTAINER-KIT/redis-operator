@@ -19,4 +19,3 @@ nodes:
   - role: worker
     labels:
       redis-replication: "true"
-      
