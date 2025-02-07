@@ -5,19 +5,15 @@ metadata:
   name: redis-replication
 spec:
   tolerations:
-    - key: redis-replication
+    - key: node-role.kubernetes.io/control-plane
       operator: Exists
       effect: NoSchedule
   nodeSelector:
-    redis-replication: "true"
+    node-role.kubernetes.io/control-plane: ""
   # not to sentinel nodes；every redis pod will be scheduled to a different worker node
   affinity:
     podAntiAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
-        - labelSelector:
-            matchLabels:
-              redis_setup_type: sentinel
-          topologyKey: kubernetes.io/hostname
         - labelSelector:
             matchLabels:
               redis_setup_type: replication
