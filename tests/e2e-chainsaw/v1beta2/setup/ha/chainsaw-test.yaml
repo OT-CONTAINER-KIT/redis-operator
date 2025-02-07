@@ -44,12 +44,13 @@ spec:
               (contains($stdout, 'OK')): true
 
     # New created cluster, the first pod is master
-    - name: Shutdown the node which redis-replication-0 pod is scheduled to
+    - name: Cordon the node which redis-replication-0 pod is scheduled to
       try:
         - script:
             timeout: 10s
             content: |
-              docker stop $(kubectl -n ${NAMESPACE} get pod redis-replication-0 -o jsonpath='{.spec.nodeName}')
+              kubectl cordon $(kubectl -n ${NAMESPACE} get pod redis-replication-0 -o jsonpath='{.spec.nodeName}');
+              kubectl -n ${NAMESPACE} delete pod redis-replication-0
         - sleep:
             duration: 120s
 
@@ -76,9 +77,9 @@ spec:
             check:
               (contains($stdout, 'OK')): true
 
-    - name: Start the node which redis-sentinel-sentinel-0 pod is scheduled to
+    - name: Uncordon the node which redis-sentinel-sentinel-0 pod is scheduled to
       try:
         - script:
             timeout: 10s
             content: |
-              docker start $(kubectl -n ${NAMESPACE} get pod redis-sentinel-sentinel-0 -o jsonpath='{.spec.nodeName}')
+              kubectl uncordon $(kubectl -n ${NAMESPACE} get pod redis-sentinel-sentinel-0 -o jsonpath='{.spec.nodeName}')
