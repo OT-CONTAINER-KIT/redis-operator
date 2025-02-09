@@ -73,6 +73,7 @@ helm delete <my-release> --namespace <namespace>
 | redisExporter.image | string | `"quay.io/opstree/redis-exporter"` |  |
 | redisExporter.imagePullPolicy | string | `"IfNotPresent"` |  |
 | redisExporter.resources | object | `{}` |  |
+| redisExporter.securityContext | object | `{}` |  |
 | redisExporter.tag | string | `"v1.44.0"` |  |
 | redisReplication.clusterSize | int | `3` |  |
 | redisReplication.ignoreAnnotations | list | `[]` |  |
