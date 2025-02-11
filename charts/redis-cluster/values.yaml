@@ -117,6 +117,7 @@ redisExporter:
   env: []
     # - name: VAR_NAME
     #   value: "value1"
+  securityContext: {}
 
 sidecars:
   name: ""

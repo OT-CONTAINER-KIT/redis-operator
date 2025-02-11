@@ -40,6 +40,9 @@ spec:
     {{- if .Values.redisExporter.env }}
     env: {{ toYaml .Values.redisExporter.env | nindent 6 }}
     {{- end }}
+    {{- if .Values.redisExporter.securityContext}}
+    securityContext: {{ toYaml .Values.redisExporter.securityContext | nindent 6 }}
+    {{- end }}
 
   {{- if .Values.externalConfig.enabled }}
   redisConfig:
