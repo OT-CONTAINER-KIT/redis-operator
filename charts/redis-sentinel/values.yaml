@@ -83,6 +83,7 @@ redisExporter:
   env: []
     # - name: VAR_NAME
     #   value: "value1"
+  securityContext: {}
 
 initContainer:
   enabled: false
