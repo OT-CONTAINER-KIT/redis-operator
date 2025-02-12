@@ -71,7 +71,7 @@ func generateRedisClusterParams(ctx context.Context, cr *redisv1beta2.RedisClust
 	if externalConfig != nil {
 		res.ExternalConfig = externalConfig
 	}
-	if _, found := cr.ObjectMeta.GetAnnotations()[AnnotationKeyRecreateStatefulset]; found {
+	if value, found := cr.ObjectMeta.GetAnnotations()[AnnotationKeyRecreateStatefulset]; found && value == "true" {
 		res.RecreateStatefulSet = true
 	}
 	return res

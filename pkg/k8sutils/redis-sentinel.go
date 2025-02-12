@@ -116,7 +116,7 @@ func generateRedisSentinelParams(ctx context.Context, cr *redisv1beta2.RedisSent
 	if cr.Spec.RedisExporter != nil {
 		res.EnableMetrics = cr.Spec.RedisExporter.Enabled
 	}
-	if _, found := cr.ObjectMeta.GetAnnotations()[AnnotationKeyRecreateStatefulset]; found {
+	if value, found := cr.ObjectMeta.GetAnnotations()[AnnotationKeyRecreateStatefulset]; found && value == "true" {
 		res.RecreateStatefulSet = true
 	}
 	return res
