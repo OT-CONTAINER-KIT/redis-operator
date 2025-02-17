@@ -31,27 +31,27 @@ spec:
             content: |
               #!/bin/bash
               set -e
-              
+
               # Randomly select one leader and one follower
               LEADER_INDEX=$((RANDOM % 3))
               FOLLOWER_INDEX=$((RANDOM % 3))
-              
+
               echo "Checking leader-${LEADER_INDEX} and follower-${FOLLOWER_INDEX}"
-              
+
               # Check leader configuration
               SLOWLOG_VALUE=$(kubectl exec -n ${NAMESPACE} redis-cluster-v1beta2-leader-${LEADER_INDEX} -c redis-cluster-v1beta2-leader -- redis-cli --pass Opstree1234 config get slowlog-log-slower-than | grep -A1 "slowlog-log-slower-than" | tail -n1)
               if [ "$SLOWLOG_VALUE" != "5000" ]; then
                 echo "leader-${LEADER_INDEX} slowlog-log-slower-than value is $SLOWLOG_VALUE, expected 5000"
                 exit 1
               fi
-              
+
               # Check follower configuration
               SLOWLOG_VALUE=$(kubectl exec -n ${NAMESPACE} redis-cluster-v1beta2-follower-${FOLLOWER_INDEX} -c redis-cluster-v1beta2-follower -- redis-cli --pass Opstree1234 config get slowlog-log-slower-than | grep -A1 "slowlog-log-slower-than" | tail -n1)
               if [ "$SLOWLOG_VALUE" != "5000" ]; then
                 echo "follower-${FOLLOWER_INDEX} slowlog-log-slower-than value is $SLOWLOG_VALUE, expected 5000"
                 exit 1
               fi
-              
+
               echo "Redis instances leader-${LEADER_INDEX} and follower-${FOLLOWER_INDEX} have correct slowlog-log-slower-than configuration"
               exit 0
             check:
