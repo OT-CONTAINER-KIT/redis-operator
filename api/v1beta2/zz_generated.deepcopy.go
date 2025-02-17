@@ -260,6 +260,11 @@ func (in *RedisClusterSpec) DeepCopyInto(out *RedisClusterSpec) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.RedisConfig != nil {
+		in, out := &in.RedisConfig, &out.RedisConfig
+		*out = new(RedisConfig)
+		(*in).DeepCopyInto(*out)
+	}
 	in.RedisLeader.DeepCopyInto(&out.RedisLeader)
 	in.RedisFollower.DeepCopyInto(&out.RedisFollower)
 	if in.RedisExporter != nil {
