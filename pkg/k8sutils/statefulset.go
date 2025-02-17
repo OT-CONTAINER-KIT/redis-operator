@@ -166,7 +166,7 @@ func CreateOrUpdateStateFul(ctx context.Context, cl kubernetes.Interface, namesp
 	storedStateful, err := GetStatefulSet(ctx, cl, namespace, stsMeta.Name)
 	statefulSetDef := generateStatefulSetsDef(stsMeta, params, ownerDef, initcontainerParams, containerParams, getSidecars(sidecars))
 	if err != nil {
-		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(statefulSetDef); err != nil { //nolint
+		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(statefulSetDef); err != nil { //nolint:gocritic
 			log.FromContext(ctx).Error(err, "Unable to patch redis statefulset with comparison object")
 			return err
 		}
