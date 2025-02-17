@@ -39,14 +39,18 @@ spec:
               echo "Checking leader-${LEADER_INDEX} and follower-${FOLLOWER_INDEX}"
 
               # Check leader configuration
-              SLOWLOG_VALUE=$(kubectl exec -n ${NAMESPACE} redis-cluster-v1beta2-leader-${LEADER_INDEX} -c redis-cluster-v1beta2-leader -- redis-cli --pass Opstree1234 config get slowlog-log-slower-than | grep -A1 "slowlog-log-slower-than" | tail -n1)
+              LEADER_CMD="kubectl exec -n ${NAMESPACE} redis-cluster-v1beta2-leader-${LEADER_INDEX}"
+              LEADER_CMD="${LEADER_CMD} -c redis-cluster-v1beta2-leader -- redis-cli -a Opstree1234"
+              SLOWLOG_VALUE=$(${LEADER_CMD} config get slowlog-log-slower-than | grep -A1 "slowlog-log-slower-than" | tail -n1)
               if [ "$SLOWLOG_VALUE" != "5000" ]; then
                 echo "leader-${LEADER_INDEX} slowlog-log-slower-than value is $SLOWLOG_VALUE, expected 5000"
                 exit 1
               fi
 
               # Check follower configuration
-              SLOWLOG_VALUE=$(kubectl exec -n ${NAMESPACE} redis-cluster-v1beta2-follower-${FOLLOWER_INDEX} -c redis-cluster-v1beta2-follower -- redis-cli --pass Opstree1234 config get slowlog-log-slower-than | grep -A1 "slowlog-log-slower-than" | tail -n1)
+              FOLLOWER_CMD="kubectl exec -n ${NAMESPACE} redis-cluster-v1beta2-follower-${FOLLOWER_INDEX}"
+              FOLLOWER_CMD="${FOLLOWER_CMD} -c redis-cluster-v1beta2-follower -- redis-cli -a Opstree1234"
+              SLOWLOG_VALUE=$(${FOLLOWER_CMD} config get slowlog-log-slower-than | grep -A1 "slowlog-log-slower-than" | tail -n1)
               if [ "$SLOWLOG_VALUE" != "5000" ]; then
                 echo "follower-${FOLLOWER_INDEX} slowlog-log-slower-than value is $SLOWLOG_VALUE, expected 5000"
                 exit 1
