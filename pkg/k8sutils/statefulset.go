@@ -797,7 +797,7 @@ func updateStatefulSet(ctx context.Context, cl kubernetes.Interface, namespace s
 			}
 			log.FromContext(ctx).V(1).Info("recreating StatefulSet because the update operation wasn't possible", "reason", strings.Join(failMsg, ", "))
 			propagationPolicy := metav1.DeletePropagationForeground
-			if err := cl.AppsV1().StatefulSets(namespace).Delete(context.TODO(), stateful.GetName(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}); err != nil { //nolint
+			if err := cl.AppsV1().StatefulSets(namespace).Delete(context.TODO(), stateful.GetName(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}); err != nil { //nolint:gocritic
 				return errors.Wrap(err, "failed to delete StatefulSet to avoid forbidden action")
 			}
 		}
