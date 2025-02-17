@@ -1,8 +1,4 @@
 linters-settings:
-  govet:
-    check-shadowing: true
-  golint:
-    min-confidence: 0.8
   gofmt:
     simplify: true
 
@@ -47,12 +43,8 @@ run:
   timeout: 15m
   go: "1.23.4"
   tests: true
-  show-stats: true
-  skip-files:
-    - ".+\\.generated.go"
 
 output:
-  format: colored-line-number
   sort-results: true
   print-linter-name: true
   print-issued-lines: true

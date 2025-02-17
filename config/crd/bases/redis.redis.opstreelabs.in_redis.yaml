@@ -1502,6 +1502,10 @@ spec:
                 properties:
                   additionalRedisConfig:
                     type: string
+                  dynamicConfig:
+                    items:
+                      type: string
+                    type: array
                 type: object
               redisExporter:
                 description: RedisExporter interface will have the information for
@@ -6636,6 +6640,10 @@ spec:
                 properties:
                   additionalRedisConfig:
                     type: string
+                  dynamicConfig:
+                    items:
+                      type: string
+                    type: array
                 type: object
               redisExporter:
                 description: RedisExporter interface will have the information for

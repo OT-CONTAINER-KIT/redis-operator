@@ -166,7 +166,7 @@ func CreateOrUpdateStateFul(ctx context.Context, cl kubernetes.Interface, namesp
 	storedStateful, err := GetStatefulSet(ctx, cl, namespace, stsMeta.Name)
 	statefulSetDef := generateStatefulSetsDef(stsMeta, params, ownerDef, initcontainerParams, containerParams, getSidecars(sidecars))
 	if err != nil {
-		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(statefulSetDef); err != nil { //nolint
+		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(statefulSetDef); err != nil { //nolint:gocritic
 			log.FromContext(ctx).Error(err, "Unable to patch redis statefulset with comparison object")
 			return err
 		}
@@ -797,7 +797,7 @@ func updateStatefulSet(ctx context.Context, cl kubernetes.Interface, namespace s
 			}
 			log.FromContext(ctx).V(1).Info("recreating StatefulSet because the update operation wasn't possible", "reason", strings.Join(failMsg, ", "))
 			propagationPolicy := metav1.DeletePropagationForeground
-			if err := cl.AppsV1().StatefulSets(namespace).Delete(context.TODO(), stateful.GetName(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}); err != nil { //nolint
+			if err := cl.AppsV1().StatefulSets(namespace).Delete(context.TODO(), stateful.GetName(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}); err != nil { //nolint:gocritic
 				return errors.Wrap(err, "failed to delete StatefulSet to avoid forbidden action")
 			}
 		}

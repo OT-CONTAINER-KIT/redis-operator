@@ -135,7 +135,7 @@ func CreateOrUpdateService(ctx context.Context, namespace string, serviceMeta me
 	storedService, err := getService(ctx, cl, namespace, serviceMeta.GetName())
 	if err != nil {
 		if errors.IsNotFound(err) {
-			if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(serviceDef); err != nil { //nolint
+			if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(serviceDef); err != nil { //nolint:gocritic
 				log.FromContext(ctx).Error(err, "Unable to patch redis service with compare annotations")
 			}
 			return createService(ctx, cl, namespace, serviceDef)
