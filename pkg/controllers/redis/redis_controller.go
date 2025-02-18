@@ -18,6 +18,7 @@ package redis
 
 import (
 	"context"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"time"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
@@ -65,8 +66,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, opts controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&redisv1beta2.Redis{}).
+		WithOptions(opts).
 		Complete(r)
 }

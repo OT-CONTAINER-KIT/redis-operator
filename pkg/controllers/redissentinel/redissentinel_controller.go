@@ -2,6 +2,7 @@ package redissentinel
 
 import (
 	"context"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"time"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
@@ -131,9 +132,10 @@ func (r *RedisSentinelReconciler) reconcileService(ctx context.Context, instance
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *RedisSentinelReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *RedisSentinelReconciler) SetupWithManager(mgr ctrl.Manager, opts controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&redisv1beta2.RedisSentinel{}).
+		WithOptions(opts).
 		Watches(&redisv1beta2.RedisReplication{}, r.ReplicationWatcher).
 		Complete(r)
 }

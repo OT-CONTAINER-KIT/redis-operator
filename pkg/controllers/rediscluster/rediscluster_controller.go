@@ -19,6 +19,7 @@ package rediscluster
 import (
 	"context"
 	"fmt"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"time"
 
 	"github.com/OT-CONTAINER-KIT/redis-operator/api/status"
@@ -111,6 +112,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			logger.Info("masterCount is not equal to leader statefulset replicas,skip downscale", "masterCount", masterCount, "leaderReplicas", leaderReplicas)
 		}
 	}
+
+	// check if cluster is upscaled
 
 	// Mark the cluster status as initializing if there are no leader or follower nodes
 	if (instance.Status.ReadyLeaderReplicas == 0 && instance.Status.ReadyFollowerReplicas == 0) ||
@@ -262,9 +265,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, opts controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&redisv1beta2.RedisCluster{}).
+		WithOptions(opts).
 		Owns(&appsv1.StatefulSet{}).
 		Complete(r)
 }

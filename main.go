@@ -19,6 +19,8 @@ package main
 import (
 	"flag"
 	"os"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"strconv"
 	"strings"
 
 	redisv1beta1 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta1"
@@ -62,7 +64,10 @@ func main() {
 	var enableLeaderElection bool
 	var probeAddr string
 	var enableWebhooks bool
+	var maxConcurrentReconciles int
+
 	flag.BoolVar(&enableWebhooks, "enable-webhooks", os.Getenv("ENABLE_WEBHOOKS") != "false", "Enable webhooks")
+	flag.IntVar(&maxConcurrentReconciles, "max-concurrent-reconciles", 1, "Max concurrent reconciles")
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
@@ -91,6 +96,12 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "6cab913b.redis.opstreelabs.in",
+	}
+
+	if envMaxConcurrentReconciles, exists := os.LookupEnv("MAX_CONCURRENT_RECONCILES"); exists {
+		if val, err := strconv.Atoi(envMaxConcurrentReconciles); err == nil {
+			maxConcurrentReconciles = val
+		}
 	}
 
 	if namespaces := strings.TrimSpace(os.Getenv("WATCH_NAMESPACE")); namespaces != "" {
@@ -123,7 +134,7 @@ func main() {
 	if err = (&redis.Reconciler{
 		Client:    mgr.GetClient(),
 		K8sClient: k8sclient,
-	}).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Redis")
 		os.Exit(1)
 	}
@@ -133,7 +144,7 @@ func main() {
 		Dk8sClient:  dk8sClient,
 		Recorder:    mgr.GetEventRecorderFor("rediscluster-controller"),
 		StatefulSet: k8sutils.NewStatefulSetService(k8sclient),
-	}).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RedisCluster")
 		os.Exit(1)
 	}
@@ -143,7 +154,7 @@ func main() {
 		Dk8sClient:  dk8sClient,
 		Pod:         k8sutils.NewPodService(k8sclient),
 		StatefulSet: k8sutils.NewStatefulSetService(k8sclient),
-	}).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RedisReplication")
 		os.Exit(1)
 	}
@@ -152,7 +163,7 @@ func main() {
 		K8sClient:          k8sclient,
 		Dk8sClient:         dk8sClient,
 		ReplicationWatcher: intctrlutil.NewResourceWatcher(),
-	}).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RedisSentinel")
 		os.Exit(1)
 	}
