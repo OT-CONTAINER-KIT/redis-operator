@@ -113,8 +113,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 
-	// check if cluster is upscaled
-
 	// Mark the cluster status as initializing if there are no leader or follower nodes
 	if (instance.Status.ReadyLeaderReplicas == 0 && instance.Status.ReadyFollowerReplicas == 0) ||
 		instance.Status.ReadyLeaderReplicas != leaderReplicas {
