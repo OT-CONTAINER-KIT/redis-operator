@@ -675,3 +675,65 @@ func GetRedisReplicationRealMaster(ctx context.Context, client kubernetes.Interf
 	}
 	return ""
 }
+
+// SetRedisClusterDynamicConfig applies dynamic configuration to each Redis instance in the cluster
+func SetRedisClusterDynamicConfig(ctx context.Context, client kubernetes.Interface, cr *redisv1beta2.RedisCluster) error {
+	// Get dynamic configuration
+	dynamicConfig := cr.Spec.GetRedisDynamicConfig()
+	if len(dynamicConfig) == 0 {
+		return nil
+	}
+
+	// Get the number of leader and follower pods
+	leaderReplicas := cr.Spec.GetReplicaCounts("leader")
+	followerReplicas := cr.Spec.GetReplicaCounts("follower")
+
+	// Apply configuration to each Redis instance
+	for i := 0; i < int(leaderReplicas+followerReplicas); i++ {
+		var podName string
+		if i < int(leaderReplicas) {
+			podName = cr.ObjectMeta.Name + "-leader-" + strconv.Itoa(i)
+		} else {
+			podName = cr.ObjectMeta.Name + "-follower-" + strconv.Itoa(i-int(leaderReplicas))
+		}
+
+		redisClient := configureRedisClient(ctx, client, cr, podName)
+		defer redisClient.Close()
+
+		// Check if Redis instance is accessible
+		pong, err := redisClient.Ping(ctx).Result()
+		if err != nil {
+			log.FromContext(ctx).Error(err, "Failed to ping Redis instance", "pod", podName)
+			continue
+		}
+		if pong != "PONG" {
+			log.FromContext(ctx).V(1).Info("Redis instance not ready", "pod", podName)
+			continue
+		}
+
+		// Apply dynamic configuration parameters
+		for _, config := range dynamicConfig {
+			parts := strings.SplitN(config, " ", 2)
+			if len(parts) != 2 {
+				log.FromContext(ctx).Error(nil, "Invalid config format", "config", config)
+				continue
+			}
+
+			err := redisClient.ConfigSet(ctx, parts[0], parts[1]).Err()
+			if err != nil {
+				log.FromContext(ctx).Error(err, "Failed to set config",
+					"key", parts[0],
+					"value", parts[1],
+					"pod", podName)
+				return err
+			}
+
+			log.FromContext(ctx).V(1).Info("Successfully set config",
+				"key", parts[0],
+				"value", parts[1],
+				"pod", podName)
+		}
+	}
+
+	return nil
+}

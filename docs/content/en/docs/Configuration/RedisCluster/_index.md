@@ -90,3 +90,52 @@ Redis cluster can be customized by [values.yaml](https://github.com/OT-CONTAINER
 | storageSpec.nodeConfVolumeClaimTemplate.spec.resources.requests.storage | string | `"1Gi"`                                                                  |                                                                                                                                                                       |
 | storageSpec.volumeClaimTemplate.spec.accessModes[0]                     | string | `"ReadWriteOnce"`                                                        |                                                                                                                                                                       |
 | storageSpec.volumeClaimTemplate.spec.resources.requests.storage         | string | `"1Gi"`                                                                  |                                                                                                                                                                       |
+
+## RedisCluster Instance Configuration
+
+### Dynamic Configuration
+
+Redis Operator supports dynamic configuration for Redis instances in a cluster through the top-level `redisConfig` field. You can set Redis configuration parameters that can be modified at runtime without requiring a restart.
+
+#### Example Configuration
+
+```yaml
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisCluster
+metadata:
+  name: redis-cluster
+spec:
+  redisConfig:
+    dynamicConfig:
+      - "maxmemory-policy allkeys-lru"
+      - "slowlog-log-slower-than 5000"
+```
+
+#### Configuration Application
+
+- Dynamic configurations are applied to all Redis instances (both leaders and followers) in the cluster
+- The operator ensures all accessible instances receive the configuration
+- If an instance is not ready or accessible, it will be skipped and retried in the next reconciliation
+- Configuration changes are applied only when the cluster is in a ready state
+
+#### Important Notes
+
+1. **Configuration Validation**
+   - Ensure the configuration parameters are supported by your Redis version
+   - Use proper format: "parameter value" (e.g., "maxmemory-policy allkeys-lru")
+   - Invalid configurations will be logged and skipped
+
+2. **Monitoring**
+   - Configuration changes are logged at the pod level
+   - Check pod logs for configuration status and any errors
+   - Use `kubectl exec` to verify configurations:
+     ```bash
+     kubectl exec -it <pod-name> -- redis-cli CONFIG GET <parameter>
+     ```
+
+3. **Best Practices**
+   - Use dynamic configuration for parameters that need to be consistent across the cluster
+   - Test configuration changes in non-production environments first
+
+4. **Limitations**
+   - Only supports parameters that can be modified at runtime
