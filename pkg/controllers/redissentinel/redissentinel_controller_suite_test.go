@@ -19,6 +19,7 @@ package redissentinel
 import (
 	"context"
 	"path/filepath"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"testing"
 	"time"
 
@@ -105,7 +106,7 @@ var _ = BeforeSuite(func() {
 		K8sClient:          k8sClient,
 		Dk8sClient:         dk8sClient,
 		ReplicationWatcher: intctrlutil.NewResourceWatcher(),
-	}).SetupWithManager(k8sManager)
+	}).SetupWithManager(k8sManager, controller.Options{})
 	Expect(err).ToNot(HaveOccurred())
 
 	ctx, cancel = context.WithCancel(context.Background())

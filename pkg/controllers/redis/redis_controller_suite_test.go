@@ -19,6 +19,7 @@ package redis
 import (
 	"context"
 	"path/filepath"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"testing"
 	"time"
 
@@ -98,7 +99,7 @@ var _ = BeforeSuite(func() {
 	err = (&Reconciler{
 		Client:    k8sManager.GetClient(),
 		K8sClient: k8sClient,
-	}).SetupWithManager(k8sManager)
+	}).SetupWithManager(k8sManager, controller.Options{})
 	Expect(err).ToNot(HaveOccurred())
 
 	ctx, cancel = context.WithCancel(context.Background())

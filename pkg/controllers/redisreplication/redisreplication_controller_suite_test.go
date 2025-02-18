@@ -19,6 +19,7 @@ package redisreplication
 import (
 	"context"
 	"path/filepath"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"testing"
 	"time"
 
@@ -106,7 +107,7 @@ var _ = BeforeSuite(func() {
 		Dk8sClient:  dk8sClient,
 		Pod:         k8sutils.NewPodService(k8sClient),
 		StatefulSet: k8sutils.NewStatefulSetService(k8sClient),
-	}).SetupWithManager(k8sManager)
+	}).SetupWithManager(k8sManager, controller.Options{})
 	Expect(err).ToNot(HaveOccurred())
 
 	ctx, cancel = context.WithCancel(context.Background())
