@@ -101,7 +101,8 @@ type RedisExporter struct {
 // RedisConfig defines the external configuration of Redis
 // +k8s:deepcopy-gen=true
 type RedisConfig struct {
-	AdditionalRedisConfig *string `json:"additionalRedisConfig,omitempty"`
+	DynamicConfig         []string `json:"dynamicConfig,omitempty"`
+	AdditionalRedisConfig *string  `json:"additionalRedisConfig,omitempty"`
 }
 
 // Storage is the inteface to add pvc and pv support in redis

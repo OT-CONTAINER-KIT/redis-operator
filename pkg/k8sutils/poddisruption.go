@@ -167,7 +167,7 @@ func generateSentinelPodDisruptionBudgetDef(ctx context.Context, cr *redisv1beta
 func CreateOrUpdatePodDisruptionBudget(ctx context.Context, pdbDef *policyv1.PodDisruptionBudget, cl kubernetes.Interface) error {
 	storedPDB, err := getPodDisruptionBudget(ctx, pdbDef.Namespace, pdbDef.Name, cl)
 	if err != nil {
-		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(pdbDef); err != nil { //nolint
+		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(pdbDef); err != nil { //nolint:gocritic
 			log.FromContext(ctx).Error(err, "Unable to patch redis PodDisruptionBudget with comparison object")
 			return err
 		}

@@ -32,6 +32,7 @@ type RedisClusterSpec struct {
 	Port *int `json:"port,omitempty"`
 	// +kubebuilder:default:=v7
 	ClusterVersion     *string                      `json:"clusterVersion,omitempty"`
+	RedisConfig        *RedisConfig                 `json:"redisConfig,omitempty"`
 	RedisLeader        RedisLeader                  `json:"redisLeader,omitempty"`
 	RedisFollower      RedisFollower                `json:"redisFollower,omitempty"`
 	RedisExporter      *RedisExporter               `json:"redisExporter,omitempty"`
@@ -65,6 +66,17 @@ func (cr *RedisClusterSpec) GetRedisLeaderResources() *corev1.ResourceRequiremen
 	}
 
 	return cr.KubernetesConfig.Resources
+}
+
+// GetRedisDynamicConfig returns Redis dynamic configuration parameters.
+// Priority: top-level config > leader config > follower config
+func (cr *RedisClusterSpec) GetRedisDynamicConfig() []string {
+	// Use top-level configuration if available
+	if cr.RedisConfig != nil && len(cr.RedisConfig.DynamicConfig) > 0 {
+		return cr.RedisConfig.DynamicConfig
+	}
+	// Return empty slice if no configuration is found
+	return []string{}
 }
 
 // GetRedisFollowerResources returns the resources for the redis follower, if not set, it will return the default resources
