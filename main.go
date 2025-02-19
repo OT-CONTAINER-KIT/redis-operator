@@ -22,9 +22,14 @@ import (
 	"strconv"
 	"strings"
 
-	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
-	// to ensure that exec-entrypoint and run can make use of them.
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	rediscontroller "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/redis"
+	redisclustercontroller "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/rediscluster"
+	redisreplicationcontroller "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/redisreplication"
+	redissentinelcontroller "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/redissentinel"
+	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllerutil"
+	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/k8sutils"
+	coreWebhook "github.com/OT-CONTAINER-KIT/redis-operator/pkg/webhook"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -37,15 +42,6 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-
-	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
-	rediscontroller "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/redis"
-	redisclustercontroller "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/rediscluster"
-	redisreplicationcontroller "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/redisreplication"
-	redissentinelcontroller "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/redissentinel"
-	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllerutil"
-	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/k8sutils"
-	coreWebhook "github.com/OT-CONTAINER-KIT/redis-operator/pkg/webhook"
 	//+kubebuilder:scaffold:imports
 )
 
