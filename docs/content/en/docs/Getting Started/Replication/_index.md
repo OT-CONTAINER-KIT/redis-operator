@@ -72,7 +72,7 @@ A sample manifest for deploying redis replication-cluster:
 
 ```yaml
 ---
-apiVersion: redis.redis.opstreelabs.in/v1beta1
+apiVersion: redis.redis.opstreelabs.in/v1beta2
 kind: RedisReplication
 metadata:
   name:  redis-replication
