@@ -236,9 +236,47 @@ spec:
                     description: ServiceConfig define the type of service to be created
                       and its annotations
                     properties:
+                      additional:
+                        description: Service is the struct to define the service type
+                          and its annotations
+                        properties:
+                          additionalAnnotations:
+                            additionalProperties:
+                              type: string
+                            type: object
+                          enabled:
+                            default: true
+                            type: boolean
+                          type:
+                            default: ClusterIP
+                            enum:
+                            - LoadBalancer
+                            - NodePort
+                            - ClusterIP
+                            type: string
+                        type: object
                       annotations:
                         additionalProperties:
                           type: string
+                        type: object
+                      headless:
+                        description: Service is the struct to define the service type
+                          and its annotations
+                        properties:
+                          additionalAnnotations:
+                            additionalProperties:
+                              type: string
+                            type: object
+                          enabled:
+                            default: true
+                            type: boolean
+                          type:
+                            default: ClusterIP
+                            enum:
+                            - LoadBalancer
+                            - NodePort
+                            - ClusterIP
+                            type: string
                         type: object
                       serviceType:
                         enum:
@@ -1873,6 +1911,10 @@ spec:
                     properties:
                       additionalRedisConfig:
                         type: string
+                      dynamicConfig:
+                        items:
+                          type: string
+                        type: array
                     type: object
                   replicas:
                     format: int32
@@ -3319,6 +3361,10 @@ spec:
                     properties:
                       additionalRedisConfig:
                         type: string
+                      dynamicConfig:
+                        items:
+                          type: string
+                        type: array
                     type: object
                   replicas:
                     format: int32
@@ -6906,9 +6952,47 @@ spec:
                     description: ServiceConfig define the type of service to be created
                       and its annotations
                     properties:
+                      additional:
+                        description: Service is the struct to define the service type
+                          and its annotations
+                        properties:
+                          additionalAnnotations:
+                            additionalProperties:
+                              type: string
+                            type: object
+                          enabled:
+                            default: true
+                            type: boolean
+                          type:
+                            default: ClusterIP
+                            enum:
+                            - LoadBalancer
+                            - NodePort
+                            - ClusterIP
+                            type: string
+                        type: object
                       annotations:
                         additionalProperties:
                           type: string
+                        type: object
+                      headless:
+                        description: Service is the struct to define the service type
+                          and its annotations
+                        properties:
+                          additionalAnnotations:
+                            additionalProperties:
+                              type: string
+                            type: object
+                          enabled:
+                            default: true
+                            type: boolean
+                          type:
+                            default: ClusterIP
+                            enum:
+                            - LoadBalancer
+                            - NodePort
+                            - ClusterIP
+                            type: string
                         type: object
                       serviceType:
                         enum:
@@ -7142,6 +7226,16 @@ spec:
                 type: integer
               priorityClassName:
                 type: string
+              redisConfig:
+                description: RedisConfig defines the external configuration of Redis
+                properties:
+                  additionalRedisConfig:
+                    type: string
+                  dynamicConfig:
+                    items:
+                      type: string
+                    type: array
+                type: object
               redisExporter:
                 description: RedisExporter interface will have the information for
                   redis exporter related stuff
@@ -8723,6 +8817,10 @@ spec:
                     properties:
                       additionalRedisConfig:
                         type: string
+                      dynamicConfig:
+                        items:
+                          type: string
+                        type: array
                     type: object
                   replicas:
                     format: int32
@@ -10398,6 +10496,10 @@ spec:
                     properties:
                       additionalRedisConfig:
                         type: string
+                      dynamicConfig:
+                        items:
+                          type: string
+                        type: array
                     type: object
                   replicas:
                     format: int32
