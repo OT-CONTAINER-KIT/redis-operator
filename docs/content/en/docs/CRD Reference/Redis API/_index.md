@@ -7,15 +7,17 @@ description: >
   CRD Schema details for Redis and Redis Cluster Reference API
 ---
 
-# API Reference
+# Redis API Reference
+
+This page documents the Redis API Schema definitions for the redis API group.
 
 ## Packages
 
-- [redis.redis.opstreelabs.in/v1beta1](#redisredisopstreelabsinv1beta1)
+- [redis.redis.opstreelabs.in/v1beta2](#redisredisopstreelabsinv1beta2)
 
-## redis.redis.opstreelabs.in/v1beta1
+## redis.redis.opstreelabs.in/v1beta2
 
-Package v1beta1 contains API Schema definitions for the redis v1beta1 API group
+Package v1beta2 contains API Schema definitions for the redis v1beta2 API group
 
 ### Resource Types
 
@@ -74,9 +76,9 @@ _Appears in:_
 
 Redis is the Schema for the redis API
 
-| Field | Description |
-| --- | --- |
-| `apiVersion` _string_ | `redis.redis.opstreelabs.in/v1beta1`
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| `apiVersion` _string_ | `redis.redis.opstreelabs.in/v1beta2` | | |
 | `kind` _string_ | `Redis`
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |
 | `spec` _[RedisSpec](#redisspec)_ |  |
@@ -87,7 +89,7 @@ RedisCluster is the Schema for the redisclusters API
 
 | Field | Description |
 | --- | --- |
-| `apiVersion` _string_ | `redis.redis.opstreelabs.in/v1beta1`
+| `apiVersion` _string_ | `redis.redis.opstreelabs.in/v1beta2`
 | `kind` _string_ | `RedisCluster`
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |
 | `spec` _[RedisClusterSpec](#redisclusterspec)_ |  |
@@ -98,7 +100,7 @@ RedisReplication is the Schema for the redisreplication API
 
 | Field | Description |
 | --- | --- |
-| `apiVersion` _string_ | `redis.redis.opstreelabs.in/v1beta1`
+| `apiVersion` _string_ | `redis.redis.opstreelabs.in/v1beta2`
 | `kind` _string_ | `RedisReplication`
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |
 | `spec` _[RedisReplicationSpec](#redisreplicationspec)_ |  |
@@ -109,7 +111,7 @@ RedisSentinel is the Schema for the redissentinel API
 
 | Field | Description |
 | --- | --- |
-| `apiVersion` _string_ | `redis.redis.opstreelabs.in/v1beta1`
+| `apiVersion` _string_ | `redis.redis.opstreelabs.in/v1beta2`
 | `kind` _string_ | `RedisSentinel`
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |
 | `spec` _[RedisSentinelSpec](#redissentinelspec)_ |  |

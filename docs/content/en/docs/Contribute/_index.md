@@ -110,7 +110,7 @@ The structure for Redis operator includes different module's directory. The code
 ```shell
 redis-operator/
 |-- api
-|   |-- v1beta1
+|   |-- v1beta2
 |-- bin
 |-- config
 |   |-- certmanager

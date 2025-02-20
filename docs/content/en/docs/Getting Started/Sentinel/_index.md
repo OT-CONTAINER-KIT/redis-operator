@@ -65,7 +65,7 @@ A basic sample manifest for sentinel redis:
 
 ```yaml
 ---
-apiVersion: redis.redis.opstreelabs.in/v1beta1
+apiVersion: redis.redis.opstreelabs.in/v1beta2
 kind: RedisSentinel
 metadata:
   name: redis-sentinel

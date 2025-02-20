@@ -3,5 +3,16 @@ kind: Redis
 metadata:
   name: redis-sample
 spec:
-  # Add fields here
-  foo: bar
+  kubernetesConfig:
+    image: quay.io/opstree/redis:v7.0.15
+    imagePullPolicy: IfNotPresent
+  storage:
+    volumeClaimTemplate:
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+  securityContext:
+    runAsUser: 1000
+    fsGroup: 1000
