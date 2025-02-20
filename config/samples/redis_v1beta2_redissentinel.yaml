@@ -1,17 +1,16 @@
----
-apiVersion: redis.redis.opstreelabs.in/v1beta1
+apiVersion: redis.redis.opstreelabs.in/v1beta2
 kind: RedisSentinel
 metadata:
-  name: redis-sentinel
+  name: redissentinel-sample
 spec:
   clusterSize: 3
   securityContext:
     runAsUser: 1000
     fsGroup: 1000
-  redisSentinelConfig:
+  redisSentinelConfig: 
     redisReplicationName: redis-replication
   kubernetesConfig:
-    image: quay.io/opstree/redis-sentinel:v7.0.12
+    image: quay.io/opstree/redis-sentinel:v7.0.15
     imagePullPolicy: IfNotPresent
     resources:
       requests:
@@ -19,4 +18,4 @@ spec:
         memory: 128Mi
       limits:
         cpu: 101m
-        memory: 128Mi
+        memory: 128Mi 

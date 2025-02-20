@@ -75,9 +75,6 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 	Expect(cfg).ToNot(BeNil())
 
-	// err = redisv1beta1.AddToScheme(scheme.Scheme)
-	// Expect(err).ToNot(HaveOccurred())
-
 	err = redisv1beta2.AddToScheme(scheme.Scheme)
 	Expect(err).ToNot(HaveOccurred())
 
