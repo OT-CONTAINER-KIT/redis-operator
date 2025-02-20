@@ -62,7 +62,7 @@ A basic sample manifest for standalone redis:
 
 ```yaml
 ---
-apiVersion: redis.redis.opstreelabs.in/v1beta1
+apiVersion: redis.redis.opstreelabs.in/v1beta2
 kind: Redis
 metadata:
   name: redis-standalone

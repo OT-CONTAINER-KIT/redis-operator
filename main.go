@@ -22,25 +22,23 @@ import (
 	"strconv"
 	"strings"
 
-	redisv1beta1 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta1"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
-	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/redis"
-	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/rediscluster"
-	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/redisreplication"
-	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/redissentinel"
+	rediscontroller "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/redis"
+	redisclustercontroller "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/rediscluster"
+	redisreplicationcontroller "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/redisreplication"
+	redissentinelcontroller "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/redissentinel"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllerutil"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/k8sutils"
 	coreWebhook "github.com/OT-CONTAINER-KIT/redis-operator/pkg/webhook"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
@@ -53,10 +51,8 @@ var (
 //nolint:gochecknoinits
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
 	utilruntime.Must(redisv1beta2.AddToScheme(scheme))
-	utilruntime.Must(redisv1beta1.AddToScheme(scheme))
-	// +kubebuilder:scaffold:scheme
+	//+kubebuilder:scaffold:scheme
 }
 
 func main() {
@@ -85,7 +81,7 @@ func main() {
 
 	options := ctrl.Options{
 		Scheme: scheme,
-		Metrics: server.Options{
+		Metrics: metricsserver.Options{
 			BindAddress: metricsAddr,
 		},
 		WebhookServer: &webhook.DefaultServer{
@@ -131,14 +127,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&redis.Reconciler{
+	if err = (&rediscontroller.Reconciler{
 		Client:    mgr.GetClient(),
 		K8sClient: k8sclient,
 	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Redis")
 		os.Exit(1)
 	}
-	if err = (&rediscluster.Reconciler{
+	if err = (&redisclustercontroller.Reconciler{
 		Client:      mgr.GetClient(),
 		K8sClient:   k8sclient,
 		Dk8sClient:  dk8sClient,
@@ -148,7 +144,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "RedisCluster")
 		os.Exit(1)
 	}
-	if err = (&redisreplication.Reconciler{
+	if err = (&redisreplicationcontroller.Reconciler{
 		Client:      mgr.GetClient(),
 		K8sClient:   k8sclient,
 		Dk8sClient:  dk8sClient,
@@ -158,7 +154,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "RedisReplication")
 		os.Exit(1)
 	}
-	if err = (&redissentinel.RedisSentinelReconciler{
+	if err = (&redissentinelcontroller.RedisSentinelReconciler{
 		Client:             mgr.GetClient(),
 		K8sClient:          k8sclient,
 		Dk8sClient:         dk8sClient,

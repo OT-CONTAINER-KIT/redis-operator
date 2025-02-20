@@ -19,9 +19,6 @@ resources:
   kind: Redis
   path: redis-operator/api/v1beta2
   version: v1beta2
-  webhooks:
-    conversion: true
-    webhookVersion: v1
 - api:
     crdVersion: v1
     namespaced: true
@@ -31,9 +28,6 @@ resources:
   kind: RedisCluster
   path: redis-operator/api/v1beta2
   version: v1beta2
-  webhooks:
-    conversion: true
-    webhookVersion: v1
 - api:
     crdVersion: v1
   controller: true
@@ -42,9 +36,6 @@ resources:
   kind: RedisReplication
   path: redis-operator/api/v1beta2
   version: v1beta2
-  webhooks:
-    conversion: true
-    webhookVersion: v1
 - api:
     crdVersion: v1
   controller: true
@@ -53,41 +44,6 @@ resources:
   kind: RedisSentinel
   path: redis-operator/api/v1beta2
   version: v1beta2
-  webhooks:
-    conversion: true
-    webhookVersion: v1
-- api:
-    crdVersion: v1
-    namespaced: true
-  domain: redis.opstreelabs.in
-  group: redis
-  kind: Redis
-  path: redis-operator/api/v1beta1
-  version: v1beta1
-- api:
-    crdVersion: v1
-    namespaced: true
-  domain: redis.opstreelabs.in
-  group: redis
-  kind: RedisCluster
-  path: redis-operator/api/v1beta1
-  version: v1beta1
-- api:
-    crdVersion: v1
-    namespaced: true
-  domain: redis.opstreelabs.in
-  group: redis
-  kind: RedisReplication
-  path: redis-operator/api/v1beta1
-  version: v1beta1
-- api:
-    crdVersion: v1
-    namespaced: true
-  domain: redis.opstreelabs.in
-  group: redis
-  kind: RedisSentinel
-  path: redis-operator/api/v1beta1
-  version: v1beta1
 - group: core
   kind: Pod
   path: k8s.io/api/core/v1
