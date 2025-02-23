@@ -26,5 +26,8 @@ coverage.html
 *~
 .vscode
 
+.DS_Store
+
 docs/build
 kubeconfig
+manager
