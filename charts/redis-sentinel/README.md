@@ -109,6 +109,8 @@ helm delete <my-release> --namespace <namespace>
 | redisSentinelConfig.redisReplicationName | string | `"redis-replication"` |  |
 | redisSentinelConfig.redisReplicationPassword.secretKey | string | `""` |  |
 | redisSentinelConfig.redisReplicationPassword.secretName | string | `""` |  |
+| redisSentinelConfig.resolveHostnames | string | `"no"` |  |
+| redisSentinelConfig.announceHostnames | string | `"no"` |  |
 | securityContext | object | `{}` |  |
 | serviceAccountName | string | `""` |  |
 | serviceMonitor.enabled | bool | `false` |  |

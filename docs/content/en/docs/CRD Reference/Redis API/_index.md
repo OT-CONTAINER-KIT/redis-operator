@@ -251,6 +251,8 @@ _Appears in:_
 | `parallelSyncs` _string_ |  |
 | `failoverTimeout` _string_ |  |
 | `downAfterMilliseconds` _string_ |  |
+| `resolveHostnames` _string_ |  |
+| `announceHostnames` _string_ |  |
 
 #### RedisExporter
 

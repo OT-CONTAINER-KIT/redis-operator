@@ -77,6 +77,8 @@ Redis replication configuration can be customized by [values.yaml](https://githu
 | redisSentinelConfig.redisReplicationName | string | `"redis-replication"` |  |
 | redisSentinelConfig.redisReplicationPassword.secretKey | string | `""` |  |
 | redisSentinelConfig.redisReplicationPassword.secretName | string | `""` |  |
+| redisSentinelConfig.resolveHostnames | string | `"no"` |  |
+| redisSentinelConfig.announceHostnames | string | `"no"` |  |
 | securityContext | object | `{}` |  |
 | serviceAccountName | string | `""` |  |
 | serviceMonitor.enabled | bool | `false` |  |
