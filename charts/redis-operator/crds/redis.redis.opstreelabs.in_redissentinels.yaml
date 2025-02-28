@@ -2631,6 +2631,12 @@ spec:
                         type: object
                         x-kubernetes-map-type: atomic
                     type: object
+                  resolveHostnames:
+                    default: "no"
+                    type: string
+                  announceHostnames:
+                    default: "no"
+                    type: string
                 required:
                 - redisReplicationName
                 type: object

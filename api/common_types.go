@@ -193,4 +193,8 @@ type RedisSentinelConfig struct {
 	FailoverTimeout string `json:"failoverTimeout,omitempty"`
 	// +kubebuilder:default:="30000"
 	DownAfterMilliseconds string `json:"downAfterMilliseconds,omitempty"`
+	// +kubebuilder:default:="no"
+	ResolveHostnames string `json:"resolveHostnames,omitempty"`
+	// +kubebuilder:default:="no"
+	AnnounceHostnames string `json:"announceHostnames,omitempty"`
 }
