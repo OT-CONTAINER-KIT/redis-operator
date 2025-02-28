@@ -100,6 +100,7 @@ helm delete <my-release> --namespace <namespace>
 | redisSentinel.resources | object | `{}` |  |
 | redisSentinel.serviceType | string | `"ClusterIP"` |  |
 | redisSentinel.tag | string | `"v7.0.15"` |  |
+| redisSentinelConfig.announceHostnames | string | `""` |  |
 | redisSentinelConfig.downAfterMilliseconds | string | `""` |  |
 | redisSentinelConfig.failoverTimeout | string | `""` |  |
 | redisSentinelConfig.masterGroupName | string | `""` |  |
@@ -109,8 +110,7 @@ helm delete <my-release> --namespace <namespace>
 | redisSentinelConfig.redisReplicationName | string | `"redis-replication"` |  |
 | redisSentinelConfig.redisReplicationPassword.secretKey | string | `""` |  |
 | redisSentinelConfig.redisReplicationPassword.secretName | string | `""` |  |
-| redisSentinelConfig.resolveHostnames | string | `"no"` |  |
-| redisSentinelConfig.announceHostnames | string | `"no"` |  |
+| redisSentinelConfig.resolveHostnames | string | `""` |  |
 | securityContext | object | `{}` |  |
 | serviceAccountName | string | `""` |  |
 | serviceMonitor.enabled | bool | `false` |  |
