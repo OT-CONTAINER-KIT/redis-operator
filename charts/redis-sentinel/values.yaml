@@ -38,6 +38,8 @@ redisSentinelConfig:
     secretName: ""
     secretKey: ""
   masterGroupName: ""
+  resolveHostnames: ""
+  announceHostnames: ""
   redisPort: ""
   quorum: ""
   parallelSyncs: ""
