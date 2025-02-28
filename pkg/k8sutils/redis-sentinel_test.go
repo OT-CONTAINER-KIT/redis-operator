@@ -334,6 +334,8 @@ func Test_getSentinelEnvVariable(t *testing.T) {
 								DownAfterMilliseconds: "30000",
 								ParallelSyncs:         "1",
 								FailoverTimeout:       "180000",
+								ResolveHostnames:      "no",
+								AnnounceHostnames:     "no",
 							},
 						},
 					},
@@ -367,6 +369,14 @@ func Test_getSentinelEnvVariable(t *testing.T) {
 				{
 					Name:  "FAILOVER_TIMEOUT",
 					Value: "180000",
+				},
+				{
+					Name:  "RESOLVE_HOSTNAMES",
+					Value: "no",
+				},
+				{
+					Name:  "ANNOUNCE_HOSTNAMES",
+					Value: "no",
 				},
 			},
 		},
