@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
@@ -258,6 +259,13 @@ func getSentinelEnvVariable(ctx context.Context, client kubernetes.Interface, cr
 		return &[]corev1.EnvVar{}
 	}
 
+	var IP string
+	if cr.Spec.RedisSentinelConfig.ResolveHostnames == "yes" {
+		IP = getRedisReplicationMasterName(ctx, client, cr, dcl)
+	} else {
+		IP = getRedisReplicationMasterIP(ctx, client, cr, dcl)
+	}
+
 	envVar := &[]corev1.EnvVar{
 		{
 			Name:  "MASTER_GROUP_NAME",
@@ -265,7 +273,7 @@ func getSentinelEnvVariable(ctx context.Context, client kubernetes.Interface, cr
 		},
 		{
 			Name:  "IP",
-			Value: getRedisReplicationMasterIP(ctx, client, cr, dcl),
+			Value: IP,
 		},
 		{
 			Name:  "PORT",
@@ -287,6 +295,14 @@ func getSentinelEnvVariable(ctx context.Context, client kubernetes.Interface, cr
 			Name:  "FAILOVER_TIMEOUT",
 			Value: cr.Spec.RedisSentinelConfig.FailoverTimeout,
 		},
+		{
+			Name:  "RESOLVE_HOSTNAMES",
+			Value: cr.Spec.RedisSentinelConfig.ResolveHostnames,
+		},
+		{
+			Name:  "ANNOUNCE_HOSTNAMES",
+			Value: cr.Spec.RedisSentinelConfig.AnnounceHostnames,
+		},
 	}
 
 	if cr.Spec.RedisSentinelConfig != nil && cr.Spec.RedisSentinelConfig.RedisReplicationPassword != nil {
@@ -298,12 +314,17 @@ func getSentinelEnvVariable(ctx context.Context, client kubernetes.Interface, cr
 	return envVar
 }
 
-func getRedisReplicationMasterIP(ctx context.Context, client kubernetes.Interface, cr *redisv1beta2.RedisSentinel, dcl dynamic.Interface) string {
+func getRedisReplicationMasterPod(ctx context.Context, client kubernetes.Interface, cr *redisv1beta2.RedisSentinel, dcl dynamic.Interface) RedisDetails {
 	replicationName := cr.Spec.RedisSentinelConfig.RedisReplicationName
 	replicationNamespace := cr.Namespace
 
 	var replicationInstance redisv1beta2.RedisReplication
 	var realMasterPod string
+
+	emptyRedisInfo := RedisDetails{
+		PodName:   "",
+		Namespace: "",
+	}
 
 	// Get Request on Dynamic Client
 	customObject, err := dcl.Resource(schema.GroupVersionResource{
@@ -314,7 +335,7 @@ func getRedisReplicationMasterIP(ctx context.Context, client kubernetes.Interfac
 
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Failed to Execute Get Request", "replication name", replicationName, "namespace", replicationNamespace)
-		return ""
+		return emptyRedisInfo
 	} else {
 		log.FromContext(ctx).V(1).Info("Successfully Execute the Get Request", "replication name", replicationName, "namespace", replicationNamespace)
 	}
@@ -323,19 +344,19 @@ func getRedisReplicationMasterIP(ctx context.Context, client kubernetes.Interfac
 	replicationJSON, err := customObject.MarshalJSON()
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Failed To Load JSON")
-		return ""
+		return emptyRedisInfo
 	}
 
 	// Unmarshal The JSON on Object
 	if err := json.Unmarshal(replicationJSON, &replicationInstance); err != nil {
 		log.FromContext(ctx).Error(err, "Failed To Unmarshal JSON over the Object")
-		return ""
+		return emptyRedisInfo
 	}
 
 	masterPods := GetRedisNodesByRole(ctx, client, &replicationInstance, "master")
 	if len(masterPods) == 0 {
 		log.FromContext(ctx).Error(errors.New("no master pods found"), "")
-		return ""
+		return emptyRedisInfo
 	}
 	for _, podName := range masterPods {
 		redisClient := configureRedisReplicationClient(ctx, client, &replicationInstance, podName)
@@ -348,12 +369,29 @@ func getRedisReplicationMasterIP(ctx context.Context, client kubernetes.Interfac
 	}
 	if realMasterPod == "" {
 		log.FromContext(ctx).Error(errors.New("no real master pod found"), "")
-		return ""
+		return emptyRedisInfo
 	}
 
-	realMasterInfo := RedisDetails{
+	return RedisDetails{
 		PodName:   realMasterPod,
 		Namespace: replicationNamespace,
 	}
-	return getRedisServerIP(ctx, client, realMasterInfo)
+}
+
+func getRedisReplicationMasterIP(ctx context.Context, client kubernetes.Interface, cr *redisv1beta2.RedisSentinel, dcl dynamic.Interface) string {
+	RedisDetails := getRedisReplicationMasterPod(ctx, client, cr, dcl)
+	if RedisDetails.PodName == "" || RedisDetails.Namespace == "" {
+		return ""
+	} else {
+		return getRedisServerIP(ctx, client, RedisDetails)
+	}
+}
+
+func getRedisReplicationMasterName(ctx context.Context, client kubernetes.Interface, cr *redisv1beta2.RedisSentinel, dcl dynamic.Interface) string {
+	RedisDetails := getRedisReplicationMasterPod(ctx, client, cr, dcl)
+	if RedisDetails.PodName == "" || RedisDetails.Namespace == "" {
+		return ""
+	} else {
+		return fmt.Sprintf("%s.%s-headless.%s.svc", RedisDetails.PodName, cr.Spec.RedisSentinelConfig.RedisReplicationName, RedisDetails.Namespace)
+	}
 }

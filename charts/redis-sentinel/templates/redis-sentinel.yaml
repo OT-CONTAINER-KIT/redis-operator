@@ -25,6 +25,8 @@ spec:
     parallelSyncs: {{ .Values.redisSentinelConfig.parallelSyncs | default "1" | quote}}
     failoverTimeout: {{ .Values.redisSentinelConfig.failoverTimeout | default "180000" | quote}}
     downAfterMilliseconds:  {{ .Values.redisSentinelConfig.downAfterMilliseconds | default "30000" | quote}}
+    resolveHostnames : {{ .Values.redisSentinelConfig.resolveHostnames | default "no" | quote}}
+    announceHostnames : {{ .Values.redisSentinelConfig.announceHostnames | default "no" | quote}}
     {{- if eq .Values.externalConfig.enabled true }}
     additionalSentinelConfig: {{ .Values.redisSentinel.name | default .Release.Name }}-ext-config
     {{- end }}
