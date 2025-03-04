@@ -9,9 +9,6 @@ metadata:
     redis.opstreelabs.in/recreate-statefulset: "true"
     {{ end }}
 spec:
-  {{- if .Values.redisStandalone.hostPort }}
-  hostPort: {{ .Values.redisStandalone.hostPort }}
-  {{- end }}
   kubernetesConfig:
     image: "{{ .Values.redisStandalone.image }}:{{ .Values.redisStandalone.tag }}"
     imagePullPolicy: "{{ .Values.redisStandalone.imagePullPolicy }}"
