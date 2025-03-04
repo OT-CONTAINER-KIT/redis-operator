@@ -9,9 +9,6 @@ metadata:
     redis.opstreelabs.in/recreate-statefulset: "true"
     {{ end }}
 spec:
-  {{- if .Values.redisCluster.hostPort }}
-  hostPort: {{ .Values.redisCluster.hostPort }}
-  {{- end }}
   clusterSize: {{ .Values.redisCluster.clusterSize }}
   persistenceEnabled: {{ .Values.redisCluster.persistenceEnabled }}
   clusterVersion: {{ .Values.redisCluster.clusterVersion }}
