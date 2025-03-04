@@ -18,7 +18,7 @@ COPY go.sum go.sum
 RUN go mod download
 
 # Copy the go source
-COPY cmd/manager/main.go main.go
+COPY cmd/agent/main.go main.go
 COPY api/ api/
 COPY pkg/ pkg/
 COPY mocks/ mocks/
@@ -29,14 +29,14 @@ ENV GOOS=$TARGETOS
 ENV GOARCH=$TARGETARCH
 ENV CGO_ENABLED=0
 
-RUN GO111MODULE=on go build  -ldflags "${LDFLAGS}" -a -o manager main.go
+RUN GO111MODULE=on go build  -ldflags "${LDFLAGS}" -a -o agent main.go
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM gcr.io/distroless/static:nonroot
 LABEL maintainer="The Opstree Opensource <opensource@opstree.com>"
 WORKDIR /
-COPY --from=builder /workspace/manager .
+COPY --from=builder /workspace/agent .
 USER 65532:65532
 
-ENTRYPOINT ["/manager"]
+ENTRYPOINT ["/agent"]
