@@ -39,8 +39,6 @@ spec:
           spec:
             description: RedisSpec defines the desired state of Redis
             properties:
-              hostPort:
-                type: integer
               TLS:
                 description: TLS Configuration for redis instances
                 properties:
@@ -1181,6 +1179,8 @@ spec:
                   - name
                   type: object
                 type: array
+              hostPort:
+                type: integer
               initContainer:
                 description: InitContainer for each Redis pods
                 properties:
