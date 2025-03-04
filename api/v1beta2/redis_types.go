@@ -45,6 +45,7 @@ type RedisSpec struct {
 	ServiceAccountName            *string                    `json:"serviceAccountName,omitempty"`
 	TerminationGracePeriodSeconds *int64                     `json:"terminationGracePeriodSeconds,omitempty" protobuf:"varint,4,opt,name=terminationGracePeriodSeconds"`
 	EnvVars                       *[]corev1.EnvVar           `json:"env,omitempty"`
+	HostPort                      *int                       `json:"hostPort,omitempty"`
 }
 
 // RedisStatus defines the observed state of Redis

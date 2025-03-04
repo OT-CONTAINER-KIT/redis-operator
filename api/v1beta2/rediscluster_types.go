@@ -47,6 +47,7 @@ type RedisClusterSpec struct {
 	ServiceAccountName *string                      `json:"serviceAccountName,omitempty"`
 	PersistenceEnabled *bool                        `json:"persistenceEnabled,omitempty"`
 	EnvVars            *[]corev1.EnvVar             `json:"env,omitempty"`
+	HostPort           *int                         `json:"hostPort,omitempty"`
 }
 
 func (cr *RedisClusterSpec) GetReplicaCounts(t string) int32 {
