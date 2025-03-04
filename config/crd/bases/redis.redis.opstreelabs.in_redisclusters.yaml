@@ -67,8 +67,6 @@ spec:
           spec:
             description: RedisClusterSpec defines the desired state of RedisCluster
             properties:
-              hostPort:
-                type: integer
               TLS:
                 description: TLS Configuration for redis instances
                 properties:
@@ -331,6 +329,8 @@ spec:
                 type: array
               hostNetwork:
                 type: boolean
+              hostPort:
+                type: integer
               initContainer:
                 description: InitContainer for each Redis pods
                 properties:
