@@ -38,6 +38,8 @@ spec:
             type: object
           spec:
             properties:
+              hostPort:
+                type: integer
               TLS:
                 description: TLS Configuration for redis instances
                 properties:
