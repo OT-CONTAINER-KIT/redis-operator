@@ -144,6 +144,7 @@ type containerParameters struct {
 	AdditionalMountPath          []corev1.VolumeMount
 	EnvVars                      *[]corev1.EnvVar
 	Port                         *int
+	HostPort                     *int
 }
 
 type initContainerParameters struct {
@@ -438,6 +439,15 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe, sentinelCntr, enableTLS, enableAuth),
 			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, clusterMode, nodeConfVolume, externalConfig, mountpath, containerParams.TLSConfig, containerParams.ACLConfig),
 		},
+	}
+
+	if containerParams.HostPort != nil {
+		containerDefinition[0].Ports = []corev1.ContainerPort{
+			{
+				HostPort:      int32(*containerParams.HostPort),
+				ContainerPort: int32(*containerParams.Port),
+			},
+		}
 	}
 
 	if containerParams.Resources != nil {

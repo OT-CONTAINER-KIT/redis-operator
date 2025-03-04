@@ -9,6 +9,9 @@ metadata:
     redis.opstreelabs.in/recreate-statefulset: "true"
     {{ end }}
 spec:
+  {{- if .Values.redisSentinel.hostPort }}
+  hostPort: {{ .Values.redisSentinel.hostPort }}
+  {{- end }}
   clusterSize: {{ .Values.redisSentinel.clusterSize }}
   # Sentinel Config
   redisSentinelConfig:
