@@ -23,6 +23,11 @@ redisCluster:
   # -- Some fields of statefulset are immutable, such as volumeClaimTemplates.
   # When set to true, the operator will delete the statefulset and recreate it. Default is false.
   recreateStatefulSetOnUpdateInvalid: false
+  
+  #If hostPort is set, the service will be created with hostPort enabled, exposing the Redis service on the host network.
+  #The pod will be accessed directly using the ip of the node and the host port ex: 1.2.3.4:6379
+  hostPort: null
+
   leader:
     replicas: 3
     serviceType: ClusterIP
