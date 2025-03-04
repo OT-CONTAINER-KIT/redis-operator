@@ -18,6 +18,7 @@ var (
 	}
 )
 
+//nolint:gochecknoinits
 func init() {
 	BootstrapCmd.Flags().Bool("sentinel", false, "Generate sentinel config instead of redis config")
 }
@@ -65,5 +66,5 @@ func (c *config) append(config ...string) *config {
 }
 
 func (c *config) commit() error {
-	return os.WriteFile(c.path, []byte(c.content), 0644)
+	return os.WriteFile(c.path, []byte(c.content), 0o644)
 }

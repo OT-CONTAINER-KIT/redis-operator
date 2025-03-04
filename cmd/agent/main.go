@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/agent/bootstrap"
 	"github.com/spf13/cobra"
 )
@@ -14,5 +16,7 @@ func main() {
 
 	rootCmd.AddCommand(bootstrap.BootstrapCmd)
 
-	rootCmd.Execute()
+	if err := rootCmd.Execute(); err != nil {
+		os.Exit(1)
+	}
 }
