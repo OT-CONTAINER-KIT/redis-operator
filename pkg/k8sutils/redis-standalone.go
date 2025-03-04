@@ -146,6 +146,7 @@ func generateRedisStandaloneContainerParams(cr *redisv1beta2.Redis) containerPar
 		Resources:       cr.Spec.KubernetesConfig.Resources,
 		SecurityContext: cr.Spec.SecurityContext,
 		Port:            ptr.To(redisPort),
+		HostPort:        cr.Spec.HostPort,
 	}
 
 	if cr.Spec.EnvVars != nil {

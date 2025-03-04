@@ -30,6 +30,7 @@ type RedisSentinelSpec struct {
 	EnvVars                       *[]corev1.EnvVar                  `json:"env,omitempty"`
 	VolumeMount                   *common.AdditionalVolume          `json:"volumeMount,omitempty"`
 	TopologySpreadConstrains      []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
+	HostPort                      *int                              `json:"hostPort,omitempty"`
 }
 
 func (cr *RedisSentinelSpec) GetSentinelCounts(t string) int32 {
