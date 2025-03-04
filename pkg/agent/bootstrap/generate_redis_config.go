@@ -36,10 +36,10 @@ func generateRedisConfig() error {
 
 	// common_operation - create necessary directories
 	{
-		if err := os.MkdirAll(dataDir, 0755); err != nil {
+		if err := os.MkdirAll(dataDir, 0o755); err != nil {
 			log.Fatalf("Failed to create data directory: %v", err)
 		}
-		if err := os.MkdirAll(nodeConfDir, 0755); err != nil {
+		if err := os.MkdirAll(nodeConfDir, 0o755); err != nil {
 			log.Fatalf("Failed to create node configuration directory: %v", err)
 		}
 	}
