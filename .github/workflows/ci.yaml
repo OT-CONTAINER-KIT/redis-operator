@@ -163,7 +163,7 @@ jobs:
       - name: Set GOARCH
         run: echo "GOARCH=${{ matrix.arch }}" >> $GITHUB_ENV
       - name: Build Go Binary
-        run: go build -o ${{ github.workspace }}/${{ env.APPLICATION_NAME }}
+        run: go build -o ${{ github.workspace }}/${{ env.APPLICATION_NAME }} cmd/manager/main.go
       - name: Archive Binary
         run: |
           mkdir -p ${{ github.workspace }}/compiled/${{ matrix.arch }}
@@ -214,7 +214,7 @@ jobs:
       - name: Build Dockerfile
         run: docker build . --file Dockerfile --tag redis-operator:e2e
       - name: Install Cosign
-        uses: sigstore/cosign-installer@v3.7.0
+        uses: sigstore/cosign-installer@v3.8.1
       - name: Install chainsaw
         uses: kyverno/action-install-chainsaw@v0.2.12
         with:
