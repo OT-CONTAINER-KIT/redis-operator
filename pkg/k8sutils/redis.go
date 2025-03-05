@@ -382,7 +382,7 @@ func RedisClusterStatusHealth(ctx context.Context, client kubernetes.Interface, 
 	redisClient := configureRedisClient(ctx, client, cr, cr.ObjectMeta.Name+"-leader-0")
 	defer redisClient.Close()
 
-	cmd := []string{"redis-cli", "--cluster", "check", "127.0.0.1:6379"}
+	cmd := []string{"redis-cli", "--cluster", "check", fmt.Sprintf("127.0.0.1:%d", *cr.Spec.Port)}
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
 		pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
 		if err != nil {
