@@ -19,6 +19,56 @@ import (
 	"k8s.io/utils/ptr"
 )
 
+func TestGenerateAuthAndTLSArgs(t *testing.T) {
+	tests := []struct {
+		name         string
+		enableAuth   bool
+		enableTLS    bool
+		expectedAuth string
+		expectedTLS  string
+	}{
+		{"NoAuthNoTLS", false, false, "", ""},
+		{"AuthOnly", true, false, " -a \"${REDIS_PASSWORD}\"", ""},
+		{"TLSOnly", false, true, "", " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\" --cacert \"${REDIS_TLS_CA_KEY}\""},
+		{"AuthAndTLS", true, true, " -a \"${REDIS_PASSWORD}\"", " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\" --cacert \"${REDIS_TLS_CA_KEY}\""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			authArgs, tlsArgs := GenerateAuthAndTLSArgs(tt.enableAuth, tt.enableTLS)
+			if authArgs != tt.expectedAuth {
+				t.Errorf("expected auth args %q, got %q", tt.expectedAuth, authArgs)
+			}
+			if tlsArgs != tt.expectedTLS {
+				t.Errorf("expected TLS args %q, got %q", tt.expectedTLS, tlsArgs)
+			}
+		})
+	}
+}
+
+func TestGeneratePreStopCommand(t *testing.T) {
+	tests := []struct {
+		name        string
+		role        string
+		expectEmpty bool
+	}{
+		{"ClusterRole", "cluster", false},
+		{"ReplicationRole", "replication", true},
+		{"SentinelRole", "sentinel", true},
+		{"StandaloneRole", "standalone", true},
+		{"UnknownRole", "unknown", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GeneratePreStopCommand(tt.role, true, true)
+			if (result == "") != tt.expectEmpty {
+				t.Errorf("expected empty: %v, got: %q", tt.expectEmpty, result)
+			}
+		})
+	}
+}
+
 func TestGetVolumeMount(t *testing.T) {
 	tests := []struct {
 		name               string
