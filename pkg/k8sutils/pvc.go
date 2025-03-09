@@ -62,6 +62,10 @@ func HandlePVCResizing(ctx context.Context, storedStateful, newStateful *appsv1.
 
 	// If the stored capacity matches the desired capacity, no update is needed.
 	if storedCapacity == desiredCapacity {
+		// TODO: Handle scale-out scenario:
+		// When scaling out, new PVCs are created with the original capacity from the VolumeClaimTemplate.
+		// Since the annotation is not cleared, the current logic might incorrectly assume that the desired capacity is already applied.
+		// In a future update, we should detect new PVCs and update them accordingly.
 		return nil
 	}
 
