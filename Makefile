@@ -124,10 +124,10 @@ generate: controller-gen
 docker-create:
 	${CONTAINER_ENGINE} buildx create --platform $(PLATFORMS) --use
 
-# Build the Docker image using Buildx for the specified platforms and tag it with the provided image name
+# Build the Docker image using Buildx for the specified platforms and tag it with the provided image name, then load it into the local Docker daemon
 .PHONY: docker-build
 docker-build:
-	${CONTAINER_ENGINE} buildx build --platform=$(PLATFORMS) -t ${IMG} .
+	${CONTAINER_ENGINE} buildx build --platform=$(PLATFORMS) -t ${IMG} --load .
 
 # Build and push the Docker image using Buildx for the specified platforms and tag it with the provided image name
 .PHONY: docker-push
