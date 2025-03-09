@@ -71,58 +71,58 @@ test: generate fmt vet manifests
 # Build manager binary
 .PHONY: manager
 manager: generate fmt vet
-    go build -o bin/manager cmd/manager/main.go
+	go build -o bin/manager cmd/manager/main.go
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 .PHONY: run
 run: generate fmt vet manifests
-    go run cmd/manager/main.go
+	go run cmd/manager/main.go
 
 # Install CRDs into a cluster
 .PHONY: install
 install: manifests kustomize
-    $(KUSTOMIZE) build config/crd | kubectl apply --server-side=true -f -
+	$(KUSTOMIZE) build config/crd | kubectl apply --server-side=true -f -
 
 # Uninstall CRDs from a cluster
 .PHONY: uninstall
 uninstall: manifests kustomize
-    $(KUSTOMIZE) build config/crd | kubectl delete -f -
+	$(KUSTOMIZE) build config/crd | kubectl delete -f -
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 .PHONY: deploy
 deploy: manifests kustomize
-    cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-    $(KUSTOMIZE) build config/default | kubectl apply --server-side=true -f -
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/default | kubectl apply --server-side=true -f -
 
 # UnDeploy controller from the configured Kubernetes cluster in ~/.kube/config
 .PHONY: undeploy
 undeploy:
-    $(KUSTOMIZE) build config/default | kubectl delete -f -
+	$(KUSTOMIZE) build config/default | kubectl delete -f -
 
 # Generate manifests e.g. CRD, RBAC etc.
 .PHONY: manifests
 manifests: controller-gen
-    $(CONTROLLER_GEN) crd rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) crd rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 # Run go fmt against code
 .PHONY: fmt
 fmt:
-    go fmt ./...
+	go fmt ./...
 
 # Run go vet against code
 .PHONY: vet
 vet:
-    go vet ./...
+	go vet ./...
 
 # Generate code
 .PHONY: generate
 generate: controller-gen
-    $(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 # Create a new builder instance for Docker Buildx with the specified platforms and set it as the current builder
 .PHONY: docker-create
 docker-create:
-    ${CONTAINER_ENGINE} buildx create --platform $(PLATFORMS) --use
+	${CONTAINER_ENGINE} buildx create --platform $(PLATFORMS) --use
 
 # Build the Docker image using Buildx for the specified platforms and tag it with the provided image name
 .PHONY: docker-build
@@ -132,7 +132,7 @@ docker-build:
 # Build and push the Docker image using Buildx for the specified platforms and tag it with the provided image name
 .PHONY: docker-push
 docker-push:
-    ${CONTAINER_ENGINE} buildx build --push --platform="$(PLATFORMS)" -t ${IMG} .
+	${CONTAINER_ENGINE} buildx build --push --platform="$(PLATFORMS)" -t ${IMG} .
 
 # Load the image into docker
 .PHONY: docker-load
@@ -142,15 +142,15 @@ docker-load:
 # Generate bundle manifests and metadata, then validate generated files.
 .PHONY: bundle
 bundle: manifests kustomize
-    operator-sdk generate kustomize manifests -q
-    cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
-    $(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
-    operator-sdk bundle validate ./bundle
+	operator-sdk generate kustomize manifests -q
+	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
+	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+	operator-sdk bundle validate ./bundle
 
 # Build the bundle image.
 .PHONY: bundle-build
 bundle-build:
-    ${CONTAINER_ENGINE} buildx build --platform="$(PLATFORMS)" -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+	${CONTAINER_ENGINE} buildx build --platform="$(PLATFORMS)" -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
 # Rebuild all generated code
 .PHONY: codegen
@@ -159,13 +159,13 @@ codegen: generate manifests
 # Verify that codegen is up to date.
 .PHONY: verify-codegen
 verify-codegen: codegen
-    @echo Checking codegen is up to date... >&2
-    @if [ -n "$$(git status --porcelain)" ]; then \
-        echo "There are uncommitted changes or untracked files after running codegen:" >&2; \
-        git status --porcelain >&2; \
-        echo "To correct this, locally run 'make codegen', commit the changes, and re-run tests." >&2; \
-        exit 1; \
-    fi
+	@echo Checking codegen is up to date... >&2
+	@if [ -n "$$(git status --porcelain)" ]; then \
+		echo "There are uncommitted changes or untracked files after running codegen:" >&2; \
+		git status --porcelain >&2; \
+		echo "To correct this, locally run 'make codegen', commit the changes, and re-run tests." >&2; \
+		exit 1; \
+	fi
 
 # ===========================
 # Testing
@@ -176,61 +176,61 @@ tests: integration-test-setup unit-tests
 
 .PHONY: unit-tests
 unit-tests:
-    @echo Running tests... >&2
-    @go test ./... -race -coverprofile=coverage.out -covermode=atomic
-    @go tool cover -html=coverage.out
+	@echo Running tests... >&2
+	@go test ./... -race -coverprofile=coverage.out -covermode=atomic
+	@go tool cover -html=coverage.out
 
 .PHONY: e2e-test
 e2e-test: e2e-kind-setup kuttl
-    $(LOCALBIN)/kuttl test --config tests/_config/kuttl-test.yaml
+	$(LOCALBIN)/kuttl test --config tests/_config/kuttl-test.yaml
 
 .PHONY: integration-test-setup
 integration-test-setup:
-    ./hack/integrationSetup.sh
+	./hack/integrationSetup.sh
 
 .PHONY: e2e-kind-setup
 e2e-kind-setup:
-    ${CONTAINER_ENGINE} build -t redis-operator:e2e -f Dockerfile .
-    $(KIND) create cluster --config tests/_config/kind-config.yaml
-    $(KIND) load docker-image redis-operator:e2e --name kind
-    make deploy IMG=redis-operator:e2e
+	${CONTAINER_ENGINE} build -t redis-operator:e2e -f Dockerfile .
+	$(KIND) create cluster --config tests/_config/kind-config.yaml
+	$(KIND) load docker-image redis-operator:e2e --name kind
+	make deploy IMG=redis-operator:e2e
 
 # ===========================
 # Dependencies
 # ===========================
 
 $(LOCALBIN):
-    mkdir -p $(LOCALBIN)
+	mkdir -p $(LOCALBIN)
 
 # Download kustomize locally if necessary.
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE)
 $(KUSTOMIZE): $(LOCALBIN)
-    $(call go-install-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v5,$(KUSTOMIZE_VERSION))
+	$(call go-install-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v5,$(KUSTOMIZE_VERSION))
 
 # Download controller-gen locally if necessary.
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN)
 $(CONTROLLER_GEN): $(LOCALBIN)
-    $(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen,$(CONTROLLER_TOOLS_VERSION))
+	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen,$(CONTROLLER_TOOLS_VERSION))
 
 # Download setup-envtest locally if necessary.
 .PHONY: envtest
 envtest: $(ENVTEST)
 $(ENVTEST): $(LOCALBIN)
-    $(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest,$(ENVTEST_VERSION))
+	$(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest,$(ENVTEST_VERSION))
 
 # Download golangci-lint locally if necessary.
 .PHONY: golangci-lint
 golangci-lint: $(GOLANGCI_LINT)
 $(GOLANGCI_LINT): $(LOCALBIN)
-    $(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint,${GOLANGCI_LINT_VERSION})
+	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint,${GOLANGCI_LINT_VERSION})
 
 # Download kind locally if necessary.
 .PHONY: kind
 kind: $(KIND)
 $(KIND): $(LOCALBIN)
-    $(call go-install-tool,$(KIND),sigs.k8s.io/kind,${KIND_VERSION})
+	$(call go-install-tool,$(KIND),sigs.k8s.io/kind,${KIND_VERSION})
 
 # Download kuttl locally if necessary.
 .PHONY: kuttl
