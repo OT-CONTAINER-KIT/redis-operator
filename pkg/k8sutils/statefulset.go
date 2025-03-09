@@ -14,10 +14,8 @@ import (
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/env"
 	"k8s.io/utils/ptr"
@@ -179,13 +177,12 @@ func CreateOrUpdateStateFul(ctx context.Context, cl kubernetes.Interface, namesp
 	return patchStatefulSet(ctx, storedStateful, statefulSetDef, namespace, params.RecreateStatefulSet, cl)
 }
 
-// patchStateFulSet will patch Redis Kubernetes StateFulSet
-func patchStatefulSet(ctx context.Context, storedStateful *appsv1.StatefulSet, newStateful *appsv1.StatefulSet, namespace string, recreateStateFulSet bool, cl kubernetes.Interface) error {
-	// We want to try and keep this atomic as possible.
-	newStateful.ResourceVersion = storedStateful.ResourceVersion
-	newStateful.CreationTimestamp = storedStateful.CreationTimestamp
-	newStateful.ManagedFields = storedStateful.ManagedFields
+// patchStatefulSet patches the Redis StatefulSet by applying changes while maintaining atomicity.
+func patchStatefulSet(ctx context.Context, storedStateful, newStateful *appsv1.StatefulSet, namespace string, recreateStatefulSet bool, cl kubernetes.Interface) error {
+	// Sync system-managed fields to ensure atomic update.
+	syncManagedFields(storedStateful, newStateful)
 
+	// Calculate the patch between the stored and new objects, ignoring immutable or unnecessary fields.
 	patchResult, err := patch.DefaultPatchMaker.Calculate(storedStateful, newStateful,
 		patch.IgnoreStatusFields(),
 		patch.IgnoreVolumeClaimTemplateTypeMetaAndStatus(),
@@ -193,93 +190,64 @@ func patchStatefulSet(ctx context.Context, storedStateful *appsv1.StatefulSet, n
 		patch.IgnoreField("apiVersion"),
 	)
 	if err != nil {
-		log.FromContext(ctx).Error(err, "Unable to patch redis statefulset with comparison object")
+		log.FromContext(ctx).Error(err, "Unable to calculate patch for redis statefulset")
 		return err
 	}
-	if !patchResult.IsEmpty() {
-		log.FromContext(ctx).V(1).Info("Changes in statefulset Detected, Updating...", "patch", string(patchResult.Patch))
-		if len(newStateful.Spec.VolumeClaimTemplates) >= 1 && len(newStateful.Spec.VolumeClaimTemplates) == len(storedStateful.Spec.VolumeClaimTemplates) {
-			// Field is immutable therefore we MUST keep it as is.
-			if !apiequality.Semantic.DeepEqual(newStateful.Spec.VolumeClaimTemplates[0].Spec, storedStateful.Spec.VolumeClaimTemplates[0].Spec) {
-				// resize pvc
-				// 1.Get the data already stored internally
-				// 2.Get the desired data
-				// 3.Start querying the pvc list when you find data inconsistencies
-				// 3.1 Comparison using real pvc capacity and desired data
-				// 3.1.1 Update if you find inconsistencies
-				// 3.2 Writing successful updates to internal
-				// 4. Set to old VolumeClaimTemplates to update.Prevent update error reporting
-				// 5. Set to old annotations to update
-				annotations := storedStateful.Annotations
-				if annotations == nil {
-					annotations = map[string]string{
-						"storageCapacity": "0",
-					}
-				}
-				storedCapacity, _ := strconv.ParseInt(annotations["storageCapacity"], 0, 64)
-				if len(newStateful.Spec.VolumeClaimTemplates) != 0 {
-					stateCapacity := newStateful.Spec.VolumeClaimTemplates[0].Spec.Resources.Requests.Storage().Value()
-					if storedCapacity != stateCapacity {
-						listOpt := metav1.ListOptions{
-							LabelSelector: labels.FormatLabels(
-								map[string]string{
-									"app":                         storedStateful.Name,
-									"app.kubernetes.io/component": "redis",
-								},
-							),
-						}
-						pvcs, err := cl.CoreV1().PersistentVolumeClaims(storedStateful.Namespace).List(context.Background(), listOpt)
-						if err != nil {
-							return err
-						}
-						updateFailed := false
-						realUpdate := false
-						for i := range pvcs.Items {
-							pvc := &pvcs.Items[i]
-							realCapacity := pvc.Spec.Resources.Requests.Storage().Value()
-							if realCapacity != stateCapacity {
-								realUpdate = true
-								pvc.Spec.Resources.Requests = newStateful.Spec.VolumeClaimTemplates[0].Spec.Resources.Requests
-								_, err = cl.CoreV1().PersistentVolumeClaims(storedStateful.Namespace).Update(context.Background(), pvc, metav1.UpdateOptions{})
-								if err != nil {
-									if !updateFailed {
-										updateFailed = true
-									}
-									log.FromContext(ctx).Error(fmt.Errorf("redis:%s resize pvc failed:%s", storedStateful.Name, err.Error()), "")
-								}
-							}
-						}
 
-						if !updateFailed && len(pvcs.Items) != 0 {
-							annotations["storageCapacity"] = fmt.Sprintf("%d", stateCapacity)
-							storedStateful.Annotations = annotations
-							if realUpdate {
-								log.FromContext(ctx).V(1).Info(fmt.Sprintf("redis:%s resize pvc from  %d to %d", storedStateful.Name, storedCapacity, stateCapacity))
-							} else {
-								log.FromContext(ctx).V(1).Info(fmt.Sprintf("redis:%s resize noting,just set annotations", storedStateful.Name))
-							}
-						}
-					}
-				}
-			}
-			newStateful.Annotations["storageCapacity"] = storedStateful.Annotations["storageCapacity"]
-			// set stored.volumeClaimTemplates
-			newStateful.Spec.VolumeClaimTemplates = storedStateful.Spec.VolumeClaimTemplates
-		}
+	if patchResult.IsEmpty() {
+		log.FromContext(ctx).V(1).Info("Reconciliation complete, no changes required.")
+		return nil
+	}
 
-		for key, value := range storedStateful.Annotations {
-			if _, present := newStateful.Annotations[key]; !present {
-				newStateful.Annotations[key] = value
-			}
-		}
-		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(newStateful); err != nil {
-			log.FromContext(ctx).Error(err, "Unable to patch redis statefulset with comparison object")
+	log.FromContext(ctx).V(1).Info("Changes detected in statefulset, updating...", "patch", string(patchResult.Patch))
+
+	// If VolumeClaimTemplates exist, handle PVC resizing.
+	if hasVolumeClaimTemplates(newStateful, storedStateful) {
+		if err := HandlePVCResizing(ctx, storedStateful, newStateful, cl); err != nil {
 			return err
 		}
-		return updateStatefulSet(ctx, cl, namespace, newStateful, recreateStateFulSet)
+		// Since VolumeClaimTemplate fields are immutable, revert to the stored configuration.
+		if newStateful.Annotations == nil {
+			newStateful.Annotations = make(map[string]string)
+		}
+		newStateful.Annotations["storageCapacity"] = storedStateful.Annotations["storageCapacity"]
+		newStateful.Spec.VolumeClaimTemplates = storedStateful.Spec.VolumeClaimTemplates
 	}
-	log.FromContext(ctx).V(1).Info("Reconciliation Complete, no Changes required.")
-	return nil
+
+	// Merge missing annotations from the stored object into the new object.
+	mergeAnnotations(storedStateful, newStateful)
+
+	// Set the last applied annotation for future patch comparisons.
+	if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(newStateful); err != nil {
+		log.FromContext(ctx).Error(err, "Failed to set last applied annotation for redis statefulset")
+		return err
+	}
+
+	return updateStatefulSet(ctx, cl, namespace, newStateful, recreateStatefulSet)
+}
+
+// syncManagedFields syncs system-managed fields from the stored object to the new object.
+func syncManagedFields(stored, new *appsv1.StatefulSet) {
+	new.ResourceVersion = stored.ResourceVersion
+	new.CreationTimestamp = stored.CreationTimestamp
+	new.ManagedFields = stored.ManagedFields
+}
+
+// hasVolumeClaimTemplates checks if the StatefulSet has VolumeClaimTemplates and if their counts match.
+func hasVolumeClaimTemplates(new, stored *appsv1.StatefulSet) bool {
+	return len(new.Spec.VolumeClaimTemplates) >= 1 && len(new.Spec.VolumeClaimTemplates) == len(stored.Spec.VolumeClaimTemplates)
+}
+
+// mergeAnnotations merges annotations from the stored object into the new object if missing.
+func mergeAnnotations(stored, new *appsv1.StatefulSet) {
+	if new.Annotations == nil {
+		new.Annotations = make(map[string]string)
+	}
+	for key, value := range stored.Annotations {
+		if _, exists := new.Annotations[key]; !exists {
+			new.Annotations[key] = value
+		}
+	}
 }
 
 // generateStatefulSetsDef generates the statefulsets definition of Redis
