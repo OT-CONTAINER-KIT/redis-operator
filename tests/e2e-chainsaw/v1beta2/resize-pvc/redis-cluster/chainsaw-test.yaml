@@ -6,6 +6,12 @@ metadata:
   name: pvc-resize-redis-cluster
 spec:
   steps:
+    - name: Update Default Storage Class
+      try:
+        - apply:
+            file: storage-class.yaml
+        - assert:
+            file: storage-class.yaml
     - name: Install
       try:
         - apply:
@@ -14,7 +20,6 @@ spec:
             file: ready-cluster.yaml
         - assert:
             file: ready-pvc.yaml
-
     - name: Update cluster for PVC resizing
       try:
         - apply:
