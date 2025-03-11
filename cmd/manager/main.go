@@ -18,7 +18,6 @@ package main
 
 import (
 	"flag"
-	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/monitoring"
 	"os"
 	"strconv"
 	"strings"
@@ -30,6 +29,7 @@ import (
 	redissentinelcontroller "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/redissentinel"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllerutil"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/k8sutils"
+	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/monitoring"
 	coreWebhook "github.com/OT-CONTAINER-KIT/redis-operator/pkg/webhook"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
