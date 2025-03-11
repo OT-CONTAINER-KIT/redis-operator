@@ -72,6 +72,11 @@ func generateSentinelConfig() error {
 			// In a real application, SHA1 hash functionality should be implemented
 			cfg.append("sentinel myid", sentinelID)
 		}
+
+		// If resolveHostnames is set to yes, then we need to announce the hostnames
+		if announceHostnames == "yes" && resolveHostnames == "yes" {
+			cfg.append("sentinel announce-ip", ip)
+		}
 	}
 
 	// port_setup
