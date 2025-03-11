@@ -73,7 +73,6 @@ func HandlePVCResizing(ctx context.Context, storedStateful, newStateful *appsv1.
 	// Note: the component label value is updated to "middleware".
 	labelSelector := labels.FormatLabels(map[string]string{
 		"app":                         storedStateful.Name,
-		"app.kubernetes.io/component": "middleware",
 	})
 	listOpt := metav1.ListOptions{LabelSelector: labelSelector}
 
