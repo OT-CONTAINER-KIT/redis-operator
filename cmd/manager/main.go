@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/monitoring"
 	"os"
 	"strconv"
 	"strings"
@@ -52,6 +53,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(redisv1beta2.AddToScheme(scheme))
+	monitoring.RegisterRedisReplicationMetrics()
 	//+kubebuilder:scaffold:scheme
 }
 
