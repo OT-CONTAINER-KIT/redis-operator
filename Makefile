@@ -124,15 +124,20 @@ generate: controller-gen
 docker-create:
 	${CONTAINER_ENGINE} buildx create --platform $(PLATFORMS) --use
 
-# Build the Docker image using Buildx for the specified platforms and tag it with the provided image name, then load it into the local Docker daemon
+# Build the Docker image using Buildx for the specified platforms and tag it with the provided image name
 .PHONY: docker-build
 docker-build:
-	${CONTAINER_ENGINE} buildx build --platform=$(PLATFORMS) -t ${IMG} --load .
+	${CONTAINER_ENGINE} buildx build --platform=$(PLATFORMS) -t ${IMG} .
 
 # Build and push the Docker image using Buildx for the specified platforms and tag it with the provided image name
 .PHONY: docker-push
 docker-push:
 	${CONTAINER_ENGINE} buildx build --push --platform="$(PLATFORMS)" -t ${IMG} .
+
+# Load the image into docker
+.PHONY: docker-load
+docker-load:
+	${CONTAINER_ENGINE} buildx build --load -t ${IMG} .
 
 # Generate bundle manifests and metadata, then validate generated files.
 .PHONY: bundle
