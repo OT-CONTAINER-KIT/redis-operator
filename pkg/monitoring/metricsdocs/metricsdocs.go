@@ -27,7 +27,6 @@ func main() {
 		"## Developing new metrics\n" +
 		"After developing new metrics or changing old ones, please run \"make generate-metricsdocs\" to regenerate this document.\n\n" +
 		"If you feel that the new metric doesn't follow these rules, please change \"monitoring/metricsdocs\" according to your needs.")
-
 	if err != nil {
 		panic(err)
 	}
