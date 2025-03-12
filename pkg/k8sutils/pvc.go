@@ -70,9 +70,8 @@ func HandlePVCResizing(ctx context.Context, storedStateful, newStateful *appsv1.
 	}
 
 	// Create a label selector to list all related PVCs.
-	// Note: the component label value is updated to "middleware".
 	labelSelector := labels.FormatLabels(map[string]string{
-		"app":                         storedStateful.Name,
+		"app": storedStateful.Name,
 	})
 	listOpt := metav1.ListOptions{LabelSelector: labelSelector}
 
