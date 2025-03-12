@@ -3,9 +3,10 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/monitoring"
 	"sort"
 	"text/template"
+
+	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/monitoring"
 )
 
 func main() {
