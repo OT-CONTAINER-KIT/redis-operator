@@ -3,7 +3,7 @@
 # ===========================
 
 # Current Operator version
-VERSION ?= 0.19.1-operator-observability
+VERSION ?= 0.19.1
 
 # Default bundle image tag
 BUNDLE_IMG ?= controller-bundle:$(VERSION)
