@@ -239,6 +239,10 @@ $(KUTTL): $(LOCALBIN)
 	curl -L https://github.com/kudobuilder/kuttl/releases/download/v$(KUTTL_VERSION)/kubectl-kuttl_$(KUTTL_VERSION)_linux_x86_64 -o $(LOCALBIN)/kuttl
 	chmod +x $(LOCALBIN)/kuttl
 
+.PHONY: generate-metricsdocs
+generate-metricsdocs:
+	mkdir -p $(shell pwd)/docs/content/en/docs/Monitoring
+	go run -ldflags="${LDFLAGS}" ./pkg/monitoring/metricsdocs > docs/content/en/docs/Monitoring/metrics.md
 # ===========================
 # Helper Functions
 # ===========================

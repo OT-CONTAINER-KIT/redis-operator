@@ -29,6 +29,7 @@ import (
 	redissentinelcontroller "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/redissentinel"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllerutil"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/k8sutils"
+	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/monitoring"
 	coreWebhook "github.com/OT-CONTAINER-KIT/redis-operator/pkg/webhook"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -52,6 +53,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(redisv1beta2.AddToScheme(scheme))
+	monitoring.RegisterRedisReplicationMetrics()
 	//+kubebuilder:scaffold:scheme
 }
 
