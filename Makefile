@@ -13,6 +13,7 @@ ENVTEST_K8S_VERSION = 1.31.0
 
 # Image URL to use for all building/pushing image targets
 IMG ?= quay.io/opstree/redis-operator:v$(VERSION)
+AGENT_IMG ?= quay.io/opstree/redis-agent:v$(VERSION)
 
 # Container engine to use (docker or podman)
 CONTAINER_ENGINE ?= docker
@@ -73,6 +74,11 @@ test: generate fmt vet manifests
 manager: generate fmt vet
 	go build -o bin/manager cmd/manager/main.go
 
+# Build agent binary
+.PHONY: agent
+agent: generate fmt vet
+	go build -o bin/agent cmd/agent/main.go
+
 # Run against the configured Kubernetes cluster in ~/.kube/config
 .PHONY: run
 run: generate fmt vet manifests
@@ -124,20 +130,20 @@ generate: controller-gen
 docker-create:
 	${CONTAINER_ENGINE} buildx create --platform $(PLATFORMS) --use
 
-# Build the Docker image using Buildx for the specified platforms and tag it with the provided image name
+# Build the manager Docker image
 .PHONY: docker-build
 docker-build:
-	${CONTAINER_ENGINE} buildx build --platform=$(PLATFORMS) -t ${IMG} .
+	${CONTAINER_ENGINE} buildx build --platform=$(PLATFORMS) -t ${IMG} -f Dockerfile --build-arg BUILD_TARGET=manager .
 
-# Build and push the Docker image using Buildx for the specified platforms and tag it with the provided image name
+# Push the manager Docker image
 .PHONY: docker-push
 docker-push:
-	${CONTAINER_ENGINE} buildx build --push --platform="$(PLATFORMS)" -t ${IMG} .
+	${CONTAINER_ENGINE} buildx build --push --platform="$(PLATFORMS)" -t ${IMG} -f Dockerfile --build-arg BUILD_TARGET=manager .
 
-# Load the image into docker
+# Load the manager image into docker
 .PHONY: docker-load
 docker-load:
-	${CONTAINER_ENGINE} buildx build --load -t ${IMG} .
+	${CONTAINER_ENGINE} buildx build --load -t ${IMG} -f Dockerfile --build-arg BUILD_TARGET=manager .
 
 # Generate bundle manifests and metadata, then validate generated files.
 .PHONY: bundle
@@ -190,7 +196,7 @@ integration-test-setup:
 
 .PHONY: e2e-kind-setup
 e2e-kind-setup:
-	${CONTAINER_ENGINE} build -t redis-operator:e2e -f Dockerfile .
+	${CONTAINER_ENGINE} build -t redis-operator:e2e -f Dockerfile --build-arg BUILD_TARGET=manager .
 	$(KIND) create cluster --config tests/_config/kind-config.yaml
 	$(KIND) load docker-image redis-operator:e2e --name kind
 	make deploy IMG=redis-operator:e2e
