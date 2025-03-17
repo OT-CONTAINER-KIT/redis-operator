@@ -130,59 +130,20 @@ generate: controller-gen
 docker-create:
 	${CONTAINER_ENGINE} buildx create --platform $(PLATFORMS) --use
 
-# Build the Docker image using Buildx for the specified platforms and tag it with the provided image name
-.PHONY: docker-build
-docker-build: docker-build-manager
-
 # Build the manager Docker image
-.PHONY: docker-build-manager
-docker-build-manager:
+.PHONY: docker-build
+docker-build:
 	${CONTAINER_ENGINE} buildx build --platform=$(PLATFORMS) -t ${IMG} -f Dock --build-arg BUILD_TARGET=manager .
 
-# Build the agent Docker image
-.PHONY: docker-build-agent
-docker-build-agent:
-	${CONTAINER_ENGINE} buildx build --platform=$(PLATFORMS) -t ${AGENT_IMG} -f Dockerfile --build-arg BUILD_TARGET=agent .
-
-# Build all Docker images (manager and agent)
-.PHONY: docker-build-all
-docker-build-all: docker-build-manager docker-build-agent
-
-# Build and push the Docker image using Buildx for the specified platforms and tag it with the provided image name
-.PHONY: docker-push
-docker-push: docker-push-manager
-
 # Push the manager Docker image
-.PHONY: docker-push-manager
-docker-push-manager:
+.PHONY: docker-push
+docker-push:
 	${CONTAINER_ENGINE} buildx build --push --platform="$(PLATFORMS)" -t ${IMG} -f Dockerfile --build-arg BUILD_TARGET=manager .
-
-# Push the agent Docker image
-.PHONY: docker-push-agent
-docker-push-agent:
-	${CONTAINER_ENGINE} buildx build --push --platform="$(PLATFORMS)" -t ${AGENT_IMG} -f Dockerfile --build-arg BUILD_TARGET=agent .
-
-# Push all Docker images (manager and agent)
-.PHONY: docker-push-all
-docker-push-all: docker-push-manager docker-push-agent
 
 # Load the manager image into docker
 .PHONY: docker-load
-docker-load: docker-load-manager
-
-# Load the manager image into docker
-.PHONY: docker-load-manager
-docker-load-manager:
+docker-load:
 	${CONTAINER_ENGINE} buildx build --load -t ${IMG} -f Dockerfile --build-arg BUILD_TARGET=manager .
-
-# Load the agent image into docker
-.PHONY: docker-load-agent
-docker-load-agent:
-	${CONTAINER_ENGINE} buildx build --load -t ${AGENT_IMG} -f Dockerfile --build-arg BUILD_TARGET=agent .
-
-# Load all Docker images (manager and agent)
-.PHONY: docker-load-all
-docker-load-all: docker-load-manager docker-load-agent
 
 # Generate bundle manifests and metadata, then validate generated files.
 .PHONY: bundle
