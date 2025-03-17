@@ -133,7 +133,7 @@ docker-create:
 # Build the manager Docker image
 .PHONY: docker-build
 docker-build:
-	${CONTAINER_ENGINE} buildx build --platform=$(PLATFORMS) -t ${IMG} -f Dock --build-arg BUILD_TARGET=manager .
+	${CONTAINER_ENGINE} buildx build --platform=$(PLATFORMS) -t ${IMG} -f Dockfile --build-arg BUILD_TARGET=manager .
 
 # Push the manager Docker image
 .PHONY: docker-push
