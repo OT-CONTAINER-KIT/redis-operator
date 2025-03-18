@@ -9,6 +9,7 @@ import (
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
@@ -118,7 +119,17 @@ func generateRedisSentinelParams(ctx context.Context, cr *redisv1beta2.RedisSent
 		res.EnableMetrics = cr.Spec.RedisExporter.Enabled
 	}
 	if value, found := cr.ObjectMeta.GetAnnotations()[AnnotationKeyRecreateStatefulset]; found && value == "true" {
+		var propagation metav1.DeletionPropagation
 		res.RecreateStatefulSet = true
+
+		propagation = metav1.DeletePropagationForeground
+		if cr.ObjectMeta.GetAnnotations()[AnnotationKeyRecreateStatefulsetStrategy] == "orphan" {
+			propagation = metav1.DeletePropagationOrphan
+		} else if cr.ObjectMeta.GetAnnotations()[AnnotationKeyRecreateStatefulsetStrategy] == "backgroud" {
+			propagation = metav1.DeletePropagationBackground
+		}
+
+		res.RecreateStateteulsetStrategy = &propagation
 	}
 	return res
 }
