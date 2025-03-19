@@ -3,8 +3,8 @@
 </p>
 
 <p align="center">
-  <a href="https://dev.azure.com/opstreedevops/DevOps/_apis/build/status/redis-operator/redis-operator?repoName=OT-CONTAINER-KIT%2Fredis-operator&branchName=master">
-    <img src="https://dev.azure.com/opstreedevops/DevOps/_apis/build/status/redis-operator/redis-operator?repoName=OT-CONTAINER-KIT%2Fredis-operator&branchName=master" alt="Azure Pipelines">
+  <a href="https://dev.azure.com/opstreedevops/DevOps/_apis/build/status/redis-operator/redis-operator?repoName=OT-CONTAINER-KIT%2Fredis-operator&branchName=main">
+    <img src="https://dev.azure.com/opstreedevops/DevOps/_apis/build/status/redis-operator/redis-operator?repoName=OT-CONTAINER-KIT%2Fredis-operator&branchName=main" alt="Azure Pipelines">
   </a>
   <a href="https://goreportcard.com/report/github.com/OT-CONTAINER-KIT/redis-operator">
     <img src="https://goreportcard.com/badge/github.com/OT-CONTAINER-KIT/redis-operator" alt="GoReportCard">
@@ -18,7 +18,7 @@
   <a href="https://quay.io/repository/opstree/redis-operator">
     <img src="https://img.shields.io/badge/container-ready-green" alt="Docker">
   </a>
-  <a href="https://github.com/OT-CONTAINER-KIT/redis-operator/master/LICENSE">
+  <a href="https://github.com/OT-CONTAINER-KIT/redis-operator/main/LICENSE">
     <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License">
   </a>
 </p>

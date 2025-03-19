@@ -2,10 +2,10 @@ name: CI
 on:
   pull_request:
     branches:
-      - master
+      - main
   push:
     branches:
-      - master
+      - main
 
 permissions:
   contents: read
@@ -195,7 +195,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Gosec Scan
-        uses: securego/gosec@master
+        uses: securego/gosec@main
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

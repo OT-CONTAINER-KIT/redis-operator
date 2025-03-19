@@ -5,7 +5,7 @@ install:
   - cd docs; yarn install # npm ci
 branches:
   only:
-    - master
+    - main
 script:
   - cd docs; yarn build # npm run docs:build
 deploy:
@@ -15,4 +15,4 @@ deploy:
   github_token: $GITHUB_TOKEN # A token generated on GitHub allowing Travis to push code on your repository. Set in the Travis settings page of your repository, as a secure variable
   keep_history: true
   on:
-    branch: master
+    branch: main

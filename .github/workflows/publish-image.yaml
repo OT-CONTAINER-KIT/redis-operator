@@ -31,7 +31,7 @@ jobs:
 
       - name: Setup Env
         run: |
-          echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV        
+          echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
       - name: Build and Push Operator image
         uses: docker/build-push-action@v6
@@ -39,7 +39,7 @@ jobs:
           context: .
           file: Dockerfile
           push: true
-          tags: | 
+          tags: |
             ${{ env.REGISTRY }}/${{ env.REPOSITORY }}/redis-operator:${{ env.TAG }}
             ${{ env.REGISTRY }}/${{ env.REPOSITORY }}/redis-operator:latest
           platforms: linux/amd64,linux/arm64
@@ -49,7 +49,7 @@ jobs:
 #   pull_request:
 #     types: [closed]
 #     branches:
-#       - master
+#       - main
 
 # env:
 #   APPLICATION_NAME: redis-operator
@@ -95,10 +95,10 @@ jobs:
 #     - name: Checkout
 #       uses: actions/checkout@v2
 #     - name: Run Trivy vulnerability scanner for arm64 image
-#       uses: aquasecurity/trivy-action@master
+#       uses: aquasecurity/trivy-action@main
 
 #     - name: Run Trivy vulnerability scanner for multi-arch image
-#       uses: aquasecurity/trivy-action@master
+#       uses: aquasecurity/trivy-action@main
 #       with:
 #         image-ref: ${{ env.QuayImageName }}:${{ env.APP_VERSION }}
 #         format: 'template'
@@ -108,7 +108,7 @@ jobs:
 #         ignore-unfixed: true
 #         severity: 'CRITICAL,HIGH'
 #     - name: Run Trivy vulnerability scanner for latest image
-#       uses: aquasecurity/trivy-action@master
+#       uses: aquasecurity/trivy-action@main
 #       with:
 #         image-ref:  ${{ env.QuayImageName }}:latest
 #         format: 'template'

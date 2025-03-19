@@ -61,7 +61,7 @@ Once upgrading activity is completed, again validate the setup by steps defined 
 
 ### Upgrading with YAML
 
-If you installed Redis Operator with [install-operator.sh](https://github.com/OT-CONTAINER-KIT/redis-operator/blob/master/install-operator.sh), we need to update the image tag version inside the [deployment manifest](https://github.com/OT-CONTAINER-KIT/redis-operator/blob/master/config/manager/manager.yaml) of operator and again run the same script.
+If you installed Redis Operator with [install-operator.sh](https://github.com/OT-CONTAINER-KIT/redis-operator/blob/main/install-operator.sh), we need to update the image tag version inside the [deployment manifest](https://github.com/OT-CONTAINER-KIT/redis-operator/blob/main/config/manager/manager.yaml) of operator and again run the same script.
 
 ```yaml
     spec:

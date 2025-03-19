@@ -42,7 +42,7 @@ Here the features which are supported by this operator:-
 
 ## Code of Conduct
 
-Participation in this project comes under the [CONTRIBUTING.md](https://github.com/OT-CONTAINER-KIT/redis-operator/blob/master/CONTRIBUTING.md)
+Participation in this project comes under the [CONTRIBUTING.md](https://github.com/OT-CONTAINER-KIT/redis-operator/blob/main/CONTRIBUTING.md)
 
 ## What's Next
 

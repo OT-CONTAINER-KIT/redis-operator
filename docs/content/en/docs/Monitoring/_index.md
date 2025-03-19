@@ -104,6 +104,6 @@ spec:
 
 There is detailed dashboard created for Redis cluster monitoring setup. Refer to that dashboard once the metrics are available inside Prometheus setup.
 
-[Redis Operator Cluster Dashboard for Prometheus](https://github.com/OT-CONTAINER-KIT/redis-operator/blob/master/dashboards/redis-operator-cluster.json)
+[Redis Operator Cluster Dashboard for Prometheus](https://github.com/OT-CONTAINER-KIT/redis-operator/blob/main/dashboards/redis-operator-cluster.json)
 
 ![redis_grafana_dashboard](../../../images/grafana1.3b7d307c.png)
