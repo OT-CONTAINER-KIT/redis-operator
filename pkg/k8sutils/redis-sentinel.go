@@ -125,7 +125,7 @@ func generateRedisSentinelParams(ctx context.Context, cr *redisv1beta2.RedisSent
 		propagation = metav1.DeletePropagationForeground
 		if cr.ObjectMeta.GetAnnotations()[AnnotationKeyRecreateStatefulsetStrategy] == "orphan" {
 			propagation = metav1.DeletePropagationOrphan
-		} else if cr.ObjectMeta.GetAnnotations()[AnnotationKeyRecreateStatefulsetStrategy] == "backgroud" {
+		} else if cr.ObjectMeta.GetAnnotations()[AnnotationKeyRecreateStatefulsetStrategy] == "background" {
 			propagation = metav1.DeletePropagationBackground
 		}
 
