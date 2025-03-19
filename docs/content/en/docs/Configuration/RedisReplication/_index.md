@@ -7,7 +7,7 @@ description: >
   Configurations and parameters for Redis replication
 ---
 
-Redis replication configuration can be customized by [values.yaml](https://github.com/OT-CONTAINER-KIT/redis-operator/blob/master/charts/redis-replication/values.yaml). The recommended way of managing the setup is using `helm` but if the setup is not maintained by it, `YAML` CRD parameters can be modified in the manifest.
+Redis replication configuration can be customized by [values.yaml](https://github.com/OT-CONTAINER-KIT/redis-operator/blob/main/charts/redis-replication/values.yaml). The recommended way of managing the setup is using `helm` but if the setup is not maintained by it, `YAML` CRD parameters can be modified in the manifest.
 
 ## Helm Configuration Parameters
 

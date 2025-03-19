@@ -7,7 +7,7 @@ description: >
   Configurations and parameters for Redis cluster
 ---
 
-Redis cluster can be customized by [values.yaml](https://github.com/OT-CONTAINER-KIT/redis-operator/blob/master/charts/redis-cluster/values.yaml). The recommended way of managing the setup is using `helm` but if the setup is not maintained by it, `YAML` CRD parameters can be modified in the manifest.
+Redis cluster can be customized by [values.yaml](https://github.com/OT-CONTAINER-KIT/redis-operator/blob/main/charts/redis-cluster/values.yaml). The recommended way of managing the setup is using `helm` but if the setup is not maintained by it, `YAML` CRD parameters can be modified in the manifest.
 
 ## Helm Configuration Parameters
 

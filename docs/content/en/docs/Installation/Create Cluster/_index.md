@@ -7,7 +7,7 @@ description: >
   Instructions for creating a Kubernetes cluster and installing Redis Operator on it
 ---
 
-Redis Operator needs a Kubernetes or Openshift cluster for provisioning a Redis setup. This guide helps in setting up a Kubernetes cluster from a quickstart perspective. 
+Redis Operator needs a Kubernetes or Openshift cluster for provisioning a Redis setup. This guide helps in setting up a Kubernetes cluster from a quickstart perspective.
 
 Tools involved in this kind of setup:
 
@@ -16,9 +16,9 @@ Tools involved in this kind of setup:
 
 ## Amazon EKS Cluster
 
-To create a Kubernetes cluster on AWS, we need to download and install the [eksctl](https://eksctl.io/) on the local system and then [eks-cluster.yaml](https://github.com/OT-CONTAINER-KIT/redis-operator/blob/master/example/eks-cluster.yaml) can be executed with it for cluster creation.
+To create a Kubernetes cluster on AWS, we need to download and install the [eksctl](https://eksctl.io/) on the local system and then [eks-cluster.yaml](https://github.com/OT-CONTAINER-KIT/redis-operator/blob/main/example/eks-cluster.yaml) can be executed with it for cluster creation.
 
-The content of [eks-cluster.yaml](https://github.com/OT-CONTAINER-KIT/redis-operator/blob/master/example/eks-cluster.yaml) looks like:
+The content of [eks-cluster.yaml](https://github.com/OT-CONTAINER-KIT/redis-operator/blob/main/example/eks-cluster.yaml) looks like:
 
 ```yaml
 apiVersion: eksctl.io/v1alpha5
@@ -99,7 +99,7 @@ $ minikube start --vm-driver virtualbox
 ⌛  Waiting for image downloads to complete ...
 ✨  Preparing Kubernetes environment ...
 🚜  Pulling images required by Kubernetes v1.14.1 ...
-🚀  Launching Kubernetes v1.14.1 using kubeadm ... 
+🚀  Launching Kubernetes v1.14.1 using kubeadm ...
 ⌛  Waiting for pods: apiserver proxy etcd scheduler controller dns
 🔑  Configuring cluster permissions ...
 🤔  Verifying component health .....

@@ -17,5 +17,5 @@ keywords:
 - kubernetes
 - openshift
 - redis-exporter
-icon: https://github.com/OT-CONTAINER-KIT/redis-operator/raw/master/static/redis-operator-logo.svg
+icon: https://github.com/OT-CONTAINER-KIT/redis-operator/raw/main/static/redis-operator-logo.svg
 type: application
