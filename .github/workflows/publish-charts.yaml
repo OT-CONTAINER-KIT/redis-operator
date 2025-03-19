@@ -6,7 +6,7 @@ on:
       - 'charts/**'
       - '.github/workflows/publish-charts.yaml'
     branches:
-      - master
+      - main
 
 jobs:
   lint-charts:

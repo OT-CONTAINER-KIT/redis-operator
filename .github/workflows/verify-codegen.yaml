@@ -3,10 +3,10 @@ name: Verify Codegen
 on:
   pull_request:
     branches:
-      - master
+      - main
   push:
     branches:
-      - master
+      - main
 
 jobs:
   verify-codegen:
@@ -31,7 +31,7 @@ jobs:
       with:
         go-version-file: go.mod
         cache-dependency-path: go.sum
-      
+
     - name: Run codegen and verify no diffs
       run: |
         make verify-codegen
