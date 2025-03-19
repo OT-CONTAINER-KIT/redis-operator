@@ -195,7 +195,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Gosec Scan
-        uses: securego/gosec@main
+        uses: securego/gosec@master
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
