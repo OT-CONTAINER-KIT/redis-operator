@@ -95,10 +95,10 @@ jobs:
 #     - name: Checkout
 #       uses: actions/checkout@v2
 #     - name: Run Trivy vulnerability scanner for arm64 image
-#       uses: aquasecurity/trivy-action@main
+#       uses: aquasecurity/trivy-action@master
 
 #     - name: Run Trivy vulnerability scanner for multi-arch image
-#       uses: aquasecurity/trivy-action@main
+#       uses: aquasecurity/trivy-action@master
 #       with:
 #         image-ref: ${{ env.QuayImageName }}:${{ env.APP_VERSION }}
 #         format: 'template'
@@ -108,7 +108,7 @@ jobs:
 #         ignore-unfixed: true
 #         severity: 'CRITICAL,HIGH'
 #     - name: Run Trivy vulnerability scanner for latest image
-#       uses: aquasecurity/trivy-action@main
+#       uses: aquasecurity/trivy-action@master
 #       with:
 #         image-ref:  ${{ env.QuayImageName }}:latest
 #         format: 'template'
