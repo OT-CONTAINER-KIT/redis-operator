@@ -3,7 +3,7 @@ module data-assert
 go 1.23.4
 
 require (
-	github.com/redis/go-redis/v9 v9.7.0
+	github.com/redis/go-redis/v9 v9.7.3
 	github.com/spf13/cobra v1.8.1
 )
 
