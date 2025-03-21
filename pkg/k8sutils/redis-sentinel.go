@@ -67,7 +67,12 @@ func (service RedisSentinelSTS) CreateRedisSentinelSetup(ctx context.Context, cl
 	labels := getRedisLabels(stateFulName, sentinel, service.RedisStateFulType, cr.ObjectMeta.Labels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, annotations)
-	err := CreateOrUpdateStateFul(
+	containerParams, err := generateRedisSentinelContainerParams(ctx, client, cr, service.ReadinessProbe, service.LivenessProbe, dcl)
+	if err != nil {
+		return err
+	}
+
+	err = CreateOrUpdateStateFul(
 		ctx,
 		cl,
 		cr.GetNamespace(),
@@ -75,7 +80,7 @@ func (service RedisSentinelSTS) CreateRedisSentinelSetup(ctx context.Context, cl
 		generateRedisSentinelParams(ctx, cr, service.getSentinelCount(cr), service.ExternalConfig, service.Affinity),
 		redisSentinelAsOwner(cr),
 		generateRedisSentinelInitContainerParams(cr),
-		generateRedisSentinelContainerParams(ctx, client, cr, service.ReadinessProbe, service.LivenessProbe, dcl),
+		containerParams,
 		cr.Spec.Sidecars,
 	)
 	if err != nil {
@@ -151,9 +156,14 @@ func generateRedisSentinelInitContainerParams(cr *redisv1beta2.RedisSentinel) in
 }
 
 // Create Redis Sentinel Statefulset Container Params
-func generateRedisSentinelContainerParams(ctx context.Context, client kubernetes.Interface, cr *redisv1beta2.RedisSentinel, readinessProbeDef *corev1.Probe, livenessProbeDef *corev1.Probe, dcl dynamic.Interface) containerParameters {
+func generateRedisSentinelContainerParams(ctx context.Context, client kubernetes.Interface, cr *redisv1beta2.RedisSentinel, readinessProbeDef *corev1.Probe, livenessProbeDef *corev1.Probe, dcl dynamic.Interface) (containerParameters, error) {
 	trueProperty := true
 	falseProperty := false
+	envVars, err := getSentinelEnvVariable(ctx, client, cr, dcl)
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Cannot get Sentinel environment variables")
+		return containerParameters{}, err
+	}
 	containerProp := containerParameters{
 		Role:                  "sentinel",
 		Image:                 cr.Spec.KubernetesConfig.Image,
@@ -162,7 +172,7 @@ func generateRedisSentinelContainerParams(ctx context.Context, client kubernetes
 		SecurityContext:       cr.Spec.SecurityContext,
 		Port:                  ptr.To(sentinelPort),
 		HostPort:              cr.Spec.HostPort,
-		AdditionalEnvVariable: getSentinelEnvVariable(ctx, client, cr, dcl),
+		AdditionalEnvVariable: envVars,
 	}
 	if cr.Spec.EnvVars != nil {
 		containerProp.EnvVars = cr.Spec.EnvVars
@@ -201,7 +211,7 @@ func generateRedisSentinelContainerParams(ctx context.Context, client kubernetes
 		containerProp.TLSConfig = cr.Spec.TLS
 	}
 
-	return containerProp
+	return containerProp, nil
 }
 
 // Get the Count of the Sentinel
@@ -256,9 +266,9 @@ func (service RedisSentinelService) CreateRedisSentinelService(ctx context.Conte
 	return nil
 }
 
-func getSentinelEnvVariable(ctx context.Context, client kubernetes.Interface, cr *redisv1beta2.RedisSentinel, dcl dynamic.Interface) *[]corev1.EnvVar {
+func getSentinelEnvVariable(ctx context.Context, client kubernetes.Interface, cr *redisv1beta2.RedisSentinel, dcl dynamic.Interface) (*[]corev1.EnvVar, error) {
 	if cr.Spec.RedisSentinelConfig == nil {
-		return &[]corev1.EnvVar{}
+		return &[]corev1.EnvVar{}, nil
 	}
 
 	var IP string
@@ -266,6 +276,10 @@ func getSentinelEnvVariable(ctx context.Context, client kubernetes.Interface, cr
 		IP = getRedisReplicationMasterName(ctx, client, cr, dcl)
 	} else {
 		IP = getRedisReplicationMasterIP(ctx, client, cr, dcl)
+	}
+
+	if IP == "" {
+		return &[]corev1.EnvVar{}, fmt.Errorf("failed to get master IP/hostname")
 	}
 
 	envVar := &[]corev1.EnvVar{
@@ -313,7 +327,7 @@ func getSentinelEnvVariable(ctx context.Context, client kubernetes.Interface, cr
 			ValueFrom: cr.Spec.RedisSentinelConfig.RedisReplicationPassword,
 		})
 	}
-	return envVar
+	return envVar, nil
 }
 
 func getRedisReplicationMasterPod(ctx context.Context, client kubernetes.Interface, cr *redisv1beta2.RedisSentinel, dcl dynamic.Interface) RedisDetails {
