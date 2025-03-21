@@ -123,6 +123,7 @@ func generateRedisReplicationParams(cr *redisv1beta2.RedisReplication) statefulS
 	}
 	if value, found := cr.ObjectMeta.GetAnnotations()[AnnotationKeyRecreateStatefulset]; found && value == "true" {
 		res.RecreateStatefulSet = true
+		res.RecreateStatefulsetStrategy = getDeletionPropagationStrategy(cr.ObjectMeta.GetAnnotations())
 	}
 	return res
 }

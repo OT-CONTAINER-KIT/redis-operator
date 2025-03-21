@@ -119,6 +119,7 @@ func generateRedisSentinelParams(ctx context.Context, cr *redisv1beta2.RedisSent
 	}
 	if value, found := cr.ObjectMeta.GetAnnotations()[AnnotationKeyRecreateStatefulset]; found && value == "true" {
 		res.RecreateStatefulSet = true
+		res.RecreateStatefulsetStrategy = getDeletionPropagationStrategy(cr.ObjectMeta.GetAnnotations())
 	}
 	return res
 }

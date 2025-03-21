@@ -1,7 +1,8 @@
 package k8sutils
 
 const (
-	AnnotationKeyRecreateStatefulset = "redis.opstreelabs.in/recreate-statefulset"
+	AnnotationKeyRecreateStatefulset         = "redis.opstreelabs.in/recreate-statefulset"
+	AnnotationKeyRecreateStatefulsetStrategy = "redis.opstreelabs.in/recreate-statefulset-strategy"
 )
 
 const (

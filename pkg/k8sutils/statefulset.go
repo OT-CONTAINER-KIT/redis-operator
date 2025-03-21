@@ -110,6 +110,7 @@ type statefulSetParameters struct {
 	ServiceAccountName            *string
 	UpdateStrategy                appsv1.StatefulSetUpdateStrategy
 	RecreateStatefulSet           bool
+	RecreateStatefulsetStrategy   *metav1.DeletionPropagation
 	TerminationGracePeriodSeconds *int64
 	IgnoreAnnotations             []string
 	HostNetwork                   bool
@@ -174,11 +175,11 @@ func CreateOrUpdateStateFul(ctx context.Context, cl kubernetes.Interface, namesp
 		}
 		return err
 	}
-	return patchStatefulSet(ctx, storedStateful, statefulSetDef, namespace, params.RecreateStatefulSet, cl)
+	return patchStatefulSet(ctx, storedStateful, statefulSetDef, namespace, params.RecreateStatefulSet, params.RecreateStatefulsetStrategy, cl)
 }
 
 // patchStatefulSet patches the Redis StatefulSet by applying changes while maintaining atomicity.
-func patchStatefulSet(ctx context.Context, storedStateful, newStateful *appsv1.StatefulSet, namespace string, recreateStatefulSet bool, cl kubernetes.Interface) error {
+func patchStatefulSet(ctx context.Context, storedStateful, newStateful *appsv1.StatefulSet, namespace string, recreateStatefulSet bool, deletePropagation *metav1.DeletionPropagation, cl kubernetes.Interface) error {
 	// Sync system-managed fields to ensure atomic update.
 	syncManagedFields(storedStateful, newStateful)
 
@@ -223,7 +224,7 @@ func patchStatefulSet(ctx context.Context, storedStateful, newStateful *appsv1.S
 		return err
 	}
 
-	return updateStatefulSet(ctx, cl, namespace, newStateful, recreateStatefulSet)
+	return updateStatefulSet(ctx, cl, namespace, newStateful, recreateStatefulSet, deletePropagation)
 }
 
 // syncManagedFields syncs system-managed fields from the stored object to the new object.
@@ -830,7 +831,7 @@ func createStatefulSet(ctx context.Context, cl kubernetes.Interface, namespace s
 }
 
 // updateStatefulSet is a method to update statefulset in Kubernetes
-func updateStatefulSet(ctx context.Context, cl kubernetes.Interface, namespace string, stateful *appsv1.StatefulSet, recreateStateFulSet bool) error {
+func updateStatefulSet(ctx context.Context, cl kubernetes.Interface, namespace string, stateful *appsv1.StatefulSet, recreateStateFulSet bool, deletePropagation *metav1.DeletionPropagation) error {
 	_, err := cl.AppsV1().StatefulSets(namespace).Update(context.TODO(), stateful, metav1.UpdateOptions{})
 	if recreateStateFulSet {
 		sErr, ok := err.(*apierrors.StatusError)
@@ -840,8 +841,7 @@ func updateStatefulSet(ctx context.Context, cl kubernetes.Interface, namespace s
 				failMsg[messageCount] = cause.Message
 			}
 			log.FromContext(ctx).V(1).Info("recreating StatefulSet because the update operation wasn't possible", "reason", strings.Join(failMsg, ", "))
-			propagationPolicy := metav1.DeletePropagationForeground
-			if err := cl.AppsV1().StatefulSets(namespace).Delete(context.TODO(), stateful.GetName(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}); err != nil { //nolint:gocritic
+			if err := cl.AppsV1().StatefulSets(namespace).Delete(context.TODO(), stateful.GetName(), metav1.DeleteOptions{PropagationPolicy: deletePropagation}); err != nil { //nolint:gocritic
 				return errors.Wrap(err, "failed to delete StatefulSet to avoid forbidden action")
 			}
 		}
@@ -873,4 +873,28 @@ func getSidecars(sidecars *[]redisv1beta2.Sidecar) []redisv1beta2.Sidecar {
 		return []redisv1beta2.Sidecar{}
 	}
 	return *sidecars
+}
+
+// getDeletionPropagationStrategy returns the deletion propagation strategy based on the annotation
+func getDeletionPropagationStrategy(annotations map[string]string) *metav1.DeletionPropagation {
+	if annotations == nil {
+		return nil
+	}
+
+	if strategy, exists := annotations[AnnotationKeyRecreateStatefulsetStrategy]; exists {
+		var propagation metav1.DeletionPropagation
+
+		switch strings.ToLower(strategy) {
+		case "orphan":
+			propagation = metav1.DeletePropagationOrphan
+		case "background":
+			propagation = metav1.DeletePropagationBackground
+		default:
+			propagation = metav1.DeletePropagationForeground
+		}
+
+		return &propagation
+	}
+
+	return nil
 }

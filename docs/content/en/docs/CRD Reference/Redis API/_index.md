@@ -19,6 +19,23 @@ This page documents the Redis API Schema definitions for the redis API group.
 
 Package v1beta2 contains API Schema definitions for the redis v1beta2 API group
 
+### Annotations
+
+Redis Operator supports the following annotations that can be added to Redis, RedisCluster, RedisReplication, and RedisSentinel resources:
+
+| Annotation | Description | Default | Values |
+| --- | --- | --- | --- |
+| `redis.opstreelabs.in/recreate-statefulset` | Controls whether the StatefulSet should be recreated when changed | `false` | `"true"`, `"false"` |
+| `redis.opstreelabs.in/recreate-statefulset-strategy` | Controls how dependent resources are handled when the StatefulSet is recreated | `foreground` | `"foreground"`, `"background"`, `"orphan"` |
+
+#### Deletion Propagation Strategies
+
+When `redis.opstreelabs.in/recreate-statefulset` is set to `"true"`, you can control the deletion behavior using the `redis.opstreelabs.in/recreate-statefulset-strategy` annotation:
+
+- **foreground**: The StatefulSet and its dependent objects (like Pods) are deleted synchronously
+- **background**: The StatefulSet is deleted immediately, and dependent objects are deleted asynchronously
+- **orphan**: The StatefulSet is deleted but its dependent objects (Pods) are kept running
+
 ### Resource Types
 
 - [Redis](#redis)

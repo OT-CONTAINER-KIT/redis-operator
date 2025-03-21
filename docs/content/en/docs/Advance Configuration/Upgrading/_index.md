@@ -170,3 +170,48 @@ spec:
 - If application is highly critical, in such scenarios it would make sense to create a new cluster and migrate the application pointing to it
 {{< /alert >}}
 
+## StatefulSet Recreation Strategy
+
+In some scenarios, you may need to recreate the StatefulSet completely, for example when you need to change immutable fields. Redis Operator provides an annotation `redis.opstreelabs.in/recreate-statefulset` that can be set to `true` to recreate the StatefulSet.
+
+Redis Operator supports specifying the deletion propagation strategy when recreating StatefulSets. This allows more control over how dependent resources like Pods are handled during the recreation process.
+
+### Available Strategies
+
+You can control the deletion behavior using the annotation `redis.opstreelabs.in/recreate-statefulset-strategy` with the following values:
+
+- **foreground** (default): The StatefulSet and its dependent objects (like Pods) are deleted synchronously. Kubernetes waits for all dependent objects to be deleted before finalizing the StatefulSet deletion.
+- **background**: The StatefulSet is deleted immediately, and dependent objects are deleted asynchronously in the background.
+- **orphan**: The StatefulSet is deleted but its dependent objects (Pods) are kept running. This provides the most control and minimizes downtime, but requires manual cleanup later.
+
+### Example Usage
+
+Here's how to configure Redis with a specific StatefulSet recreation strategy:
+
+```yaml
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: Redis
+metadata:
+  name: redis-standalone
+  annotations:
+    redis.opstreelabs.in/recreate-statefulset: "true"
+    redis.opstreelabs.in/recreate-statefulset-strategy: "orphan"
+spec:
+  kubernetesConfig:
+    image: "quay.io/opstree/redis:v7.0.5"
+    imagePullPolicy: "IfNotPresent"
+  # ... other configuration ...
+```
+
+### When to Use Different Strategies
+
+- **foreground**: When you want to ensure a complete, clean recreation of the Redis system and can tolerate downtime.
+- **background**: When you want to minimize the time the StatefulSet object itself exists in a "Terminating" state and don't need to wait for dependent objects to be deleted.
+- **orphan**: When you need to avoid downtime during StatefulSet recreation, especially in production environments. The existing Pods will continue to serve traffic while the new StatefulSet is being created.
+
+{{< alert color="warning" title="Warning" >}}
+Using the "orphan" strategy will keep the Pods running, but they won't be managed by the StatefulSet until the new one adopts them. If the Pods need to be updated, you may need to manually delete them so the new StatefulSet can create fresh Pods.
+{{< /alert >}}
+
+This feature is useful when upgrading Redis with changes to immutable StatefulSet fields, allowing administrators to control the recreation process according to their operational requirements.
+

@@ -336,12 +336,13 @@ func Test_createStatefulSet(t *testing.T) {
 
 func TestUpdateStatefulSet(t *testing.T) {
 	tests := []struct {
-		name            string
-		existingStsSpec appsv1.StatefulSetSpec
-		updatedStsSpec  appsv1.StatefulSetSpec
-		recreateSts     bool
-		stsPresent      bool
-		expectErr       error
+		name              string
+		existingStsSpec   appsv1.StatefulSetSpec
+		updatedStsSpec    appsv1.StatefulSetSpec
+		recreateSts       bool
+		deletePropagation metav1.DeletionPropagation
+		stsPresent        bool
+		expectErr         error
 	}{
 		{
 			name: "Update StatefulSet without recreate in existing Statefulset",
@@ -439,7 +440,7 @@ func TestUpdateStatefulSet(t *testing.T) {
 			} else {
 				client = k8sClientFake.NewSimpleClientset()
 			}
-			err := updateStatefulSet(context.TODO(), client, updatedSts.GetNamespace(), &updatedSts, test.recreateSts)
+			err := updateStatefulSet(context.TODO(), client, updatedSts.GetNamespace(), &updatedSts, test.recreateSts, &test.deletePropagation)
 			if test.expectErr != nil {
 				assert.Error(err, "Expected Error while updating Statefulset")
 				assert.Equal(test.expectErr, err)
