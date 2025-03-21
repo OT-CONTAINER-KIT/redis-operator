@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/agent/bootstrap"
 	rediscontroller "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/redis"
 	redisclustercontroller "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/rediscluster"
 	redisreplicationcontroller "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/redisreplication"
@@ -31,6 +32,7 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/k8sutils"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/monitoring"
 	coreWebhook "github.com/OT-CONTAINER-KIT/redis-operator/pkg/webhook"
+	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -57,7 +59,7 @@ func init() {
 	//+kubebuilder:scaffold:scheme
 }
 
-func main() {
+func runManager() {
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
@@ -203,6 +205,35 @@ func main() {
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
+		os.Exit(1)
+	}
+}
+
+func main() {
+	rootCmd := &cobra.Command{
+		Use:   "operator",
+		Short: "Redis Operator for Kubernetes",
+	}
+
+	// Add manager subcommand
+	managerCmd := &cobra.Command{
+		Use:   "manager",
+		Short: "Start the Redis operator manager",
+		Run: func(cmd *cobra.Command, args []string) {
+			runManager()
+		},
+	}
+	rootCmd.AddCommand(managerCmd)
+
+	// Add agent subcommand
+	agentCmd := &cobra.Command{
+		Use:   "agent",
+		Short: "Agent is a tool which run as a init/sidecar container along with redis/sentinel",
+	}
+	agentCmd.AddCommand(bootstrap.BootstrapCmd)
+	rootCmd.AddCommand(agentCmd)
+
+	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
 }
