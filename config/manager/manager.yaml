@@ -27,7 +27,8 @@ spec:
         runAsNonRoot: true
       containers:
       - command:
-        - /manager
+        - /operator
+        - manager
         env:
           - name: ENABLE_WEBHOOKS
             value: "false"

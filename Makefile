@@ -133,17 +133,17 @@ docker-create:
 # Build the manager Docker image
 .PHONY: docker-build
 docker-build:
-	${CONTAINER_ENGINE} buildx build --platform=$(PLATFORMS) -t ${IMG} -f Dockerfile --build-arg BUILD_TARGET=manager .
+	${CONTAINER_ENGINE} buildx build --platform=$(PLATFORMS) -t ${IMG} -f Dockerfile .
 
 # Push the manager Docker image
 .PHONY: docker-push
 docker-push:
-	${CONTAINER_ENGINE} buildx build --push --platform="$(PLATFORMS)" -t ${IMG} -f Dockerfile --build-arg BUILD_TARGET=manager .
+	${CONTAINER_ENGINE} buildx build --push --platform="$(PLATFORMS)" -t ${IMG} -f Dockerfile .
 
 # Load the manager image into docker
 .PHONY: docker-load
 docker-load:
-	${CONTAINER_ENGINE} buildx build --load -t ${IMG} -f Dockerfile --build-arg BUILD_TARGET=manager .
+	${CONTAINER_ENGINE} buildx build --load -t ${IMG} -f Dockerfile .
 
 # Generate bundle manifests and metadata, then validate generated files.
 .PHONY: bundle
@@ -196,7 +196,7 @@ integration-test-setup:
 
 .PHONY: e2e-kind-setup
 e2e-kind-setup:
-	${CONTAINER_ENGINE} build -t redis-operator:e2e -f Dockerfile --build-arg BUILD_TARGET=manager .
+	${CONTAINER_ENGINE} build -t redis-operator:e2e -f Dockerfile .
 	$(KIND) create cluster --config tests/_config/kind-config.yaml
 	$(KIND) load docker-image redis-operator:e2e --name kind
 	make deploy IMG=redis-operator:e2e
