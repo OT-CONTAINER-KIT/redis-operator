@@ -27,11 +27,12 @@ spec:
         runAsNonRoot: true
       containers:
       - command:
-        - /manager
+        - /operator
         env:
           - name: ENABLE_WEBHOOKS
             value: "false"
         args:
+        - manager
         - --leader-elect
         - -zap-log-level=debug
         - -enable-webhooks=false
