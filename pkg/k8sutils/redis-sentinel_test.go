@@ -11,14 +11,18 @@ import (
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes"
+	k8sClientFake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/utils/pointer"
 	"k8s.io/utils/ptr"
 )
 
@@ -325,11 +329,46 @@ func Test_getSentinelEnvVariable(t *testing.T) {
 		{
 			name: "When RedisSentinelConfig is not nil",
 			args: args{
-				client: nil,
+				//client: nil,
+				client: k8sClientFake.NewSimpleClientset(
+					&corev1.Pod{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "redis-replication-0",
+							Namespace: "redis",
+							Labels: map[string]string{
+								"app":              "redis-replication",
+								"redis_setup_type": "replication",
+								"role":             "master",
+							},
+						},
+						Status: corev1.PodStatus{
+							PodIP: "10.0.0.1",
+						},
+					},
+					&appsv1.StatefulSet{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "redis-replication",
+							Namespace: "redis",
+						},
+						Spec: appsv1.StatefulSetSpec{
+							Replicas: pointer.Int32(3),
+							Selector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"app":              "redis-replication",
+									"redis_setup_type": "replication",
+								},
+							},
+						},
+					}),
 				cr: &redisv1beta2.RedisSentinel{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "redis-sentinel",
+						Namespace: "redis",
+					},
 					Spec: redisv1beta2.RedisSentinelSpec{
 						RedisSentinelConfig: &redisv1beta2.RedisSentinelConfig{
 							RedisSentinelConfig: common.RedisSentinelConfig{
+								RedisReplicationName:  "redis-replication",
 								MasterGroupName:       "master",
 								RedisPort:             "6379",
 								Quorum:                "2",
@@ -350,7 +389,7 @@ func Test_getSentinelEnvVariable(t *testing.T) {
 				},
 				{
 					Name:  "IP",
-					Value: "",
+					Value: "10.0.0.1",
 				},
 				{
 					Name:  "PORT",
@@ -386,7 +425,23 @@ func Test_getSentinelEnvVariable(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.TODO()
-			if got, err := getSentinelEnvVariable(ctx, tt.args.client, tt.args.cr, fake.NewSimpleDynamicClient(&runtime.Scheme{})); !reflect.DeepEqual(got, tt.want) {
+			dynamicClient := fake.NewSimpleDynamicClient(
+				runtime.NewScheme(),
+				&unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "redis.redis.opstreelabs.in/v1beta2",
+						"kind":       "RedisReplication",
+						"metadata": map[string]interface{}{
+							"name":      "redis-replication",
+							"namespace": "redis",
+						},
+						"spec": map[string]interface{}{
+							"clusterSize": int64(1),
+						},
+					},
+				},
+			)
+			if got, err := getSentinelEnvVariable(ctx, tt.args.client, tt.args.cr, dynamicClient); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("getSentinelEnvVariable() = %v, want %v", got, tt.want)
 				require.NoError(t, err)
 			}
