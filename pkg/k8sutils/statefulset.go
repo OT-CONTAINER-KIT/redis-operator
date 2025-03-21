@@ -110,7 +110,7 @@ type statefulSetParameters struct {
 	ServiceAccountName            *string
 	UpdateStrategy                appsv1.StatefulSetUpdateStrategy
 	RecreateStatefulSet           bool
-	RecreateStateteulsetStrategy  *metav1.DeletionPropagation
+	RecreateStatefulsetStrategy   *metav1.DeletionPropagation
 	TerminationGracePeriodSeconds *int64
 	IgnoreAnnotations             []string
 	HostNetwork                   bool
@@ -175,7 +175,7 @@ func CreateOrUpdateStateFul(ctx context.Context, cl kubernetes.Interface, namesp
 		}
 		return err
 	}
-	return patchStatefulSet(ctx, storedStateful, statefulSetDef, namespace, params.RecreateStatefulSet, params.RecreateStateteulsetStrategy, cl)
+	return patchStatefulSet(ctx, storedStateful, statefulSetDef, namespace, params.RecreateStatefulSet, params.RecreateStatefulsetStrategy, cl)
 }
 
 // patchStatefulSet patches the Redis StatefulSet by applying changes while maintaining atomicity.

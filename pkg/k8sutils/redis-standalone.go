@@ -141,7 +141,7 @@ func generateRedisStandaloneParams(cr *redisv1beta2.Redis) statefulSetParameters
 			propagation = metav1.DeletePropagationBackground
 		}
 
-		res.RecreateStateteulsetStrategy = &propagation
+		res.RecreateStatefulsetStrategy = &propagation
 	}
 	return res
 }

@@ -129,7 +129,7 @@ func generateRedisSentinelParams(ctx context.Context, cr *redisv1beta2.RedisSent
 			propagation = metav1.DeletePropagationBackground
 		}
 
-		res.RecreateStateteulsetStrategy = &propagation
+		res.RecreateStatefulsetStrategy = &propagation
 	}
 	return res
 }

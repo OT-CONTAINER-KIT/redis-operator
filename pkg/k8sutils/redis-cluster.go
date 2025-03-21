@@ -83,7 +83,7 @@ func generateRedisClusterParams(ctx context.Context, cr *redisv1beta2.RedisClust
 			propagation = metav1.DeletePropagationBackground
 		}
 
-		res.RecreateStateteulsetStrategy = &propagation
+		res.RecreateStatefulsetStrategy = &propagation
 	}
 	return res
 }

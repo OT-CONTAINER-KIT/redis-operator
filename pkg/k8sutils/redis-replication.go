@@ -133,7 +133,7 @@ func generateRedisReplicationParams(cr *redisv1beta2.RedisReplication) statefulS
 			propagation = metav1.DeletePropagationBackground
 		}
 
-		res.RecreateStateteulsetStrategy = &propagation
+		res.RecreateStatefulsetStrategy = &propagation
 	}
 	return res
 }
