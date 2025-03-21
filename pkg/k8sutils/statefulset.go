@@ -874,3 +874,27 @@ func getSidecars(sidecars *[]redisv1beta2.Sidecar) []redisv1beta2.Sidecar {
 	}
 	return *sidecars
 }
+
+// getDeletionPropagationStrategy returns the deletion propagation strategy based on the annotation
+func getDeletionPropagationStrategy(annotations map[string]string) *metav1.DeletionPropagation {
+	if annotations == nil {
+		return nil
+	}
+
+	if strategy, exists := annotations[AnnotationKeyRecreateStatefulsetStrategy]; exists {
+		var propagation metav1.DeletionPropagation
+
+		switch strings.ToLower(strategy) {
+		case "orphan":
+			propagation = metav1.DeletePropagationOrphan
+		case "background":
+			propagation = metav1.DeletePropagationBackground
+		default:
+			propagation = metav1.DeletePropagationForeground
+		}
+
+		return &propagation
+	}
+
+	return nil
+}

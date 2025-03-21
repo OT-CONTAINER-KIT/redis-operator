@@ -5,7 +5,6 @@ import (
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -131,17 +130,8 @@ func generateRedisStandaloneParams(cr *redisv1beta2.Redis) statefulSetParameters
 		res.ServiceAccountName = cr.Spec.ServiceAccountName
 	}
 	if value, found := cr.ObjectMeta.GetAnnotations()[AnnotationKeyRecreateStatefulset]; found && value == "true" {
-		var propagation metav1.DeletionPropagation
 		res.RecreateStatefulSet = true
-
-		propagation = metav1.DeletePropagationForeground
-		if cr.ObjectMeta.GetAnnotations()[AnnotationKeyRecreateStatefulsetStrategy] == "orphan" {
-			propagation = metav1.DeletePropagationOrphan
-		} else if cr.ObjectMeta.GetAnnotations()[AnnotationKeyRecreateStatefulsetStrategy] == "background" {
-			propagation = metav1.DeletePropagationBackground
-		}
-
-		res.RecreateStatefulsetStrategy = &propagation
+		res.RecreateStatefulsetStrategy = getDeletionPropagationStrategy(cr.ObjectMeta.GetAnnotations())
 	}
 	return res
 }
