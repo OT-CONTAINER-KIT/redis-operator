@@ -22,7 +22,6 @@ import (
 	"k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes"
 	k8sClientFake "k8s.io/client-go/kubernetes/fake"
-	"k8s.io/utils/pointer"
 	"k8s.io/utils/ptr"
 )
 
@@ -351,7 +350,7 @@ func Test_getSentinelEnvVariable(t *testing.T) {
 							Namespace: "redis",
 						},
 						Spec: appsv1.StatefulSetSpec{
-							Replicas: pointer.Int32(3),
+							Replicas: ptr.To(int32(3)),
 							Selector: &metav1.LabelSelector{
 								MatchLabels: map[string]string{
 									"app":              "redis-replication",
