@@ -44,8 +44,8 @@ spec:
             port: 8081
         command:
         - /operator
-        args:
         - manager
+        args:
         - --leader-elect
         {{- range $arg := .Values.redisOperator.extraArgs }}
         - {{ $arg }}

@@ -28,11 +28,11 @@ spec:
       containers:
       - command:
         - /operator
+        - manager
         env:
           - name: ENABLE_WEBHOOKS
             value: "false"
         args:
-        - manager
         - --leader-elect
         - -zap-log-level=debug
         - -enable-webhooks=false

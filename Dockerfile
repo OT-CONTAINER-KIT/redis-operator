@@ -41,4 +41,4 @@ WORKDIR /
 COPY --from=builder /workspace/operator /operator
 USER 65532:65532
 
-ENTRYPOINT ["/operator"] 
+ENTRYPOINT ["/operator", "manager"] 

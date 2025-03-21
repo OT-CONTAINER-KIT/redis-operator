@@ -17,7 +17,6 @@ limitations under the License.
 package main
 
 import (
-	"flag"
 	"os"
 	"strconv"
 	"strings"
@@ -59,154 +58,159 @@ func init() {
 	//+kubebuilder:scaffold:scheme
 }
 
-func runManager() {
+func createManagerCommand() *cobra.Command {
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
 	var enableWebhooks bool
 	var maxConcurrentReconciles int
 
-	flag.BoolVar(&enableWebhooks, "enable-webhooks", os.Getenv("ENABLE_WEBHOOKS") != "false", "Enable webhooks")
-	flag.IntVar(&maxConcurrentReconciles, "max-concurrent-reconciles", 1, "Max concurrent reconciles")
-	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
-	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
-		"Enable leader election for controller manager. "+
-			"Enabling this will ensure there is only one active controller manager.")
-
-	opts := zap.Options{
-		Development: false,
-	}
-	opts.BindFlags(flag.CommandLine)
-
-	flag.Parse()
-
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-
-	options := ctrl.Options{
-		Scheme: scheme,
-		Metrics: metricsserver.Options{
-			BindAddress: metricsAddr,
-		},
-		WebhookServer: &webhook.DefaultServer{
-			Options: webhook.Options{
-				Port: 9443,
-			},
-		},
-		HealthProbeBindAddress: probeAddr,
-		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "6cab913b.redis.opstreelabs.in",
-	}
-
-	if envMaxConcurrentReconciles, exists := os.LookupEnv("MAX_CONCURRENT_RECONCILES"); exists {
-		if val, err := strconv.Atoi(envMaxConcurrentReconciles); err == nil {
-			maxConcurrentReconciles = val
-		}
-	}
-
-	if namespaces := strings.TrimSpace(os.Getenv("WATCH_NAMESPACE")); namespaces != "" {
-		options.Cache.DefaultNamespaces = map[string]cache.Config{}
-		for _, ns := range strings.Split(namespaces, ",") {
-			if ns = strings.TrimSpace(ns); ns != "" {
-				options.Cache.DefaultNamespaces[ns] = cache.Config{}
+	cmd := &cobra.Command{
+		Use:   "manager",
+		Short: "Start the Redis operator manager",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Create options from cobra flags
+			zapOptions := zap.Options{
+				Development: false,
 			}
-		}
+			ctrl.SetLogger(zap.New(zap.UseFlagOptions(&zapOptions)))
+
+			options := ctrl.Options{
+				Scheme: scheme,
+				Metrics: metricsserver.Options{
+					BindAddress: metricsAddr,
+				},
+				WebhookServer: &webhook.DefaultServer{
+					Options: webhook.Options{
+						Port: 9443,
+					},
+				},
+				HealthProbeBindAddress: probeAddr,
+				LeaderElection:         enableLeaderElection,
+				LeaderElectionID:       "6cab913b.redis.opstreelabs.in",
+			}
+
+			if envMaxConcurrentReconciles, exists := os.LookupEnv("MAX_CONCURRENT_RECONCILES"); exists {
+				if val, err := strconv.Atoi(envMaxConcurrentReconciles); err == nil {
+					maxConcurrentReconciles = val
+				}
+			}
+
+			if namespaces := strings.TrimSpace(os.Getenv("WATCH_NAMESPACE")); namespaces != "" {
+				options.Cache.DefaultNamespaces = map[string]cache.Config{}
+				for _, ns := range strings.Split(namespaces, ",") {
+					if ns = strings.TrimSpace(ns); ns != "" {
+						options.Cache.DefaultNamespaces[ns] = cache.Config{}
+					}
+				}
+			}
+
+			mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), options)
+			if err != nil {
+				setupLog.Error(err, "unable to start manager")
+				return err
+			}
+
+			k8sclient, err := k8sutils.GenerateK8sClient(k8sutils.GenerateK8sConfig())
+			if err != nil {
+				setupLog.Error(err, "unable to create k8s client")
+				return err
+			}
+
+			dk8sClient, err := k8sutils.GenerateK8sDynamicClient(k8sutils.GenerateK8sConfig())
+			if err != nil {
+				setupLog.Error(err, "unable to create k8s dynamic client")
+				return err
+			}
+
+			if err = (&rediscontroller.Reconciler{
+				Client:    mgr.GetClient(),
+				K8sClient: k8sclient,
+			}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
+				setupLog.Error(err, "unable to create controller", "controller", "Redis")
+				return err
+			}
+			if err = (&redisclustercontroller.Reconciler{
+				Client:      mgr.GetClient(),
+				K8sClient:   k8sclient,
+				Dk8sClient:  dk8sClient,
+				Recorder:    mgr.GetEventRecorderFor("rediscluster-controller"),
+				StatefulSet: k8sutils.NewStatefulSetService(k8sclient),
+			}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
+				setupLog.Error(err, "unable to create controller", "controller", "RedisCluster")
+				return err
+			}
+			if err = (&redisreplicationcontroller.Reconciler{
+				Client:      mgr.GetClient(),
+				K8sClient:   k8sclient,
+				Dk8sClient:  dk8sClient,
+				Pod:         k8sutils.NewPodService(k8sclient),
+				StatefulSet: k8sutils.NewStatefulSetService(k8sclient),
+			}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
+				setupLog.Error(err, "unable to create controller", "controller", "RedisReplication")
+				return err
+			}
+			if err = (&redissentinelcontroller.RedisSentinelReconciler{
+				Client:             mgr.GetClient(),
+				K8sClient:          k8sclient,
+				Dk8sClient:         dk8sClient,
+				ReplicationWatcher: intctrlutil.NewResourceWatcher(),
+			}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
+				setupLog.Error(err, "unable to create controller", "controller", "RedisSentinel")
+				return err
+			}
+
+			if enableWebhooks {
+				if err = (&redisv1beta2.Redis{}).SetupWebhookWithManager(mgr); err != nil {
+					setupLog.Error(err, "unable to create webhook", "webhook", "Redis")
+					return err
+				}
+				if err = (&redisv1beta2.RedisCluster{}).SetupWebhookWithManager(mgr); err != nil {
+					setupLog.Error(err, "unable to create webhook", "webhook", "RedisCluster")
+					return err
+				}
+				if err = (&redisv1beta2.RedisReplication{}).SetupWebhookWithManager(mgr); err != nil {
+					setupLog.Error(err, "unable to create webhook", "webhook", "RedisReplication")
+					return err
+				}
+				if err = (&redisv1beta2.RedisSentinel{}).SetupWebhookWithManager(mgr); err != nil {
+					setupLog.Error(err, "unable to create webhook", "webhook", "RedisSentinel")
+					return err
+				}
+
+				wblog := ctrl.Log.WithName("webhook").WithName("PodAffiniytMutate")
+				mgr.GetWebhookServer().Register("/mutate-core-v1-pod", &webhook.Admission{
+					Handler: coreWebhook.NewPodAffiniytMutate(mgr.GetClient(), admission.NewDecoder(scheme), wblog),
+				})
+			}
+			// +kubebuilder:scaffold:builder
+
+			if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
+				setupLog.Error(err, "unable to set up health check")
+				return err
+			}
+			if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
+				setupLog.Error(err, "unable to set up ready check")
+				return err
+			}
+
+			setupLog.Info("starting manager")
+			if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+				setupLog.Error(err, "problem running manager")
+				return err
+			}
+			return nil
+		},
 	}
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), options)
-	if err != nil {
-		setupLog.Error(err, "unable to start manager")
-		os.Exit(1)
-	}
+	// Define flags for the manager command
+	cmd.Flags().StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+	cmd.Flags().StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	cmd.Flags().BoolVar(&enableLeaderElection, "leader-elect", false, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
+	cmd.Flags().BoolVar(&enableWebhooks, "enable-webhooks", os.Getenv("ENABLE_WEBHOOKS") != "false", "Enable webhooks")
+	cmd.Flags().IntVar(&maxConcurrentReconciles, "max-concurrent-reconciles", 1, "Max concurrent reconciles")
 
-	k8sclient, err := k8sutils.GenerateK8sClient(k8sutils.GenerateK8sConfig())
-	if err != nil {
-		setupLog.Error(err, "unable to create k8s client")
-		os.Exit(1)
-	}
-
-	dk8sClient, err := k8sutils.GenerateK8sDynamicClient(k8sutils.GenerateK8sConfig())
-	if err != nil {
-		setupLog.Error(err, "unable to create k8s dynamic client")
-		os.Exit(1)
-	}
-
-	if err = (&rediscontroller.Reconciler{
-		Client:    mgr.GetClient(),
-		K8sClient: k8sclient,
-	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Redis")
-		os.Exit(1)
-	}
-	if err = (&redisclustercontroller.Reconciler{
-		Client:      mgr.GetClient(),
-		K8sClient:   k8sclient,
-		Dk8sClient:  dk8sClient,
-		Recorder:    mgr.GetEventRecorderFor("rediscluster-controller"),
-		StatefulSet: k8sutils.NewStatefulSetService(k8sclient),
-	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "RedisCluster")
-		os.Exit(1)
-	}
-	if err = (&redisreplicationcontroller.Reconciler{
-		Client:      mgr.GetClient(),
-		K8sClient:   k8sclient,
-		Dk8sClient:  dk8sClient,
-		Pod:         k8sutils.NewPodService(k8sclient),
-		StatefulSet: k8sutils.NewStatefulSetService(k8sclient),
-	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "RedisReplication")
-		os.Exit(1)
-	}
-	if err = (&redissentinelcontroller.RedisSentinelReconciler{
-		Client:             mgr.GetClient(),
-		K8sClient:          k8sclient,
-		Dk8sClient:         dk8sClient,
-		ReplicationWatcher: intctrlutil.NewResourceWatcher(),
-	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "RedisSentinel")
-		os.Exit(1)
-	}
-
-	if enableWebhooks {
-		if err = (&redisv1beta2.Redis{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "Redis")
-			os.Exit(1)
-		}
-		if err = (&redisv1beta2.RedisCluster{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "RedisCluster")
-			os.Exit(1)
-		}
-		if err = (&redisv1beta2.RedisReplication{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "RedisReplication")
-			os.Exit(1)
-		}
-		if err = (&redisv1beta2.RedisSentinel{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "RedisSentinel")
-			os.Exit(1)
-		}
-
-		wblog := ctrl.Log.WithName("webhook").WithName("PodAffiniytMutate")
-		mgr.GetWebhookServer().Register("/mutate-core-v1-pod", &webhook.Admission{
-			Handler: coreWebhook.NewPodAffiniytMutate(mgr.GetClient(), admission.NewDecoder(scheme), wblog),
-		})
-	}
-	// +kubebuilder:scaffold:builder
-
-	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up health check")
-		os.Exit(1)
-	}
-	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up ready check")
-		os.Exit(1)
-	}
-
-	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		setupLog.Error(err, "problem running manager")
-		os.Exit(1)
-	}
+	return cmd
 }
 
 func main() {
@@ -216,14 +220,7 @@ func main() {
 	}
 
 	// Add manager subcommand
-	managerCmd := &cobra.Command{
-		Use:   "manager",
-		Short: "Start the Redis operator manager",
-		Run: func(cmd *cobra.Command, args []string) {
-			runManager()
-		},
-	}
-	rootCmd.AddCommand(managerCmd)
+	rootCmd.AddCommand(createManagerCommand())
 
 	// Add agent subcommand
 	agentCmd := &cobra.Command{
