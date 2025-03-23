@@ -72,7 +72,7 @@ If you installed Redis Operator with [install-operator.sh](https://github.com/OT
             - /manager
           args:
             - --leader-elect
-            - -zap-log-level=info
+            - --zap-log-level=info
           image: quay.io/opstree/redis-operator:<desired_version>
           imagePullPolicy: Always
 ```

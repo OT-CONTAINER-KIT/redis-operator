@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"flag"
 	"os"
 	"strconv"
 	"strings"
@@ -65,14 +66,20 @@ func createManagerCommand() *cobra.Command {
 	var enableWebhooks bool
 	var maxConcurrentReconciles int
 
+	// Create zap options
+	zapOptions := zap.Options{
+		Development: false,
+	}
+
+	// Create the standard golang flag set for zap flags
+	zapFlagSet := flag.NewFlagSet("zap", flag.ExitOnError)
+	zapOptions.BindFlags(zapFlagSet)
+
 	cmd := &cobra.Command{
 		Use:   "manager",
 		Short: "Start the Redis operator manager",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Create options from cobra flags
-			zapOptions := zap.Options{
-				Development: false,
-			}
+			// Set up logging
 			ctrl.SetLogger(zap.New(zap.UseFlagOptions(&zapOptions)))
 
 			options := ctrl.Options{
@@ -209,6 +216,11 @@ func createManagerCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&enableLeaderElection, "leader-elect", false, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	cmd.Flags().BoolVar(&enableWebhooks, "enable-webhooks", os.Getenv("ENABLE_WEBHOOKS") != "false", "Enable webhooks")
 	cmd.Flags().IntVar(&maxConcurrentReconciles, "max-concurrent-reconciles", 1, "Max concurrent reconciles")
+
+	// Add the zap flags from the flag set to the command's flags
+	zapFlagSet.VisitAll(func(f *flag.Flag) {
+		cmd.Flags().AddGoFlag(f)
+	})
 
 	return cmd
 }
