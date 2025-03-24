@@ -43,7 +43,8 @@ spec:
             path: /readyz
             port: 8081
         command:
-        - /manager
+        - /operator
+        - manager
         args:
         - --leader-elect
         {{- range $arg := .Values.redisOperator.extraArgs }}

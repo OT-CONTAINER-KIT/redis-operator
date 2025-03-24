@@ -27,14 +27,15 @@ spec:
         runAsNonRoot: true
       containers:
       - command:
-        - /manager
+        - /operator
+        - manager
         env:
           - name: ENABLE_WEBHOOKS
             value: "false"
         args:
         - --leader-elect
-        - -zap-log-level=debug
-        - -enable-webhooks=false
+        - --zap-log-level=debug
+        - --enable-webhooks=false
         image: controller
         imagePullPolicy: Never
         name: manager
