@@ -95,6 +95,7 @@ helm delete <my-release> --namespace <namespace>
 | redisCluster.name | string | `""` |  |
 | redisCluster.persistenceEnabled | bool | `true` |  |
 | redisCluster.recreateStatefulSetOnUpdateInvalid | bool | `false` | Some fields of statefulset are immutable, such as volumeClaimTemplates. When set to true, the operator will delete the statefulset and recreate it. Default is false. |
+| redisCluster.enableMasterSlaveAntiAffinity | bool | `false` | Add the appropriate annotation to RedisCluster, so that the operator can enforce anti affinity between leaders and followers. Notice that this requires webhooks to be enabled on the operator. Default is false. |
 | redisCluster.redisSecret.secretKey | string | `""` |  |
 | redisCluster.redisSecret.secretName | string | `""` |  |
 | redisCluster.resources | object | `{}` |  |

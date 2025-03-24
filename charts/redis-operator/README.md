@@ -46,6 +46,8 @@ helm install <redis-operator> ot-helm/redis-operator --version=0.15.5 --appVersi
 > Note: If `certificate.secretName` is not provided, the operator will generate a self-signed certificate and use it for webhook server.
 ---
 > Note : If you want to disable the webhook you have to pass the `--set webhook=false` and `--set certmanager.enabled=false`  while installing the redis-operator.
+---
+> Note: If you want to use an existing `ClusterIssuer` to sign the webhook certificate, you can pass `--set issuer.create=false`, `--set issuer.kind=ClusterIssuer` and `--set issuer.name=cluster-issuer-name-here` while installing the operator.
 
 ### 4. Patch the CA Bundle (if using cert-manager)
 
@@ -90,6 +92,8 @@ kubectl create secret tls <webhook-server-cert> --key tls.key --cert tls.crt -n 
 | certificate.secretName | string | `"webhook-server-cert"` |  |
 | certmanager.apiVersion | string | `"cert-manager.io/v1"` |  |
 | certmanager.enabled | bool | `false` |  |
+| issuer.create | bool | `true` |  |
+| issuer.kind | string | `Issuer` |  |
 | issuer.email | string | `"shubham.gupta@opstree.com"` |  |
 | issuer.name | string | `"redis-operator-issuer"` |  |
 | issuer.privateKeySecretName | string | `"letsencrypt-prod"` |  |
