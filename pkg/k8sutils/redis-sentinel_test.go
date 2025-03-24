@@ -328,7 +328,6 @@ func Test_getSentinelEnvVariable(t *testing.T) {
 		{
 			name: "When RedisSentinelConfig is not nil",
 			args: args{
-				//client: nil,
 				client: k8sClientFake.NewSimpleClientset(
 					&corev1.Pod{
 						ObjectMeta: metav1.ObjectMeta{
