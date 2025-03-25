@@ -70,6 +70,7 @@ helm delete <my-release> --namespace <namespace>
 | priorityClassName | string | `""` |  |
 | redisCluster.clusterSize | int | `3` |  |
 | redisCluster.clusterVersion | string | `"v7"` |  |
+| redisCluster.enableMasterSlaveAntiAffinity | bool | `false` | Enable pod anti-affinity between leader and follower pods by adding the appropriate label. Notice that this requires the operator to have its mutating webhook enabled, otherwise it will only add an annotation to the RedisCluster CR. Default is false. |
 | redisCluster.follower.affinity | string | `nil` |  |
 | redisCluster.follower.nodeSelector | string | `nil` |  |
 | redisCluster.follower.pdb.enabled | bool | `false` |  |

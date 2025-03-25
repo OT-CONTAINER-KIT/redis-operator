@@ -23,6 +23,10 @@ redisCluster:
   # -- Some fields of statefulset are immutable, such as volumeClaimTemplates.
   # When set to true, the operator will delete the statefulset and recreate it. Default is false.
   recreateStatefulSetOnUpdateInvalid: false
+  # -- Enable pod anti-affinity between leader and follower pods by adding the appropriate label.
+  # Notice that this requires the operator to have its mutating webhook enabled,
+  # otherwise it will only add an annotation to the RedisCluster CR. Default is false.
+  enableMasterSlaveAntiAffinity: false
   leader:
     replicas: 3
     serviceType: ClusterIP

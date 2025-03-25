@@ -51,6 +51,12 @@ certificate:
   secretName: webhook-server-cert
 
 issuer:
+  # Whether to create the issuer or not. You might want to disable this if instead you
+  # want to use a ClusterIssuer that you simply want to provide.
+  create: true
+  # You can choose Issuer or ClusterIssuer here. The first one is namespaced, the second one
+  # is available for global usage.
+  kind: Issuer
   type: selfSigned
   name: redis-operator-issuer
   email: shubham.gupta@opstree.com
