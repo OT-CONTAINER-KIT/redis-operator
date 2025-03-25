@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -647,6 +648,10 @@ func CreateMasterSlaveReplication(ctx context.Context, client kubernetes.Interfa
 	}
 
 	realMasterPodIP := getRedisServerIP(ctx, client, realMasterInfo)
+
+	if realMasterPodIP == "" {
+		return errors.New("CreateMasterSlaveReplication got empty master IP, refusing")
+	}
 
 	for i := 0; i < len(masterPods); i++ {
 		if masterPods[i] != realMasterPod {
