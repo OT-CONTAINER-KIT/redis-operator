@@ -93,8 +93,8 @@ kubectl create secret tls <webhook-server-cert> --key tls.key --cert tls.crt -n 
 | certmanager.apiVersion | string | `"cert-manager.io/v1"` |  |
 | certmanager.enabled | bool | `false` |  |
 | issuer.create | bool | `true` |  |
-| issuer.kind | string | `Issuer` |  |
 | issuer.email | string | `"shubham.gupta@opstree.com"` |  |
+| issuer.kind | string | `"Issuer"` |  |
 | issuer.name | string | `"redis-operator-issuer"` |  |
 | issuer.privateKeySecretName | string | `"letsencrypt-prod"` |  |
 | issuer.server | string | `"https://acme-v02.api.letsencrypt.org/directory"` |  |
