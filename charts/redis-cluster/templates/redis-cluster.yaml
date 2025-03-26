@@ -8,6 +8,9 @@ metadata:
     {{ if .Values.redisCluster.recreateStatefulSetOnUpdateInvalid }}
     redis.opstreelabs.in/recreate-statefulset: "true"
     {{ end }}
+    {{- if .Values.redisCluster.enableMasterSlaveAntiAffinity }}
+    redisclusters.redis.redis.opstreelabs.in/role-anti-affinity: "true"
+    {{- end }}
 spec:
   clusterSize: {{ .Values.redisCluster.clusterSize }}
   persistenceEnabled: {{ .Values.redisCluster.persistenceEnabled }}
