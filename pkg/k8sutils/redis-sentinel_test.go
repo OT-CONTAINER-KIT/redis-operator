@@ -9,6 +9,7 @@ import (
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	"github.com/agiledragon/gomonkey/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -19,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes"
 	k8sClientFake "k8s.io/client-go/kubernetes/fake"
@@ -439,9 +441,16 @@ func Test_getSentinelEnvVariable(t *testing.T) {
 					},
 				},
 			)
-			if got, err := getSentinelEnvVariable(ctx, tt.args.client, tt.args.cr, dynamicClient); !reflect.DeepEqual(got, tt.want) {
+			patches := gomonkey.ApplyFunc(getRedisReplicationMasterIP,
+				func(_ context.Context, _ kubernetes.Interface, _ *redisv1beta2.RedisSentinel, _ dynamic.Interface) string {
+					return "10.0.0.1"
+				})
+			defer patches.Reset()
+
+			got, err := getSentinelEnvVariable(ctx, tt.args.client, tt.args.cr, dynamicClient)
+			require.NoError(t, err)
+			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("getSentinelEnvVariable() = %v, want %v", got, tt.want)
-				require.NoError(t, err)
 			}
 		})
 	}
