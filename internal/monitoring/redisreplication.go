@@ -14,6 +14,12 @@ type MetricDescription struct {
 
 // metricsDescription is a map of string keys (metrics) to MetricDescription values (Name, Help).
 var metricDescription = map[string]MetricDescription{
+	"RedisReplicationSkipReconcile": {
+		Name:   "RedisReplicationSkipReconcile",
+		Help:   "Whether or not to skip the reconcile of RedisReplication.",
+		Type:   "Gauge",
+		labels: []string{"namespace", "instance"},
+	},
 	"RedisReplicationReplicasSizeDesired": {
 		Name:   "redisreplication_replicas_size_desired",
 		Help:   "Total desired number of redisreplication replicas.",
@@ -53,6 +59,13 @@ var metricDescription = map[string]MetricDescription{
 }
 
 var (
+	RedisReplicationSkipReconcile = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: metricDescription["RedisReplicationSkipReconcile"].Name,
+			Help: metricDescription["RedisReplicationSkipReconcile"].Help,
+		},
+		metricDescription["RedisReplicationSkipReconcile"].labels,
+	)
 	RedisReplicationReplicasSizeDesired = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: metricDescription["RedisReplicationReplicasSizeDesired"].Name,
@@ -101,6 +114,7 @@ var (
 // RegisterMetrics will register metrics with the global prometheus registry
 func RegisterRedisReplicationMetrics() {
 	metrics.Registry.MustRegister(
+		RedisReplicationSkipReconcile,
 		RedisReplicationReplicasSizeDesired,
 		RedisReplicationReplicasSizeCurrent,
 		RedisReplicationReplicasSizeMismatch,
