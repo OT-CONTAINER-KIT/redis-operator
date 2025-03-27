@@ -29,6 +29,7 @@ import (
 	redisreplicationcontroller "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/redisreplication"
 	redissentinelcontroller "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/redissentinel"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllerutil"
+	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/features"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/k8sutils"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/monitoring"
 	coreWebhook "github.com/OT-CONTAINER-KIT/redis-operator/pkg/webhook"
@@ -65,6 +66,7 @@ func createManagerCommand() *cobra.Command {
 	var probeAddr string
 	var enableWebhooks bool
 	var maxConcurrentReconciles int
+	var featureGatesString string
 
 	// Create zap options
 	zapOptions := zap.Options{
@@ -81,6 +83,16 @@ func createManagerCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Set up logging
 			ctrl.SetLogger(zap.New(zap.UseFlagOptions(&zapOptions)))
+
+			// Parse feature gates from flags
+			if len(featureGatesString) > 0 {
+				if err := features.MutableFeatureGate.Set(featureGatesString); err != nil {
+					setupLog.Error(err, "unable to set feature gates")
+					return err
+				}
+			}
+			// Log enabled feature gates
+			setupLog.Info("Feature gates enabled", "GenerateConfigInInitContainer", features.Enabled(features.GenerateConfigInInitContainer))
 
 			options := ctrl.Options{
 				Scheme: scheme,
@@ -216,6 +228,8 @@ func createManagerCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&enableLeaderElection, "leader-elect", false, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	cmd.Flags().BoolVar(&enableWebhooks, "enable-webhooks", os.Getenv("ENABLE_WEBHOOKS") != "false", "Enable webhooks")
 	cmd.Flags().IntVar(&maxConcurrentReconciles, "max-concurrent-reconciles", 1, "Max concurrent reconciles")
+	cmd.Flags().StringVar(&featureGatesString, "feature-gates", os.Getenv("FEATURE_GATES"), "A set of key=value pairs that describe feature gates for alpha/experimental features. "+
+		"Options are:\n  GenerateConfigInInitContainer=true|false: enables using init container for config generation")
 
 	// Add the zap flags from the flag set to the command's flags
 	zapFlagSet.VisitAll(func(f *flag.Flag) {

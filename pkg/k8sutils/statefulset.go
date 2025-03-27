@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/features"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/pkg/errors"
@@ -286,14 +287,14 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 					Affinity:                      params.Affinity,
 					TerminationGracePeriodSeconds: params.TerminationGracePeriodSeconds,
 					HostNetwork:                   params.HostNetwork,
+					Volumes:                       []corev1.Volume{generateConfigVolume(VolumeNameConfig)},
 				},
 			},
 		},
 	}
 
-	if initcontainerParams.Enabled != nil && *initcontainerParams.Enabled {
-		statefulset.Spec.Template.Spec.InitContainers = generateInitContainerDef(stsMeta.GetName(), initcontainerParams, initcontainerParams.AdditionalMountPath)
-	}
+	statefulset.Spec.Template.Spec.InitContainers = generateInitContainerDef(containerParams.Role, stsMeta.GetName(), initcontainerParams, initcontainerParams.AdditionalMountPath, containerParams, params.ClusterVersion)
+
 	if params.Tolerations != nil {
 		statefulset.Spec.Template.Spec.Tolerations = *params.Tolerations
 	}
@@ -340,6 +341,22 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 
 	AddOwnerRefToObject(statefulset, ownerDef)
 	return statefulset
+}
+
+func generateConfigVolume(volumeName string) corev1.Volume {
+	return corev1.Volume{
+		Name: volumeName,
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	}
+}
+
+func generateConfigVolumeMount(volumeName string) corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      volumeName,
+		MountPath: "/etc/redis",
+	}
 }
 
 // getExternalConfig will return the redis external configuration
@@ -408,6 +425,11 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe, sentinelCntr, enableTLS, enableAuth),
 			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, clusterMode, nodeConfVolume, externalConfig, mountpath, containerParams.TLSConfig, containerParams.ACLConfig),
 		},
+	}
+
+	if sentinelCntr && features.Enabled(features.GenerateConfigInInitContainer) {
+		containerDefinition[0].Command = []string{"redis-sentinel"}
+		containerDefinition[0].Args = []string{"/etc/redis/sentinel.conf"}
 	}
 
 	if preStopCmd := GeneratePreStopCommand(containerParams.Role, enableAuth, enableTLS); preStopCmd != "" {
@@ -523,9 +545,36 @@ if [ "$ROLE" = "master" ]; then
 fi`, authArgs, tlsArgs, authArgs, tlsArgs, authArgs, tlsArgs)
 }
 
-func generateInitContainerDef(name string, initcontainerParams initContainerParameters, mountpath []corev1.VolumeMount) []corev1.Container {
-	initcontainerDefinition := []corev1.Container{
-		{
+func generateInitContainerDef(role, name string, initcontainerParams initContainerParameters, mountpath []corev1.VolumeMount, containerParams containerParameters, clusterVersion *string) []corev1.Container {
+	containers := []corev1.Container{}
+
+	if role == "sentinel" && features.Enabled(features.GenerateConfigInInitContainer) {
+		containers = append(containers, corev1.Container{
+			Name:            "init-config",
+			Image:           OperatorImage,
+			ImagePullPolicy: corev1.PullIfNotPresent,
+			Command:         []string{"/operator", "agent"},
+			Args:            []string{"bootstrap", "--sentinel"},
+			Env: getEnvironmentVariables(
+				containerParams.Role,
+				containerParams.EnabledPassword,
+				containerParams.SecretName,
+				containerParams.SecretKey,
+				containerParams.PersistenceEnabled,
+				containerParams.TLSConfig,
+				containerParams.ACLConfig,
+				containerParams.EnvVars,
+				containerParams.Port,
+				clusterVersion,
+			),
+			VolumeMounts: []corev1.VolumeMount{
+				generateConfigVolumeMount(VolumeNameConfig),
+			},
+		})
+	}
+
+	if initcontainerParams.Enabled != nil && *initcontainerParams.Enabled {
+		containers = append(containers, corev1.Container{
 			Name:            "init" + name,
 			Image:           initcontainerParams.Image,
 			ImagePullPolicy: initcontainerParams.ImagePullPolicy,
@@ -533,18 +582,11 @@ func generateInitContainerDef(name string, initcontainerParams initContainerPara
 			Args:            initcontainerParams.Arguments,
 			VolumeMounts:    getVolumeMount(name, initcontainerParams.PersistenceEnabled, false, false, nil, mountpath, nil, nil),
 			SecurityContext: initcontainerParams.SecurityContext,
-		},
+			Resources:       ptr.Deref(initcontainerParams.Resources, corev1.ResourceRequirements{}),
+			Env:             ptr.Deref(initcontainerParams.AdditionalEnvVariable, []corev1.EnvVar{}),
+		})
 	}
-
-	if initcontainerParams.Resources != nil {
-		initcontainerDefinition[0].Resources = *initcontainerParams.Resources
-	}
-
-	if initcontainerParams.AdditionalEnvVariable != nil {
-		initcontainerDefinition[0].Env = append(initcontainerDefinition[0].Env, *initcontainerParams.AdditionalEnvVariable...)
-	}
-
-	return initcontainerDefinition
+	return containers
 }
 
 func GenerateTLSEnvironmentVariables(tlsconfig *redisv1beta2.TLSConfig) []corev1.EnvVar {
@@ -704,6 +746,10 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nod
 			Name:      "external-config",
 			MountPath: "/etc/redis/external.conf.d",
 		})
+	}
+
+	if features.Enabled(features.GenerateConfigInInitContainer) {
+		VolumeMounts = append(VolumeMounts, generateConfigVolumeMount(VolumeNameConfig))
 	}
 
 	VolumeMounts = append(VolumeMounts, mountpath...)

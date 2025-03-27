@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -66,5 +67,9 @@ func (c *config) append(config ...string) *config {
 }
 
 func (c *config) commit() error {
+	dir := filepath.Dir(c.path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("failed to create directory %s: %v", dir, err)
+	}
 	return os.WriteFile(c.path, []byte(c.content), 0o644)
 }
