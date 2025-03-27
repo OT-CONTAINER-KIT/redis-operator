@@ -3,6 +3,7 @@ package k8sutils
 import (
 	"context"
 
+	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -42,7 +43,7 @@ func generateServiceDef(serviceMeta metav1.ObjectMeta, epp exporterPortProvider,
 		Spec: corev1.ServiceSpec{
 			Type:      generateServiceType(serviceType),
 			ClusterIP: "",
-			Selector:  serviceMeta.GetLabels(),
+			Selector:  util.CopyMap(serviceMeta.GetLabels()),
 			Ports: []corev1.ServicePort{
 				{
 					Name:       PortName,
@@ -151,6 +152,7 @@ func patchService(ctx context.Context, storedService *corev1.Service, newService
 	newService.ResourceVersion = storedService.ResourceVersion
 	newService.CreationTimestamp = storedService.CreationTimestamp
 	newService.ManagedFields = storedService.ManagedFields
+	newService.Finalizers = storedService.Finalizers
 
 	if newService.Spec.Type == generateServiceType("ClusterIP") {
 		newService.Spec.ClusterIP = storedService.Spec.ClusterIP
@@ -168,11 +170,8 @@ func patchService(ctx context.Context, storedService *corev1.Service, newService
 	if !patchResult.IsEmpty() {
 		log.FromContext(ctx).V(1).Info("Changes in service Detected, Updating...", "patch", string(patchResult.Patch))
 
-		for key, value := range storedService.Annotations {
-			if _, present := newService.Annotations[key]; !present {
-				newService.Annotations[key] = value
-			}
-		}
+		util.MergePreservingExistingKeys(newService.Annotations, storedService.Annotations)
+		// util.MergePreservingExistingKeys(newService.Labels, storedService.Labels)
 		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(newService); err != nil {
 			log.FromContext(ctx).Error(err, "Unable to patch redis service with comparison object")
 			return err

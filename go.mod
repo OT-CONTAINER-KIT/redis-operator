@@ -3,6 +3,7 @@ module github.com/OT-CONTAINER-KIT/redis-operator
 go 1.23.4
 
 require (
+	github.com/agiledragon/gomonkey/v2 v2.13.0
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/banzaicloud/k8s-objectmatcher v1.8.0
 	github.com/go-logr/logr v1.4.2
