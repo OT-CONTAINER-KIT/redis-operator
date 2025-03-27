@@ -20,6 +20,7 @@ var DefaultRedisOperatorFeatureGates = map[featuregate.Feature]featuregate.Featu
 // MutableFeatureGate is a feature gate that can be dynamically set
 var MutableFeatureGate featuregate.MutableFeatureGate = featuregate.NewFeatureGate()
 
+//nolint:gochecknoinits
 func init() {
 	runtime.Must(MutableFeatureGate.Add(DefaultRedisOperatorFeatureGates))
 }
