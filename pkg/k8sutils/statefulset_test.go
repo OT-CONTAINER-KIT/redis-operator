@@ -1318,6 +1318,7 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 								},
 							},
 							ServiceAccountName: "redis",
+							InitContainers:     []corev1.Container{},
 							Containers: []corev1.Container{
 								{
 									Name:  "test-sts",
@@ -1504,6 +1505,7 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 						Spec: v1.PodSpec{
 							InitContainers: []corev1.Container{
 								{
+									Env:   []v1.EnvVar{},
 									Name:  "inittest-sts",
 									Image: "redis-init:latest",
 								},
@@ -1574,6 +1576,12 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 								},
 							},
 							Volumes: []v1.Volume{
+								{
+									Name: "config",
+									VolumeSource: v1.VolumeSource{
+										EmptyDir: &v1.EmptyDirVolumeSource{},
+									},
+								},
 								{
 									Name: "additional-vol",
 								},
