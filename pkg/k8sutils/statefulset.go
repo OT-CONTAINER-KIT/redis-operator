@@ -748,7 +748,9 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nod
 		})
 	}
 
-	VolumeMounts = append(VolumeMounts, generateConfigVolumeMount(VolumeNameConfig))
+	if features.Enabled(features.GenerateConfigInInitContainer) {
+		VolumeMounts = append(VolumeMounts, generateConfigVolumeMount(VolumeNameConfig))
+	}
 
 	VolumeMounts = append(VolumeMounts, mountpath...)
 
