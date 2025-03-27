@@ -915,6 +915,7 @@ func TestGenerateInitContainerDef(t *testing.T) {
 			name:              "Test1_With_Resources_AdditionalENV",
 			initContainerName: "redis",
 			initContainerDef: initContainerParameters{
+				Enabled:            ptr.To(true),
 				Image:              "redis-init-container:latest",
 				ImagePullPolicy:    corev1.PullAlways,
 				Command:            []string{"/bin/bash", "-c", "/app/restore.bash"},
@@ -967,6 +968,7 @@ func TestGenerateInitContainerDef(t *testing.T) {
 			name:              "Test2_With_Volume",
 			initContainerName: "redis",
 			initContainerDef: initContainerParameters{
+				Enabled:            ptr.To(true),
 				Image:              "redis-init-container:latest",
 				ImagePullPolicy:    corev1.PullAlways,
 				Command:            []string{"/bin/bash", "-c", "/app/restore.bash"},
@@ -984,6 +986,7 @@ func TestGenerateInitContainerDef(t *testing.T) {
 							MountPath: "/data",
 						},
 					}, nil, nil),
+					Env: []v1.EnvVar{},
 				},
 			},
 			mountPaths: []corev1.VolumeMount{
@@ -998,7 +1001,7 @@ func TestGenerateInitContainerDef(t *testing.T) {
 	for i := range tests {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
-			initContainer := generateInitContainerDef(test.initContainerName, test.initContainerDef, test.mountPaths)
+			initContainer := generateInitContainerDef("", test.initContainerName, test.initContainerDef, test.mountPaths, containerParameters{}, ptr.To("v6"))
 			assert.Equal(t, initContainer, test.expectedInitContainerDef, "Init Container Configuration")
 		})
 	}

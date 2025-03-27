@@ -25,6 +25,7 @@ coverage.html
 *.swo
 *~
 .vscode
+.go-version
 
 .DS_Store
 
