@@ -8,6 +8,7 @@ ARG TARGETPLATFORM
 ARG TARGETOS
 ARG TARGETARCH
 ARG TARGETVARIANT
+ARG IMG
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -21,10 +22,11 @@ RUN go mod download
 COPY cmd/ cmd/
 COPY api/ api/
 COPY pkg/ pkg/
+COPY internal/ internal/
 COPY mocks/ mocks/
 
 # Build
-ARG LDFLAGS="-s -w"
+ARG LDFLAGS="-s -w -X github.com/OT-CONTAINER-KIT/redis-operator/internal/image.operatorImage=${IMG}"
 ENV GOOS=$TARGETOS
 ENV GOARCH=$TARGETARCH
 ENV CGO_ENABLED=0

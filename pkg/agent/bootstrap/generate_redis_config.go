@@ -34,16 +34,6 @@ func generateRedisConfig() error {
 		redisMajorVersion, _  = util.CoalesceEnv("REDIS_MAJOR_VERSION", "v7")
 	)
 
-	// common_operation - create necessary directories
-	{
-		if err := os.MkdirAll(dataDir, 0o755); err != nil {
-			log.Fatalf("Failed to create data directory: %v", err)
-		}
-		if err := os.MkdirAll(nodeConfDir, 0o755); err != nil {
-			log.Fatalf("Failed to create node configuration directory: %v", err)
-		}
-	}
-
 	// set_redis_password - configure Redis password
 	{
 		if val, ok := util.CoalesceEnv("REDIS_PASSWORD", ""); ok && val != "" {
