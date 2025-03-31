@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/image"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/features"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
@@ -427,9 +428,14 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 		},
 	}
 
-	if sentinelCntr && features.Enabled(features.GenerateConfigInInitContainer) {
-		containerDefinition[0].Command = []string{"redis-sentinel"}
-		containerDefinition[0].Args = []string{"/etc/redis/sentinel.conf"}
+	if features.Enabled(features.GenerateConfigInInitContainer) {
+		if sentinelCntr {
+			containerDefinition[0].Command = []string{"redis-sentinel"}
+			containerDefinition[0].Args = []string{"/etc/redis/sentinel.conf"}
+		} else {
+			containerDefinition[0].Command = []string{"redis-server"}
+			containerDefinition[0].Args = []string{"/etc/redis/redis.conf"}
+		}
 	}
 
 	if preStopCmd := GeneratePreStopCommand(containerParams.Role, enableAuth, enableTLS); preStopCmd != "" {
@@ -548,13 +554,12 @@ fi`, authArgs, tlsArgs, authArgs, tlsArgs, authArgs, tlsArgs)
 func generateInitContainerDef(role, name string, initcontainerParams initContainerParameters, mountpath []corev1.VolumeMount, containerParams containerParameters, clusterVersion *string) []corev1.Container {
 	containers := []corev1.Container{}
 
-	if role == "sentinel" && features.Enabled(features.GenerateConfigInInitContainer) {
-		containers = append(containers, corev1.Container{
+	if features.Enabled(features.GenerateConfigInInitContainer) {
+		container := corev1.Container{
 			Name:            "init-config",
-			Image:           OperatorImage,
+			Image:           image.GetOperatorImage(),
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         []string{"/operator", "agent"},
-			Args:            []string{"bootstrap", "--sentinel"},
 			Env: getEnvironmentVariables(
 				containerParams.Role,
 				containerParams.EnabledPassword,
@@ -570,7 +575,13 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 			VolumeMounts: []corev1.VolumeMount{
 				generateConfigVolumeMount(VolumeNameConfig),
 			},
-		})
+		}
+		if role == "sentinel" {
+			container.Args = []string{"bootstrap", "--sentinel"}
+		} else {
+			container.Args = []string{"bootstrap"}
+		}
+		containers = append(containers, container)
 	}
 
 	if initcontainerParams.Enabled != nil && *initcontainerParams.Enabled {

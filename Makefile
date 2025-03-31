@@ -13,13 +13,15 @@ ENVTEST_K8S_VERSION = 1.31.0
 
 # Image URL to use for all building/pushing image targets
 IMG ?= quay.io/opstree/redis-operator:v$(VERSION)
-AGENT_IMG ?= quay.io/opstree/redis-agent:v$(VERSION)
 
 # Container engine to use (docker or podman)
 CONTAINER_ENGINE ?= docker
 
 # Platforms for multi-arch builds
 PLATFORMS = "linux/arm64,linux/amd64"
+
+# LDFLAGS for setting the operator image during build
+LDFLAGS ?= "-s -w -X github.com/OT-CONTAINER-KIT/redis-operator/internal/image.operatorImage=$(IMG)"
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -72,7 +74,7 @@ test: generate fmt vet manifests
 # Build manager binary
 .PHONY: manager
 manager: generate fmt vet
-	go build -o bin/manager cmd/manager/main.go
+	go build -ldflags $(LDFLAGS) -o bin/manager cmd/manager/main.go
 
 # Build agent binary
 .PHONY: agent
@@ -133,17 +135,17 @@ docker-create:
 # Build the manager Docker image
 .PHONY: docker-build
 docker-build:
-	${CONTAINER_ENGINE} buildx build --platform=$(PLATFORMS) -t ${IMG} -f Dockerfile .
+	${CONTAINER_ENGINE} buildx build --platform=$(PLATFORMS) --build-arg IMG=${IMG} -t ${IMG} -f Dockerfile .
 
 # Push the manager Docker image
 .PHONY: docker-push
 docker-push:
-	${CONTAINER_ENGINE} buildx build --push --platform="$(PLATFORMS)" -t ${IMG} -f Dockerfile .
+	${CONTAINER_ENGINE} buildx build --push --platform="$(PLATFORMS)" --build-arg IMG=${IMG} -t ${IMG} -f Dockerfile .
 
 # Load the manager image into docker
 .PHONY: docker-load
 docker-load:
-	${CONTAINER_ENGINE} buildx build --load -t ${IMG} -f Dockerfile .
+	${CONTAINER_ENGINE} buildx build --load --build-arg IMG=${IMG} -t ${IMG} -f Dockerfile .
 
 # Generate bundle manifests and metadata, then validate generated files.
 .PHONY: bundle
@@ -249,6 +251,7 @@ $(KUTTL): $(LOCALBIN)
 generate-metricsdocs:
 	mkdir -p $(shell pwd)/docs/content/en/docs/Monitoring
 	go run -ldflags="${LDFLAGS}" ./pkg/monitoring/metricsdocs > docs/content/en/docs/Monitoring/metrics.md
+
 # ===========================
 # Helper Functions
 # ===========================
