@@ -1113,6 +1113,8 @@ spec:
                   - name
                   type: object
                 type: array
+              hostPort:
+                type: integer
               initContainer:
                 description: InitContainer for each Redis pods
                 properties:
@@ -2524,6 +2526,9 @@ spec:
                 properties:
                   additionalSentinelConfig:
                     type: string
+                  announceHostnames:
+                    default: "no"
+                    type: string
                   downAfterMilliseconds:
                     default: "30000"
                     type: string
@@ -2632,9 +2637,6 @@ spec:
                         x-kubernetes-map-type: atomic
                     type: object
                   resolveHostnames:
-                    default: "no"
-                    type: string
-                  announceHostnames:
                     default: "no"
                     type: string
                 required:
