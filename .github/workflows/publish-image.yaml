@@ -1,4 +1,4 @@
-name: Publish Image to GitHub Container Registry
+name: Publish Image
 
 on:
   push:
@@ -8,9 +8,10 @@ on:
 env:
   REGISTRY: ghcr.io
   REPOSITORY: ot-container-kit/redis-operator
+  QuayImageName: quay.io/opstree/redis-operator
 
 jobs:
-  build-and-push:
+  release-ghcr-image:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -33,7 +34,7 @@ jobs:
         run: |
           echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
-      - name: Build and Push Operator image
+      - name: Build and push image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -44,49 +45,40 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.REPOSITORY }}/redis-operator:latest
           platforms: linux/amd64,linux/arm64
 
-# name: Release container images
-# on:
-#   pull_request:
-#     types: [closed]
-#     branches:
-#       - main
+  release-quay-image:
+    runs-on: ubuntu-latest
+    environment: release-image
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-# env:
-#   APPLICATION_NAME: redis-operator
-#   QuayImageName: quay.io/opstree/redis-operator
-#   APP_VERSION: "v0.15.2"
-#   DOCKERFILE_PATH: './Dockerfile'
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-# jobs:
-#   release_image:
-#     if: github.event.pull_request.merged == true
-#     runs-on: ubuntu-latest
-#     environment: release-image
-#     steps:
-#     - name: Checkout
-#       uses: actions/checkout@v2
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-#     - name: Set up Docker Buildx
-#       uses: docker/setup-buildx-action@v2
+      - name: Login to Quay.io
+        uses: docker/login-action@v3
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_PASSWORD }}
 
-#     - name: Set up QEMU
-#       uses: docker/setup-qemu-action@v3
+      - name: Setup Env
+        run: |
+          echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
-#     - name: Login to Quay.io
-#       uses: docker/login-action@v3
-#       with:
-#         registry: quay.io
-#         username: ${{ secrets.QUAY_USERNAME }}
-#         password: ${{ secrets.QUAY_PASSWORD }}
-
-#     - name: Build and push multi-arch latest image
-#       uses: docker/build-push-action@v2
-#       with:
-#         context: .
-#         file: ${{ env.DOCKERFILE_PATH }}
-#         platforms: linux/amd64,linux/arm64
-#         push: true
-#         tags: ${{ env.QuayImageName }}:${{ env.APP_VERSION }}, ${{ env.QuayImageName }}:latest
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.QuayImageName }}:${{ env.TAG }}
+            ${{ env.QuayImageName }}:latest
 
 #   trivy_scan:
 #     needs: [release_image]
