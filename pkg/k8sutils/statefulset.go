@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	internalenv "github.com/OT-CONTAINER-KIT/redis-operator/internal/env"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/image"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/features"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
@@ -555,9 +556,10 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 	containers := []corev1.Container{}
 
 	if features.Enabled(features.GenerateConfigInInitContainer) {
+		image, _ := util.CoalesceEnv(internalenv.OperatorImageEnv, image.GetOperatorImage())
 		container := corev1.Container{
 			Name:            "init-config",
-			Image:           image.GetOperatorImage(),
+			Image:           image,
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         []string{"/operator", "agent"},
 			Env: getEnvironmentVariables(
