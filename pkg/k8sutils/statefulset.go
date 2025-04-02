@@ -557,6 +557,11 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 
 	if features.Enabled(features.GenerateConfigInInitContainer) {
 		image, _ := util.CoalesceEnv(internalenv.OperatorImageEnv, image.GetOperatorImage())
+		// give all container env vars to init container
+		envVars := append(
+			ptr.Deref(containerParams.EnvVars, []corev1.EnvVar{}),
+			ptr.Deref(containerParams.AdditionalEnvVariable, []corev1.EnvVar{})...,
+		)
 		container := corev1.Container{
 			Name:            "init-config",
 			Image:           image,
@@ -570,7 +575,7 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 				containerParams.PersistenceEnabled,
 				containerParams.TLSConfig,
 				containerParams.ACLConfig,
-				containerParams.EnvVars,
+				&envVars,
 				containerParams.Port,
 				clusterVersion,
 			),
