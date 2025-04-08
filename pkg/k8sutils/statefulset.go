@@ -185,6 +185,18 @@ func patchStatefulSet(ctx context.Context, storedStateful, newStateful *appsv1.S
 	// Sync system-managed fields to ensure atomic update.
 	syncManagedFields(storedStateful, newStateful)
 
+	// Save the new VolumeClaimTemplates for later use in HandlePVCResizing
+	newStatefulCopy := newStateful.DeepCopy()
+
+	// Since VolumeClaimTemplate fields are immutable, revert to the stored configuration.
+	if hasVolumeClaimTemplates(newStateful, storedStateful) {
+		if newStateful.Annotations == nil {
+			newStateful.Annotations = make(map[string]string)
+		}
+		newStateful.Annotations["storageCapacity"] = storedStateful.Annotations["storageCapacity"]
+		newStateful.Spec.VolumeClaimTemplates = storedStateful.Spec.VolumeClaimTemplates
+	}
+
 	// Calculate the patch between the stored and new objects, ignoring immutable or unnecessary fields.
 	patchResult, err := patch.DefaultPatchMaker.Calculate(storedStateful, newStateful,
 		patch.IgnoreStatusFields(),
@@ -206,15 +218,9 @@ func patchStatefulSet(ctx context.Context, storedStateful, newStateful *appsv1.S
 
 	// If VolumeClaimTemplates exist, handle PVC resizing.
 	if hasVolumeClaimTemplates(newStateful, storedStateful) {
-		if err := HandlePVCResizing(ctx, storedStateful, newStateful, cl); err != nil {
+		if err := HandlePVCResizing(ctx, storedStateful, newStatefulCopy, cl); err != nil {
 			return err
 		}
-		// Since VolumeClaimTemplate fields are immutable, revert to the stored configuration.
-		if newStateful.Annotations == nil {
-			newStateful.Annotations = make(map[string]string)
-		}
-		newStateful.Annotations["storageCapacity"] = storedStateful.Annotations["storageCapacity"]
-		newStateful.Spec.VolumeClaimTemplates = storedStateful.Spec.VolumeClaimTemplates
 	}
 
 	// Merge missing annotations from the stored object into the new object.
