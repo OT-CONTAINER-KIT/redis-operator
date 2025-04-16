@@ -19,10 +19,9 @@ package main
 import (
 	"flag"
 	"os"
-	"strconv"
-	"strings"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	internalenv "github.com/OT-CONTAINER-KIT/redis-operator/internal/env"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/agent/bootstrap"
 	rediscontroller "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/redis"
 	redisclustercontroller "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/rediscluster"
@@ -109,18 +108,15 @@ func createManagerCommand() *cobra.Command {
 				LeaderElectionID:       "6cab913b.redis.opstreelabs.in",
 			}
 
-			if envMaxConcurrentReconciles, exists := os.LookupEnv("MAX_CONCURRENT_RECONCILES"); exists {
-				if val, err := strconv.Atoi(envMaxConcurrentReconciles); err == nil {
-					maxConcurrentReconciles = val
-				}
-			}
+			// Use env package to get max concurrent reconciles
+			maxConcurrentReconciles = internalenv.GetMaxConcurrentReconciles(maxConcurrentReconciles)
 
-			if namespaces := strings.TrimSpace(os.Getenv("WATCH_NAMESPACE")); namespaces != "" {
+			// Use env package to get watch namespaces
+			watchNamespaces := internalenv.GetWatchNamespaces()
+			if len(watchNamespaces) > 0 {
 				options.Cache.DefaultNamespaces = map[string]cache.Config{}
-				for _, ns := range strings.Split(namespaces, ",") {
-					if ns = strings.TrimSpace(ns); ns != "" {
-						options.Cache.DefaultNamespaces[ns] = cache.Config{}
-					}
+				for _, ns := range watchNamespaces {
+					options.Cache.DefaultNamespaces[ns] = cache.Config{}
 				}
 			}
 
@@ -226,9 +222,9 @@ func createManagerCommand() *cobra.Command {
 	cmd.Flags().StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	cmd.Flags().StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	cmd.Flags().BoolVar(&enableLeaderElection, "leader-elect", false, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
-	cmd.Flags().BoolVar(&enableWebhooks, "enable-webhooks", os.Getenv("ENABLE_WEBHOOKS") != "false", "Enable webhooks")
+	cmd.Flags().BoolVar(&enableWebhooks, "enable-webhooks", internalenv.IsWebhookEnabled(), "Enable webhooks")
 	cmd.Flags().IntVar(&maxConcurrentReconciles, "max-concurrent-reconciles", 1, "Max concurrent reconciles")
-	cmd.Flags().StringVar(&featureGatesString, "feature-gates", os.Getenv("FEATURE_GATES"), "A set of key=value pairs that describe feature gates for alpha/experimental features. "+
+	cmd.Flags().StringVar(&featureGatesString, "feature-gates", internalenv.GetFeatureGates(), "A set of key=value pairs that describe feature gates for alpha/experimental features. "+
 		"Options are:\n  GenerateConfigInInitContainer=true|false: enables using init container for config generation")
 
 	// Add the zap flags from the flag set to the command's flags
