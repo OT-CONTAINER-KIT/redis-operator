@@ -37,11 +37,11 @@ spec:
         livenessProbe:
           httpGet:
             path: /healthz
-            port: 8081
+            port: probe
         readinessProbe:
           httpGet:
             path: /readyz
-            port: 8081
+            port: probe
         command:
         - /operator
         - manager
@@ -54,6 +54,9 @@ spec:
         ports:
         - containerPort: 9443
           name: webhook-server
+          protocol: TCP
+        - containerPort: 8081
+          name: probe
           protocol: TCP
         volumeMounts:
         - mountPath: /tmp/k8s-webhook-server/serving-certs
