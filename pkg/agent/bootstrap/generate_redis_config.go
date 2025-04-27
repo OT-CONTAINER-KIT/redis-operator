@@ -163,27 +163,25 @@ func generateRedisConfig() error {
 
 	// Add cluster announcement IP and hostname for cluster mode
 	if setupMode, ok := util.CoalesceEnv("SETUP_MODE", ""); ok && setupMode == "cluster" {
-		if redisMajorVersion == "v7" {
-			// Get Pod hostname and IP
-			podHostname, err := os.Hostname()
-			if err == nil {
-				var clusterAnnounceIP string
+		// Get Pod hostname and IP
+		podHostname, err := os.Hostname()
+		if err == nil {
+			var clusterAnnounceIP string
 
-				if nodePort, ok := util.CoalesceEnv("NODEPORT", ""); ok && nodePort == "true" {
-					clusterAnnounceIP = os.Getenv("HOST_IP")
-				} else {
-					cmd := exec.Command("hostname", "-i")
-					output, err := cmd.Output()
-					if err == nil {
-						clusterAnnounceIP = strings.TrimSpace(string(output))
-					}
+			if nodePort, ok := util.CoalesceEnv("NODEPORT", ""); ok && nodePort == "true" {
+				clusterAnnounceIP = os.Getenv("HOST_IP")
+			} else {
+				cmd := exec.Command("hostname", "-i")
+				output, err := cmd.Output()
+				if err == nil {
+					clusterAnnounceIP = strings.TrimSpace(string(output))
 				}
-
-				if clusterAnnounceIP != "" {
-					cfg.append("cluster-announce-ip", clusterAnnounceIP)
-				}
-				cfg.append("cluster-announce-hostname", podHostname)
 			}
+
+			if clusterAnnounceIP != "" {
+				cfg.append("cluster-announce-ip", clusterAnnounceIP)
+			}
+			cfg.append("cluster-announce-hostname", podHostname)
 		}
 	}
 
