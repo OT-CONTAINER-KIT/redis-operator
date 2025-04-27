@@ -9,7 +9,9 @@ spec:
     failFast: true
     parallel: 1
   cleanup:
+    # debug
     skipDelete: true
+    delayBeforeCleanup: 30m
   timeouts:
     apply: 5m
     delete: 5m

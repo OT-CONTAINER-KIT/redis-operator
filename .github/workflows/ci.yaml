@@ -253,6 +253,11 @@ jobs:
           find ./tests/e2e-chainsaw/v1beta2/ -type f -exec sed -i 's/quay.io\/opstree\/redis:latest/quay.io\/opstree\/redis:${{ matrix.redis-version }}/g' {} \;
           find ./tests/e2e-chainsaw/v1beta2/ -type f -exec sed -i 's/quay.io\/opstree\/redis-sentinel:latest/quay.io\/opstree\/redis-sentinel:${{ matrix.redis-version }}/g' {} \;
 
+      - name: Install k9s
+        run: |
+          curl -sS https://webi.sh/k9s | sh; \
+          source ~/.config/envman/PATH.env
+
       - name: DEBUG :Setup tmate session
         uses: mxschmitt/action-tmate@v3
         with:
