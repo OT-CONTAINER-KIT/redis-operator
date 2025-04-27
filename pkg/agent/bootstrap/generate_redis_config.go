@@ -177,11 +177,12 @@ func generateRedisConfig() error {
 					clusterAnnounceIP = strings.TrimSpace(string(output))
 				}
 			}
-
 			if clusterAnnounceIP != "" {
 				cfg.append("cluster-announce-ip", clusterAnnounceIP)
 			}
-			cfg.append("cluster-announce-hostname", podHostname)
+			if redisMajorVersion == "v7" {
+				cfg.append("cluster-announce-hostname", podHostname)
+			}
 		}
 	}
 
