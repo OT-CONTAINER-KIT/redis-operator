@@ -253,19 +253,12 @@ jobs:
           find ./tests/e2e-chainsaw/v1beta2/ -type f -exec sed -i 's/quay.io\/opstree\/redis:latest/quay.io\/opstree\/redis:${{ matrix.redis-version }}/g' {} \;
           find ./tests/e2e-chainsaw/v1beta2/ -type f -exec sed -i 's/quay.io\/opstree\/redis-sentinel:latest/quay.io\/opstree\/redis-sentinel:${{ matrix.redis-version }}/g' {} \;
 
-      - name: Run chainsaw test
-        run: chainsaw test --test-dir ./tests/e2e-chainsaw/v1beta2/nodeport --config tests/_config/chainsaw-configuration.yaml
-      
-      # - name: DEBUG 1:Setup upterm session
-      #   if: ${{ failure() }}
-      #   uses: lhotari/action-upterm@v1
-      #   with:
-      #     limit-access-to-actor: true
-      #     wait-timeout-minutes: 10
-
-      - name: DEBUG 2:Setup tmate session
-        if: ${{ failure() }}
+      - name: DEBUG :Setup tmate session
         uses: mxschmitt/action-tmate@v3
         with:
           timeout-minutes: 15
           limit-access-to-actor: true
+          detached: true
+
+      - name: Run chainsaw test
+        run: chainsaw test --test-dir ./tests/e2e-chainsaw/v1beta2/nodeport --config tests/_config/chainsaw-configuration.yaml
