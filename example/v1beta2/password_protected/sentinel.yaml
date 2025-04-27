@@ -12,7 +12,7 @@ spec:
   redisSentinelConfig:
     redisReplicationName: redis-replication
     # this is needed for the sentinel to connect to the nodes. `redisSecret` only controls access to sentinel
-    redisReplicationPassword: 
+    redisReplicationPassword:
       secretKeyRef:
         name: redis-secret
         key: password
@@ -20,7 +20,7 @@ spec:
     image: quay.io/opstree/redis-sentinel:v7.0.15
     imagePullPolicy: IfNotPresent
     # only controls access to sentinel, use `redisReplicationPassword` for node connection
-    redisSecret: 
+    redisSecret:
       name: redis-secret
       key: password
     resources:
