@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	internalenv "github.com/OT-CONTAINER-KIT/redis-operator/internal/env"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/image"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/features"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
@@ -561,9 +562,15 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 	containers := []corev1.Container{}
 
 	if features.Enabled(features.GenerateConfigInInitContainer) {
+		image, _ := util.CoalesceEnv(internalenv.OperatorImageEnv, image.GetOperatorImage())
+		// give all container env vars to init container
+		envVars := append(
+			ptr.Deref(containerParams.EnvVars, []corev1.EnvVar{}),
+			ptr.Deref(containerParams.AdditionalEnvVariable, []corev1.EnvVar{})...,
+		)
 		container := corev1.Container{
 			Name:            "init-config",
-			Image:           image.GetOperatorImage(),
+			Image:           image,
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         []string{"/operator", "agent"},
 			Env: getEnvironmentVariables(
@@ -574,7 +581,7 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 				containerParams.PersistenceEnabled,
 				containerParams.TLSConfig,
 				containerParams.ACLConfig,
-				containerParams.EnvVars,
+				&envVars,
 				containerParams.Port,
 				clusterVersion,
 			),
