@@ -256,6 +256,16 @@ jobs:
       - name: Run chainsaw test
         run: chainsaw test --test-dir ./tests/e2e-chainsaw/v1beta2/nodeport --config tests/_config/chainsaw-configuration.yaml
       
-      - name: Setup upterm session
+      # - name: DEBUG 1:Setup upterm session
+      #   if: ${{ failure() }}
+      #   uses: lhotari/action-upterm@v1
+      #   with:
+      #     limit-access-to-actor: true
+      #     wait-timeout-minutes: 10
+
+      - name: DEBUG 2:Setup tmate session
         if: ${{ failure() }}
-        uses: lhotari/action-upterm@v1
+        uses: mxschmitt/action-tmate@v3
+        with:
+          timeout-minutes: 15
+          limit-access-to-actor: true
