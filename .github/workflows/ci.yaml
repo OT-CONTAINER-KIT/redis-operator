@@ -202,7 +202,8 @@ jobs:
           GOSEC_OUTPUT: "junit-xml:/github/workspace/gosec-results.xml"
 
   e2e_test:
-    needs: [validate_yaml]
+    # debug
+    # needs: [validate_yaml]
     name: E2E Test
     runs-on: ubuntu-latest
     strategy:
