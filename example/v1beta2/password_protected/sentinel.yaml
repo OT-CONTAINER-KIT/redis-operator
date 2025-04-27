@@ -11,14 +11,16 @@ spec:
     fsGroup: 1000
   redisSentinelConfig:
     redisReplicationName: redis-replication
-    redisReplicationPassword: # this is needed for the sentinel to connect to the nodes. `redisSecret` only controls access to sentinel
+    # this is needed for the sentinel to connect to the nodes. `redisSecret` only controls access to sentinel
+    redisReplicationPassword: 
       secretKeyRef:
         name: redis-secret
         key: password
   kubernetesConfig:
     image: quay.io/opstree/redis-sentinel:v7.0.15
     imagePullPolicy: IfNotPresent
-    redisSecret: # only controls access to sentinel, use `redisReplicationPassword` for node connection
+    # only controls access to sentinel, use `redisReplicationPassword` for node connection
+    redisSecret: 
       name: redis-secret
       key: password
     resources:
