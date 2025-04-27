@@ -227,9 +227,6 @@ jobs:
           chmod +x kubectl
           sudo mv kubectl /usr/local/bin/
 
-      # - name: Install Redis
-      #   uses: shogo82148/actions-setup-redis@v1
-
       - name: Create k8s Kind Cluster
         uses: helm/kind-action@v1.12.0
         with:
@@ -257,4 +254,8 @@ jobs:
           find ./tests/e2e-chainsaw/v1beta2/ -type f -exec sed -i 's/quay.io\/opstree\/redis-sentinel:latest/quay.io\/opstree\/redis-sentinel:${{ matrix.redis-version }}/g' {} \;
 
       - name: Run chainsaw test
-        run: chainsaw test --test-dir ./tests/e2e-chainsaw/v1beta2/ --config tests/_config/chainsaw-configuration.yaml
+        run: chainsaw test --test-dir ./tests/e2e-chainsaw/v1beta2/nodeport --config tests/_config/chainsaw-configuration.yaml
+      
+      - name: Setup upterm session
+        if: ${{ failure() }}
+        uses: lhotari/action-upterm@v1
