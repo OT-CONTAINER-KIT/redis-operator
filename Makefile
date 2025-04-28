@@ -180,7 +180,7 @@ verify-codegen: codegen
 # ===========================
 
 .PHONY: tests
-tests: integration-test-setup unit-tests
+tests: integration-test-setup unit-tests integration-tests
 
 .PHONY: unit-tests
 unit-tests:
@@ -195,6 +195,10 @@ e2e-test: e2e-kind-setup kuttl
 .PHONY: integration-test-setup
 integration-test-setup:
 	./hack/integrationSetup.sh
+
+.PHONY: integration-tests
+integration-tests:
+	ginkgo -r -race --repeat=5
 
 .PHONY: e2e-kind-setup
 e2e-kind-setup:
