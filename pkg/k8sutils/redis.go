@@ -577,6 +577,7 @@ func GetRedisNodesByRole(ctx context.Context, cl kubernetes.Interface, cr *redis
 	statefulset, err := GetStatefulSet(ctx, cl, cr.GetNamespace(), cr.GetName())
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Failed to Get the Statefulset of the", "custom resource", cr.Name, "in namespace", cr.Namespace)
+		return nil
 	}
 
 	var pods []string
