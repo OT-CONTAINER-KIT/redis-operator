@@ -202,12 +202,10 @@ jobs:
           GOSEC_OUTPUT: "junit-xml:/github/workspace/gosec-results.xml"
 
   e2e_test:
+    # DEBUG
     needs: [validate_yaml]
     name: E2E Test
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        redis-version: ["v7.0.15"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -227,9 +225,6 @@ jobs:
           chmod +x kubectl
           sudo mv kubectl /usr/local/bin/
 
-      # - name: Install Redis
-      #   uses: shogo82148/actions-setup-redis@v1
-
       - name: Create k8s Kind Cluster
         uses: helm/kind-action@v1.12.0
         with:
@@ -244,15 +239,23 @@ jobs:
       - name: Install Redis Operator
         run: |
           make deploy IMG=redis-operator:e2e
+          kubectl set env deployment/redis-operator-redis-operator -n redis-operator-system OPERATOR_IMAGE=redis-operator:e2e FEATURE_GATES=GenerateConfigInInitContainer=true
 
       - name: Wait for Redis Operator to be ready
         run: |
           kubectl wait --for=condition=available --timeout=300s deployment/redis-operator-redis-operator -n redis-operator-system
 
-      - name: Replace Redis Image Version
-        run: |
-          find ./tests/e2e-chainsaw/v1beta2/ -type f -exec sed -i 's/quay.io\/opstree\/redis:latest/quay.io\/opstree\/redis:${{ matrix.redis-version }}/g' {} \;
-          find ./tests/e2e-chainsaw/v1beta2/ -type f -exec sed -i 's/quay.io\/opstree\/redis-sentinel:latest/quay.io\/opstree\/redis-sentinel:${{ matrix.redis-version }}/g' {} \;
+      # - name: DEBUG:Install k9s
+      #   run: |
+      #     curl -sS https://webi.sh/k9s | sh; \
+      #     source ~/.config/envman/PATH.env
+
+      # - name: DEBUG:Setup tmate session
+      #   uses: mxschmitt/action-tmate@v3
+      #   with:
+      #     timeout-minutes: 15
+      #     limit-access-to-actor: true
+      #     detached: true
 
       - name: Run chainsaw test
-        run: chainsaw test --test-dir ./tests/e2e-chainsaw/v1beta2/ --config tests/_config/chainsaw-configuration.yaml
+        run: chainsaw test --test-dir ./tests/e2e-chainsaw/v1beta2 --config tests/_config/chainsaw-configuration.yaml
