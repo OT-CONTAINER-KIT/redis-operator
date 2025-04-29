@@ -90,3 +90,8 @@ securityContext: {}
 #  readOnlyRootFilesystem: true
 #  runAsNonRoot: true
 #  runAsUser: 1000
+
+# Feature gates for alpha/experimental features
+featureGates:
+  # Enable generating Redis configuration using an init container instead of a regular container
+  GenerateConfigInInitContainer: false

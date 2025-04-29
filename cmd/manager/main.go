@@ -90,9 +90,6 @@ func createManagerCommand() *cobra.Command {
 					return err
 				}
 			}
-			// Log enabled feature gates
-			setupLog.Info("Feature gates enabled", "GenerateConfigInInitContainer", features.Enabled(features.GenerateConfigInInitContainer))
-
 			options := ctrl.Options{
 				Scheme: scheme,
 				Metrics: metricsserver.Options{
