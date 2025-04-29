@@ -253,8 +253,8 @@ $(KUTTL): $(LOCALBIN)
 
 .PHONY: generate-metricsdocs
 generate-metricsdocs:
-	mkdir -p $(shell pwd)/docs/content/en/docs/Monitoring
-	go run -ldflags="${LDFLAGS}" ./pkg/monitoring/metricsdocs > docs/content/en/docs/Monitoring/metrics.md
+	@mkdir -p $(shell pwd)/docs/content/en/docs/Monitoring
+	@go run ./pkg/monitoring/metricsdocs > docs/content/en/docs/Monitoring/metrics.md
 
 .PHONY: generate-dataAssert
 generate-dataAssert:
