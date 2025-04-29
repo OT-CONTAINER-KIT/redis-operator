@@ -162,7 +162,7 @@ bundle-build:
 
 # Rebuild all generated code
 .PHONY: codegen
-codegen: generate manifests
+codegen: generate manifests generate-dataAssert generate-metricsdocs
 
 # Verify that codegen is up to date.
 .PHONY: verify-codegen
@@ -255,6 +255,10 @@ $(KUTTL): $(LOCALBIN)
 generate-metricsdocs:
 	mkdir -p $(shell pwd)/docs/content/en/docs/Monitoring
 	go run -ldflags="${LDFLAGS}" ./pkg/monitoring/metricsdocs > docs/content/en/docs/Monitoring/metrics.md
+
+.PHONY: generate-dataAssert
+generate-dataAssert:
+	@cd tests/data-assert && go run main.go gen-resource-yaml
 
 # ===========================
 # Helper Functions

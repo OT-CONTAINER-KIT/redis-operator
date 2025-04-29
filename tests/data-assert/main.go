@@ -12,20 +12,23 @@ import (
 )
 
 // go run main.go gen-resource-yaml
-// go run main.go gen-redis-data --host redis-cluster-0.redis-cluster.default.svc.cluster.local --password 123456 --mode cluster/sentinel
-// go run main.go chk-redis-data --host redis-cluster-0.redis-cluster.default.svc.cluster.local --password 123456 --mode cluster/sentinel
+// go run main.go gen-redis-data --host redis-cluster-0.redis-cluster.default.svc.cluster.local --password 123456 --mode cluster/sentinel --sentinel-pass Opstree@1234sentinel
+// go run main.go chk-redis-data --host redis-cluster-0.redis-cluster.default.svc.cluster.local --password 123456 --mode cluster/sentinel --sentinel-pass Opstree@1234sentinel
 
 const (
-	hostFlag = "host"
-	passFlag = "password"
-	modeFlag = "mode"
-	totalKey = 1000
+	hostFlag         = "host"
+	passFlag         = "password"
+	modeFlag         = "mode"
+	totalKey         = 1000
+	sentinelPassFlag = "sentinel-pass"
 )
 
 var (
 	host string
 	pass string
 	mode string
+
+	sentinelPass string
 )
 
 func main() {
@@ -49,7 +52,7 @@ func main() {
 	rootCmd.PersistentFlags().StringVarP(&host, hostFlag, "H", "", "redis host")
 	rootCmd.PersistentFlags().StringVarP(&pass, passFlag, "P", "", "redis password")
 	rootCmd.PersistentFlags().StringVarP(&mode, modeFlag, "M", "", "redis mode")
-
+	rootCmd.PersistentFlags().StringVarP(&sentinelPass, sentinelPassFlag, "S", "", "redis sentinel password")
 	rootCmd.Execute()
 }
 
@@ -81,9 +84,10 @@ func genRedisDataCmd(cmd *cobra.Command, args []string) {
 		})
 	case "sentinel":
 		rdb = redis.NewFailoverClient(&redis.FailoverOptions{
-			MasterName:    "myMaster",
-			SentinelAddrs: hosts,
-			Password:      pass,
+			MasterName:       "myMaster",
+			SentinelAddrs:    hosts,
+			Password:         pass,
+			SentinelPassword: sentinelPass,
 		})
 	default:
 		fmt.Printf("unsupported redis mode: %s\n", mode)
