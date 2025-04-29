@@ -12,15 +12,15 @@ import (
 )
 
 // go run main.go gen-resource-yaml
-// go run main.go gen-redis-data --host redis-cluster-0.redis-cluster.default.svc.cluster.local --password 123456 --mode cluster/sentinel --sentinel-pass Opstree@1234sentinel
-// go run main.go chk-redis-data --host redis-cluster-0.redis-cluster.default.svc.cluster.local --password 123456 --mode cluster/sentinel --sentinel-pass Opstree@1234sentinel
+// go run main.go gen-redis-data --host redis-cluster-0.redis-cluster.default.svc.cluster.local --password 123456 --mode cluster/sentinel --password-sentinel Opstree@1234sentinel
+// go run main.go chk-redis-data --host redis-cluster-0.redis-cluster.default.svc.cluster.local --password 123456 --mode cluster/sentinel --password-sentinel Opstree@1234sentinel
 
 const (
 	hostFlag         = "host"
 	passFlag         = "password"
+	sentinelPassFlag = "password-sentinel"
 	modeFlag         = "mode"
 	totalKey         = 1000
-	sentinelPassFlag = "sentinel-pass"
 )
 
 var (
