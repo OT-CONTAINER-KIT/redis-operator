@@ -73,7 +73,16 @@ spec:
         {{- range $env := .Values.redisOperator.env }}
         - name: {{ $env.name }}
           value: {{ $env.value | quote }}
-        {{- end }} 
+        {{- end }}
+        {{- if .Values.featureGates }}
+        - name: FEATURE_GATES
+          value: "{{- $first := true -}}
+          {{- range $feature, $enabled := .Values.featureGates -}}
+          {{- if not $first -}},{{- end -}}
+          {{- $first = false -}}
+          {{- $feature }}={{ $enabled -}}
+          {{- end -}}"
+        {{- end }}
       {{- if .Values.resources }}
         resources: {{ toYaml .Values.resources | nindent 10 }}
       {{- end }}
