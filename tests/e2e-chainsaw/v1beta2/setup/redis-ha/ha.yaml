@@ -1,3 +1,13 @@
+# This is a test for redis-ha(redis-replication and redis-sentinel)
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-replication-password
+type: Opaque
+data:
+  # Opstree@1234replication
+  password: T3BzdHJlZUAxMjM0cmVwbGljYXRpb24=
 ---
 apiVersion: redis.redis.opstreelabs.in/v1beta2
 kind: RedisReplication
@@ -23,6 +33,9 @@ spec:
     runAsUser: 1000
     fsGroup: 1000
   kubernetesConfig:
+    redisSecret:
+      name: redis-replication-password
+      key: password
     image: quay.io/opstree/redis:latest
     imagePullPolicy: Always
     resources:
@@ -39,6 +52,15 @@ spec:
         resources:
           requests:
             storage: 1Gi
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-sentinel-password
+type: Opaque
+data:
+  # Opstree@1234sentinel
+  password: T3BzdHJlZUAxMjM0c2VudGluZWw=
 ---
 apiVersion: redis.redis.opstreelabs.in/v1beta2
 kind: RedisSentinel
@@ -61,7 +83,14 @@ spec:
   redisSentinelConfig:
     redisReplicationName: redis-replication
     quorum: '1'
+    redisReplicationPassword:
+      secretKeyRef:
+        name: redis-replication-password
+        key: password
   kubernetesConfig:
+    redisSecret:
+      name: redis-sentinel-password
+      key: password
     image: quay.io/opstree/redis-sentinel:latest
     imagePullPolicy: Always
     resources:
