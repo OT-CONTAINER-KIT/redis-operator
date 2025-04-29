@@ -39,10 +39,10 @@ spec:
             timeout: 30s
             content: >
               kubectl exec --namespace ${NAMESPACE} --container data-assert data-assert --
-              bash -c  "cd /go/src/data-assert && go run main.go gen-redis-data
-                        --host redis-sentinel-sentinel.${NAMESPACE}.svc.cluster.local:26379
-                        --mode sentinel 
-                        --sentinel-pass Opstree@1234sentinel 
+              bash -c  "cd /go/src/data-assert && go run main.go gen-redis-data \
+                        --host redis-sentinel-sentinel.${NAMESPACE}.svc.cluster.local:26379 \
+                        --mode sentinel \
+                        --sentinel-pass Opstree@1234sentinel \
                         --pass Opstree@1234replication"
             check:
               (contains($stdout, 'OK')): true
@@ -77,10 +77,10 @@ spec:
             timeout: 30s
             content: >
               kubectl exec --namespace ${NAMESPACE} --container data-assert data-assert --
-              bash -c "cd /go/src/data-assert && go run main.go chk-redis-data 
-                       --host redis-sentinel-sentinel.${NAMESPACE}.svc.cluster.local:26379 
-                       --mode sentinel 
-                       --sentinel-pass Opstree@1234sentinel 
+              bash -c "cd /go/src/data-assert && go run main.go chk-redis-data \
+                       --host redis-sentinel-sentinel.${NAMESPACE}.svc.cluster.local:26379 \
+                       --mode sentinel \
+                       --sentinel-pass Opstree@1234sentinel \
                        --pass Opstree@1234replication"
             check:
               (contains($stdout, 'OK')): true
