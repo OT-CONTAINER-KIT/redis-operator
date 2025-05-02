@@ -74,7 +74,7 @@ test: generate fmt vet manifests
 # Build manager binary
 .PHONY: manager
 manager: generate fmt vet
-	go build -ldflags $(LDFLAGS) -o bin/manager cmd/manager/main.go
+	go build -ldflags $(LDFLAGS) -o bin/manager cmd/main.go
 
 # Build agent binary
 .PHONY: agent
@@ -84,7 +84,7 @@ agent: generate fmt vet
 # Run against the configured Kubernetes cluster in ~/.kube/config
 .PHONY: run
 run: generate fmt vet manifests
-	go run cmd/manager/main.go
+	go run cmd/main.go
 
 # Install CRDs into a cluster
 .PHONY: install
