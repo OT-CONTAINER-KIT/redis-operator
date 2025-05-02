@@ -21,12 +21,12 @@ import (
 	"os"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	rediscontroller "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/redis"
+	redisclustercontroller "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/rediscluster"
+	redisreplicationcontroller "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/redisreplication"
+	redissentinelcontroller "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/redissentinel"
 	internalenv "github.com/OT-CONTAINER-KIT/redis-operator/internal/env"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/agent/bootstrap"
-	rediscontroller "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/redis"
-	redisclustercontroller "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/rediscluster"
-	redisreplicationcontroller "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/redisreplication"
-	redissentinelcontroller "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/redissentinel"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllerutil"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/features"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/k8sutils"
@@ -56,6 +56,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(redisv1beta2.AddToScheme(scheme))
 	monitoring.RegisterRedisReplicationMetrics()
+	utilruntime.Must(redisv1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -194,6 +195,13 @@ func createManagerCommand() *cobra.Command {
 				mgr.GetWebhookServer().Register("/mutate-core-v1-pod", &webhook.Admission{
 					Handler: coreWebhook.NewPodAffiniytMutate(mgr.GetClient(), admission.NewDecoder(scheme), wblog),
 				})
+			}
+			if err = (&controller.GuestbookReconciler{
+				Client: mgr.GetClient(),
+				Scheme: mgr.GetScheme(),
+			}).SetupWithManager(mgr); err != nil {
+				setupLog.Error(err, "unable to create controller", "controller", "Guestbook")
+				os.Exit(1)
 			}
 			// +kubebuilder:scaffold:builder
 

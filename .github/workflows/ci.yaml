@@ -163,7 +163,7 @@ jobs:
       - name: Set GOARCH
         run: echo "GOARCH=${{ matrix.arch }}" >> $GITHUB_ENV
       - name: Build Go Binary
-        run: go build -o ${{ github.workspace }}/${{ env.APPLICATION_NAME }} cmd/manager/main.go
+        run: go build -o ${{ github.workspace }}/${{ env.APPLICATION_NAME }} cmd/main.go
       - name: Archive Binary
         run: |
           mkdir -p ${{ github.workspace }}/compiled/${{ matrix.arch }}
