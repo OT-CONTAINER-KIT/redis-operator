@@ -9,7 +9,7 @@ plugins:
   manifests.sdk.operatorframework.io/v2: {}
   scorecard.sdk.operatorframework.io/v2: {}
 projectName: redis-operator
-repo: redis-operator
+repo: github.com/OT-CONTAINER-KIT/redis-operator
 resources:
 - api:
     crdVersion: v1
