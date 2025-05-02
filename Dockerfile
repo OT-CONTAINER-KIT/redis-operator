@@ -32,7 +32,7 @@ ENV GOARCH=$TARGETARCH
 ENV CGO_ENABLED=0
 
 # Build the unified binary
-RUN GO111MODULE=on go build -ldflags "${LDFLAGS}" -a -o operator cmd/manager/main.go
+RUN GO111MODULE=on go build -ldflags "${LDFLAGS}" -a -o operator cmd/main.go
 
 # Use distroless as minimal base image to package the binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details

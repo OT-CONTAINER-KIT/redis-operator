@@ -6,6 +6,7 @@ resources:
 - bases/redis.redis.opstreelabs.in_redisclusters.yaml
 - bases/redis.redis.opstreelabs.in_redisreplications.yaml
 - bases/redis.redis.opstreelabs.in_redissentinels.yaml
+- bases/redis.redis.opstreelabs.in_guestbooks.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:

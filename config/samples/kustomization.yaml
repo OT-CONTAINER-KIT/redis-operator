@@ -4,4 +4,5 @@ resources:
 - redis_v1beta2_rediscluster.yaml
 - redis_v1beta2_redisreplication.yaml
 - redis_v1beta2_redissentinel.yaml
+- redis_v1_guestbook.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

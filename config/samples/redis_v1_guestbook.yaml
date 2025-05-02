@@ -1,0 +1,9 @@
+apiVersion: redis.redis.opstreelabs.in/v1
+kind: Guestbook
+metadata:
+  labels:
+    app.kubernetes.io/name: redis-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: guestbook-sample
+spec:
+  # TODO(user): Add fields here
