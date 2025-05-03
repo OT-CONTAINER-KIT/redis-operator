@@ -6,7 +6,7 @@ import (
 	"sort"
 	"text/template"
 
-	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/monitoring"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/monitoring"
 )
 
 func main() {

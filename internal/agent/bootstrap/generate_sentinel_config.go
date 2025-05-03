@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 )
 
 // defaultSentinelConfig from https://github.com/OT-CONTAINER-KIT/redis/blob/master/sentinel.conf

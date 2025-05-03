@@ -10,9 +10,9 @@ import (
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	internalenv "github.com/OT-CONTAINER-KIT/redis-operator/internal/env"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/features"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/image"
-	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/features"
-	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"

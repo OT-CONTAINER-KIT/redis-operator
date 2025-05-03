@@ -3,7 +3,7 @@ package k8sutils
 import (
 	"context"
 
-	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"

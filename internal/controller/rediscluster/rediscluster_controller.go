@@ -23,9 +23,9 @@ import (
 
 	"github.com/OT-CONTAINER-KIT/redis-operator/api/status"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
-	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllers/common/events"
-	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllerutil"
-	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/k8sutils"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/events"
+	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/controllerutil"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	retry "github.com/avast/retry-go"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
