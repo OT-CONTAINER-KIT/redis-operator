@@ -21,7 +21,6 @@ RUN go mod download
 # Copy the go source
 COPY cmd/ cmd/
 COPY api/ api/
-COPY pkg/ pkg/
 COPY internal/ internal/
 COPY mocks/ mocks/
 
@@ -43,4 +42,4 @@ WORKDIR /
 COPY --from=builder /workspace/operator /operator
 USER 65532:65532
 
-ENTRYPOINT ["/operator", "manager"] 
+ENTRYPOINT ["/operator", "manager"]
