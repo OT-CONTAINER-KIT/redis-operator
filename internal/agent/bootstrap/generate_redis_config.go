@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 )
 
 // defaultRedisConfig from https://github.com/OT-CONTAINER-KIT/redis/blob/master/redis.conf

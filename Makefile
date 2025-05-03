@@ -43,8 +43,8 @@ KUTTL = $(LOCALBIN)/kuttl-$(KUTTL_VERSION)
 KIND = $(LOCALBIN)/kind-$(KIND_VERSION)
 
 # Tool Versions
-KUSTOMIZE_VERSION ?= v5.3.0
-CONTROLLER_TOOLS_VERSION ?= v0.14.0
+KUSTOMIZE_VERSION ?= v5.6.0
+CONTROLLER_TOOLS_VERSION ?= v0.17.2
 ENVTEST_VERSION ?= release-0.17
 GOLANGCI_LINT_VERSION ?= v1.57.2
 KUTTL_VERSION ?= 0.15.0
@@ -74,7 +74,7 @@ test: generate fmt vet manifests
 # Build manager binary
 .PHONY: manager
 manager: generate fmt vet
-	go build -ldflags $(LDFLAGS) -o bin/manager cmd/manager/main.go
+	go build -ldflags $(LDFLAGS) -o bin/manager cmd/main.go
 
 # Build agent binary
 .PHONY: agent
@@ -84,7 +84,7 @@ agent: generate fmt vet
 # Run against the configured Kubernetes cluster in ~/.kube/config
 .PHONY: run
 run: generate fmt vet manifests
-	go run cmd/manager/main.go
+	go run cmd/main.go
 
 # Install CRDs into a cluster
 .PHONY: install
@@ -254,7 +254,7 @@ $(KUTTL): $(LOCALBIN)
 .PHONY: generate-metricsdocs
 generate-metricsdocs:
 	@mkdir -p $(shell pwd)/docs/content/en/docs/Monitoring
-	@go run ./pkg/monitoring/metricsdocs > docs/content/en/docs/Monitoring/metrics.md
+	@go run ./internal/monitoring/metricsdocs > docs/content/en/docs/Monitoring/metrics.md
 
 .PHONY: generate-dataAssert
 generate-dataAssert:

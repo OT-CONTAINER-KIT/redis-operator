@@ -49,7 +49,7 @@ Alpha features are experimental and may be changed or removed in future releases
 
 When adding new feature gates to Redis Operator:
 
-1. Define the feature gate in `pkg/features/features.go`
+1. Define the feature gate in `internal/features/features.go`
 2. Add the feature gate to `DefaultRedisOperatorFeatureGates`
 3. Update the Helm chart values to include the new feature gate
-4. Update this documentation with the new feature gate details 
+4. Update this documentation with the new feature gate details

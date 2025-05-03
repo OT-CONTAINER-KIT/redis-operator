@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package rediscluster
+package redissentinel
 
 import (
 	"context"
@@ -23,7 +23,7 @@ import (
 	"time"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
-	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/k8sutils"
+	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/controllerutil"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
@@ -56,7 +56,7 @@ const (
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 
-	RunSpecs(t, "RedisCluster Controller suite")
+	RunSpecs(t, "RedisSentinel Controller suite")
 }
 
 var _ = BeforeSuite(func() {
@@ -98,12 +98,11 @@ var _ = BeforeSuite(func() {
 	dk8sClient, err := dynamic.NewForConfig(cfg)
 	Expect(err).ToNot(HaveOccurred())
 
-	err = (&Reconciler{
-		Client:      k8sManager.GetClient(),
-		K8sClient:   k8sClient,
-		Dk8sClient:  dk8sClient,
-		Recorder:    k8sManager.GetEventRecorderFor("rediscluster-controller"),
-		StatefulSet: k8sutils.NewStatefulSetService(k8sClient),
+	err = (&RedisSentinelReconciler{
+		Client:             k8sManager.GetClient(),
+		K8sClient:          k8sClient,
+		Dk8sClient:         dk8sClient,
+		ReplicationWatcher: intctrlutil.NewResourceWatcher(),
 	}).SetupWithManager(k8sManager, controller.Options{})
 	Expect(err).ToNot(HaveOccurred())
 

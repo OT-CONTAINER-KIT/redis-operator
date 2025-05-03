@@ -5,9 +5,9 @@ import (
 	"time"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
-	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/pkg/controllerutil"
-	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/k8sutils"
-	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/monitoring"
+	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/controllerutil"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/monitoring"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/dynamic"
