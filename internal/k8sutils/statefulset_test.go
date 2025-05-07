@@ -735,7 +735,7 @@ func TestCreateOrUpdateResizingPVC(t *testing.T) {
 				},
 			}
 			client := k8sClientFake.NewSimpleClientset()
-			// create the STS with the inital params and PVC so that we know there shouldn't be any other differences
+			// create the STS with the initial params and PVC so that we know there shouldn't be any other differences
 			err := CreateOrUpdateStateFul(context.Background(), client, objMeta.Namespace, objMeta,
 				stsParams, stsOwnerDef, initContainerParams, containerParams, sidecar)
 			require.NoError(t, err, "Error while creating Statefulset")
