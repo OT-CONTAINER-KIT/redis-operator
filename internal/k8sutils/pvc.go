@@ -62,10 +62,6 @@ func HandlePVCResizing(ctx context.Context, storedStateful, newStateful *appsv1.
 
 	// If the stored capacity matches the desired capacity, no update is needed.
 	if storedCapacity == desiredCapacity {
-		// TODO: Handle scale-out scenario:
-		// When scaling out, new PVCs are created with the original capacity from the VolumeClaimTemplate.
-		// Since the annotation is not cleared, the current logic might incorrectly assume that the desired capacity is already applied.
-		// In a future update, we should detect new PVCs and update them accordingly.
 		return nil
 	}
 
@@ -88,6 +84,7 @@ func HandlePVCResizing(ctx context.Context, storedStateful, newStateful *appsv1.
 	pvcPrefix := targetTemplateName + "-"
 
 	// Iterate over PVCs and update those that match the target template.
+	log.FromContext(ctx).V(1).Info("Reconciling VolumeClaimTemplates")
 	for i := range pvcs.Items {
 		pvc := &pvcs.Items[i]
 		if !strings.HasPrefix(pvc.Name, pvcPrefix) {
@@ -112,7 +109,7 @@ func HandlePVCResizing(ctx context.Context, storedStateful, newStateful *appsv1.
 	// Update the annotation with the new storage capacity unconditionally.
 	annotations["storageCapacity"] = fmt.Sprintf("%d", desiredCapacity)
 	storedStateful.Annotations = annotations
-	log.FromContext(ctx).V(1).Info(fmt.Sprintf("sts:%s updated storageCapacity annotation to %d", storedStateful.Name, desiredCapacity))
+	log.FromContext(ctx).V(1).Info(fmt.Sprintf("sts:%s updating storageCapacity annotation to %d", storedStateful.Name, desiredCapacity))
 
 	return nil
 }

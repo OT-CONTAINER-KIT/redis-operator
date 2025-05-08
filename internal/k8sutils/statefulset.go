@@ -186,16 +186,28 @@ func patchStatefulSet(ctx context.Context, storedStateful, newStateful *appsv1.S
 	// Sync system-managed fields to ensure atomic update.
 	syncManagedFields(storedStateful, newStateful)
 
-	// Save the new VolumeClaimTemplates for later use in HandlePVCResizing
-	newStatefulCopy := newStateful.DeepCopy()
-
-	// Since VolumeClaimTemplate fields are immutable, revert to the stored configuration.
+	vctModified := false
 	if hasVolumeClaimTemplates(newStateful, storedStateful) {
-		if newStateful.Annotations == nil {
-			newStateful.Annotations = make(map[string]string)
+		originalCap := storedStateful.Annotations["storageCapacity"]
+		if err := HandlePVCResizing(ctx, storedStateful, newStateful, cl); err != nil {
+			return err
 		}
-		newStateful.Annotations["storageCapacity"] = storedStateful.Annotations["storageCapacity"]
-		newStateful.Spec.VolumeClaimTemplates = storedStateful.Spec.VolumeClaimTemplates
+		// NOTE: this way of detecting changes is hacky because we rely on
+		// HandlePVCResizing updating the storedStateful.Annotations as a side
+		// effect.  Also, the code will not detect when other VCT fields change
+		vctModified = storedStateful.Annotations["storageCapacity"] != originalCap
+		if !recreateStatefulSet {
+			// Since VolumeClaimTemplate fields are immutable, revert to the stored configuration
+			// if we are not recreating the StatefulSet.
+			if newStateful.Annotations == nil {
+				newStateful.Annotations = make(map[string]string)
+			}
+			newStateful.Annotations["storageCapacity"] = storedStateful.Annotations["storageCapacity"]
+			newStateful.Spec.VolumeClaimTemplates = storedStateful.Spec.VolumeClaimTemplates
+			if vctModified {
+				log.FromContext(ctx).V(1).Info("VolumeClaimTemplate change is being ignored because the field is immutable. Consider enabling recreating the statefulset option.")
+			}
+		}
 	}
 
 	// Calculate the patch between the stored and new objects, ignoring immutable or unnecessary fields.
@@ -210,19 +222,12 @@ func patchStatefulSet(ctx context.Context, storedStateful, newStateful *appsv1.S
 		return err
 	}
 
-	if patchResult.IsEmpty() {
+	if patchResult.IsEmpty() && !vctModified {
 		log.FromContext(ctx).V(1).Info("Reconciliation complete, no changes required.")
 		return nil
 	}
 
-	log.FromContext(ctx).V(1).Info("Changes detected in statefulset, updating...", "patch", string(patchResult.Patch))
-
-	// If VolumeClaimTemplates exist, handle PVC resizing.
-	if hasVolumeClaimTemplates(newStateful, storedStateful) {
-		if err := HandlePVCResizing(ctx, storedStateful, newStatefulCopy, cl); err != nil {
-			return err
-		}
-	}
+	log.FromContext(ctx).V(1).Info("Changes detected in statefulset, updating...", "patch", string(patchResult.Patch), "VCT modified", vctModified)
 
 	// Merge missing annotations from the stored object into the new object.
 	mergeAnnotations(storedStateful, newStateful)
@@ -914,6 +919,7 @@ func updateStatefulSet(ctx context.Context, cl kubernetes.Interface, namespace s
 			if err := cl.AppsV1().StatefulSets(namespace).Delete(context.TODO(), stateful.GetName(), metav1.DeleteOptions{PropagationPolicy: deletePropagation}); err != nil { //nolint:gocritic
 				return errors.Wrap(err, "failed to delete StatefulSet to avoid forbidden action")
 			}
+			return nil // rely on the controller to recreate the StatefulSet
 		}
 	}
 	if err != nil {
