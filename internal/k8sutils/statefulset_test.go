@@ -678,7 +678,8 @@ func TestCreateOrUpdateResizingPVC(t *testing.T) {
 		},
 	}
 
-	stsOwnerDef := metav1.OwnerReference{Name: "test-sts",
+	stsOwnerDef := metav1.OwnerReference{
+		Name:       "test-sts",
 		Kind:       "StatefulSet",
 		APIVersion: "apps/v1",
 		UID:        "12345",
