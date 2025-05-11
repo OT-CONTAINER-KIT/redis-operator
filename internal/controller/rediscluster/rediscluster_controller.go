@@ -122,16 +122,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 
+	err = k8sutils.CreateRedisLeader(ctx, instance, r.K8sClient)
+	if err != nil {
+		return intctrlutil.RequeueWithError(ctx, err, "")
+	}
 	if leaderReplicas != 0 {
 		err = k8sutils.CreateRedisLeaderService(ctx, instance, r.K8sClient)
 		if err != nil {
 			return intctrlutil.RequeueWithError(ctx, err, "")
 		}
 	}
-	err = k8sutils.CreateRedisLeader(ctx, instance, r.K8sClient)
-	if err != nil {
-		return intctrlutil.RequeueWithError(ctx, err, "")
-	}
+
 	err = k8sutils.ReconcileRedisPodDisruptionBudget(ctx, instance, "leader", instance.Spec.RedisLeader.PodDisruptionBudget, r.K8sClient)
 	if err != nil {
 		return intctrlutil.RequeueWithError(ctx, err, "")
