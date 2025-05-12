@@ -40,6 +40,17 @@ spec:
             check:
               (contains($stdout, 'OK')): true
 
+    - name: Resize pvc
+      try:
+        - script:
+            timeout: 10s
+            content: |
+              PATCH_DATA='[{"op": "replace", "path": "/spec/storage/volumeClaimTemplate/spec/resources/requests/storage", "value": "2Gi"}]'
+              kubectl patch redisreplication redis-replication --namespace ${NAMESPACE} --type='json' -p="${PATCH_DATA}"
+        - assert:
+            timeout: 300s
+            file: ready-pvc-resized.yaml
+
     - name: redis-replication-uninstall
       description: Uninstall Redis Replication
       try:

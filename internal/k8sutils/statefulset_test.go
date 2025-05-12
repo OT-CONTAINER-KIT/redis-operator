@@ -3,11 +3,13 @@ package k8sutils
 import (
 	"context"
 	"path"
+	"strconv"
 	"testing"
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -623,6 +625,149 @@ func TestCreateOrUpdateStateFul(t *testing.T) {
 
 				err := CreateOrUpdateStateFul(context.TODO(), client, updatedSts.GetNamespace(), updatedSts.ObjectMeta, test.stsParams, test.stsOwnerDef, test.initContainerParams, test.containerParams, test.sidecar)
 				assert.Nil(err)
+			}
+		})
+	}
+}
+
+func TestCreateOrUpdateResizingPVC(t *testing.T) {
+	tests := []struct {
+		name                     string
+		startingPVCSize          string
+		newPVCSize               string
+		recreateStatefulSet      bool
+		expectedVCTUpdate        bool
+		expectedAnnotationUpdate bool
+		expectErr                error
+	}{
+		{
+			name:                     "NoPVCSizeChangeResultsInNoSTSUpdate",
+			startingPVCSize:          "2Gi",
+			newPVCSize:               "2Gi",
+			recreateStatefulSet:      true,
+			expectedVCTUpdate:        false,
+			expectedAnnotationUpdate: false,
+			expectErr:                nil,
+		},
+		{
+			name:                     "NoPVCSizeChangeResultsInNoSTSUpdate_2",
+			startingPVCSize:          "2Gi",
+			newPVCSize:               "2Gi",
+			recreateStatefulSet:      false,
+			expectedVCTUpdate:        false,
+			expectedAnnotationUpdate: false,
+			expectErr:                nil,
+		},
+		{
+			name:                     "PVCSizeChangeResultsInSTSUpdate",
+			startingPVCSize:          "2Gi",
+			newPVCSize:               "3Gi",
+			recreateStatefulSet:      true,
+			expectedVCTUpdate:        true,
+			expectedAnnotationUpdate: true,
+			expectErr:                nil,
+		},
+		{
+			name:                     "PVCResizeChangesAnnotationOnlyIfRecreateNotEnabled",
+			startingPVCSize:          "2Gi",
+			newPVCSize:               "3Gi",
+			recreateStatefulSet:      false,
+			expectedVCTUpdate:        false,
+			expectedAnnotationUpdate: true,
+			expectErr:                nil,
+		},
+	}
+
+	stsOwnerDef := metav1.OwnerReference{
+		Name:       "test-sts",
+		Kind:       "StatefulSet",
+		APIVersion: "apps/v1",
+		UID:        "12345",
+	}
+	initContainerParams := initContainerParameters{Image: "redis-init:latest"}
+	containerParams := containerParameters{
+		PersistenceEnabled: ptr.To(true),
+	}
+	sidecar := &[]redisv1beta2.Sidecar{}
+	objMeta := metav1.ObjectMeta{
+		Name:      "test-sts",
+		Namespace: "test-ns",
+		UID:       "12345",
+	}
+
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			stsParams := statefulSetParameters{
+				Replicas:            ptr.To(int32(4)),
+				RecreateStatefulSet: test.recreateStatefulSet,
+				NodeConfVolume:      true,
+				NodeConfPersistentVolumeClaim: corev1.PersistentVolumeClaim{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-conf",
+						Annotations: map[string]string{
+							"redis.opstreelabs.in":       "true",
+							"redis.opstreelabs.instance": "test-sts",
+						},
+					},
+					Spec: corev1.PersistentVolumeClaimSpec{
+						Resources: corev1.VolumeResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceStorage: resource.MustParse("1Gi"),
+							},
+						},
+					},
+				},
+				PersistentVolumeClaim: corev1.PersistentVolumeClaim{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: objMeta.Name,
+						Annotations: map[string]string{
+							"redis.opstreelabs.in":       "true",
+							"redis.opstreelabs.instance": "test-sts",
+						},
+					},
+					Spec: corev1.PersistentVolumeClaimSpec{
+						Resources: corev1.VolumeResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceStorage: resource.MustParse(test.startingPVCSize),
+							},
+						},
+					},
+				},
+			}
+			client := k8sClientFake.NewSimpleClientset()
+			// create the STS with the initial params and PVC so that we know there shouldn't be any other differences
+			err := CreateOrUpdateStateFul(context.Background(), client, objMeta.Namespace, objMeta,
+				stsParams, stsOwnerDef, initContainerParams, containerParams, sidecar)
+			require.NoError(t, err, "Error while creating Statefulset")
+			getCreatedSts, err := client.AppsV1().StatefulSets(objMeta.Namespace).Get(context.Background(), objMeta.Name, metav1.GetOptions{})
+			require.NoError(t, err, "Error getting StatefulSet")
+
+			// only change the PVC sizes from the original request to create the STS
+			stsParams.PersistentVolumeClaim.Spec.Resources.Requests[corev1.ResourceStorage] = resource.MustParse(test.newPVCSize)
+
+			err = CreateOrUpdateStateFul(context.Background(), client, objMeta.Namespace, objMeta,
+				stsParams, stsOwnerDef, initContainerParams, containerParams, sidecar)
+
+			if test.expectErr != nil {
+				require.Error(t, err, "Expected Error while updating Statefulset")
+				require.Equal(t, test.expectErr, err)
+				getUpdatedSts, err := client.AppsV1().StatefulSets(objMeta.Namespace).Get(context.Background(), objMeta.Name, metav1.GetOptions{})
+				require.NoError(t, err, "Error getting StatefulSet")
+				require.Equal(t, getCreatedSts, getUpdatedSts)
+			} else {
+				require.NoError(t, err, "Error while updating Statefulset")
+				getUpdatedSts, err := client.AppsV1().StatefulSets(objMeta.Namespace).Get(context.Background(), objMeta.Name, metav1.GetOptions{})
+				require.NoError(t, err)
+				if test.expectedAnnotationUpdate {
+					expected := resource.MustParse(test.newPVCSize)
+					require.Equal(t, strconv.FormatInt(expected.Value(), 10), getUpdatedSts.Annotations["storageCapacity"])
+				}
+				if test.expectedVCTUpdate {
+					require.Equal(t, resource.MustParse(test.newPVCSize), getUpdatedSts.Spec.VolumeClaimTemplates[0].Spec.Resources.Requests[corev1.ResourceStorage])
+				} else {
+					require.Equal(t, resource.MustParse(test.startingPVCSize), getUpdatedSts.Spec.VolumeClaimTemplates[0].Spec.Resources.Requests[corev1.ResourceStorage])
+				}
 			}
 		})
 	}
