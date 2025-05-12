@@ -88,7 +88,7 @@ var _ = Describe("Redis Controller", func() {
 			var exporterContainer *corev1.Container
 			for _, container := range sts.Spec.Template.Spec.Containers {
 				if container.Name == "redis-exporter" {
-					exporterContainer = &container //nolint:exportloopref
+					exporterContainer = &container //nolint:copyloopvar
 					break
 				}
 			}
