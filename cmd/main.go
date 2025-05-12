@@ -29,9 +29,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 )
 
-var (
-	scheme = runtime.NewScheme()
-)
+var scheme = runtime.NewScheme()
 
 //nolint:gochecknoinits
 func init() {

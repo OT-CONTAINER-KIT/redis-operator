@@ -43,9 +43,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
-var (
-	setupLog = ctrl.Log.WithName("setup")
-)
+var setupLog = ctrl.Log.WithName("setup")
 
 // managerOptions contains all options needed for the manager
 type managerOptions struct {
