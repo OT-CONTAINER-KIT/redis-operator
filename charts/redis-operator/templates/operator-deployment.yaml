@@ -50,13 +50,13 @@ spec:
         {{- range $arg := .Values.redisOperator.extraArgs }}
         - {{ $arg }}
         {{- end }}
-      {{- if .Values.redisOperator.webhook }}
         ports:
-        - containerPort: 9443
-          name: webhook-server
-          protocol: TCP
         - containerPort: 8081
           name: probe
+          protocol: TCP
+      {{- if .Values.redisOperator.webhook }}
+        - containerPort: 9443
+          name: webhook-server
           protocol: TCP
         volumeMounts:
         - mountPath: /tmp/k8s-webhook-server/serving-certs
