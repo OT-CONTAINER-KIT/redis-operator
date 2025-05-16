@@ -185,11 +185,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// Mark the cluster status as bootstrapping if all the leader and follower nodes are ready
-	if !(instance.Status.ReadyLeaderReplicas == leaderReplicas && instance.Status.ReadyFollowerReplicas == followerReplicas) {
-		err = k8sutils.UpdateRedisClusterStatus(ctx, instance, status.RedisClusterBootstrap, status.BootstrapClusterReason, leaderReplicas, followerReplicas, r.Dk8sClient)
+	if !(instance.Status.ReadyLeaderReplicas == leaderReplicas && instance.Status.ReadyFollowerReplicas == followerReplicas) ||
+		k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, "") != totalReplicas {
+		err = k8sutils.UpdateRedisClusterStatus(ctx, instance,
+			status.RedisClusterBootstrap,
+			status.BootstrapClusterReason,
+			leaderReplicas,
+			followerReplicas,
+			r.Dk8sClient)
 		if err != nil {
 			return intctrlutil.RequeueWithError(ctx, err, "")
 		}
+		return intctrlutil.RequeueAfter(ctx, time.Second*10, "waiting for cluster to bootstrap")
 	}
 
 	if nc := k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, ""); nc != totalReplicas {
