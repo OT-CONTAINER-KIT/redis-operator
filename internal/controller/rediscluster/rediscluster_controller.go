@@ -171,9 +171,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// Replace the early return with a status update
 	if !(r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-leader") && r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-follower")) {
-		// Update status to show degraded state
+		// Update status to show failed state
 		err = k8sutils.UpdateRedisClusterStatus(ctx, instance,
-			status.RedisClusterDegraded,
+			status.RedisClusterFailed,
 			"StatefulSet not ready",
 			instance.Status.ReadyLeaderReplicas,
 			instance.Status.ReadyFollowerReplicas,
@@ -181,8 +181,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if err != nil {
 			return intctrlutil.RequeueWithError(ctx, err, "")
 		}
-		// Requeue faster when degraded
-		return intctrlutil.RequeueAfter(ctx, time.Second*5, "waiting for statefulsets to be ready")
+		return intctrlutil.Reconciled()
 	}
 
 	// Mark the cluster status as bootstrapping if all the leader and follower nodes are ready

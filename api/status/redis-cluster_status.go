@@ -14,7 +14,6 @@ const (
 	RedisClusterInitializing RedisClusterState = "Initializing"
 	RedisClusterBootstrap    RedisClusterState = "Bootstrap"
 	// RedisClusterReady means the RedisCluster is ready for use, we use redis-cli --cluster check 127.0.0.1:6379 to check the cluster status
-	RedisClusterReady    RedisClusterState = "Ready"
-	RedisClusterFailed   RedisClusterState = "Failed"
-	RedisClusterDegraded RedisClusterState = "Degraded"
+	RedisClusterReady  RedisClusterState = "Ready"
+	RedisClusterFailed RedisClusterState = "Failed"
 )
