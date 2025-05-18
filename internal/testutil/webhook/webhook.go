@@ -32,6 +32,7 @@ type ValidationWebhookTestCase struct {
 }
 
 func RunValidationWebhookTests(t *testing.T, gvk metav1.GroupVersionKind, validator admission.Validator, tests ...ValidationWebhookTestCase) {
+	t.Helper()
 	controllerscheme.SetupV1beta2Scheme()
 	decoder := serializer.NewCodecFactory(clientgoscheme.Scheme).UniversalDeserializer()
 

@@ -20,6 +20,7 @@ func TestRedisSentinelWebhook(t *testing.T) {
 			Name:      "success-create-v1beta2-redissentinel-validate-clusterSize",
 			Operation: admissionv1beta1.Create,
 			Object: func(t *testing.T, uid string) []byte {
+				t.Helper()
 				sentinel := mkRedisSentinel(uid)
 				sentinel.Spec.Size = ptr.To(int32(3))
 				return marshal(t, sentinel)
@@ -31,6 +32,7 @@ func TestRedisSentinelWebhook(t *testing.T) {
 			Name:      "failed-create-v1beta2-redissentinel-validate-clusterSize",
 			Operation: admissionv1beta1.Create,
 			Object: func(t *testing.T, uid string) []byte {
+				t.Helper()
 				sentinel := mkRedisSentinel(uid)
 				sentinel.Spec.Size = ptr.To(int32(4))
 				return marshal(t, sentinel)
