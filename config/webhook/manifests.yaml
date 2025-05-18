@@ -23,3 +23,29 @@ webhooks:
     resources:
     - pods
   sideEffects: None
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-redis-redis-opstreelabs-in-v1beta2-redissentinel
+  failurePolicy: Fail
+  name: validate-redissentinel.redis.opstreelabs.in
+  rules:
+  - apiGroups:
+    - redis.redis.opstreelabs.in
+    apiVersions:
+    - v1beta2
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - redissentinels
+  sideEffects: None
