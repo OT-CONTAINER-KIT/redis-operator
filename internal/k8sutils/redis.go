@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	redis "github.com/redis/go-redis/v9"
 	corev1 "k8s.io/api/core/v1"
@@ -181,7 +182,7 @@ func ExecuteRedisClusterCommand(ctx context.Context, client kubernetes.Interface
 	executeCommand(ctx, client, cr, cmd, cr.ObjectMeta.Name+"-leader-0")
 }
 
-func getRedisTLSArgs(tlsConfig *redisv1beta2.TLSConfig, clientHost string) []string {
+func getRedisTLSArgs(tlsConfig *common.TLSConfig, clientHost string) []string {
 	cmd := []string{}
 	if tlsConfig != nil {
 		cmd = append(cmd, "--tls")

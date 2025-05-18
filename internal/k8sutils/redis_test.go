@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/OT-CONTAINER-KIT/redis-operator/api"
+	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	mock_utils "github.com/OT-CONTAINER-KIT/redis-operator/mocks/utils"
 	"github.com/go-redis/redismock/v9"
@@ -360,13 +360,13 @@ func TestCreateMultipleLeaderRedisCommand(t *testing.T) {
 func TestGetRedisTLSArgs(t *testing.T) {
 	tests := []struct {
 		name       string
-		tlsConfig  *redisv1beta2.TLSConfig
+		tlsConfig  *common.TLSConfig
 		clientHost string
 		expected   []string
 	}{
 		{
 			name:       "with TLS configuration",
-			tlsConfig:  &redisv1beta2.TLSConfig{},
+			tlsConfig:  &common.TLSConfig{},
 			clientHost: "redis-host",
 			expected:   []string{"--tls", "--cacert", "/tls/ca.crt", "-h", "redis-host"},
 		},
@@ -414,12 +414,10 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 				},
 				Spec: redisv1beta2.RedisClusterSpec{
 					Size: ptr.To(int32(3)),
-					KubernetesConfig: redisv1beta2.KubernetesConfig{
-						KubernetesConfig: api.KubernetesConfig{
-							ExistingPasswordSecret: &api.ExistingPasswordSecret{
-								Name: ptr.To("redis-password-secret"),
-								Key:  ptr.To("password"),
-							},
+					KubernetesConfig: common.KubernetesConfig{
+						ExistingPasswordSecret: &common.ExistingPasswordSecret{
+							Name: ptr.To("redis-password-secret"),
+							Key:  ptr.To("password"),
 						},
 					},
 					ClusterVersion: ptr.To("v7"),
@@ -456,12 +454,10 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 				},
 				Spec: redisv1beta2.RedisClusterSpec{
 					Size: ptr.To(int32(3)),
-					KubernetesConfig: redisv1beta2.KubernetesConfig{
-						KubernetesConfig: api.KubernetesConfig{
-							ExistingPasswordSecret: &api.ExistingPasswordSecret{
-								Name: ptr.To("redis-password-secret"),
-								Key:  ptr.To("password"),
-							},
+					KubernetesConfig: common.KubernetesConfig{
+						ExistingPasswordSecret: &common.ExistingPasswordSecret{
+							Name: ptr.To("redis-password-secret"),
+							Key:  ptr.To("password"),
 						},
 					},
 					ClusterVersion: ptr.To("v7"),

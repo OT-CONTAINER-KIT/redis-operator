@@ -6,8 +6,7 @@ import (
 	"strconv"
 	"testing"
 
-	common "github.com/OT-CONTAINER-KIT/redis-operator/api"
-	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -79,8 +78,8 @@ func TestGetVolumeMount(t *testing.T) {
 		nodeConfVolume     bool
 		externalConfig     *string
 		mountpath          []corev1.VolumeMount
-		tlsConfig          *redisv1beta2.TLSConfig
-		aclConfig          *redisv1beta2.ACLConfig
+		tlsConfig          *common.TLSConfig
+		aclConfig          *common.ACLConfig
 		expectedMounts     []corev1.VolumeMount
 	}{
 		{
@@ -157,7 +156,7 @@ func TestGetVolumeMount(t *testing.T) {
 			nodeConfVolume:     false,
 			externalConfig:     nil,
 			mountpath:          []corev1.VolumeMount{},
-			tlsConfig:          &redisv1beta2.TLSConfig{},
+			tlsConfig:          &common.TLSConfig{},
 			aclConfig:          nil,
 			expectedMounts:     []corev1.VolumeMount{{Name: "tls-certs", MountPath: "/tls", ReadOnly: true}},
 		},
@@ -169,7 +168,7 @@ func TestGetVolumeMount(t *testing.T) {
 			externalConfig:     nil,
 			mountpath:          []corev1.VolumeMount{},
 			tlsConfig:          nil,
-			aclConfig:          &redisv1beta2.ACLConfig{},
+			aclConfig:          &common.ACLConfig{},
 			expectedMounts:     []corev1.VolumeMount{{Name: "acl-secret", MountPath: "/etc/redis/user.acl", SubPath: "user.acl"}},
 		},
 		{
@@ -184,8 +183,8 @@ func TestGetVolumeMount(t *testing.T) {
 					MountPath: "/additional",
 				},
 			},
-			tlsConfig: &redisv1beta2.TLSConfig{},
-			aclConfig: &redisv1beta2.ACLConfig{},
+			tlsConfig: &common.TLSConfig{},
+			aclConfig: &common.ACLConfig{},
 			expectedMounts: []corev1.VolumeMount{
 				{Name: "persistent-volume", MountPath: "/data"},
 				{Name: "node-conf", MountPath: "/node-conf"},
@@ -213,7 +212,7 @@ func TestGetVolumeMount(t *testing.T) {
 			externalConfig:     nil,
 			mountpath:          []corev1.VolumeMount{},
 			tlsConfig:          nil,
-			aclConfig:          &redisv1beta2.ACLConfig{},
+			aclConfig:          &common.ACLConfig{},
 			expectedMounts: []corev1.VolumeMount{
 				{Name: "persistent-volume", MountPath: "/data"},
 				{Name: "node-conf", MountPath: "/node-conf"},
@@ -232,7 +231,7 @@ func TestGetVolumeMount(t *testing.T) {
 					MountPath: "/additional",
 				},
 			},
-			tlsConfig:      &redisv1beta2.TLSConfig{},
+			tlsConfig:      &common.TLSConfig{},
 			aclConfig:      nil,
 			expectedMounts: []corev1.VolumeMount{{Name: "persistent-volume", MountPath: "/data"}, {Name: "tls-certs", MountPath: "/tls", ReadOnly: true}, {Name: "additional-mount", MountPath: "/additional"}},
 		},
@@ -465,7 +464,7 @@ func TestCreateOrUpdateStateFul(t *testing.T) {
 		stsOwnerDef         metav1.OwnerReference
 		initContainerParams initContainerParameters
 		containerParams     containerParameters
-		sidecar             *[]redisv1beta2.Sidecar
+		sidecar             *[]common.Sidecar
 		existingStatefulSet appsv1.StatefulSetSpec
 		updatedStatefulSet  appsv1.StatefulSetSpec
 		stsPresent          bool
@@ -491,11 +490,9 @@ func TestCreateOrUpdateStateFul(t *testing.T) {
 					InitialDelaySeconds: int32(5),
 				},
 			},
-			sidecar: &[]redisv1beta2.Sidecar{
+			sidecar: &[]common.Sidecar{
 				{
-					Sidecar: common.Sidecar{
-						Name: "redis-sidecare",
-					},
+					Name:    "redis-sidecare",
 					Command: []string{"/bin/bash", "-c", "/app/restore.bash"},
 				},
 			},
@@ -524,11 +521,9 @@ func TestCreateOrUpdateStateFul(t *testing.T) {
 					InitialDelaySeconds: int32(5),
 				},
 			},
-			sidecar: &[]redisv1beta2.Sidecar{
+			sidecar: &[]common.Sidecar{
 				{
-					Sidecar: common.Sidecar{
-						Name: "redis-sidecare",
-					},
+					Name:    "redis-sidecare",
 					Command: []string{"/bin/bash", "-c", "/app/restore.bash"},
 				},
 			},
@@ -560,7 +555,7 @@ func TestCreateOrUpdateStateFul(t *testing.T) {
 					InitialDelaySeconds: int32(5),
 				},
 			},
-			sidecar: &[]redisv1beta2.Sidecar{},
+			sidecar: &[]common.Sidecar{},
 			existingStatefulSet: appsv1.StatefulSetSpec{
 				Replicas: ptr.To(int32(4)),
 			},
@@ -688,7 +683,7 @@ func TestCreateOrUpdateResizingPVC(t *testing.T) {
 	containerParams := containerParameters{
 		PersistenceEnabled: ptr.To(true),
 	}
-	sidecar := &[]redisv1beta2.Sidecar{}
+	sidecar := &[]common.Sidecar{}
 	objMeta := metav1.ObjectMeta{
 		Name:      "test-sts",
 		Namespace: "test-ns",
@@ -828,7 +823,7 @@ func TestGenerateContainerDef(t *testing.T) {
 		containerExternalConfig *string
 		redisClusterVersion     *string
 		containerMountPaths     []corev1.VolumeMount
-		sideCareContainer       []redisv1beta2.Sidecar
+		sideCareContainer       []common.Sidecar
 	}{
 		{
 			name:          "redis-1",
@@ -896,7 +891,7 @@ func TestGenerateContainerDef(t *testing.T) {
 			containerExternalConfig: nil,
 			redisClusterVersion:     ptr.To("1.0"),
 			containerMountPaths:     []corev1.VolumeMount{},
-			sideCareContainer:       []redisv1beta2.Sidecar{},
+			sideCareContainer:       []common.Sidecar{},
 		},
 		{
 			name:          "redis-2",
@@ -1011,22 +1006,20 @@ func TestGenerateContainerDef(t *testing.T) {
 			containerExternalConfig: ptr.To("some-config"),
 			redisClusterVersion:     ptr.To("1.0"),
 			containerMountPaths:     []corev1.VolumeMount{},
-			sideCareContainer: []redisv1beta2.Sidecar{
+			sideCareContainer: []common.Sidecar{
 				{
-					Sidecar: common.Sidecar{
-						Name:            "redis-sidecare",
-						Image:           "redis-sidecar:latest",
-						ImagePullPolicy: corev1.PullAlways,
-						EnvVars: &[]corev1.EnvVar{
-							{
-								Name:  "REDISEXPORTER",
-								Value: "ENVVALUE",
-							},
+					Name:            "redis-sidecare",
+					Image:           "redis-sidecar:latest",
+					ImagePullPolicy: corev1.PullAlways,
+					EnvVars: &[]corev1.EnvVar{
+						{
+							Name:  "REDISEXPORTER",
+							Value: "ENVVALUE",
 						},
-						Resources: &corev1.ResourceRequirements{},
 					},
-					Volumes: &[]corev1.VolumeMount{},
-					Command: []string{"/bin/bash", "-c", "/app/restore.bash"},
+					Resources: &corev1.ResourceRequirements{},
+					Volumes:   &[]corev1.VolumeMount{},
+					Command:   []string{"/bin/bash", "-c", "/app/restore.bash"},
 					Ports: &[]corev1.ContainerPort{
 						{
 							Name:          "redis-sidecare",
@@ -1153,12 +1146,10 @@ func TestGenerateInitContainerDef(t *testing.T) {
 }
 
 func TestGenerateTLSEnvironmentVariables(t *testing.T) {
-	tlsConfig := &redisv1beta2.TLSConfig{
-		TLSConfig: common.TLSConfig{
-			CaKeyFile:   "test_ca.crt",
-			CertKeyFile: "test_tls.crt",
-			KeyFile:     "test_tls.key",
-		},
+	tlsConfig := &common.TLSConfig{
+		CaKeyFile:   "test_ca.crt",
+		CertKeyFile: "test_tls.crt",
+		KeyFile:     "test_tls.key",
 	}
 
 	envVars := GenerateTLSEnvironmentVariables(tlsConfig)
@@ -1192,8 +1183,8 @@ func TestGetEnvironmentVariables(t *testing.T) {
 		secretName          *string
 		secretKey           *string
 		persistenceEnabled  *bool
-		tlsConfig           *redisv1beta2.TLSConfig
-		aclConfig           *redisv1beta2.ACLConfig
+		tlsConfig           *common.TLSConfig
+		aclConfig           *common.ACLConfig
 		envVar              *[]corev1.EnvVar
 		port                *int
 		clusterVersion      *string
@@ -1206,17 +1197,15 @@ func TestGetEnvironmentVariables(t *testing.T) {
 			secretName:         ptr.To("test-secret"),
 			secretKey:          ptr.To("test-key"),
 			persistenceEnabled: ptr.To(true),
-			tlsConfig: &redisv1beta2.TLSConfig{
-				TLSConfig: common.TLSConfig{
-					CaKeyFile:   "test_ca.crt",
-					CertKeyFile: "test_tls.crt",
-					KeyFile:     "test_tls.key",
-					Secret: corev1.SecretVolumeSource{
-						SecretName: "tls-secret",
-					},
+			tlsConfig: &common.TLSConfig{
+				CaKeyFile:   "test_ca.crt",
+				CertKeyFile: "test_tls.crt",
+				KeyFile:     "test_tls.key",
+				Secret: corev1.SecretVolumeSource{
+					SecretName: "tls-secret",
 				},
 			},
-			aclConfig: &redisv1beta2.ACLConfig{
+			aclConfig: &common.ACLConfig{
 				Secret: &corev1.SecretVolumeSource{
 					SecretName: "acl-secret",
 				},
@@ -1289,7 +1278,7 @@ func TestGetEnvironmentVariables(t *testing.T) {
 			secretKey:          ptr.To("test-key"),
 			persistenceEnabled: ptr.To(true),
 			tlsConfig:          nil,
-			aclConfig:          &redisv1beta2.ACLConfig{},
+			aclConfig:          &common.ACLConfig{},
 			envVar: &[]corev1.EnvVar{
 				{Name: "TEST_ENV", Value: "test-value"},
 			},
@@ -1344,21 +1333,19 @@ func Test_getExporterEnvironmentVariables(t *testing.T) {
 	tests := []struct {
 		name                string
 		params              containerParameters
-		tlsConfig           *redisv1beta2.TLSConfig
+		tlsConfig           *common.TLSConfig
 		envVar              *[]corev1.EnvVar
 		expectedEnvironment []corev1.EnvVar
 	}{
 		{
 			name: "Test with tls enabled and env var",
 			params: containerParameters{
-				TLSConfig: &redisv1beta2.TLSConfig{
-					TLSConfig: common.TLSConfig{
-						CaKeyFile:   "test_ca.crt",
-						CertKeyFile: "test_tls.crt",
-						KeyFile:     "test_tls.key",
-						Secret: corev1.SecretVolumeSource{
-							SecretName: "tls-secret",
-						},
+				TLSConfig: &common.TLSConfig{
+					CaKeyFile:   "test_ca.crt",
+					CertKeyFile: "test_tls.crt",
+					KeyFile:     "test_tls.key",
+					Secret: corev1.SecretVolumeSource{
+						SecretName: "tls-secret",
 					},
 				},
 				RedisExporterEnv: &[]corev1.EnvVar{
@@ -1392,7 +1379,7 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 		stsOwnerDef         metav1.OwnerReference
 		initContainerParams initContainerParameters
 		containerParams     containerParameters
-		sideCareContainer   []redisv1beta2.Sidecar
+		sideCareContainer   []common.Sidecar
 	}{
 		{
 			name: "Test1_With_cluster_mode_ExternalConfig_tls",
@@ -1575,20 +1562,18 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 						Value: "1.0",
 					},
 				},
-				TLSConfig: &redisv1beta2.TLSConfig{
-					TLSConfig: common.TLSConfig{
-						Secret: v1.SecretVolumeSource{
-							SecretName: "sts-secret",
-						},
+				TLSConfig: &common.TLSConfig{
+					Secret: v1.SecretVolumeSource{
+						SecretName: "sts-secret",
 					},
 				},
-				ACLConfig: &redisv1beta2.ACLConfig{
+				ACLConfig: &common.ACLConfig{
 					Secret: &v1.SecretVolumeSource{
 						SecretName: "sts-acl",
 					},
 				},
 			},
-			sideCareContainer: []redisv1beta2.Sidecar{},
+			sideCareContainer: []common.Sidecar{},
 		},
 		{
 			name: "Test2_With_initcontainer_sidecare_enabledMetrics_enable_volume_clustermode",
@@ -1785,13 +1770,11 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 					},
 				},
 			},
-			sideCareContainer: []redisv1beta2.Sidecar{
+			sideCareContainer: []common.Sidecar{
 				{
-					Sidecar: common.Sidecar{
-						Name:            "redis-sidecare",
-						Image:           "redis-sidecar:latest",
-						ImagePullPolicy: corev1.PullAlways,
-					},
+					Name:            "redis-sidecare",
+					Image:           "redis-sidecar:latest",
+					ImagePullPolicy: corev1.PullAlways,
 				},
 			},
 		},
@@ -1809,17 +1792,17 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 func TestGetSidecars(t *testing.T) {
 	tests := []struct {
 		name            string
-		sideCars        *[]redisv1beta2.Sidecar
-		expectedSidecar []redisv1beta2.Sidecar
+		sideCars        *[]common.Sidecar
+		expectedSidecar []common.Sidecar
 	}{
 		{
 			name: "TEST1_Present",
-			sideCars: &[]redisv1beta2.Sidecar{
+			sideCars: &[]common.Sidecar{
 				{
 					Command: []string{"sh", "-c", "redis-cli -h $(hostname) -p ${REDIS_PORT} ping"},
 				},
 			},
-			expectedSidecar: []redisv1beta2.Sidecar{
+			expectedSidecar: []common.Sidecar{
 				{
 					Command: []string{"sh", "-c", "redis-cli -h $(hostname) -p ${REDIS_PORT} ping"},
 				},
@@ -1827,13 +1810,13 @@ func TestGetSidecars(t *testing.T) {
 		},
 		{
 			name:            "TEST2_Not_Present",
-			sideCars:        &[]redisv1beta2.Sidecar{},
-			expectedSidecar: []redisv1beta2.Sidecar{},
+			sideCars:        &[]common.Sidecar{},
+			expectedSidecar: []common.Sidecar{},
 		},
 		{
 			name:            "TEST2_Nil",
 			sideCars:        nil,
-			expectedSidecar: []redisv1beta2.Sidecar{},
+			expectedSidecar: []common.Sidecar{},
 		},
 	}
 	for i := range tests {
