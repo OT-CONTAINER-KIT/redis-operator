@@ -19,32 +19,17 @@ package main
 import (
 	"os"
 
-	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/cmd/agent"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/cmd/manager"
-	"github.com/OT-CONTAINER-KIT/redis-operator/internal/monitoring"
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 )
-
-var scheme = runtime.NewScheme()
-
-//nolint:gochecknoinits
-func init() {
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(redisv1beta2.AddToScheme(scheme))
-	monitoring.RegisterRedisReplicationMetrics()
-	//+kubebuilder:scaffold:scheme
-}
 
 func main() {
 	rootCmd := &cobra.Command{
 		Use:   "operator",
 		Short: "Redis Operator for Kubernetes",
 	}
-	rootCmd.AddCommand(manager.CreateCommand(scheme))
+	rootCmd.AddCommand(manager.CreateCommand())
 	rootCmd.AddCommand(agent.CreateCommand())
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)

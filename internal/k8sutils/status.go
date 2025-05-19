@@ -4,8 +4,7 @@ import (
 	"context"
 	"reflect"
 
-	"github.com/OT-CONTAINER-KIT/redis-operator/api/status"
-	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -15,8 +14,8 @@ import (
 )
 
 // UpdateRedisClusterStatus will update the status of the RedisCluster
-func UpdateRedisClusterStatus(ctx context.Context, cr *redisv1beta2.RedisCluster, state status.RedisClusterState, reason string, readyLeaderReplicas, readyFollowerReplicas int32, dcl dynamic.Interface) error {
-	newStatus := redisv1beta2.RedisClusterStatus{
+func UpdateRedisClusterStatus(ctx context.Context, cr *rcvb2.RedisCluster, state rcvb2.RedisClusterState, reason string, readyLeaderReplicas, readyFollowerReplicas int32, dcl dynamic.Interface) error {
+	newStatus := rcvb2.RedisClusterStatus{
 		State:                 state,
 		Reason:                reason,
 		ReadyLeaderReplicas:   readyLeaderReplicas,

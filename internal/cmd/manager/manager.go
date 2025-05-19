@@ -19,7 +19,11 @@ package manager
 import (
 	"flag"
 
-	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	rvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redis/v1beta2"
+	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
+	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
+	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/scheme"
 	rediscontroller "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/redis"
 	redisclustercontroller "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/rediscluster"
 	redisreplicationcontroller "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/redisreplication"
@@ -28,9 +32,9 @@ import (
 	internalenv "github.com/OT-CONTAINER-KIT/redis-operator/internal/env"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/features"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/monitoring"
 	coreWebhook "github.com/OT-CONTAINER-KIT/redis-operator/internal/webhook"
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -53,14 +57,12 @@ type managerOptions struct {
 	enableWebhooks          bool
 	maxConcurrentReconciles int
 	featureGatesString      string
-	scheme                  *runtime.Scheme
 	zapOptions              zap.Options
 }
 
 // CreateCommand creates a cobra command for running the Redis operator manager
-func CreateCommand(scheme *runtime.Scheme) *cobra.Command {
+func CreateCommand() *cobra.Command {
 	opts := &managerOptions{
-		scheme: scheme,
 		zapOptions: zap.Options{
 			Development: false,
 		},
@@ -100,6 +102,12 @@ func addFlags(cmd *cobra.Command, opts *managerOptions) {
 func runManager(opts *managerOptions) error {
 	// Setup logging
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts.zapOptions)))
+
+	monitoring.RegisterRedisReplicationMetrics()
+
+	setupLog.Info("setting up v1beta2 scheme")
+	scheme.SetupV1beta2Scheme()
+
 	if err := setupFeatureGates(opts.featureGatesString); err != nil {
 		return err
 	}
@@ -117,7 +125,7 @@ func runManager(opts *managerOptions) error {
 		return err
 	}
 	if opts.enableWebhooks {
-		if err := setupWebhooks(mgr, opts.scheme); err != nil {
+		if err := setupWebhooks(mgr); err != nil {
 			return err
 		}
 	}
@@ -146,7 +154,6 @@ func setupFeatureGates(featureGatesString string) error {
 // createControllerOptions creates configuration options for the manager
 func createControllerOptions(opts *managerOptions) ctrl.Options {
 	options := ctrl.Options{
-		Scheme: opts.scheme,
 		Metrics: metricsserver.Options{
 			BindAddress: opts.metricsAddr,
 		},
@@ -236,27 +243,27 @@ func setupControllers(mgr ctrl.Manager, k8sClient kubernetes.Interface, dk8sClie
 }
 
 // setupWebhooks sets up all webhooks
-func setupWebhooks(mgr ctrl.Manager, scheme *runtime.Scheme) error {
-	if err := (&redisv1beta2.Redis{}).SetupWebhookWithManager(mgr); err != nil {
+func setupWebhooks(mgr ctrl.Manager) error {
+	if err := (&rvb2.Redis{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Redis")
 		return err
 	}
-	if err := (&redisv1beta2.RedisCluster{}).SetupWebhookWithManager(mgr); err != nil {
+	if err := (&rcvb2.RedisCluster{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "RedisCluster")
 		return err
 	}
-	if err := (&redisv1beta2.RedisReplication{}).SetupWebhookWithManager(mgr); err != nil {
+	if err := (&rrvb2.RedisReplication{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "RedisReplication")
 		return err
 	}
-	if err := (&redisv1beta2.RedisSentinel{}).SetupWebhookWithManager(mgr); err != nil {
+	if err := (&rsvb2.RedisSentinel{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "RedisSentinel")
 		return err
 	}
 
 	wblog := ctrl.Log.WithName("webhook").WithName("PodAffiniytMutate")
 	mgr.GetWebhookServer().Register("/mutate-core-v1-pod", &webhook.Admission{
-		Handler: coreWebhook.NewPodAffiniytMutate(mgr.GetClient(), admission.NewDecoder(scheme), wblog),
+		Handler: coreWebhook.NewPodAffiniytMutate(mgr.GetClient(), admission.NewDecoder(scheme.Scheme), wblog),
 	})
 
 	return nil

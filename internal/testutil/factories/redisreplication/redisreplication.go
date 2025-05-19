@@ -2,7 +2,7 @@ package redisreplication
 
 import (
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
-	"github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	"github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

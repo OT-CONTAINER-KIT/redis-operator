@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
-	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -101,7 +101,7 @@ func Test_getRedisTLSConfig(t *testing.T) {
 	tests := []struct {
 		name         string
 		setup        func() *k8sClientFake.Clientset
-		redisCluster *redisv1beta2.RedisCluster
+		redisCluster *rcvb2.RedisCluster
 		redisInfo    RedisDetails
 		expectTLS    bool
 	}{
@@ -122,12 +122,12 @@ func Test_getRedisTLSConfig(t *testing.T) {
 				client := k8sClientFake.NewSimpleClientset(tlsSecret)
 				return client
 			},
-			redisCluster: &redisv1beta2.RedisCluster{
+			redisCluster: &rcvb2.RedisCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "redis-cluster",
 					Namespace: "default",
 				},
-				Spec: redisv1beta2.RedisClusterSpec{
+				Spec: rcvb2.RedisClusterSpec{
 					TLS: &common.TLSConfig{
 						CaKeyFile:   "ca.crt",
 						CertKeyFile: "tls.crt",
@@ -150,12 +150,12 @@ func Test_getRedisTLSConfig(t *testing.T) {
 				client := k8sClientFake.NewSimpleClientset()
 				return client
 			},
-			redisCluster: &redisv1beta2.RedisCluster{
+			redisCluster: &rcvb2.RedisCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "redis-cluster",
 					Namespace: "default",
 				},
-				Spec: redisv1beta2.RedisClusterSpec{
+				Spec: rcvb2.RedisClusterSpec{
 					TLS: &common.TLSConfig{
 						CaKeyFile:   "ca.crt",
 						CertKeyFile: "tls.crt",
@@ -188,12 +188,12 @@ func Test_getRedisTLSConfig(t *testing.T) {
 				client := k8sClientFake.NewSimpleClientset(tlsSecret)
 				return client
 			},
-			redisCluster: &redisv1beta2.RedisCluster{
+			redisCluster: &rcvb2.RedisCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "redis-cluster",
 					Namespace: "default",
 				},
-				Spec: redisv1beta2.RedisClusterSpec{
+				Spec: rcvb2.RedisClusterSpec{
 					TLS: &common.TLSConfig{
 						CaKeyFile:   "ca.crt",
 						CertKeyFile: "tls.crt",

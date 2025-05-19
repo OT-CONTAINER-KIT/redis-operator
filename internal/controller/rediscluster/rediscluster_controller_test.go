@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -18,13 +18,13 @@ import (
 var _ = Describe("Redis Cluster Controller", func() {
 	Context("When deploying Redis Cluster from testdata", func() {
 		var (
-			redisCluster *redisv1beta2.RedisCluster
+			redisCluster *rcvb2.RedisCluster
 			testFile     string
 		)
 
 		BeforeEach(func() {
 			testFile = filepath.Join("testdata", "full.yaml")
-			redisCluster = &redisv1beta2.RedisCluster{}
+			redisCluster = &rcvb2.RedisCluster{}
 
 			yamlFile, err := os.ReadFile(testFile)
 			Expect(err).NotTo(HaveOccurred())

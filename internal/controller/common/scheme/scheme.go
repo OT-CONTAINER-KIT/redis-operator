@@ -3,12 +3,18 @@ package scheme
 import (
 	"sync"
 
-	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	rvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redis/v1beta2"
+	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
+	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
+	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 )
 
-var addToSchemeV1beta2 sync.Once
+var (
+	Scheme      = clientgoscheme.Scheme
+	oncev1beta2 sync.Once
+)
 
 func mustAddSchemeOnce(once *sync.Once, schemes []func(scheme *runtime.Scheme) error) {
 	once.Do(func() {
@@ -23,7 +29,10 @@ func mustAddSchemeOnce(once *sync.Once, schemes []func(scheme *runtime.Scheme) e
 func SetupV1beta2Scheme() {
 	schemes := []func(scheme *runtime.Scheme) error{
 		clientgoscheme.AddToScheme,
-		redisv1beta2.AddToScheme,
+		rvb2.AddToScheme,
+		rcvb2.AddToScheme,
+		rrvb2.AddToScheme,
+		rsvb2.AddToScheme,
 	}
-	mustAddSchemeOnce(&addToSchemeV1beta2, schemes)
+	mustAddSchemeOnce(&oncev1beta2, schemes)
 }

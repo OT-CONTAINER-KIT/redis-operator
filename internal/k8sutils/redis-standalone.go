@@ -3,7 +3,7 @@ package k8sutils
 import (
 	"context"
 
-	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	rvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redis/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
@@ -11,7 +11,7 @@ import (
 )
 
 // CreateStandaloneService method will create standalone service for Redis
-func CreateStandaloneService(ctx context.Context, cr *redisv1beta2.Redis, cl kubernetes.Interface) error {
+func CreateStandaloneService(ctx context.Context, cr *rvb2.Redis, cl kubernetes.Interface) error {
 	labels := getRedisLabels(cr.ObjectMeta.Name, standalone, "standalone", cr.ObjectMeta.Labels)
 	var epp exporterPortProvider
 	if cr.Spec.RedisExporter != nil {
@@ -71,7 +71,7 @@ func CreateStandaloneService(ctx context.Context, cr *redisv1beta2.Redis, cl kub
 }
 
 // CreateStandaloneRedis will create a standalone redis setup
-func CreateStandaloneRedis(ctx context.Context, cr *redisv1beta2.Redis, cl kubernetes.Interface) error {
+func CreateStandaloneRedis(ctx context.Context, cr *rvb2.Redis, cl kubernetes.Interface) error {
 	labels := getRedisLabels(cr.ObjectMeta.Name, standalone, "standalone", cr.ObjectMeta.Labels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 	objectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name, cr.Namespace, labels, annotations)
@@ -94,7 +94,7 @@ func CreateStandaloneRedis(ctx context.Context, cr *redisv1beta2.Redis, cl kuber
 }
 
 // generateRedisStandalone generates Redis standalone information
-func generateRedisStandaloneParams(cr *redisv1beta2.Redis) statefulSetParameters {
+func generateRedisStandaloneParams(cr *rvb2.Redis) statefulSetParameters {
 	replicas := int32(1)
 	var minreadyseconds int32 = 0
 	if cr.Spec.KubernetesConfig.MinReadySeconds != nil {
@@ -137,7 +137,7 @@ func generateRedisStandaloneParams(cr *redisv1beta2.Redis) statefulSetParameters
 }
 
 // generateRedisStandaloneContainerParams generates Redis container information
-func generateRedisStandaloneContainerParams(cr *redisv1beta2.Redis) containerParameters {
+func generateRedisStandaloneContainerParams(cr *rvb2.Redis) containerParameters {
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{
@@ -197,7 +197,7 @@ func generateRedisStandaloneContainerParams(cr *redisv1beta2.Redis) containerPar
 }
 
 // generateRedisStandaloneInitContainerParams generates Redis initcontainer information
-func generateRedisStandaloneInitContainerParams(cr *redisv1beta2.Redis) initContainerParameters {
+func generateRedisStandaloneInitContainerParams(cr *rvb2.Redis) initContainerParameters {
 	trueProperty := true
 	initcontainerProp := initContainerParameters{}
 

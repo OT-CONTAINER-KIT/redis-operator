@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/controllerutil"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/monitoring"
@@ -28,7 +28,7 @@ type Reconciler struct {
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	instance := &redisv1beta2.RedisReplication{}
+	instance := &rrvb2.RedisReplication{}
 
 	err := r.Client.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
@@ -64,7 +64,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	return intctrlutil.RequeueAfter(ctx, time.Second*10, "")
 }
 
-func (r *Reconciler) UpdateRedisReplicationMaster(ctx context.Context, instance *redisv1beta2.RedisReplication, masterNode string) error {
+func (r *Reconciler) UpdateRedisReplicationMaster(ctx context.Context, instance *rrvb2.RedisReplication, masterNode string) error {
 	if masterNode == "" {
 		monitoring.RedisReplicationHasMaster.WithLabelValues(instance.Namespace, instance.Name).Set(0)
 	} else {
@@ -89,7 +89,7 @@ func (r *Reconciler) UpdateRedisReplicationMaster(ctx context.Context, instance 
 	return nil
 }
 
-func (r *Reconciler) UpdateRedisPodRoleLabel(ctx context.Context, cr *redisv1beta2.RedisReplication, masterNode string) error {
+func (r *Reconciler) UpdateRedisPodRoleLabel(ctx context.Context, cr *rrvb2.RedisReplication, masterNode string) error {
 	labels := k8sutils.GetRedisReplicationLabels(cr)
 	pods, err := r.ListPods(ctx, cr.GetNamespace(), labels)
 	if err != nil {
@@ -116,10 +116,10 @@ func (r *Reconciler) UpdateRedisPodRoleLabel(ctx context.Context, cr *redisv1bet
 
 type reconciler struct {
 	typ string
-	rec func(ctx context.Context, instance *redisv1beta2.RedisReplication) (ctrl.Result, error)
+	rec func(ctx context.Context, instance *rrvb2.RedisReplication) (ctrl.Result, error)
 }
 
-func (r *Reconciler) reconcileFinalizer(ctx context.Context, instance *redisv1beta2.RedisReplication) (ctrl.Result, error) {
+func (r *Reconciler) reconcileFinalizer(ctx context.Context, instance *rrvb2.RedisReplication) (ctrl.Result, error) {
 	if k8sutils.IsDeleted(instance) {
 		if err := k8sutils.HandleRedisReplicationFinalizer(ctx, r.Client, instance); err != nil {
 			return intctrlutil.RequeueWithError(ctx, err, "")
@@ -132,7 +132,7 @@ func (r *Reconciler) reconcileFinalizer(ctx context.Context, instance *redisv1be
 	return intctrlutil.Reconciled()
 }
 
-func (r *Reconciler) reconcileAnnotation(ctx context.Context, instance *redisv1beta2.RedisReplication) (ctrl.Result, error) {
+func (r *Reconciler) reconcileAnnotation(ctx context.Context, instance *rrvb2.RedisReplication) (ctrl.Result, error) {
 	if value, found := instance.ObjectMeta.GetAnnotations()["redisreplication.opstreelabs.in/skip-reconcile"]; found && value == "true" {
 		log.FromContext(ctx).Info("found skip reconcile annotation", "namespace", instance.Namespace, "name", instance.Name)
 		return intctrlutil.RequeueAfter(ctx, time.Second*10, "found skip reconcile annotation")
@@ -140,28 +140,28 @@ func (r *Reconciler) reconcileAnnotation(ctx context.Context, instance *redisv1b
 	return intctrlutil.Reconciled()
 }
 
-func (r *Reconciler) reconcilePDB(ctx context.Context, instance *redisv1beta2.RedisReplication) (ctrl.Result, error) {
+func (r *Reconciler) reconcilePDB(ctx context.Context, instance *rrvb2.RedisReplication) (ctrl.Result, error) {
 	if err := k8sutils.ReconcileReplicationPodDisruptionBudget(ctx, instance, instance.Spec.PodDisruptionBudget, r.K8sClient); err != nil {
 		return intctrlutil.RequeueAfter(ctx, time.Second*60, "")
 	}
 	return intctrlutil.Reconciled()
 }
 
-func (r *Reconciler) reconcileStatefulSet(ctx context.Context, instance *redisv1beta2.RedisReplication) (ctrl.Result, error) {
+func (r *Reconciler) reconcileStatefulSet(ctx context.Context, instance *rrvb2.RedisReplication) (ctrl.Result, error) {
 	if err := k8sutils.CreateReplicationRedis(ctx, instance, r.K8sClient); err != nil {
 		return intctrlutil.RequeueAfter(ctx, time.Second*60, "")
 	}
 	return intctrlutil.Reconciled()
 }
 
-func (r *Reconciler) reconcileService(ctx context.Context, instance *redisv1beta2.RedisReplication) (ctrl.Result, error) {
+func (r *Reconciler) reconcileService(ctx context.Context, instance *rrvb2.RedisReplication) (ctrl.Result, error) {
 	if err := k8sutils.CreateReplicationService(ctx, instance, r.K8sClient); err != nil {
 		return intctrlutil.RequeueAfter(ctx, time.Second*60, "")
 	}
 	return intctrlutil.Reconciled()
 }
 
-func (r *Reconciler) reconcileRedis(ctx context.Context, instance *redisv1beta2.RedisReplication) (ctrl.Result, error) {
+func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisReplication) (ctrl.Result, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
@@ -192,7 +192,7 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *redisv1beta2.
 }
 
 // reconcileStatus update status and label.
-func (r *Reconciler) reconcileStatus(ctx context.Context, instance *redisv1beta2.RedisReplication) (ctrl.Result, error) {
+func (r *Reconciler) reconcileStatus(ctx context.Context, instance *rrvb2.RedisReplication) (ctrl.Result, error) {
 	var err error
 	var realMaster string
 
@@ -218,7 +218,7 @@ func (r *Reconciler) reconcileStatus(ctx context.Context, instance *redisv1beta2
 // SetupWithManager sets up the controller with the Manager.
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, opts controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&redisv1beta2.RedisReplication{}).
+		For(&rrvb2.RedisReplication{}).
 		WithOptions(opts).
 		Owns(&appsv1.StatefulSet{}).
 		Complete(r)

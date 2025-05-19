@@ -3,7 +3,10 @@ package k8sutils
 import (
 	"strconv"
 
-	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	rvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redis/v1beta2"
+	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
+	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
+	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -40,7 +43,7 @@ func AddOwnerRefToObject(obj metav1.Object, ownerRef metav1.OwnerReference) {
 }
 
 // redisAsOwner generates and returns object reference
-func redisAsOwner(cr *redisv1beta2.Redis) metav1.OwnerReference {
+func redisAsOwner(cr *rvb2.Redis) metav1.OwnerReference {
 	trueVar := true
 	return metav1.OwnerReference{
 		APIVersion: cr.APIVersion,
@@ -52,7 +55,7 @@ func redisAsOwner(cr *redisv1beta2.Redis) metav1.OwnerReference {
 }
 
 // redisClusterAsOwner generates and returns object reference
-func redisClusterAsOwner(cr *redisv1beta2.RedisCluster) metav1.OwnerReference {
+func redisClusterAsOwner(cr *rcvb2.RedisCluster) metav1.OwnerReference {
 	trueVar := true
 	return metav1.OwnerReference{
 		APIVersion: cr.APIVersion,
@@ -64,7 +67,7 @@ func redisClusterAsOwner(cr *redisv1beta2.RedisCluster) metav1.OwnerReference {
 }
 
 // redisReplicationAsOwner generates and returns object reference
-func redisReplicationAsOwner(cr *redisv1beta2.RedisReplication) metav1.OwnerReference {
+func redisReplicationAsOwner(cr *rrvb2.RedisReplication) metav1.OwnerReference {
 	trueVar := true
 	return metav1.OwnerReference{
 		APIVersion: cr.APIVersion,
@@ -76,7 +79,7 @@ func redisReplicationAsOwner(cr *redisv1beta2.RedisReplication) metav1.OwnerRefe
 }
 
 // RedisSentinelAsOwner generates and returns object reference
-func redisSentinelAsOwner(cr *redisv1beta2.RedisSentinel) metav1.OwnerReference {
+func redisSentinelAsOwner(cr *rsvb2.RedisSentinel) metav1.OwnerReference {
 	trueVar := true
 	return metav1.OwnerReference{
 		APIVersion: cr.APIVersion,
@@ -150,6 +153,6 @@ func getRedisLabels(name string, st setupType, role string, labels map[string]st
 	return lbls
 }
 
-func GetRedisReplicationLabels(cr *redisv1beta2.RedisReplication) map[string]string {
+func GetRedisReplicationLabels(cr *rrvb2.RedisReplication) map[string]string {
 	return getRedisLabels(cr.GetName(), replication, "replication", cr.GetLabels())
 }

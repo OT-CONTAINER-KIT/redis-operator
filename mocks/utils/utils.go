@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"strconv"
 
-	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-func CreateFakeClientWithPodIPs_LeaderPods(cr *redisv1beta2.RedisCluster) *fake.Clientset {
+func CreateFakeClientWithPodIPs_LeaderPods(cr *rcvb2.RedisCluster) *fake.Clientset {
 	replicas := cr.Spec.GetReplicaCounts("leader")
 	pods := make([]runtime.Object, replicas)
 
@@ -31,7 +31,7 @@ func CreateFakeClientWithPodIPs_LeaderPods(cr *redisv1beta2.RedisCluster) *fake.
 	return fake.NewSimpleClientset(pods...)
 }
 
-func CreateFakeObjectWithPodIPs(cr *redisv1beta2.RedisCluster) []runtime.Object {
+func CreateFakeObjectWithPodIPs(cr *rcvb2.RedisCluster) []runtime.Object {
 	leaderReplicas := cr.Spec.GetReplicaCounts("leader")
 	followerReplicas := cr.Spec.GetReplicaCounts("follower")
 	pods := make([]runtime.Object, leaderReplicas+followerReplicas)
@@ -77,7 +77,7 @@ func CreateFakeObjectWithSecret(name, namespace, key string) []runtime.Object {
 	return []runtime.Object{secret}
 }
 
-func CreateFakeClientWithSecrets(ctx context.Context, cr *redisv1beta2.RedisCluster, secretName, secretKey, secretValue string) *fake.Clientset {
+func CreateFakeClientWithSecrets(ctx context.Context, cr *rcvb2.RedisCluster, secretName, secretKey, secretValue string) *fake.Clientset {
 	leaderReplicas := cr.Spec.GetReplicaCounts("leader")
 	followerReplicas := cr.Spec.GetReplicaCounts("follower")
 	pods := make([]runtime.Object, 0)

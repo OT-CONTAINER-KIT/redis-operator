@@ -17,7 +17,7 @@ resources:
   domain: redis.opstreelabs.in
   group: redis
   kind: Redis
-  path: redis-operator/api/v1beta2
+  path: redis-operator/api/redis/v1beta2
   version: v1beta2
 - api:
     crdVersion: v1
@@ -26,7 +26,7 @@ resources:
   domain: redis.opstreelabs.in
   group: redis
   kind: RedisCluster
-  path: redis-operator/api/v1beta2
+  path: redis-operator/api/rediscluster/v1beta2
   version: v1beta2
 - api:
     crdVersion: v1
@@ -34,7 +34,7 @@ resources:
   domain: redis.opstreelabs.in
   group: redis
   kind: RedisReplication
-  path: redis-operator/api/v1beta2
+  path: redis-operator/api/redisreplication/v1beta2
   version: v1beta2
 - api:
     crdVersion: v1
@@ -42,7 +42,7 @@ resources:
   domain: redis.opstreelabs.in
   group: redis
   kind: RedisSentinel
-  path: redis-operator/api/v1beta2
+  path: redis-operator/api/redissentinel/v1beta2
   version: v1beta2
 - group: core
   kind: Pod
