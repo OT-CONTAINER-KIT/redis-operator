@@ -138,6 +138,10 @@ type Sidecar struct {
 	ImagePullPolicy corev1.PullPolicy            `json:"imagePullPolicy,omitempty"`
 	Resources       *corev1.ResourceRequirements `json:"resources,omitempty"`
 	EnvVars         *[]corev1.EnvVar             `json:"env,omitempty"`
+	Volumes         *[]corev1.VolumeMount        `json:"mountPath,omitempty"`
+	Command         []string                     `json:"command,omitempty" protobuf:"bytes,3,rep,name=command"`
+	Ports           *[]corev1.ContainerPort      `json:"ports,omitempty" patchStrategy:"merge" patchMergeKey:"containerPort" protobuf:"bytes,6,rep,name=ports"`
+	SecurityContext *corev1.SecurityContext      `json:"securityContext,omitempty"`
 }
 
 // RedisLeader interface will have the redis leader configuration
@@ -197,4 +201,22 @@ type RedisSentinelConfig struct {
 	ResolveHostnames string `json:"resolveHostnames,omitempty"`
 	// +kubebuilder:default:="no"
 	AnnounceHostnames string `json:"announceHostnames,omitempty"`
+}
+
+// InitContainer for each Redis pods
+// +k8s:deepcopy-gen=true
+type InitContainer struct {
+	Enabled         *bool                        `json:"enabled,omitempty"`
+	Image           string                       `json:"image"`
+	ImagePullPolicy corev1.PullPolicy            `json:"imagePullPolicy,omitempty"`
+	Resources       *corev1.ResourceRequirements `json:"resources,omitempty"`
+	EnvVars         *[]corev1.EnvVar             `json:"env,omitempty"`
+	Command         []string                     `json:"command,omitempty"`
+	Args            []string                     `json:"args,omitempty"`
+	SecurityContext *corev1.SecurityContext      `json:"securityContext,omitempty"`
+}
+
+// +k8s:deepcopy-gen=true
+type ACLConfig struct {
+	Secret *corev1.SecretVolumeSource `json:"secret,omitempty"`
 }

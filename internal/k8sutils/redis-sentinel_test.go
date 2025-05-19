@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"testing"
 
-	common "github.com/OT-CONTAINER-KIT/redis-operator/api"
+	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/agiledragon/gomonkey/v2"
 	"github.com/stretchr/testify/assert"
@@ -175,14 +175,12 @@ func Test_generateRedisSentinelContainerParams(t *testing.T) {
 		EnabledPassword: ptr.To(true),
 		SecretName:      ptr.To("redis-secret"),
 		SecretKey:       ptr.To("password"),
-		TLSConfig: &redisv1beta2.TLSConfig{
-			TLSConfig: common.TLSConfig{
-				CaKeyFile:   "ca.key",
-				CertKeyFile: "tls.crt",
-				KeyFile:     "tls.key",
-				Secret: corev1.SecretVolumeSource{
-					SecretName: "redis-tls-cert",
-				},
+		TLSConfig: &common.TLSConfig{
+			CaKeyFile:   "ca.key",
+			CertKeyFile: "tls.crt",
+			KeyFile:     "tls.key",
+			Secret: corev1.SecretVolumeSource{
+				SecretName: "redis-tls-cert",
 			},
 		},
 		AdditionalEnvVariable: &[]corev1.EnvVar{},

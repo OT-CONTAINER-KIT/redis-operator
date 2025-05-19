@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	common "github.com/OT-CONTAINER-KIT/redis-operator/api"
+	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -176,17 +176,15 @@ func Test_generateRedisReplicationContainerParams(t *testing.T) {
 		SecretName:         ptr.To("redis-secret"),
 		SecretKey:          ptr.To("password"),
 		PersistenceEnabled: ptr.To(true),
-		TLSConfig: &redisv1beta2.TLSConfig{
-			TLSConfig: common.TLSConfig{
-				CaKeyFile:   "ca.key",
-				CertKeyFile: "tls.crt",
-				KeyFile:     "tls.key",
-				Secret: corev1.SecretVolumeSource{
-					SecretName: "redis-tls-cert",
-				},
+		TLSConfig: &common.TLSConfig{
+			CaKeyFile:   "ca.key",
+			CertKeyFile: "tls.crt",
+			KeyFile:     "tls.key",
+			Secret: corev1.SecretVolumeSource{
+				SecretName: "redis-tls-cert",
 			},
 		},
-		ACLConfig: &redisv1beta2.ACLConfig{
+		ACLConfig: &common.ACLConfig{
 			Secret: &corev1.SecretVolumeSource{
 				SecretName: "acl-secret",
 			},

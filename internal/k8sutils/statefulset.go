@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	internalenv "github.com/OT-CONTAINER-KIT/redis-operator/internal/env"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/features"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/image"
@@ -137,8 +137,8 @@ type containerParameters struct {
 	SecretName                   *string
 	SecretKey                    *string
 	PersistenceEnabled           *bool
-	TLSConfig                    *redisv1beta2.TLSConfig
-	ACLConfig                    *redisv1beta2.ACLConfig
+	TLSConfig                    *common.TLSConfig
+	ACLConfig                    *common.ACLConfig
 	ReadinessProbe               *corev1.Probe
 	LivenessProbe                *corev1.Probe
 	AdditionalEnvVariable        *[]corev1.EnvVar
@@ -165,7 +165,7 @@ type initContainerParameters struct {
 }
 
 // CreateOrUpdateStateFul method will create or update Redis service
-func CreateOrUpdateStateFul(ctx context.Context, cl kubernetes.Interface, namespace string, stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, initcontainerParams initContainerParameters, containerParams containerParameters, sidecars *[]redisv1beta2.Sidecar) error {
+func CreateOrUpdateStateFul(ctx context.Context, cl kubernetes.Interface, namespace string, stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, initcontainerParams initContainerParameters, containerParams containerParameters, sidecars *[]common.Sidecar) error {
 	storedStateful, err := GetStatefulSet(ctx, cl, namespace, stsMeta.Name)
 	statefulSetDef := generateStatefulSetsDef(stsMeta, params, ownerDef, initcontainerParams, containerParams, getSidecars(sidecars))
 	if err != nil {
@@ -266,7 +266,7 @@ func mergeAnnotations(stored, new *appsv1.StatefulSet) {
 }
 
 // generateStatefulSetsDef generates the statefulsets definition of Redis
-func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, initcontainerParams initContainerParameters, containerParams containerParameters, sidecars []redisv1beta2.Sidecar) *appsv1.StatefulSet {
+func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, initcontainerParams initContainerParameters, containerParams containerParameters, sidecars []common.Sidecar) *appsv1.StatefulSet {
 	statefulset := &appsv1.StatefulSet{
 		TypeMeta:   generateMetaInformation("StatefulSet", "apps/v1"),
 		ObjectMeta: stsMeta,
@@ -412,7 +412,7 @@ func createPVCTemplate(volumeName string, stsMeta metav1.ObjectMeta, storageSpec
 }
 
 // generateContainerDef generates container definition for Redis
-func generateContainerDef(name string, containerParams containerParameters, clusterMode, nodeConfVolume, enableMetrics bool, externalConfig, clusterVersion *string, mountpath []corev1.VolumeMount, sidecars []redisv1beta2.Sidecar) []corev1.Container {
+func generateContainerDef(name string, containerParams containerParameters, clusterMode, nodeConfVolume, enableMetrics bool, externalConfig, clusterVersion *string, mountpath []corev1.VolumeMount, sidecars []common.Sidecar) []corev1.Container {
 	sentinelCntr := containerParams.Role == "sentinel"
 	enableTLS := containerParams.TLSConfig != nil
 	enableAuth := containerParams.EnabledPassword != nil && *containerParams.EnabledPassword
@@ -618,7 +618,7 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 	return containers
 }
 
-func GenerateTLSEnvironmentVariables(tlsconfig *redisv1beta2.TLSConfig) []corev1.EnvVar {
+func GenerateTLSEnvironmentVariables(tlsconfig *common.TLSConfig) []corev1.EnvVar {
 	var envVars []corev1.EnvVar
 	root := "/tls/"
 
@@ -737,7 +737,7 @@ func getExporterEnvironmentVariables(params containerParameters) []corev1.EnvVar
 }
 
 // getVolumeMount gives information about persistence mount
-func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nodeConfVolume bool, externalConfig *string, mountpath []corev1.VolumeMount, tlsConfig *redisv1beta2.TLSConfig, aclConfig *redisv1beta2.ACLConfig) []corev1.VolumeMount {
+func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nodeConfVolume bool, externalConfig *string, mountpath []corev1.VolumeMount, tlsConfig *common.TLSConfig, aclConfig *common.ACLConfig) []corev1.VolumeMount {
 	var VolumeMounts []corev1.VolumeMount
 
 	if persistenceEnabled != nil && clusterMode && nodeConfVolume {
@@ -819,8 +819,8 @@ func getProbeInfo(probe *corev1.Probe, sentinel, enableTLS, enableAuth bool) *co
 
 // getEnvironmentVariables returns all the required Environment Variables
 func getEnvironmentVariables(role string, enabledPassword *bool, secretName *string,
-	secretKey *string, persistenceEnabled *bool, tlsConfig *redisv1beta2.TLSConfig,
-	aclConfig *redisv1beta2.ACLConfig, envVar *[]corev1.EnvVar, port *int, clusterVersion *string,
+	secretKey *string, persistenceEnabled *bool, tlsConfig *common.TLSConfig,
+	aclConfig *common.ACLConfig, envVar *[]corev1.EnvVar, port *int, clusterVersion *string,
 ) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{Name: "SERVER_MODE", Value: role},
@@ -944,9 +944,9 @@ func GetStatefulSet(ctx context.Context, cl kubernetes.Interface, namespace stri
 	return statefulInfo, nil
 }
 
-func getSidecars(sidecars *[]redisv1beta2.Sidecar) []redisv1beta2.Sidecar {
+func getSidecars(sidecars *[]common.Sidecar) []common.Sidecar {
 	if sidecars == nil {
-		return []redisv1beta2.Sidecar{}
+		return []common.Sidecar{}
 	}
 	return *sidecars
 }

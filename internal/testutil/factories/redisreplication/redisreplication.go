@@ -1,6 +1,7 @@
 package redisreplication
 
 import (
+	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -32,7 +33,7 @@ func New(name string, options ...customFieldOption) *v1beta2.RedisReplication {
 		},
 		Spec: v1beta2.RedisReplicationSpec{
 			Size:    &size,
-			Storage: &v1beta2.Storage{},
+			Storage: &common.Storage{},
 		},
 	}
 	for _, option := range options {

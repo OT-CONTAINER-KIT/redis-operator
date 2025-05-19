@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	common "github.com/OT-CONTAINER-KIT/redis-operator/api"
+	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -128,14 +128,12 @@ func Test_getRedisTLSConfig(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: redisv1beta2.RedisClusterSpec{
-					TLS: &redisv1beta2.TLSConfig{
-						TLSConfig: common.TLSConfig{
-							CaKeyFile:   "ca.crt",
-							CertKeyFile: "tls.crt",
-							KeyFile:     "tls.key",
-							Secret: corev1.SecretVolumeSource{
-								SecretName: "redis-tls-secret",
-							},
+					TLS: &common.TLSConfig{
+						CaKeyFile:   "ca.crt",
+						CertKeyFile: "tls.crt",
+						KeyFile:     "tls.key",
+						Secret: corev1.SecretVolumeSource{
+							SecretName: "redis-tls-secret",
 						},
 					},
 				},
@@ -158,14 +156,12 @@ func Test_getRedisTLSConfig(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: redisv1beta2.RedisClusterSpec{
-					TLS: &redisv1beta2.TLSConfig{
-						TLSConfig: common.TLSConfig{
-							CaKeyFile:   "ca.crt",
-							CertKeyFile: "tls.crt",
-							KeyFile:     "tls.key",
-							Secret: corev1.SecretVolumeSource{
-								SecretName: "redis-tls-secret",
-							},
+					TLS: &common.TLSConfig{
+						CaKeyFile:   "ca.crt",
+						CertKeyFile: "tls.crt",
+						KeyFile:     "tls.key",
+						Secret: corev1.SecretVolumeSource{
+							SecretName: "redis-tls-secret",
 						},
 					},
 				},
@@ -198,14 +194,12 @@ func Test_getRedisTLSConfig(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: redisv1beta2.RedisClusterSpec{
-					TLS: &redisv1beta2.TLSConfig{
-						TLSConfig: common.TLSConfig{
-							CaKeyFile:   "ca.crt",
-							CertKeyFile: "tls.crt",
-							KeyFile:     "tls.key",
-							Secret: corev1.SecretVolumeSource{
-								SecretName: "redis-tls-secret",
-							},
+					TLS: &common.TLSConfig{
+						CaKeyFile:   "ca.crt",
+						CertKeyFile: "tls.crt",
+						KeyFile:     "tls.key",
+						Secret: corev1.SecretVolumeSource{
+							SecretName: "redis-tls-secret",
 						},
 					},
 				},
