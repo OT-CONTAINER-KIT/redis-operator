@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
-	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -159,7 +159,7 @@ func Test_generateRedisClusterParams(t *testing.T) {
 		t.Fatalf("Failed to read file %s: %v", path, err)
 	}
 
-	input := &redisv1beta2.RedisCluster{}
+	input := &rcvb2.RedisCluster{}
 	err = yaml.UnmarshalStrict(data, input)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal file %s: %v", path, err)
@@ -423,7 +423,7 @@ func Test_generateRedisClusterContainerParams(t *testing.T) {
 		t.Fatalf("Failed to read file %s: %v", path, err)
 	}
 
-	input := &redisv1beta2.RedisCluster{}
+	input := &rcvb2.RedisCluster{}
 	err = yaml.UnmarshalStrict(data, input)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal file %s: %v", path, err)
@@ -505,7 +505,7 @@ func Test_generateRedisClusterInitContainerParams(t *testing.T) {
 		t.Fatalf("Failed to read file %s: %v", path, err)
 	}
 
-	input := &redisv1beta2.RedisCluster{}
+	input := &rcvb2.RedisCluster{}
 	err = yaml.UnmarshalStrict(data, input)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal file %s: %v", path, err)

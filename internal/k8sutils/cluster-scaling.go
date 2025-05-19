@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	redis "github.com/redis/go-redis/v9"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -15,7 +15,7 @@ import (
 // ReshardRedisCluster transfer the slots from the last node to the first node.
 //
 // NOTE: when all slot been transferred, the node become slave of the first master node.
-func ReshardRedisCluster(ctx context.Context, client kubernetes.Interface, cr *redisv1beta2.RedisCluster, shardIdx int32, remove bool) {
+func ReshardRedisCluster(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, shardIdx int32, remove bool) {
 	redisClient := configureRedisClient(ctx, client, cr, cr.ObjectMeta.Name+"-leader-0")
 	defer redisClient.Close()
 
@@ -105,7 +105,7 @@ func getRedisClusterSlots(ctx context.Context, redisClient *redis.Client, nodeID
 }
 
 // getRedisNodeID would return nodeID of a redis node by passing pod
-func getRedisNodeID(ctx context.Context, client kubernetes.Interface, cr *redisv1beta2.RedisCluster, pod RedisDetails) string {
+func getRedisNodeID(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, pod RedisDetails) string {
 	redisClient := configureRedisClient(ctx, client, cr, pod.PodName)
 	defer redisClient.Close()
 
@@ -132,7 +132,7 @@ func getRedisNodeID(ctx context.Context, client kubernetes.Interface, cr *redisv
 }
 
 // Rebalance the Redis CLuster using the Empty Master Nodes
-func RebalanceRedisClusterEmptyMasters(ctx context.Context, client kubernetes.Interface, cr *redisv1beta2.RedisCluster) {
+func RebalanceRedisClusterEmptyMasters(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) {
 	// cmd = redis-cli --cluster rebalance <redis>:<port> --cluster-use-empty-masters -a <pass>
 	var cmd []string
 	pod := RedisDetails{
@@ -164,7 +164,7 @@ func RebalanceRedisClusterEmptyMasters(ctx context.Context, client kubernetes.In
 	executeCommand(ctx, client, cr, cmd, cr.ObjectMeta.Name+"-leader-1")
 }
 
-func CheckIfEmptyMasters(ctx context.Context, client kubernetes.Interface, cr *redisv1beta2.RedisCluster) {
+func CheckIfEmptyMasters(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) {
 	totalRedisLeaderNodes := CheckRedisNodeCount(ctx, client, cr, "leader")
 	redisClient := configureRedisClient(ctx, client, cr, cr.ObjectMeta.Name+"-leader-0")
 	defer redisClient.Close()
@@ -186,7 +186,7 @@ func CheckIfEmptyMasters(ctx context.Context, client kubernetes.Interface, cr *r
 }
 
 // Rebalance Redis Cluster Would Rebalance the Redis Cluster without using the empty masters
-func RebalanceRedisCluster(ctx context.Context, client kubernetes.Interface, cr *redisv1beta2.RedisCluster) {
+func RebalanceRedisCluster(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) {
 	// cmd = redis-cli --cluster rebalance <redis>:<port> -a <pass>
 	var cmd []string
 	pod := RedisDetails{
@@ -217,7 +217,7 @@ func RebalanceRedisCluster(ctx context.Context, client kubernetes.Interface, cr 
 }
 
 // Add redis cluster node would add a node to the existing redis cluster using redis-cli
-func AddRedisNodeToCluster(ctx context.Context, client kubernetes.Interface, cr *redisv1beta2.RedisCluster) {
+func AddRedisNodeToCluster(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) {
 	var cmd []string
 	activeRedisNode := CheckRedisNodeCount(ctx, client, cr, "leader")
 
@@ -273,7 +273,7 @@ func getAttachedFollowerNodeIDs(ctx context.Context, redisClient *redis.Client, 
 }
 
 // Remove redis follower node would remove all follower nodes of last leader node using redis-cli
-func RemoveRedisFollowerNodesFromCluster(ctx context.Context, client kubernetes.Interface, cr *redisv1beta2.RedisCluster, shardIdx int32) {
+func RemoveRedisFollowerNodesFromCluster(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, shardIdx int32) {
 	var cmd []string
 	redisClient := configureRedisClient(ctx, client, cr, cr.ObjectMeta.Name+"-leader-0")
 	defer redisClient.Close()
@@ -318,7 +318,7 @@ func RemoveRedisFollowerNodesFromCluster(ctx context.Context, client kubernetes.
 }
 
 // Remove redis cluster node would remove last node to the existing redis cluster using redis-cli
-func RemoveRedisNodeFromCluster(ctx context.Context, client kubernetes.Interface, cr *redisv1beta2.RedisCluster, removePod RedisDetails) {
+func RemoveRedisNodeFromCluster(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, removePod RedisDetails) {
 	var cmd []string
 	redisClient := configureRedisClient(ctx, client, cr, cr.ObjectMeta.Name+"-leader-0")
 	defer redisClient.Close()
@@ -363,7 +363,7 @@ func RemoveRedisNodeFromCluster(ctx context.Context, client kubernetes.Interface
 }
 
 // verifyLeaderPod return true if the pod is leader/master
-func VerifyLeaderPod(ctx context.Context, client kubernetes.Interface, cr *redisv1beta2.RedisCluster, leadIndex int32) bool {
+func VerifyLeaderPod(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, leadIndex int32) bool {
 	podName := cr.Name + "-leader-" + strconv.Itoa(int(leadIndex))
 
 	redisClient := configureRedisClient(ctx, client, cr, podName)
@@ -389,7 +389,7 @@ func verifyLeaderPodInfo(ctx context.Context, redisClient *redis.Client, podName
 	return false
 }
 
-func ClusterFailover(ctx context.Context, client kubernetes.Interface, cr *redisv1beta2.RedisCluster, shardIdx int32) error {
+func ClusterFailover(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, shardIdx int32) error {
 	slavePodName := cr.Name + "-leader-" + strconv.Itoa(int(shardIdx))
 	// cmd = redis-cli cluster failover  -a <pass>
 	var cmd []string

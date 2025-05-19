@@ -18,7 +18,6 @@ package v1beta2
 
 import (
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
-	status "github.com/OT-CONTAINER-KIT/redis-operator/api/status"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -116,13 +115,31 @@ type RedisFollower struct {
 // RedisClusterStatus defines the observed state of RedisCluster
 // +kubebuilder:subresource:status
 type RedisClusterStatus struct {
-	State  status.RedisClusterState `json:"state,omitempty"`
-	Reason string                   `json:"reason,omitempty"`
+	State  RedisClusterState `json:"state,omitempty"`
+	Reason string            `json:"reason,omitempty"`
 	// +kubebuilder:default=0
 	ReadyLeaderReplicas int32 `json:"readyLeaderReplicas,omitempty"`
 	// +kubebuilder:default=0
 	ReadyFollowerReplicas int32 `json:"readyFollowerReplicas,omitempty"`
 }
+
+type RedisClusterState string
+
+const (
+	InitializingClusterLeaderReason   string = "RedisCluster is initializing leaders"
+	InitializingClusterFollowerReason string = "RedisCluster is initializing followers"
+	BootstrapClusterReason            string = "RedisCluster is bootstrapping"
+	ReadyClusterReason                string = "RedisCluster is ready"
+)
+
+// Status Field of the Redis Cluster
+const (
+	RedisClusterInitializing RedisClusterState = "Initializing"
+	RedisClusterBootstrap    RedisClusterState = "Bootstrap"
+	// RedisClusterReady means the RedisCluster is ready for use, we use redis-cli --cluster check 127.0.0.1:6379 to check the cluster status
+	RedisClusterReady  RedisClusterState = "Ready"
+	RedisClusterFailed RedisClusterState = "Failed"
+)
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status

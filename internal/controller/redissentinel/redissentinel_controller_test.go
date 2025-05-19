@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -20,13 +20,13 @@ import (
 var _ = Describe("Redis Sentinel Controller", func() {
 	Context("When deploying Redis Sentinel from testdata", func() {
 		var (
-			redisSentinel *redisv1beta2.RedisSentinel
+			redisSentinel *rsvb2.RedisSentinel
 			testFile      string
 		)
 
 		BeforeEach(func() {
 			testFile = filepath.Join("testdata", "full.yaml")
-			redisSentinel = &redisv1beta2.RedisSentinel{}
+			redisSentinel = &rsvb2.RedisSentinel{}
 
 			yamlFile, err := os.ReadFile(testFile)
 			Expect(err).NotTo(HaveOccurred())

@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
-	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	mock_utils "github.com/OT-CONTAINER-KIT/redis-operator/mocks/utils"
 	"github.com/go-redis/redismock/v9"
 	redis "github.com/redis/go-redis/v9"
@@ -22,7 +22,7 @@ import (
 )
 
 func TestCheckRedisNodePresence(t *testing.T) {
-	cr := &redisv1beta2.RedisCluster{}
+	cr := &rcvb2.RedisCluster{}
 	output := "205dd1780dda981f9320c9d47d069b3c0ceaa358 172.17.0.24:6379@16379 slave b65312dcf5537b8826c344783f078096fdb7f27c 0 1654197347000 1 connected\nfaa21623054227826e93dd71314cce3706491dac 172.17.0.28:6379@16379 slave d54557b21bc5a5aa947ce58b7dbadc5d39bdd551 0 1654197347000 2 connected\nb65312dcf5537b8826c344783f078096fdb7f27c 172.17.0.25:6379@16379 master - 0 1654197346000 1 connected 0-5460\nd54557b21bc5a5aa947ce58b7dbadc5d39bdd551 172.17.0.29:6379@16379 myself,master - 0 1654197347000 2 connected 5461-10922\nc9fa05269c4e662295bf34eb93f1315f962493ba 172.17.0.3:6379@16379 master - 0 1654197348006 3 connected 10923-16383"
 	csvOutput := csv.NewReader(strings.NewReader(output))
 	csvOutput.Comma = ' '
@@ -78,11 +78,11 @@ e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@31001,redis-cluster-lea
 	})
 	mock.ExpectClusterMeet(newPodIP, "6379").SetVal("OK")
 	port := 6379
-	err := repairDisconnectedMasters(ctx, k8sClient, &redisv1beta2.RedisCluster{
+	err := repairDisconnectedMasters(ctx, k8sClient, &rcvb2.RedisCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
 		},
-		Spec: redisv1beta2.RedisClusterSpec{
+		Spec: rcvb2.RedisClusterSpec{
 			Port: &port,
 		},
 	}, redisClient)
@@ -254,7 +254,7 @@ func TestGetRedisHostname(t *testing.T) {
 	tests := []struct {
 		name         string
 		redisInfo    RedisDetails
-		redisCluster *redisv1beta2.RedisCluster
+		redisCluster *rcvb2.RedisCluster
 		role         string
 		expected     string
 	}{
@@ -264,7 +264,7 @@ func TestGetRedisHostname(t *testing.T) {
 				PodName:   "redis-pod",
 				Namespace: "default",
 			},
-			redisCluster: &redisv1beta2.RedisCluster{
+			redisCluster: &rcvb2.RedisCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "mycluster",
 					Namespace: "default",
@@ -284,7 +284,7 @@ func TestGetRedisHostname(t *testing.T) {
 }
 
 func TestCreateSingleLeaderRedisCommand(t *testing.T) {
-	cr := &redisv1beta2.RedisCluster{}
+	cr := &rcvb2.RedisCluster{}
 	cmd := CreateSingleLeaderRedisCommand(context.TODO(), cr)
 
 	assert.Equal(t, "redis-cli", cmd[0])
@@ -301,17 +301,17 @@ func TestCreateSingleLeaderRedisCommand(t *testing.T) {
 func TestCreateMultipleLeaderRedisCommand(t *testing.T) {
 	tests := []struct {
 		name             string
-		redisCluster     *redisv1beta2.RedisCluster
+		redisCluster     *rcvb2.RedisCluster
 		expectedCommands []string
 	}{
 		{
 			name: "Multiple leaders cluster version v7",
-			redisCluster: &redisv1beta2.RedisCluster{
+			redisCluster: &rcvb2.RedisCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "mycluster",
 					Namespace: "default",
 				},
-				Spec: redisv1beta2.RedisClusterSpec{
+				Spec: rcvb2.RedisClusterSpec{
 					Size:           ptr.To(int32(3)),
 					ClusterVersion: ptr.To("v7"),
 					Port:           ptr.To(6379),
@@ -327,12 +327,12 @@ func TestCreateMultipleLeaderRedisCommand(t *testing.T) {
 		},
 		{
 			name: "Multiple leaders cluster without version v7",
-			redisCluster: &redisv1beta2.RedisCluster{
+			redisCluster: &rcvb2.RedisCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "mycluster",
 					Namespace: "default",
 				},
-				Spec: redisv1beta2.RedisClusterSpec{
+				Spec: rcvb2.RedisClusterSpec{
 					Size: ptr.To(int32(3)),
 					Port: ptr.To(6379),
 				},
@@ -394,7 +394,7 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 	}
 	tests := []struct {
 		name         string
-		redisCluster *redisv1beta2.RedisCluster
+		redisCluster *rcvb2.RedisCluster
 		secret
 		leaderPod       RedisDetails
 		followerPod     RedisDetails
@@ -407,12 +407,12 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 				namespace: "default",
 				key:       "password",
 			},
-			redisCluster: &redisv1beta2.RedisCluster{
+			redisCluster: &rcvb2.RedisCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "redis-cluster",
 					Namespace: "default",
 				},
-				Spec: redisv1beta2.RedisClusterSpec{
+				Spec: rcvb2.RedisClusterSpec{
 					Size: ptr.To(int32(3)),
 					KubernetesConfig: common.KubernetesConfig{
 						ExistingPasswordSecret: &common.ExistingPasswordSecret{
@@ -447,12 +447,12 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 				namespace: "default",
 				key:       "password",
 			},
-			redisCluster: &redisv1beta2.RedisCluster{
+			redisCluster: &rcvb2.RedisCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "redis-cluster",
 					Namespace: "default",
 				},
-				Spec: redisv1beta2.RedisClusterSpec{
+				Spec: rcvb2.RedisClusterSpec{
 					Size: ptr.To(int32(3)),
 					KubernetesConfig: common.KubernetesConfig{
 						ExistingPasswordSecret: &common.ExistingPasswordSecret{
@@ -481,12 +481,12 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 		},
 		{
 			name: "Test case without cluster version v7",
-			redisCluster: &redisv1beta2.RedisCluster{
+			redisCluster: &rcvb2.RedisCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "redis-cluster",
 					Namespace: "default",
 				},
-				Spec: redisv1beta2.RedisClusterSpec{
+				Spec: rcvb2.RedisClusterSpec{
 					Size: ptr.To(int32(3)),
 					Port: ptr.To(6379),
 				},
@@ -533,7 +533,7 @@ func TestGetContainerID(t *testing.T) {
 	tests := []struct {
 		name         string
 		setupPod     *corev1.Pod
-		redisCluster *redisv1beta2.RedisCluster
+		redisCluster *rcvb2.RedisCluster
 		expectedID   int
 		expectError  bool
 	}{
@@ -555,7 +555,7 @@ func TestGetContainerID(t *testing.T) {
 					},
 				},
 			},
-			redisCluster: &redisv1beta2.RedisCluster{
+			redisCluster: &rcvb2.RedisCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "redis-cluster",
 					Namespace: "default",
@@ -567,7 +567,7 @@ func TestGetContainerID(t *testing.T) {
 		{
 			name:     "Pod not found",
 			setupPod: &corev1.Pod{},
-			redisCluster: &redisv1beta2.RedisCluster{
+			redisCluster: &rcvb2.RedisCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "redis-cluster",
 					Namespace: "default",
@@ -591,7 +591,7 @@ func TestGetContainerID(t *testing.T) {
 					},
 				},
 			},
-			redisCluster: &redisv1beta2.RedisCluster{
+			redisCluster: &rcvb2.RedisCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "redis-cluster",
 					Namespace: "default",

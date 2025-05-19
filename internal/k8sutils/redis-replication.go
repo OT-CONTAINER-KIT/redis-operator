@@ -3,7 +3,8 @@ package k8sutils
 import (
 	"context"
 
-	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
+	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -12,7 +13,7 @@ import (
 )
 
 // CreateReplicationService method will create replication service for Redis
-func CreateReplicationService(ctx context.Context, cr *redisv1beta2.RedisReplication, cl kubernetes.Interface) error {
+func CreateReplicationService(ctx context.Context, cr *rrvb2.RedisReplication, cl kubernetes.Interface) error {
 	labels := getRedisLabels(cr.ObjectMeta.Name, replication, "replication", cr.ObjectMeta.Labels)
 
 	epp := disableMetrics
@@ -61,7 +62,7 @@ func CreateReplicationService(ctx context.Context, cr *redisv1beta2.RedisReplica
 }
 
 // CreateReplicationRedis will create a replication redis setup
-func CreateReplicationRedis(ctx context.Context, cr *redisv1beta2.RedisReplication, cl kubernetes.Interface) error {
+func CreateReplicationRedis(ctx context.Context, cr *rrvb2.RedisReplication, cl kubernetes.Interface) error {
 	stateFulName := cr.ObjectMeta.Name
 	labels := getRedisLabels(cr.ObjectMeta.Name, replication, "replication", cr.ObjectMeta.Labels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
@@ -85,7 +86,7 @@ func CreateReplicationRedis(ctx context.Context, cr *redisv1beta2.RedisReplicati
 	return nil
 }
 
-func generateRedisReplicationParams(cr *redisv1beta2.RedisReplication) statefulSetParameters {
+func generateRedisReplicationParams(cr *rrvb2.RedisReplication) statefulSetParameters {
 	replicas := cr.Spec.GetReplicationCounts("Replication")
 	var minreadyseconds int32 = 0
 	if cr.Spec.KubernetesConfig.MinReadySeconds != nil {
@@ -129,7 +130,7 @@ func generateRedisReplicationParams(cr *redisv1beta2.RedisReplication) statefulS
 }
 
 // generateRedisReplicationContainerParams generates Redis container information
-func generateRedisReplicationContainerParams(cr *redisv1beta2.RedisReplication) containerParameters {
+func generateRedisReplicationContainerParams(cr *rrvb2.RedisReplication) containerParameters {
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{
@@ -187,7 +188,7 @@ func generateRedisReplicationContainerParams(cr *redisv1beta2.RedisReplication) 
 }
 
 // generateRedisReplicationInitContainerParams generates Redis Replication initcontainer information
-func generateRedisReplicationInitContainerParams(cr *redisv1beta2.RedisReplication) initContainerParameters {
+func generateRedisReplicationInitContainerParams(cr *rrvb2.RedisReplication) initContainerParameters {
 	trueProperty := true
 	initcontainerProp := initContainerParameters{}
 
@@ -217,7 +218,7 @@ func generateRedisReplicationInitContainerParams(cr *redisv1beta2.RedisReplicati
 	return initcontainerProp
 }
 
-func IsRedisReplicationReady(ctx context.Context, client kubernetes.Interface, dClient dynamic.Interface, rs *redisv1beta2.RedisSentinel) bool {
+func IsRedisReplicationReady(ctx context.Context, client kubernetes.Interface, dClient dynamic.Interface, rs *rsvb2.RedisSentinel) bool {
 	// statefulset name the same as the redis replication name
 	sts, err := GetStatefulSet(ctx, client, rs.GetNamespace(), rs.Spec.RedisSentinelConfig.RedisReplicationName)
 	if err != nil {

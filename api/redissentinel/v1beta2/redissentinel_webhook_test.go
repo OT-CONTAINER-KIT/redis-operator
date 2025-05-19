@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	v1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	v1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/testutil/webhook"
 	"github.com/stretchr/testify/require"
 	admissionv1beta1 "k8s.io/api/admission/v1beta1"

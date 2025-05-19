@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	rvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redis/v1beta2"
+	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
+	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
+	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,7 +25,7 @@ const (
 )
 
 // HandleRedisFinalizer finalize resource if instance is marked to be deleted
-func HandleRedisFinalizer(ctx context.Context, ctrlclient client.Client, cr *redisv1beta2.Redis) error {
+func HandleRedisFinalizer(ctx context.Context, ctrlclient client.Client, cr *rvb2.Redis) error {
 	if cr.GetDeletionTimestamp() != nil {
 		if controllerutil.ContainsFinalizer(cr, RedisFinalizer) {
 			if cr.Spec.Storage != nil && !cr.Spec.Storage.KeepAfterDelete {
@@ -41,7 +44,7 @@ func HandleRedisFinalizer(ctx context.Context, ctrlclient client.Client, cr *red
 }
 
 // HandleRedisClusterFinalizer finalize resource if instance is marked to be deleted
-func HandleRedisClusterFinalizer(ctx context.Context, ctrlclient client.Client, cr *redisv1beta2.RedisCluster) error {
+func HandleRedisClusterFinalizer(ctx context.Context, ctrlclient client.Client, cr *rcvb2.RedisCluster) error {
 	if cr.GetDeletionTimestamp() != nil {
 		if controllerutil.ContainsFinalizer(cr, RedisClusterFinalizer) {
 			if cr.Spec.Storage != nil && !cr.Spec.Storage.KeepAfterDelete {
@@ -60,7 +63,7 @@ func HandleRedisClusterFinalizer(ctx context.Context, ctrlclient client.Client, 
 }
 
 // Handle RedisReplicationFinalizer finalize resource if instance is marked to be deleted
-func HandleRedisReplicationFinalizer(ctx context.Context, ctrlclient client.Client, cr *redisv1beta2.RedisReplication) error {
+func HandleRedisReplicationFinalizer(ctx context.Context, ctrlclient client.Client, cr *rrvb2.RedisReplication) error {
 	if cr.GetDeletionTimestamp() != nil {
 		if controllerutil.ContainsFinalizer(cr, RedisReplicationFinalizer) {
 			if cr.Spec.Storage != nil && !cr.Spec.Storage.KeepAfterDelete {
@@ -79,7 +82,7 @@ func HandleRedisReplicationFinalizer(ctx context.Context, ctrlclient client.Clie
 }
 
 // HandleRedisSentinelFinalizer finalize resource if instance is marked to be deleted
-func HandleRedisSentinelFinalizer(ctx context.Context, ctrlclient client.Client, cr *redisv1beta2.RedisSentinel) error {
+func HandleRedisSentinelFinalizer(ctx context.Context, ctrlclient client.Client, cr *rsvb2.RedisSentinel) error {
 	if cr.GetDeletionTimestamp() != nil {
 		if controllerutil.ContainsFinalizer(cr, RedisSentinelFinalizer) {
 			controllerutil.RemoveFinalizer(cr, RedisSentinelFinalizer)
@@ -102,7 +105,7 @@ func AddFinalizer(ctx context.Context, cr client.Object, finalizer string, cl cl
 }
 
 // finalizeRedisPVC delete PVC
-func finalizeRedisPVC(ctx context.Context, client client.Client, cr *redisv1beta2.Redis) error {
+func finalizeRedisPVC(ctx context.Context, client client.Client, cr *rvb2.Redis) error {
 	pvcTemplateName := env.GetString(EnvOperatorSTSPVCTemplateName, cr.Name)
 	PVCName := fmt.Sprintf("%s-%s-0", pvcTemplateName, cr.Name)
 	pvc := &corev1.PersistentVolumeClaim{
@@ -120,7 +123,7 @@ func finalizeRedisPVC(ctx context.Context, client client.Client, cr *redisv1beta
 }
 
 // finalizeRedisClusterPVC delete PVCs
-func finalizeRedisClusterPVC(ctx context.Context, client client.Client, cr *redisv1beta2.RedisCluster) error {
+func finalizeRedisClusterPVC(ctx context.Context, client client.Client, cr *rcvb2.RedisCluster) error {
 	for _, role := range []string{"leader", "follower"} {
 		for i := 0; i < int(cr.Spec.GetReplicaCounts(role)); i++ {
 			pvcTemplateName := env.GetString(EnvOperatorSTSPVCTemplateName, cr.Name+"-"+role)
@@ -158,7 +161,7 @@ func finalizeRedisClusterPVC(ctx context.Context, client client.Client, cr *redi
 }
 
 // finalizeRedisReplicationPVC delete PVCs
-func finalizeRedisReplicationPVC(ctx context.Context, client client.Client, cr *redisv1beta2.RedisReplication) error {
+func finalizeRedisReplicationPVC(ctx context.Context, client client.Client, cr *rrvb2.RedisReplication) error {
 	for i := 0; i < int(cr.Spec.GetReplicationCounts("replication")); i++ {
 		pvcTemplateName := env.GetString(EnvOperatorSTSPVCTemplateName, cr.Name)
 		PVCName := fmt.Sprintf("%s-%s-%d", pvcTemplateName, cr.Name, i)

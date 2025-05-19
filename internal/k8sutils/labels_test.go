@@ -4,7 +4,10 @@ import (
 	"reflect"
 	"testing"
 
-	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
+	rvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redis/v1beta2"
+	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
+	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
+	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 )
@@ -267,7 +270,7 @@ func TestGetRedisLabels(t *testing.T) {
 }
 
 func TestRedisAsOwner(t *testing.T) {
-	redisObj := &redisv1beta2.Redis{
+	redisObj := &rvb2.Redis{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "redisv1beta2/apiVersion",
 			Kind:       "Redis",
@@ -297,7 +300,7 @@ func TestRedisAsOwner(t *testing.T) {
 }
 
 func TestRedisClusterAsOwner(t *testing.T) {
-	clusterObj := &redisv1beta2.RedisCluster{
+	clusterObj := &rcvb2.RedisCluster{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "redisv1beta2/apiVersion",
 			Kind:       "RedisCluster",
@@ -324,7 +327,7 @@ func TestRedisClusterAsOwner(t *testing.T) {
 }
 
 func TestRedisReplicationAsOwner(t *testing.T) {
-	replicationObj := &redisv1beta2.RedisReplication{
+	replicationObj := &rrvb2.RedisReplication{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "redisv1beta2/apiVersion",
 			Kind:       "RedisReplication",
@@ -351,7 +354,7 @@ func TestRedisReplicationAsOwner(t *testing.T) {
 }
 
 func TestRedisSentinelAsOwner(t *testing.T) {
-	sentinelObj := &redisv1beta2.RedisSentinel{
+	sentinelObj := &rsvb2.RedisSentinel{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "redisv1beta2/apiVersion",
 			Kind:       "RedisSentinel",

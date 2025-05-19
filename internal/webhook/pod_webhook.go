@@ -30,8 +30,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
-//+kubebuilder:webhook:path=/mutate-core-v1-pod,mutating=true,failurePolicy=fail,sideEffects=None,groups=core,resources=pods,verbs=create,versions=v1,name=ot-mutate-pod.opstree.com,admissionReviewVersions=v1
-
 // PodAntiAffiniytMutate mutate Pods
 type PodAntiAffiniytMutate struct {
 	Client  client.Client
