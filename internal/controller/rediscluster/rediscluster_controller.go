@@ -123,17 +123,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 
-	err = k8sutils.CreateRedisLeader(ctx, instance, r.K8sClient)
-	if err != nil {
-		return intctrlutil.RequeueWithError(ctx, err, "")
-	}
 	if leaderReplicas != 0 {
 		err = k8sutils.CreateRedisLeaderService(ctx, instance, r.K8sClient)
 		if err != nil {
 			return intctrlutil.RequeueWithError(ctx, err, "")
 		}
 	}
-
+	err = k8sutils.CreateRedisLeader(ctx, instance, r.K8sClient)
+	if err != nil {
+		return intctrlutil.RequeueWithError(ctx, err, "")
+	}
 	err = k8sutils.ReconcileRedisPodDisruptionBudget(ctx, instance, "leader", instance.Spec.RedisLeader.PodDisruptionBudget, r.K8sClient)
 	if err != nil {
 		return intctrlutil.RequeueWithError(ctx, err, "")
@@ -164,14 +163,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return intctrlutil.RequeueWithError(ctx, err, "")
 		}
 	}
-	// Update the current replica count in the status
+
 	if err := r.updateCurrentReplicaCount(ctx, instance); err != nil {
 		return intctrlutil.RequeueWithError(ctx, err, "failed to update replica count")
 	}
 
-	// Replace degraded state handling with simple return since StatefulSet changes trigger reconciliation
+	// Check if StatefulSets are ready
 	if !(r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-leader") && r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-follower")) {
-		// Update status to show failed state
+		// Update status to failed state
 		err = k8sutils.UpdateRedisClusterStatus(ctx, instance,
 			status.RedisClusterFailed,
 			"StatefulSet not ready",
@@ -181,21 +180,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if err != nil {
 			return intctrlutil.RequeueWithError(ctx, err, "")
 		}
+		// Return without requeuing since StatefulSet changes will trigger reconciliation
 		return intctrlutil.Reconciled()
 	}
 
 	// Mark the cluster status as bootstrapping if all the leader and follower nodes are ready
 	if !(instance.Status.ReadyLeaderReplicas == leaderReplicas && instance.Status.ReadyFollowerReplicas == followerReplicas) {
-		err = k8sutils.UpdateRedisClusterStatus(ctx, instance,
-			status.RedisClusterBootstrap,
-			status.BootstrapClusterReason,
-			leaderReplicas,
-			followerReplicas,
-			r.Dk8sClient)
+		err = k8sutils.UpdateRedisClusterStatus(ctx, instance, status.RedisClusterBootstrap, status.BootstrapClusterReason, leaderReplicas, followerReplicas, r.Dk8sClient)
 		if err != nil {
 			return intctrlutil.RequeueWithError(ctx, err, "")
 		}
-		return intctrlutil.RequeueAfter(ctx, time.Second*10, "waiting for cluster to bootstrap")
 	}
 
 	if nc := k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, ""); nc != totalReplicas {
@@ -316,11 +310,12 @@ func (r *Reconciler) updateCurrentReplicaCount(ctx context.Context, instance *re
 
 	if currentLeaderReplicas != instance.Status.ReadyLeaderReplicas ||
 		currentFollowerReplicas != instance.Status.ReadyFollowerReplicas {
+		// Update status to Bootstrap if the cluster is in the process of bootstrapping
 		return k8sutils.UpdateRedisClusterStatus(
 			ctx,
 			instance,
-			status.RedisClusterInitializing,
-			"Pod count changed",
+			status.RedisClusterBootstrap,
+			status.BootstrapClusterReason,
 			currentLeaderReplicas,
 			currentFollowerReplicas,
 			r.Dk8sClient,
