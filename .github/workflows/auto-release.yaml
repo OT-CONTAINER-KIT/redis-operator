@@ -1,0 +1,69 @@
+name: Auto Create Release On Tag
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+
+      - name: Get version
+        id: get_version
+        run: |
+          echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Check if release exists
+        id: check_release
+        run: |
+          RELEASE_EXISTS=$(gh release view ${{ steps.get_version.outputs.VERSION }} --json id 2>/dev/null | jq -r '.id' || echo "")
+          if [ -n "$RELEASE_EXISTS" ] && [ "$RELEASE_EXISTS" != "null" ]; then
+            echo "Release already exists, skipping creation"
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "Release does not exist, will create it"
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create release notes
+        id: release_notes
+        if: steps.check_release.outputs.exists == 'false'
+        run: |
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 ${{ steps.get_version.outputs.VERSION }}^ 2>/dev/null || git rev-list --max-parents=0 HEAD)
+          
+          CHANGELOG=$(git log --pretty=format:"* %s" ${PREVIOUS_TAG}..${{ steps.get_version.outputs.VERSION }})
+          
+          cat > release_notes.md << EOF
+          # Redis Operator ${{ steps.get_version.outputs.VERSION }}
+
+          ## Changes
+          ${CHANGELOG}
+          EOF
+      
+      - name: Create GitHub Release
+        if: steps.check_release.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release ${{ steps.get_version.outputs.VERSION }}
+          body_path: release_notes.md
+          draft: true
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
