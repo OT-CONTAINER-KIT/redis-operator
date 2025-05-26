@@ -1,7 +1,7 @@
 ---
 title: "Feature Gates"
 linkTitle: "Feature Gates"
-weight: 30
+weight: 40
 date: 2024-03-20T00:19:19Z
 description: >
   Configuration guide for Redis Operator feature gates
