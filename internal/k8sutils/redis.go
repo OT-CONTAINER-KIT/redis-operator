@@ -564,6 +564,7 @@ func SentinelGetMasterAddress(ctx context.Context, client kubernetes.Interface, 
 	masterAddress, err := sentinelClient.GetMasterAddrByName(ctx, masterName).Result()
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Could not get master address", "Master", masterName)
+		return "", err
 	}
 
 	return masterAddress[0], nil
