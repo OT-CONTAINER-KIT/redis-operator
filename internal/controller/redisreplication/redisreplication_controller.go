@@ -5,6 +5,7 @@ import (
 	"time"
 
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/controllerutil"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/monitoring"
@@ -35,22 +36,28 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return intctrlutil.RequeueWithErrorChecking(ctx, err, "failed to get RedisReplication instance")
 	}
 
-	var reconcilers []reconciler
 	if k8sutils.IsDeleted(instance) {
-		reconcilers = []reconciler{
-			{typ: "finalizer", rec: r.reconcileFinalizer},
+		if err := k8sutils.HandleRedisReplicationFinalizer(ctx, r.Client, instance); err != nil {
+			return intctrlutil.RequeueWithError(ctx, err, "")
 		}
-	} else {
-		reconcilers = []reconciler{
-			{typ: "annotation", rec: r.reconcileAnnotation},
-			{typ: "finalizer", rec: r.reconcileFinalizer},
-			{typ: "statefulset", rec: r.reconcileStatefulSet},
-			{typ: "service", rec: r.reconcileService},
-			{typ: "poddisruptionbudget", rec: r.reconcilePDB},
-			{typ: "redis", rec: r.reconcileRedis},
-			{typ: "status", rec: r.reconcileStatus},
-		}
+		return intctrlutil.Reconciled()
 	}
+
+	monitoring.RedisReplicationSkipReconcile.WithLabelValues(instance.Namespace, instance.Name).Set(0)
+	if common.IsSkipReconcile(ctx, instance) {
+		monitoring.RedisReplicationSkipReconcile.WithLabelValues(instance.Namespace, instance.Name).Set(1)
+		return intctrlutil.Reconciled()
+	}
+
+	reconcilers := []reconciler{
+		{typ: "finalizer", rec: r.reconcileFinalizer},
+		{typ: "statefulset", rec: r.reconcileStatefulSet},
+		{typ: "service", rec: r.reconcileService},
+		{typ: "poddisruptionbudget", rec: r.reconcilePDB},
+		{typ: "redis", rec: r.reconcileRedis},
+		{typ: "status", rec: r.reconcileStatus},
+	}
+
 	for _, reconciler := range reconcilers {
 		result, err := reconciler.rec(ctx, instance)
 		if err != nil {
@@ -128,16 +135,6 @@ func (r *Reconciler) reconcileFinalizer(ctx context.Context, instance *rrvb2.Red
 	}
 	if err := k8sutils.AddFinalizer(ctx, instance, k8sutils.RedisReplicationFinalizer, r.Client); err != nil {
 		return intctrlutil.RequeueWithError(ctx, err, "")
-	}
-	return intctrlutil.Reconciled()
-}
-
-func (r *Reconciler) reconcileAnnotation(ctx context.Context, instance *rrvb2.RedisReplication) (ctrl.Result, error) {
-	monitoring.RedisReplicationSkipReconcile.WithLabelValues(instance.Namespace, instance.Name).Set(0)
-	if value, found := instance.ObjectMeta.GetAnnotations()["redisreplication.opstreelabs.in/skip-reconcile"]; found && value == "true" {
-		monitoring.RedisReplicationSkipReconcile.WithLabelValues(instance.Namespace, instance.Name).Set(1)
-		log.FromContext(ctx).Info("found skip reconcile annotation", "namespace", instance.Namespace, "name", instance.Name)
-		return intctrlutil.RequeueAfter(ctx, time.Second*10, "found skip reconcile annotation")
 	}
 	return intctrlutil.Reconciled()
 }
