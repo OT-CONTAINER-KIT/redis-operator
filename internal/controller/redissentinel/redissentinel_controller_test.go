@@ -135,21 +135,23 @@ var _ = Describe("Redis Sentinel Controller", func() {
 	})
 
 	Context("When testing skip-reconcile annotation behavior", func() {
-		testutil.TestSkipReconcileBehavior(k8sClient, testutil.SkipReconcileTestConfig{
-			Object: &rsvb2.RedisSentinel{
-				ObjectMeta: testutil.CreateTestObject("redis-sentinel-skip-test", ns, nil),
-				Spec: rsvb2.RedisSentinelSpec{
-					Size: ptr.To(int32(3)),
-					KubernetesConfig: common.KubernetesConfig{
-						Image: testutil.DefaultRedisImage,
+		It("should trigger reconcile when skip-reconcile annotation changes from true to false", func() {
+			testutil.RunSkipReconcileTest(k8sClient, testutil.SkipReconcileTestConfig{
+				Object: &rsvb2.RedisSentinel{
+					ObjectMeta: testutil.CreateTestObject("redis-sentinel-skip-test", ns, nil),
+					Spec: rsvb2.RedisSentinelSpec{
+						Size: ptr.To(int32(3)),
+						KubernetesConfig: common.KubernetesConfig{
+							Image: testutil.DefaultRedisImage,
+						},
 					},
 				},
-			},
-			SkipAnnotationKey: controllercommon.RedisSentinelSkipReconcileAnnotation,
-			StatefulSetName:   "redis-sentinel-skip-test-sentinel",
-			Namespace:         ns,
-			Timeout:           timeout,
-			Interval:          interval,
+				SkipAnnotationKey: controllercommon.RedisSentinelSkipReconcileAnnotation,
+				StatefulSetName:   "redis-sentinel-skip-test-sentinel",
+				Namespace:         ns,
+				Timeout:           timeout,
+				Interval:          interval,
+			})
 		})
 	})
 })

@@ -28,54 +28,54 @@ type SkipReconcileTestConfig struct {
 	Interval time.Duration
 }
 
-// TestSkipReconcileBehavior tests the skip-reconcile annotation behavior for any custom resource
-func TestSkipReconcileBehavior(k8sClient client.Client, config SkipReconcileTestConfig) {
-	It("should trigger reconcile when skip-reconcile annotation changes from true to false", func() {
-		// Set skip-reconcile annotation to true
-		if config.Object.GetAnnotations() == nil {
-			config.Object.SetAnnotations(make(map[string]string))
-		}
-		config.Object.GetAnnotations()[config.SkipAnnotationKey] = "true"
+// RunSkipReconcileTest runs the skip-reconcile test logic
+func RunSkipReconcileTest(k8sClient client.Client, config SkipReconcileTestConfig) {
+	// Set skip-reconcile annotation to true
+	annotations := config.Object.GetAnnotations()
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
+	annotations[config.SkipAnnotationKey] = "true"
+	config.Object.SetAnnotations(annotations)
 
-		Expect(k8sClient.Create(context.Background(), config.Object)).Should(Succeed())
-		defer func() {
-			Expect(k8sClient.Delete(context.Background(), config.Object)).Should(Succeed())
-		}()
+	Expect(k8sClient.Create(context.Background(), config.Object)).Should(Succeed())
+	defer func() {
+		Expect(k8sClient.Delete(context.Background(), config.Object)).Should(Succeed())
+	}()
 
-		By("verifying that no StatefulSet is created when skip-reconcile is true")
-		sts := &appsv1.StatefulSet{}
-		Consistently(func() error {
-			return k8sClient.Get(context.Background(), types.NamespacedName{
-				Name:      config.StatefulSetName,
-				Namespace: config.Namespace,
-			}, sts)
-		}, time.Second*3, time.Millisecond*500).ShouldNot(Succeed())
-
-		By("updating skip-reconcile annotation to false")
-		// Get the updated object from cluster
-		updatedObj := config.Object.DeepCopyObject().(client.Object)
-		Expect(k8sClient.Get(context.Background(), types.NamespacedName{
-			Name:      config.Object.GetName(),
+	By("verifying that no StatefulSet is created when skip-reconcile is true")
+	sts := &appsv1.StatefulSet{}
+	Consistently(func() error {
+		return k8sClient.Get(context.Background(), types.NamespacedName{
+			Name:      config.StatefulSetName,
 			Namespace: config.Namespace,
-		}, updatedObj)).Should(Succeed())
+		}, sts)
+	}, time.Second*3, time.Millisecond*500).ShouldNot(Succeed())
 
-		// Update the annotation
-		annotations := updatedObj.GetAnnotations()
-		if annotations == nil {
-			annotations = make(map[string]string)
-		}
-		annotations[config.SkipAnnotationKey] = "false"
-		updatedObj.SetAnnotations(annotations)
-		Expect(k8sClient.Update(context.Background(), updatedObj)).Should(Succeed())
+	By("updating skip-reconcile annotation to false")
+	// Get the updated object from cluster
+	updatedObj := config.Object.DeepCopyObject().(client.Object)
+	Expect(k8sClient.Get(context.Background(), types.NamespacedName{
+		Name:      config.Object.GetName(),
+		Namespace: config.Namespace,
+	}, updatedObj)).Should(Succeed())
 
-		By("verifying that StatefulSet is created after skip-reconcile is set to false")
-		Eventually(func() error {
-			return k8sClient.Get(context.Background(), types.NamespacedName{
-				Name:      config.StatefulSetName,
-				Namespace: config.Namespace,
-			}, sts)
-		}, config.Timeout, config.Interval).Should(Succeed())
-	})
+	// Update the annotation
+	annotations = updatedObj.GetAnnotations()
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
+	annotations[config.SkipAnnotationKey] = "false"
+	updatedObj.SetAnnotations(annotations)
+	Expect(k8sClient.Update(context.Background(), updatedObj)).Should(Succeed())
+
+	By("verifying that StatefulSet is created after skip-reconcile is set to false")
+	Eventually(func() error {
+		return k8sClient.Get(context.Background(), types.NamespacedName{
+			Name:      config.StatefulSetName,
+			Namespace: config.Namespace,
+		}, sts)
+	}, config.Timeout, config.Interval).Should(Succeed())
 }
 
 // CreateTestObject creates a test object with the given name, namespace and annotations

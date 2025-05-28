@@ -103,20 +103,22 @@ var _ = Describe("Redis Controller", func() {
 	})
 
 	Context("When testing skip-reconcile annotation behavior", func() {
-		testutil.TestSkipReconcileBehavior(k8sClient, testutil.SkipReconcileTestConfig{
-			Object: &rvb2.Redis{
-				ObjectMeta: testutil.CreateTestObject("redis-skip-test", ns, nil),
-				Spec: rvb2.RedisSpec{
-					KubernetesConfig: common.KubernetesConfig{
-						Image: testutil.DefaultRedisImage,
+		It("should trigger reconcile when skip-reconcile annotation changes from true to false", func() {
+			testutil.RunSkipReconcileTest(k8sClient, testutil.SkipReconcileTestConfig{
+				Object: &rvb2.Redis{
+					ObjectMeta: testutil.CreateTestObject("redis-skip-test", ns, nil),
+					Spec: rvb2.RedisSpec{
+						KubernetesConfig: common.KubernetesConfig{
+							Image: testutil.DefaultRedisImage,
+						},
 					},
 				},
-			},
-			SkipAnnotationKey: controllercommon.RedisSkipReconcileAnnotation,
-			StatefulSetName:   "redis-skip-test",
-			Namespace:         ns,
-			Timeout:           timeout,
-			Interval:          interval,
+				SkipAnnotationKey: controllercommon.RedisSkipReconcileAnnotation,
+				StatefulSetName:   "redis-skip-test",
+				Namespace:         ns,
+				Timeout:           timeout,
+				Interval:          interval,
+			})
 		})
 	})
 })
