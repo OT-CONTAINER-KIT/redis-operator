@@ -39,6 +39,14 @@ nodeSelector:
 securityContext:
   {{- toYaml .securityContext | nindent 2 }}
 {{- end }}
+{{- if .livenessProbe }}
+livenessProbe:
+  {{- toYaml .livenessProbe | nindent 2 }}
+{{- end }}
+{{- if .readinessProbe }}
+readinessProbe:
+  {{- toYaml .readinessProbe | nindent 2 }}
+{{- end }}
 {{- end -}}
 
 {{/* Generate sidecar properties */}}

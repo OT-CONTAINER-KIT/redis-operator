@@ -51,6 +51,18 @@ redisCluster:
       enabled: false
       maxUnavailable: 1
       minAvailable: 1
+    livenessProbe: {}
+      # timeoutSeconds: 30
+      # periodSeconds: 45
+      # successThreshold: 1
+      # failureThreshold: 4
+      # initialDelaySeconds: 15
+    readinessProbe: {}
+      # timeoutSeconds: 30
+      # periodSeconds: 45
+      # successThreshold: 1
+      # failureThreshold: 4
+      # initialDelaySeconds: 15
     
   follower:
     replicas: 3
@@ -76,6 +88,18 @@ redisCluster:
       enabled: false
       maxUnavailable: 1
       minAvailable: 1
+    livenessProbe: {}
+      # timeoutSeconds: 30
+      # periodSeconds: 45
+      # successThreshold: 1
+      # failureThreshold: 4
+      # initialDelaySeconds: 15
+    readinessProbe: {}
+      # timeoutSeconds: 30
+      # periodSeconds: 45
+      # successThreshold: 1
+      # failureThreshold: 4
+      # initialDelaySeconds: 15
 
 labels: {}
 #   foo: bar
