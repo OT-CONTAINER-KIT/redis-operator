@@ -13,6 +13,7 @@ import (
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
+	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	redis "github.com/redis/go-redis/v9"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -547,6 +548,54 @@ func checkRedisNodePresence(ctx context.Context, cr *rcvb2.RedisCluster, nodeLis
 		}
 	}
 	return false
+}
+
+func SentinelGetMasterAddress(ctx context.Context, client kubernetes.Interface, cr *rsvb2.RedisSentinel) (string, error) {
+	masterName := cr.Spec.RedisSentinelConfig.MasterGroupName
+	podName := cr.Name + "-sentinel-0"
+	sentinelClient := configureSentinelClient(ctx, client, cr, podName)
+	defer sentinelClient.Close()
+
+	masterAddress, err := sentinelClient.GetMasterAddrByName(ctx, masterName).Result()
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Could not get master address", "Master", masterName)
+	}
+
+	return masterAddress[0], nil
+}
+
+// Sentinel
+func SentinelCheckQuorum(ctx context.Context, client kubernetes.Interface, cr *rsvb2.RedisSentinel) (bool, error) {
+	masterName := cr.Spec.RedisSentinelConfig.MasterGroupName
+	podName := cr.Name + "-sentinel-0"
+	sentinelClient := configureSentinelClient(ctx, client, cr, podName)
+	defer sentinelClient.Close()
+
+	quorum, err := sentinelClient.CkQuorum(ctx, masterName).Result()
+	if err != nil {
+		if strings.Contains(err.Error(), "NOQUORUM") {
+			return false, nil
+		}
+
+		log.FromContext(ctx).Error(err, "Sentinel quorum check failed")
+		return false, err
+	}
+
+	fmt.Println(quorum)
+	return strings.HasPrefix(strings.ToUpper(quorum), "OK"), nil
+}
+
+func configureSentinelClient(ctx context.Context, client kubernetes.Interface, cr *rsvb2.RedisSentinel, podName string) *redis.SentinelClient {
+	sentinelInfo := RedisDetails{
+		PodName:   podName,
+		Namespace: cr.Namespace,
+	}
+
+	opts := &redis.Options{
+		Addr: getRedisServerAddress(ctx, client, sentinelInfo, 26379),
+	}
+
+	return redis.NewSentinelClient(opts)
 }
 
 // configureRedisClient will configure the Redis Client

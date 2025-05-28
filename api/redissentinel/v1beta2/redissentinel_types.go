@@ -42,11 +42,18 @@ type RedisSentinelConfig struct {
 	common.RedisSentinelConfig `json:",inline"`
 }
 
-type RedisSentinelStatus struct{}
+type RedisSentinelStatus struct {
+	Quorum             string `json:"quorum,omitempty"`
+	AvailableSentinels int32  `json:"availableSentinels,omitempty"`
+	MasterAddress      string `json:"masterAddress,omitempty"`
+}
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-//+kubebuilder:storageversion
+// +kubebuilder:storageversion
+// +kubebuilder:printcolumn:name="Quorum",type="string",JSONPath=".status.quorum"
+// +kubebuilder:printcolumn:name="MasterAddress",type="string",JSONPath=".status.masterAddress"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
 // Redis is the Schema for the redis API
 type RedisSentinel struct {
