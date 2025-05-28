@@ -34,6 +34,8 @@ REVISION: 1
 TEST SUITE: None
 ```
 
+**Note**: The `redisReplicationName` parameter must reference an existing RedisReplication resource. Make sure to deploy a RedisReplication resource first before installing the sentinel.
+
 Verify the sentinel redis setup by kubectl command line.
 
 ```shell
@@ -75,7 +77,7 @@ spec:
     runAsUser: 1000
     fsGroup: 1000
   redisSentinelConfig:
-    redisReplicationName : redis-replication
+    redisReplicationName : redis-replication  # Must match the name of an existing RedisReplication resource
   kubernetesConfig:
     image: quay.io/opstree/redis-sentinel:v7.0.15
     imagePullPolicy: IfNotPresent
@@ -87,6 +89,8 @@ spec:
         cpu: 101m
         memory: 128Mi
 ```
+
+**Important**: The `redisReplicationName` field must reference an existing RedisReplication resource. RedisSentinel monitors and manages Redis instances created by RedisReplication, so ensure you have deployed a RedisReplication resource with the same name before applying this manifest.
 
 The yaml manifest can easily get applied by using `kubectl`.
 
