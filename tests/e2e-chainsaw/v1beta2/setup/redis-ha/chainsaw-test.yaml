@@ -85,9 +85,59 @@ spec:
             check:
               (contains($stdout, 'OK')): true
 
-    - name: Uncordon the node which redis-sentinel-sentinel-0 pod is scheduled to
+    - name: Uncordon the node which redis-sentinel-sentinel-0 pod is scheduled to (pod will pending, because we use local-path for testing)
       try:
         - script:
             timeout: 10s
             content: |
               kubectl uncordon $(kubectl -n ${NAMESPACE} get pod redis-sentinel-sentinel-0 -o jsonpath='{.spec.nodeName}')
+
+    - name: Test Master IP consistency
+      try:
+        - script:
+            timeout: 10s
+            content: |
+              export MASTER_POD_FROM_STATUS=$(kubectl -n ${NAMESPACE} get redisreplication redis-replication -o jsonpath='{.status.masterNode}');
+              export MASTER_IP_FROM_STATUS=$(kubectl -n ${NAMESPACE} get pod ${MASTER_POD_FROM_STATUS} -o jsonpath='{.status.podIP}');
+              export FROM_SENTINEL=$(kubectl -n ${NAMESPACE} exec redis-sentinel-sentinel-0 -- redis-cli -a Opstree@1234sentinel -p 26379 sentinel get-master-addr-by-name myMaster | head -n 1);
+              export MASTER_IP_FROM_LABEL=$(kubectl -n ${NAMESPACE} get pod -l app=redis-replication,redis-role=master,redis_setup_type=replication -o jsonpath='{.items[0].status.podIP}');
+              if [ "$FROM_SENTINEL" = "$MASTER_IP_FROM_LABEL" ] && [ "$FROM_SENTINEL" = "$MASTER_IP_FROM_STATUS" ]; then echo "OK"; else echo "FAIL"; fi
+            check:
+              (contains($stdout, 'OK')): true
+
+    - name: Delete the master pod (then it will create soon)
+      try:
+        - script:
+            timeout: 10s
+            content: |
+              export MASTER_POD_FROM_STATUS=$(kubectl -n ${NAMESPACE} get redisreplication redis-replication -o jsonpath='{.status.masterNode}');
+              kubectl -n ${NAMESPACE} delete pod ${MASTER_POD_FROM_STATUS}
+        - sleep:
+            duration: 120s
+
+    - name: Test Master IP consistency
+      try:
+        - script:
+            timeout: 10s
+            content: |
+              export MASTER_POD_FROM_STATUS=$(kubectl -n ${NAMESPACE} get redisreplication redis-replication -o jsonpath='{.status.masterNode}');
+              export MASTER_IP_FROM_STATUS=$(kubectl -n ${NAMESPACE} get pod ${MASTER_POD_FROM_STATUS} -o jsonpath='{.status.podIP}');
+              export FROM_SENTINEL=$(kubectl -n ${NAMESPACE} exec redis-sentinel-sentinel-0 -- redis-cli -a Opstree@1234sentinel -p 26379 sentinel get-master-addr-by-name myMaster | head -n 1);
+              export MASTER_IP_FROM_LABEL=$(kubectl -n ${NAMESPACE} get pod -l app=redis-replication,redis-role=master,redis_setup_type=replication -o jsonpath='{.items[0].status.podIP}');
+              if [ "$FROM_SENTINEL" = "$MASTER_IP_FROM_LABEL" ] && [ "$FROM_SENTINEL" = "$MASTER_IP_FROM_STATUS" ]; then echo "OK"; else echo "FAIL"; fi
+            check:
+              (contains($stdout, 'OK')): true
+
+    - name: Assert data
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container data-assert data-assert --
+              bash -c "cd /go/src/data-assert && go run main.go chk-redis-data \
+                       --host redis-sentinel-sentinel.${NAMESPACE}.svc.cluster.local:26379 \
+                       --mode sentinel \
+                       --password-sentinel Opstree@1234sentinel \
+                       --password Opstree@1234replication"
+            check:
+              (contains($stdout, 'OK')): true
