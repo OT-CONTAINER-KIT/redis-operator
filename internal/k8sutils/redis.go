@@ -551,7 +551,12 @@ func checkRedisNodePresence(ctx context.Context, cr *rcvb2.RedisCluster, nodeLis
 }
 
 func SentinelGetMasterAddress(ctx context.Context, client kubernetes.Interface, cr *rsvb2.RedisSentinel) (string, error) {
-	masterName := cr.Spec.RedisSentinelConfig.MasterGroupName
+	masterName := "myMaster"
+
+	if cr.Spec.RedisSentinelConfig != nil && cr.Spec.RedisSentinelConfig.MasterGroupName != "" {
+		masterName = cr.Spec.RedisSentinelConfig.MasterGroupName
+	}
+
 	podName := cr.Name + "-sentinel-0"
 	sentinelClient := configureSentinelClient(ctx, client, cr, podName)
 	defer sentinelClient.Close()
