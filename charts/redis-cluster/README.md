@@ -72,10 +72,12 @@ helm delete <my-release> --namespace <namespace>
 | redisCluster.clusterVersion | string | `"v7"` |  |
 | redisCluster.enableMasterSlaveAntiAffinity | bool | `false` | Enable pod anti-affinity between leader and follower pods by adding the appropriate label. Notice that this requires the operator to have its mutating webhook enabled, otherwise it will only add an annotation to the RedisCluster CR. Default is false. |
 | redisCluster.follower.affinity | string | `nil` |  |
+| redisCluster.follower.livenessProbe | object | `{}` |  |
 | redisCluster.follower.nodeSelector | string | `nil` |  |
 | redisCluster.follower.pdb.enabled | bool | `false` |  |
 | redisCluster.follower.pdb.maxUnavailable | int | `1` |  |
 | redisCluster.follower.pdb.minAvailable | int | `1` |  |
+| redisCluster.follower.readinessProbe | object | `{}` |  |
 | redisCluster.follower.replicas | int | `3` |  |
 | redisCluster.follower.securityContext | object | `{}` |  |
 | redisCluster.follower.serviceType | string | `"ClusterIP"` |  |
@@ -84,10 +86,12 @@ helm delete <my-release> --namespace <namespace>
 | redisCluster.imagePullPolicy | string | `"IfNotPresent"` |  |
 | redisCluster.imagePullSecrets | object | `{}` |  |
 | redisCluster.leader.affinity | object | `{}` |  |
+| redisCluster.leader.livenessProbe | object | `{}` |  |
 | redisCluster.leader.nodeSelector | string | `nil` |  |
 | redisCluster.leader.pdb.enabled | bool | `false` |  |
 | redisCluster.leader.pdb.maxUnavailable | int | `1` |  |
 | redisCluster.leader.pdb.minAvailable | int | `1` |  |
+| redisCluster.leader.readinessProbe | object | `{}` |  |
 | redisCluster.leader.replicas | int | `3` |  |
 | redisCluster.leader.securityContext | object | `{}` |  |
 | redisCluster.leader.serviceType | string | `"ClusterIP"` |  |
