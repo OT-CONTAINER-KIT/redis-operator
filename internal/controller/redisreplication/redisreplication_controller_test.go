@@ -5,13 +5,17 @@ import (
 	"os"
 	"path/filepath"
 
+	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
+	controllercommon "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/testutil"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -102,6 +106,27 @@ var _ = Describe("Redis Replication Controller", func() {
 			Expect(exporterContainer).NotTo(BeNil())
 			Expect(exporterContainer.Image).To(Equal(redisReplication.Spec.RedisExporter.Image))
 			Expect(exporterContainer.ImagePullPolicy).To(Equal(redisReplication.Spec.RedisExporter.ImagePullPolicy))
+		})
+	})
+
+	Context("When testing skip-reconcile annotation behavior", func() {
+		It("should trigger reconcile when skip-reconcile annotation changes from true to false", func() {
+			testutil.RunSkipReconcileTest(k8sClient, testutil.SkipReconcileTestConfig{
+				Object: &rrvb2.RedisReplication{
+					ObjectMeta: testutil.CreateTestObject("redis-replication-skip-test", ns, nil),
+					Spec: rrvb2.RedisReplicationSpec{
+						Size: ptr.To(int32(3)),
+						KubernetesConfig: common.KubernetesConfig{
+							Image: testutil.DefaultRedisImage,
+						},
+					},
+				},
+				SkipAnnotationKey: controllercommon.RedisReplicationSkipReconcileAnnotation,
+				StatefulSetName:   "redis-replication-skip-test",
+				Namespace:         ns,
+				Timeout:           timeout,
+				Interval:          interval,
+			})
 		})
 	})
 })

@@ -21,6 +21,7 @@ import (
 	"time"
 
 	rvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redis/v1beta2"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/controllerutil"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	"k8s.io/client-go/kubernetes"
@@ -48,8 +49,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		return intctrlutil.Reconciled()
 	}
-	if value, found := instance.ObjectMeta.GetAnnotations()["redis.opstreelabs.in/skip-reconcile"]; found && value == "true" {
-		return intctrlutil.RequeueAfter(ctx, time.Second*10, "found skip reconcile annotation")
+	if common.IsSkipReconcile(ctx, instance) {
+		return intctrlutil.Reconciled()
 	}
 	if err = k8sutils.AddFinalizer(ctx, instance, k8sutils.RedisFinalizer, r.Client); err != nil {
 		return intctrlutil.RequeueWithError(ctx, err, "failed to add finalizer")
