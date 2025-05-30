@@ -25,24 +25,11 @@ type Client interface {
 
 func (c *client) Connect(info *ConnectionInfo) Service {
 	service := &service{}
-	service.client = &client{
-		new: func(ctx context.Context) (*rediscli.Client, error) {
-			opts := &rediscli.Options{
-				Addr:     net.JoinHostPort(info.IP, info.Port),
-				Password: info.Password,
-				DB:       0,
-			}
-			rClient := rediscli.NewClient(opts)
-			defer rClient.Close()
-			return rClient, nil
-		},
-	}
+	service.connectionInfo = info
 	return service
 }
 
-type client struct {
-	new func(ctx context.Context) (*rediscli.Client, error)
-}
+type client struct{}
 
 func NewClient() Client {
 	return &client{}
@@ -56,20 +43,34 @@ type Service interface {
 }
 
 type service struct {
-	client *client
+	connectionInfo *ConnectionInfo
 }
 
 func NewService() Service {
 	return &service{}
 }
 
-func (c *service) SentinelReset(ctx context.Context, masterGroupName string) error {
-	client, err := c.client.new(ctx)
-	if err != nil {
-		return err
+func (s *service) createClient() *rediscli.Client {
+	if s.connectionInfo == nil {
+		return nil
 	}
+	opts := &rediscli.Options{
+		Addr:     net.JoinHostPort(s.connectionInfo.IP, s.connectionInfo.Port),
+		Password: s.connectionInfo.Password,
+		DB:       0,
+	}
+	return rediscli.NewClient(opts)
+}
+
+func (c *service) SentinelReset(ctx context.Context, masterGroupName string) error {
+	client := c.createClient()
+	if client == nil {
+		return nil
+	}
+	defer client.Close()
+
 	cmd := rediscli.NewStringCmd(ctx, "SENTINEL", "RESET", masterGroupName)
-	err = client.Process(ctx, cmd)
+	err := client.Process(ctx, cmd)
 	if err != nil {
 		return err
 	}
@@ -85,10 +86,12 @@ func (c *service) SentinelMonitor(ctx context.Context, master *ConnectionInfo, m
 		err error
 	)
 
-	client, err := c.client.new(ctx)
-	if err != nil {
-		return err
+	client := c.createClient()
+	if client == nil {
+		return nil
 	}
+	defer client.Close()
+
 	cmd = rediscli.NewBoolCmd(ctx, "SENTINEL", "REMOVE", masterGroupName)
 	err = client.Process(ctx, cmd)
 	if err != nil {
@@ -122,10 +125,12 @@ func (c *service) SentinelMonitor(ctx context.Context, master *ConnectionInfo, m
 }
 
 func (c *service) IsMaster(ctx context.Context) (bool, error) {
-	client, err := c.client.new(ctx)
-	if err != nil {
-		return false, err
+	client := c.createClient()
+	if client == nil {
+		return false, nil
 	}
+	defer client.Close()
+
 	result, err := client.Info(ctx, "replication").Result()
 	if err != nil {
 		return false, err
@@ -134,10 +139,12 @@ func (c *service) IsMaster(ctx context.Context) (bool, error) {
 }
 
 func (c *service) GetAttachedReplicaCount(ctx context.Context) (int, error) {
-	client, err := c.client.new(ctx)
-	if err != nil {
-		return 0, err
+	client := c.createClient()
+	if client == nil {
+		return 0, nil
 	}
+	defer client.Close()
+
 	result, err := client.Info(ctx, "replication").Result()
 	if err != nil {
 		return 0, err
