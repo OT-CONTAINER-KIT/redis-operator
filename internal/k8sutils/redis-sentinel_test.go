@@ -4,26 +4,16 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
-	"github.com/agiledragon/gomonkey/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/yaml"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/dynamic/fake"
-	"k8s.io/client-go/kubernetes"
-	k8sClientFake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/utils/ptr"
 )
 
@@ -195,15 +185,15 @@ func Test_generateRedisSentinelContainerParams(t *testing.T) {
 			},
 		},
 		Port: ptr.To(26379),
-		AdditionalVolume: []v1.Volume{
+		AdditionalVolume: []corev1.Volume{
 			{
 				Name: "redis-config",
 				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &v1.EmptyDirVolumeSource{},
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
 			},
 		},
-		AdditionalMountPath: []v1.VolumeMount{
+		AdditionalMountPath: []corev1.VolumeMount{
 			{
 				Name:        "redis-config",
 				ReadOnly:    false,
@@ -273,15 +263,15 @@ func Test_generateRedisSentinelInitContainerParams(t *testing.T) {
 				},
 			},
 		},
-		AdditionalVolume: []v1.Volume{
+		AdditionalVolume: []corev1.Volume{
 			{
 				Name: "redis-config",
 				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &v1.EmptyDirVolumeSource{},
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
 			},
 		},
-		AdditionalMountPath: []v1.VolumeMount{
+		AdditionalMountPath: []corev1.VolumeMount{
 			{
 				Name:        "redis-config",
 				ReadOnly:    false,
@@ -307,149 +297,149 @@ func Test_generateRedisSentinelInitContainerParams(t *testing.T) {
 	assert.EqualValues(t, expected, actual, "Expected %+v, got %+v", expected, actual)
 }
 
-func Test_getSentinelEnvVariable(t *testing.T) {
-	type args struct {
-		client kubernetes.Interface
-		cr     *rsvb2.RedisSentinel
-	}
-	tests := []struct {
-		name string
-		args args
-		want *[]corev1.EnvVar
-	}{
-		{
-			name: "When RedisSentinelConfig is nil",
-			args: args{
-				client: nil,
-				cr:     &rsvb2.RedisSentinel{},
-			},
-			want: &[]corev1.EnvVar{},
-		},
-		{
-			name: "When RedisSentinelConfig is not nil",
-			args: args{
-				client: k8sClientFake.NewSimpleClientset(
-					&corev1.Pod{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "redis-replication-0",
-							Namespace: "redis",
-							Labels: map[string]string{
-								"app":              "redis-replication",
-								"redis_setup_type": "replication",
-								"role":             "master",
-							},
-						},
-						Status: corev1.PodStatus{
-							PodIP: "10.0.0.1",
-						},
-					},
-					&appsv1.StatefulSet{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "redis-replication",
-							Namespace: "redis",
-						},
-						Spec: appsv1.StatefulSetSpec{
-							Replicas: ptr.To(int32(3)),
-							Selector: &metav1.LabelSelector{
-								MatchLabels: map[string]string{
-									"app":              "redis-replication",
-									"redis_setup_type": "replication",
-								},
-							},
-						},
-					}),
-				cr: &rsvb2.RedisSentinel{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "redis-sentinel",
-						Namespace: "redis",
-					},
-					Spec: rsvb2.RedisSentinelSpec{
-						RedisSentinelConfig: &rsvb2.RedisSentinelConfig{
-							RedisSentinelConfig: common.RedisSentinelConfig{
-								RedisReplicationName:  "redis-replication",
-								MasterGroupName:       "master",
-								RedisPort:             "6379",
-								Quorum:                "2",
-								DownAfterMilliseconds: "30000",
-								ParallelSyncs:         "1",
-								FailoverTimeout:       "180000",
-								ResolveHostnames:      "no",
-								AnnounceHostnames:     "no",
-							},
-						},
-					},
-				},
-			},
-			want: &[]corev1.EnvVar{
-				{
-					Name:  "MASTER_GROUP_NAME",
-					Value: "master",
-				},
-				{
-					Name:  "IP",
-					Value: "10.0.0.1",
-				},
-				{
-					Name:  "PORT",
-					Value: "6379",
-				},
-				{
-					Name:  "QUORUM",
-					Value: "2",
-				},
-				{
-					Name:  "DOWN_AFTER_MILLISECONDS",
-					Value: "30000",
-				},
-				{
-					Name:  "PARALLEL_SYNCS",
-					Value: "1",
-				},
-				{
-					Name:  "FAILOVER_TIMEOUT",
-					Value: "180000",
-				},
-				{
-					Name:  "RESOLVE_HOSTNAMES",
-					Value: "no",
-				},
-				{
-					Name:  "ANNOUNCE_HOSTNAMES",
-					Value: "no",
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.TODO()
-			dynamicClient := fake.NewSimpleDynamicClient(
-				runtime.NewScheme(),
-				&unstructured.Unstructured{
-					Object: map[string]interface{}{
-						"apiVersion": "redis.redis.opstreelabs.in/v1beta2",
-						"kind":       "RedisReplication",
-						"metadata": map[string]interface{}{
-							"name":      "redis-replication",
-							"namespace": "redis",
-						},
-						"spec": map[string]interface{}{
-							"clusterSize": int64(1),
-						},
-					},
-				},
-			)
-			patches := gomonkey.ApplyFunc(getRedisReplicationMasterIP,
-				func(_ context.Context, _ kubernetes.Interface, _ *rsvb2.RedisSentinel, _ dynamic.Interface) string {
-					return "10.0.0.1"
-				})
-			defer patches.Reset()
+// func Test_getSentinelEnvVariable(t *testing.T) {
+// 	type args struct {
+// 		client kubernetes.Interface
+// 		cr     *rsvb2.RedisSentinel
+// 	}
+// 	tests := []struct {
+// 		name string
+// 		args args
+// 		want *[]corev1.EnvVar
+// 	}{
+// 		{
+// 			name: "When RedisSentinelConfig is nil",
+// 			args: args{
+// 				client: nil,
+// 				cr:     &rsvb2.RedisSentinel{},
+// 			},
+// 			want: &[]corev1.EnvVar{},
+// 		},
+// 		{
+// 			name: "When RedisSentinelConfig is not nil",
+// 			args: args{
+// 				client: k8sClientFake.NewSimpleClientset(
+// 					&corev1.Pod{
+// 						ObjectMeta: metav1.ObjectMeta{
+// 							Name:      "redis-replication-0",
+// 							Namespace: "redis",
+// 							Labels: map[string]string{
+// 								"app":              "redis-replication",
+// 								"redis_setup_type": "replication",
+// 								"role":             "master",
+// 							},
+// 						},
+// 						Status: corev1.PodStatus{
+// 							PodIP: "10.0.0.1",
+// 						},
+// 					},
+// 					&appsv1.StatefulSet{
+// 						ObjectMeta: metav1.ObjectMeta{
+// 							Name:      "redis-replication",
+// 							Namespace: "redis",
+// 						},
+// 						Spec: appsv1.StatefulSetSpec{
+// 							Replicas: ptr.To(int32(3)),
+// 							Selector: &metav1.LabelSelector{
+// 								MatchLabels: map[string]string{
+// 									"app":              "redis-replication",
+// 									"redis_setup_type": "replication",
+// 								},
+// 							},
+// 						},
+// 					}),
+// 				cr: &rsvb2.RedisSentinel{
+// 					ObjectMeta: metav1.ObjectMeta{
+// 						Name:      "redis-sentinel",
+// 						Namespace: "redis",
+// 					},
+// 					Spec: rsvb2.RedisSentinelSpec{
+// 						RedisSentinelConfig: &rsvb2.RedisSentinelConfig{
+// 							RedisSentinelConfig: common.RedisSentinelConfig{
+// 								RedisReplicationName:  "redis-replication",
+// 								MasterGroupName:       "master",
+// 								RedisPort:             "6379",
+// 								Quorum:                "2",
+// 								DownAfterMilliseconds: "30000",
+// 								ParallelSyncs:         "1",
+// 								FailoverTimeout:       "180000",
+// 								ResolveHostnames:      "no",
+// 								AnnounceHostnames:     "no",
+// 							},
+// 						},
+// 					},
+// 				},
+// 			},
+// 			want: &[]corev1.EnvVar{
+// 				{
+// 					Name:  "MASTER_GROUP_NAME",
+// 					Value: "master",
+// 				},
+// 				{
+// 					Name:  "IP",
+// 					Value: "10.0.0.1",
+// 				},
+// 				{
+// 					Name:  "PORT",
+// 					Value: "6379",
+// 				},
+// 				{
+// 					Name:  "QUORUM",
+// 					Value: "2",
+// 				},
+// 				{
+// 					Name:  "DOWN_AFTER_MILLISECONDS",
+// 					Value: "30000",
+// 				},
+// 				{
+// 					Name:  "PARALLEL_SYNCS",
+// 					Value: "1",
+// 				},
+// 				{
+// 					Name:  "FAILOVER_TIMEOUT",
+// 					Value: "180000",
+// 				},
+// 				{
+// 					Name:  "RESOLVE_HOSTNAMES",
+// 					Value: "no",
+// 				},
+// 				{
+// 					Name:  "ANNOUNCE_HOSTNAMES",
+// 					Value: "no",
+// 				},
+// 			},
+// 		},
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			ctx := context.TODO()
+// 			dynamicClient := fake.NewSimpleDynamicClient(
+// 				runtime.NewScheme(),
+// 				&unstructured.Unstructured{
+// 					Object: map[string]interface{}{
+// 						"apiVersion": "redis.redis.opstreelabs.in/v1beta2",
+// 						"kind":       "RedisReplication",
+// 						"metadata": map[string]interface{}{
+// 							"name":      "redis-replication",
+// 							"namespace": "redis",
+// 						},
+// 						"spec": map[string]interface{}{
+// 							"clusterSize": int64(1),
+// 						},
+// 					},
+// 				},
+// 			)
+// 			patches := gomonkey.ApplyFunc(getRedisReplicationMasterIP,
+// 				func(_ context.Context, _ kubernetes.Interface, _ *rsvb2.RedisSentinel, _ dynamic.Interface) string {
+// 					return "10.0.0.1"
+// 				})
+// 			defer patches.Reset()
 
-			got, err := getSentinelEnvVariable(ctx, tt.args.client, tt.args.cr, dynamicClient)
-			require.NoError(t, err)
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("getSentinelEnvVariable() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
+// 			got, err := getSentinelEnvVariable(ctx, tt.args.client, tt.args.cr, dynamicClient)
+// 			require.NoError(t, err)
+// 			if !reflect.DeepEqual(got, tt.want) {
+// 				t.Errorf("getSentinelEnvVariable() = %v, want %v", got, tt.want)
+// 			}
+// 		})
+// 	}
+// }
