@@ -155,11 +155,6 @@ func generateRedisSentinelInitContainerParams(cr *rsvb2.RedisSentinel) initConta
 func generateRedisSentinelContainerParams(ctx context.Context, client kubernetes.Interface, cr *rsvb2.RedisSentinel, readinessProbeDef *corev1.Probe, livenessProbeDef *corev1.Probe, dcl dynamic.Interface) (containerParameters, error) {
 	trueProperty := true
 	falseProperty := false
-	envVars, err := getSentinelEnvVariable(ctx, client, cr, dcl)
-	if err != nil {
-		log.FromContext(ctx).Error(err, "Cannot get Sentinel environment variables")
-		return containerParameters{}, err
-	}
 	containerProp := containerParameters{
 		Role:                  "sentinel",
 		Image:                 cr.Spec.KubernetesConfig.Image,
@@ -168,7 +163,7 @@ func generateRedisSentinelContainerParams(ctx context.Context, client kubernetes
 		SecurityContext:       cr.Spec.SecurityContext,
 		Port:                  ptr.To(sentinelPort),
 		HostPort:              cr.Spec.HostPort,
-		AdditionalEnvVariable: envVars,
+		AdditionalEnvVariable: getSentinelEnvVariable(cr),
 	}
 	if cr.Spec.EnvVars != nil {
 		containerProp.EnvVars = cr.Spec.EnvVars
@@ -262,31 +257,16 @@ func (service RedisSentinelService) CreateRedisSentinelService(ctx context.Conte
 	return nil
 }
 
-func getSentinelEnvVariable(ctx context.Context, client kubernetes.Interface, cr *rsvb2.RedisSentinel, dcl dynamic.Interface) (*[]corev1.EnvVar, error) {
+func getSentinelEnvVariable(cr *rsvb2.RedisSentinel) *[]corev1.EnvVar {
 	if cr.Spec.RedisSentinelConfig == nil {
-		return &[]corev1.EnvVar{}, nil
+		return &[]corev1.EnvVar{}
 	}
-
-	// var IP string
-	// if cr.Spec.RedisSentinelConfig.ResolveHostnames == "yes" {
-	// 	IP = getRedisReplicationMasterName(ctx, client, cr, dcl)
-	// } else {
-	// 	IP = getRedisReplicationMasterIP(ctx, client, cr, dcl)
-	// }
-
-	// if IP == "" {
-	// 	return &[]corev1.EnvVar{}, fmt.Errorf("failed to get master IP/hostname")
-	// }
 
 	envVar := &[]corev1.EnvVar{
 		{
 			Name:  "MASTER_GROUP_NAME",
 			Value: cr.Spec.RedisSentinelConfig.MasterGroupName,
 		},
-		// {
-		// 	Name:  "IP",
-		// 	Value: IP,
-		// },
 		{
 			Name:  "PORT",
 			Value: cr.Spec.RedisSentinelConfig.RedisPort,
@@ -323,7 +303,7 @@ func getSentinelEnvVariable(ctx context.Context, client kubernetes.Interface, cr
 			ValueFrom: cr.Spec.RedisSentinelConfig.RedisReplicationPassword,
 		})
 	}
-	return envVar, nil
+	return envVar
 }
 
 func getRedisReplicationMasterPod(ctx context.Context, client kubernetes.Interface, cr *rsvb2.RedisSentinel, dcl dynamic.Interface) RedisDetails {
