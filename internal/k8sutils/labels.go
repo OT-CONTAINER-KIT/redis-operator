@@ -141,16 +141,36 @@ func LabelSelectors(labels map[string]string) *metav1.LabelSelector {
 	return &metav1.LabelSelector{MatchLabels: labels}
 }
 
-func getRedisLabels(name string, st setupType, role string, labels map[string]string) map[string]string {
-	lbls := map[string]string{
-		"app":              name,
-		"redis_setup_type": string(st),
-		"role":             role,
+// extractStatefulSetSelectorLabels creates selector labels specifically for StatefulSet
+// This function filters out potentially changing labels to avoid StatefulSet update failures
+func extractStatefulSetSelectorLabels(allLabels map[string]string) map[string]string {
+	selectorLabels := make(map[string]string)
+
+	// Only include stable labels in selector
+	stableKey := getRedisStableLabels("", "", "")
+	for key := range stableKey {
+		if value, exists := allLabels[key]; exists {
+			selectorLabels[key] = value
+		}
 	}
+
+	return selectorLabels
+}
+
+func getRedisLabels(name string, st setupType, role string, labels map[string]string) map[string]string {
+	lbls := getRedisStableLabels(name, string(st), role)
 	for k, v := range labels {
 		lbls[k] = v
 	}
 	return lbls
+}
+
+func getRedisStableLabels(name, st, role string) map[string]string {
+	return map[string]string{
+		"app":              name,
+		"redis_setup_type": st,
+		"role":             role,
+	}
 }
 
 func GetRedisReplicationLabels(cr *rrvb2.RedisReplication) map[string]string {

@@ -267,11 +267,14 @@ func mergeAnnotations(stored, new *appsv1.StatefulSet) {
 
 // generateStatefulSetsDef generates the statefulsets definition of Redis
 func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, initcontainerParams initContainerParameters, containerParams containerParameters, sidecars []common.Sidecar) *appsv1.StatefulSet {
+	// Generate stable selector labels (only core labels that won't change)
+	selectorLabels := extractStatefulSetSelectorLabels(stsMeta.GetLabels())
+
 	statefulset := &appsv1.StatefulSet{
 		TypeMeta:   generateMetaInformation("StatefulSet", "apps/v1"),
 		ObjectMeta: stsMeta,
 		Spec: appsv1.StatefulSetSpec{
-			Selector:        LabelSelectors(stsMeta.GetLabels()),
+			Selector:        LabelSelectors(selectorLabels),
 			ServiceName:     fmt.Sprintf("%s-headless", stsMeta.Name),
 			Replicas:        params.Replicas,
 			UpdateStrategy:  params.UpdateStrategy,
