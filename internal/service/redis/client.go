@@ -80,7 +80,6 @@ func (c *service) SentinelReset(ctx context.Context, masterGroupName string) err
 }
 
 func (c *service) SentinelMonitor(ctx context.Context, master *ConnectionInfo, masterGroupName, quorum string) error {
-
 	var (
 		cmd *rediscli.BoolCmd
 		err error

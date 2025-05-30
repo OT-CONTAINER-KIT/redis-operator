@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
@@ -397,14 +396,5 @@ func getRedisReplicationMasterIP(ctx context.Context, client kubernetes.Interfac
 		return ""
 	} else {
 		return getRedisServerIP(ctx, client, RedisDetails)
-	}
-}
-
-func getRedisReplicationMasterName(ctx context.Context, client kubernetes.Interface, cr *rsvb2.RedisSentinel, dcl dynamic.Interface) string {
-	RedisDetails := getRedisReplicationMasterPod(ctx, client, cr, dcl)
-	if RedisDetails.PodName == "" || RedisDetails.Namespace == "" {
-		return ""
-	} else {
-		return fmt.Sprintf("%s.%s-headless.%s.svc", RedisDetails.PodName, cr.Spec.RedisSentinelConfig.RedisReplicationName, RedisDetails.Namespace)
 	}
 }
