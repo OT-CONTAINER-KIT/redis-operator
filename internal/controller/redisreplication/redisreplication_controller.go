@@ -33,12 +33,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	err := r.Client.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
-		return intctrlutil.RequeueWithErrorChecking(ctx, err, "failed to get RedisReplication instance")
+		return intctrlutil.RequeueECheck(ctx, err, "failed to get RedisReplication instance")
 	}
 
 	if k8sutils.IsDeleted(instance) {
 		if err := k8sutils.HandleRedisReplicationFinalizer(ctx, r.Client, instance); err != nil {
-			return intctrlutil.RequeueWithError(ctx, err, "")
+			return intctrlutil.RequeueE(ctx, err, "")
 		}
 		return intctrlutil.Reconciled()
 	}
@@ -61,7 +61,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	for _, reconciler := range reconcilers {
 		result, err := reconciler.rec(ctx, instance)
 		if err != nil {
-			return intctrlutil.RequeueWithError(ctx, err, "")
+			return intctrlutil.RequeueE(ctx, err, "")
 		}
 		if result.Requeue {
 			return result, nil
@@ -129,12 +129,12 @@ type reconciler struct {
 func (r *Reconciler) reconcileFinalizer(ctx context.Context, instance *rrvb2.RedisReplication) (ctrl.Result, error) {
 	if k8sutils.IsDeleted(instance) {
 		if err := k8sutils.HandleRedisReplicationFinalizer(ctx, r.Client, instance); err != nil {
-			return intctrlutil.RequeueWithError(ctx, err, "")
+			return intctrlutil.RequeueE(ctx, err, "")
 		}
 		return intctrlutil.Reconciled()
 	}
 	if err := k8sutils.AddFinalizer(ctx, instance, k8sutils.RedisReplicationFinalizer, r.Client); err != nil {
-		return intctrlutil.RequeueWithError(ctx, err, "")
+		return intctrlutil.RequeueE(ctx, err, "")
 	}
 	return intctrlutil.Reconciled()
 }
@@ -198,10 +198,10 @@ func (r *Reconciler) reconcileStatus(ctx context.Context, instance *rrvb2.RedisR
 	masterNodes := k8sutils.GetRedisNodesByRole(ctx, r.K8sClient, instance, "master")
 	realMaster = k8sutils.GetRedisReplicationRealMaster(ctx, r.K8sClient, instance, masterNodes)
 	if err = r.UpdateRedisReplicationMaster(ctx, instance, realMaster); err != nil {
-		return intctrlutil.RequeueWithError(ctx, err, "")
+		return intctrlutil.RequeueE(ctx, err, "")
 	}
 	if err = r.UpdateRedisPodRoleLabel(ctx, instance, realMaster); err != nil {
-		return intctrlutil.RequeueWithError(ctx, err, "")
+		return intctrlutil.RequeueE(ctx, err, "")
 	}
 
 	slaveNodes := k8sutils.GetRedisNodesByRole(ctx, r.K8sClient, instance, "slave")

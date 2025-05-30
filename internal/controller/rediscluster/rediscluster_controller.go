@@ -53,11 +53,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	err := r.Client.Get(context.TODO(), req.NamespacedName, instance)
 	if err != nil {
-		return intctrlutil.RequeueWithErrorChecking(ctx, err, "failed to get redis cluster instance")
+		return intctrlutil.RequeueECheck(ctx, err, "failed to get redis cluster instance")
 	}
 	if instance.ObjectMeta.GetDeletionTimestamp() != nil {
 		if err = k8sutils.HandleRedisClusterFinalizer(ctx, r.Client, instance); err != nil {
-			return intctrlutil.RequeueWithError(ctx, err, "failed to handle redis cluster finalizer")
+			return intctrlutil.RequeueE(ctx, err, "failed to handle redis cluster finalizer")
 		}
 		return intctrlutil.Reconciled()
 	}
@@ -71,7 +71,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	totalReplicas := leaderReplicas + followerReplicas
 
 	if err = k8sutils.AddFinalizer(ctx, instance, k8sutils.RedisClusterFinalizer, r.Client); err != nil {
-		return intctrlutil.RequeueWithError(ctx, err, "failed to add finalizer")
+		return intctrlutil.RequeueE(ctx, err, "failed to add finalizer")
 	}
 
 	// Check if the cluster is downscaled
@@ -94,7 +94,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 					logger.Info("Cluster Failover is initiated", "Shard.Index", shardIdx)
 					if err = k8sutils.ClusterFailover(ctx, r.K8sClient, instance, shardIdx); err != nil {
 						logger.Error(err, "Failed to initiate cluster failover")
-						return intctrlutil.RequeueWithError(ctx, err, "")
+						return intctrlutil.RequeueE(ctx, err, "")
 					}
 				}
 				// Step 1 Remove the Follower Node
@@ -117,24 +117,24 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		instance.Status.ReadyLeaderReplicas != leaderReplicas {
 		err = k8sutils.UpdateRedisClusterStatus(ctx, instance, rcvb2.RedisClusterInitializing, rcvb2.InitializingClusterLeaderReason, instance.Status.ReadyLeaderReplicas, instance.Status.ReadyFollowerReplicas, r.Dk8sClient)
 		if err != nil {
-			return intctrlutil.RequeueWithError(ctx, err, "")
+			return intctrlutil.RequeueE(ctx, err, "")
 		}
 	}
 
 	err = k8sutils.CreateRedisLeader(ctx, instance, r.K8sClient)
 	if err != nil {
-		return intctrlutil.RequeueWithError(ctx, err, "")
+		return intctrlutil.RequeueE(ctx, err, "")
 	}
 	if leaderReplicas != 0 {
 		err = k8sutils.CreateRedisLeaderService(ctx, instance, r.K8sClient)
 		if err != nil {
-			return intctrlutil.RequeueWithError(ctx, err, "")
+			return intctrlutil.RequeueE(ctx, err, "")
 		}
 	}
 
 	err = k8sutils.ReconcileRedisPodDisruptionBudget(ctx, instance, "leader", instance.Spec.RedisLeader.PodDisruptionBudget, r.K8sClient)
 	if err != nil {
-		return intctrlutil.RequeueWithError(ctx, err, "")
+		return intctrlutil.RequeueE(ctx, err, "")
 	}
 
 	if r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-leader") {
@@ -143,23 +143,23 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			instance.Status.ReadyFollowerReplicas != followerReplicas {
 			err = k8sutils.UpdateRedisClusterStatus(ctx, instance, rcvb2.RedisClusterInitializing, rcvb2.InitializingClusterFollowerReason, leaderReplicas, instance.Status.ReadyFollowerReplicas, r.Dk8sClient)
 			if err != nil {
-				return intctrlutil.RequeueWithError(ctx, err, "")
+				return intctrlutil.RequeueE(ctx, err, "")
 			}
 		}
 		// if we have followers create their service.
 		if followerReplicas != 0 {
 			err = k8sutils.CreateRedisFollowerService(ctx, instance, r.K8sClient)
 			if err != nil {
-				return intctrlutil.RequeueWithError(ctx, err, "")
+				return intctrlutil.RequeueE(ctx, err, "")
 			}
 		}
 		err = k8sutils.CreateRedisFollower(ctx, instance, r.K8sClient)
 		if err != nil {
-			return intctrlutil.RequeueWithError(ctx, err, "")
+			return intctrlutil.RequeueE(ctx, err, "")
 		}
 		err = k8sutils.ReconcileRedisPodDisruptionBudget(ctx, instance, "follower", instance.Spec.RedisFollower.PodDisruptionBudget, r.K8sClient)
 		if err != nil {
-			return intctrlutil.RequeueWithError(ctx, err, "")
+			return intctrlutil.RequeueE(ctx, err, "")
 		}
 	}
 
@@ -171,7 +171,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if !(instance.Status.ReadyLeaderReplicas == leaderReplicas && instance.Status.ReadyFollowerReplicas == followerReplicas) {
 		err = k8sutils.UpdateRedisClusterStatus(ctx, instance, rcvb2.RedisClusterBootstrap, rcvb2.BootstrapClusterReason, leaderReplicas, followerReplicas, r.Dk8sClient)
 		if err != nil {
-			return intctrlutil.RequeueWithError(ctx, err, "")
+			return intctrlutil.RequeueE(ctx, err, "")
 		}
 	}
 
@@ -210,7 +210,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if int(totalReplicas) > 1 && unhealthyNodeCount >= int(totalReplicas)-1 {
 		err = k8sutils.UpdateRedisClusterStatus(ctx, instance, rcvb2.RedisClusterFailed, "RedisCluster has too many unhealthy nodes", leaderReplicas, followerReplicas, r.Dk8sClient)
 		if err != nil {
-			return intctrlutil.RequeueWithError(ctx, err, "")
+			return intctrlutil.RequeueE(ctx, err, "")
 		}
 
 		logger.Info("healthy leader count does not match desired; attempting to repair disconnected masters")
@@ -235,7 +235,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		logger.Info("unhealthy nodes exist after attempting to repair disconnected masters; starting failover")
 		if err = k8sutils.ExecuteFailoverOperation(ctx, r.K8sClient, instance); err != nil {
-			return intctrlutil.RequeueWithError(ctx, err, "")
+			return intctrlutil.RequeueE(ctx, err, "")
 		}
 	}
 
@@ -250,12 +250,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			// Apply dynamic config to all Redis instances in the cluster
 			if err = k8sutils.SetRedisClusterDynamicConfig(ctx, r.K8sClient, instance); err != nil {
 				logger.Error(err, "Failed to set dynamic config")
-				return intctrlutil.RequeueWithError(ctx, err, "failed to set dynamic config")
+				return intctrlutil.RequeueE(ctx, err, "failed to set dynamic config")
 			}
 
 			err = k8sutils.UpdateRedisClusterStatus(ctx, instance, rcvb2.RedisClusterReady, rcvb2.ReadyClusterReason, leaderReplicas, followerReplicas, r.Dk8sClient)
 			if err != nil {
-				return intctrlutil.RequeueWithError(ctx, err, "")
+				return intctrlutil.RequeueE(ctx, err, "")
 			}
 		}
 	}

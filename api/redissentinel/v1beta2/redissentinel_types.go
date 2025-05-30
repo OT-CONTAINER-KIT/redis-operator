@@ -57,6 +57,10 @@ type RedisSentinel struct {
 	Status RedisSentinelStatus `json:"status,omitempty"`
 }
 
+func (rs *RedisSentinel) GetStatefulSetName() string {
+	return rs.Name + "-sentinel"
+}
+
 // +kubebuilder:object:root=true
 
 // RedisList contains a list of Redis
