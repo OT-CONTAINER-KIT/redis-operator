@@ -268,26 +268,26 @@ func getSentinelEnvVariable(ctx context.Context, client kubernetes.Interface, cr
 		return &[]corev1.EnvVar{}, nil
 	}
 
-	var IP string
-	if cr.Spec.RedisSentinelConfig.ResolveHostnames == "yes" {
-		IP = getRedisReplicationMasterName(ctx, client, cr, dcl)
-	} else {
-		IP = getRedisReplicationMasterIP(ctx, client, cr, dcl)
-	}
+	// var IP string
+	// if cr.Spec.RedisSentinelConfig.ResolveHostnames == "yes" {
+	// 	IP = getRedisReplicationMasterName(ctx, client, cr, dcl)
+	// } else {
+	// 	IP = getRedisReplicationMasterIP(ctx, client, cr, dcl)
+	// }
 
-	if IP == "" {
-		return &[]corev1.EnvVar{}, fmt.Errorf("failed to get master IP/hostname")
-	}
+	// if IP == "" {
+	// 	return &[]corev1.EnvVar{}, fmt.Errorf("failed to get master IP/hostname")
+	// }
 
 	envVar := &[]corev1.EnvVar{
 		{
 			Name:  "MASTER_GROUP_NAME",
 			Value: cr.Spec.RedisSentinelConfig.MasterGroupName,
 		},
-		{
-			Name:  "IP",
-			Value: IP,
-		},
+		// {
+		// 	Name:  "IP",
+		// 	Value: IP,
+		// },
 		{
 			Name:  "PORT",
 			Value: cr.Spec.RedisSentinelConfig.RedisPort,

@@ -57,6 +57,10 @@ type RedisReplication struct {
 	Status RedisReplicationStatus `json:"status,omitempty"`
 }
 
+func (rr *RedisReplication) GetStatefulSetName() string {
+	return rr.Name
+}
+
 // +kubebuilder:object:root=true
 
 // RedisList contains a list of Redis

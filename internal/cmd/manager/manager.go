@@ -23,6 +23,7 @@ import (
 	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/redis"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/scheme"
 	rediscontroller "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/redis"
 	redisclustercontroller "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/rediscluster"
@@ -231,6 +232,8 @@ func setupControllers(mgr ctrl.Manager, k8sClient kubernetes.Interface, dk8sClie
 	}
 	if err := (&redissentinelcontroller.RedisSentinelReconciler{
 		Client:             mgr.GetClient(),
+		Checker:            redis.NewChecker(k8sClient),
+		Healer:             redis.NewHealer(k8sClient),
 		K8sClient:          k8sClient,
 		Dk8sClient:         dk8sClient,
 		ReplicationWatcher: intctrlutil.NewResourceWatcher(),
