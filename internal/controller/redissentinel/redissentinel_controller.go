@@ -115,6 +115,10 @@ func (r *RedisSentinelReconciler) reconcileSentinel(ctx context.Context, instanc
 		return ctrl.Result{}, err
 	}
 
+	if instance.Spec.RedisSentinelConfig == nil {
+		return ctrl.Result{}, nil
+	}
+
 	rr := &rrvb2.RedisReplication{}
 	if err := r.Get(ctx, types.NamespacedName{
 		Namespace: instance.Namespace,
