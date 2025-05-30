@@ -25,7 +25,7 @@ func RequeueAfter(ctx context.Context, duration time.Duration, msg string, keysA
 	}, nil
 }
 
-func RequeueWithError(ctx context.Context, err error, msg string, keysAndValues ...interface{}) (reconcile.Result, error) {
+func RequeueE(ctx context.Context, err error, msg string, keysAndValues ...interface{}) (reconcile.Result, error) {
 	if msg == "" {
 		msg = "requeue with error"
 	}
@@ -33,9 +33,9 @@ func RequeueWithError(ctx context.Context, err error, msg string, keysAndValues 
 	return reconcile.Result{}, err
 }
 
-func RequeueWithErrorChecking(ctx context.Context, err error, msg string, keysAndValues ...interface{}) (reconcile.Result, error) {
+func RequeueECheck(ctx context.Context, err error, msg string, keysAndValues ...interface{}) (reconcile.Result, error) {
 	if apierrors.IsNotFound(err) {
 		return Reconciled()
 	}
-	return RequeueWithError(ctx, err, msg, keysAndValues...)
+	return RequeueE(ctx, err, msg, keysAndValues...)
 }

@@ -34,12 +34,12 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	err := r.Client.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
-		return intctrlutil.RequeueWithErrorChecking(ctx, err, "failed to get RedisSentinel instance")
+		return intctrlutil.RequeueECheck(ctx, err, "failed to get RedisSentinel instance")
 	}
 
 	if k8sutils.IsDeleted(instance) {
 		if err := k8sutils.HandleRedisSentinelFinalizer(ctx, r.Client, instance); err != nil {
-			return intctrlutil.RequeueWithError(ctx, err, "")
+			return intctrlutil.RequeueE(ctx, err, "")
 		}
 		return intctrlutil.Reconciled()
 	}
@@ -59,7 +59,7 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	for _, reconciler := range reconcilers {
 		result, err := reconciler.rec(ctx, instance)
 		if err != nil {
-			return intctrlutil.RequeueWithError(ctx, err, "")
+			return intctrlutil.RequeueE(ctx, err, "")
 		}
 		if result.Requeue {
 			return result, nil
@@ -79,12 +79,12 @@ type reconciler struct {
 func (r *RedisSentinelReconciler) reconcileFinalizer(ctx context.Context, instance *rsvb2.RedisSentinel) (ctrl.Result, error) {
 	if k8sutils.IsDeleted(instance) {
 		if err := k8sutils.HandleRedisSentinelFinalizer(ctx, r.Client, instance); err != nil {
-			return intctrlutil.RequeueWithError(ctx, err, "")
+			return intctrlutil.RequeueE(ctx, err, "")
 		}
 		return intctrlutil.Reconciled()
 	}
 	if err := k8sutils.AddFinalizer(ctx, instance, k8sutils.RedisSentinelFinalizer, r.Client); err != nil {
-		return intctrlutil.RequeueWithError(ctx, err, "")
+		return intctrlutil.RequeueE(ctx, err, "")
 	}
 	return intctrlutil.Reconciled()
 }
@@ -112,11 +112,11 @@ func (r *RedisSentinelReconciler) reconcileReplication(ctx context.Context, inst
 
 func (r *RedisSentinelReconciler) reconcileSentinel(ctx context.Context, instance *rsvb2.RedisSentinel) (ctrl.Result, error) {
 	if err := k8sutils.CreateRedisSentinel(ctx, r.K8sClient, instance, r.K8sClient, r.Dk8sClient); err != nil {
-		return ctrl.Result{}, err
+		return intctrlutil.RequeueE(ctx, err, "")
 	}
 
 	if instance.Spec.RedisSentinelConfig == nil {
-		return ctrl.Result{}, nil
+		return intctrlutil.Reconciled()
 	}
 
 	rr := &rrvb2.RedisReplication{}
@@ -124,12 +124,12 @@ func (r *RedisSentinelReconciler) reconcileSentinel(ctx context.Context, instanc
 		Namespace: instance.Namespace,
 		Name:      instance.Spec.RedisSentinelConfig.RedisReplicationName,
 	}, rr); err != nil {
-		return ctrl.Result{}, err
+		return intctrlutil.RequeueE(ctx, err, "")
 	}
 
 	var monitorAddr string
 	if master, err := r.Checker.GetMasterFromReplication(ctx, rr); err != nil {
-		return ctrl.Result{}, err
+		return intctrlutil.RequeueE(ctx, err, "")
 	} else {
 		if instance.Spec.RedisSentinelConfig.ResolveHostnames == "yes" {
 			monitorAddr = fmt.Sprintf("%s.%s-headless.%s.svc", master.Name, rr.Name, rr.Namespace)
@@ -139,25 +139,25 @@ func (r *RedisSentinelReconciler) reconcileSentinel(ctx context.Context, instanc
 	}
 
 	if err := r.Healer.SentinelMonitor(ctx, instance, monitorAddr); err != nil {
-		return ctrl.Result{}, err
+		return intctrlutil.RequeueE(ctx, err, "")
 	}
 	if err := r.Healer.SentinelReset(ctx, instance); err != nil {
-		return ctrl.Result{}, err
+		return intctrlutil.RequeueE(ctx, err, "")
 	}
 
-	return ctrl.Result{}, nil
+	return intctrlutil.Reconciled()
 }
 
 func (r *RedisSentinelReconciler) reconcilePDB(ctx context.Context, instance *rsvb2.RedisSentinel) (ctrl.Result, error) {
 	if err := k8sutils.ReconcileSentinelPodDisruptionBudget(ctx, instance, instance.Spec.PodDisruptionBudget, r.K8sClient); err != nil {
-		return intctrlutil.RequeueWithError(ctx, err, "")
+		return intctrlutil.RequeueE(ctx, err, "")
 	}
 	return intctrlutil.Reconciled()
 }
 
 func (r *RedisSentinelReconciler) reconcileService(ctx context.Context, instance *rsvb2.RedisSentinel) (ctrl.Result, error) {
 	if err := k8sutils.CreateRedisSentinelService(ctx, instance, r.K8sClient); err != nil {
-		return intctrlutil.RequeueWithError(ctx, err, "")
+		return intctrlutil.RequeueE(ctx, err, "")
 	}
 	return intctrlutil.Reconciled()
 }
