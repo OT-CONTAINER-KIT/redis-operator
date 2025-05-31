@@ -379,3 +379,71 @@ func TestRedisSentinelAsOwner(t *testing.T) {
 		t.Errorf("Expected %v but got %v", expectedOwnerReference, result)
 	}
 }
+
+func TestExtractStatefulSetSelectorLabels(t *testing.T) {
+	type args struct {
+		allLabels map[string]string
+	}
+	tests := []struct {
+		name string
+		args args
+		want map[string]string
+	}{
+		{
+			name: "filter-helm-labels",
+			args: args{
+				allLabels: map[string]string{
+					"app":                       "redis-replication",
+					"redis_setup_type":          "replication",
+					"role":                      "replication",
+					"helm.sh/chart":             "redis-replication-4.5.6",
+					"app.kubernetes.io/name":    "redis-replication",
+					"app.kubernetes.io/version": "v7.0.12",
+					"custom-label":              "custom-value",
+				},
+			},
+			want: map[string]string{
+				"app":              "redis-replication",
+				"redis_setup_type": "replication",
+				"role":             "replication",
+			},
+		},
+		{
+			name: "only-stable-labels",
+			args: args{
+				allLabels: map[string]string{
+					"app":              "redis-cluster",
+					"redis_setup_type": "cluster",
+					"role":             "leader",
+				},
+			},
+			want: map[string]string{
+				"app":              "redis-cluster",
+				"redis_setup_type": "cluster",
+				"role":             "leader",
+			},
+		},
+		{
+			name: "missing-some-stable-labels",
+			args: args{
+				allLabels: map[string]string{
+					"app":                        "redis-standalone",
+					"role":                       "standalone",
+					"helm.sh/chart":              "redis-3.2.1",
+					"app.kubernetes.io/instance": "my-redis",
+				},
+			},
+			want: map[string]string{
+				"app":  "redis-standalone",
+				"role": "standalone",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := extractStatefulSetSelectorLabels(tt.args.allLabels); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("extractStatefulSetSelectorLabels() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

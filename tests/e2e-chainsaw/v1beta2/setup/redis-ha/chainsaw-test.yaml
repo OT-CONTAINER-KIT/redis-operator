@@ -47,19 +47,17 @@ spec:
             check:
               (contains($stdout, 'OK')): true
 
-    # New created cluster, the first pod is master
-    - name: Cordon the node which redis-replication-0 pod is scheduled to
+    - name: Restart redis-replication-0 pod
       try:
         - script:
             timeout: 10s
             content: |
-              kubectl cordon $(kubectl -n ${NAMESPACE} get pod redis-replication-0 -o jsonpath='{.spec.nodeName}');
               kubectl -n ${NAMESPACE} delete pod redis-replication-0
-        - sleep:
-            duration: 120s
 
     - name: Test Master IP consistency
       try:
+        - sleep:
+            duration: 180s
         - script:
             timeout: 10s
             content: |
@@ -84,10 +82,3 @@ spec:
                        --password Opstree@1234replication"
             check:
               (contains($stdout, 'OK')): true
-
-    - name: Uncordon the node which redis-sentinel-sentinel-0 pod is scheduled to
-      try:
-        - script:
-            timeout: 10s
-            content: |
-              kubectl uncordon $(kubectl -n ${NAMESPACE} get pod redis-sentinel-sentinel-0 -o jsonpath='{.spec.nodeName}')

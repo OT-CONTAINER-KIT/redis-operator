@@ -1432,8 +1432,10 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 				},
 				Spec: appsv1.StatefulSetSpec{
 					ServiceName: "test-sts-headless",
-					Selector:    &metav1.LabelSelector{},
-					Replicas:    ptr.To(int32(3)),
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{},
+					},
+					Replicas: ptr.To(int32(3)),
 					Template: v1.PodTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{
 							Annotations: map[string]string{
@@ -1623,8 +1625,10 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 				},
 				Spec: appsv1.StatefulSetSpec{
 					ServiceName: "test-sts-headless",
-					Selector:    &metav1.LabelSelector{},
-					Replicas:    ptr.To(int32(3)),
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{},
+					},
+					Replicas: ptr.To(int32(3)),
 					Template: v1.PodTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{
 							Annotations: map[string]string{
@@ -1824,6 +1828,61 @@ func TestGetSidecars(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			result := getSidecars(test.sideCars)
 			assert.Equal(t, test.expectedSidecar, result)
+		})
+	}
+}
+
+func TestStatefulSetSelectorLabels(t *testing.T) {
+	tests := []struct {
+		name                   string
+		inputLabels            map[string]string
+		expectedSelectorLabels map[string]string
+	}{
+		{
+			name: "helm-labels-filtered-out",
+			inputLabels: map[string]string{
+				"app":                        "redis-replication",
+				"redis_setup_type":           "replication",
+				"role":                       "replication",
+				"helm.sh/chart":              "redis-replication-4.5.6",
+				"app.kubernetes.io/version":  "v7.0.12",
+				"app.kubernetes.io/instance": "my-redis",
+			},
+			expectedSelectorLabels: map[string]string{
+				"app":              "redis-replication",
+				"redis_setup_type": "replication",
+				"role":             "replication",
+			},
+		},
+		{
+			name: "only-stable-labels-present",
+			inputLabels: map[string]string{
+				"app":              "redis-cluster",
+				"redis_setup_type": "cluster",
+				"role":             "leader",
+			},
+			expectedSelectorLabels: map[string]string{
+				"app":              "redis-cluster",
+				"redis_setup_type": "cluster",
+				"role":             "leader",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create test StatefulSet metadata
+			stsMeta := metav1.ObjectMeta{
+				Name:      "test-sts",
+				Namespace: "test-ns",
+				Labels:    tt.inputLabels,
+			}
+
+			// Call our StatefulSet generation function
+			selectorLabels := extractStatefulSetSelectorLabels(stsMeta.GetLabels())
+
+			// Verify that the generated selector labels are correct
+			assert.Equal(t, tt.expectedSelectorLabels, selectorLabels, "StatefulSet selector labels should be filtered correctly")
 		})
 	}
 }
