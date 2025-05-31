@@ -1432,8 +1432,10 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 				},
 				Spec: appsv1.StatefulSetSpec{
 					ServiceName: "test-sts-headless",
-					Selector:    &metav1.LabelSelector{},
-					Replicas:    ptr.To(int32(3)),
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{},
+					},
+					Replicas: ptr.To(int32(3)),
 					Template: v1.PodTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{
 							Annotations: map[string]string{
@@ -1623,8 +1625,10 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 				},
 				Spec: appsv1.StatefulSetSpec{
 					ServiceName: "test-sts-headless",
-					Selector:    &metav1.LabelSelector{},
-					Replicas:    ptr.To(int32(3)),
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{},
+					},
+					Replicas: ptr.To(int32(3)),
 					Template: v1.PodTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{
 							Annotations: map[string]string{
