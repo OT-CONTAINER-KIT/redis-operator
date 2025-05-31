@@ -29,8 +29,8 @@ func main() {
 		Use:   "operator",
 		Short: "Redis Operator for Kubernetes",
 	}
-	rootCmd.AddCommand(manager.CreateCommand())
-	rootCmd.AddCommand(agent.CreateCommand())
+	rootCmd.AddCommand(manager.CMD())
+	rootCmd.AddCommand(agent.CMD())
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
