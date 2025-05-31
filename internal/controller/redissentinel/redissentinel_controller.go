@@ -17,6 +17,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // RedisSentinelReconciler reconciles a RedisSentinel object
@@ -37,6 +38,8 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return intctrlutil.RequeueECheck(ctx, err, "failed to get RedisSentinel instance")
 	}
 
+	var statusResult ctrl.Result
+
 	if k8sutils.IsDeleted(instance) {
 		if err := k8sutils.HandleRedisSentinelFinalizer(ctx, r.Client, instance); err != nil {
 			return intctrlutil.RequeueE(ctx, err, "")
@@ -54,6 +57,7 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		{typ: "sentinel", rec: r.reconcileSentinel},
 		{typ: "pdb", rec: r.reconcilePDB},
 		{typ: "service", rec: r.reconcileService},
+		{typ: "status", rec: r.reconcileStatus},
 	}
 
 	for _, reconciler := range reconcilers {
@@ -61,11 +65,19 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		if err != nil {
 			return intctrlutil.RequeueE(ctx, err, "")
 		}
+
+		if reconciler.typ == "status" {
+			statusResult = result
+		}
+
 		if result.Requeue {
 			return result, nil
 		}
 	}
 
+	if statusResult.RequeueAfter > 0 {
+		return statusResult, nil
+	}
 	// DO NOT REQUEUE.
 	// only reconcile on resource(sentinel && watched redis replication) changes
 	return intctrlutil.Reconciled()
@@ -160,6 +172,36 @@ func (r *RedisSentinelReconciler) reconcileService(ctx context.Context, instance
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
 	return intctrlutil.Reconciled()
+}
+
+func (r *RedisSentinelReconciler) reconcileStatus(ctx context.Context, instance *rsvb2.RedisSentinel) (ctrl.Result, error) {
+	// check quorum
+	quorumStatus := "Unhealthy"
+	quorum, err := k8sutils.SentinelCheckQuorum(ctx, r.K8sClient, instance)
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Non-critical error during quorum check")
+	}
+
+	if quorum {
+		quorumStatus = "Healthy"
+	}
+
+	// master address
+	masterAddress, err := k8sutils.SentinelGetMasterAddress(ctx, r.K8sClient, instance)
+	if err != nil {
+		instance.Status.MasterAddress = "Unknown"
+		log.FromContext(ctx).Error(err, "Failed to get master address")
+	}
+
+	if instance.Status.Quorum != quorumStatus || instance.Status.MasterAddress != masterAddress {
+		instance.Status.Quorum = quorumStatus
+		instance.Status.MasterAddress = masterAddress
+		if err := r.Status().Update(ctx, instance); err != nil {
+			return intctrlutil.RequeueWithError(ctx, err, "failed to update status")
+		}
+	}
+
+	return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
