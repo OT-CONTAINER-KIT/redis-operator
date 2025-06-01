@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	agentutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/agent/util"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 )
 
@@ -22,9 +23,9 @@ supervised no
 pidfile /var/run/redis.pid
 `
 
-// GenerateRedisConfig generates Redis configuration file
-func generateRedisConfig() error {
-	cfg := newConfig("/etc/redis/redis.conf", defaultRedisConfig)
+// GenerateConfig generates Redis configuration file
+func GenerateConfig() error {
+	cfg := agentutil.NewConfig("/etc/redis/redis.conf", defaultRedisConfig)
 
 	var (
 		persistenceEnabled, _ = util.CoalesceEnv("PERSISTENCE_ENABLED", "false")
@@ -37,23 +38,23 @@ func generateRedisConfig() error {
 	// set_redis_password - configure Redis password
 	{
 		if val, ok := util.CoalesceEnv("REDIS_PASSWORD", ""); ok && val != "" {
-			cfg.append("masterauth", val)
-			cfg.append("requirepass", val)
-			cfg.append("protected-mode", "yes")
+			cfg.Append("masterauth", val)
+			cfg.Append("requirepass", val)
+			cfg.Append("protected-mode", "yes")
 		} else {
 			fmt.Println("Redis is running without password which is not recommended")
-			cfg.append("protected-mode", "no")
+			cfg.Append("protected-mode", "no")
 		}
 	}
 
 	// redis_mode_setup - configure Redis mode (cluster or standalone)
 	{
 		if setupMode, ok := util.CoalesceEnv("SETUP_MODE", ""); ok && setupMode == "cluster" {
-			cfg.append("cluster-enabled", "yes")
-			cfg.append("cluster-node-timeout", "5000")
-			cfg.append("cluster-require-full-coverage", "no")
-			cfg.append("cluster-migration-barrier", "1")
-			cfg.append("cluster-config-file", fmt.Sprintf("%s/nodes.conf", nodeConfDir))
+			cfg.Append("cluster-enabled", "yes")
+			cfg.Append("cluster-node-timeout", "5000")
+			cfg.Append("cluster-require-full-coverage", "no")
+			cfg.Append("cluster-migration-barrier", "1")
+			cfg.Append("cluster-config-file", fmt.Sprintf("%s/nodes.conf", nodeConfDir))
 
 			// Get Pod IP
 			cmd := exec.Command("hostname", "-i")
@@ -84,17 +85,17 @@ func generateRedisConfig() error {
 			redisTLSCertKey, _ := util.CoalesceEnv("REDIS_TLS_CERT_KEY", "")
 			redisTLSCAKey, _ := util.CoalesceEnv("REDIS_TLS_CA_KEY", "")
 
-			cfg.append("tls-cert-file", redisTLSCert)
-			cfg.append("tls-key-file", redisTLSCertKey)
-			cfg.append("tls-ca-cert-file", redisTLSCAKey)
-			cfg.append("tls-auth-clients", "optional")
-			cfg.append("tls-replication", "yes")
+			cfg.Append("tls-cert-file", redisTLSCert)
+			cfg.Append("tls-key-file", redisTLSCertKey)
+			cfg.Append("tls-ca-cert-file", redisTLSCAKey)
+			cfg.Append("tls-auth-clients", "optional")
+			cfg.Append("tls-replication", "yes")
 
 			if setupMode, ok := util.CoalesceEnv("SETUP_MODE", ""); ok && setupMode == "cluster" {
-				cfg.append("tls-cluster", "yes")
+				cfg.Append("tls-cluster", "yes")
 
 				if redisMajorVersion == "v7" {
-					cfg.append("cluster-preferred-endpoint-type", "hostname")
+					cfg.Append("cluster-preferred-endpoint-type", "hostname")
 				}
 			}
 		} else {
@@ -105,7 +106,7 @@ func generateRedisConfig() error {
 	// acl_setup - configure ACL
 	{
 		if aclMode, ok := util.CoalesceEnv("ACL_MODE", ""); ok && aclMode == "true" {
-			cfg.append("aclfile", "/etc/redis/user.acl")
+			cfg.Append("aclfile", "/etc/redis/user.acl")
 		} else {
 			fmt.Println("ACL_MODE is not true, skipping ACL file modification")
 		}
@@ -114,12 +115,12 @@ func generateRedisConfig() error {
 	// persistence_setup - configure persistence
 	{
 		if persistenceEnabled == "true" {
-			cfg.append("save", "900 1")
-			cfg.append("save", "300 10")
-			cfg.append("save", "60 10000")
-			cfg.append("appendonly", "yes")
-			cfg.append("appendfilename", "\"appendonly.aof\"")
-			cfg.append("dir", dataDir)
+			cfg.Append("save", "900 1")
+			cfg.Append("save", "300 10")
+			cfg.Append("save", "60 10000")
+			cfg.Append("Appendonly", "yes")
+			cfg.Append("Appendfilename", "\"Appendonly.aof\"")
+			cfg.Append("dir", dataDir)
 		} else {
 			fmt.Println("Running without persistence mode")
 		}
@@ -130,10 +131,10 @@ func generateRedisConfig() error {
 		redisPort, _ := util.CoalesceEnv("REDIS_PORT", "6379")
 
 		if tlsMode, ok := util.CoalesceEnv("TLS_MODE", ""); ok && tlsMode == "true" {
-			cfg.append("port", "0")
-			cfg.append("tls-port", redisPort)
+			cfg.Append("port", "0")
+			cfg.Append("tls-port", redisPort)
 		} else {
-			cfg.append("port", redisPort)
+			cfg.Append("port", redisPort)
 		}
 
 		if nodePort, ok := util.CoalesceEnv("NODEPORT", ""); ok && nodePort == "true" {
@@ -146,10 +147,10 @@ func generateRedisConfig() error {
 			clusterAnnounceBusPort := os.Getenv(announceBusPortVar)
 
 			if clusterAnnouncePort != "" {
-				cfg.append("cluster-announce-port", clusterAnnouncePort)
+				cfg.Append("cluster-announce-port", clusterAnnouncePort)
 			}
 			if clusterAnnounceBusPort != "" {
-				cfg.append("cluster-announce-bus-port", clusterAnnounceBusPort)
+				cfg.Append("cluster-announce-bus-port", clusterAnnounceBusPort)
 			}
 		}
 	}
@@ -157,7 +158,7 @@ func generateRedisConfig() error {
 	// external_config - include external config file
 	{
 		if _, err := os.Stat(externalConfigFile); err == nil {
-			cfg.append("include", externalConfigFile)
+			cfg.Append("include", externalConfigFile)
 		}
 	}
 
@@ -178,14 +179,14 @@ func generateRedisConfig() error {
 				}
 			}
 			if clusterAnnounceIP != "" {
-				cfg.append("cluster-announce-ip", clusterAnnounceIP)
+				cfg.Append("cluster-announce-ip", clusterAnnounceIP)
 			}
 			if redisMajorVersion == "v7" {
-				cfg.append("cluster-announce-hostname", podHostname)
+				cfg.Append("cluster-announce-hostname", podHostname)
 			}
 		}
 	}
 
 	// Commit configuration to file
-	return cfg.commit()
+	return cfg.Commit()
 }

@@ -61,8 +61,8 @@ type managerOptions struct {
 	zapOptions              zap.Options
 }
 
-// CreateCommand creates a cobra command for running the Redis operator manager
-func CreateCommand() *cobra.Command {
+// CMD creates a cobra command for running the Redis operator manager
+func CMD() *cobra.Command {
 	opts := &managerOptions{
 		zapOptions: zap.Options{
 			Development: false,
