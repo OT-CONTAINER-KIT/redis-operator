@@ -19,7 +19,6 @@ package rediscluster
 import (
 	"context"
 	"fmt"
-	"github.com/OT-CONTAINER-KIT/redis-operator/internal/monitoring"
 	"time"
 
 	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
@@ -27,6 +26,7 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/events"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/controllerutil"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/monitoring"
 	retry "github.com/avast/retry-go"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
