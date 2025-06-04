@@ -105,6 +105,7 @@ func runManager(opts *managerOptions) error {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts.zapOptions)))
 
 	monitoring.RegisterRedisReplicationMetrics()
+	monitoring.RegisterRedisClusterMetrics()
 
 	setupLog.Info("setting up v1beta2 scheme")
 	scheme.SetupV1beta2Scheme()

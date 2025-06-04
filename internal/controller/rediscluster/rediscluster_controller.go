@@ -26,6 +26,7 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/events"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/controllerutil"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/monitoring"
 	retry "github.com/avast/retry-go"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -61,7 +62,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		return intctrlutil.Reconciled()
 	}
+	monitoring.RedisReplicationSkipReconcile.WithLabelValues(instance.Namespace, instance.Name).Set(0)
 	if common.IsSkipReconcile(ctx, instance) {
+		monitoring.RedisClusterSkipReconcile.WithLabelValues(instance.Namespace, instance.Name).Set(1)
 		return intctrlutil.Reconciled()
 	}
 	instance.SetDefault()
@@ -99,13 +102,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				}
 				// Step 1 Remove the Follower Node
 				k8sutils.RemoveRedisFollowerNodesFromCluster(ctx, r.K8sClient, instance, shardIdx)
+				monitoring.RedisClusterRemoveFollowerAttempt.WithLabelValues(instance.Namespace, instance.Name).Inc()
 				// Step 2 Reshard the Cluster
 				k8sutils.ReshardRedisCluster(ctx, r.K8sClient, instance, shardIdx, true)
+				monitoring.RedisClusterReshardTotal.WithLabelValues(instance.Namespace, instance.Name).Inc()
 			}
 			logger.Info("Redis cluster is downscaled... Rebalancing the cluster")
 			// Step 3 Rebalance the cluster
 			k8sutils.RebalanceRedisCluster(ctx, r.K8sClient, instance)
 			logger.Info("Redis cluster is downscaled... Rebalancing the cluster is done")
+			monitoring.RedisClusterRebalanceTotal.WithLabelValues(instance.Namespace, instance.Name).Inc()
 			return intctrlutil.RequeueAfter(ctx, time.Second*10, "")
 		} else {
 			logger.Info("masterCount is not equal to leader statefulset replicas,skip downscale", "masterCount", masterCount, "leaderReplicas", leaderReplicas)
@@ -187,6 +193,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 					// Scale up the cluster
 					// Step 2 : Add Redis Node
 					k8sutils.AddRedisNodeToCluster(ctx, r.K8sClient, instance)
+					monitoring.RedisClusterAddingNodeAttempt.WithLabelValues(instance.Namespace, instance.Name).Inc()
 					// Step 3 Rebalance the cluster using the empty masters
 					k8sutils.RebalanceRedisClusterEmptyMasters(ctx, r.K8sClient, instance)
 				}
@@ -246,7 +253,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// Mark the cluster status as ready if all the leader and follower nodes are ready
 	if instance.Status.ReadyLeaderReplicas == leaderReplicas && instance.Status.ReadyFollowerReplicas == followerReplicas {
+		monitoring.RedisClusterHealthy.WithLabelValues(instance.Namespace, instance.Name).Set(0)
 		if k8sutils.RedisClusterStatusHealth(ctx, r.K8sClient, instance) {
+			monitoring.RedisClusterHealthy.WithLabelValues(instance.Namespace, instance.Name).Set(1)
 			// Apply dynamic config to all Redis instances in the cluster
 			if err = k8sutils.SetRedisClusterDynamicConfig(ctx, r.K8sClient, instance); err != nil {
 				logger.Error(err, "Failed to set dynamic config")
