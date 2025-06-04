@@ -2,20 +2,12 @@ package monitoring
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
-	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
-
-type MetricDescription struct {
-	Name   string
-	Help   string
-	Type   string
-	labels []string
-}
 
 // metricsDescription is a map of string keys (metrics) to MetricDescription values (Name, Help).
 var metricDescription = map[string]MetricDescription{
 	"RedisReplicationSkipReconcile": {
-		Name:   "RedisReplicationSkipReconcile",
+		Name:   "redisreplication_skipreconcile",
 		Help:   "Whether or not to skip the reconcile of RedisReplication.",
 		Type:   "Gauge",
 		labels: []string{"namespace", "instance"},
@@ -111,21 +103,8 @@ var (
 	)
 )
 
-// RegisterMetrics will register metrics with the global prometheus registry
-func RegisterRedisReplicationMetrics() {
-	metrics.Registry.MustRegister(
-		RedisReplicationSkipReconcile,
-		RedisReplicationReplicasSizeDesired,
-		RedisReplicationReplicasSizeCurrent,
-		RedisReplicationReplicasSizeMismatch,
-		RedisReplicationHasMaster,
-		RedisReplicationMasterRoleChangesTotal,
-		RedisReplicationConnectedSlavesTotal,
-	)
-}
-
 // ListMetrics will create a slice with the metrics available in metricDescription
-func ListMetrics() []MetricDescription {
+func ListRedisReplicationMetrics() []MetricDescription {
 	v := make([]MetricDescription, 0, len(metricDescription))
 	// Insert value (Name, Help) for each metric
 	for _, value := range metricDescription {
