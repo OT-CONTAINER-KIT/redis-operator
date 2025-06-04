@@ -14,7 +14,17 @@ spec:
     singular: redissentinel
   scope: Namespaced
   versions:
-  - name: v1beta2
+  - additionalPrinterColumns:
+    - jsonPath: .status.quorum
+      name: Quorum
+      type: string
+    - jsonPath: .status.masterAddress
+      name: MasterAddress
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1beta2
     schema:
       openAPIV3Schema:
         description: Redis is the Schema for the redis API
@@ -5155,6 +5165,14 @@ spec:
             - kubernetesConfig
             type: object
           status:
+            properties:
+              availableSentinels:
+                format: int32
+                type: integer
+              masterAddress:
+                type: string
+              quorum:
+                type: string
             type: object
         required:
         - spec
