@@ -2,12 +2,16 @@ package k8sutils
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 
+	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/image"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
@@ -283,6 +287,16 @@ func (service RedisClusterSTS) CreateRedisClusterSetup(ctx context.Context, cr *
 	labels := getRedisLabels(stateFulName, cluster, service.RedisStateFulType, cr.ObjectMeta.Labels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, annotations)
+
+	// Prepare sidecars: combine user-defined sidecars with automatic role detector
+	sidecars := []common.Sidecar{}
+	if cr.Spec.Sidecars != nil {
+		sidecars = append(sidecars, *cr.Spec.Sidecars...)
+	}
+	// Always add Redis agent sidecar for Redis Cluster
+	redisAgentSidecar := generateAgentSidecar(cr)
+	sidecars = append(sidecars, redisAgentSidecar)
+
 	err := CreateOrUpdateStateFul(
 		ctx,
 		cl,
@@ -292,7 +306,7 @@ func (service RedisClusterSTS) CreateRedisClusterSetup(ctx context.Context, cr *
 		redisClusterAsOwner(cr),
 		generateRedisClusterInitContainerParams(cr),
 		generateRedisClusterContainerParams(ctx, cl, cr, service.SecurityContext, service.ReadinessProbe, service.LivenessProbe, service.RedisStateFulType, service.Resources),
-		cr.Spec.Sidecars,
+		&sidecars,
 	)
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Cannot create statefulset for Redis", "Setup.Type", service.RedisStateFulType)
@@ -389,4 +403,83 @@ func (service RedisClusterService) createOrUpdateClusterNodePortService(ctx cont
 		}
 	}
 	return nil
+}
+
+// generateAgentSidecar creates a Redis agent sidecar configuration for Redis Cluster
+// The agent currently performs role detection and may be extended with additional functionality in the future
+func generateAgentSidecar(cr *rcvb2.RedisCluster) common.Sidecar {
+	operatorImage, _ := util.CoalesceEnv("OPERATOR_IMAGE", image.GetOperatorImage())
+	redisPort := "6379"
+	if cr.Spec.Port != nil {
+		redisPort = fmt.Sprintf("%d", *cr.Spec.Port)
+	}
+	envVars := []corev1.EnvVar{
+		{
+			Name: "POD_NAME",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "metadata.name",
+				},
+			},
+		},
+		{
+			Name: "POD_NAMESPACE",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "metadata.namespace",
+				},
+			},
+		},
+	}
+
+	// Add Redis password environment variable if configured
+	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
+		envVars = append(envVars, corev1.EnvVar{
+			Name: "REDIS_PASSWORD",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name,
+					},
+					Key: *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key,
+				},
+			},
+		})
+	}
+
+	// Default resource requirements for role detector
+	resources := &corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("10m"),
+			corev1.ResourceMemory: resource.MustParse("32Mi"),
+		},
+		Limits: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("50m"),
+			corev1.ResourceMemory: resource.MustParse("64Mi"),
+		},
+	}
+
+	// Build complete command with arguments
+	command := []string{
+		"/operator",
+		"agent",
+		"server",
+		"--redis-addr=127.0.0.1:" + redisPort,
+		"--detect-interval=10s",
+	}
+
+	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
+		command = append(command, "--redis-password=$(REDIS_PASSWORD)")
+	}
+
+	return common.Sidecar{
+		Name:            "agent",
+		Image:           operatorImage,
+		ImagePullPolicy: corev1.PullIfNotPresent,
+		Command:         command,
+		EnvVars:         &envVars,
+		Resources:       resources,
+		// SecurityContext can be omitted - the container image already runs as non-root
+		// and inherits pod-level security context if needed
+	}
 }
