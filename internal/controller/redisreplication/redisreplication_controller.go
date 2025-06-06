@@ -200,10 +200,9 @@ func (r *Reconciler) reconcileStatus(ctx context.Context, instance *rrvb2.RedisR
 	if err = r.UpdateRedisReplicationMaster(ctx, instance, realMaster); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
-	if err = r.UpdateRedisPodRoleLabel(ctx, instance, realMaster); err != nil {
-		return intctrlutil.RequeueE(ctx, err, "")
-	}
-
+	// if err = r.UpdateRedisPodRoleLabel(ctx, instance, realMaster); err != nil {
+	// 	return intctrlutil.RequeueE(ctx, err, "")
+	// }
 	slaveNodes := k8sutils.GetRedisNodesByRole(ctx, r.K8sClient, instance, "slave")
 	if realMaster != "" {
 		monitoring.RedisReplicationConnectedSlavesTotal.WithLabelValues(instance.Namespace, instance.Name).Set(float64(len(slaveNodes)))

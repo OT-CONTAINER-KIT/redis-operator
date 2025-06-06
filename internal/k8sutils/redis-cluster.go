@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 	corev1 "k8s.io/api/core/v1"
@@ -283,6 +284,11 @@ func (service RedisClusterSTS) CreateRedisClusterSetup(ctx context.Context, cr *
 	labels := getRedisLabels(stateFulName, cluster, service.RedisStateFulType, cr.ObjectMeta.Labels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, annotations)
+
+	sidecars := []common.Sidecar{}
+	if cr.Spec.Sidecars != nil {
+		sidecars = append(sidecars, *cr.Spec.Sidecars...)
+	}
 	err := CreateOrUpdateStateFul(
 		ctx,
 		cl,
@@ -292,7 +298,7 @@ func (service RedisClusterSTS) CreateRedisClusterSetup(ctx context.Context, cr *
 		redisClusterAsOwner(cr),
 		generateRedisClusterInitContainerParams(cr),
 		generateRedisClusterContainerParams(ctx, cl, cr, service.SecurityContext, service.ReadinessProbe, service.LivenessProbe, service.RedisStateFulType, service.Resources),
-		cr.Spec.Sidecars,
+		&sidecars,
 	)
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Cannot create statefulset for Redis", "Setup.Type", service.RedisStateFulType)
