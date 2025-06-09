@@ -198,8 +198,11 @@ func CheckIfEmptyMasters(ctx context.Context, client kubernetes.Interface, cr *r
 		podSlots := getRedisClusterSlots(ctx, redisClient, podNodeID)
 
 		if podSlots == "0" || podSlots == "" {
-			log.FromContext(ctx).V(1).Info("Found Empty Redis Leader Node", "pod", pod)
-			RebalanceRedisClusterEmptyMasters(ctx, client, cr)
+			log.FromContext(ctx).Info("Found Empty Redis Leader Node", "pod", pod)
+			err = RebalanceRedisClusterEmptyMasters(ctx, client, cr)
+			if err != nil {
+				log.FromContext(ctx).Error(err, "Failed to rebalance empty master node", "pod", pod)
+			}
 			break
 		}
 	}
