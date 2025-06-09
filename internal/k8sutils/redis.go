@@ -314,6 +314,10 @@ func clusterNodes(ctx context.Context, redisClient *redis.Client) ([]clusterNode
 	}
 	response := make([]clusterNodesResponse, 0, len(csvOutputRecords))
 	for _, record := range csvOutputRecords {
+		// validate cluster nodes response
+		if len(record) < 8 {
+			return nil, fmt.Errorf("clusterNodes result is invalid, expected at least 8 records, got %d,records:%v", len(record), record)
+		}
 		response = append(response, record)
 	}
 	return response, nil
