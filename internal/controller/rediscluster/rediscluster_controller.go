@@ -80,7 +80,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// Check if the cluster is downscaled
 	leaderCount, err := r.GetStatefulSetReplicas(ctx, instance.Namespace, instance.Name+"-leader")
 	if err != nil {
-		return intctrlutil.RequeueE(ctx, err, "failed to get leader statefulset replicas")
+		// warn , don't block reconcile
+		logger.V(1).Info("get leader statefulset replicas failed", "error", err)
 	}
 	if leaderCount > leaderReplicas {
 		if !(r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-leader") && r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-follower")) {
