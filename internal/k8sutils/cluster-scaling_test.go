@@ -553,7 +553,7 @@ func Test_getRedisClusterSlots(t *testing.T) {
 		nodeID          string
 		clusterSlots    []redis.ClusterSlot
 		clusterSlotsErr error
-		expectedResult  string
+		expectedResult  int
 	}{
 		{
 			name:   "successful slot count",
@@ -562,13 +562,13 @@ func Test_getRedisClusterSlots(t *testing.T) {
 				{Start: 0, End: 4999, Nodes: []redis.ClusterNode{{ID: "node123"}}},
 				{Start: 5000, End: 9999, Nodes: []redis.ClusterNode{{ID: "node123"}}},
 			},
-			expectedResult: "10000",
+			expectedResult: 10000,
 		},
 		{
 			name:            "error fetching cluster slots",
 			nodeID:          "node123",
 			clusterSlotsErr: redis.ErrClosed,
-			expectedResult:  "",
+			expectedResult:  0,
 		},
 		{
 			name:   "no slots for node",
@@ -576,7 +576,7 @@ func Test_getRedisClusterSlots(t *testing.T) {
 			clusterSlots: []redis.ClusterSlot{
 				{Start: 0, End: 4999, Nodes: []redis.ClusterNode{{ID: "node123"}}},
 			},
-			expectedResult: "0",
+			expectedResult: 0,
 		},
 		{
 			name:   "slots for multiple nodes",
@@ -586,7 +586,7 @@ func Test_getRedisClusterSlots(t *testing.T) {
 				{Start: 2000, End: 3999, Nodes: []redis.ClusterNode{{ID: "node456"}}},
 				{Start: 4000, End: 5999, Nodes: []redis.ClusterNode{{ID: "node123"}, {ID: "node789"}}},
 			},
-			expectedResult: "4000",
+			expectedResult: 4000,
 		},
 		{
 			name:   "single slot range",
@@ -594,7 +594,7 @@ func Test_getRedisClusterSlots(t *testing.T) {
 			clusterSlots: []redis.ClusterSlot{
 				{Start: 100, End: 100, Nodes: []redis.ClusterNode{{ID: "node123"}}},
 			},
-			expectedResult: "1",
+			expectedResult: 1,
 		},
 		{
 			name:   "mixed slot ranges",
@@ -605,7 +605,7 @@ func Test_getRedisClusterSlots(t *testing.T) {
 				{Start: 1000, End: 1499, Nodes: []redis.ClusterNode{{ID: "node999"}}},
 				{Start: 1500, End: 1999, Nodes: []redis.ClusterNode{{ID: "node123"}}},
 			},
-			expectedResult: "1500",
+			expectedResult: 1500,
 		},
 	}
 
@@ -620,7 +620,8 @@ func Test_getRedisClusterSlots(t *testing.T) {
 				mock.ExpectClusterSlots().SetVal(tt.clusterSlots)
 			}
 
-			result := getRedisClusterSlots(ctx, client, tt.nodeID)
+			result, err := getRedisClusterSlots(ctx, client, tt.nodeID)
+			assert.ErrorIs(t, err, tt.clusterSlotsErr)
 
 			assert.Equal(t, tt.expectedResult, result, "Test case: "+tt.name)
 
