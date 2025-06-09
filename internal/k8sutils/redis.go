@@ -348,13 +348,14 @@ func executeFailoverCommand(ctx context.Context, client kubernetes.Interface, cr
 }
 
 // CheckRedisNodeCount will check the count of redis nodes
-func CheckRedisNodeCount(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, nodeType string) int32 {
+func CheckRedisNodeCount(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, nodeType string) (int32, error) {
 	redisClient := configureRedisClient(ctx, client, cr, cr.ObjectMeta.Name+"-leader-0")
 	defer redisClient.Close()
 	var redisNodeType string
 	clusterNodes, err := clusterNodes(ctx, redisClient)
 	if err != nil {
 		log.FromContext(ctx).Error(err, "failed to get cluster nodes")
+		return 0, err
 	}
 	count := len(clusterNodes)
 
@@ -377,7 +378,7 @@ func CheckRedisNodeCount(ctx context.Context, client kubernetes.Interface, cr *r
 	} else {
 		log.FromContext(ctx).V(1).Info("Total number of redis nodes are", "Nodes", strconv.Itoa(count))
 	}
-	return int32(count)
+	return int32(count), nil
 }
 
 // RedisClusterStatusHealth use `redis-cli --cluster check 127.0.0.1:6379`

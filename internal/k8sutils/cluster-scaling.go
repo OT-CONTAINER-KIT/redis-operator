@@ -165,7 +165,11 @@ func RebalanceRedisClusterEmptyMasters(ctx context.Context, client kubernetes.In
 }
 
 func CheckIfEmptyMasters(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) {
-	totalRedisLeaderNodes := CheckRedisNodeCount(ctx, client, cr, "leader")
+	totalRedisLeaderNodes, err := CheckRedisNodeCount(ctx, client, cr, "leader")
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Failed to get total redis leader nodes")
+		return
+	}
 	redisClient := configureRedisClient(ctx, client, cr, cr.ObjectMeta.Name+"-leader-0")
 	defer redisClient.Close()
 
@@ -219,7 +223,11 @@ func RebalanceRedisCluster(ctx context.Context, client kubernetes.Interface, cr 
 // Add redis cluster node would add a node to the existing redis cluster using redis-cli
 func AddRedisNodeToCluster(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) {
 	var cmd []string
-	activeRedisNode := CheckRedisNodeCount(ctx, client, cr, "leader")
+	activeRedisNode, err := CheckRedisNodeCount(ctx, client, cr, "leader")
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Failed to get active redis node")
+		return
+	}
 
 	newPod := RedisDetails{
 		PodName:   cr.ObjectMeta.Name + "-leader-" + strconv.Itoa(int(activeRedisNode)),

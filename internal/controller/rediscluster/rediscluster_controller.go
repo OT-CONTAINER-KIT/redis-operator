@@ -78,11 +78,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// Check if the cluster is downscaled
-	if leaderCount := r.GetStatefulSetReplicas(ctx, instance.Namespace, instance.Name+"-leader"); leaderReplicas < leaderCount {
+	leaderCount, err := r.GetStatefulSetReplicas(ctx, instance.Namespace, instance.Name+"-leader")
+	if err != nil {
+		return intctrlutil.RequeueE(ctx, err, "failed to get leader statefulset replicas")
+	}
+	if leaderCount > leaderReplicas {
 		if !(r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-leader") && r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-follower")) {
 			return intctrlutil.Reconciled()
 		}
-		if masterCount := k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, "leader"); masterCount == leaderCount {
+		masterCount, err := k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, "leader")
+		if err != nil {
+			return intctrlutil.RequeueE(ctx, err, "")
+		}
+		if masterCount == leaderCount {
 			r.Recorder.Event(instance, corev1.EventTypeNormal, events.EventReasonRedisClusterDownscale, "Redis cluster is downscaling...")
 			logger.Info("Redis cluster is downscaling...", "Current.LeaderReplicas", leaderCount, "Desired.LeaderReplicas", leaderReplicas)
 			for shardIdx := leaderCount - 1; shardIdx >= leaderReplicas; shardIdx-- {
@@ -181,9 +189,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 
-	if nc := k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, ""); nc != totalReplicas {
+	totalCount, err := k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, "")
+	if err != nil {
+		return intctrlutil.RequeueE(ctx, err, "")
+	}
+	if totalCount != totalReplicas {
 		logger.Info("Creating redis cluster by executing cluster creation commands")
-		leaderCount := k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, "leader")
+		leaderCount, err = k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, "leader")
+		if err != nil {
+			return intctrlutil.RequeueE(ctx, err, "")
+		}
 		if leaderCount != leaderReplicas {
 			logger.Info("Not all leader are part of the cluster...", "Leaders.Count", leaderCount, "Instance.Size", leaderReplicas)
 			if leaderCount <= 2 {
@@ -206,7 +221,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				logger.Info("no follower/replicas configured, skipping replication configuration", "Leaders.Count", leaderCount, "Leader.Size", leaderReplicas, "Follower.Replicas", followerReplicas)
 			}
 		}
-		return intctrlutil.RequeueAfter(ctx, time.Second*60, "Redis cluster count is not desired", "Current.Count", nc, "Desired.Count", totalReplicas)
+		return intctrlutil.RequeueAfter(ctx, time.Second*60, "Redis cluster count is not desired", "Current.Count", totalCount, "Desired.Count", totalReplicas)
 	}
 
 	logger.Info("Number of Redis nodes match desired")
@@ -247,7 +262,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// Check If there is No Empty Master Node
-	if k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, "") == totalReplicas {
+	totalCount, err = k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, "")
+	if err != nil {
+		return intctrlutil.RequeueE(ctx, err, "")
+	}
+	if totalCount == totalReplicas {
 		k8sutils.CheckIfEmptyMasters(ctx, r.K8sClient, instance)
 	}
 
