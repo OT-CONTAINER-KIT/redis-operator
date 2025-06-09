@@ -104,20 +104,27 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 					// clusterFailover should also include the clusterReplicate since we have to map the followers to new leader
 					logger.Info("Cluster Failover is initiated", "Shard.Index", shardIdx)
 					if err = k8sutils.ClusterFailover(ctx, r.K8sClient, instance, shardIdx); err != nil {
-						logger.Error(err, "Failed to initiate cluster failover")
-						return intctrlutil.RequeueE(ctx, err, "")
+						return intctrlutil.RequeueE(ctx, err, "Failed to run cluster failover")
 					}
 				}
-				// Step 1 Remove the Follower Node
-				k8sutils.RemoveRedisFollowerNodesFromCluster(ctx, r.K8sClient, instance, shardIdx)
+				err = k8sutils.RemoveRedisFollowerNodesFromCluster(ctx, r.K8sClient, instance, shardIdx)
 				monitoring.RedisClusterRemoveFollowerAttempt.WithLabelValues(instance.Namespace, instance.Name).Inc()
+				if err != nil {
+					return intctrlutil.RequeueE(ctx, err, "Failed to remove redis follower nodes from cluster")
+				}
 				// Step 2 Reshard the Cluster
-				k8sutils.ReshardRedisCluster(ctx, r.K8sClient, instance, shardIdx, true)
+				err = k8sutils.ReshardRedisCluster(ctx, r.K8sClient, instance, shardIdx, true)
+				if err != nil {
+					return intctrlutil.RequeueE(ctx, err, "Failed to reshard redis cluster for downscale", "Shard.Index", shardIdx)
+				}
 				monitoring.RedisClusterReshardTotal.WithLabelValues(instance.Namespace, instance.Name).Inc()
 			}
 			logger.Info("Redis cluster is downscaled... Rebalancing the cluster")
 			// Step 3 Rebalance the cluster
-			k8sutils.RebalanceRedisCluster(ctx, r.K8sClient, instance)
+			err = k8sutils.RebalanceRedisCluster(ctx, r.K8sClient, instance)
+			if err != nil {
+				return intctrlutil.RequeueE(ctx, err, "Failed to rebalance redis cluster for downscale")
+			}
 			logger.Info("Redis cluster is downscaled... Rebalancing the cluster is done")
 			monitoring.RedisClusterRebalanceTotal.WithLabelValues(instance.Namespace, instance.Name).Inc()
 			return intctrlutil.RequeueAfter(ctx, time.Second*10, "")
@@ -202,21 +209,33 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if leaderCount != leaderReplicas {
 			logger.Info("Not all leader are part of the cluster...", "Leaders.Count", leaderCount, "Instance.Size", leaderReplicas)
 			if leaderCount <= 2 {
-				k8sutils.ExecuteRedisClusterCommand(ctx, r.K8sClient, instance)
+				err = k8sutils.ExecuteRedisClusterCommand(ctx, r.K8sClient, instance)
+				if err != nil {
+					return intctrlutil.RequeueE(ctx, err, "Failed to execute redis cluster command")
+				}
 			} else {
 				if leaderCount < leaderReplicas {
 					// Scale up the cluster
 					// Step 2 : Add Redis Node
-					k8sutils.AddRedisNodeToCluster(ctx, r.K8sClient, instance)
+					err = k8sutils.AddRedisNodeToCluster(ctx, r.K8sClient, instance)
+					if err != nil {
+						return intctrlutil.RequeueE(ctx, err, "Failed to add redis node to cluster")
+					}
 					monitoring.RedisClusterAddingNodeAttempt.WithLabelValues(instance.Namespace, instance.Name).Inc()
 					// Step 3 Rebalance the cluster using the empty masters
-					k8sutils.RebalanceRedisClusterEmptyMasters(ctx, r.K8sClient, instance)
+					err = k8sutils.RebalanceRedisClusterEmptyMasters(ctx, r.K8sClient, instance)
+					if err != nil {
+						return intctrlutil.RequeueE(ctx, err, "Failed to rebalance redis cluster for empty masters")
+					}
 				}
 			}
 		} else {
 			if followerReplicas > 0 {
 				logger.Info("All leader are part of the cluster, adding follower/replicas", "Leaders.Count", leaderCount, "Instance.Size", leaderReplicas, "Follower.Replicas", followerReplicas)
-				k8sutils.ExecuteRedisReplicationCommand(ctx, r.K8sClient, instance)
+				err = k8sutils.ExecuteRedisReplicationCommand(ctx, r.K8sClient, instance)
+				if err != nil {
+					return intctrlutil.RequeueE(ctx, err, "Failed to execute redis replication command")
+				}
 			} else {
 				logger.Info("no follower/replicas configured, skipping replication configuration", "Leaders.Count", leaderCount, "Leader.Size", leaderReplicas, "Follower.Replicas", followerReplicas)
 			}

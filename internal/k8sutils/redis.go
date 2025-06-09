@@ -156,7 +156,7 @@ func CreateMultipleLeaderRedisCommand(ctx context.Context, client kubernetes.Int
 }
 
 // ExecuteRedisClusterCommand will execute redis cluster creation command
-func ExecuteRedisClusterCommand(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) {
+func ExecuteRedisClusterCommand(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) error {
 	var cmd []string
 	replicas := cr.Spec.GetReplicaCounts("leader")
 	switch int(replicas) {
@@ -164,6 +164,7 @@ func ExecuteRedisClusterCommand(ctx context.Context, client kubernetes.Interface
 		err := executeFailoverCommand(ctx, client, cr, "leader")
 		if err != nil {
 			log.FromContext(ctx).Error(err, "error executing failover command")
+			return err
 		}
 		cmd = CreateSingleLeaderRedisCommand(ctx, cr)
 	default:
@@ -174,13 +175,20 @@ func ExecuteRedisClusterCommand(ctx context.Context, client kubernetes.Interface
 		pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
 		if err != nil {
 			log.FromContext(ctx).Error(err, "Error in getting redis password")
+			return err
 		}
 		cmd = append(cmd, "-a")
 		cmd = append(cmd, pass)
 	}
+
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.ObjectMeta.Name+"-leader-0")...)
-	log.FromContext(ctx).V(1).Info("Redis cluster creation command is", "Command", cmd)
-	executeCommand(ctx, client, cr, cmd, cr.ObjectMeta.Name+"-leader-0")
+	log.FromContext(ctx).Info("Redis cluster creation command is", "Command", cmd)
+	cmdOut, err := executeCommand1(ctx, client, cr, cmd, cr.ObjectMeta.Name+"-leader-0")
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Failed to run redis cluster creation command", "Command", cmd, "Output", cmdOut)
+		return err
+	}
+	return nil
 }
 
 func getRedisTLSArgs(tlsConfig *common.TLSConfig, clientHost string) []string {
@@ -229,7 +237,7 @@ func createRedisReplicationCommand(ctx context.Context, client kubernetes.Interf
 }
 
 // ExecuteRedisReplicationCommand will execute the replication command
-func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) {
+func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) error {
 	var podIP string
 	followerCounts := cr.Spec.GetReplicaCounts("follower")
 	leaderCounts := cr.Spec.GetReplicaCounts("leader")
@@ -241,6 +249,7 @@ func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Inter
 	nodes, err := clusterNodes(ctx, redisClient)
 	if err != nil {
 		log.FromContext(ctx).Error(err, "failed to get cluster nodes")
+		return err
 	}
 	for followerIdx := 0; followerIdx <= int(followerCounts)-1; {
 		for i := 0; i < int(followerPerLeader) && followerIdx <= int(followerCounts)-1; i++ {
@@ -253,6 +262,10 @@ func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Inter
 				Namespace: cr.Namespace,
 			}
 			podIP = getRedisServerIP(ctx, client, followerPod)
+			if podIP == "" {
+				log.FromContext(ctx).V(1).Info("Skipping adding node to cluster, redis pod ip is empty", "Follower.Pod", followerPod)
+				continue
+			}
 			if !checkRedisNodePresence(ctx, cr, nodes, podIP) {
 				log.FromContext(ctx).V(1).Info("Adding node to cluster.", "Node.IP", podIP, "Follower.Pod", followerPod)
 				cmd := createRedisReplicationCommand(ctx, client, cr, leaderPod, followerPod)
@@ -264,7 +277,12 @@ func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Inter
 					continue
 				}
 				if pong == "PONG" {
-					executeCommand(ctx, client, cr, cmd, cr.ObjectMeta.Name+"-leader-0")
+					cmdOut, err := executeCommand1(ctx, client, cr, cmd, cr.ObjectMeta.Name+"-leader-0")
+					if err != nil {
+						log.FromContext(ctx).Error(err, "Failed to run add-node command", "Command", cmd, "Output", cmdOut)
+						continue
+					}
+					log.FromContext(ctx).Info("Successfully added redis node to cluster", "NodeName", followerPod.PodName)
 				} else {
 					log.FromContext(ctx).V(1).Info("Skipping execution of command due to failed Redis ping", "Follower.Pod", followerPod)
 				}
@@ -275,6 +293,7 @@ func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Inter
 			followerIdx++
 		}
 	}
+	return nil
 }
 
 type clusterNodesResponse []string
