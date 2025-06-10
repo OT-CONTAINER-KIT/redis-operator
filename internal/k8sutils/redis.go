@@ -484,14 +484,14 @@ func configureRedisClient(ctx context.Context, client kubernetes.Interface, cr *
 }
 
 // executeCommand will execute the commands in pod
-func executeCommand(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, cmd []string, podName string) {
-	execOut, execErr := executeCommand1(ctx, client, cr, cmd, podName)
-	if execErr != nil {
-		log.FromContext(ctx).Error(execErr, "Could not execute command", "Command", cmd, "Output", execOut)
-		return
-	}
-	log.FromContext(ctx).V(1).Info("Successfully executed the command", "Command", cmd, "Output", execOut)
-}
+//func executeCommand(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, cmd []string, podName string) {
+//	execOut, execErr := executeCommand1(ctx, client, cr, cmd, podName)
+//	if execErr != nil {
+//		log.FromContext(ctx).Error(execErr, "Could not execute command", "Command", cmd, "Output", execOut)
+//		return
+//	}
+//	log.FromContext(ctx).V(1).Info("Successfully executed the command", "Command", cmd, "Output", execOut)
+//}
 
 func executeCommand1(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, cmd []string, podName string) (stdout string, stderr error) {
 	var (
