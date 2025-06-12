@@ -13,6 +13,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 type Healer interface {
@@ -64,15 +66,20 @@ func (h *healer) UpdateRedisRoleLabel(ctx context.Context, ns string, labels map
 		if isMaster {
 			role = k8sutils.RedisRoleLabelMaster
 		}
-		if currRole, ok := pod.Labels[k8sutils.RedisRoleLabelKey]; ok && currRole != role {
-			patch := []byte(fmt.Sprintf(`[{"op": "replace", "path": "/metadata/labels/%s", "value": "%s"}]`, k8sutils.RedisRoleLabelKey, role))
-			_, err = h.k8s.
-				CoreV1().
-				Pods(ns).
-				Patch(ctx, pod.Name, types.JSONPatchType, patch, metav1.PatchOptions{})
-			if err != nil {
-				return err
+		if oldRole := pod.Labels[k8sutils.RedisRoleLabelKey]; oldRole != role {
+			patch := []byte(fmt.Sprintf(`[{"op": "add", "path": "/metadata/labels/%s", "value": "%s"}]`, k8sutils.RedisRoleLabelKey, role))
+			rErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				_, err = h.k8s.CoreV1().Pods(ns).Patch(ctx, pod.Name, types.JSONPatchType, patch, metav1.PatchOptions{})
+				if err != nil {
+					log.FromContext(ctx).Error(err, "failed to update pod role label", "pod", pod.Name, "oldRole", oldRole, "newRole", role)
+					return err
+				}
+				return nil
+			})
+			if rErr != nil {
+				return fmt.Errorf("failed to update pod role label: %w", rErr)
 			}
+			log.FromContext(ctx).Info("updated pod role label", "pod", pod.Name, "oldRole", oldRole, "newRole", role)
 		}
 	}
 	return nil
