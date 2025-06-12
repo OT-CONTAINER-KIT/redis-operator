@@ -172,7 +172,8 @@ func (r *Reconciler) reconcileStatus(ctx context.Context, instance *rrvb2.RedisR
 	if err = r.UpdateRedisReplicationMaster(ctx, instance, realMaster); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
-	if err = r.Healer.UpdateRedisRoleLabel(ctx, instance.GetNamespace(), k8sutils.GetRedisReplicationLabels(instance), instance.Spec.KubernetesConfig.ExistingPasswordSecret); err != nil {
+	labels := common.GetRedisLabels(instance.GetName(), common.SetupTypeReplication, "replication", instance.GetLabels())
+	if err = r.Healer.UpdateRedisRoleLabel(ctx, instance.GetNamespace(), labels, instance.Spec.KubernetesConfig.ExistingPasswordSecret); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
 

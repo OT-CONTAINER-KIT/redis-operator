@@ -217,6 +217,7 @@ func setupControllers(mgr ctrl.Manager, k8sClient kubernetes.Interface, dk8sClie
 		Client:      mgr.GetClient(),
 		K8sClient:   k8sClient,
 		Dk8sClient:  dk8sClient,
+		Healer:      healer,
 		Recorder:    mgr.GetEventRecorderFor("rediscluster-controller"),
 		StatefulSet: k8sutils.NewStatefulSetService(k8sClient),
 	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
