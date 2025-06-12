@@ -268,6 +268,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			}
 		}
 	}
+
+	// update pod role in redis cluster
+
 	return intctrlutil.RequeueAfter(ctx, time.Second*10, "")
 }
 
@@ -275,7 +278,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, opts controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&rcvb2.RedisCluster{}).
-		WithOptions(opts).
 		Owns(&appsv1.StatefulSet{}).
+		WithOptions(opts).
 		Complete(r)
 }
