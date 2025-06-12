@@ -3,6 +3,7 @@ package k8sutils
 import (
 	"context"
 
+	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
@@ -68,6 +69,16 @@ func CreateReplicationRedis(ctx context.Context, cr *rrvb2.RedisReplication, cl 
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, annotations)
 
+	sidecars := []common.Sidecar{}
+	if cr.Spec.Sidecars != nil {
+		sidecars = append(sidecars, *cr.Spec.Sidecars...)
+	}
+	redisAgentSidecar := generateAgentSidecar(RedisAgentConfig{
+		Port:                   ptr.To(redisPort),
+		ExistingPasswordSecret: cr.Spec.KubernetesConfig.ExistingPasswordSecret,
+	})
+	sidecars = append(sidecars, redisAgentSidecar)
+
 	err := CreateOrUpdateStateFul(
 		ctx,
 		cl,
@@ -77,7 +88,7 @@ func CreateReplicationRedis(ctx context.Context, cr *rrvb2.RedisReplication, cl 
 		redisReplicationAsOwner(cr),
 		generateRedisReplicationInitContainerParams(cr),
 		generateRedisReplicationContainerParams(cr),
-		cr.Spec.Sidecars,
+		&sidecars,
 	)
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Cannot create replication statefulset for Redis")
