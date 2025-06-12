@@ -73,17 +73,18 @@ func ReshardRedisCluster(ctx context.Context, client kubernetes.Interface, cr *r
 
 	cmd = append(cmd, "--cluster-yes")
 
-	log.FromContext(ctx).V(1).Info("Redis cluster reshard command is", "Command", cmd)
-
 	if slot == 0 {
 		log.FromContext(ctx).V(1).Info("Skipped the execution of", "Cmd", cmd)
 		return nil
 	}
+
+	log.FromContext(ctx).Info("Redis cluster reshard command is", "Command", cmd)
 	cmdOut, err := executeCommand1(ctx, client, cr, cmd, cr.ObjectMeta.Name+"-leader-0")
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Failed to run reshard command", "Command", cmd, "Output", cmdOut)
 		return err
 	}
+
 	if remove {
 		err = RemoveRedisNodeFromCluster(ctx, client, cr, removePOD)
 		if err != nil {

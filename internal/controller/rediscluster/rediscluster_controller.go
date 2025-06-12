@@ -139,7 +139,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		instance.Status.ReadyLeaderReplicas != leaderReplicas {
 		err = k8sutils.UpdateRedisClusterStatus(ctx, instance, rcvb2.RedisClusterInitializing, rcvb2.InitializingClusterLeaderReason, instance.Status.ReadyLeaderReplicas, instance.Status.ReadyFollowerReplicas, r.Dk8sClient)
 		if err != nil {
-			return intctrlutil.RequeueE(ctx, err, "")
+			return intctrlutil.RequeueEConflict(ctx, err, "")
 		}
 	}
 
@@ -165,7 +165,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			instance.Status.ReadyFollowerReplicas != followerReplicas {
 			err = k8sutils.UpdateRedisClusterStatus(ctx, instance, rcvb2.RedisClusterInitializing, rcvb2.InitializingClusterFollowerReason, leaderReplicas, instance.Status.ReadyFollowerReplicas, r.Dk8sClient)
 			if err != nil {
-				return intctrlutil.RequeueE(ctx, err, "")
+				return intctrlutil.RequeueEConflict(ctx, err, "")
 			}
 		}
 		// if we have followers create their service.
@@ -193,7 +193,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if !(instance.Status.ReadyLeaderReplicas == leaderReplicas && instance.Status.ReadyFollowerReplicas == followerReplicas) {
 		err = k8sutils.UpdateRedisClusterStatus(ctx, instance, rcvb2.RedisClusterBootstrap, rcvb2.BootstrapClusterReason, leaderReplicas, followerReplicas, r.Dk8sClient)
 		if err != nil {
-			return intctrlutil.RequeueE(ctx, err, "")
+			return intctrlutil.RequeueEConflict(ctx, err, "")
 		}
 	}
 
@@ -252,7 +252,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if int(totalReplicas) > 1 && unhealthyNodeCount >= int(totalReplicas)-1 {
 		err = k8sutils.UpdateRedisClusterStatus(ctx, instance, rcvb2.RedisClusterFailed, "RedisCluster has too many unhealthy nodes", leaderReplicas, followerReplicas, r.Dk8sClient)
 		if err != nil {
-			return intctrlutil.RequeueE(ctx, err, "")
+			return intctrlutil.RequeueEConflict(ctx, err, "")
 		}
 
 		logger.Info("healthy leader count does not match desired; attempting to repair disconnected masters")
@@ -303,7 +303,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 			err = k8sutils.UpdateRedisClusterStatus(ctx, instance, rcvb2.RedisClusterReady, rcvb2.ReadyClusterReason, leaderReplicas, followerReplicas, r.Dk8sClient)
 			if err != nil {
-				return intctrlutil.RequeueE(ctx, err, "")
+				return intctrlutil.RequeueEConflict(ctx, err, "")
 			}
 		}
 	}
