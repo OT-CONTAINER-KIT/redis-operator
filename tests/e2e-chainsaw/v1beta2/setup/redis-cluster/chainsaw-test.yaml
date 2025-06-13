@@ -83,6 +83,8 @@ spec:
 
     - name: Check follower-0 label updated
       try:
+        - sleep:
+            duration: 1m
         - script:
             timeout: 30s
             content: >
@@ -99,6 +101,8 @@ spec:
               bash -c  "redis-cli -a Opstree1234 cluster failover"
             check:
               (contains($stdout, 'OK')): true
+        - sleep:
+            duration: 1m
 
     - name: Scale Out Redis Cluster
       try:
