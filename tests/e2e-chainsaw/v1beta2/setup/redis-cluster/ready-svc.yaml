@@ -218,10 +218,10 @@ metadata:
   name: redis-cluster-v1beta2-master
 spec:
   ports:
-  - name: redis-client
-    port: 6379
-    protocol: TCP
-    targetPort: 6379
+    - name: redis-client
+      port: 6379
+      protocol: TCP
+      targetPort: 6379
   selector:
     cluster: redis-cluster-v1beta2
     redis-role: master
