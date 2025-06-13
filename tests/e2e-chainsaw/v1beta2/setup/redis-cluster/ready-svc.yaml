@@ -202,3 +202,28 @@ spec:
   type: ClusterIP
 status:
   loadBalancer: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    prometheus.io/port: "9121"
+    prometheus.io/scrape: "true"
+    redis.opstreelabs.in: "true"
+    redis.opstreelabs.instance: redis-cluster-v1beta2
+  labels:
+    cluster: redis-cluster-v1beta2
+    redis-role: master
+    redis_setup_type: cluster
+  name: redis-cluster-v1beta2-master
+spec:
+  ports:
+    - name: redis-client
+      port: 6379
+      protocol: TCP
+      targetPort: 6379
+  selector:
+    cluster: redis-cluster-v1beta2
+    redis-role: master
+    redis_setup_type: cluster
+  type: ClusterIP

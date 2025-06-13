@@ -24,6 +24,7 @@ import (
 	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/events"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/redis"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/controllerutil"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/monitoring"
@@ -43,6 +44,7 @@ import (
 type Reconciler struct {
 	client.Client
 	k8sutils.StatefulSet
+	Healer     redis.Healer
 	K8sClient  kubernetes.Interface
 	Dk8sClient dynamic.Interface
 	Recorder   record.EventRecorder
@@ -268,6 +270,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			}
 		}
 	}
+
+	for _, fakeRole := range []string{"leader", "follower"} {
+		labels := common.GetRedisLabels(instance.GetName()+"-"+fakeRole, common.SetupTypeCluster, fakeRole, instance.GetLabels())
+		if err = r.Healer.UpdateRedisRoleLabel(ctx, instance.GetNamespace(), labels, instance.Spec.KubernetesConfig.ExistingPasswordSecret); err != nil {
+			return intctrlutil.RequeueE(ctx, err, "")
+		}
+	}
+
 	return intctrlutil.RequeueAfter(ctx, time.Second*10, "")
 }
 
@@ -275,7 +285,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, opts controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&rcvb2.RedisCluster{}).
-		WithOptions(opts).
 		Owns(&appsv1.StatefulSet{}).
+		WithOptions(opts).
 		Complete(r)
 }

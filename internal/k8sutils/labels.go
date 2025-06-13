@@ -172,7 +172,3 @@ func getRedisStableLabels(name, st, role string) map[string]string {
 		"role":             role,
 	}
 }
-
-func GetRedisReplicationLabels(cr *rrvb2.RedisReplication) map[string]string {
-	return getRedisLabels(cr.GetName(), replication, "replication", cr.GetLabels())
-}

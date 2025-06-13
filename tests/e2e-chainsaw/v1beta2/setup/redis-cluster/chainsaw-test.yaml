@@ -71,6 +71,39 @@ spec:
             check:
               (contains($stdout, 'OK')): true
 
+    - name: Failover the follower-0 to master
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} redis-cluster-v1beta2-follower-0 -c redis-cluster-v1beta2-follower --
+              bash -c  "redis-cli -a Opstree1234 cluster failover"
+            check:
+              (contains($stdout, 'OK')): true
+
+    - name: Check follower-0 label updated
+      try:
+        - sleep:
+            duration: 1m
+        - script:
+            timeout: 30s
+            content: >
+              kubectl get pod -n ${NAMESPACE} redis-cluster-v1beta2-follower-0 -o jsonpath='{.metadata.labels.redis-role}'
+            check:
+              (contains($stdout, 'master')): true
+
+    - name: Failover the follower-0 to slave
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} redis-cluster-v1beta2-leader-0 -c redis-cluster-v1beta2-leader --
+              bash -c  "redis-cli -a Opstree1234 cluster failover"
+            check:
+              (contains($stdout, 'OK')): true
+        - sleep:
+            duration: 1m
+
     - name: Scale Out Redis Cluster
       try:
         - apply:
