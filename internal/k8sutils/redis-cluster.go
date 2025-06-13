@@ -368,7 +368,7 @@ func (service RedisClusterService) CreateRedisClusterService(ctx context.Context
 		cr.Namespace,
 		map[string]string{
 			"cluster":          cr.ObjectMeta.Name,
-			"redis-role":       "master",
+			RedisRoleLabelKey:  RedisRoleLabelMaster,
 			"redis_setup_type": "cluster",
 		},
 		generateServiceAnots(cr.ObjectMeta, nil, epp),
