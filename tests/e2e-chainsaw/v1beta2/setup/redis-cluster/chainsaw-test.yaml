@@ -111,7 +111,14 @@ spec:
         - apply:
             file: cluster.yaml
         - assert:
+            timeout: 10m
             file: ready-cluster.yaml
+      catch:
+        - podLogs:
+            selector: control-plane=redis-operator
+            namespace: redis-operator-system
+            container: manager
+            tail: 10000
 
     - name: Assert data
       try:
