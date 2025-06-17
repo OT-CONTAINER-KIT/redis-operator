@@ -15,15 +15,16 @@ import (
 // ReshardRedisCluster transfer the slots from the last node to the first node.
 //
 // NOTE: when all slot been transferred, the node become slave of the first master node.
-func ReshardRedisCluster(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, shardIdx int32, remove bool) {
-	redisClient := configureRedisClient(ctx, client, cr, cr.ObjectMeta.Name+"-leader-0")
+func ReshardRedisCluster(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, shardIdx int32, remove bool, targetNodeIdx int32) {
+	targetNodeName := fmt.Sprintf("%s-leader-%d", cr.ObjectMeta.Name, targetNodeIdx)
+	redisClient := configureRedisClient(ctx, client, cr, targetNodeName)
 	defer redisClient.Close()
 
 	var cmd []string
 
 	// Transfer Pod details
 	transferPOD := RedisDetails{
-		PodName:   cr.ObjectMeta.Name + "-leader-0",
+		PodName:   targetNodeName,
 		Namespace: cr.Namespace,
 	}
 	// Remove POD details
