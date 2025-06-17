@@ -316,6 +316,17 @@ func (service RedisClusterService) CreateRedisClusterService(ctx context.Context
 	} else {
 		epp = disableMetrics
 	}
+
+	busPort := corev1.ServicePort{
+		Name:     "redis-bus",
+		Port:     int32(*cr.Spec.Port + 10000),
+		Protocol: corev1.ProtocolTCP,
+		TargetPort: intstr.IntOrString{
+			Type:   intstr.Int,
+			IntVal: int32(*cr.Spec.Port + 10000),
+		},
+	}
+
 	objectMetaInfo := generateObjectMetaInformation(
 		serviceName,
 		cr.Namespace,
@@ -334,12 +345,20 @@ func (service RedisClusterService) CreateRedisClusterService(ctx context.Context
 		labels,
 		generateServiceAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.GetServiceAnnotations(), epp),
 	)
-	err := CreateOrUpdateService(ctx, cr.Namespace, headlessObjectMetaInfo, redisClusterAsOwner(cr), disableMetrics, true, "ClusterIP", *cr.Spec.Port, cl)
+	headlessExtraPorts := []corev1.ServicePort{}
+	if cr.Spec.KubernetesConfig.ShouldIncludeBusPortForHeadless() {
+		headlessExtraPorts = append(headlessExtraPorts, busPort)
+	}
+	err := CreateOrUpdateService(ctx, cr.Namespace, headlessObjectMetaInfo, redisClusterAsOwner(cr), disableMetrics, true, "ClusterIP", *cr.Spec.Port, cl, headlessExtraPorts...)
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Cannot create headless service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err
 	}
-	err = CreateOrUpdateService(ctx, cr.Namespace, objectMetaInfo, redisClusterAsOwner(cr), epp, false, "ClusterIP", *cr.Spec.Port, cl)
+	extraPorts := []corev1.ServicePort{}
+	if cr.Spec.KubernetesConfig.ShouldIncludeBusPort() {
+		extraPorts = append(extraPorts, busPort)
+	}
+	err = CreateOrUpdateService(ctx, cr.Namespace, objectMetaInfo, redisClusterAsOwner(cr), epp, false, "ClusterIP", *cr.Spec.Port, cl, extraPorts...)
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Cannot create service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err
@@ -354,9 +373,12 @@ func (service RedisClusterService) CreateRedisClusterService(ctx context.Context
 			return err
 		}
 	}
-	// Only create additional service if it's enabled
+	additionalExtraPorts := []corev1.ServicePort{}
+	if cr.Spec.KubernetesConfig.ShouldIncludeBusPortForAdditional() {
+		additionalExtraPorts = append(additionalExtraPorts, busPort)
+	}
 	if cr.Spec.KubernetesConfig.ShouldCreateAdditionalService() {
-		err = CreateOrUpdateService(ctx, cr.Namespace, additionalObjectMetaInfo, redisClusterAsOwner(cr), disableMetrics, false, additionalServiceType, *cr.Spec.Port, cl)
+		err = CreateOrUpdateService(ctx, cr.Namespace, additionalObjectMetaInfo, redisClusterAsOwner(cr), disableMetrics, false, additionalServiceType, *cr.Spec.Port, cl, additionalExtraPorts...)
 		if err != nil {
 			log.FromContext(ctx).Error(err, "Cannot create additional service for Redis", "Setup.Type", service.RedisServiceRole)
 			return err

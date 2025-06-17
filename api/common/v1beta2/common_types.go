@@ -57,14 +57,58 @@ func (in *KubernetesConfig) ShouldCreateAdditionalService() bool {
 	return *in.Service.Additional.Enabled
 }
 
+// ShouldIncludeBusPort returns whether bus port should be included in the service
+func (in *KubernetesConfig) ShouldIncludeBusPort() bool {
+	if in.Service == nil {
+		return false
+	}
+	if in.Service.IncludeBusPort == nil {
+		return false
+	}
+	return *in.Service.IncludeBusPort
+}
+
+// ShouldIncludeBusPortForHeadless returns whether bus port should be included in the headless service
+func (in *KubernetesConfig) ShouldIncludeBusPortForHeadless() bool {
+	if in.Service == nil {
+		return false
+	}
+	if in.Service.Headless == nil {
+		return false
+	}
+	if in.Service.Headless.IncludeBusPort == nil {
+		return false
+	}
+	return *in.Service.Headless.IncludeBusPort
+}
+
+// ShouldIncludeBusPortForAdditional returns whether bus port should be included in the additional service
+func (in *KubernetesConfig) ShouldIncludeBusPortForAdditional() bool {
+	if in.Service == nil {
+		return false
+	}
+	if in.Service.Additional == nil {
+		return false
+	}
+	if in.Service.Additional.IncludeBusPort == nil {
+		return false
+	}
+	return *in.Service.Additional.IncludeBusPort
+}
+
 // ServiceConfig define the type of service to be created and its annotations
 // +k8s:deepcopy-gen=true
 type ServiceConfig struct {
 	// +kubebuilder:validation:Enum=LoadBalancer;NodePort;ClusterIP
 	ServiceType        string            `json:"serviceType,omitempty"`
 	ServiceAnnotations map[string]string `json:"annotations,omitempty"`
-	Headless           *Service          `json:"headless,omitempty"`
-	Additional         *Service          `json:"additional,omitempty"`
+	// IncludeBusPort when set to true, it will add bus port to the service, such as 16379.
+	// This field is only used for Redis cluster mode.
+	IncludeBusPort *bool `json:"includeBusPort,omitempty"`
+	// Headless config for which suffix is -headless service
+	Headless *Service `json:"headless,omitempty"`
+	// Additional config for which suffix is -additional service
+	Additional *Service `json:"additional,omitempty"`
 }
 
 // Service is the struct to define the service type and its annotations
@@ -74,6 +118,9 @@ type Service struct {
 	// +kubebuilder:default:=ClusterIP
 	Type                  string            `json:"type,omitempty"`
 	AdditionalAnnotations map[string]string `json:"additionalAnnotations,omitempty"`
+	// IncludeBusPort when set to true, it will add bus port to the service, such as 16379.
+	// This field is only used for Redis cluster mode.
+	IncludeBusPort *bool `json:"includeBusPort,omitempty"`
 	// +kubebuilder:default:=true
 	Enabled *bool `json:"enabled,omitempty"`
 }

@@ -465,6 +465,11 @@ func (in *Service) DeepCopyInto(out *Service) {
 			(*out)[key] = val
 		}
 	}
+	if in.IncludeBusPort != nil {
+		in, out := &in.IncludeBusPort, &out.IncludeBusPort
+		*out = new(bool)
+		**out = **in
+	}
 	if in.Enabled != nil {
 		in, out := &in.Enabled, &out.Enabled
 		*out = new(bool)
@@ -491,6 +496,11 @@ func (in *ServiceConfig) DeepCopyInto(out *ServiceConfig) {
 		for key, val := range *in {
 			(*out)[key] = val
 		}
+	}
+	if in.IncludeBusPort != nil {
+		in, out := &in.IncludeBusPort, &out.IncludeBusPort
+		*out = new(bool)
+		**out = **in
 	}
 	if in.Headless != nil {
 		in, out := &in.Headless, &out.Headless
