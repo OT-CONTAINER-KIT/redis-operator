@@ -246,10 +246,6 @@ spec:
       port: 6379
       protocol: TCP
       targetPort: 6379
-    - name: redis-bus
-      port: 16379
-      protocol: TCP
-      targetPort: 16379
   selector:
     cluster: redis-cluster-v1beta2
     redis-role: master
