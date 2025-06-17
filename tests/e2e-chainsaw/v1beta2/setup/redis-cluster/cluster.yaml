@@ -15,9 +15,13 @@ spec:
     fsGroup: 1000
   kubernetesConfig:
     service:
+      includeBusPort: true
       headless:
+        includeBusPort: true
         additionalAnnotations:
           test: test
+      additional:
+        includeBusPort: true
     image: quay.io/opstree/redis:latest
     imagePullPolicy: Always
     resources:

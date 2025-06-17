@@ -1568,8 +1568,8 @@ spec:
                       and its annotations
                     properties:
                       additional:
-                        description: Service is the struct to define the service type
-                          and its annotations
+                        description: Additional config for which suffix is -additional
+                          service
                         properties:
                           additionalAnnotations:
                             additionalProperties:
@@ -1577,6 +1577,11 @@ spec:
                             type: object
                           enabled:
                             default: true
+                            type: boolean
+                          includeBusPort:
+                            description: |-
+                              IncludeBusPort when set to true, it will add bus port to the service, such as 16379.
+                              This field is only used for Redis cluster mode.
                             type: boolean
                           type:
                             default: ClusterIP
@@ -1591,8 +1596,8 @@ spec:
                           type: string
                         type: object
                       headless:
-                        description: Service is the struct to define the service type
-                          and its annotations
+                        description: Headless config for which suffix is -headless
+                          service
                         properties:
                           additionalAnnotations:
                             additionalProperties:
@@ -1600,6 +1605,11 @@ spec:
                             type: object
                           enabled:
                             default: true
+                            type: boolean
+                          includeBusPort:
+                            description: |-
+                              IncludeBusPort when set to true, it will add bus port to the service, such as 16379.
+                              This field is only used for Redis cluster mode.
                             type: boolean
                           type:
                             default: ClusterIP
@@ -1609,6 +1619,11 @@ spec:
                             - ClusterIP
                             type: string
                         type: object
+                      includeBusPort:
+                        description: |-
+                          IncludeBusPort when set to true, it will add bus port to the service, such as 16379.
+                          This field is only used for Redis cluster mode.
+                        type: boolean
                       serviceType:
                         enum:
                         - LoadBalancer
