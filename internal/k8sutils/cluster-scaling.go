@@ -64,15 +64,15 @@ func ReshardRedisCluster(ctx context.Context, client kubernetes.Interface, cr *r
 	cmd = append(cmd, transferNodeID)
 
 	// Cluster Slots
-	slot := getRedisClusterSlots(ctx, redisClient, removeNodeID)
+	slots := getRedisClusterSlots(ctx, redisClient, removeNodeID)
 	cmd = append(cmd, "--cluster-slots")
-	cmd = append(cmd, slot)
+	cmd = append(cmd, slots)
 
 	cmd = append(cmd, "--cluster-yes")
 
 	log.FromContext(ctx).V(1).Info("Redis cluster reshard command is", "Command", cmd)
 
-	if slot == "0" {
+	if slots == "0" {
 		log.FromContext(ctx).V(1).Info("Skipped the execution of", "Cmd", cmd)
 		return
 	}
