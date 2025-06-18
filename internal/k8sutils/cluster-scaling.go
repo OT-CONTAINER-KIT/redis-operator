@@ -15,7 +15,7 @@ import (
 // ReshardRedisCluster transfer the slots from the last node to the provided transfer node.
 //
 // NOTE: when all slot been transferred, the node become slave of the transfer node.
-func ReshardRedisCluster(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, shardIdx int32, remove bool, transferNodeIdx int32) {
+func ReshardRedisCluster(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, shardIdx int32, transferNodeIdx int32, remove bool) {
 	transferNodeName := fmt.Sprintf("%s-leader-%d", cr.ObjectMeta.Name, transferNodeIdx)
 	redisClient := configureRedisClient(ctx, client, cr, transferNodeName)
 	defer redisClient.Close()
