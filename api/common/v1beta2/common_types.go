@@ -148,8 +148,12 @@ type RedisExporter struct {
 // RedisConfig defines the external configuration of Redis
 // +k8s:deepcopy-gen=true
 type RedisConfig struct {
-	DynamicConfig         []string `json:"dynamicConfig,omitempty"`
-	AdditionalRedisConfig *string  `json:"additionalRedisConfig,omitempty"`
+	// MaxMemoryPercentOfLimit is the percentage of redis container memory limit to be used as maxmemory.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=100
+	MaxMemoryPercentOfLimit *int     `json:"maxMemoryPercentOfLimit,omitempty"`
+	DynamicConfig           []string `json:"dynamicConfig,omitempty"`
+	AdditionalRedisConfig   *string  `json:"additionalRedisConfig,omitempty"`
 }
 
 // Storage is the inteface to add pvc and pv support in redis

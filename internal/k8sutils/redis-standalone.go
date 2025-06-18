@@ -149,7 +149,9 @@ func generateRedisStandaloneContainerParams(cr *rvb2.Redis) containerParameters 
 		Port:            ptr.To(redisPort),
 		HostPort:        cr.Spec.HostPort,
 	}
-
+	if cr.Spec.RedisConfig != nil {
+		containerProp.MaxMemoryPercentOfLimit = cr.Spec.RedisConfig.MaxMemoryPercentOfLimit
+	}
 	if cr.Spec.EnvVars != nil {
 		containerProp.EnvVars = cr.Spec.EnvVars
 	}

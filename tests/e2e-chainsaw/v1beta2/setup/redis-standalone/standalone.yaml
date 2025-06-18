@@ -4,6 +4,8 @@ kind: Redis
 metadata:
   name: redis-standalone-v1beta2
 spec:
+  redisConfig:
+    maxMemoryPercentOfLimit: 80
   podSecurityContext:
     runAsUser: 1000
     fsGroup: 1000

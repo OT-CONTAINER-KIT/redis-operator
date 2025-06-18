@@ -61,6 +61,23 @@ spec:
             check:
               (contains($stdout, 'have correct slowlog-log-slower-than configuration')): true
 
+    - name: Check maxmemory
+      try:
+        - script:
+            timeout: 30s
+            content: |
+              #!/bin/bash
+              set -e
+
+              # maxmemory should not equal to 0
+              MAXMEMORY=$(kubectl exec -n ${NAMESPACE} redis-cluster-v1beta2-leader-0 -c redis-cluster-v1beta2-leader -- \
+              redis-cli --no-auth-warning -a Opstree1234 config get maxmemory | grep -A1 "maxmemory" | tail -n1)
+              if [ "$MAXMEMORY" == "0" ]; then
+                echo "maxmemory value is $MAXMEMORY, expected not 0"
+                exit 1
+              fi
+              exit 0
+
     - name: Put data
       try:
         - script:
