@@ -34,7 +34,7 @@ spec:
             value: "false"
         args:
         - --leader-elect
-        - --zap-log-level=debug
+#        - --zap-log-level=debug
         - --enable-webhooks=false
         image: controller
         imagePullPolicy: Never

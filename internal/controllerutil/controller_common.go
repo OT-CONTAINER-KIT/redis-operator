@@ -39,3 +39,10 @@ func RequeueECheck(ctx context.Context, err error, msg string, keysAndValues ...
 	}
 	return RequeueE(ctx, err, msg, keysAndValues...)
 }
+
+func RequeueEConflict(ctx context.Context, err error, msg string, keysAndValues ...interface{}) (reconcile.Result, error) {
+	if apierrors.IsConflict(err) {
+		return RequeueAfter(ctx, 0, err.Error())
+	}
+	return RequeueE(ctx, err, msg, keysAndValues...)
+}
