@@ -12,19 +12,19 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-// ReshardRedisCluster transfer the slots from the last node to the first node.
+// ReshardRedisCluster transfer the slots from the last node to the provided transfer node.
 //
-// NOTE: when all slot been transferred, the node become slave of the first master node.
-func ReshardRedisCluster(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, shardIdx int32, remove bool, targetNodeIdx int32) {
-	targetNodeName := fmt.Sprintf("%s-leader-%d", cr.ObjectMeta.Name, targetNodeIdx)
-	redisClient := configureRedisClient(ctx, client, cr, targetNodeName)
+// NOTE: when all slot been transferred, the node become slave of the transfer node.
+func ReshardRedisCluster(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, shardIdx int32, remove bool, transferNodeIdx int32) {
+	transferNodeName := fmt.Sprintf("%s-leader-%d", cr.ObjectMeta.Name, transferNodeIdx)
+	redisClient := configureRedisClient(ctx, client, cr, transferNodeName)
 	defer redisClient.Close()
 
 	var cmd []string
 
 	// Transfer Pod details
 	transferPOD := RedisDetails{
-		PodName:   targetNodeName,
+		PodName:   transferNodeName,
 		Namespace: cr.Namespace,
 	}
 	// Remove POD details
@@ -49,7 +49,7 @@ func ReshardRedisCluster(ctx context.Context, client kubernetes.Interface, cr *r
 		cmd = append(cmd, pass)
 	}
 
-	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.ObjectMeta.Name+"-leader-0")...)
+	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, transferNodeName)...)
 
 	//--cluster-from <node-id> --cluster-to <node-id> --cluster-slots <number of slots> --cluster-yes
 
@@ -71,12 +71,12 @@ func ReshardRedisCluster(ctx context.Context, client kubernetes.Interface, cr *r
 	cmd = append(cmd, "--cluster-yes")
 
 	log.FromContext(ctx).V(1).Info("Redis cluster reshard command is", "Command", cmd)
-
+	log.FromContext(ctx).V(0).Info(fmt.Sprintf("Transferring %s slots from shard %d to shard %d", slots, shardIdx, transferNodeIdx))
 	if slots == "0" {
 		log.FromContext(ctx).V(1).Info("Skipped the execution of", "Cmd", cmd)
 		return
 	}
-	executeCommand(ctx, client, cr, cmd, cr.ObjectMeta.Name+"-leader-0")
+	executeCommand(ctx, client, cr, cmd, transferNodeName)
 
 	if remove {
 		RemoveRedisNodeFromCluster(ctx, client, cr, removePOD)
@@ -101,7 +101,6 @@ func getRedisClusterSlots(ctx context.Context, redisClient *redis.Client, nodeID
 		}
 	}
 
-	log.FromContext(ctx).V(1).Info("Total cluster slots to be transferred from", "node", nodeID, "is", totalSlots)
 	return strconv.Itoa(totalSlots)
 }
 
