@@ -141,16 +141,17 @@ func generateRedisStandaloneContainerParams(cr *rvb2.Redis) containerParameters 
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{
-		Role:                    "standalone",
-		Image:                   cr.Spec.KubernetesConfig.Image,
-		ImagePullPolicy:         cr.Spec.KubernetesConfig.ImagePullPolicy,
-		Resources:               cr.Spec.KubernetesConfig.Resources,
-		MaxMemoryPercentOfLimit: cr.Spec.RedisConfig.MaxMemoryPercentOfLimit,
-		SecurityContext:         cr.Spec.SecurityContext,
-		Port:                    ptr.To(redisPort),
-		HostPort:                cr.Spec.HostPort,
+		Role:            "standalone",
+		Image:           cr.Spec.KubernetesConfig.Image,
+		ImagePullPolicy: cr.Spec.KubernetesConfig.ImagePullPolicy,
+		Resources:       cr.Spec.KubernetesConfig.Resources,
+		SecurityContext: cr.Spec.SecurityContext,
+		Port:            ptr.To(redisPort),
+		HostPort:        cr.Spec.HostPort,
 	}
-
+	if cr.Spec.RedisConfig != nil {
+		containerProp.MaxMemoryPercentOfLimit = cr.Spec.RedisConfig.MaxMemoryPercentOfLimit
+	}
 	if cr.Spec.EnvVars != nil {
 		containerProp.EnvVars = cr.Spec.EnvVars
 	}

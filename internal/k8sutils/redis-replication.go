@@ -134,14 +134,16 @@ func generateRedisReplicationContainerParams(cr *rrvb2.RedisReplication) contain
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{
-		Role:                    "replication",
-		Image:                   cr.Spec.KubernetesConfig.Image,
-		ImagePullPolicy:         cr.Spec.KubernetesConfig.ImagePullPolicy,
-		Resources:               cr.Spec.KubernetesConfig.Resources,
-		MaxMemoryPercentOfLimit: cr.Spec.RedisConfig.MaxMemoryPercentOfLimit,
-		SecurityContext:         cr.Spec.SecurityContext,
-		Port:                    ptr.To(redisPort),
-		HostPort:                cr.Spec.HostPort,
+		Role:            "replication",
+		Image:           cr.Spec.KubernetesConfig.Image,
+		ImagePullPolicy: cr.Spec.KubernetesConfig.ImagePullPolicy,
+		Resources:       cr.Spec.KubernetesConfig.Resources,
+		SecurityContext: cr.Spec.SecurityContext,
+		Port:            ptr.To(redisPort),
+		HostPort:        cr.Spec.HostPort,
+	}
+	if cr.Spec.RedisConfig != nil {
+		containerProp.MaxMemoryPercentOfLimit = cr.Spec.RedisConfig.MaxMemoryPercentOfLimit
 	}
 	if cr.Spec.EnvVars != nil {
 		containerProp.EnvVars = cr.Spec.EnvVars

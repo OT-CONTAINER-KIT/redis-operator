@@ -114,14 +114,16 @@ func generateRedisClusterContainerParams(ctx context.Context, cl kubernetes.Inte
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{
-		Role:                    "cluster",
-		Image:                   cr.Spec.KubernetesConfig.Image,
-		ImagePullPolicy:         cr.Spec.KubernetesConfig.ImagePullPolicy,
-		Resources:               resources,
-		MaxMemoryPercentOfLimit: cr.Spec.RedisConfig.MaxMemoryPercentOfLimit,
-		SecurityContext:         securityContext,
-		Port:                    cr.Spec.Port,
-		HostPort:                cr.Spec.HostPort,
+		Role:            "cluster",
+		Image:           cr.Spec.KubernetesConfig.Image,
+		ImagePullPolicy: cr.Spec.KubernetesConfig.ImagePullPolicy,
+		Resources:       resources,
+		SecurityContext: securityContext,
+		Port:            cr.Spec.Port,
+		HostPort:        cr.Spec.HostPort,
+	}
+	if cr.Spec.RedisConfig != nil {
+		containerProp.MaxMemoryPercentOfLimit = cr.Spec.RedisConfig.MaxMemoryPercentOfLimit
 	}
 	if cr.Spec.EnvVars != nil {
 		containerProp.EnvVars = cr.Spec.EnvVars
