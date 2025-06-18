@@ -31,9 +31,9 @@ spec:
               set -e
 
               # maxmemory should not equal to 0
-              MAXMEMORY_VALUE=$(kubectl exec -n ${NAMESPACE} redis-replication-0 -c redis-replication -- redis-cli --no-auth-warning -a Opstree1234 config get maxmemory | grep -A1 "maxmemory" | tail -n1)
-              if [ "$MAXMEMORY_VALUE" == "0" ]; then
-                echo "maxmemory value is $MAXMEMORY_VALUE, expected not 0"
+              MAXMEMORY=$(kubectl exec -n ${NAMESPACE} redis-replication-0 -c redis-replication -- redis-cli --no-auth-warning -a Opstree1234 config get maxmemory | grep -A1 "maxmemory" | tail -n1)
+              if [ "$MAXMEMORY" == "0" ]; then
+                echo "maxmemory value is $MAXMEMORY, expected not 0"
                 exit 1
               fi
               exit 0
