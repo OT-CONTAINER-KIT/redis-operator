@@ -8,6 +8,7 @@ spec:
   clusterVersion: v7
   persistenceEnabled: true
   redisConfig:
+    maxMemoryPercentOfLimit: 80
     dynamicConfig:
       - "slowlog-log-slower-than 5000"
   podSecurityContext:

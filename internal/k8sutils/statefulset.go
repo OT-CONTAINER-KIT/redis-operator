@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/consts"
 	internalenv "github.com/OT-CONTAINER-KIT/redis-operator/internal/env"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/features"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/image"
@@ -125,6 +126,7 @@ type containerParameters struct {
 	Image                        string
 	ImagePullPolicy              corev1.PullPolicy
 	Resources                    *corev1.ResourceRequirements
+	MaxMemoryPercentOfLimit      *int
 	SecurityContext              *corev1.SecurityContext
 	RedisExporterImage           string
 	RedisExporterImagePullPolicy corev1.PullPolicy
@@ -576,6 +578,16 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 			ptr.Deref(containerParams.EnvVars, []corev1.EnvVar{}),
 			ptr.Deref(containerParams.AdditionalEnvVariable, []corev1.EnvVar{})...,
 		)
+		if containerParams.Resources != nil && containerParams.MaxMemoryPercentOfLimit != nil {
+			memLimit := containerParams.Resources.Limits.Memory().Value()
+			if memLimit != 0 {
+				maxMem := int(float64(memLimit) * float64(*containerParams.MaxMemoryPercentOfLimit) / 100)
+				envVars = append(envVars, corev1.EnvVar{
+					Name:  consts.ENV_KEY_REDIS_MAX_MEMORY,
+					Value: fmt.Sprintf("%d", maxMem),
+				})
+			}
+		}
 		container := corev1.Container{
 			Name:            "init-config",
 			Image:           image,

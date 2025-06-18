@@ -2250,6 +2250,12 @@ spec:
                     items:
                       type: string
                     type: array
+                  maxMemoryPercentOfLimit:
+                    description: MaxMemoryPercentOfLimit is the percentage of redis
+                      container memory limit to be used as maxmemory.
+                    maximum: 100
+                    minimum: 1
+                    type: integer
                 type: object
               redisExporter:
                 description: RedisExporter interface will have the information for
