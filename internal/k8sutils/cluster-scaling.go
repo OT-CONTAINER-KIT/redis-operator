@@ -12,18 +12,19 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-// ReshardRedisCluster transfer the slots from the last node to the first node.
+// ReshardRedisCluster transfer the slots from the last node to the provided transfer node.
 //
-// NOTE: when all slot been transferred, the node become slave of the first master node.
-func ReshardRedisCluster(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, shardIdx int32, remove bool) {
-	redisClient := configureRedisClient(ctx, client, cr, cr.ObjectMeta.Name+"-leader-0")
+// NOTE: when all slot been transferred, the node become slave of the transfer node.
+func ReshardRedisCluster(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, shardIdx int32, transferNodeIdx int32, remove bool) {
+	transferNodeName := fmt.Sprintf("%s-leader-%d", cr.ObjectMeta.Name, transferNodeIdx)
+	redisClient := configureRedisClient(ctx, client, cr, transferNodeName)
 	defer redisClient.Close()
 
 	var cmd []string
 
 	// Transfer Pod details
 	transferPOD := RedisDetails{
-		PodName:   cr.ObjectMeta.Name + "-leader-0",
+		PodName:   transferNodeName,
 		Namespace: cr.Namespace,
 	}
 	// Remove POD details
@@ -42,13 +43,14 @@ func ReshardRedisCluster(ctx context.Context, client kubernetes.Interface, cr *r
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
 		pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
 		if err != nil {
-			log.FromContext(ctx).Error(err, "Error in getting redis password")
+			log.FromContext(ctx).Error(err, "error in getting redis password")
+			return
 		}
 		cmd = append(cmd, "-a")
 		cmd = append(cmd, pass)
 	}
 
-	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.ObjectMeta.Name+"-leader-0")...)
+	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, transferNodeName)...)
 
 	//--cluster-from <node-id> --cluster-to <node-id> --cluster-slots <number of slots> --cluster-yes
 
@@ -63,19 +65,20 @@ func ReshardRedisCluster(ctx context.Context, client kubernetes.Interface, cr *r
 	cmd = append(cmd, transferNodeID)
 
 	// Cluster Slots
-	slot := getRedisClusterSlots(ctx, redisClient, removeNodeID)
+	slots := getRedisClusterSlots(ctx, redisClient, removeNodeID)
+	if slots == "0" || slots == "" {
+		log.FromContext(ctx).Info("skipping the execution cmd because no slots found", "Cmd", cmd)
+		return
+	}
 	cmd = append(cmd, "--cluster-slots")
-	cmd = append(cmd, slot)
+	cmd = append(cmd, slots)
 
 	cmd = append(cmd, "--cluster-yes")
 
-	log.FromContext(ctx).V(1).Info("Redis cluster reshard command is", "Command", cmd)
-
-	if slot == "0" {
-		log.FromContext(ctx).V(1).Info("Skipped the execution of", "Cmd", cmd)
-		return
-	}
-	executeCommand(ctx, client, cr, cmd, cr.ObjectMeta.Name+"-leader-0")
+	log.FromContext(ctx).V(1).Info("redis cluster reshard command is", "Command", cmd)
+	log.FromContext(ctx).Info(fmt.Sprintf("transferring %s slots from shard %d to shard %d", slots, shardIdx, transferNodeIdx))
+	executeCommand(ctx, client, cr, cmd, transferNodeName)
+	log.FromContext(ctx).Info(fmt.Sprintf("transferring %s slots from shard %d to shard %d completed", slots, shardIdx, transferNodeIdx))
 
 	if remove {
 		RemoveRedisNodeFromCluster(ctx, client, cr, removePOD)
@@ -87,7 +90,7 @@ func getRedisClusterSlots(ctx context.Context, redisClient *redis.Client, nodeID
 
 	redisSlots, err := redisClient.ClusterSlots(ctx).Result()
 	if err != nil {
-		log.FromContext(ctx).Error(err, "Failed to Get Cluster Slots")
+		log.FromContext(ctx).Error(err, "failed to get cluster slots")
 		return ""
 	}
 	for _, slot := range redisSlots {
@@ -100,7 +103,6 @@ func getRedisClusterSlots(ctx context.Context, redisClient *redis.Client, nodeID
 		}
 	}
 
-	log.FromContext(ctx).V(1).Info("Total cluster slots to be transferred from", "node", nodeID, "is", totalSlots)
 	return strconv.Itoa(totalSlots)
 }
 

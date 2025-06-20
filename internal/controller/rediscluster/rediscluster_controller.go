@@ -106,7 +106,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				k8sutils.RemoveRedisFollowerNodesFromCluster(ctx, r.K8sClient, instance, shardIdx)
 				monitoring.RedisClusterRemoveFollowerAttempt.WithLabelValues(instance.Namespace, instance.Name).Inc()
 				// Step 2 Reshard the Cluster
-				k8sutils.ReshardRedisCluster(ctx, r.K8sClient, instance, shardIdx, true)
+				// We round robin over the remaining nodes to pick a node where to move the shard to.
+				// This helps reduce the chance of overloading/OOMing the remaining nodes
+				// and makes the subsequent rebalancing step more efficient.
+				// TODO: consider doing the resharding in parallel
+				shardMoveNodeIdx := shardIdx % leaderReplicas
+				k8sutils.ReshardRedisCluster(ctx, r.K8sClient, instance, shardIdx, shardMoveNodeIdx, true)
 				monitoring.RedisClusterReshardTotal.WithLabelValues(instance.Namespace, instance.Name).Inc()
 			}
 			logger.Info("Redis cluster is downscaled... Rebalancing the cluster")
