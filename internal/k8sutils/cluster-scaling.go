@@ -43,7 +43,8 @@ func ReshardRedisCluster(ctx context.Context, client kubernetes.Interface, cr *r
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
 		pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
 		if err != nil {
-			log.FromContext(ctx).Error(err, "Error in getting redis password")
+			log.FromContext(ctx).Error(err, "error in getting redis password")
+			return
 		}
 		cmd = append(cmd, "-a")
 		cmd = append(cmd, pass)
@@ -65,18 +66,19 @@ func ReshardRedisCluster(ctx context.Context, client kubernetes.Interface, cr *r
 
 	// Cluster Slots
 	slots := getRedisClusterSlots(ctx, redisClient, removeNodeID)
+	if slots == "0" || slots == "" {
+		log.FromContext(ctx).Info("skipping the execution cmd because no slots found", "Cmd", cmd)
+		return
+	}
 	cmd = append(cmd, "--cluster-slots")
 	cmd = append(cmd, slots)
 
 	cmd = append(cmd, "--cluster-yes")
 
-	log.FromContext(ctx).V(1).Info("Redis cluster reshard command is", "Command", cmd)
-	log.FromContext(ctx).V(0).Info(fmt.Sprintf("Transferring %s slots from shard %d to shard %d", slots, shardIdx, transferNodeIdx))
-	if slots == "0" {
-		log.FromContext(ctx).V(1).Info("Skipped the execution of", "Cmd", cmd)
-		return
-	}
+	log.FromContext(ctx).V(1).Info("redis cluster reshard command is", "Command", cmd)
+	log.FromContext(ctx).Info("transferring slots", "slots", slots, "from shard", shardIdx, "to shard", transferNodeIdx)
 	executeCommand(ctx, client, cr, cmd, transferNodeName)
+	log.FromContext(ctx).Info("transferring slots completed", "slots", slots, "from shard", shardIdx, "to shard", transferNodeIdx)
 
 	if remove {
 		RemoveRedisNodeFromCluster(ctx, client, cr, removePOD)
@@ -88,7 +90,7 @@ func getRedisClusterSlots(ctx context.Context, redisClient *redis.Client, nodeID
 
 	redisSlots, err := redisClient.ClusterSlots(ctx).Result()
 	if err != nil {
-		log.FromContext(ctx).Error(err, "Failed to Get Cluster Slots")
+		log.FromContext(ctx).Error(err, "failed to get cluster slots")
 		return ""
 	}
 	for _, slot := range redisSlots {
