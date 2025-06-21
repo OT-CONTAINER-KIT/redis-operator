@@ -30,7 +30,7 @@ jobs:
           cache: false
 
       - name: Run GolangCI-Lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v8
         with:
           version: v1.62.2
 
