@@ -71,7 +71,7 @@ func ReshardRedisCluster(ctx context.Context, client kubernetes.Interface, cr *r
 		return err
 	}
 	cmd = append(cmd, "--cluster-slots")
-	cmd = append(cmd, strconv.Itoa(slot))
+	cmd = append(cmd, strconv.Itoa(slots))
 
 	cmd = append(cmd, "--cluster-yes")
 
