@@ -77,6 +77,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return intctrlutil.RequeueE(ctx, err, "failed to add finalizer")
 	}
 
+	// Check redis cluster status
+	err = r.checkRedisClusterStatus(ctx, instance)
+	if err != nil {
+		return intctrlutil.RequeueE(ctx, err, "Failed to check redis cluster status,skip reconcile")
+	}
+
 	// Check if the cluster is downscaled
 	leaderCount, err := r.GetStatefulSetReplicas(ctx, instance.Namespace, instance.Name+"-leader")
 	if err != nil {
@@ -108,10 +114,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 						return intctrlutil.RequeueE(ctx, err, "Failed to run cluster failover")
 					}
 				}
+				err = r.checkRedisClusterStatus(ctx, instance)
+				if err != nil {
+					return intctrlutil.RequeueE(ctx, err, "Failed to check redis cluster status")
+				}
 				err = k8sutils.RemoveRedisFollowerNodesFromCluster(ctx, r.K8sClient, instance, shardIdx)
 				monitoring.RedisClusterRemoveFollowerAttempt.WithLabelValues(instance.Namespace, instance.Name).Inc()
 				if err != nil {
 					return intctrlutil.RequeueE(ctx, err, "Failed to remove redis follower nodes from cluster")
+				}
+				err = r.checkRedisClusterStatus(ctx, instance)
+				if err != nil {
+					return intctrlutil.RequeueE(ctx, err, "Failed to check redis cluster status")
 				}
 				// Step 2 Reshard the Cluster
 				err = k8sutils.ReshardRedisCluster(ctx, r.K8sClient, instance, shardIdx, true)
@@ -122,7 +136,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			}
 			logger.Info("Redis cluster is downscaled... Rebalancing the cluster")
 			// Step 3 Rebalance the cluster
-			err = k8sutils.RebalanceRedisCluster(ctx, r.K8sClient, instance)
+			err = r.rebalanceRedisCluster(ctx, instance)
 			if err != nil {
 				return intctrlutil.RequeueE(ctx, err, "Failed to rebalance redis cluster for downscale")
 			}
@@ -224,9 +238,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 					}
 					monitoring.RedisClusterAddingNodeAttempt.WithLabelValues(instance.Namespace, instance.Name).Inc()
 					// Step 3 Rebalance the cluster using the empty masters
-					err = k8sutils.RebalanceRedisClusterEmptyMasters(ctx, r.K8sClient, instance)
+					err = r.rebalanceRedisCluster(ctx, instance)
 					if err != nil {
-						return intctrlutil.RequeueE(ctx, err, "Failed to rebalance redis cluster for empty masters")
+						return intctrlutil.RequeueE(ctx, err, "Failed to rebalance redis cluster for add redis node")
 					}
 				}
 			}
@@ -287,7 +301,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
 	if totalCount == totalReplicas {
-		k8sutils.CheckIfEmptyMasters(ctx, r.K8sClient, instance)
+		exist, err := k8sutils.ExistEmptyMasters(ctx, r.K8sClient, instance)
+		if err != nil {
+			return intctrlutil.RequeueE(ctx, err, "")
+		}
+		if exist {
+			logger.V(1).Info("Redis cluster has empty master node, rebalancing the cluster")
+			err = r.rebalanceRedisCluster(ctx, instance)
+			if err != nil {
+				return intctrlutil.RequeueE(ctx, err, "Failed to rebalance redis cluster for empty masters")
+			}
+			logger.Info("Successfully rebalanced the cluster with empty master node")
+		}
 	}
 
 	// Mark the cluster status as ready if all the leader and follower nodes are ready
@@ -317,4 +342,30 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, opts controller.Options)
 		WithOptions(opts).
 		Owns(&appsv1.StatefulSet{}).
 		Complete(r)
+}
+
+func (r *Reconciler) rebalanceRedisCluster(ctx context.Context, instance *rcvb2.RedisCluster) error {
+	err := retry.Do(func() error {
+		return k8sutils.RebalanceRedisClusterEmptyMasters(ctx, r.K8sClient, instance, true)
+	}, retry.Attempts(3), retry.Delay(time.Second*5))
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Failed to simulate rebalance redis cluster")
+		return err
+	}
+	err = k8sutils.RebalanceRedisClusterEmptyMasters(ctx, r.K8sClient, instance, false)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *Reconciler) checkRedisClusterStatus(ctx context.Context, instance *rcvb2.RedisCluster) error {
+	err := retry.Do(func() error {
+		return k8sutils.CheckRedisClusterStatus(ctx, r.K8sClient, instance)
+	}, retry.Attempts(6), retry.Delay(time.Second*5))
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Failed to check redis cluster status")
+		return err
+	}
+	return nil
 }
