@@ -180,7 +180,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			ReadyFollowerReplicas: instance.Status.ReadyFollowerReplicas,
 		})
 		if err != nil {
-			return intctrlutil.RequeueEConflict(ctx, err, "")
+			return intctrlutil.RequeueE(ctx, err, "")
 		}
 		if requeue {
 			return intctrlutil.Requeue()
@@ -214,7 +214,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				ReadyFollowerReplicas: instance.Status.ReadyFollowerReplicas,
 			})
 			if err != nil {
-				return intctrlutil.RequeueEConflict(ctx, err, "")
+				return intctrlutil.RequeueE(ctx, err, "")
 			}
 			if requeue {
 				return intctrlutil.Requeue()
@@ -271,7 +271,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			ReadyFollowerReplicas: followerReplicas,
 		})
 		if err != nil {
-			return intctrlutil.RequeueEConflict(ctx, err, "")
+			return intctrlutil.RequeueE(ctx, err, "")
 		}
 		if requeue {
 			return intctrlutil.Requeue()
@@ -376,7 +376,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			ReadyFollowerReplicas: followerReplicas,
 		})
 		if err != nil {
-			return intctrlutil.RequeueEConflict(ctx, err, "")
+			return intctrlutil.RequeueE(ctx, err, "")
 		}
 		if requeue {
 			return intctrlutil.Requeue()
@@ -460,7 +460,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				ReadyFollowerReplicas: followerReplicas,
 			})
 			if err != nil {
-				return intctrlutil.RequeueEConflict(ctx, err, "")
+				return intctrlutil.RequeueE(ctx, err, "")
 			}
 			if requeue {
 				return intctrlutil.Requeue()
