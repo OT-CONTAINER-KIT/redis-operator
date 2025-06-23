@@ -6,12 +6,11 @@ import (
 
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
+	redis "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/redis"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/controllerutil"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/monitoring"
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -22,10 +21,8 @@ import (
 // Reconciler reconciles a RedisReplication object
 type Reconciler struct {
 	client.Client
-	k8sutils.Pod
-	k8sutils.StatefulSet
-	K8sClient  kubernetes.Interface
-	Dk8sClient dynamic.Interface
+	Healer    redis.Healer
+	K8sClient kubernetes.Interface
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -92,31 +89,6 @@ func (r *Reconciler) UpdateRedisReplicationMaster(ctx context.Context, instance 
 	instance.Status.MasterNode = masterNode
 	if err := r.Client.Status().Update(ctx, instance); err != nil {
 		return err
-	}
-	return nil
-}
-
-func (r *Reconciler) UpdateRedisPodRoleLabel(ctx context.Context, cr *rrvb2.RedisReplication, masterNode string) error {
-	labels := k8sutils.GetRedisReplicationLabels(cr)
-	pods, err := r.ListPods(ctx, cr.GetNamespace(), labels)
-	if err != nil {
-		return err
-	}
-	updateRoleLabelFunc := func(ctx context.Context, namespace string, pod corev1.Pod, role string) error {
-		if pod.Labels[k8sutils.RedisRoleLabelKey] != role {
-			return r.PatchPodLabels(ctx, namespace, pod.GetName(), map[string]string{k8sutils.RedisRoleLabelKey: role})
-		}
-		return nil
-	}
-	for _, pod := range pods.Items {
-		if masterNode == pod.GetName() {
-			err = updateRoleLabelFunc(ctx, cr.GetNamespace(), pod, k8sutils.RedisRoleLabelMaster)
-		} else {
-			err = updateRoleLabelFunc(ctx, cr.GetNamespace(), pod, k8sutils.RedisRoleLabelSlave)
-		}
-		if err != nil {
-			return err
-		}
 	}
 	return nil
 }
@@ -200,7 +172,8 @@ func (r *Reconciler) reconcileStatus(ctx context.Context, instance *rrvb2.RedisR
 	if err = r.UpdateRedisReplicationMaster(ctx, instance, realMaster); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
-	if err = r.UpdateRedisPodRoleLabel(ctx, instance, realMaster); err != nil {
+	labels := common.GetRedisLabels(instance.GetName(), common.SetupTypeReplication, "replication", instance.GetLabels())
+	if err = r.Healer.UpdateRedisRoleLabel(ctx, instance.GetNamespace(), labels, instance.Spec.KubernetesConfig.ExistingPasswordSecret); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
 

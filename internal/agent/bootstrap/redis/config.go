@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	agentutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/agent/util"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/consts"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 )
 
@@ -185,6 +186,10 @@ func GenerateConfig() error {
 				cfg.Append("cluster-announce-hostname", podHostname)
 			}
 		}
+	}
+
+	if maxMemory, ok := util.CoalesceEnv(consts.ENV_KEY_REDIS_MAX_MEMORY, ""); ok && maxMemory != "" {
+		cfg.Append("maxmemory", maxMemory)
 	}
 
 	// Commit configuration to file

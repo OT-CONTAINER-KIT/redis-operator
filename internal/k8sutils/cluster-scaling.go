@@ -12,18 +12,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-// ReshardRedisCluster transfer the slots from the last node to the first node.
+// ReshardRedisCluster transfer the slots from the last node to the provided transfer node.
 //
-// NOTE: when all slot been transferred, the node become slave of the first master node.
-func ReshardRedisCluster(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, shardIdx int32, remove bool) error {
-	redisClient := configureRedisClient(ctx, client, cr, cr.ObjectMeta.Name+"-leader-0")
+// NOTE: when all slot been transferred, the node become slave of the transfer node.
+func ReshardRedisCluster(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, shardIdx int32, transferNodeIdx int32, remove bool) error {
+	transferNodeName := fmt.Sprintf("%s-leader-%d", cr.ObjectMeta.Name, transferNodeIdx)
+	redisClient := configureRedisClient(ctx, client, cr, transferNodeName)
+
 	defer redisClient.Close()
 
 	var cmd []string
 
 	// Transfer Pod details
 	transferPOD := RedisDetails{
-		PodName:   cr.ObjectMeta.Name + "-leader-0",
+		PodName:   transferNodeName,
 		Namespace: cr.Namespace,
 	}
 	// Remove POD details
@@ -49,7 +51,7 @@ func ReshardRedisCluster(ctx context.Context, client kubernetes.Interface, cr *r
 		cmd = append(cmd, pass)
 	}
 
-	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.ObjectMeta.Name+"-leader-0")...)
+	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, transferNodeName)...)
 
 	//--cluster-from <node-id> --cluster-to <node-id> --cluster-slots <number of slots> --cluster-yes
 
@@ -64,7 +66,7 @@ func ReshardRedisCluster(ctx context.Context, client kubernetes.Interface, cr *r
 	cmd = append(cmd, transferNodeID)
 
 	// Cluster Slots
-	slot, err := getRedisClusterSlots(ctx, redisClient, removeNodeID)
+	slots, err := getRedisClusterSlots(ctx, redisClient, removeNodeID)
 	if err != nil {
 		return err
 	}
@@ -73,12 +75,12 @@ func ReshardRedisCluster(ctx context.Context, client kubernetes.Interface, cr *r
 
 	cmd = append(cmd, "--cluster-yes")
 
-	if slot == 0 {
+	if slots == 0 {
 		log.FromContext(ctx).V(1).Info("Skipped the execution of", "Cmd", cmd)
 		return nil
 	}
 
-	log.FromContext(ctx).Info("Redis cluster reshard command is", "Command", cmd)
+	log.FromContext(ctx).Info(fmt.Sprintf("transferring %s slots from shard %d to shard %d", slots, shardIdx, transferNodeIdx))
 	cmdOut, err := executeCommand1(ctx, client, cr, cmd, cr.ObjectMeta.Name+"-leader-0")
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Failed to run reshard command", "Command", cmd, "Output", cmdOut)

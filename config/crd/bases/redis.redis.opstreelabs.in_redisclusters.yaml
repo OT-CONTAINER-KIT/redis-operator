@@ -783,8 +783,8 @@ spec:
                       and its annotations
                     properties:
                       additional:
-                        description: Service is the struct to define the service type
-                          and its annotations
+                        description: Additional config for which suffix is -additional
+                          service
                         properties:
                           additionalAnnotations:
                             additionalProperties:
@@ -792,6 +792,11 @@ spec:
                             type: object
                           enabled:
                             default: true
+                            type: boolean
+                          includeBusPort:
+                            description: |-
+                              IncludeBusPort when set to true, it will add bus port to the service, such as 16379.
+                              This field is only used for Redis cluster mode.
                             type: boolean
                           type:
                             default: ClusterIP
@@ -806,8 +811,8 @@ spec:
                           type: string
                         type: object
                       headless:
-                        description: Service is the struct to define the service type
-                          and its annotations
+                        description: Headless config for which suffix is -headless
+                          service
                         properties:
                           additionalAnnotations:
                             additionalProperties:
@@ -815,6 +820,11 @@ spec:
                             type: object
                           enabled:
                             default: true
+                            type: boolean
+                          includeBusPort:
+                            description: |-
+                              IncludeBusPort when set to true, it will add bus port to the service, such as 16379.
+                              This field is only used for Redis cluster mode.
                             type: boolean
                           type:
                             default: ClusterIP
@@ -824,6 +834,11 @@ spec:
                             - ClusterIP
                             type: string
                         type: object
+                      includeBusPort:
+                        description: |-
+                          IncludeBusPort when set to true, it will add bus port to the service, such as 16379.
+                          This field is only used for Redis cluster mode.
+                        type: boolean
                       serviceType:
                         enum:
                         - LoadBalancer
@@ -1062,6 +1077,12 @@ spec:
                     items:
                       type: string
                     type: array
+                  maxMemoryPercentOfLimit:
+                    description: MaxMemoryPercentOfLimit is the percentage of redis
+                      container memory limit to be used as maxmemory.
+                    maximum: 100
+                    minimum: 1
+                    type: integer
                 type: object
               redisExporter:
                 description: RedisExporter interface will have the information for
@@ -2643,6 +2664,12 @@ spec:
                         items:
                           type: string
                         type: array
+                      maxMemoryPercentOfLimit:
+                        description: MaxMemoryPercentOfLimit is the percentage of
+                          redis container memory limit to be used as maxmemory.
+                        maximum: 100
+                        minimum: 1
+                        type: integer
                     type: object
                   replicas:
                     format: int32
@@ -4314,6 +4341,12 @@ spec:
                         items:
                           type: string
                         type: array
+                      maxMemoryPercentOfLimit:
+                        description: MaxMemoryPercentOfLimit is the percentage of
+                          redis container memory limit to be used as maxmemory.
+                        maximum: 100
+                        minimum: 1
+                        type: integer
                     type: object
                   replicas:
                     format: int32

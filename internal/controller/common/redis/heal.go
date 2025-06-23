@@ -7,15 +7,22 @@ import (
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/service/redis"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 type Healer interface {
 	SentinelMonitor(ctx context.Context, rs *rsvb2.RedisSentinel, master string) error
 	SentinelReset(ctx context.Context, rs *rsvb2.RedisSentinel) error
+
+	// UpdatePodRoleLabel connect to all redis pods and update pod role label `redis-role` to `master` or `slave` according to their role.
+	UpdateRedisRoleLabel(ctx context.Context, ns string, labels map[string]string, secret *common.ExistingPasswordSecret) error
 }
 
 type healer struct {
@@ -28,6 +35,54 @@ func NewHealer(clientset kubernetes.Interface) Healer {
 		k8s:   clientset,
 		redis: redis.NewClient(),
 	}
+}
+
+func (h *healer) UpdateRedisRoleLabel(ctx context.Context, ns string, labels map[string]string, secret *common.ExistingPasswordSecret) error {
+	selector := make([]string, 0, len(labels))
+	for key, value := range labels {
+		selector = append(selector, fmt.Sprintf("%s=%s", key, value))
+	}
+	pods, err := h.k8s.CoreV1().Pods(ns).List(ctx, metav1.ListOptions{
+		LabelSelector: strings.Join(selector, ","),
+	})
+	if err != nil {
+		return err
+	}
+	password, err := NewChecker(h.k8s).GetPassword(ctx, ns, secret)
+	if err != nil {
+		return err
+	}
+	for _, pod := range pods.Items {
+		connInfo := &redis.ConnectionInfo{
+			IP:       pod.Status.PodIP,
+			Port:     "6379",
+			Password: password,
+		}
+		isMaster, err := h.redis.Connect(connInfo).IsMaster(ctx)
+		if err != nil {
+			return err
+		}
+		role := k8sutils.RedisRoleLabelSlave
+		if isMaster {
+			role = k8sutils.RedisRoleLabelMaster
+		}
+		if oldRole := pod.Labels[k8sutils.RedisRoleLabelKey]; oldRole != role {
+			patch := []byte(fmt.Sprintf(`[{"op": "add", "path": "/metadata/labels/%s", "value": "%s"}]`, k8sutils.RedisRoleLabelKey, role))
+			rErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				_, err = h.k8s.CoreV1().Pods(ns).Patch(ctx, pod.Name, types.JSONPatchType, patch, metav1.PatchOptions{})
+				if err != nil {
+					log.FromContext(ctx).Error(err, "failed to update pod role label", "pod", pod.Name, "oldRole", oldRole, "newRole", role)
+					return err
+				}
+				return nil
+			})
+			if rErr != nil {
+				return fmt.Errorf("failed to update pod role label: %w", rErr)
+			}
+			log.FromContext(ctx).Info("updated pod role label", "pod", pod.Name, "oldRole", oldRole, "newRole", role)
+		}
+	}
+	return nil
 }
 
 // SentinelReset range all sentinel execute `sentinel reset *`

@@ -23,6 +23,10 @@ spec:
       port: 6379
       protocol: TCP
       targetPort: 6379
+    - name: redis-bus
+      port: 16379
+      protocol: TCP
+      targetPort: 16379
   selector:
     app: redis-cluster-v1beta2-leader
     redis_setup_type: cluster
@@ -59,6 +63,10 @@ spec:
       port: 9121
       protocol: TCP
       targetPort: 9121
+    - name: redis-bus
+      port: 16379
+      protocol: TCP
+      targetPort: 16379
   selector:
     app: redis-cluster-v1beta2-leader
     redis_setup_type: cluster
@@ -93,6 +101,10 @@ spec:
       port: 6379
       protocol: TCP
       targetPort: 6379
+    - name: redis-bus
+      port: 16379
+      protocol: TCP
+      targetPort: 16379
   selector:
     app: redis-cluster-v1beta2-leader
     redis_setup_type: cluster
@@ -129,6 +141,10 @@ spec:
       port: 9121
       protocol: TCP
       targetPort: 9121
+    - name: redis-bus
+      port: 16379
+      protocol: TCP
+      targetPort: 16379
   selector:
     app: redis-cluster-v1beta2-follower
     redis_setup_type: cluster
@@ -161,6 +177,10 @@ spec:
       port: 6379
       protocol: TCP
       targetPort: 6379
+    - name: redis-bus
+      port: 16379
+      protocol: TCP
+      targetPort: 16379
   selector:
     app: redis-cluster-v1beta2-follower
     redis_setup_type: cluster
@@ -195,6 +215,10 @@ spec:
       port: 6379
       protocol: TCP
       targetPort: 6379
+    - name: redis-bus
+      port: 16379
+      protocol: TCP
+      targetPort: 16379
   selector:
     app: redis-cluster-v1beta2-follower
     redis_setup_type: cluster
@@ -202,3 +226,28 @@ spec:
   type: ClusterIP
 status:
   loadBalancer: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    prometheus.io/port: "9121"
+    prometheus.io/scrape: "true"
+    redis.opstreelabs.in: "true"
+    redis.opstreelabs.instance: redis-cluster-v1beta2
+  labels:
+    cluster: redis-cluster-v1beta2
+    redis-role: master
+    redis_setup_type: cluster
+  name: redis-cluster-v1beta2-master
+spec:
+  ports:
+    - name: redis-client
+      port: 6379
+      protocol: TCP
+      targetPort: 6379
+  selector:
+    cluster: redis-cluster-v1beta2
+    redis-role: master
+    redis_setup_type: cluster
+  type: ClusterIP

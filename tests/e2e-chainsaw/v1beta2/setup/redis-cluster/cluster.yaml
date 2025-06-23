@@ -8,6 +8,7 @@ spec:
   clusterVersion: v7
   persistenceEnabled: true
   redisConfig:
+    maxMemoryPercentOfLimit: 80
     dynamicConfig:
       - "slowlog-log-slower-than 5000"
   podSecurityContext:
@@ -15,9 +16,13 @@ spec:
     fsGroup: 1000
   kubernetesConfig:
     service:
+      includeBusPort: true
       headless:
+        includeBusPort: true
         additionalAnnotations:
           test: test
+      additional:
+        includeBusPort: true
     image: quay.io/opstree/redis:latest
     imagePullPolicy: Always
     resources:

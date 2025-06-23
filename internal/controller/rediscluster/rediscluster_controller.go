@@ -24,6 +24,7 @@ import (
 	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/events"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/redis"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/controllerutil"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/monitoring"
@@ -43,6 +44,7 @@ import (
 type Reconciler struct {
 	client.Client
 	k8sutils.StatefulSet
+	Healer     redis.Healer
 	K8sClient  kubernetes.Interface
 	Dk8sClient dynamic.Interface
 	Recorder   record.EventRecorder
@@ -128,7 +130,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 					return intctrlutil.RequeueE(ctx, err, "Failed to check redis cluster status")
 				}
 				// Step 2 Reshard the Cluster
-				err = k8sutils.ReshardRedisCluster(ctx, r.K8sClient, instance, shardIdx, true)
+        // We round robin over the remaining nodes to pick a node where to move the shard to.
+				// This helps reduce the chance of overloading/OOMing the remaining nodes
+				// and makes the subsequent rebalancing step more efficient.
+				// TODO: consider doing the resharding in parallel
+				shardMoveNodeIdx := shardIdx % leaderReplicas
+				err = k8sutils.ReshardRedisCluster(ctx, r.K8sClient, instance, shardIdx, shardMoveNodeIdx, true)
 				if err != nil {
 					return intctrlutil.RequeueE(ctx, err, "Failed to reshard redis cluster for downscale", "Shard.Index", shardIdx)
 				}
@@ -332,6 +339,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			}
 		}
 	}
+
+	for _, fakeRole := range []string{"leader", "follower"} {
+		labels := common.GetRedisLabels(instance.GetName()+"-"+fakeRole, common.SetupTypeCluster, fakeRole, instance.GetLabels())
+		if err = r.Healer.UpdateRedisRoleLabel(ctx, instance.GetNamespace(), labels, instance.Spec.KubernetesConfig.ExistingPasswordSecret); err != nil {
+			return intctrlutil.RequeueE(ctx, err, "")
+		}
+	}
+
 	return intctrlutil.RequeueAfter(ctx, time.Second*10, "")
 }
 
@@ -339,8 +354,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, opts controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&rcvb2.RedisCluster{}).
-		WithOptions(opts).
 		Owns(&appsv1.StatefulSet{}).
+		WithOptions(opts).
 		Complete(r)
 }
 

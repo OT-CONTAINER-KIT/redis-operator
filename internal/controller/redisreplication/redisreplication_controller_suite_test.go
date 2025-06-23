@@ -23,11 +23,10 @@ import (
 	"time"
 
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
-	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
+	redis "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/redis"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -95,15 +94,12 @@ var _ = BeforeSuite(func() {
 	k8sClient, err := kubernetes.NewForConfig(cfg)
 	Expect(err).ToNot(HaveOccurred())
 
-	dk8sClient, err := dynamic.NewForConfig(cfg)
-	Expect(err).ToNot(HaveOccurred())
+	healer := redis.NewHealer(k8sClient)
 
 	err = (&Reconciler{
-		Client:      k8sManager.GetClient(),
-		K8sClient:   k8sClient,
-		Dk8sClient:  dk8sClient,
-		Pod:         k8sutils.NewPodService(k8sClient),
-		StatefulSet: k8sutils.NewStatefulSetService(k8sClient),
+		Client:    k8sManager.GetClient(),
+		K8sClient: k8sClient,
+		Healer:    healer,
 	}).SetupWithManager(k8sManager, controller.Options{})
 	Expect(err).ToNot(HaveOccurred())
 
