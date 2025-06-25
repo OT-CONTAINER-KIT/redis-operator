@@ -80,7 +80,7 @@ func ReshardRedisCluster(ctx context.Context, client kubernetes.Interface, cr *r
 		return nil
 	}
 
-	log.FromContext(ctx).Info(fmt.Sprintf("transferring %s slots from shard %d to shard %d", slots, shardIdx, transferNodeIdx))
+	log.FromContext(ctx).Info(fmt.Sprintf("transferring %v slots from shard %d to shard %d", slots, shardIdx, transferNodeIdx))
 	cmdOut, err := executeCommand1(ctx, client, cr, cmd, cr.ObjectMeta.Name+"-leader-0")
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Failed to run reshard command", "Command", cmd, "Output", cmdOut)

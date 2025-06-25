@@ -79,12 +79,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return intctrlutil.RequeueE(ctx, err, "failed to add finalizer")
 	}
 
-	// Check redis cluster status
-	err = r.checkRedisClusterStatus(ctx, instance)
-	if err != nil {
-		return intctrlutil.RequeueE(ctx, err, "Failed to check redis cluster status,skip reconcile")
-	}
-
 	// Check if the cluster is downscaled
 	leaderCount, err := r.GetStatefulSetReplicas(ctx, instance.Namespace, instance.Name+"-leader")
 	if err != nil {
@@ -130,7 +124,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 					return intctrlutil.RequeueE(ctx, err, "Failed to check redis cluster status")
 				}
 				// Step 2 Reshard the Cluster
-        // We round robin over the remaining nodes to pick a node where to move the shard to.
+				// We round robin over the remaining nodes to pick a node where to move the shard to.
 				// This helps reduce the chance of overloading/OOMing the remaining nodes
 				// and makes the subsequent rebalancing step more efficient.
 				// TODO: consider doing the resharding in parallel
