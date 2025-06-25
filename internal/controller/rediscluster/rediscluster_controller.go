@@ -231,6 +231,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				}
 			} else {
 				if leaderCount < leaderReplicas {
+					err = r.checkRedisClusterStatus(ctx, instance)
+					if err != nil {
+						return intctrlutil.RequeueE(ctx, err, "Failed to check redis cluster status")
+					}
 					// Scale up the cluster
 					// Step 2 : Add Redis Node
 					err = k8sutils.AddRedisNodeToCluster(ctx, r.K8sClient, instance)
@@ -238,6 +242,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 						return intctrlutil.RequeueE(ctx, err, "Failed to add redis node to cluster")
 					}
 					monitoring.RedisClusterAddingNodeAttempt.WithLabelValues(instance.Namespace, instance.Name).Inc()
+
+					err = r.checkRedisClusterStatus(ctx, instance)
+					if err != nil {
+						return intctrlutil.RequeueE(ctx, err, "Failed to check redis cluster status")
+					}
 					// Step 3 Rebalance the cluster using the empty masters
 					err = r.rebalanceRedisCluster(ctx, instance)
 					if err != nil {

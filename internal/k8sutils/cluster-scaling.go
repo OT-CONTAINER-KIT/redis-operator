@@ -475,7 +475,7 @@ func CheckRedisClusterStatus(ctx context.Context, client kubernetes.Interface, c
 		Namespace: cr.Namespace,
 	}
 
-	cmd := []string{"redis-cli", "--cluster", "check", getRedisHostname(pod, cr, "leader")}
+	cmd := []string{"redis-cli", "--cluster", "check", getRedisServerIP(ctx, client, pod)}
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
 		pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
 		if err != nil {
