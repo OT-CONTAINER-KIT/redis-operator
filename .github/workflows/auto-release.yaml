@@ -48,11 +48,20 @@ jobs:
         run: |
           PREVIOUS_TAG=$(git describe --tags --abbrev=0 ${{ steps.get_version.outputs.VERSION }}^ 2>/dev/null || git rev-list --max-parents=0 HEAD)
           
-          CHANGELOG=$(git log --pretty=format:"* %s" ${PREVIOUS_TAG}..${{ steps.get_version.outputs.VERSION }})
+          CHANGELOG=""
+          while IFS= read -r line; do
+            commit_hash=$(echo "$line" | cut -d' ' -f1)
+            commit_msg=$(echo "$line" | cut -d' ' -f2-)
+            author_login=$(gh api repos/${{ github.repository }}/commits/$commit_hash --jq '.author.login' 2>/dev/null || echo "unknown")
+            if [ "$author_login" != "null" ] && [ "$author_login" != "unknown" ]; then
+              CHANGELOG="$CHANGELOG* $commit_msg (@$author_login)"$'\n'
+            else
+              author_name=$(git show --pretty=format:"%an" -s $commit_hash)
+              CHANGELOG="$CHANGELOG* $commit_msg (@$author_name)"$'\n'
+            fi
+          done < <(git log --pretty=format:"%H %s" ${PREVIOUS_TAG}..${{ steps.get_version.outputs.VERSION }})
           
           cat > release_notes.md << EOF
-          # Redis Operator ${{ steps.get_version.outputs.VERSION }}
-
           ## Changes
           ${CHANGELOG}
           EOF
