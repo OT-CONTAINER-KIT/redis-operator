@@ -112,6 +112,13 @@ undeploy:
 manifests: controller-gen
 	$(CONTROLLER_GEN) crd rbac:roleName=manager-role webhook paths="./api/..." output:crd:artifacts:config=config/crd/bases
 
+# Sync CRDs to chart directory
+.PHONY: sync-crds
+sync-crds: manifests kustomize
+	@echo "Syncing CRDs to chart directory..."
+	$(KUSTOMIZE) build config/crd > charts/redis-operator/crds/crds.yaml
+	@echo "CRDs synced successfully to charts/redis-operator/crds/crds.yaml"
+
 # Run go fmt against code
 .PHONY: fmt
 fmt:
@@ -162,7 +169,7 @@ bundle-build:
 
 # Rebuild all generated code
 .PHONY: codegen
-codegen: generate manifests generate-dataAssert generate-metricsdocs
+codegen: generate manifests sync-crds generate-dataAssert generate-metricsdocs
 
 # Verify that codegen is up to date.
 .PHONY: verify-codegen
