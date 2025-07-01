@@ -29,7 +29,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -100,9 +99,6 @@ var _ = BeforeSuite(func() {
 	k8sClient, err := kubernetes.NewForConfig(cfg)
 	Expect(err).ToNot(HaveOccurred())
 
-	dk8sClient, err := dynamic.NewForConfig(cfg)
-	Expect(err).ToNot(HaveOccurred())
-
 	checker := redis.NewChecker(k8sClient)
 	healer := redis.NewHealer(k8sClient)
 	err = (&RedisSentinelReconciler{
@@ -110,7 +106,6 @@ var _ = BeforeSuite(func() {
 		Checker:            checker,
 		Healer:             healer,
 		K8sClient:          k8sClient,
-		Dk8sClient:         dk8sClient,
 		ReplicationWatcher: intctrlutil.NewResourceWatcher(),
 	}).SetupWithManager(k8sManager, controller.Options{})
 	Expect(err).ToNot(HaveOccurred())

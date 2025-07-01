@@ -6,9 +6,9 @@ import (
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -221,7 +221,7 @@ func generateRedisReplicationInitContainerParams(cr *rrvb2.RedisReplication) ini
 	return initcontainerProp
 }
 
-func IsRedisReplicationReady(ctx context.Context, client kubernetes.Interface, dClient dynamic.Interface, rs *rsvb2.RedisSentinel) bool {
+func IsRedisReplicationReady(ctx context.Context, client kubernetes.Interface, ctrlClient client.Client, rs *rsvb2.RedisSentinel) bool {
 	// statefulset name the same as the redis replication name
 	sts, err := GetStatefulSet(ctx, client, rs.GetNamespace(), rs.Spec.RedisSentinelConfig.RedisReplicationName)
 	if err != nil {
@@ -239,7 +239,7 @@ func IsRedisReplicationReady(ctx context.Context, client kubernetes.Interface, d
 	// Enhanced check: When the pod is ready, it may not have been
 	// created as part of a replication cluster, so we should verify
 	// whether there is an actual master node.
-	if master := getRedisReplicationMasterIP(ctx, client, rs, dClient); master == "" {
+	if master := getRedisReplicationMasterIP(ctx, client, rs, ctrlClient); master == "" {
 		return false
 	}
 	return true

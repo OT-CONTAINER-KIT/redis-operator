@@ -36,7 +36,6 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/monitoring"
 	coreWebhook "github.com/OT-CONTAINER-KIT/redis-operator/internal/webhook"
 	"github.com/spf13/cobra"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -119,11 +118,11 @@ func runManager(opts *managerOptions) error {
 		setupLog.Error(err, "unable to start manager")
 		return err
 	}
-	k8sClient, dk8sClient, err := createK8sClients()
+	k8sClient, err := createK8sClient()
 	if err != nil {
 		return err
 	}
-	if err := setupControllers(mgr, k8sClient, dk8sClient, opts.maxConcurrentReconciles); err != nil {
+	if err := setupControllers(mgr, k8sClient, opts.maxConcurrentReconciles); err != nil {
 		return err
 	}
 	if opts.enableWebhooks {
@@ -180,27 +179,21 @@ func createControllerOptions(opts *managerOptions) ctrl.Options {
 	return options
 }
 
-// createK8sClients creates Kubernetes clients
-func createK8sClients() (kubernetes.Interface, dynamic.Interface, error) {
+// createK8sClient creates Kubernetes client
+func createK8sClient() (kubernetes.Interface, error) {
 	k8sConfig := k8sutils.GenerateK8sConfig()
 
 	k8sClient, err := k8sutils.GenerateK8sClient(k8sConfig)
 	if err != nil {
 		setupLog.Error(err, "unable to create k8s client")
-		return nil, nil, err
+		return nil, err
 	}
 
-	dk8sClient, err := k8sutils.GenerateK8sDynamicClient(k8sConfig)
-	if err != nil {
-		setupLog.Error(err, "unable to create k8s dynamic client")
-		return nil, nil, err
-	}
-
-	return k8sClient, dk8sClient, nil
+	return k8sClient, nil
 }
 
 // setupControllers sets up all controllers
-func setupControllers(mgr ctrl.Manager, k8sClient kubernetes.Interface, dk8sClient dynamic.Interface, maxConcurrentReconciles int) error {
+func setupControllers(mgr ctrl.Manager, k8sClient kubernetes.Interface, maxConcurrentReconciles int) error {
 	// Get max concurrent reconciles from environment
 	maxConcurrentReconciles = internalenv.GetMaxConcurrentReconciles(maxConcurrentReconciles)
 
@@ -216,7 +209,6 @@ func setupControllers(mgr ctrl.Manager, k8sClient kubernetes.Interface, dk8sClie
 	if err := (&redisclustercontroller.Reconciler{
 		Client:      mgr.GetClient(),
 		K8sClient:   k8sClient,
-		Dk8sClient:  dk8sClient,
 		Healer:      healer,
 		Recorder:    mgr.GetEventRecorderFor("rediscluster-controller"),
 		StatefulSet: k8sutils.NewStatefulSetService(k8sClient),
@@ -237,7 +229,6 @@ func setupControllers(mgr ctrl.Manager, k8sClient kubernetes.Interface, dk8sClie
 		Checker:            redis.NewChecker(k8sClient),
 		Healer:             healer,
 		K8sClient:          k8sClient,
-		Dk8sClient:         dk8sClient,
 		ReplicationWatcher: intctrlutil.NewResourceWatcher(),
 	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RedisSentinel")
