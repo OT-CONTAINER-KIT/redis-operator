@@ -125,7 +125,8 @@ bffda5dec210cd73576a3993156dc134b5c63a4f :6379@16379,redis-cluster-leader-9 mast
 			},
 			Status: corev1.PodStatus{
 				PodIP: newPodIP,
-			}})
+			},
+		})
 	}
 	k8sClient := k8sClientFake.NewSimpleClientset(k8sObjects...)
 
