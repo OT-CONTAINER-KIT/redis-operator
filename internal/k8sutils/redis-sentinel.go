@@ -2,18 +2,16 @@ package k8sutils
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -33,7 +31,7 @@ type RedisSentinelService struct {
 }
 
 // Redis Sentinel Create the Redis Sentinel Setup
-func CreateRedisSentinel(ctx context.Context, client kubernetes.Interface, cr *rsvb2.RedisSentinel, cl kubernetes.Interface, dcl dynamic.Interface) error {
+func CreateRedisSentinel(ctx context.Context, client kubernetes.Interface, cr *rsvb2.RedisSentinel, cl kubernetes.Interface, ctrlClient client.Client) error {
 	prop := RedisSentinelSTS{
 		RedisStateFulType:             "sentinel",
 		Affinity:                      cr.Spec.Affinity,
@@ -46,7 +44,7 @@ func CreateRedisSentinel(ctx context.Context, client kubernetes.Interface, cr *r
 		prop.ExternalConfig = cr.Spec.RedisSentinelConfig.AdditionalSentinelConfig
 	}
 
-	return prop.CreateRedisSentinelSetup(ctx, client, cr, cl, dcl)
+	return prop.CreateRedisSentinelSetup(ctx, client, cr, cl, ctrlClient)
 }
 
 // Create RedisSentinel Service
@@ -58,12 +56,12 @@ func CreateRedisSentinelService(ctx context.Context, cr *rsvb2.RedisSentinel, cl
 }
 
 // Create Redis Sentinel Cluster Setup
-func (service RedisSentinelSTS) CreateRedisSentinelSetup(ctx context.Context, client kubernetes.Interface, cr *rsvb2.RedisSentinel, cl kubernetes.Interface, dcl dynamic.Interface) error {
+func (service RedisSentinelSTS) CreateRedisSentinelSetup(ctx context.Context, client kubernetes.Interface, cr *rsvb2.RedisSentinel, cl kubernetes.Interface, ctrlClient client.Client) error {
 	stateFulName := cr.ObjectMeta.Name + "-" + service.RedisStateFulType
 	labels := getRedisLabels(stateFulName, sentinel, service.RedisStateFulType, cr.ObjectMeta.Labels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, annotations)
-	containerParams, err := generateRedisSentinelContainerParams(ctx, client, cr, service.ReadinessProbe, service.LivenessProbe, dcl)
+	containerParams, err := generateRedisSentinelContainerParams(ctx, client, cr, service.ReadinessProbe, service.LivenessProbe, ctrlClient)
 	if err != nil {
 		return err
 	}
@@ -152,7 +150,7 @@ func generateRedisSentinelInitContainerParams(cr *rsvb2.RedisSentinel) initConta
 }
 
 // Create Redis Sentinel Statefulset Container Params
-func generateRedisSentinelContainerParams(ctx context.Context, client kubernetes.Interface, cr *rsvb2.RedisSentinel, readinessProbeDef *corev1.Probe, livenessProbeDef *corev1.Probe, dcl dynamic.Interface) (containerParameters, error) {
+func generateRedisSentinelContainerParams(ctx context.Context, client kubernetes.Interface, cr *rsvb2.RedisSentinel, readinessProbeDef *corev1.Probe, livenessProbeDef *corev1.Probe, ctrlClient client.Client) (containerParameters, error) {
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{
@@ -306,7 +304,7 @@ func getSentinelEnvVariable(cr *rsvb2.RedisSentinel) *[]corev1.EnvVar {
 	return envVar
 }
 
-func getRedisReplicationMasterPod(ctx context.Context, client kubernetes.Interface, cr *rsvb2.RedisSentinel, dcl dynamic.Interface) RedisDetails {
+func getRedisReplicationMasterPod(ctx context.Context, client kubernetes.Interface, cr *rsvb2.RedisSentinel, ctrlClient client.Client) RedisDetails {
 	replicationName := cr.Spec.RedisSentinelConfig.RedisReplicationName
 	replicationNamespace := cr.Namespace
 
@@ -318,31 +316,17 @@ func getRedisReplicationMasterPod(ctx context.Context, client kubernetes.Interfa
 		Namespace: "",
 	}
 
-	// Get Request on Dynamic Client
-	customObject, err := dcl.Resource(schema.GroupVersionResource{
-		Group:    "redis.redis.opstreelabs.in",
-		Version:  "v1beta2",
-		Resource: "redisreplications",
-	}).Namespace(replicationNamespace).Get(context.TODO(), replicationName, v1.GetOptions{})
+	// Get RedisReplication using controller-runtime client
+	err := ctrlClient.Get(ctx, types.NamespacedName{
+		Namespace: replicationNamespace,
+		Name:      replicationName,
+	}, &replicationInstance)
 
 	if err != nil {
-		log.FromContext(ctx).Error(err, "Failed to Execute Get Request", "replication name", replicationName, "namespace", replicationNamespace)
+		log.FromContext(ctx).Error(err, "Failed to get RedisReplication", "replication name", replicationName, "namespace", replicationNamespace)
 		return emptyRedisInfo
 	} else {
-		log.FromContext(ctx).V(1).Info("Successfully Execute the Get Request", "replication name", replicationName, "namespace", replicationNamespace)
-	}
-
-	// Marshal CustomObject to JSON
-	replicationJSON, err := customObject.MarshalJSON()
-	if err != nil {
-		log.FromContext(ctx).Error(err, "Failed To Load JSON")
-		return emptyRedisInfo
-	}
-
-	// Unmarshal The JSON on Object
-	if err := json.Unmarshal(replicationJSON, &replicationInstance); err != nil {
-		log.FromContext(ctx).Error(err, "Failed To Unmarshal JSON over the Object")
-		return emptyRedisInfo
+		log.FromContext(ctx).V(1).Info("Successfully got RedisReplication", "replication name", replicationName, "namespace", replicationNamespace)
 	}
 
 	masterPods := GetRedisNodesByRole(ctx, client, &replicationInstance, "master")
@@ -370,8 +354,8 @@ func getRedisReplicationMasterPod(ctx context.Context, client kubernetes.Interfa
 	}
 }
 
-func getRedisReplicationMasterIP(ctx context.Context, client kubernetes.Interface, cr *rsvb2.RedisSentinel, dcl dynamic.Interface) string {
-	RedisDetails := getRedisReplicationMasterPod(ctx, client, cr, dcl)
+func getRedisReplicationMasterIP(ctx context.Context, client kubernetes.Interface, cr *rsvb2.RedisSentinel, ctrlClient client.Client) string {
+	RedisDetails := getRedisReplicationMasterPod(ctx, client, cr, ctrlClient)
 	if RedisDetails.PodName == "" || RedisDetails.Namespace == "" {
 		return ""
 	} else {

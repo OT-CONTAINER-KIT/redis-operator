@@ -31,7 +31,6 @@ import (
 	retry "github.com/avast/retry-go"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -44,10 +43,9 @@ import (
 type Reconciler struct {
 	client.Client
 	k8sutils.StatefulSet
-	Healer     redis.Healer
-	K8sClient  kubernetes.Interface
-	Dk8sClient dynamic.Interface
-	Recorder   record.EventRecorder
+	Healer    redis.Healer
+	K8sClient kubernetes.Interface
+	Recorder  record.EventRecorder
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -128,7 +126,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// Mark the cluster status as initializing if there are no leader or follower nodes
 	if (instance.Status.ReadyLeaderReplicas == 0 && instance.Status.ReadyFollowerReplicas == 0) ||
 		instance.Status.ReadyLeaderReplicas != leaderReplicas {
-		err = k8sutils.UpdateRedisClusterStatus(ctx, instance, rcvb2.RedisClusterInitializing, rcvb2.InitializingClusterLeaderReason, instance.Status.ReadyLeaderReplicas, instance.Status.ReadyFollowerReplicas, r.Dk8sClient)
+		err = k8sutils.UpdateRedisClusterStatus(ctx, instance, rcvb2.RedisClusterInitializing, rcvb2.InitializingClusterLeaderReason, instance.Status.ReadyLeaderReplicas, instance.Status.ReadyFollowerReplicas, r.Client)
 		if err != nil {
 			return intctrlutil.RequeueE(ctx, err, "")
 		}
@@ -154,7 +152,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// Mark the cluster status as initializing if there are no follower nodes
 		if (instance.Status.ReadyLeaderReplicas == 0 && instance.Status.ReadyFollowerReplicas == 0) ||
 			instance.Status.ReadyFollowerReplicas != followerReplicas {
-			err = k8sutils.UpdateRedisClusterStatus(ctx, instance, rcvb2.RedisClusterInitializing, rcvb2.InitializingClusterFollowerReason, leaderReplicas, instance.Status.ReadyFollowerReplicas, r.Dk8sClient)
+			err = k8sutils.UpdateRedisClusterStatus(ctx, instance, rcvb2.RedisClusterInitializing, rcvb2.InitializingClusterFollowerReason, leaderReplicas, instance.Status.ReadyFollowerReplicas, r.Client)
 			if err != nil {
 				return intctrlutil.RequeueE(ctx, err, "")
 			}
@@ -182,7 +180,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// Mark the cluster status as bootstrapping if all the leader and follower nodes are ready
 	if !(instance.Status.ReadyLeaderReplicas == leaderReplicas && instance.Status.ReadyFollowerReplicas == followerReplicas) {
-		err = k8sutils.UpdateRedisClusterStatus(ctx, instance, rcvb2.RedisClusterBootstrap, rcvb2.BootstrapClusterReason, leaderReplicas, followerReplicas, r.Dk8sClient)
+		err = k8sutils.UpdateRedisClusterStatus(ctx, instance, rcvb2.RedisClusterBootstrap, rcvb2.BootstrapClusterReason, leaderReplicas, followerReplicas, r.Client)
 		if err != nil {
 			return intctrlutil.RequeueE(ctx, err, "")
 		}
@@ -222,7 +220,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		logger.Error(err, "failed to determine unhealthy node count in cluster")
 	}
 	if int(totalReplicas) > 1 && unhealthyNodeCount >= int(totalReplicas)-1 {
-		err = k8sutils.UpdateRedisClusterStatus(ctx, instance, rcvb2.RedisClusterFailed, "RedisCluster has too many unhealthy nodes", leaderReplicas, followerReplicas, r.Dk8sClient)
+		err = k8sutils.UpdateRedisClusterStatus(ctx, instance, rcvb2.RedisClusterFailed, "RedisCluster has too many unhealthy nodes", leaderReplicas, followerReplicas, r.Client)
 		if err != nil {
 			return intctrlutil.RequeueE(ctx, err, "")
 		}
@@ -269,7 +267,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				return intctrlutil.RequeueE(ctx, err, "failed to set dynamic config")
 			}
 
-			err = k8sutils.UpdateRedisClusterStatus(ctx, instance, rcvb2.RedisClusterReady, rcvb2.ReadyClusterReason, leaderReplicas, followerReplicas, r.Dk8sClient)
+			err = k8sutils.UpdateRedisClusterStatus(ctx, instance, rcvb2.RedisClusterReady, rcvb2.ReadyClusterReason, leaderReplicas, followerReplicas, r.Client)
 			if err != nil {
 				return intctrlutil.RequeueE(ctx, err, "")
 			}

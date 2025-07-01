@@ -12,7 +12,6 @@ import (
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/controllerutil"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -25,7 +24,6 @@ type RedisSentinelReconciler struct {
 	Checker            redis.Checker
 	Healer             redis.Healer
 	K8sClient          kubernetes.Interface
-	Dk8sClient         dynamic.Interface
 	ReplicationWatcher *intctrlutil.ResourceWatcher
 }
 
@@ -90,7 +88,7 @@ func (r *RedisSentinelReconciler) reconcileFinalizer(ctx context.Context, instan
 }
 
 func (r *RedisSentinelReconciler) reconcileReplication(ctx context.Context, instance *rsvb2.RedisSentinel) (ctrl.Result, error) {
-	if instance.Spec.RedisSentinelConfig != nil && !k8sutils.IsRedisReplicationReady(ctx, r.K8sClient, r.Dk8sClient, instance) {
+	if instance.Spec.RedisSentinelConfig != nil && !k8sutils.IsRedisReplicationReady(ctx, r.K8sClient, r.Client, instance) {
 		return intctrlutil.RequeueAfter(ctx, time.Second*10, "Redis Replication is specified but not ready")
 	}
 
@@ -111,7 +109,7 @@ func (r *RedisSentinelReconciler) reconcileReplication(ctx context.Context, inst
 }
 
 func (r *RedisSentinelReconciler) reconcileSentinel(ctx context.Context, instance *rsvb2.RedisSentinel) (ctrl.Result, error) {
-	if err := k8sutils.CreateRedisSentinel(ctx, r.K8sClient, instance, r.K8sClient, r.Dk8sClient); err != nil {
+	if err := k8sutils.CreateRedisSentinel(ctx, r.K8sClient, instance, r.K8sClient, r.Client); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
 

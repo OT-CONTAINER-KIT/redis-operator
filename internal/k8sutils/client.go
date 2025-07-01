@@ -1,8 +1,6 @@
 package k8sutils
 
 import (
-	// custom "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -17,15 +15,6 @@ func GenerateK8sClient(configProvider K8sConfigProvider) (kubernetes.Interface, 
 		return nil, err
 	}
 	return kubernetes.NewForConfig(config)
-}
-
-// GenerateK8sClient create Dynamic client for kubernetes
-func GenerateK8sDynamicClient(configProvider K8sConfigProvider) (dynamic.Interface, error) {
-	config, err := configProvider()
-	if err != nil {
-		return nil, err
-	}
-	return dynamic.NewForConfig(config)
 }
 
 // GenerateK8sConfig will load the kube config file
