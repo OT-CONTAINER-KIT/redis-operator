@@ -95,7 +95,6 @@ var _ = BeforeSuite(func() {
 	k8sClient, err := kubernetes.NewForConfig(cfg)
 	Expect(err).ToNot(HaveOccurred())
 
-
 	err = (&Reconciler{
 		Client:      k8sManager.GetClient(),
 		K8sClient:   k8sClient,
