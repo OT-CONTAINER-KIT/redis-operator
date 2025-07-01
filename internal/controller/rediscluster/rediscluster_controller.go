@@ -223,8 +223,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if err != nil {
 		logger.Error(err, "failed to determine unhealthy node count in cluster")
 	}
-	if int(totalReplicas) > 1 && unhealthyNodeCount >= int(totalReplicas)-1 {
-		err = k8sutils.UpdateRedisClusterStatus(ctx, instance, rcvb2.RedisClusterFailed, "RedisCluster has too many unhealthy nodes", leaderReplicas, followerReplicas, r.Client)
+	if int(totalReplicas) > 1 && unhealthyNodeCount > 0 {
+		err = k8sutils.UpdateRedisClusterStatus(ctx, instance, rcvb2.RedisClusterFailed, "RedisCluster has unhealthy nodes", leaderReplicas, followerReplicas, r.Client)
 		if err != nil {
 			return intctrlutil.RequeueE(ctx, err, "")
 		}
@@ -249,9 +249,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			logger.Info("repairing unhealthy masters successful, no unhealthy masters left")
 			return intctrlutil.RequeueAfter(ctx, time.Second*30, "no unhealthy nodes found after repairing disconnected masters")
 		}
-		logger.Info("unhealthy nodes exist after attempting to repair disconnected masters; starting failover")
-		if err = k8sutils.ExecuteFailoverOperation(ctx, r.K8sClient, instance); err != nil {
-			return intctrlutil.RequeueE(ctx, err, "")
+		// recheck if there's still a lot of unhealthy nodes after attempting to repair the masters
+		unhealthyNodeCount, err = k8sutils.UnhealthyNodesInCluster(ctx, r.K8sClient, instance)
+		if err != nil {
+			logger.Error(err, "failed to determine unhealthy node count in cluster")
+		}
+		if int(totalReplicas) > 1 && unhealthyNodeCount >= int(totalReplicas)-1 {
+			logger.Info("unhealthy nodes exist after attempting to repair disconnected masters; starting failover")
+			if err = k8sutils.ExecuteFailoverOperation(ctx, r.K8sClient, instance); err != nil {
+				return intctrlutil.RequeueE(ctx, err, "")
+			}
 		}
 	}
 

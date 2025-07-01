@@ -102,6 +102,7 @@ func repairDisconnectedMasters(ctx context.Context, client kubernetes.Interface,
 		return err
 	}
 	masterNodeType := "master"
+	var lastError error
 	for _, node := range nodes {
 		if !nodeIsOfType(node, masterNodeType) {
 			continue
@@ -111,7 +112,9 @@ func repairDisconnectedMasters(ctx context.Context, client kubernetes.Interface,
 		}
 		podName, err := getMasterHostFromClusterNode(node)
 		if err != nil {
-			return err
+			lastError = err
+			log.FromContext(ctx).V(1).Error(err, "Failed to get pod name from cluster node. Continuing with other nodes.", "Node", node)
+			continue
 		}
 		ip := getRedisServerIP(ctx, client, RedisDetails{
 			PodName:   podName,
@@ -119,10 +122,12 @@ func repairDisconnectedMasters(ctx context.Context, client kubernetes.Interface,
 		})
 		err = redisClient.ClusterMeet(ctx, ip, strconv.Itoa(*cr.Spec.Port)).Err()
 		if err != nil {
-			return fmt.Errorf("failed to issue cluster meet: %w", err)
+			lastError = err
+			log.FromContext(ctx).V(1).Error(err, "Failed to execute CLUSTER MEET on node. Continuing with other nodes.", "Node", node)
+			continue
 		}
 	}
-	return nil
+	return lastError
 }
 
 func getMasterHostFromClusterNode(node clusterNodesResponse) (string, error) {
