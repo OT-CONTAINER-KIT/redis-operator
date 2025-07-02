@@ -18,6 +18,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 )
 
+const (
+	RedisSentinelFinalizer = "redisSentinelFinalizer"
+)
+
 // RedisSentinelReconciler reconciles a RedisSentinel object
 type RedisSentinelReconciler struct {
 	client.Client
@@ -36,7 +40,7 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	if k8sutils.IsDeleted(instance) {
-		if err := k8sutils.HandleRedisSentinelFinalizer(ctx, r.Client, instance); err != nil {
+		if err := k8sutils.HandleRedisSentinelFinalizer(ctx, r.Client, instance, RedisSentinelFinalizer); err != nil {
 			return intctrlutil.RequeueE(ctx, err, "")
 		}
 		return intctrlutil.Reconciled()
@@ -76,12 +80,12 @@ type reconciler struct {
 
 func (r *RedisSentinelReconciler) reconcileFinalizer(ctx context.Context, instance *rsvb2.RedisSentinel) (ctrl.Result, error) {
 	if k8sutils.IsDeleted(instance) {
-		if err := k8sutils.HandleRedisSentinelFinalizer(ctx, r.Client, instance); err != nil {
+		if err := k8sutils.HandleRedisSentinelFinalizer(ctx, r.Client, instance, RedisSentinelFinalizer); err != nil {
 			return intctrlutil.RequeueE(ctx, err, "")
 		}
 		return intctrlutil.Reconciled()
 	}
-	if err := k8sutils.AddFinalizer(ctx, instance, k8sutils.RedisSentinelFinalizer, r.Client); err != nil {
+	if err := k8sutils.AddFinalizer(ctx, instance, RedisSentinelFinalizer, r.Client); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
 	return intctrlutil.Reconciled()

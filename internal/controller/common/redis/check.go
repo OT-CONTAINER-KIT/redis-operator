@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
+	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	rr "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/service/redis"
 	corev1 "k8s.io/api/core/v1"
@@ -16,7 +16,7 @@ import (
 
 type Checker interface {
 	GetMasterFromReplication(ctx context.Context, rr *rr.RedisReplication) (corev1.Pod, error)
-	GetPassword(ctx context.Context, ns string, secret *common.ExistingPasswordSecret) (string, error)
+	GetPassword(ctx context.Context, ns string, secret *commonapi.ExistingPasswordSecret) (string, error)
 }
 
 type checker struct {
@@ -31,7 +31,7 @@ func NewChecker(clientset kubernetes.Interface) Checker {
 	}
 }
 
-func (c *checker) GetPassword(ctx context.Context, ns string, secret *common.ExistingPasswordSecret) (string, error) {
+func (c *checker) GetPassword(ctx context.Context, ns string, secret *commonapi.ExistingPasswordSecret) (string, error) {
 	if secret == nil {
 		return "", nil
 	}
