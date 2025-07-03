@@ -92,16 +92,30 @@ func (r *RedisSentinelReconciler) reconcileFinalizer(ctx context.Context, instan
 }
 
 func (r *RedisSentinelReconciler) reconcileReplication(ctx context.Context, instance *rsvb2.RedisSentinel) (ctrl.Result, error) {
-	if instance.Spec.RedisSentinelConfig != nil && !k8sutils.IsRedisReplicationReady(ctx, r.K8sClient, r.Client, instance) {
-		return intctrlutil.RequeueAfter(ctx, time.Second*10, "Redis Replication is specified but not ready")
-	}
-
+	// -------------------------------------------------------------------
+	// Wait until RedisReplication reports a *real* master and readiness.
+	// This prevents Sentinel from accepting an empty self-promoted master
+	// immediately after a pod restart.
+	// -------------------------------------------------------------------
 	if instance.Spec.RedisSentinelConfig != nil {
+		rr := &rrvb2.RedisReplication{}
+		if err := r.Client.Get(ctx, types.NamespacedName{
+			Namespace: instance.Namespace,
+			Name:      instance.Spec.RedisSentinelConfig.RedisReplicationName,
+		}, rr); err != nil {
+			return intctrlutil.RequeueE(ctx, err, "fetch RedisReplication")
+		}
+
+		if rr.Status.MasterNode == "" || !k8sutils.IsRedisReplicationReady(ctx, r.K8sClient, r.Client, instance) {
+			return intctrlutil.RequeueAfter(ctx, 20*time.Second, "RedisReplication not yet stabilised")
+		}
+
+		// Start/refresh the watcher once we’re sure Redis is stable.
 		r.ReplicationWatcher.Watch(
 			ctx,
 			types.NamespacedName{
 				Namespace: instance.Namespace,
-				Name:      instance.Spec.RedisSentinelConfig.RedisReplicationName,
+				Name:      rr.Name,
 			},
 			types.NamespacedName{
 				Namespace: instance.Namespace,
@@ -127,6 +141,10 @@ func (r *RedisSentinelReconciler) reconcileSentinel(ctx context.Context, instanc
 		Name:      instance.Spec.RedisSentinelConfig.RedisReplicationName,
 	}, rr); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
+	}
+
+	if rr.Status.MasterNode == "" {
+		return intctrlutil.RequeueAfter(ctx, 20*time.Second, "Redis master not chosen yet")
 	}
 
 	var monitorAddr string
