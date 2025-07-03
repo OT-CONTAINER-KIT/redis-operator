@@ -68,9 +68,9 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 	}
 
-	// DO NOT REQUEUE.
-	// only reconcile on resource(sentinel && watched redis replication) changes
-	return intctrlutil.Reconciled()
+	// Periodically reconcile so we catch pod restarts or lost endpoints
+	// even if no CR change was recorded.
+	return intctrlutil.RequeueAfter(ctx, time.Minute, "periodic Sentinel reconcile")
 }
 
 type reconciler struct {
