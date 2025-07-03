@@ -18,7 +18,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-
 // HandleRedisFinalizer finalize resource if instance is marked to be deleted
 func HandleRedisFinalizer(ctx context.Context, ctrlclient client.Client, cr *rvb2.Redis, finalizer string) error {
 	if cr.GetDeletionTimestamp() != nil {

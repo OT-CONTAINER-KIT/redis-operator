@@ -393,9 +393,9 @@ func (service RedisClusterService) CreateRedisClusterService(ctx context.Context
 		cr.ObjectMeta.Name+"-master",
 		cr.Namespace,
 		map[string]string{
-			"cluster":          cr.ObjectMeta.Name,
+			"cluster":                cr.ObjectMeta.Name,
 			common.RedisRoleLabelKey: common.RedisRoleLabelMaster,
-			"redis_setup_type": "cluster",
+			"redis_setup_type":       "cluster",
 		},
 		generateServiceAnots(cr.ObjectMeta, nil, epp),
 	)

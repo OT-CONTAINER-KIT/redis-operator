@@ -14,7 +14,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-
 var serviceType corev1.ServiceType
 
 // exporterPortProvider return the exporter port if bool is true

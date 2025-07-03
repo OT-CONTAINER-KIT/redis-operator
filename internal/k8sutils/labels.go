@@ -163,4 +163,3 @@ func extractStatefulSetSelectorLabels(allLabels map[string]string) map[string]st
 
 	return selectorLabels
 }
-
