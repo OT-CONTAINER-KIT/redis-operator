@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -71,7 +72,7 @@ func generateRedisClusterParams(ctx context.Context, cr *rcvb2.RedisCluster, rep
 	if externalConfig != nil {
 		res.ExternalConfig = externalConfig
 	}
-	if value, found := cr.ObjectMeta.GetAnnotations()[AnnotationKeyRecreateStatefulset]; found && value == "true" {
+	if value, found := cr.ObjectMeta.GetAnnotations()[common.AnnotationKeyRecreateStatefulset]; found && value == "true" {
 		res.RecreateStatefulSet = true
 		res.RecreateStatefulsetStrategy = getDeletionPropagationStrategy(cr.ObjectMeta.GetAnnotations())
 	}
@@ -313,7 +314,7 @@ func (service RedisClusterService) CreateRedisClusterService(ctx context.Context
 	var epp exporterPortProvider
 	if cr.Spec.RedisExporter != nil {
 		epp = func() (port int, enable bool) {
-			defaultP := ptr.To(redisExporterPort)
+			defaultP := ptr.To(common.RedisExporterPort)
 			return *util.Coalesce(cr.Spec.RedisExporter.Port, defaultP), cr.Spec.RedisExporter.Enabled
 		}
 	} else {
@@ -392,9 +393,9 @@ func (service RedisClusterService) CreateRedisClusterService(ctx context.Context
 		cr.ObjectMeta.Name+"-master",
 		cr.Namespace,
 		map[string]string{
-			"cluster":          cr.ObjectMeta.Name,
-			RedisRoleLabelKey:  RedisRoleLabelMaster,
-			"redis_setup_type": "cluster",
+			"cluster":                cr.ObjectMeta.Name,
+			common.RedisRoleLabelKey: common.RedisRoleLabelMaster,
+			"redis_setup_type":       "cluster",
 		},
 		generateServiceAnots(cr.ObjectMeta, nil, epp),
 	)

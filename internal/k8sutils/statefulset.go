@@ -8,8 +8,9 @@ import (
 	"strconv"
 	"strings"
 
-	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
+	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/consts"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	internalenv "github.com/OT-CONTAINER-KIT/redis-operator/internal/env"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/features"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/image"
@@ -139,8 +140,8 @@ type containerParameters struct {
 	SecretName                   *string
 	SecretKey                    *string
 	PersistenceEnabled           *bool
-	TLSConfig                    *common.TLSConfig
-	ACLConfig                    *common.ACLConfig
+	TLSConfig                    *commonapi.TLSConfig
+	ACLConfig                    *commonapi.ACLConfig
 	ReadinessProbe               *corev1.Probe
 	LivenessProbe                *corev1.Probe
 	AdditionalEnvVariable        *[]corev1.EnvVar
@@ -167,7 +168,7 @@ type initContainerParameters struct {
 }
 
 // CreateOrUpdateStateFul method will create or update Redis service
-func CreateOrUpdateStateFul(ctx context.Context, cl kubernetes.Interface, namespace string, stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, initcontainerParams initContainerParameters, containerParams containerParameters, sidecars *[]common.Sidecar) error {
+func CreateOrUpdateStateFul(ctx context.Context, cl kubernetes.Interface, namespace string, stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, initcontainerParams initContainerParameters, containerParams containerParameters, sidecars *[]commonapi.Sidecar) error {
 	storedStateful, err := GetStatefulSet(ctx, cl, namespace, stsMeta.Name)
 	statefulSetDef := generateStatefulSetsDef(stsMeta, params, ownerDef, initcontainerParams, containerParams, getSidecars(sidecars))
 	if err != nil {
@@ -268,7 +269,7 @@ func mergeAnnotations(stored, new *appsv1.StatefulSet) {
 }
 
 // generateStatefulSetsDef generates the statefulsets definition of Redis
-func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, initcontainerParams initContainerParameters, containerParams containerParameters, sidecars []common.Sidecar) *appsv1.StatefulSet {
+func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, initcontainerParams initContainerParameters, containerParams containerParameters, sidecars []commonapi.Sidecar) *appsv1.StatefulSet {
 	// Generate stable selector labels (only core labels that won't change)
 	selectorLabels := extractStatefulSetSelectorLabels(stsMeta.GetLabels())
 
@@ -305,7 +306,7 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 					Affinity:                      params.Affinity,
 					TerminationGracePeriodSeconds: params.TerminationGracePeriodSeconds,
 					HostNetwork:                   params.HostNetwork,
-					Volumes:                       []corev1.Volume{generateConfigVolume(VolumeNameConfig)},
+					Volumes:                       []corev1.Volume{generateConfigVolume(common.VolumeNameConfig)},
 				},
 			},
 		},
@@ -323,7 +324,7 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, createPVCTemplate("node-conf", stsMeta, params.NodeConfPersistentVolumeClaim))
 	}
 	if containerParams.PersistenceEnabled != nil && *containerParams.PersistenceEnabled {
-		pvcTplName := env.GetString(EnvOperatorSTSPVCTemplateName, stsMeta.GetName())
+		pvcTplName := env.GetString(common.EnvOperatorSTSPVCTemplateName, stsMeta.GetName())
 		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, createPVCTemplate(pvcTplName, stsMeta, params.PersistentVolumeClaim))
 	}
 	if params.ExternalConfig != nil {
@@ -417,7 +418,7 @@ func createPVCTemplate(volumeName string, stsMeta metav1.ObjectMeta, storageSpec
 }
 
 // generateContainerDef generates container definition for Redis
-func generateContainerDef(name string, containerParams containerParameters, clusterMode, nodeConfVolume, enableMetrics bool, externalConfig, clusterVersion *string, mountpath []corev1.VolumeMount, sidecars []common.Sidecar) []corev1.Container {
+func generateContainerDef(name string, containerParams containerParameters, clusterMode, nodeConfVolume, enableMetrics bool, externalConfig, clusterVersion *string, mountpath []corev1.VolumeMount, sidecars []commonapi.Sidecar) []corev1.Container {
 	sentinelCntr := containerParams.Role == "sentinel"
 	enableTLS := containerParams.TLSConfig != nil
 	enableAuth := containerParams.EnabledPassword != nil && *containerParams.EnabledPassword
@@ -606,7 +607,7 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 				clusterVersion,
 			),
 			VolumeMounts: []corev1.VolumeMount{
-				generateConfigVolumeMount(VolumeNameConfig),
+				generateConfigVolumeMount(common.VolumeNameConfig),
 			},
 		}
 		if role == "sentinel" {
@@ -633,7 +634,7 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 	return containers
 }
 
-func GenerateTLSEnvironmentVariables(tlsconfig *common.TLSConfig) []corev1.EnvVar {
+func GenerateTLSEnvironmentVariables(tlsconfig *commonapi.TLSConfig) []corev1.EnvVar {
 	var envVars []corev1.EnvVar
 	root := "/tls/"
 
@@ -681,8 +682,8 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 		VolumeMounts:    getVolumeMount("", nil, false, false, nil, params.AdditionalMountPath, params.TLSConfig, params.ACLConfig), // We need/want the tls-certs but we DON'T need the PVC (if one is available)
 		Ports: []corev1.ContainerPort{
 			{
-				Name:          redisExporterPortName,
-				ContainerPort: int32(*util.Coalesce(params.RedisExporterPort, ptr.To(redisExporterPort))),
+				Name:          common.RedisExporterPortName,
+				ContainerPort: int32(*util.Coalesce(params.RedisExporterPort, ptr.To(common.RedisExporterPort))),
 				Protocol:      corev1.ProtocolTCP,
 			},
 		},
@@ -752,7 +753,7 @@ func getExporterEnvironmentVariables(params containerParameters) []corev1.EnvVar
 }
 
 // getVolumeMount gives information about persistence mount
-func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nodeConfVolume bool, externalConfig *string, mountpath []corev1.VolumeMount, tlsConfig *common.TLSConfig, aclConfig *common.ACLConfig) []corev1.VolumeMount {
+func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nodeConfVolume bool, externalConfig *string, mountpath []corev1.VolumeMount, tlsConfig *commonapi.TLSConfig, aclConfig *commonapi.ACLConfig) []corev1.VolumeMount {
 	var VolumeMounts []corev1.VolumeMount
 
 	if persistenceEnabled != nil && clusterMode && nodeConfVolume {
@@ -764,7 +765,7 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nod
 
 	if persistenceEnabled != nil && *persistenceEnabled {
 		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
-			Name:      env.GetString(EnvOperatorSTSPVCTemplateName, name),
+			Name:      env.GetString(common.EnvOperatorSTSPVCTemplateName, name),
 			MountPath: "/data",
 		})
 	}
@@ -793,7 +794,7 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nod
 	}
 
 	if features.Enabled(features.GenerateConfigInInitContainer) {
-		VolumeMounts = append(VolumeMounts, generateConfigVolumeMount(VolumeNameConfig))
+		VolumeMounts = append(VolumeMounts, generateConfigVolumeMount(common.VolumeNameConfig))
 	}
 
 	VolumeMounts = append(VolumeMounts, mountpath...)
@@ -834,8 +835,8 @@ func getProbeInfo(probe *corev1.Probe, sentinel, enableTLS, enableAuth bool) *co
 
 // getEnvironmentVariables returns all the required Environment Variables
 func getEnvironmentVariables(role string, enabledPassword *bool, secretName *string,
-	secretKey *string, persistenceEnabled *bool, tlsConfig *common.TLSConfig,
-	aclConfig *common.ACLConfig, envVar *[]corev1.EnvVar, port *int, clusterVersion *string,
+	secretKey *string, persistenceEnabled *bool, tlsConfig *commonapi.TLSConfig,
+	aclConfig *commonapi.ACLConfig, envVar *[]corev1.EnvVar, port *int, clusterVersion *string,
 ) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{Name: "SERVER_MODE", Value: role},
@@ -851,14 +852,14 @@ func getEnvironmentVariables(role string, enabledPassword *bool, secretName *str
 
 	var redisHost string
 	if role == "sentinel" {
-		redisHost = "redis://localhost:" + strconv.Itoa(sentinelPort)
+		redisHost = "redis://localhost:" + strconv.Itoa(common.SentinelPort)
 		if port != nil {
 			envVars = append(envVars, corev1.EnvVar{
 				Name: "SENTINEL_PORT", Value: strconv.Itoa(*port),
 			})
 		}
 	} else {
-		redisHost = "redis://localhost:" + strconv.Itoa(redisPort)
+		redisHost = "redis://localhost:" + strconv.Itoa(common.RedisPort)
 		if port != nil {
 			envVars = append(envVars, corev1.EnvVar{
 				Name: "REDIS_PORT", Value: strconv.Itoa(*port),
@@ -959,9 +960,9 @@ func GetStatefulSet(ctx context.Context, cl kubernetes.Interface, namespace stri
 	return statefulInfo, nil
 }
 
-func getSidecars(sidecars *[]common.Sidecar) []common.Sidecar {
+func getSidecars(sidecars *[]commonapi.Sidecar) []commonapi.Sidecar {
 	if sidecars == nil {
-		return []common.Sidecar{}
+		return []commonapi.Sidecar{}
 	}
 	return *sidecars
 }
@@ -972,7 +973,7 @@ func getDeletionPropagationStrategy(annotations map[string]string) *metav1.Delet
 		return nil
 	}
 
-	if strategy, exists := annotations[AnnotationKeyRecreateStatefulsetStrategy]; exists {
+	if strategy, exists := annotations[common.AnnotationKeyRecreateStatefulsetStrategy]; exists {
 		var propagation metav1.DeletionPropagation
 
 		switch strings.ToLower(strategy) {

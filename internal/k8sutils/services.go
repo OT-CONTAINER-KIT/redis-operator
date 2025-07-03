@@ -3,6 +3,7 @@ package k8sutils
 import (
 	"context"
 
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	corev1 "k8s.io/api/core/v1"
@@ -11,13 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-)
-
-const (
-	redisPort             = 6379
-	sentinelPort          = 26379
-	redisExporterPort     = 9121
-	redisExporterPortName = "redis-exporter"
 )
 
 var serviceType corev1.ServiceType
@@ -72,7 +66,7 @@ func generateServiceDef(serviceMeta metav1.ObjectMeta, epp exporterPortProvider,
 // enableMetricsPort will enable the metrics for Redis service
 func enableMetricsPort(port int) *corev1.ServicePort {
 	return &corev1.ServicePort{
-		Name:       redisExporterPortName,
+		Name:       common.RedisExporterPortName,
 		Port:       int32(port),
 		TargetPort: intstr.FromInt(port),
 		Protocol:   corev1.ProtocolTCP,

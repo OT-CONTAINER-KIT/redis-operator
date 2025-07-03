@@ -6,6 +6,7 @@ import (
 
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -116,7 +117,7 @@ func generateRedisSentinelParams(ctx context.Context, cr *rsvb2.RedisSentinel, r
 	if cr.Spec.RedisExporter != nil {
 		res.EnableMetrics = cr.Spec.RedisExporter.Enabled
 	}
-	if value, found := cr.ObjectMeta.GetAnnotations()[AnnotationKeyRecreateStatefulset]; found && value == "true" {
+	if value, found := cr.ObjectMeta.GetAnnotations()[common.AnnotationKeyRecreateStatefulset]; found && value == "true" {
 		res.RecreateStatefulSet = true
 		res.RecreateStatefulsetStrategy = getDeletionPropagationStrategy(cr.ObjectMeta.GetAnnotations())
 	}
@@ -159,7 +160,7 @@ func generateRedisSentinelContainerParams(ctx context.Context, client kubernetes
 		ImagePullPolicy:       cr.Spec.KubernetesConfig.ImagePullPolicy,
 		Resources:             cr.Spec.KubernetesConfig.Resources,
 		SecurityContext:       cr.Spec.SecurityContext,
-		Port:                  ptr.To(sentinelPort),
+		Port:                  ptr.To(common.SentinelPort),
 		HostPort:              cr.Spec.HostPort,
 		AdditionalEnvVariable: getSentinelEnvVariable(cr),
 	}
@@ -215,7 +216,7 @@ func (service RedisSentinelService) CreateRedisSentinelService(ctx context.Conte
 	var epp exporterPortProvider
 	if cr.Spec.RedisExporter != nil {
 		epp = func() (port int, enable bool) {
-			defaultP := ptr.To(redisExporterPort)
+			defaultP := ptr.To(common.RedisExporterPort)
 			return *util.Coalesce(cr.Spec.RedisExporter.Port, defaultP), cr.Spec.RedisExporter.Enabled
 		}
 	} else {
@@ -226,12 +227,12 @@ func (service RedisSentinelService) CreateRedisSentinelService(ctx context.Conte
 	headlessObjectMetaInfo := generateObjectMetaInformation(serviceName+"-headless", cr.Namespace, labels, annotations)
 	additionalObjectMetaInfo := generateObjectMetaInformation(serviceName+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.GetServiceAnnotations(), epp))
 
-	err := CreateOrUpdateService(ctx, cr.Namespace, headlessObjectMetaInfo, redisSentinelAsOwner(cr), disableMetrics, true, "ClusterIP", sentinelPort, cl)
+	err := CreateOrUpdateService(ctx, cr.Namespace, headlessObjectMetaInfo, redisSentinelAsOwner(cr), disableMetrics, true, "ClusterIP", common.SentinelPort, cl)
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Cannot create headless service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err
 	}
-	err = CreateOrUpdateService(ctx, cr.Namespace, objectMetaInfo, redisSentinelAsOwner(cr), epp, false, "ClusterIP", sentinelPort, cl)
+	err = CreateOrUpdateService(ctx, cr.Namespace, objectMetaInfo, redisSentinelAsOwner(cr), epp, false, "ClusterIP", common.SentinelPort, cl)
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Cannot create service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err
@@ -245,7 +246,7 @@ func (service RedisSentinelService) CreateRedisSentinelService(ctx context.Conte
 		disableMetrics,
 		false,
 		cr.Spec.KubernetesConfig.GetServiceType(),
-		sentinelPort,
+		common.SentinelPort,
 		cl,
 	)
 	if err != nil {

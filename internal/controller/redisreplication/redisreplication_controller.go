@@ -18,6 +18,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+const (
+	RedisReplicationFinalizer = "redisReplicationFinalizer"
+)
+
 // Reconciler reconciles a RedisReplication object
 type Reconciler struct {
 	client.Client
@@ -34,7 +38,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if k8sutils.IsDeleted(instance) {
-		if err := k8sutils.HandleRedisReplicationFinalizer(ctx, r.Client, instance); err != nil {
+		if err := k8sutils.HandleRedisReplicationFinalizer(ctx, r.Client, instance, RedisReplicationFinalizer); err != nil {
 			return intctrlutil.RequeueE(ctx, err, "")
 		}
 		return intctrlutil.Reconciled()
@@ -100,12 +104,12 @@ type reconciler struct {
 
 func (r *Reconciler) reconcileFinalizer(ctx context.Context, instance *rrvb2.RedisReplication) (ctrl.Result, error) {
 	if k8sutils.IsDeleted(instance) {
-		if err := k8sutils.HandleRedisReplicationFinalizer(ctx, r.Client, instance); err != nil {
+		if err := k8sutils.HandleRedisReplicationFinalizer(ctx, r.Client, instance, RedisReplicationFinalizer); err != nil {
 			return intctrlutil.RequeueE(ctx, err, "")
 		}
 		return intctrlutil.Reconciled()
 	}
-	if err := k8sutils.AddFinalizer(ctx, instance, k8sutils.RedisReplicationFinalizer, r.Client); err != nil {
+	if err := k8sutils.AddFinalizer(ctx, instance, RedisReplicationFinalizer, r.Client); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
 	return intctrlutil.Reconciled()

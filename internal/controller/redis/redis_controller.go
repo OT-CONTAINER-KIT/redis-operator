@@ -30,6 +30,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 )
 
+const (
+	RedisFinalizer = "redisFinalizer"
+)
+
 // Reconciler reconciles a Redis object
 type Reconciler struct {
 	client.Client
@@ -44,7 +48,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return intctrlutil.RequeueECheck(ctx, err, "failed to get redis instance")
 	}
 	if instance.ObjectMeta.GetDeletionTimestamp() != nil {
-		if err = k8sutils.HandleRedisFinalizer(ctx, r.Client, instance); err != nil {
+		if err = k8sutils.HandleRedisFinalizer(ctx, r.Client, instance, RedisFinalizer); err != nil {
 			return intctrlutil.RequeueE(ctx, err, "failed to handle redis finalizer")
 		}
 		return intctrlutil.Reconciled()
@@ -52,7 +56,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if common.IsSkipReconcile(ctx, instance) {
 		return intctrlutil.Reconciled()
 	}
-	if err = k8sutils.AddFinalizer(ctx, instance, k8sutils.RedisFinalizer, r.Client); err != nil {
+	if err = k8sutils.AddFinalizer(ctx, instance, RedisFinalizer, r.Client); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "failed to add finalizer")
 	}
 	err = k8sutils.CreateStandaloneRedis(ctx, instance, r.K8sClient)

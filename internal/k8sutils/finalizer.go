@@ -8,6 +8,7 @@ import (
 	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,25 +18,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-const (
-	RedisFinalizer            string = "redisFinalizer"
-	RedisClusterFinalizer     string = "redisClusterFinalizer"
-	RedisReplicationFinalizer string = "redisReplicationFinalizer"
-	RedisSentinelFinalizer    string = "redisSentinelFinalizer"
-)
-
 // HandleRedisFinalizer finalize resource if instance is marked to be deleted
-func HandleRedisFinalizer(ctx context.Context, ctrlclient client.Client, cr *rvb2.Redis) error {
+func HandleRedisFinalizer(ctx context.Context, ctrlclient client.Client, cr *rvb2.Redis, finalizer string) error {
 	if cr.GetDeletionTimestamp() != nil {
-		if controllerutil.ContainsFinalizer(cr, RedisFinalizer) {
+		if controllerutil.ContainsFinalizer(cr, finalizer) {
 			if cr.Spec.Storage != nil && !cr.Spec.Storage.KeepAfterDelete {
 				if err := finalizeRedisPVC(ctx, ctrlclient, cr); err != nil {
 					return err
 				}
 			}
-			controllerutil.RemoveFinalizer(cr, RedisFinalizer)
+			controllerutil.RemoveFinalizer(cr, finalizer)
 			if err := ctrlclient.Update(ctx, cr); err != nil {
-				log.FromContext(ctx).Error(err, "Could not remove finalizer", "finalizer", RedisFinalizer)
+				log.FromContext(ctx).Error(err, "Could not remove finalizer", "finalizer", finalizer)
 				return err
 			}
 		}
@@ -44,17 +38,17 @@ func HandleRedisFinalizer(ctx context.Context, ctrlclient client.Client, cr *rvb
 }
 
 // HandleRedisClusterFinalizer finalize resource if instance is marked to be deleted
-func HandleRedisClusterFinalizer(ctx context.Context, ctrlclient client.Client, cr *rcvb2.RedisCluster) error {
+func HandleRedisClusterFinalizer(ctx context.Context, ctrlclient client.Client, cr *rcvb2.RedisCluster, finalizer string) error {
 	if cr.GetDeletionTimestamp() != nil {
-		if controllerutil.ContainsFinalizer(cr, RedisClusterFinalizer) {
+		if controllerutil.ContainsFinalizer(cr, finalizer) {
 			if cr.Spec.Storage != nil && !cr.Spec.Storage.KeepAfterDelete {
 				if err := finalizeRedisClusterPVC(ctx, ctrlclient, cr); err != nil {
 					return err
 				}
 			}
-			controllerutil.RemoveFinalizer(cr, RedisClusterFinalizer)
+			controllerutil.RemoveFinalizer(cr, finalizer)
 			if err := ctrlclient.Update(ctx, cr); err != nil {
-				log.FromContext(ctx).Error(err, "Could not remove finalizer "+RedisClusterFinalizer)
+				log.FromContext(ctx).Error(err, "Could not remove finalizer "+finalizer)
 				return err
 			}
 		}
@@ -63,17 +57,17 @@ func HandleRedisClusterFinalizer(ctx context.Context, ctrlclient client.Client, 
 }
 
 // Handle RedisReplicationFinalizer finalize resource if instance is marked to be deleted
-func HandleRedisReplicationFinalizer(ctx context.Context, ctrlclient client.Client, cr *rrvb2.RedisReplication) error {
+func HandleRedisReplicationFinalizer(ctx context.Context, ctrlclient client.Client, cr *rrvb2.RedisReplication, finalizer string) error {
 	if cr.GetDeletionTimestamp() != nil {
-		if controllerutil.ContainsFinalizer(cr, RedisReplicationFinalizer) {
+		if controllerutil.ContainsFinalizer(cr, finalizer) {
 			if cr.Spec.Storage != nil && !cr.Spec.Storage.KeepAfterDelete {
 				if err := finalizeRedisReplicationPVC(ctx, ctrlclient, cr); err != nil {
 					return err
 				}
 			}
-			controllerutil.RemoveFinalizer(cr, RedisReplicationFinalizer)
+			controllerutil.RemoveFinalizer(cr, finalizer)
 			if err := ctrlclient.Update(ctx, cr); err != nil {
-				log.FromContext(ctx).Error(err, "Could not remove finalizer "+RedisReplicationFinalizer)
+				log.FromContext(ctx).Error(err, "Could not remove finalizer "+finalizer)
 				return err
 			}
 		}
@@ -82,12 +76,12 @@ func HandleRedisReplicationFinalizer(ctx context.Context, ctrlclient client.Clie
 }
 
 // HandleRedisSentinelFinalizer finalize resource if instance is marked to be deleted
-func HandleRedisSentinelFinalizer(ctx context.Context, ctrlclient client.Client, cr *rsvb2.RedisSentinel) error {
+func HandleRedisSentinelFinalizer(ctx context.Context, ctrlclient client.Client, cr *rsvb2.RedisSentinel, finalizer string) error {
 	if cr.GetDeletionTimestamp() != nil {
-		if controllerutil.ContainsFinalizer(cr, RedisSentinelFinalizer) {
-			controllerutil.RemoveFinalizer(cr, RedisSentinelFinalizer)
+		if controllerutil.ContainsFinalizer(cr, finalizer) {
+			controllerutil.RemoveFinalizer(cr, finalizer)
 			if err := ctrlclient.Update(ctx, cr); err != nil {
-				log.FromContext(ctx).Error(err, "Could not remove finalizer "+RedisSentinelFinalizer)
+				log.FromContext(ctx).Error(err, "Could not remove finalizer "+finalizer)
 				return err
 			}
 		}
@@ -97,16 +91,12 @@ func HandleRedisSentinelFinalizer(ctx context.Context, ctrlclient client.Client,
 
 // AddFinalizer add finalizer for graceful deletion
 func AddFinalizer(ctx context.Context, cr client.Object, finalizer string, cl client.Client) error {
-	if !controllerutil.ContainsFinalizer(cr, finalizer) {
-		controllerutil.AddFinalizer(cr, finalizer)
-		return cl.Update(ctx, cr)
-	}
-	return nil
+	return common.AddFinalizer(ctx, cr, finalizer, cl)
 }
 
 // finalizeRedisPVC delete PVC
 func finalizeRedisPVC(ctx context.Context, client client.Client, cr *rvb2.Redis) error {
-	pvcTemplateName := env.GetString(EnvOperatorSTSPVCTemplateName, cr.Name)
+	pvcTemplateName := env.GetString(common.EnvOperatorSTSPVCTemplateName, cr.Name)
 	PVCName := fmt.Sprintf("%s-%s-0", pvcTemplateName, cr.Name)
 	pvc := &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
@@ -126,7 +116,7 @@ func finalizeRedisPVC(ctx context.Context, client client.Client, cr *rvb2.Redis)
 func finalizeRedisClusterPVC(ctx context.Context, client client.Client, cr *rcvb2.RedisCluster) error {
 	for _, role := range []string{"leader", "follower"} {
 		for i := 0; i < int(cr.Spec.GetReplicaCounts(role)); i++ {
-			pvcTemplateName := env.GetString(EnvOperatorSTSPVCTemplateName, cr.Name+"-"+role)
+			pvcTemplateName := env.GetString(common.EnvOperatorSTSPVCTemplateName, cr.Name+"-"+role)
 			PVCName := fmt.Sprintf("%s-%s-%s-%d", pvcTemplateName, cr.Name, role, i)
 			pvc := &corev1.PersistentVolumeClaim{
 				ObjectMeta: metav1.ObjectMeta{
@@ -163,7 +153,7 @@ func finalizeRedisClusterPVC(ctx context.Context, client client.Client, cr *rcvb
 // finalizeRedisReplicationPVC delete PVCs
 func finalizeRedisReplicationPVC(ctx context.Context, client client.Client, cr *rrvb2.RedisReplication) error {
 	for i := 0; i < int(cr.Spec.GetReplicationCounts("replication")); i++ {
-		pvcTemplateName := env.GetString(EnvOperatorSTSPVCTemplateName, cr.Name)
+		pvcTemplateName := env.GetString(common.EnvOperatorSTSPVCTemplateName, cr.Name)
 		PVCName := fmt.Sprintf("%s-%s-%d", pvcTemplateName, cr.Name, i)
 		pvc := &corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{

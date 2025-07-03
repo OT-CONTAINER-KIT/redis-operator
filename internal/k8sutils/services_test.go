@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -12,7 +13,7 @@ import (
 )
 
 var defaultExporterPortProvider exporterPortProvider = func() (int, bool) {
-	return redisExporterPort, true
+	return common.RedisExporterPort, true
 }
 
 func TestGenerateServiceDef(t *testing.T) {
@@ -36,7 +37,7 @@ func TestGenerateServiceDef(t *testing.T) {
 			enableMetrics: disableMetrics,
 			headless:      false,
 			serviceType:   "ClusterIP",
-			port:          sentinelPort,
+			port:          common.SentinelPort,
 			expected: &corev1.Service{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Service",
@@ -55,8 +56,8 @@ func TestGenerateServiceDef(t *testing.T) {
 					Ports: []corev1.ServicePort{
 						{
 							Name:       "sentinel-client",
-							Port:       sentinelPort,
-							TargetPort: intstr.FromInt(int(sentinelPort)),
+							Port:       common.SentinelPort,
+							TargetPort: intstr.FromInt(int(common.SentinelPort)),
 							Protocol:   corev1.ProtocolTCP,
 						},
 					},
@@ -77,7 +78,7 @@ func TestGenerateServiceDef(t *testing.T) {
 			enableMetrics: disableMetrics,
 			headless:      true,
 			serviceType:   "ClusterIP",
-			port:          sentinelPort,
+			port:          common.SentinelPort,
 			expected: &corev1.Service{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Service",
@@ -96,8 +97,8 @@ func TestGenerateServiceDef(t *testing.T) {
 					Ports: []corev1.ServicePort{
 						{
 							Name:       "sentinel-client",
-							Port:       sentinelPort,
-							TargetPort: intstr.FromInt(int(sentinelPort)),
+							Port:       common.SentinelPort,
+							TargetPort: intstr.FromInt(int(common.SentinelPort)),
 							Protocol:   corev1.ProtocolTCP,
 						},
 					},
@@ -118,7 +119,7 @@ func TestGenerateServiceDef(t *testing.T) {
 			enableMetrics: disableMetrics,
 			headless:      false,
 			serviceType:   "ClusterIP",
-			port:          redisPort,
+			port:          common.RedisPort,
 			expected: &corev1.Service{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Service",
@@ -137,8 +138,8 @@ func TestGenerateServiceDef(t *testing.T) {
 					Ports: []corev1.ServicePort{
 						{
 							Name:       "redis-client",
-							Port:       redisPort,
-							TargetPort: intstr.FromInt(int(redisPort)),
+							Port:       common.RedisPort,
+							TargetPort: intstr.FromInt(int(common.RedisPort)),
 							Protocol:   corev1.ProtocolTCP,
 						},
 					},
@@ -159,7 +160,7 @@ func TestGenerateServiceDef(t *testing.T) {
 			enableMetrics: disableMetrics,
 			headless:      true,
 			serviceType:   "ClusterIP",
-			port:          redisPort,
+			port:          common.RedisPort,
 			expected: &corev1.Service{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Service",
@@ -178,8 +179,8 @@ func TestGenerateServiceDef(t *testing.T) {
 					Ports: []corev1.ServicePort{
 						{
 							Name:       "redis-client",
-							Port:       redisPort,
-							TargetPort: intstr.FromInt(int(redisPort)),
+							Port:       common.RedisPort,
+							TargetPort: intstr.FromInt(int(common.RedisPort)),
 							Protocol:   corev1.ProtocolTCP,
 						},
 					},
@@ -200,7 +201,7 @@ func TestGenerateServiceDef(t *testing.T) {
 			enableMetrics: defaultExporterPortProvider,
 			headless:      false,
 			serviceType:   "ClusterIP",
-			port:          redisPort,
+			port:          common.RedisPort,
 			expected: &corev1.Service{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Service",
@@ -219,11 +220,11 @@ func TestGenerateServiceDef(t *testing.T) {
 					Ports: []corev1.ServicePort{
 						{
 							Name:       "redis-client",
-							Port:       redisPort,
-							TargetPort: intstr.FromInt(int(redisPort)),
+							Port:       common.RedisPort,
+							TargetPort: intstr.FromInt(int(common.RedisPort)),
 							Protocol:   corev1.ProtocolTCP,
 						},
-						*enableMetricsPort(redisExporterPort),
+						*enableMetricsPort(common.RedisExporterPort),
 					},
 					Selector:  map[string]string{"role": "redis"},
 					ClusterIP: "",

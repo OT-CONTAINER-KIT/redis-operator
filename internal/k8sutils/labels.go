@@ -7,6 +7,7 @@ import (
 	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -19,27 +20,33 @@ const (
 	sentinel    setupType = "sentinel"
 )
 
+// getRedisLabels wraps common.GetRedisLabels with setupType conversion
+func getRedisLabels(name string, st setupType, role string, labels map[string]string) map[string]string {
+	return common.GetRedisLabels(name, common.SetupType(st), role, labels)
+}
+
+// getRedisStableLabels is a wrapper for internal use in this package
+func getRedisStableLabels(name, st, role string) map[string]string {
+	return map[string]string{
+		"app":              name,
+		"redis_setup_type": st,
+		"role":             role,
+	}
+}
+
 // generateMetaInformation generates the meta information
 func generateMetaInformation(resourceKind string, apiVersion string) metav1.TypeMeta {
-	return metav1.TypeMeta{
-		Kind:       resourceKind,
-		APIVersion: apiVersion,
-	}
+	return common.GenerateMetaInformation(resourceKind, apiVersion)
 }
 
 // generateObjectMetaInformation generates the object meta information
 func generateObjectMetaInformation(name string, namespace string, labels map[string]string, annotations map[string]string) metav1.ObjectMeta {
-	return metav1.ObjectMeta{
-		Name:        name,
-		Namespace:   namespace,
-		Labels:      labels,
-		Annotations: annotations,
-	}
+	return common.GenerateObjectMetaInformation(name, namespace, labels, annotations)
 }
 
 // AddOwnerRefToObject adds the owner references to object
 func AddOwnerRefToObject(obj metav1.Object, ownerRef metav1.OwnerReference) {
-	obj.SetOwnerReferences(append(obj.GetOwnerReferences(), ownerRef))
+	common.AddOwnerRefToObject(obj, ownerRef)
 }
 
 // redisAsOwner generates and returns object reference
@@ -155,20 +162,4 @@ func extractStatefulSetSelectorLabels(allLabels map[string]string) map[string]st
 	}
 
 	return selectorLabels
-}
-
-func getRedisLabels(name string, st setupType, role string, labels map[string]string) map[string]string {
-	lbls := getRedisStableLabels(name, string(st), role)
-	for k, v := range labels {
-		lbls[k] = v
-	}
-	return lbls
-}
-
-func getRedisStableLabels(name, st, role string) map[string]string {
-	return map[string]string{
-		"app":              name,
-		"redis_setup_type": st,
-		"role":             role,
-	}
 }

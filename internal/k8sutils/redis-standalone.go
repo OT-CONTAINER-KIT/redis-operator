@@ -4,6 +4,7 @@ import (
 	"context"
 
 	rvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redis/v1beta2"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
@@ -16,7 +17,7 @@ func CreateStandaloneService(ctx context.Context, cr *rvb2.Redis, cl kubernetes.
 	var epp exporterPortProvider
 	if cr.Spec.RedisExporter != nil {
 		epp = func() (port int, enable bool) {
-			defaultP := ptr.To(redisExporterPort)
+			defaultP := ptr.To(common.RedisExporterPort)
 			return *util.Coalesce(cr.Spec.RedisExporter.Port, defaultP), cr.Spec.RedisExporter.Enabled
 		}
 	} else {
@@ -40,12 +41,12 @@ func CreateStandaloneService(ctx context.Context, cr *rvb2.Redis, cl kubernetes.
 		labels,
 		generateServiceAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.GetServiceAnnotations(), epp),
 	)
-	err := CreateOrUpdateService(ctx, cr.Namespace, headlessObjectMetaInfo, redisAsOwner(cr), disableMetrics, true, "ClusterIP", redisPort, cl)
+	err := CreateOrUpdateService(ctx, cr.Namespace, headlessObjectMetaInfo, redisAsOwner(cr), disableMetrics, true, "ClusterIP", common.RedisPort, cl)
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Cannot create standalone headless service for Redis")
 		return err
 	}
-	err = CreateOrUpdateService(ctx, cr.Namespace, objectMetaInfo, redisAsOwner(cr), epp, false, "ClusterIP", redisPort, cl)
+	err = CreateOrUpdateService(ctx, cr.Namespace, objectMetaInfo, redisAsOwner(cr), epp, false, "ClusterIP", common.RedisPort, cl)
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Cannot create standalone service for Redis")
 		return err
@@ -59,7 +60,7 @@ func CreateStandaloneService(ctx context.Context, cr *rvb2.Redis, cl kubernetes.
 			disableMetrics,
 			false,
 			cr.Spec.KubernetesConfig.GetServiceType(),
-			redisPort,
+			common.RedisPort,
 			cl,
 		)
 		if err != nil {
@@ -129,7 +130,7 @@ func generateRedisStandaloneParams(cr *rvb2.Redis) statefulSetParameters {
 	if cr.Spec.ServiceAccountName != nil {
 		res.ServiceAccountName = cr.Spec.ServiceAccountName
 	}
-	if value, found := cr.ObjectMeta.GetAnnotations()[AnnotationKeyRecreateStatefulset]; found && value == "true" {
+	if value, found := cr.ObjectMeta.GetAnnotations()[common.AnnotationKeyRecreateStatefulset]; found && value == "true" {
 		res.RecreateStatefulSet = true
 		res.RecreateStatefulsetStrategy = getDeletionPropagationStrategy(cr.ObjectMeta.GetAnnotations())
 	}
@@ -146,7 +147,7 @@ func generateRedisStandaloneContainerParams(cr *rvb2.Redis) containerParameters 
 		ImagePullPolicy: cr.Spec.KubernetesConfig.ImagePullPolicy,
 		Resources:       cr.Spec.KubernetesConfig.Resources,
 		SecurityContext: cr.Spec.SecurityContext,
-		Port:            ptr.To(redisPort),
+		Port:            ptr.To(common.RedisPort),
 		HostPort:        cr.Spec.HostPort,
 	}
 	if cr.Spec.RedisConfig != nil {
