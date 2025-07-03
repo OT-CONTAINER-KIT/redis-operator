@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -87,6 +88,59 @@ e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@31001,redis-cluster-lea
 		},
 	}, redisClient)
 	assert.NoError(t, err)
+}
+
+func TestRepairDisconnectedMastersAttemptedOnAllFailedMasters(t *testing.T) {
+	ctx := context.Background()
+	redisClient, mock := redismock.NewClientMock()
+	mock.ExpectClusterNodes().SetVal(`
+f50a249495a726e91027bcd146195b00d570e953 :6379@16379,redis-cluster-leader-4 master,fail? - 1751370819096 1751370819096 5 disconnected 6554-8191
+739d121f388594dfaa29d6a444e81dcd86aa80a3 10.244.0.20:6379@16379,redis-cluster-leader-0 myself,master - 0 1751370819096 4 connected 4915-6553
+d1da1fad9357fb6d732ae982506349c64dd96dc0 :6379@16379,redis-cluster-leader-8 master,fail? - 1751370819096 1751370819096 9 disconnected 13107-14745
+16aa3a2ce08e89d381acc12b6efd57566f447e0d :6379@16379,redis-cluster-leader-1 master,fail? - 1751370819096 1751370819096 2 disconnected 1638-3276
+cd7d74ed6d1ac05ef0b461c1b5507f5803c61e64 :6379@16379,redis-cluster-leader-6 master,fail? - 1751370819096 1751370819096 7 disconnected 9830-11468
+241e5586f3b098f23a299d338d5489af1c339634 :6379@16379,redis-cluster-leader-2 master,fail - 1751370819096 1751370819096 3 disconnected 3277-4914
+95dfc2570766aec1fd0e18901554c39289f27428 :6379@16379,redis-cluster-leader-7 master,fail? - 1751370819096 1751370819096 8 disconnected 11469-13106
+91eaa5364d0d02056802de51cceaa91dfa3ef41a :6379@16379,redis-cluster-leader-5 master,fail? - 1751370819096 1751370819096 6 disconnected 8192-9829
+c79b711cacfbcc1dbf7df8a1f88863f59552ed35 :6379@16379,redis-cluster-leader-3 master,fail? - 1751370819096 1751370819096 1 disconnected 0-1637
+bffda5dec210cd73576a3993156dc134b5c63a4f :6379@16379,redis-cluster-leader-9 master,fail? - 1751370819096 1751370819096 10 disconnected 14746-16383
+`)
+
+	namespace := "default"
+	newPodIP := "0.0.0.0"
+	k8sObjects := []runtime.Object{}
+	// skip 0 so it fails to be retried and the rest are still tried
+	expectedErr := fmt.Errorf("CLUSTER MEET command failed")
+	for i := 1; i < 10; i++ {
+		// pick leader-3 to have its command fail. We should still expect the others to be called
+		if i == 3 {
+			mock.ExpectClusterMeet(newPodIP, "6379").SetErr(expectedErr)
+		} else {
+			mock.ExpectClusterMeet(newPodIP, "6379").SetVal("OK")
+		}
+		k8sObjects = append(k8sObjects, &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "redis-cluster-leader-" + strconv.Itoa(i),
+				Namespace: namespace,
+			},
+			Status: corev1.PodStatus{
+				PodIP: newPodIP,
+			},
+		})
+	}
+	k8sClient := k8sClientFake.NewSimpleClientset(k8sObjects...)
+
+	port := 6379
+	err := repairDisconnectedMasters(ctx, k8sClient, &rcvb2.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+		},
+		Spec: rcvb2.RedisClusterSpec{
+			Port: &port,
+		},
+	}, redisClient)
+	assert.Error(t, err)
+	assert.Equal(t, expectedErr, err, "Expected error to match the one set in the mock")
 }
 
 func TestGetRedisServerIP(t *testing.T) {
