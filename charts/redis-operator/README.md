@@ -116,6 +116,8 @@ kubectl create secret tls <webhook-server-cert> --key tls.key --cert tls.crt -n 
 | redisOperator.name | string | `"redis-operator"` |  |
 | redisOperator.podAnnotations | object | `{}` |  |
 | redisOperator.podLabels | object | `{}` |  |
+| redisOperator.pprof.bindAddress | string | `":6060"` |  |
+| redisOperator.pprof.enabled | bool | `false` |  |
 | redisOperator.watchNamespace | string | `""` |  |
 | redisOperator.webhook | bool | `false` |  |
 | replicas | int | `1` |  |
