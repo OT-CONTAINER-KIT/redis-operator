@@ -11,6 +11,7 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/redis"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/controllerutil"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -68,9 +69,7 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 	}
 
-	// Periodically reconcile so we catch pod restarts or lost endpoints
-	// even if no CR change was recorded.
-	return intctrlutil.RequeueAfter(ctx, time.Minute, "periodic Sentinel reconcile")
+	return intctrlutil.Reconciled()
 }
 
 type reconciler struct {
@@ -168,6 +167,7 @@ func (r *RedisSentinelReconciler) reconcileService(ctx context.Context, instance
 func (r *RedisSentinelReconciler) SetupWithManager(mgr ctrl.Manager, opts controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&rsvb2.RedisSentinel{}).
+		Owns(&appsv1.StatefulSet{}).
 		WithOptions(opts).
 		Watches(&rrvb2.RedisReplication{}, r.ReplicationWatcher).
 		Complete(r)
