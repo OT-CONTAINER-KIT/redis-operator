@@ -34,20 +34,16 @@ There are two models of setting up cluster in redis:
 - Sharding
 - Replication
 
-Replication is also known as mirroring of data. In replication, all the data get copied from the leader node to the follower node. Sharding is also known as partitioning. It splits up the data by the key to multiple nodes.
+Replication is also known as mirroring of data. In replication, all the data get copied from the leader node to the follower node. 
 
 <div align="center">
     <img src="../../../images/replication.png">
 </div>
 
+Sharding is also known as partitioning. It splits up the data by the key to multiple nodes. In sharding, the keys are getting distributed across both machine A and B. That is, the machine A will hold the 1, 2 key and machine B will hold 3, 4 key.
+
 <div align="center">
     <img src="../../../images/sharding.png">
-</div>
-
-In sharding, the keys are getting distributed across both machine A and B. That is, the machine A will hold the 1, 3 key and machine B will hold 2, 4 key:
-
-<div align="center">
-    <img src="https://blog2opstree.files.wordpress.com/2019/06/08d40-1ylzieskl-3rvar6kleoziq.png">
 </div>
 
 ## Redis cluster challenges on Kubernetes
