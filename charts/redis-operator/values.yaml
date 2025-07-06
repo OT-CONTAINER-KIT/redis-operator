@@ -24,6 +24,12 @@ redisOperator:
   webhook: false
   automountServiceAccountToken: true
 
+  # pprof configuration for performance profiling
+  pprof:
+    # Enable pprof server for performance profiling
+    enabled: false
+    # The address the pprof endpoint binds to
+    bindAddress: ":6060"
 
 resources:
   limits:

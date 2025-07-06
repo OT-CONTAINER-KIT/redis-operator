@@ -53,6 +53,7 @@ var setupLog = ctrl.Log.WithName("setup")
 type managerOptions struct {
 	metricsAddr             string
 	probeAddr               string
+	pprofAddr               string
 	enableLeaderElection    bool
 	enableWebhooks          bool
 	maxConcurrentReconciles int
@@ -85,6 +86,7 @@ func CMD() *cobra.Command {
 func addFlags(cmd *cobra.Command, opts *managerOptions) {
 	cmd.Flags().StringVar(&opts.metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	cmd.Flags().StringVar(&opts.probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	cmd.Flags().StringVar(&opts.pprofAddr, "pprof-bind-address", "", "The address the pprof endpoint binds to. If empty, pprof is disabled. Example: ':6060'")
 	cmd.Flags().BoolVar(&opts.enableLeaderElection, "leader-elect", false, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	cmd.Flags().BoolVar(&opts.enableWebhooks, "enable-webhooks", internalenv.IsWebhookEnabled(), "Enable webhooks")
 	cmd.Flags().IntVar(&opts.maxConcurrentReconciles, "max-concurrent-reconciles", 1, "Max concurrent reconciles")
@@ -166,6 +168,10 @@ func createControllerOptions(opts *managerOptions) ctrl.Options {
 		HealthProbeBindAddress: opts.probeAddr,
 		LeaderElection:         opts.enableLeaderElection,
 		LeaderElectionID:       "6cab913b.redis.opstreelabs.in",
+	}
+
+	if opts.pprofAddr != "" {
+		options.PprofBindAddress = opts.pprofAddr
 	}
 
 	watchNamespaces := internalenv.GetWatchNamespaces()
