@@ -151,7 +151,7 @@ _Appears in:_
 | `redisExporter` _[RedisExporter](#redisexporter)_ |  |
 | `storage` _[Storage](#storage)_ |  |
 | `nodeSelector` _object (keys:string, values:string)_ |  |
-| `securityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podsecuritycontext-v1-core)_ |  |
+| `podSecurityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podsecuritycontext-v1-core)_ |  |
 | `priorityClassName` _string_ |  |
 | `tolerations` _[Toleration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#toleration-v1-core)_ |  |
 | `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ |  |
@@ -175,7 +175,8 @@ _Appears in:_
 | `redisConfig` _[RedisConfig](#redisconfig)_ |  |
 | `storage` _[Storage](#storage)_ |  |
 | `nodeSelector` _object (keys:string, values:string)_ |  |
-| `securityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podsecuritycontext-v1-core)_ |  |
+| `securityContext` _[SecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#securitycontext-v1-core)_ |  |
+| `podSecurityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podsecuritycontext-v1-core)_ |  |
 | `priorityClassName` _string_ |  |
 | `affinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#affinity-v1-core)_ |  |
 | `tolerations` _[Toleration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#toleration-v1-core)_ |  |
@@ -201,7 +202,8 @@ _Appears in:_
 | `redisConfig` _[RedisConfig](#redisconfig)_ |  |
 | `storage` _[Storage](#storage)_ |  |
 | `nodeSelector` _object (keys:string, values:string)_ |  |
-| `securityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podsecuritycontext-v1-core)_ |  |
+| `securityContext` _[SecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#securitycontext-v1-core)_ |  |
+| `podSecurityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podsecuritycontext-v1-core)_ |  |
 | `priorityClassName` _string_ |  |
 | `affinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#affinity-v1-core)_ |  |
 | `tolerations` _[Toleration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#toleration-v1-core)_ |  |
@@ -225,7 +227,8 @@ _Appears in:_
 | `kubernetesConfig` _[KubernetesConfig](#kubernetesconfig)_ |  |
 | `redisSentinelConfig` _[RedisSentinelConfig](#redissentinelconfig)_ |  |
 | `nodeSelector` _object (keys:string, values:string)_ |  |
-| `securityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podsecuritycontext-v1-core)_ |  |
+| `securityContext` _[SecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#securitycontext-v1-core)_ |  |
+| `podSecurityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podsecuritycontext-v1-core)_ |  |
 | `priorityClassName` _string_ |  |
 | `affinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#affinity-v1-core)_ |  |
 | `tolerations` _[Toleration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#toleration-v1-core)_ |  |
@@ -288,7 +291,7 @@ _Appears in:_
 | `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ |  |
 | `imagePullPolicy` _[ImagePullPolicy](https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy)_ |  |
 | `env` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envvar-v1-core)_ |  |
-| `securityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podsecuritycontext-v1-core)_ |  |
+| `securityContext` _[SecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#securitycontext-v1-core)_ |  |
 
 #### RedisFollower
 
@@ -303,6 +306,7 @@ _Appears in:_
 | `replicas` _integer_ |  |
 | `redisConfig` _[RedisConfig](#redisconfig)_ |  |
 | `affinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#affinity-v1-core)_ |  |
+| `securityContext` _[SecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#securitycontext-v1-core)_ |  |
 | `pdb` _[RedisPodDisruptionBudget](#redispoddisruptionbudget)_ |  |
 | `readinessProbe` _[Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#probe-v1-core)_ |  |
 | `livenessProbe` _[Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#probe-v1-core)_ |  |
@@ -320,6 +324,7 @@ _Appears in:_
 | `replicas` _integer_ |  |
 | `redisConfig` _[RedisConfig](#redisconfig)_ |  |
 | `affinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#affinity-v1-core)_ |  |
+| `securityContext` _[SecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#securitycontext-v1-core)_ |  |
 | `pdb` _[RedisPodDisruptionBudget](#redispoddisruptionbudget)_ |  |
 | `readinessProbe` _[Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#probe-v1-core)_ |  |
 | `livenessProbe` _[Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#probe-v1-core)_ |  |
@@ -359,7 +364,7 @@ _Appears in:_
 | `imagePullPolicy` _[ImagePullPolicy](https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy)_ |  |
 | `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ |  |
 | `env` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envvar-v1-core)_ |  |
-| `securityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podsecuritycontext-v1-core)_ |  |
+| `securityContext` _[SecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#securitycontext-v1-core)_ |  |
 
 #### Storage
 
