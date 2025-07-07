@@ -7,6 +7,8 @@ description: >
   Monitoring of Redis standalone and cluster setup using Prometheus
 ---
 
+# Collecting Redis Instance Metrics (redis-exporter)
+
 The redis-operator uses [redis-exporter](https://github.com/oliver006/redis_exporter) to expose metrics of redis setup in Prometheus format. This exporter captures metrics for both redis standalone and cluster setup.
 
 The monitoring architecture is illustrated in the diagram:
@@ -107,3 +109,49 @@ There is detailed dashboard created for Redis cluster monitoring setup. Refer to
 [Redis Operator Cluster Dashboard for Prometheus](https://github.com/OT-CONTAINER-KIT/redis-operator/blob/main/dashboards/redis-operator-cluster.json)
 
 ![redis_grafana_dashboard](../../../images/grafana1.3b7d307c.png)
+
+# Collecting Redis Operator Controller Metrics
+
+The Redis Operator exposes its own **controller metrics** (for both RedisCluster and RedisReplication reconciliations) at the `/metrics` endpoint served on port `8080` directly by the operator container (plain HTTP, no kube-rbac-proxy involved).
+
+These metrics answer questions such as:
+* Is the controller healthy?
+* Were any reconciliations skipped?
+* How many reshard / rebalance operations have been executed?
+* Do all replications have a master?
+
+### PodMonitor
+
+If you deploy Prometheus with the **Prometheus Operator**, scrape the controller metrics by creating the following `PodMonitor` (adjust the namespace if you deploy the operator elsewhere):
+
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: redis-operator
+  namespace: ot-operators
+spec:
+  namespaceSelector:
+    any: true
+  selector:
+    matchLabels:
+      name: redis-operator
+  podTargetLabels:
+    - name
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      scheme: http
+      interval: 30s
+      scrapeTimeout: 10s
+```
+
+If you run a self-managed Prometheus, configure a scrape-config targeting pods with `name=redis-operator` label on port `8080`.
+
+### Grafana Dashboard
+
+An example dashboard that visualises controller health, replica counts and operation rates is available at:
+
+`dashboards/redis-operator.json`
+
+Import this JSON file into Grafana and select your Prometheus datasource.

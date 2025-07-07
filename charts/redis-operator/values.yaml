@@ -31,6 +31,13 @@ redisOperator:
     # The address the pprof endpoint binds to
     bindAddress: ":6060"
 
+  # metrics configuration for monitoring
+  metrics:
+    # Enable metrics server
+    enabled: true
+    # The address the metrics endpoint binds to
+    bindAddress: ":8080"
+
 resources:
   limits:
     cpu: 500m
