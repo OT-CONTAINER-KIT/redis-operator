@@ -153,4 +153,4 @@ Please see our [CHANGELOG.md](./CHANGELOG.md) for details.
 
 This project is managed by [OpsTree Solutions](http://opstree.com). For any queries or suggestions, you can reach out to us at [opensource@opstree.com](mailto:opensource@opstree.com).
 
-Join our Slack Channel: [#redis-operator](https://opstree.slack.com/archives/C05MBRB50JG).
+Join our Slack Channel: [#redis-operator](https://join.slack.com/t/opstree/shared_invite/zt-3o8jp35x-UGMU2Cy0WSBk3Lbzqa2wVw).
