@@ -57,6 +57,9 @@ spec:
         - containerPort: 8081
           name: probe
           protocol: TCP
+        - containerPort: 8080
+          name: metrics
+          protocol: TCP
       {{- if .Values.redisOperator.pprof.enabled }}
         - containerPort: {{ .Values.redisOperator.pprof.bindAddress | regexFind ":[0-9]+" | trimPrefix ":" }}
           name: pprof
