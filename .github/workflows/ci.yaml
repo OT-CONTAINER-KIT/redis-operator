@@ -252,17 +252,17 @@ jobs:
         run: |
           kubectl wait --for=condition=available --timeout=300s deployment/redis-operator-redis-operator -n redis-operator-system
 
-      # - name: DEBUG:Install k9s
-      #   run: |
-      #     curl -sS https://webi.sh/k9s | sh; \
-      #     source ~/.config/envman/PATH.env
+      - name: DEBUG:Install k9s
+        run: |
+          curl -sS https://webi.sh/k9s | sh; \
+          source ~/.config/envman/PATH.env
 
-      # - name: DEBUG:Setup tmate session
-      #   uses: mxschmitt/action-tmate@v3
-      #   with:
-      #     timeout-minutes: 15
-      #     limit-access-to-actor: true
-      #     detached: true
+      - name: DEBUG:Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        with:
+          timeout-minutes: 15
+          limit-access-to-actor: true
+          detached: true
 
-      - name: Run chainsaw test
-        run: chainsaw test --test-dir ./tests/e2e-chainsaw/v1beta2 --config tests/_config/chainsaw-configuration.yaml
+      - name: Run chainsaw test for setup-redis-cluster
+        run: chainsaw test --test-dir ./tests/e2e-chainsaw/v1beta2/setup/redis-cluster --config tests/_config/chainsaw-configuration.yaml

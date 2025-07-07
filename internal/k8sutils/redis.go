@@ -161,7 +161,7 @@ func CreateMultipleLeaderRedisCommand(ctx context.Context, client kubernetes.Int
 }
 
 // ExecuteRedisClusterCommand will execute redis cluster creation command
-func ExecuteRedisClusterCommand(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) {
+func ExecuteRedisClusterCommand(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) error {
 	var cmd []string
 	replicas := cr.Spec.GetReplicaCounts("leader")
 	switch int(replicas) {
@@ -169,6 +169,7 @@ func ExecuteRedisClusterCommand(ctx context.Context, client kubernetes.Interface
 		err := executeFailoverCommand(ctx, client, cr, "leader")
 		if err != nil {
 			log.FromContext(ctx).Error(err, "error executing failover command")
+			return err
 		}
 		cmd = CreateSingleLeaderRedisCommand(ctx, cr)
 	default:
@@ -179,13 +180,20 @@ func ExecuteRedisClusterCommand(ctx context.Context, client kubernetes.Interface
 		pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
 		if err != nil {
 			log.FromContext(ctx).Error(err, "Error in getting redis password")
+			return err
 		}
 		cmd = append(cmd, "-a")
 		cmd = append(cmd, pass)
 	}
+
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.ObjectMeta.Name+"-leader-0")...)
-	log.FromContext(ctx).V(1).Info("Redis cluster creation command is", "Command", cmd)
-	executeCommand(ctx, client, cr, cmd, cr.ObjectMeta.Name+"-leader-0")
+	log.FromContext(ctx).Info("Redis cluster creation command is", "Command", cmd)
+	cmdOut, err := executeCommand1(ctx, client, cr, cmd, cr.ObjectMeta.Name+"-leader-0")
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Failed to run redis cluster creation command", "Command", cmd, "Output", cmdOut)
+		return err
+	}
+	return nil
 }
 
 func getRedisTLSArgs(tlsConfig *common.TLSConfig, clientHost string) []string {
@@ -234,7 +242,7 @@ func createRedisReplicationCommand(ctx context.Context, client kubernetes.Interf
 }
 
 // ExecuteRedisReplicationCommand will execute the replication command
-func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) {
+func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) error {
 	var podIP string
 	followerCounts := cr.Spec.GetReplicaCounts("follower")
 	leaderCounts := cr.Spec.GetReplicaCounts("leader")
@@ -246,6 +254,7 @@ func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Inter
 	nodes, err := clusterNodes(ctx, redisClient)
 	if err != nil {
 		log.FromContext(ctx).Error(err, "failed to get cluster nodes")
+		return err
 	}
 	for followerIdx := 0; followerIdx <= int(followerCounts)-1; {
 		for i := 0; i < int(followerPerLeader) && followerIdx <= int(followerCounts)-1; i++ {
@@ -258,6 +267,10 @@ func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Inter
 				Namespace: cr.Namespace,
 			}
 			podIP = getRedisServerIP(ctx, client, followerPod)
+			if podIP == "" {
+				log.FromContext(ctx).V(1).Info("Skipping adding node to cluster, redis pod ip is empty", "Follower.Pod", followerPod)
+				continue
+			}
 			if !checkRedisNodePresence(ctx, cr, nodes, podIP) {
 				log.FromContext(ctx).V(1).Info("Adding node to cluster.", "Node.IP", podIP, "Follower.Pod", followerPod)
 				cmd := createRedisReplicationCommand(ctx, client, cr, leaderPod, followerPod)
@@ -269,7 +282,12 @@ func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Inter
 					continue
 				}
 				if pong == "PONG" {
-					executeCommand(ctx, client, cr, cmd, cr.ObjectMeta.Name+"-leader-0")
+					cmdOut, err := executeCommand1(ctx, client, cr, cmd, cr.ObjectMeta.Name+"-leader-0")
+					if err != nil {
+						log.FromContext(ctx).Error(err, "Failed to run add-node command", "Command", cmd, "Output", cmdOut)
+						continue
+					}
+					log.FromContext(ctx).Info("Successfully added redis node to cluster", "NodeName", followerPod.PodName)
 				} else {
 					log.FromContext(ctx).V(1).Info("Skipping execution of command due to failed Redis ping", "Follower.Pod", followerPod)
 				}
@@ -280,6 +298,7 @@ func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Inter
 			followerIdx++
 		}
 	}
+	return nil
 }
 
 type clusterNodesResponse []string
@@ -300,6 +319,10 @@ func clusterNodes(ctx context.Context, redisClient *redis.Client) ([]clusterNode
 	}
 	response := make([]clusterNodesResponse, 0, len(csvOutputRecords))
 	for _, record := range csvOutputRecords {
+		// validate cluster nodes response
+		if len(record) < 8 {
+			return nil, fmt.Errorf("clusterNodes result is invalid, expected at least 8 records, got %d,records:%v", len(record), record)
+		}
 		response = append(response, record)
 	}
 	return response, nil
@@ -353,13 +376,14 @@ func executeFailoverCommand(ctx context.Context, client kubernetes.Interface, cr
 }
 
 // CheckRedisNodeCount will check the count of redis nodes
-func CheckRedisNodeCount(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, nodeType string) int32 {
+func CheckRedisNodeCount(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, nodeType string) (int32, error) {
 	redisClient := configureRedisClient(ctx, client, cr, cr.ObjectMeta.Name+"-leader-0")
 	defer redisClient.Close()
 	var redisNodeType string
 	clusterNodes, err := clusterNodes(ctx, redisClient)
 	if err != nil {
 		log.FromContext(ctx).Error(err, "failed to get cluster nodes")
+		return 0, err
 	}
 	count := len(clusterNodes)
 
@@ -382,7 +406,7 @@ func CheckRedisNodeCount(ctx context.Context, client kubernetes.Interface, cr *r
 	} else {
 		log.FromContext(ctx).V(1).Info("Total number of redis nodes are", "Nodes", strconv.Itoa(count))
 	}
-	return int32(count)
+	return int32(count), nil
 }
 
 // RedisClusterStatusHealth use `redis-cli --cluster check 127.0.0.1:6379`
@@ -465,14 +489,14 @@ func configureRedisClient(ctx context.Context, client kubernetes.Interface, cr *
 }
 
 // executeCommand will execute the commands in pod
-func executeCommand(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, cmd []string, podName string) {
-	execOut, execErr := executeCommand1(ctx, client, cr, cmd, podName)
-	if execErr != nil {
-		log.FromContext(ctx).Error(execErr, "Could not execute command", "Command", cmd, "Output", execOut)
-		return
-	}
-	log.FromContext(ctx).V(1).Info("Successfully executed the command", "Command", cmd, "Output", execOut)
-}
+//func executeCommand(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, cmd []string, podName string) {
+//	execOut, execErr := executeCommand1(ctx, client, cr, cmd, podName)
+//	if execErr != nil {
+//		log.FromContext(ctx).Error(execErr, "Could not execute command", "Command", cmd, "Output", execOut)
+//		return
+//	}
+//	log.FromContext(ctx).V(1).Info("Successfully executed the command", "Command", cmd, "Output", execOut)
+//}
 
 func executeCommand1(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, cmd []string, podName string) (stdout string, stderr error) {
 	var (
