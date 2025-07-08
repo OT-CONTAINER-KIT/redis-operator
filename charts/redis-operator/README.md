@@ -113,6 +113,8 @@ kubectl create secret tls <webhook-server-cert> --key tls.key --cert tls.crt -n 
 | redisOperator.imagePullPolicy | string | `"Always"` |  |
 | redisOperator.imagePullSecrets | list | `[]` |  |
 | redisOperator.imageTag | string | `""` |  |
+| redisOperator.metrics.bindAddress | string | `":8080"` |  |
+| redisOperator.metrics.enabled | bool | `true` |  |
 | redisOperator.name | string | `"redis-operator"` |  |
 | redisOperator.podAnnotations | object | `{}` |  |
 | redisOperator.podLabels | object | `{}` |  |
