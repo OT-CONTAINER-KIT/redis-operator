@@ -1,6 +1,6 @@
 ---
 title: "Sentinel"
-linkTitle: "sentinel"
+linkTitle: "Sentinel"
 weight: 20
 date: 2023-04-05T19:00:00Z
 description: >
@@ -17,7 +17,7 @@ Redis Sentinel is a tool that provides automatic failover and monitoring for Red
 
 ## Helm Installation
 
-In redis sentinel mode, we deploy redis as a single StatefulSet pod that means ease of setup but no complexity, no high availability, and no resilience.
+In redis sentinel mode, we deploy redis sentinel as a highly available monitoring solution that provides automatic failover, monitoring, and configuration management for Redis instances.
 
 Installation can be easily done via `helm` command:
 
