@@ -29,7 +29,7 @@ import (
 
 type StatefulSet interface {
 	IsStatefulSetReady(ctx context.Context, namespace, name string) bool
-	GetStatefulSetReplicas(ctx context.Context, namespace, name string) int32
+	GetStatefulSetReplicas(ctx context.Context, namespace, name string) (int32, error)
 }
 
 type StatefulSetService struct {
@@ -80,15 +80,15 @@ func (s *StatefulSetService) IsStatefulSetReady(ctx context.Context, namespace, 
 	return true
 }
 
-func (s *StatefulSetService) GetStatefulSetReplicas(ctx context.Context, namespace, name string) int32 {
+func (s *StatefulSetService) GetStatefulSetReplicas(ctx context.Context, namespace, name string) (int32, error) {
 	sts, err := s.kubeClient.AppsV1().StatefulSets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return 0
+		return 0, err
 	}
 	if sts.Spec.Replicas == nil {
-		return 0
+		return 0, errors.New("statefulset replicas is nil")
 	}
-	return *sts.Spec.Replicas
+	return *sts.Spec.Replicas, nil
 }
 
 const (
