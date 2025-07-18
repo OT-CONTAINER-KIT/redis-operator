@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -1036,7 +1035,7 @@ func TestGenerateContainerDef(t *testing.T) {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
 			containerDef := generateContainerDef(test.containerName, test.containerDef, test.redisClusterMode, test.containerNodeConfVolume, test.containerEnableMetrics, test.containerExternalConfig, test.redisClusterVersion, test.containerMountPaths, test.sideCareContainer)
-			assert.Equal(t, containerDef, test.expectedContainerDef, "Container Configration")
+			assert.Equal(t, containerDef, test.expectedContainerDef, "Container Configuration")
 		})
 	}
 }
@@ -1059,16 +1058,16 @@ func TestGenerateInitContainerDef(t *testing.T) {
 				Command:            []string{"/bin/bash", "-c", "/app/restore.bash"},
 				PersistenceEnabled: ptr.To(false),
 				Resources: &corev1.ResourceRequirements{
-					Requests: v1.ResourceList{
-						v1.ResourceCPU:    resource.MustParse("220m"),
-						v1.ResourceMemory: resource.MustParse("500Mi"),
+					Requests: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("220m"),
+						corev1.ResourceMemory: resource.MustParse("500Mi"),
 					},
-					Limits: v1.ResourceList{
-						v1.ResourceCPU:    resource.MustParse("250m"),
-						v1.ResourceMemory: resource.MustParse("500Mi"),
+					Limits: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("250m"),
+						corev1.ResourceMemory: resource.MustParse("500Mi"),
 					},
 				},
-				AdditionalEnvVariable: &[]v1.EnvVar{
+				AdditionalEnvVariable: &[]corev1.EnvVar{
 					{
 						Name:  "TLS_MODE",
 						Value: "true",
@@ -1083,16 +1082,16 @@ func TestGenerateInitContainerDef(t *testing.T) {
 					ImagePullPolicy: corev1.PullAlways,
 					VolumeMounts:    getVolumeMount("redisVolume", ptr.To(false), false, false, nil, []corev1.VolumeMount{}, nil, nil),
 					Resources: corev1.ResourceRequirements{
-						Requests: v1.ResourceList{
-							v1.ResourceCPU:    resource.MustParse("220m"),
-							v1.ResourceMemory: resource.MustParse("500Mi"),
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("220m"),
+							corev1.ResourceMemory: resource.MustParse("500Mi"),
 						},
-						Limits: v1.ResourceList{
-							v1.ResourceCPU:    resource.MustParse("250m"),
-							v1.ResourceMemory: resource.MustParse("500Mi"),
+						Limits: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("250m"),
+							corev1.ResourceMemory: resource.MustParse("500Mi"),
 						},
 					},
-					Env: []v1.EnvVar{
+					Env: []corev1.EnvVar{
 						{
 							Name:  "TLS_MODE",
 							Value: "true",
@@ -1124,7 +1123,7 @@ func TestGenerateInitContainerDef(t *testing.T) {
 							MountPath: "/data",
 						},
 					}, nil, nil),
-					Env: []v1.EnvVar{},
+					Env: []corev1.EnvVar{},
 				},
 			},
 			mountPaths: []corev1.VolumeMount{
@@ -1401,7 +1400,7 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 				ClusterMode:    true,
 				NodeConfVolume: true,
 				ExternalConfig: ptr.To(""),
-				Tolerations: &[]v1.Toleration{
+				Tolerations: &[]corev1.Toleration{
 					{
 						Key:      "node.kubernetes.io/unreachable",
 						Operator: corev1.TolerationOpExists,
@@ -1436,15 +1435,15 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 						MatchLabels: map[string]string{},
 					},
 					Replicas: ptr.To(int32(3)),
-					Template: v1.PodTemplateSpec{
+					Template: corev1.PodTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{
 							Annotations: map[string]string{
 								"redis.opstreelabs.in":       "true",
 								"redis.opstreelabs.instance": "test-sts",
 							},
 						},
-						Spec: v1.PodSpec{
-							Tolerations: []v1.Toleration{
+						Spec: corev1.PodSpec{
+							Tolerations: []corev1.Toleration{
 								{
 									Key:      "node.kubernetes.io/unreachable",
 									Operator: corev1.TolerationOpExists,
@@ -1509,7 +1508,7 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 											},
 										},
 									},
-									VolumeMounts: []v1.VolumeMount{
+									VolumeMounts: []corev1.VolumeMount{
 										{
 											Name:      "tls-certs",
 											MountPath: "/tls",
@@ -1527,25 +1526,25 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 									},
 								},
 							},
-							Volumes: []v1.Volume{
+							Volumes: []corev1.Volume{
 								{
 									Name: "external-config",
-									VolumeSource: v1.VolumeSource{
-										ConfigMap: &v1.ConfigMapVolumeSource{},
+									VolumeSource: corev1.VolumeSource{
+										ConfigMap: &corev1.ConfigMapVolumeSource{},
 									},
 								},
 								{
 									Name: "tls-certs",
-									VolumeSource: v1.VolumeSource{
-										Secret: &v1.SecretVolumeSource{
+									VolumeSource: corev1.VolumeSource{
+										Secret: &corev1.SecretVolumeSource{
 											SecretName: "sts-secret",
 										},
 									},
 								},
 								{
 									Name: "acl-secret",
-									VolumeSource: v1.VolumeSource{
-										Secret: &v1.SecretVolumeSource{
+									VolumeSource: corev1.VolumeSource{
+										Secret: &corev1.SecretVolumeSource{
 											SecretName: "sts-acl",
 										},
 									},
@@ -1558,19 +1557,19 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 			initContainerParams: initContainerParameters{},
 			containerParams: containerParameters{
 				Image: "redis:latest",
-				EnvVars: &[]v1.EnvVar{
+				EnvVars: &[]corev1.EnvVar{
 					{
 						Name:  "REDIS_MAJOR_VERSION",
 						Value: "1.0",
 					},
 				},
 				TLSConfig: &common.TLSConfig{
-					Secret: v1.SecretVolumeSource{
+					Secret: corev1.SecretVolumeSource{
 						SecretName: "sts-secret",
 					},
 				},
 				ACLConfig: &common.ACLConfig{
-					Secret: &v1.SecretVolumeSource{
+					Secret: &corev1.SecretVolumeSource{
 						SecretName: "sts-acl",
 					},
 				},
@@ -1597,7 +1596,7 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 				EnableMetrics:  true,
 				ClusterMode:    true,
 				NodeConfVolume: true,
-				ImagePullSecrets: &[]v1.LocalObjectReference{
+				ImagePullSecrets: &[]corev1.LocalObjectReference{
 					{
 						Name: "redis-secret",
 					},
@@ -1629,17 +1628,17 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 						MatchLabels: map[string]string{},
 					},
 					Replicas: ptr.To(int32(3)),
-					Template: v1.PodTemplateSpec{
+					Template: corev1.PodTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{
 							Annotations: map[string]string{
 								"redis.opstreelabs.in":       "true",
 								"redis.opstreelabs.instance": "test-sts",
 							},
 						},
-						Spec: v1.PodSpec{
+						Spec: corev1.PodSpec{
 							InitContainers: []corev1.Container{
 								{
-									Env:   []v1.EnvVar{},
+									Env:   []corev1.EnvVar{},
 									Name:  "inittest-sts",
 									Image: "redis-init:latest",
 								},
@@ -1680,7 +1679,7 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 											},
 										},
 									},
-									VolumeMounts: []v1.VolumeMount{
+									VolumeMounts: []corev1.VolumeMount{
 										{
 											Name:      "node-conf",
 											MountPath: "/node-conf",
@@ -1709,25 +1708,25 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 									ImagePullPolicy: corev1.PullAlways,
 								},
 							},
-							Volumes: []v1.Volume{
+							Volumes: []corev1.Volume{
 								{
 									Name: "config",
-									VolumeSource: v1.VolumeSource{
-										EmptyDir: &v1.EmptyDirVolumeSource{},
+									VolumeSource: corev1.VolumeSource{
+										EmptyDir: &corev1.EmptyDirVolumeSource{},
 									},
 								},
 								{
 									Name: "additional-vol",
 								},
 							},
-							ImagePullSecrets: []v1.LocalObjectReference{
+							ImagePullSecrets: []corev1.LocalObjectReference{
 								{
 									Name: "redis-secret",
 								},
 							},
 						},
 					},
-					VolumeClaimTemplates: []v1.PersistentVolumeClaim{
+					VolumeClaimTemplates: []corev1.PersistentVolumeClaim{
 						{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "node-conf",
@@ -1736,11 +1735,11 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 									"redis.opstreelabs.instance": "test-sts",
 								},
 							},
-							Spec: v1.PersistentVolumeClaimSpec{
-								AccessModes: []v1.PersistentVolumeAccessMode{
-									v1.ReadWriteOnce,
+							Spec: corev1.PersistentVolumeClaimSpec{
+								AccessModes: []corev1.PersistentVolumeAccessMode{
+									corev1.ReadWriteOnce,
 								},
-								VolumeMode: ptr.To(v1.PersistentVolumeFilesystem),
+								VolumeMode: ptr.To(corev1.PersistentVolumeFilesystem),
 							},
 						},
 						{
@@ -1751,11 +1750,11 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 									"redis.opstreelabs.instance": "test-sts",
 								},
 							},
-							Spec: v1.PersistentVolumeClaimSpec{
-								AccessModes: []v1.PersistentVolumeAccessMode{
-									v1.ReadWriteOnce,
+							Spec: corev1.PersistentVolumeClaimSpec{
+								AccessModes: []corev1.PersistentVolumeAccessMode{
+									corev1.ReadWriteOnce,
 								},
-								VolumeMode: ptr.To(v1.PersistentVolumeFilesystem),
+								VolumeMode: ptr.To(corev1.PersistentVolumeFilesystem),
 							},
 						},
 					},
@@ -1768,7 +1767,7 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 			containerParams: containerParameters{
 				Image:              "redis:latest",
 				PersistenceEnabled: ptr.To(true),
-				AdditionalVolume: []v1.Volume{
+				AdditionalVolume: []corev1.Volume{
 					{
 						Name: "additional-vol",
 					},
@@ -1788,7 +1787,7 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
 			stsDef := generateStatefulSetsDef(test.statefulSetMeta, test.stsParams, test.stsOwnerDef, test.initContainerParams, test.containerParams, test.sideCareContainer)
-			assert.Equal(t, stsDef, test.expectedStsDef, "StatefulSet Configration")
+			assert.Equal(t, stsDef, test.expectedStsDef, "StatefulSet Configuration")
 		})
 	}
 }

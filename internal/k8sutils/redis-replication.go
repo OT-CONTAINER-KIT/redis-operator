@@ -15,7 +15,7 @@ import (
 
 // CreateReplicationService method will create replication service for Redis
 func CreateReplicationService(ctx context.Context, cr *rrvb2.RedisReplication, cl kubernetes.Interface) error {
-	labels := getRedisLabels(cr.ObjectMeta.Name, replication, "replication", cr.ObjectMeta.Labels)
+	labels := getRedisLabels(cr.Name, replication, "replication", cr.Labels)
 
 	epp := disableMetrics
 	if cr.Spec.RedisExporter != nil {
@@ -26,17 +26,17 @@ func CreateReplicationService(ctx context.Context, cr *rrvb2.RedisReplication, c
 	}
 
 	annotations := generateServiceAnots(cr.ObjectMeta, nil, epp)
-	objectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name, cr.Namespace, labels, annotations)
-	headlessObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-headless", cr.Namespace, labels, annotations)
-	additionalObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.GetServiceAnnotations(), epp))
+	objectMetaInfo := generateObjectMetaInformation(cr.Name, cr.Namespace, labels, annotations)
+	headlessObjectMetaInfo := generateObjectMetaInformation(cr.Name+"-headless", cr.Namespace, labels, annotations)
+	additionalObjectMetaInfo := generateObjectMetaInformation(cr.Name+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.GetServiceAnnotations(), epp))
 	masterLabels := util.MergeMap(
 		labels, map[string]string{common.RedisRoleLabelKey: common.RedisRoleLabelMaster},
 	)
 	replicaLabels := util.MergeMap(
 		labels, map[string]string{common.RedisRoleLabelKey: common.RedisRoleLabelSlave},
 	)
-	masterObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-master", cr.Namespace, masterLabels, annotations)
-	replicaObjectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name+"-replica", cr.Namespace, replicaLabels, annotations)
+	masterObjectMetaInfo := generateObjectMetaInformation(cr.Name+"-master", cr.Namespace, masterLabels, annotations)
+	replicaObjectMetaInfo := generateObjectMetaInformation(cr.Name+"-replica", cr.Namespace, replicaLabels, annotations)
 
 	if err := CreateOrUpdateService(ctx, cr.Namespace, headlessObjectMetaInfo, redisReplicationAsOwner(cr), disableMetrics, true, "ClusterIP", common.RedisPort, cl); err != nil {
 		log.FromContext(ctx).Error(err, "Cannot create replication headless service for Redis")
@@ -64,8 +64,8 @@ func CreateReplicationService(ctx context.Context, cr *rrvb2.RedisReplication, c
 
 // CreateReplicationRedis will create a replication redis setup
 func CreateReplicationRedis(ctx context.Context, cr *rrvb2.RedisReplication, cl kubernetes.Interface) error {
-	stateFulName := cr.ObjectMeta.Name
-	labels := getRedisLabels(cr.ObjectMeta.Name, replication, "replication", cr.ObjectMeta.Labels)
+	stateFulName := cr.Name
+	labels := getRedisLabels(cr.Name, replication, "replication", cr.Labels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, annotations)
 
@@ -123,9 +123,9 @@ func generateRedisReplicationParams(cr *rrvb2.RedisReplication) statefulSetParam
 	if cr.Spec.ServiceAccountName != nil {
 		res.ServiceAccountName = cr.Spec.ServiceAccountName
 	}
-	if value, found := cr.ObjectMeta.GetAnnotations()[common.AnnotationKeyRecreateStatefulset]; found && value == "true" {
+	if value, found := cr.GetAnnotations()[common.AnnotationKeyRecreateStatefulset]; found && value == "true" {
 		res.RecreateStatefulSet = true
-		res.RecreateStatefulsetStrategy = getDeletionPropagationStrategy(cr.ObjectMeta.GetAnnotations())
+		res.RecreateStatefulsetStrategy = getDeletionPropagationStrategy(cr.GetAnnotations())
 	}
 	return res
 }

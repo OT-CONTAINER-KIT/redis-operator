@@ -15,7 +15,7 @@ func DisablePersistence() customFieldOption {
 
 func WithAnnotations(annotations map[string]string) customFieldOption {
 	return func(rc *v1beta2.RedisCluster) {
-		rc.ObjectMeta.Annotations = annotations
+		rc.Annotations = annotations
 	}
 }
 

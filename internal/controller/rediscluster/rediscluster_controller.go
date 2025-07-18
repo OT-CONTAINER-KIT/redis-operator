@@ -56,11 +56,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	logger := log.FromContext(ctx)
 	instance := &rcvb2.RedisCluster{}
 
-	err := r.Client.Get(context.TODO(), req.NamespacedName, instance)
+	err := r.Get(context.TODO(), req.NamespacedName, instance)
 	if err != nil {
 		return intctrlutil.RequeueECheck(ctx, err, "failed to get redis cluster instance")
 	}
-	if instance.ObjectMeta.GetDeletionTimestamp() != nil {
+	if instance.GetDeletionTimestamp() != nil {
 		if err = k8sutils.HandleRedisClusterFinalizer(ctx, r.Client, instance, RedisClusterFinalizer); err != nil {
 			return intctrlutil.RequeueE(ctx, err, "failed to handle redis cluster finalizer")
 		}
@@ -83,7 +83,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// Check if the cluster is downscaled
 	if leaderCount := r.GetStatefulSetReplicas(ctx, instance.Namespace, instance.Name+"-leader"); leaderReplicas < leaderCount {
-		if !(r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-leader") && r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-follower")) {
+		if !r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-leader") || !r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-follower") {
 			return intctrlutil.Reconciled()
 		}
 		if masterCount := k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, "leader"); masterCount == leaderCount {
@@ -178,12 +178,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 
-	if !(r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-leader") && r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-follower")) {
+	if !r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-leader") || !r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-follower") {
 		return intctrlutil.Reconciled()
 	}
 
 	// Mark the cluster status as bootstrapping if all the leader and follower nodes are ready
-	if !(instance.Status.ReadyLeaderReplicas == leaderReplicas && instance.Status.ReadyFollowerReplicas == followerReplicas) {
+	if instance.Status.ReadyLeaderReplicas != leaderReplicas || instance.Status.ReadyFollowerReplicas != followerReplicas {
 		err = k8sutils.UpdateRedisClusterStatus(ctx, instance, rcvb2.RedisClusterBootstrap, rcvb2.BootstrapClusterReason, leaderReplicas, followerReplicas, r.Client)
 		if err != nil {
 			return intctrlutil.RequeueE(ctx, err, "")

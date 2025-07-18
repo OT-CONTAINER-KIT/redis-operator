@@ -70,7 +70,7 @@ func getRedisServerAddress(ctx context.Context, client kubernetes.Interface, rd 
 
 // getRedisHostname will return the complete FQDN for redis
 func getRedisHostname(redisInfo RedisDetails, cr *rcvb2.RedisCluster, role string) string {
-	fqdn := fmt.Sprintf("%s.%s-%s-headless.%s.svc", redisInfo.PodName, cr.ObjectMeta.Name, role, cr.Namespace)
+	fqdn := fmt.Sprintf("%s.%s-%s-headless.%s.svc", redisInfo.PodName, cr.Name, role, cr.Namespace)
 	return fqdn
 }
 
@@ -91,7 +91,7 @@ func CreateSingleLeaderRedisCommand(ctx context.Context, cr *rcvb2.RedisCluster)
 // RepairDisconnectedMasters attempts to repair disconnected/failed masters by issuing
 // a CLUSTER MEET with the updated address of the host
 func RepairDisconnectedMasters(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) error {
-	redisClient := configureRedisClient(ctx, client, cr, cr.ObjectMeta.Name+"-leader-0")
+	redisClient := configureRedisClient(ctx, client, cr, cr.Name+"-leader-0")
 	defer redisClient.Close()
 	return repairDisconnectedMasters(ctx, client, cr, redisClient)
 }
@@ -145,7 +145,7 @@ func CreateMultipleLeaderRedisCommand(ctx context.Context, client kubernetes.Int
 	replicas := cr.Spec.GetReplicaCounts("leader")
 
 	for podCount := 0; podCount < int(replicas); podCount++ {
-		podName := cr.ObjectMeta.Name + "-leader-" + strconv.Itoa(podCount)
+		podName := cr.Name + "-leader-" + strconv.Itoa(podCount)
 		var address string
 		if cr.Spec.ClusterVersion != nil && *cr.Spec.ClusterVersion == "v7" {
 			address = getRedisHostname(RedisDetails{PodName: podName, Namespace: cr.Namespace}, cr, "leader") + fmt.Sprintf(":%d", *cr.Spec.Port)
@@ -183,9 +183,9 @@ func ExecuteRedisClusterCommand(ctx context.Context, client kubernetes.Interface
 		cmd = append(cmd, "-a")
 		cmd = append(cmd, pass)
 	}
-	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.ObjectMeta.Name+"-leader-0")...)
+	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.Name+"-leader-0")...)
 	log.FromContext(ctx).V(1).Info("Redis cluster creation command is", "Command", cmd)
-	executeCommand(ctx, client, cr, cmd, cr.ObjectMeta.Name+"-leader-0")
+	executeCommand(ctx, client, cr, cmd, cr.Name+"-leader-0")
 }
 
 func getRedisTLSArgs(tlsConfig *common.TLSConfig, clientHost string) []string {
@@ -240,7 +240,7 @@ func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Inter
 	leaderCounts := cr.Spec.GetReplicaCounts("leader")
 	followerPerLeader := followerCounts / leaderCounts
 
-	redisClient := configureRedisClient(ctx, client, cr, cr.ObjectMeta.Name+"-leader-0")
+	redisClient := configureRedisClient(ctx, client, cr, cr.Name+"-leader-0")
 	defer redisClient.Close()
 
 	nodes, err := clusterNodes(ctx, redisClient)
@@ -250,11 +250,11 @@ func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Inter
 	for followerIdx := 0; followerIdx <= int(followerCounts)-1; {
 		for i := 0; i < int(followerPerLeader) && followerIdx <= int(followerCounts)-1; i++ {
 			followerPod := RedisDetails{
-				PodName:   cr.ObjectMeta.Name + "-follower-" + strconv.Itoa(followerIdx),
+				PodName:   cr.Name + "-follower-" + strconv.Itoa(followerIdx),
 				Namespace: cr.Namespace,
 			}
 			leaderPod := RedisDetails{
-				PodName:   cr.ObjectMeta.Name + "-leader-" + strconv.Itoa((followerIdx)%int(leaderCounts)),
+				PodName:   cr.Name + "-leader-" + strconv.Itoa((followerIdx)%int(leaderCounts)),
 				Namespace: cr.Namespace,
 			}
 			podIP = getRedisServerIP(ctx, client, followerPod)
@@ -269,7 +269,7 @@ func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Inter
 					continue
 				}
 				if pong == "PONG" {
-					executeCommand(ctx, client, cr, cmd, cr.ObjectMeta.Name+"-leader-0")
+					executeCommand(ctx, client, cr, cmd, cr.Name+"-leader-0")
 				} else {
 					log.FromContext(ctx).V(1).Info("Skipping execution of command due to failed Redis ping", "Follower.Pod", followerPod)
 				}
@@ -321,7 +321,7 @@ func ExecuteFailoverOperation(ctx context.Context, client kubernetes.Interface, 
 // executeFailoverCommand will execute failover command
 func executeFailoverCommand(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, role string) error {
 	replicas := cr.Spec.GetReplicaCounts(role)
-	podName := fmt.Sprintf("%s-%s-", cr.ObjectMeta.Name, role)
+	podName := fmt.Sprintf("%s-%s-", cr.Name, role)
 	for podCount := 0; podCount <= int(replicas)-1; podCount++ {
 		log.FromContext(ctx).V(1).Info("Executing redis failover operations", "Redis Node", podName+strconv.Itoa(podCount))
 		client := configureRedisClient(ctx, client, cr, podName+strconv.Itoa(podCount))
@@ -354,7 +354,7 @@ func executeFailoverCommand(ctx context.Context, client kubernetes.Interface, cr
 
 // CheckRedisNodeCount will check the count of redis nodes
 func CheckRedisNodeCount(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, nodeType string) int32 {
-	redisClient := configureRedisClient(ctx, client, cr, cr.ObjectMeta.Name+"-leader-0")
+	redisClient := configureRedisClient(ctx, client, cr, cr.Name+"-leader-0")
 	defer redisClient.Close()
 	var redisNodeType string
 	clusterNodes, err := clusterNodes(ctx, redisClient)
@@ -387,7 +387,7 @@ func CheckRedisNodeCount(ctx context.Context, client kubernetes.Interface, cr *r
 
 // RedisClusterStatusHealth use `redis-cli --cluster check 127.0.0.1:6379`
 func RedisClusterStatusHealth(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) bool {
-	redisClient := configureRedisClient(ctx, client, cr, cr.ObjectMeta.Name+"-leader-0")
+	redisClient := configureRedisClient(ctx, client, cr, cr.Name+"-leader-0")
 	defer redisClient.Close()
 
 	cmd := []string{"redis-cli", "--cluster", "check", fmt.Sprintf("127.0.0.1:%d", *cr.Spec.Port)}
@@ -399,8 +399,8 @@ func RedisClusterStatusHealth(ctx context.Context, client kubernetes.Interface, 
 		cmd = append(cmd, "-a")
 		cmd = append(cmd, pass)
 	}
-	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.ObjectMeta.Name+"-leader-0")...)
-	out, err := executeCommand1(ctx, client, cr, cmd, cr.ObjectMeta.Name+"-leader-0")
+	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.Name+"-leader-0")...)
+	out, err := executeCommand1(ctx, client, cr, cmd, cr.Name+"-leader-0")
 	if err != nil {
 		return false
 	}
@@ -415,7 +415,7 @@ func RedisClusterStatusHealth(ctx context.Context, client kubernetes.Interface, 
 
 // UnhealthyNodesInCluster returns the number of unhealthy nodes in the cluster cr
 func UnhealthyNodesInCluster(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) (int, error) {
-	redisClient := configureRedisClient(ctx, client, cr, cr.ObjectMeta.Name+"-leader-0")
+	redisClient := configureRedisClient(ctx, client, cr, cr.Name+"-leader-0")
 	defer redisClient.Close()
 	clusterNodes, err := clusterNodes(ctx, redisClient)
 	if err != nil {
@@ -527,7 +527,7 @@ func getContainerID(ctx context.Context, client kubernetes.Interface, cr *rcvb2.
 	targetContainer := -1
 	for containerID, tr := range pod.Spec.Containers {
 		log.FromContext(ctx).V(1).Info("Inspecting container", "Pod Name", podName, "Container ID", containerID, "Container Name", tr.Name)
-		if tr.Name == cr.ObjectMeta.Name+"-leader" {
+		if tr.Name == cr.Name+"-leader" {
 			targetContainer = containerID
 			log.FromContext(ctx).V(1).Info("Leader container found", "Container ID", containerID, "Container Name", tr.Name)
 			break
@@ -705,9 +705,9 @@ func SetRedisClusterDynamicConfig(ctx context.Context, client kubernetes.Interfa
 	for i := 0; i < int(leaderReplicas+followerReplicas); i++ {
 		var podName string
 		if i < int(leaderReplicas) {
-			podName = cr.ObjectMeta.Name + "-leader-" + strconv.Itoa(i)
+			podName = cr.Name + "-leader-" + strconv.Itoa(i)
 		} else {
-			podName = cr.ObjectMeta.Name + "-follower-" + strconv.Itoa(i-int(leaderReplicas))
+			podName = cr.Name + "-follower-" + strconv.Itoa(i-int(leaderReplicas))
 		}
 
 		redisClient := configureRedisClient(ctx, client, cr, podName)

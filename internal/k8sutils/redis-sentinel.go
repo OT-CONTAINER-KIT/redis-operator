@@ -58,8 +58,8 @@ func CreateRedisSentinelService(ctx context.Context, cr *rsvb2.RedisSentinel, cl
 
 // Create Redis Sentinel Cluster Setup
 func (service RedisSentinelSTS) CreateRedisSentinelSetup(ctx context.Context, client kubernetes.Interface, cr *rsvb2.RedisSentinel, cl kubernetes.Interface, ctrlClient client.Client) error {
-	stateFulName := cr.ObjectMeta.Name + "-" + service.RedisStateFulType
-	labels := getRedisLabels(stateFulName, sentinel, service.RedisStateFulType, cr.ObjectMeta.Labels)
+	stateFulName := cr.Name + "-" + service.RedisStateFulType
+	labels := getRedisLabels(stateFulName, sentinel, service.RedisStateFulType, cr.Labels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, annotations)
 	containerParams, err := generateRedisSentinelContainerParams(ctx, client, cr, service.ReadinessProbe, service.LivenessProbe, ctrlClient)
@@ -117,9 +117,9 @@ func generateRedisSentinelParams(ctx context.Context, cr *rsvb2.RedisSentinel, r
 	if cr.Spec.RedisExporter != nil {
 		res.EnableMetrics = cr.Spec.RedisExporter.Enabled
 	}
-	if value, found := cr.ObjectMeta.GetAnnotations()[common.AnnotationKeyRecreateStatefulset]; found && value == "true" {
+	if value, found := cr.GetAnnotations()[common.AnnotationKeyRecreateStatefulset]; found && value == "true" {
 		res.RecreateStatefulSet = true
-		res.RecreateStatefulsetStrategy = getDeletionPropagationStrategy(cr.ObjectMeta.GetAnnotations())
+		res.RecreateStatefulsetStrategy = getDeletionPropagationStrategy(cr.GetAnnotations())
 	}
 	return res
 }
@@ -211,8 +211,8 @@ func (service RedisSentinelSTS) getSentinelCount(cr *rsvb2.RedisSentinel) int32 
 
 // Create the Service for redis sentinel
 func (service RedisSentinelService) CreateRedisSentinelService(ctx context.Context, cr *rsvb2.RedisSentinel, cl kubernetes.Interface) error {
-	serviceName := cr.ObjectMeta.Name + "-" + service.RedisServiceRole
-	labels := getRedisLabels(serviceName, sentinel, service.RedisServiceRole, cr.ObjectMeta.Labels)
+	serviceName := cr.Name + "-" + service.RedisServiceRole
+	labels := getRedisLabels(serviceName, sentinel, service.RedisServiceRole, cr.Labels)
 	var epp exporterPortProvider
 	if cr.Spec.RedisExporter != nil {
 		epp = func() (port int, enable bool) {

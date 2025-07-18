@@ -1,7 +1,7 @@
-linters-settings:
-  gofmt:
-    simplify: true
-
+version: "2"
+run:
+  go: 1.23.4
+  tests: true
 linters:
   enable:
     - asasalint
@@ -12,38 +12,43 @@ linters:
     - decorder
     - dogsled
     - durationcheck
-    - errcheck
     - errname
-    - gci
     - gochecknoinits
-    - gofmt
-    - gofumpt
     - goprintffuncname
-    - gosimple
-    - govet
     - grouper
     - importas
-    - ineffassign
     - makezero
     - misspell
     - noctx
     - nolintlint
     - nosprintfhostport
-    - staticcheck
-    - tenv
     - thelper
     - tparallel
     - unconvert
-    - unused
     - wastedassign
     - whitespace
-
-run:
-  timeout: 15m
-  go: "1.23.4"
-  tests: true
-
-output:
-  sort-results: true
-  print-linter-name: true
-  print-issued-lines: true
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+  settings:
+    gofmt:
+      simplify: true
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

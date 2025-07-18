@@ -29,10 +29,15 @@ jobs:
           go-version: ${{ env.GOLANG_VERSION }}
           cache: false
 
+      - name: Get golangci-lint version from Makefile
+        run: |
+          GOLANGCI_VERSION=$(grep '^GOLANGCI_LINT_VERSION' Makefile | cut -d'=' -f2 | tr -d ' ?')
+          echo "GOLANGCI_LINT_VERSION=$GOLANGCI_VERSION" >> $GITHUB_ENV
+
       - name: Run GolangCI-Lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v8
         with:
-          version: v1.62.2
+          version: ${{ env.GOLANGCI_LINT_VERSION }}
 
   gotest:
     needs:

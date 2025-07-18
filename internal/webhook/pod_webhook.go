@@ -107,7 +107,7 @@ func (m *PodAntiAffiniytMutate) InjectLogger(l logr.Logger) error {
 }
 
 func (v *PodAntiAffiniytMutate) AddPodAntiAffinity(pod *corev1.Pod) {
-	podName := pod.ObjectMeta.Name
+	podName := pod.Name
 	antiLabelValue := v.getAntiAffinityValue(podName)
 
 	if pod.Spec.Affinity == nil {
@@ -158,10 +158,10 @@ func (v *PodAntiAffiniytMutate) isRedisClusterPod(pod *corev1.Pod) bool {
 
 func (v *PodAntiAffiniytMutate) getAntiAffinityValue(podName string) string {
 	if strings.Contains(podName, "follower") {
-		return strings.Replace(podName, "follower", "leader", -1)
+		return strings.ReplaceAll(podName, "follower", "leader")
 	}
 	if strings.Contains(podName, "leader") {
-		return strings.Replace(podName, "leader", "follower", -1)
+		return strings.ReplaceAll(podName, "leader", "follower")
 	}
 	return ""
 }

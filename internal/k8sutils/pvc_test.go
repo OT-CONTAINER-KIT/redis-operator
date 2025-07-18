@@ -69,7 +69,7 @@ func TestHandlePVCResizing_NoUpdateNeeded(t *testing.T) {
 	}
 
 	// Ensure no PVC update action occurred.
-	actions := cl.Fake.Actions()
+	actions := cl.Actions()
 	for _, action := range actions {
 		if action.GetVerb() == "update" {
 			t.Errorf("Unexpected PVC update action: %#v", action)

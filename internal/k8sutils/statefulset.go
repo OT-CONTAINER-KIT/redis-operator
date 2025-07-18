@@ -69,8 +69,8 @@ func (s *StatefulSetService) IsStatefulSetReady(ctx context.Context, namespace, 
 		log.FromContext(ctx).V(1).Info("StatefulSet is not ready", "Status.CurrentRevision", sts.Status.CurrentRevision, "Status.UpdateRevision", sts.Status.UpdateRevision)
 		return false
 	}
-	if sts.Status.ObservedGeneration != sts.ObjectMeta.Generation {
-		log.FromContext(ctx).V(1).Info("StatefulSet is not ready", "Status.ObservedGeneration", sts.Status.ObservedGeneration, "ObjectMeta.Generation", sts.ObjectMeta.Generation)
+	if sts.Status.ObservedGeneration != sts.Generation {
+		log.FromContext(ctx).V(1).Info("StatefulSet is not ready", "Status.ObservedGeneration", sts.Status.ObservedGeneration, "Generation", sts.Generation)
 		return false
 	}
 	if int(sts.Status.ReadyReplicas) != replicas {
@@ -807,7 +807,7 @@ func getProbeInfo(probe *corev1.Probe, sentinel, enableTLS, enableAuth bool) *co
 	if probe == nil {
 		probe = &corev1.Probe{}
 	}
-	if probe.ProbeHandler.Exec == nil && probe.ProbeHandler.HTTPGet == nil && probe.ProbeHandler.TCPSocket == nil && probe.ProbeHandler.GRPC == nil {
+	if probe.Exec == nil && probe.HTTPGet == nil && probe.TCPSocket == nil && probe.GRPC == nil {
 		healthChecker := []string{
 			"redis-cli",
 			"-h", "$(hostname)",

@@ -9,7 +9,7 @@ type customFieldOption func(*v1beta2.Redis)
 
 func WithAnnotations(annotations map[string]string) customFieldOption {
 	return func(rc *v1beta2.Redis) {
-		rc.ObjectMeta.Annotations = annotations
+		rc.Annotations = annotations
 	}
 }
 
