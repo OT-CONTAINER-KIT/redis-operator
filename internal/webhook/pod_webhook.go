@@ -107,7 +107,7 @@ func (m *PodAntiAffiniytMutate) InjectLogger(l logr.Logger) error {
 }
 
 func (v *PodAntiAffiniytMutate) AddPodAntiAffinity(pod *corev1.Pod) {
-	podName := pod.ObjectMeta.Name
+	podName := pod.Name
 	antiLabelValue := v.getAntiAffinityValue(podName)
 
 	if pod.Spec.Affinity == nil {

@@ -10,7 +10,7 @@ type customFieldOption func(replication *v1beta2.RedisReplication)
 
 func WithAnnotations(annotations map[string]string) customFieldOption {
 	return func(rc *v1beta2.RedisReplication) {
-		rc.ObjectMeta.Annotations = annotations
+		rc.Annotations = annotations
 	}
 }
 

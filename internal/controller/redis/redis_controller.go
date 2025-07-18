@@ -43,11 +43,11 @@ type Reconciler struct {
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	instance := &rvb2.Redis{}
 
-	err := r.Client.Get(context.TODO(), req.NamespacedName, instance)
+	err := r.Get(context.TODO(), req.NamespacedName, instance)
 	if err != nil {
 		return intctrlutil.RequeueECheck(ctx, err, "failed to get redis instance")
 	}
-	if instance.ObjectMeta.GetDeletionTimestamp() != nil {
+	if instance.GetDeletionTimestamp() != nil {
 		if err = k8sutils.HandleRedisFinalizer(ctx, r.Client, instance, RedisFinalizer); err != nil {
 			return intctrlutil.RequeueE(ctx, err, "failed to handle redis finalizer")
 		}

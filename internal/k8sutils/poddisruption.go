@@ -19,9 +19,9 @@ import (
 
 // CreateRedisLeaderPodDisruptionBudget check and create a PodDisruptionBudget for Leaders
 func ReconcileRedisPodDisruptionBudget(ctx context.Context, cr *rcvb2.RedisCluster, role string, pdbParams *common.RedisPodDisruptionBudget, cl kubernetes.Interface) error {
-	pdbName := cr.ObjectMeta.Name + "-" + role
+	pdbName := cr.Name + "-" + role
 	if pdbParams != nil && pdbParams.Enabled {
-		labels := getRedisLabels(cr.ObjectMeta.Name, cluster, role, cr.ObjectMeta.GetLabels())
+		labels := getRedisLabels(cr.Name, cluster, role, cr.GetLabels())
 		annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 		pdbMeta := generateObjectMetaInformation(pdbName, cr.Namespace, labels, annotations)
 		pdbDef := generatePodDisruptionBudgetDef(ctx, cr, role, pdbMeta, cr.Spec.RedisLeader.PodDisruptionBudget)
@@ -41,9 +41,9 @@ func ReconcileRedisPodDisruptionBudget(ctx context.Context, cr *rcvb2.RedisClust
 }
 
 func ReconcileSentinelPodDisruptionBudget(ctx context.Context, cr *rsvb2.RedisSentinel, pdbParams *common.RedisPodDisruptionBudget, cl kubernetes.Interface) error {
-	pdbName := cr.ObjectMeta.Name + "-sentinel"
+	pdbName := cr.Name + "-sentinel"
 	if pdbParams != nil && pdbParams.Enabled {
-		labels := getRedisLabels(cr.ObjectMeta.Name, sentinel, "sentinel", cr.ObjectMeta.GetLabels())
+		labels := getRedisLabels(cr.Name, sentinel, "sentinel", cr.GetLabels())
 		annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 		pdbMeta := generateObjectMetaInformation(pdbName, cr.Namespace, labels, annotations)
 		pdbDef := generateSentinelPodDisruptionBudgetDef(ctx, cr, "sentinel", pdbMeta, pdbParams)
@@ -63,9 +63,9 @@ func ReconcileSentinelPodDisruptionBudget(ctx context.Context, cr *rsvb2.RedisSe
 }
 
 func ReconcileReplicationPodDisruptionBudget(ctx context.Context, cr *rrvb2.RedisReplication, pdbParams *common.RedisPodDisruptionBudget, cl kubernetes.Interface) error {
-	pdbName := cr.ObjectMeta.Name + "-replication"
+	pdbName := cr.Name + "-replication"
 	if pdbParams != nil && pdbParams.Enabled {
-		labels := getRedisLabels(cr.ObjectMeta.Name, replication, "replication", cr.GetObjectMeta().GetLabels())
+		labels := getRedisLabels(cr.Name, replication, "replication", cr.GetObjectMeta().GetLabels())
 		annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 		pdbMeta := generateObjectMetaInformation(pdbName, cr.Namespace, labels, annotations)
 		pdbDef := generateReplicationPodDisruptionBudgetDef(ctx, cr, "replication", pdbMeta, pdbParams)
@@ -87,7 +87,7 @@ func ReconcileReplicationPodDisruptionBudget(ctx context.Context, cr *rrvb2.Redi
 // generatePodDisruptionBudgetDef will create a PodDisruptionBudget definition
 func generatePodDisruptionBudgetDef(ctx context.Context, cr *rcvb2.RedisCluster, role string, pdbMeta metav1.ObjectMeta, pdbParams *common.RedisPodDisruptionBudget) *policyv1.PodDisruptionBudget {
 	lblSelector := LabelSelectors(map[string]string{
-		"app":  fmt.Sprintf("%s-%s", cr.ObjectMeta.Name, role),
+		"app":  fmt.Sprintf("%s-%s", cr.Name, role),
 		"role": role,
 	})
 	pdbTemplate := &policyv1.PodDisruptionBudget{
@@ -114,7 +114,7 @@ func generatePodDisruptionBudgetDef(ctx context.Context, cr *rcvb2.RedisCluster,
 // generatePodDisruptionBudgetDef will create a PodDisruptionBudget definition
 func generateReplicationPodDisruptionBudgetDef(ctx context.Context, cr *rrvb2.RedisReplication, role string, pdbMeta metav1.ObjectMeta, pdbParams *common.RedisPodDisruptionBudget) *policyv1.PodDisruptionBudget {
 	lblSelector := LabelSelectors(map[string]string{
-		"app":  cr.ObjectMeta.Name,
+		"app":  cr.Name,
 		"role": role,
 	})
 	pdbTemplate := &policyv1.PodDisruptionBudget{
@@ -141,7 +141,7 @@ func generateReplicationPodDisruptionBudgetDef(ctx context.Context, cr *rrvb2.Re
 // generatePodDisruptionBudgetDef will create a PodDisruptionBudget definition
 func generateSentinelPodDisruptionBudgetDef(ctx context.Context, cr *rsvb2.RedisSentinel, role string, pdbMeta metav1.ObjectMeta, pdbParams *common.RedisPodDisruptionBudget) *policyv1.PodDisruptionBudget {
 	lblSelector := LabelSelectors(map[string]string{
-		"app":  fmt.Sprintf("%s-%s", cr.ObjectMeta.Name, role),
+		"app":  fmt.Sprintf("%s-%s", cr.Name, role),
 		"role": role,
 	})
 	pdbTemplate := &policyv1.PodDisruptionBudget{

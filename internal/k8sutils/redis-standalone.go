@@ -13,7 +13,7 @@ import (
 
 // CreateStandaloneService method will create standalone service for Redis
 func CreateStandaloneService(ctx context.Context, cr *rvb2.Redis, cl kubernetes.Interface) error {
-	labels := getRedisLabels(cr.ObjectMeta.Name, standalone, "standalone", cr.ObjectMeta.Labels)
+	labels := getRedisLabels(cr.Name, standalone, "standalone", cr.Labels)
 	var epp exporterPortProvider
 	if cr.Spec.RedisExporter != nil {
 		epp = func() (port int, enable bool) {
@@ -24,19 +24,19 @@ func CreateStandaloneService(ctx context.Context, cr *rvb2.Redis, cl kubernetes.
 		epp = disableMetrics
 	}
 	objectMetaInfo := generateObjectMetaInformation(
-		cr.ObjectMeta.Name,
+		cr.Name,
 		cr.Namespace,
 		labels,
 		generateServiceAnots(cr.ObjectMeta, nil, epp),
 	)
 	headlessObjectMetaInfo := generateObjectMetaInformation(
-		cr.ObjectMeta.Name+"-headless",
+		cr.Name+"-headless",
 		cr.Namespace,
 		labels,
 		generateServiceAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.GetHeadlessServiceAnnotations(), epp),
 	)
 	additionalObjectMetaInfo := generateObjectMetaInformation(
-		cr.ObjectMeta.Name+"-additional",
+		cr.Name+"-additional",
 		cr.Namespace,
 		labels,
 		generateServiceAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.GetServiceAnnotations(), epp),
@@ -73,9 +73,9 @@ func CreateStandaloneService(ctx context.Context, cr *rvb2.Redis, cl kubernetes.
 
 // CreateStandaloneRedis will create a standalone redis setup
 func CreateStandaloneRedis(ctx context.Context, cr *rvb2.Redis, cl kubernetes.Interface) error {
-	labels := getRedisLabels(cr.ObjectMeta.Name, standalone, "standalone", cr.ObjectMeta.Labels)
+	labels := getRedisLabels(cr.Name, standalone, "standalone", cr.Labels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
-	objectMetaInfo := generateObjectMetaInformation(cr.ObjectMeta.Name, cr.Namespace, labels, annotations)
+	objectMetaInfo := generateObjectMetaInformation(cr.Name, cr.Namespace, labels, annotations)
 	err := CreateOrUpdateStateFul(
 		ctx,
 		cl,
@@ -130,9 +130,9 @@ func generateRedisStandaloneParams(cr *rvb2.Redis) statefulSetParameters {
 	if cr.Spec.ServiceAccountName != nil {
 		res.ServiceAccountName = cr.Spec.ServiceAccountName
 	}
-	if value, found := cr.ObjectMeta.GetAnnotations()[common.AnnotationKeyRecreateStatefulset]; found && value == "true" {
+	if value, found := cr.GetAnnotations()[common.AnnotationKeyRecreateStatefulset]; found && value == "true" {
 		res.RecreateStatefulSet = true
-		res.RecreateStatefulsetStrategy = getDeletionPropagationStrategy(cr.ObjectMeta.GetAnnotations())
+		res.RecreateStatefulsetStrategy = getDeletionPropagationStrategy(cr.GetAnnotations())
 	}
 	return res
 }

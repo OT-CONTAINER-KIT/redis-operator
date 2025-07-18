@@ -17,7 +17,7 @@ func CreateFakeClientWithPodIPs_LeaderPods(cr *rcvb2.RedisCluster) *fake.Clients
 	pods := make([]runtime.Object, replicas)
 
 	for i := 0; i < int(replicas); i++ {
-		podName := cr.ObjectMeta.Name + "-leader-" + strconv.Itoa(i)
+		podName := cr.Name + "-leader-" + strconv.Itoa(i)
 		pods[i] = &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      podName,
@@ -37,7 +37,7 @@ func CreateFakeObjectWithPodIPs(cr *rcvb2.RedisCluster) []runtime.Object {
 	pods := make([]runtime.Object, leaderReplicas+followerReplicas)
 
 	for i := 0; i < int(leaderReplicas); i++ {
-		podName := cr.ObjectMeta.Name + "-leader-" + strconv.Itoa(i)
+		podName := cr.Name + "-leader-" + strconv.Itoa(i)
 		pods[i] = &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      podName,
@@ -49,7 +49,7 @@ func CreateFakeObjectWithPodIPs(cr *rcvb2.RedisCluster) []runtime.Object {
 		}
 	}
 	for i := 0; i < int(followerReplicas); i++ {
-		podName := cr.ObjectMeta.Name + "-follower-" + strconv.Itoa(i)
+		podName := cr.Name + "-follower-" + strconv.Itoa(i)
 		pods[i+int(leaderReplicas)] = &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      podName,
@@ -83,7 +83,7 @@ func CreateFakeClientWithSecrets(ctx context.Context, cr *rcvb2.RedisCluster, se
 	pods := make([]runtime.Object, 0)
 
 	for i := 0; i < int(leaderReplicas); i++ {
-		podName := cr.ObjectMeta.Name + "-leader-" + strconv.Itoa(i)
+		podName := cr.Name + "-leader-" + strconv.Itoa(i)
 		pods[i] = &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      podName,
@@ -95,7 +95,7 @@ func CreateFakeClientWithSecrets(ctx context.Context, cr *rcvb2.RedisCluster, se
 		}
 	}
 	for i := 0; i < int(followerReplicas); i++ {
-		podName := cr.ObjectMeta.Name + "-follower-" + strconv.Itoa(i)
+		podName := cr.Name + "-follower-" + strconv.Itoa(i)
 		pods[i+int(leaderReplicas)] = &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      podName,

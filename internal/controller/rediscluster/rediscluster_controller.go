@@ -56,11 +56,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	logger := log.FromContext(ctx)
 	instance := &rcvb2.RedisCluster{}
 
-	err := r.Client.Get(context.TODO(), req.NamespacedName, instance)
+	err := r.Get(context.TODO(), req.NamespacedName, instance)
 	if err != nil {
 		return intctrlutil.RequeueECheck(ctx, err, "failed to get redis cluster instance")
 	}
-	if instance.ObjectMeta.GetDeletionTimestamp() != nil {
+	if instance.GetDeletionTimestamp() != nil {
 		if err = k8sutils.HandleRedisClusterFinalizer(ctx, r.Client, instance, RedisClusterFinalizer); err != nil {
 			return intctrlutil.RequeueE(ctx, err, "failed to handle redis cluster finalizer")
 		}

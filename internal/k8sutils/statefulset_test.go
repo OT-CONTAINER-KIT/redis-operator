@@ -1036,7 +1036,7 @@ func TestGenerateContainerDef(t *testing.T) {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
 			containerDef := generateContainerDef(test.containerName, test.containerDef, test.redisClusterMode, test.containerNodeConfVolume, test.containerEnableMetrics, test.containerExternalConfig, test.redisClusterVersion, test.containerMountPaths, test.sideCareContainer)
-			assert.Equal(t, containerDef, test.expectedContainerDef, "Container Configration")
+			assert.Equal(t, containerDef, test.expectedContainerDef, "Container Configuration")
 		})
 	}
 }
@@ -1788,7 +1788,7 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
 			stsDef := generateStatefulSetsDef(test.statefulSetMeta, test.stsParams, test.stsOwnerDef, test.initContainerParams, test.containerParams, test.sideCareContainer)
-			assert.Equal(t, stsDef, test.expectedStsDef, "StatefulSet Configration")
+			assert.Equal(t, stsDef, test.expectedStsDef, "StatefulSet Configuration")
 		})
 	}
 }

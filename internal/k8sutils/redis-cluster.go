@@ -72,9 +72,9 @@ func generateRedisClusterParams(ctx context.Context, cr *rcvb2.RedisCluster, rep
 	if externalConfig != nil {
 		res.ExternalConfig = externalConfig
 	}
-	if value, found := cr.ObjectMeta.GetAnnotations()[common.AnnotationKeyRecreateStatefulset]; found && value == "true" {
+	if value, found := cr.GetAnnotations()[common.AnnotationKeyRecreateStatefulset]; found && value == "true" {
 		res.RecreateStatefulSet = true
-		res.RecreateStatefulsetStrategy = getDeletionPropagationStrategy(cr.ObjectMeta.GetAnnotations())
+		res.RecreateStatefulsetStrategy = getDeletionPropagationStrategy(cr.GetAnnotations())
 	}
 	return res
 }
@@ -151,7 +151,7 @@ func generateRedisClusterContainerParams(ctx context.Context, cl kubernetes.Inte
 		nps := map[string]ports{} // pod name to ports
 		replicas := cr.Spec.GetReplicaCounts(role)
 		for i := 0; i < int(replicas); i++ {
-			svc, err := getService(ctx, cl, cr.Namespace, cr.ObjectMeta.Name+"-"+role+"-"+strconv.Itoa(i))
+			svc, err := getService(ctx, cl, cr.Namespace, cr.Name+"-"+role+"-"+strconv.Itoa(i))
 			if err != nil {
 				log.FromContext(ctx).Error(err, "Cannot get service for Redis", "Setup.Type", role)
 			} else {
@@ -283,10 +283,10 @@ func (service RedisClusterSTS) getReplicaCount(cr *rcvb2.RedisCluster) int32 {
 
 // CreateRedisClusterSetup will create Redis Setup for leader and follower
 func (service RedisClusterSTS) CreateRedisClusterSetup(ctx context.Context, cr *rcvb2.RedisCluster, cl kubernetes.Interface) error {
-	stateFulName := cr.ObjectMeta.Name + "-" + service.RedisStateFulType
-	labels := getRedisLabels(stateFulName, cluster, service.RedisStateFulType, cr.ObjectMeta.Labels)
+	stateFulName := cr.Name + "-" + service.RedisStateFulType
+	labels := getRedisLabels(stateFulName, cluster, service.RedisStateFulType, cr.Labels)
 	// add an common label for all pods in the cluster
-	labels["cluster"] = cr.ObjectMeta.Name
+	labels["cluster"] = cr.Name
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, annotations)
 	err := CreateOrUpdateStateFul(
@@ -309,8 +309,8 @@ func (service RedisClusterSTS) CreateRedisClusterSetup(ctx context.Context, cr *
 
 // CreateRedisClusterService method will create service for Redis
 func (service RedisClusterService) CreateRedisClusterService(ctx context.Context, cr *rcvb2.RedisCluster, cl kubernetes.Interface) error {
-	serviceName := cr.ObjectMeta.Name + "-" + service.RedisServiceRole
-	labels := getRedisLabels(serviceName, cluster, service.RedisServiceRole, cr.ObjectMeta.Labels)
+	serviceName := cr.Name + "-" + service.RedisServiceRole
+	labels := getRedisLabels(serviceName, cluster, service.RedisServiceRole, cr.Labels)
 	var epp exporterPortProvider
 	if cr.Spec.RedisExporter != nil {
 		epp = func() (port int, enable bool) {
@@ -390,10 +390,10 @@ func (service RedisClusterService) CreateRedisClusterService(ctx context.Context
 	}
 
 	masterObjectMetaInfo := generateObjectMetaInformation(
-		cr.ObjectMeta.Name+"-master",
+		cr.Name+"-master",
 		cr.Namespace,
 		map[string]string{
-			"cluster":                cr.ObjectMeta.Name,
+			"cluster":                cr.Name,
 			common.RedisRoleLabelKey: common.RedisRoleLabelMaster,
 			"redis_setup_type":       "cluster",
 		},
@@ -411,8 +411,8 @@ func (service RedisClusterService) createOrUpdateClusterNodePortService(ctx cont
 	replicas := cr.Spec.GetReplicaCounts(service.RedisServiceRole)
 
 	for i := 0; i < int(replicas); i++ {
-		serviceName := cr.ObjectMeta.Name + "-" + service.RedisServiceRole + "-" + strconv.Itoa(i)
-		labels := getRedisLabels(cr.ObjectMeta.Name+"-"+service.RedisServiceRole, cluster, service.RedisServiceRole, map[string]string{
+		serviceName := cr.Name + "-" + service.RedisServiceRole + "-" + strconv.Itoa(i)
+		labels := getRedisLabels(cr.Name+"-"+service.RedisServiceRole, cluster, service.RedisServiceRole, map[string]string{
 			"statefulset.kubernetes.io/pod-name": serviceName,
 		})
 		annotations := generateServiceAnots(cr.ObjectMeta, nil, disableMetrics)
