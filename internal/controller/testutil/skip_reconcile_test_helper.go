@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	ginkgo "github.com/onsi/ginkgo/v2"
+	gomega "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -38,27 +38,27 @@ func RunSkipReconcileTest(k8sClient client.Client, config SkipReconcileTestConfi
 	annotations[config.SkipAnnotationKey] = "true"
 	config.Object.SetAnnotations(annotations)
 
-	Expect(k8sClient.Create(context.Background(), config.Object)).Should(Succeed())
+	gomega.Expect(k8sClient.Create(context.Background(), config.Object)).Should(gomega.Succeed())
 	defer func() {
-		Expect(k8sClient.Delete(context.Background(), config.Object)).Should(Succeed())
+		gomega.Expect(k8sClient.Delete(context.Background(), config.Object)).Should(gomega.Succeed())
 	}()
 
-	By("verifying that no StatefulSet is created when skip-reconcile is true")
+	ginkgo.By("verifying that no StatefulSet is created when skip-reconcile is true")
 	sts := &appsv1.StatefulSet{}
-	Consistently(func() error {
+	gomega.Consistently(func() error {
 		return k8sClient.Get(context.Background(), types.NamespacedName{
 			Name:      config.StatefulSetName,
 			Namespace: config.Namespace,
 		}, sts)
-	}, time.Second*3, time.Millisecond*500).ShouldNot(Succeed())
+	}, time.Second*3, time.Millisecond*500).ShouldNot(gomega.Succeed())
 
-	By("updating skip-reconcile annotation to false")
+	ginkgo.By("updating skip-reconcile annotation to false")
 	// Get the updated object from cluster
 	updatedObj := config.Object.DeepCopyObject().(client.Object)
-	Expect(k8sClient.Get(context.Background(), types.NamespacedName{
+	gomega.Expect(k8sClient.Get(context.Background(), types.NamespacedName{
 		Name:      config.Object.GetName(),
 		Namespace: config.Namespace,
-	}, updatedObj)).Should(Succeed())
+	}, updatedObj)).Should(gomega.Succeed())
 
 	// Update the annotation
 	annotations = updatedObj.GetAnnotations()
@@ -67,15 +67,15 @@ func RunSkipReconcileTest(k8sClient client.Client, config SkipReconcileTestConfi
 	}
 	annotations[config.SkipAnnotationKey] = "false"
 	updatedObj.SetAnnotations(annotations)
-	Expect(k8sClient.Update(context.Background(), updatedObj)).Should(Succeed())
+	gomega.Expect(k8sClient.Update(context.Background(), updatedObj)).Should(gomega.Succeed())
 
-	By("verifying that StatefulSet is created after skip-reconcile is set to false")
-	Eventually(func() error {
+	ginkgo.By("verifying that StatefulSet is created after skip-reconcile is set to false")
+	gomega.Eventually(func() error {
 		return k8sClient.Get(context.Background(), types.NamespacedName{
 			Name:      config.StatefulSetName,
 			Namespace: config.Namespace,
 		}, sts)
-	}, config.Timeout, config.Interval).Should(Succeed())
+	}, config.Timeout, config.Interval).Should(gomega.Succeed())
 }
 
 // CreateTestObject creates a test object with the given name, namespace and annotations

@@ -17,7 +17,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes/fake"
 	k8sClientFake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/utils/ptr"
 )
@@ -574,7 +573,7 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 			objects = append(objects, pods...)
 			objects = append(objects, secret...)
 
-			client := fake.NewSimpleClientset(objects...)
+			client := k8sClientFake.NewSimpleClientset(objects...)
 			cmd := createRedisReplicationCommand(context.TODO(), client, tt.redisCluster, tt.leaderPod, tt.followerPod)
 
 			// Assert the command is as expected using testify
