@@ -35,7 +35,7 @@ jobs:
           echo "GOLANGCI_LINT_VERSION=$GOLANGCI_VERSION" >> $GITHUB_ENV
 
       - name: Run GolangCI-Lint
-        uses: golangci/golangci-lint-action@v7
+        uses: golangci/golangci-lint-action@v8
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
 
