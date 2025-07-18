@@ -158,10 +158,10 @@ func (v *PodAntiAffiniytMutate) isRedisClusterPod(pod *corev1.Pod) bool {
 
 func (v *PodAntiAffiniytMutate) getAntiAffinityValue(podName string) string {
 	if strings.Contains(podName, "follower") {
-		return strings.Replace(podName, "follower", "leader", -1)
+		return strings.ReplaceAll(podName, "follower", "leader")
 	}
 	if strings.Contains(podName, "leader") {
-		return strings.Replace(podName, "leader", "follower", -1)
+		return strings.ReplaceAll(podName, "leader", "follower")
 	}
 	return ""
 }
