@@ -102,18 +102,19 @@ func generateRedisStandaloneParams(cr *rvb2.Redis) statefulSetParameters {
 		minreadyseconds = *cr.Spec.KubernetesConfig.MinReadySeconds
 	}
 	res := statefulSetParameters{
-		Replicas:                      &replicas,
-		ClusterMode:                   false,
-		NodeConfVolume:                false,
-		NodeSelector:                  cr.Spec.NodeSelector,
-		PodSecurityContext:            cr.Spec.PodSecurityContext,
-		PriorityClassName:             cr.Spec.PriorityClassName,
-		Affinity:                      cr.Spec.Affinity,
-		TerminationGracePeriodSeconds: cr.Spec.TerminationGracePeriodSeconds,
-		Tolerations:                   cr.Spec.Tolerations,
-		UpdateStrategy:                cr.Spec.KubernetesConfig.UpdateStrategy,
-		IgnoreAnnotations:             cr.Spec.KubernetesConfig.IgnoreAnnotations,
-		MinReadySeconds:               minreadyseconds,
+		Replicas:                             &replicas,
+		ClusterMode:                          false,
+		NodeConfVolume:                       false,
+		NodeSelector:                         cr.Spec.NodeSelector,
+		PodSecurityContext:                   cr.Spec.PodSecurityContext,
+		PriorityClassName:                    cr.Spec.PriorityClassName,
+		Affinity:                             cr.Spec.Affinity,
+		TerminationGracePeriodSeconds:        cr.Spec.TerminationGracePeriodSeconds,
+		Tolerations:                          cr.Spec.Tolerations,
+		UpdateStrategy:                       cr.Spec.KubernetesConfig.UpdateStrategy,
+		PersistentVolumeClaimRetentionPolicy: cr.Spec.KubernetesConfig.PersistentVolumeClaimRetentionPolicy,
+		IgnoreAnnotations:                    cr.Spec.KubernetesConfig.IgnoreAnnotations,
+		MinReadySeconds:                      minreadyseconds,
 	}
 	if cr.Spec.KubernetesConfig.ImagePullSecrets != nil {
 		res.ImagePullSecrets = cr.Spec.KubernetesConfig.ImagePullSecrets

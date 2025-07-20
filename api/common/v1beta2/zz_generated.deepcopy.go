@@ -21,6 +21,7 @@ limitations under the License.
 package api
 
 import (
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 )
 
@@ -172,6 +173,11 @@ func (in *KubernetesConfig) DeepCopyInto(out *KubernetesConfig) {
 		}
 	}
 	in.UpdateStrategy.DeepCopyInto(&out.UpdateStrategy)
+	if in.PersistentVolumeClaimRetentionPolicy != nil {
+		in, out := &in.PersistentVolumeClaimRetentionPolicy, &out.PersistentVolumeClaimRetentionPolicy
+		*out = new(appsv1.StatefulSetPersistentVolumeClaimRetentionPolicy)
+		**out = **in
+	}
 	if in.Service != nil {
 		in, out := &in.Service, &out.Service
 		*out = new(ServiceConfig)

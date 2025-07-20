@@ -8,15 +8,16 @@ import (
 // KubernetesConfig will be the JSON struct for Basic Redis Config
 // +k8s:deepcopy-gen=true
 type KubernetesConfig struct {
-	Image                  string                           `json:"image"`
-	ImagePullPolicy        corev1.PullPolicy                `json:"imagePullPolicy,omitempty"`
-	Resources              *corev1.ResourceRequirements     `json:"resources,omitempty"`
-	ExistingPasswordSecret *ExistingPasswordSecret          `json:"redisSecret,omitempty"`
-	ImagePullSecrets       *[]corev1.LocalObjectReference   `json:"imagePullSecrets,omitempty"`
-	UpdateStrategy         appsv1.StatefulSetUpdateStrategy `json:"updateStrategy,omitempty"`
-	Service                *ServiceConfig                   `json:"service,omitempty"`
-	IgnoreAnnotations      []string                         `json:"ignoreAnnotations,omitempty"`
-	MinReadySeconds        *int32                           `json:"minReadySeconds,omitempty"`
+	Image                                string                                                  `json:"image"`
+	ImagePullPolicy                      corev1.PullPolicy                                       `json:"imagePullPolicy,omitempty"`
+	Resources                            *corev1.ResourceRequirements                            `json:"resources,omitempty"`
+	ExistingPasswordSecret               *ExistingPasswordSecret                                 `json:"redisSecret,omitempty"`
+	ImagePullSecrets                     *[]corev1.LocalObjectReference                          `json:"imagePullSecrets,omitempty"`
+	UpdateStrategy                       appsv1.StatefulSetUpdateStrategy                        `json:"updateStrategy,omitempty"`
+	PersistentVolumeClaimRetentionPolicy *appsv1.StatefulSetPersistentVolumeClaimRetentionPolicy `json:"persistentVolumeClaimRetentionPolicy,omitempty"`
+	Service                              *ServiceConfig                                          `json:"service,omitempty"`
+	IgnoreAnnotations                    []string                                                `json:"ignoreAnnotations,omitempty"`
+	MinReadySeconds                      *int32                                                  `json:"minReadySeconds,omitempty"`
 }
 
 func (in *KubernetesConfig) GetServiceType() string {
