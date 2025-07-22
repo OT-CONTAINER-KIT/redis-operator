@@ -4,18 +4,19 @@ import (
 	"context"
 	"time"
 
-	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
-	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
-	redis "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/redis"
-	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/controllerutil"
-	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
-	"github.com/OT-CONTAINER-KIT/redis-operator/internal/monitoring"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
+	redis "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/redis"
+	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/controllerutil"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/monitoring"
 )
 
 const (
