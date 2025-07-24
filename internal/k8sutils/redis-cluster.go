@@ -42,21 +42,22 @@ func generateRedisClusterParams(ctx context.Context, cr *rcvb2.RedisCluster, rep
 		minreadyseconds = *cr.Spec.KubernetesConfig.MinReadySeconds
 	}
 	res := statefulSetParameters{
-		Replicas:                      &replicas,
-		ClusterMode:                   true,
-		ClusterVersion:                cr.Spec.ClusterVersion,
-		NodeSelector:                  params.NodeSelector,
-		TopologySpreadConstraints:     params.TopologySpreadConstraints,
-		PodSecurityContext:            cr.Spec.PodSecurityContext,
-		PriorityClassName:             cr.Spec.PriorityClassName,
-		Affinity:                      params.Affinity,
-		TerminationGracePeriodSeconds: params.TerminationGracePeriodSeconds,
-		Tolerations:                   params.Tolerations,
-		ServiceAccountName:            cr.Spec.ServiceAccountName,
-		UpdateStrategy:                cr.Spec.KubernetesConfig.UpdateStrategy,
-		IgnoreAnnotations:             cr.Spec.KubernetesConfig.IgnoreAnnotations,
-		HostNetwork:                   cr.Spec.HostNetwork,
-		MinReadySeconds:               minreadyseconds,
+		Replicas:                             &replicas,
+		ClusterMode:                          true,
+		ClusterVersion:                       cr.Spec.ClusterVersion,
+		NodeSelector:                         params.NodeSelector,
+		TopologySpreadConstraints:            params.TopologySpreadConstraints,
+		PodSecurityContext:                   cr.Spec.PodSecurityContext,
+		PriorityClassName:                    cr.Spec.PriorityClassName,
+		Affinity:                             params.Affinity,
+		TerminationGracePeriodSeconds:        params.TerminationGracePeriodSeconds,
+		Tolerations:                          params.Tolerations,
+		ServiceAccountName:                   cr.Spec.ServiceAccountName,
+		UpdateStrategy:                       cr.Spec.KubernetesConfig.UpdateStrategy,
+		PersistentVolumeClaimRetentionPolicy: cr.Spec.KubernetesConfig.PersistentVolumeClaimRetentionPolicy,
+		IgnoreAnnotations:                    cr.Spec.KubernetesConfig.IgnoreAnnotations,
+		HostNetwork:                          cr.Spec.HostNetwork,
+		MinReadySeconds:                      minreadyseconds,
 	}
 	if cr.Spec.RedisExporter != nil {
 		res.EnableMetrics = cr.Spec.RedisExporter.Enabled

@@ -97,29 +97,30 @@ const (
 
 // statefulSetParameters will define statefulsets input params
 type statefulSetParameters struct {
-	Replicas                      *int32
-	ClusterMode                   bool
-	ClusterVersion                *string
-	NodeConfVolume                bool
-	NodeSelector                  map[string]string
-	TopologySpreadConstraints     []corev1.TopologySpreadConstraint
-	PodSecurityContext            *corev1.PodSecurityContext
-	PriorityClassName             string
-	Affinity                      *corev1.Affinity
-	Tolerations                   *[]corev1.Toleration
-	EnableMetrics                 bool
-	PersistentVolumeClaim         corev1.PersistentVolumeClaim
-	NodeConfPersistentVolumeClaim corev1.PersistentVolumeClaim
-	ImagePullSecrets              *[]corev1.LocalObjectReference
-	ExternalConfig                *string
-	ServiceAccountName            *string
-	UpdateStrategy                appsv1.StatefulSetUpdateStrategy
-	RecreateStatefulSet           bool
-	RecreateStatefulsetStrategy   *metav1.DeletionPropagation
-	TerminationGracePeriodSeconds *int64
-	IgnoreAnnotations             []string
-	HostNetwork                   bool
-	MinReadySeconds               int32
+	Replicas                             *int32
+	ClusterMode                          bool
+	ClusterVersion                       *string
+	NodeConfVolume                       bool
+	NodeSelector                         map[string]string
+	TopologySpreadConstraints            []corev1.TopologySpreadConstraint
+	PodSecurityContext                   *corev1.PodSecurityContext
+	PriorityClassName                    string
+	Affinity                             *corev1.Affinity
+	Tolerations                          *[]corev1.Toleration
+	EnableMetrics                        bool
+	PersistentVolumeClaim                corev1.PersistentVolumeClaim
+	NodeConfPersistentVolumeClaim        corev1.PersistentVolumeClaim
+	ImagePullSecrets                     *[]corev1.LocalObjectReference
+	ExternalConfig                       *string
+	ServiceAccountName                   *string
+	UpdateStrategy                       appsv1.StatefulSetUpdateStrategy
+	PersistentVolumeClaimRetentionPolicy *appsv1.StatefulSetPersistentVolumeClaimRetentionPolicy
+	RecreateStatefulSet                  bool
+	RecreateStatefulsetStrategy          *metav1.DeletionPropagation
+	TerminationGracePeriodSeconds        *int64
+	IgnoreAnnotations                    []string
+	HostNetwork                          bool
+	MinReadySeconds                      int32
 }
 
 // containerParameters will define container input params
@@ -277,11 +278,12 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 		TypeMeta:   generateMetaInformation("StatefulSet", "apps/v1"),
 		ObjectMeta: stsMeta,
 		Spec: appsv1.StatefulSetSpec{
-			Selector:        LabelSelectors(selectorLabels),
-			ServiceName:     fmt.Sprintf("%s-headless", stsMeta.Name),
-			Replicas:        params.Replicas,
-			UpdateStrategy:  params.UpdateStrategy,
-			MinReadySeconds: params.MinReadySeconds,
+			Selector:                             LabelSelectors(selectorLabels),
+			ServiceName:                          fmt.Sprintf("%s-headless", stsMeta.Name),
+			Replicas:                             params.Replicas,
+			UpdateStrategy:                       params.UpdateStrategy,
+			PersistentVolumeClaimRetentionPolicy: params.PersistentVolumeClaimRetentionPolicy,
+			MinReadySeconds:                      params.MinReadySeconds,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      stsMeta.GetLabels(),
