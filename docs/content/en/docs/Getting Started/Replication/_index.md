@@ -7,6 +7,8 @@ description: >
   Instructions for setting up Redis Replication
 ---
 
+> **Note:** It is recommended to use [Sentinel](../Sentinel) to monitor the Replication cluster for enhanced high availability and reliability. By implementing Redis Sentinel, you can ensure that your Redis Replication remains operational even if one or more nodes fail, thereby improving the resilience and reliability of your application.
+
 ## Architecture
 
 Redis is an in-memory key-value store that can be used as a database, cache, and message broker. Redis replication is the process of synchronizing data from a Redis leader node to one or more Redis follower nodes.
@@ -20,8 +22,6 @@ Redis replication is a powerful feature that enhances the durability and scalabi
 <div align="center" class="mb-0">
     <img src="../../../images/replication-redis.png">
 </div>
-
-> **Note:** By using Redis Sentinel, you can ensure that your Redis Replication remains available even if one or more nodes go down, improving the resilience and reliability of your application.
 
 ## Helm Installation
 
@@ -78,7 +78,7 @@ metadata:
   name:  redis-replication
 spec:
   clusterSize: 3
-  securityContext:
+  podSecurityContext:
     runAsUser: 1000
     fsGroup: 1000
   kubernetesConfig:
