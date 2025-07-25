@@ -7,8 +7,46 @@ description: >
   Release versions and their description about Redis Operator
 ---
 
+
+### v0.15.1
+#### September 24, 2023
+
+**🪲 Bug Fixes**
+
+- Added Custom EnvVars support [#631](https://github.com/OT-CONTAINER-KIT/redis-operator/pull/631)
+- Fix the backup and restore script and manifest [#624](https://github.com/OT-CONTAINER-KIT/redis-operator/pull/624)
+- e2e test for Redis Cluster [#623](https://github.com/OT-CONTAINER-KIT/redis-operator/pull/623)
+- Nil pointer de-reference in conversion webhook [#615](https://github.com/OT-CONTAINER-KIT/redis-operator/pull/615)
+- Fixes Restore script [#609](https://github.com/OT-CONTAINER-KIT/redis-operator/pull/609)
+- Close redis client to avoid resource leak [#572](https://github.com/OT-CONTAINER-KIT/redis-operator/pull/572)
+- fix:resize cluster’s pvc with wrong label [#562](https://github.com/OT-CONTAINER-KIT/redis-operator/pull/562)
+- Hardcoded 1Mi size of node-conf PVC in RedisCluster [#552](https://github.com/OT-CONTAINER-KIT/redis-operator/pull/552)
+- Cluster leader failover loop if there is only a single leader [#542](https://github.com/OT-CONTAINER-KIT/redis-operator/pull/542)
+
+**🎉 Features**
+
+- e2e test for Redis Cluster [#623](https://github.com/OT-CONTAINER-KIT/redis-operator/pull/623)
+- Support ENABLE_WEBHOOKS env which cloud disable webhook server locally [#617](https://github.com/OT-CONTAINER-KIT/redis-operator/pull/617)
+- Status Field to Redis Cluster [#612](https://github.com/OT-CONTAINER-KIT/redis-operator/pull/612)
+- Support recreate statefulset of redissentinel [#607](https://github.com/OT-CONTAINER-KIT/redis-operator/pull/607)
+- Add support for multiple versions [#592](https://github.com/OT-CONTAINER-KIT/redis-operator/pull/592)
+
+**🎉 Refactors**
+
+- Track examples/docs refactoring v1beta2 [#633](https://github.com/OT-CONTAINER-KIT/redis-operator/pull/633)
+- Refactor the backup and restore script and manifest [#624](https://github.com/OT-CONTAINER-KIT/redis-operator/pull/624)
+- Optional Volume split [#603](https://github.com/OT-CONTAINER-KIT/redis-operator/pull/603) ( Breaking Change )
+- kustomize install not working [#602](https://github.com/OT-CONTAINER-KIT/redis-operator/pull/602)
+- Support apply crds by kubectl apply --server-side [#601](https://github.com/OT-CONTAINER-KIT/redis-operator/pull/601)
+- Fix image path [#591](https://github.com/OT-CONTAINER-KIT/redis-operator/pull/591)
+- Add RBAC for redisreplications and redissentinels. [#590](https://github.com/OT-CONTAINER-KIT/redis-operator/pull/590)
+- Write the docs for the restore and backup [#588](https://github.com/OT-CONTAINER-KIT/redis-operator/pull/588)
+- Support redis sentinel pdb [#589](https://github.com/OT-CONTAINER-KIT/redis-operator/pull/589)
+- Migrate the Pipeline from Azure to Github actions [#571](https://github.com/OT-CONTAINER-KIT/redis-operator/pull/571)
+- Fix log pollution [#585](https://github.com/OT-CONTAINER-KIT/redis-operator/pull/585)
+
 ### v0.15.0 
-##### July 17, 2023 Latest
+##### July 17, 2023
 
 **🐞 Bug Fixes**
 
