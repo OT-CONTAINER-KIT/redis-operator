@@ -53,12 +53,6 @@ Here the features which are supported by this operator:-
 - Ipv4 and Ipv6 support for redis setup
 - Detailed monitoring grafana dashboard
 
-## Getting Started
-
-If you want to deploy redis-operator from scratch to a local Minikube cluster, begin with the [Getting started](https://ot-container-kit.github.io/redis-operator/#/quickstart/quickstart) document. It will guide your through the setup step-by-step.
-
-The configuration of Redis setup should be described in [CRD definitions](config/crd/bases). All the examples related to redis standalone and cluster setup can be found inside [example](./example) folder.
-
 ## Prerequisites
 
 Redis operator requires a Kubernetes cluster of version `>=1.18.0`. If you have just started with Operators, it's highly recommended using the latest version of Kubernetes.
