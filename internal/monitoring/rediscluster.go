@@ -48,6 +48,30 @@ var RedisClusterDescription = map[string]MetricDescription{
 		Type:   "Counter",
 		labels: []string{"namespace", "instance"},
 	},
+	"RedisClusterRepairDisconnectedAttempt": {
+		Name:   "rediscluster_repair_disconnected_attempt",
+		Help:   "Number of times to repair a Redis cluster disconnected from the cluster.",
+		Type:   "Counter",
+		labels: []string{"namespace", "instance"},
+	},
+	"RedisClusterRepairFailed": {
+		Name:   "rediscluster_repair_failed",
+		Help:   "Number of times to repair a Redis cluster failed.",
+		Type:   "Counter",
+		labels: []string{"namespace", "instance"},
+	},
+	"RedisClusterResetAttempt": {
+		Name:   "rediscluster_reset_attempt",
+		Help:   "Number of times to reset a Redis cluster.",
+		Type:   "Counter",
+		labels: []string{"namespace", "instance"},
+	},
+	"RedisClusterResetFailed": {
+		Name:   "rediscluster_reset_failed",
+		Help:   "Number of times to reset a Redis cluster failed.",
+		Type:   "Counter",
+		labels: []string{"namespace", "instance"},
+	},
 }
 
 var (
@@ -113,6 +137,38 @@ var (
 			Help: RedisClusterDescription["RedisClusterAddingNodeAttempt"].Help,
 		},
 		RedisClusterDescription["RedisClusterAddingNodeAttempt"].labels,
+	)
+
+	RedisClusterRepairDisconnectedAttempt = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: RedisClusterDescription["RedisClusterRepairDisconnectedAttempt"].Name,
+			Help: RedisClusterDescription["RedisClusterRepairDisconnectedAttempt"].Help,
+		},
+		RedisClusterDescription["RedisClusterRepairDisconnectedAttempt"].labels,
+	)
+
+	RedisClusterRepairDisconnectedFailed = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: RedisClusterDescription["RedisClusterRepairDisconnectedFailed"].Name,
+			Help: RedisClusterDescription["RedisClusterRepairDisconnectedFailed"].Help,
+		},
+		RedisClusterDescription["RedisClusterRepairDisconnectedFailed"].labels,
+	)
+
+	RedisClusterResetAttempt = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: RedisClusterDescription["RedisClusterResetAttempt"].Name,
+			Help: RedisClusterDescription["RedisClusterResetAttempt"].Help,
+		},
+		RedisClusterDescription["RedisClusterResetAttempt"].labels,
+	)
+
+	RedisClusterResetFailed = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: RedisClusterDescription["RedisClusterResetFailed"].Name,
+			Help: RedisClusterDescription["RedisClusterResetFailed"].Help,
+		},
+		RedisClusterDescription["RedisClusterResetFailed"].labels,
 	)
 )
 
