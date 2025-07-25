@@ -2,10 +2,12 @@
 title: "Release History"
 linkTitle: "Release History"
 weight: 10
-date: 2022-11-02T00:19:19Z
+date: 2025-07-25T00:00:00Z
 description: >
   Release versions and their description about Redis Operator
 ---
+The most up to date release notes can be found on [GitHub](https://github.com/OT-CONTAINER-KIT/redis-operator/releases)
+
 
 
 ### v0.15.1
