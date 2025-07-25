@@ -2,14 +2,14 @@
 title: "Overview"
 linkTitle: "Overview"
 weight: 1
-date: 2022-11-02T00:19:19Z
+date: 2025-07-25T00:00:00Z
 description: >
   Redis Operator is a software to set up and manage Redis on [Kubernetes](https://kubernetes.io).
 ---
 
 A Golang based redis operator that will make/oversee Redis standalone/cluster/replication/sentinel mode setup on top of the Kubernetes. It can create a redis cluster setup with best practices on Cloud as well as the Bare-metal environment. Also, it provides an in-built monitoring capability using redis-exporter.
 
-Documentation is available here:- https://ot-container-kit.github.io/redis-operator/
+Documentation is available here:- https://redis-operator.opstree.dev/docs/
 
 The type of Redis setup which is currently supported:-
 

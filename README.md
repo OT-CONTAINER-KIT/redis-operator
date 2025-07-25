@@ -3,8 +3,8 @@
 </p>
 
 <p align="center">
-  <a href="https://dev.azure.com/opstreedevops/DevOps/_apis/build/status/redis-operator/redis-operator?repoName=OT-CONTAINER-KIT%2Fredis-operator&branchName=main">
-    <img src="https://dev.azure.com/opstreedevops/DevOps/_apis/build/status/redis-operator/redis-operator?repoName=OT-CONTAINER-KIT%2Fredis-operator&branchName=main" alt="Azure Pipelines">
+  <a href="https://github.com/OT-CONTAINER-KIT/redis-operator/actions/workflows/ci.yaml">
+    <img src="https://github.com/OT-CONTAINER-KIT/redis-operator/actions/workflows/ci.yaml/badge.svg" alt="CI Pipeline">
   </a>
   <a href="https://goreportcard.com/report/github.com/OT-CONTAINER-KIT/redis-operator">
     <img src="https://goreportcard.com/badge/github.com/OT-CONTAINER-KIT/redis-operator" alt="GoReportCard">
@@ -25,7 +25,7 @@
 
 A Golang based redis operator that will make/oversee Redis standalone and cluster mode setup on top of the Kubernetes. It can create a redis cluster setup with best practices on Cloud as well as the Bare metal environment. Also, it provides an in-built monitoring capability using redis-exporter.
 
-For documentation, please refer to <https://ot-redis-operator.netlify.app/>
+For documentation, please refer to <https://redis-operator.opstree.dev/>
 
 Organizations that are using Redis Operator to manage their redis workload can be found [here](./USED_BY_ORGANIZATIONS.md). If your organization is also using Redis Operator, please free to add by creating a [pull request](https://github.com/OT-CONTAINER-KIT/redis-operator/pulls)
 
@@ -52,12 +52,6 @@ Here the features which are supported by this operator:-
 - TLS support for additional security layer
 - Ipv4 and Ipv6 support for redis setup
 - Detailed monitoring grafana dashboard
-
-## Getting Started
-
-If you want to deploy redis-operator from scratch to a local Minikube cluster, begin with the [Getting started](https://ot-container-kit.github.io/redis-operator/#/quickstart/quickstart) document. It will guide your through the setup step-by-step.
-
-The configuration of Redis setup should be described in [CRD definitions](config/crd/bases). All the examples related to redis standalone and cluster setup can be found inside [example](./example) folder.
 
 ## Prerequisites
 
