@@ -1,5 +1,229 @@
+### v0.21.0
+##### June 2025 Latest
+
+#### :tada: Features
+
+- Round robin where to transfer cluster shards when scaling in a Redis Cluster #1412
+- Add auto max memory configuration for Redis instances #1411
+- Add bus port configuration for Redis cluster services #1406
+- Add automatic Redis pod role label synchronization for rediscluster #1404
+- RedisCluster observability #1392
+- Add liveness/readiness probes to values.yaml and templates #1378
+- Reduce unnecessary requeue when skip reconcile annotation exists #1374
+- RedisReplication observability, skip reconcile or not #1369
+- Add Redis Sentinel validation webhook for clusterSize #1361
+
+#### :beetle: Bug Fixes
+
+- Resolve StatefulSet selector immutability issues #1382
+- Avoid sentinel restart after replication failover #1381
+- Define named probe port outside webhook block #1354
+
+#### :tada: Refactors
+
+- Reorganize manager agent cmd package #1383
+- Reorganize API structure and update paths #1363
+- Remove useless structure and refactor package #1362
+- Reorganize command structure for Redis operator #1351
+
+### v0.20.2
+##### May 12, 2024
+
+#### :beetle: Bug Fixes
+
+- Handle panic when retrieving StatefulSet in GetRedisNodesByRole #1330
+- VCT resize detection logic; add support for scaling out with new VCT size #1342
+- Service updated before Statefulset during Reconciliation #1348
+
+#### :tada: Features
+
+- Add data assertion generation and enhance Redis configuration commands #1331
+- Add feature gates support for Redis Operator #1333
+- Migrate kubebuilder go.kubebuilder.io/v3 to go.kubebuilder.io/v4 #1340
+
+#### :tada: Refactors
+
+- Define container port for http probes in operator chart #1326
+- Enhance environment variable management and CI workflow #1315
+
+### v0.20.1
+##### April 27, 2024
+
+#### :beetle: Bug Fixes
+
+- Move VCT logic before diff calculation for stateful set #1322
+
+### v0.20.0
+##### April 1, 2024
+
+#### :tada: Features
+
+- Sentinel - support hostname resolve and announce #1247
+- Add redis agent with bootstrap configuration generation #1254
+- Implement comprehensive Redis configuration generation for agent bootstrap #1260
+- Added support for hostport to allow direct connection to the pod #1263
+- Add preStop hook for Redis Cluster failover #1264
+- Sentinel - announce-ip when resolve & announce are set #1271
+- Fix PVC resizing issue and refactor PVC resizing logic #1268
+- Add redisreplication observability #1274
+- Add recreate-stateful-strategy, orphan, background, foreground(default) #1286
+- Update Dockerfile and Makefile for unified operator binary #1294
+- Add support for anti affinity configuration in helm charts #1296
+- Guarantee to avoid bad master ip on Sentinel #1289
+- Add feature gates for sentinel configuration generation in init container #1300
+- Support redis configuration generation in init container #1303
+
+#### :beetle: Bug Fixes
+
+- Replace hardcoded Redis port 6379 with configurable port from cr.Spec.Port #1261
+- Update references from master to main in docs and workflow files #1288
+- Svc finalizer removed #1297
+- Race condition resulting in permanently broken Redis cluster #1298
+
+### v0.19.1
+##### February 19, 2024
+
+#### :warning: Deprecation Notice
+
+The v1beta1 API version will be removed in next release. Users are strongly encouraged to migrate to v1beta2, which offers enhanced features and improved stability.
+
+#### :tada: Features
+
+- Add data-assert tool for Redis data management #1204
+- Check data consistent by external tool #1205
+- Added actions to publish charts to github container registry #1201
+- Add headless service configuration support #1219
+- Update redis-operator cert manager configuration #1220
+- Add additional service configuration with optional enable flag #1228
+- Enhance Redis HA and node scheduling strategy #1237
+- Add securityContext config in chart for redis-exporter #1238
+- Add dynamic Redis configuration support for Redis Cluster #1241
+- Configurable operator maxConcurrentReconciles #1242
+
+#### :beetle: Bug Fixes
+
+- Skip-reconcile annotation still skipping reconcile even the value is false #1202
+- Make recreate statefulset only trigger when value true #1240
+- Improve pod label patching with error handling and retry mechanism #1231
+- Changed certificate serverName to pod+namespace #1221
+- Add missing topologySpreadConstraint on RedisCluster follower #1218
+
+### v0.19.0
+##### January 12, 2024
+
+#### :tada: Features
+
+- Add PDB and probes, drop unspecified acl in sentinel helm #1123
+- Add master/replica service to redis replication #1124
+- Add recreateStatefulSetOnUpdateInvalid helm chart value #1127
+- Enhance RedisReplication controller and CRD with additional status #1154
+- Support PDB in redisreplication #1166
+- Enhance RedisSentinel reconciliation logic and update workflow #1176
+- Support redis-cluster topologySpreadConstraints #1177
+- Add event recording functionality for RedisCluster controller #1182
+- Support topologySpreadConstraints in replication & sentinel #1184
+- Redis-cluster add podAntiAffinity #1180
+- Separate resources section for leader and follower #1188
+- Enhance RedisCluster resource management by introducing separate resource handling for leader and follower #1199
+
+#### :beetle: Bug Fixes
+
+- PDB value mapping in redis-sentinel #1136
+- Chart render error when enable initcontainer #1146
+- InitContainer enabled properties not define in template #1152
+- Redis-cluster unexpected downscaling #1173
+- Reduce the impact of Redis cluster intermediate states #1178
+- Label selector mapping on redisreplication pdb #1191
+
+### v0.18.1
+##### November 7, 2024
+
+#### :tada: Features
+
+- Support setting minReadySeconds on the stateful sets #1023
+- Add tolerations to operator chart #1051
+- Add image pull secret for redis operator #1053
+- Add service monitor to redis sentinel chart #1071
+- Add readiness/liveness probe to redis operator chart #1072
+- Upgrade redis/sentinel image to 7.0.15 #1099
+- Reconcile redissentinel only on master changed #1122
+
+#### :beetle: Bug Fixes
+
+- Fix indentation error when enable additional config #1031
+- Fix field validate error when enable additional config for sentinel #1033
+- Fix unknown field error when upgrade chart #1034
+- Fix bad indentation on redis standalone additional configs #1040
+- Fix attempt to repair disconnected/failed master nodes before failing over #1105
+- Fix set controller probe endpoint handler #1121
+
+### v0.18.0
+##### July 11, 2024
+
+#### :tada: Features
+
+- Added redisReplicationPassword values to connect secured replication #1021
+- Added redis/redisreplication/redissentinel/rediscluster chart #1007
+- Added support for extra volume mounts for redis sentinel #994
+- Added automountServiceAccountToken values for deployment and serviceaccount #991
+- Added securityContext for exporter, initcontainers and sidecars #987
+- Added security context values in operator chart #973
+- Added rolling update sequence from leader to follower #966
+- Added support for configurable probe handlers #934
+- Added redis operator helm chart and release workflow #941
+- Added support for other container engines #947
+
+#### :beetle: Bug Fixes
+
+- Added default port to enable `SENTINEL_PORT` environment #999
+- ReadyReplicas need to be checked in `IsStatefulSetReady` #993
+- watchNamespace value does not take effect in chart #990
+- Sentinel should not reconcile until replication cluster ready #964
+- Return ASAP after handling finalizer #940
+- Check redis replication after handling finalizer #936
+
+### v0.17.0
+##### May 14, 2024
+
+#### :tada: Features
+
+- WATCH_NAMESPACE support multi namespace #919
+- Add workflow to publish image to ghcr #914
+- Probe use built-in, discarded healthcheck.sh #907
+- Implement redis cluster ready state #867
+- Add redisreplication status masterNode #849
+
+#### :beetle: Bug Fixes
+
+- Runtime panic when delete rediscluster which disable persistent #922
+- Runtime panic when storage param is empty #887
+- Exporter can not connect to redis when enable tls #902
+- Update status if not equal #900
+- Should get the really leader count when scale in #885
+- ClusterSlaves result should be cut #884
+- Redis cluster update as scale out #882
+- Add common AddFinalizer for all api #858
+
+### v0.16.0
+##### March 27, 2024
+
+#### :tada: Features
+
+- Added support for multiple CRDs and enhanced functionality
+- Improved test coverage and CI/CD pipeline
+- Enhanced Redis cluster management and scaling capabilities
+- Added support for custom Redis configurations
+- Implemented advanced security features
+
+#### :beetle: Bug Fixes
+
+- Fixed various StatefulSet and service management issues
+- Resolved Redis cluster scaling problems
+- Fixed authentication and TLS connectivity issues
+- Improved error handling and logging
+
 ### v0.15.0 
-##### July 17, 2023 Latest
+##### July 17, 2023
 
 #### :beetle: Bug Fixes
 
