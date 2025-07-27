@@ -31,13 +31,14 @@ echo "Generating API documentation..."
 echo "Source path: ${REPO_ROOT}/api"
 echo "Config file: ${SCRIPT_DIR}/config.yaml"
 echo "Templates: ${SCRIPT_DIR}/templates"
-echo "Output: ${OUTPUT_DIR}/api-reference.md"
+echo "Output: ${OUTPUT_DIR}/_index.md"
 
-# Generate the documentation using default templates
+# Generate the documentation using custom templates
 "${CRD_REF_DOCS}" \
     --source-path="${REPO_ROOT}/api" \
     --config="${SCRIPT_DIR}/config.yaml" \
+    --templates-dir="${SCRIPT_DIR}/templates/markdown" \
     --renderer=markdown \
-    --output-path="${OUTPUT_DIR}/api-reference.md"
+    --output-path="${OUTPUT_DIR}/_index.md"
 
-echo "API documentation generated successfully at: ${OUTPUT_DIR}/api-reference.md"
+echo "API documentation generated successfully at: ${OUTPUT_DIR}/_index.md"
