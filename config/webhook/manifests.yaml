@@ -1,8 +1,8 @@
 ---
 apiVersion: admissionregistration.k8s.io/v1
-kind: MutatingWebhookConfiguration
+kind: ValidatingWebhookConfiguration
 metadata:
-  name: mutating-webhook-configuration
+  name: validating-webhook-configuration
 webhooks:
 - admissionReviewVersions:
   - v1
@@ -10,25 +10,20 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /mutate-core-v1-pod
+      path: /validate-redis-redis-opstreelabs-in-v1beta2-rediscluster
   failurePolicy: Fail
-  name: ot-mutate-pod.opstree.com
+  name: validate-rediscluster.redis.opstreelabs.in
   rules:
   - apiGroups:
-    - ""
+    - redis.redis.opstreelabs.in
     apiVersions:
-    - v1
+    - v1beta2
     operations:
     - CREATE
+    - UPDATE
     resources:
-    - pods
+    - redisclusters
   sideEffects: None
----
-apiVersion: admissionregistration.k8s.io/v1
-kind: ValidatingWebhookConfiguration
-metadata:
-  name: validating-webhook-configuration
-webhooks:
 - admissionReviewVersions:
   - v1
   clientConfig:
