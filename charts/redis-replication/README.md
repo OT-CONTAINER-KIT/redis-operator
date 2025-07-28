@@ -65,6 +65,9 @@ helm delete <my-release> --namespace <namespace>
 | initContainer.resources | object | `{}` |  |
 | labels | object | `{}` |  |
 | nodeSelector | object | `{}` |  |
+| pdb.enabled | bool | `false` |  |
+| pdb.maxUnavailable | string | `nil` |  |
+| pdb.minAvailable | int | `1` |  |
 | podSecurityContext.fsGroup | int | `1000` |  |
 | podSecurityContext.runAsUser | int | `1000` |  |
 | priorityClassName | string | `""` |  |
