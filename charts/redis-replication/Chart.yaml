@@ -1,8 +1,8 @@
 apiVersion: v2
 name: redis-replication
 description: Provides easy redis setup definitions for Kubernetes services, and deployment.
-version: 0.16.7
-appVersion: "0.16.7"
+version: 0.16.8
+appVersion: "0.16.8"
 type: application
 engine: gotpl
 maintainers:

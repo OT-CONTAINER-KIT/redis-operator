@@ -95,4 +95,10 @@ spec:
   {{- if .Values.env }}
   env: {{ toYaml .Values.env | nindent 4 }}
   {{- end }}
+  {{- if .Values.pdb.enabled }}
+  pdb:
+    enabled: {{ .Values.pdb.enabled }}
+    minAvailable: {{ .Values.pdb.minAvailable }}
+    maxUnavailable: {{ .Values.pdb.maxUnavailable }}
+  {{- end }}
   
