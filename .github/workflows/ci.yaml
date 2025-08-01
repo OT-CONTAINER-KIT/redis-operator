@@ -217,7 +217,7 @@ jobs:
       - name: Build Dockerfile
         run: docker build . --file Dockerfile --tag redis-operator:e2e
       - name: Install Cosign
-        uses: sigstore/cosign-installer@v3.9.1
+        uses: sigstore/cosign-installer@v3.9.2
       - name: Install chainsaw
         uses: kyverno/action-install-chainsaw@v0.2.12
         with:
