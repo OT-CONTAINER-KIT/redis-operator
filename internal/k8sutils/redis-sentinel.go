@@ -331,7 +331,11 @@ func getRedisReplicationMasterPod(ctx context.Context, client kubernetes.Interfa
 		log.FromContext(ctx).V(1).Info("Successfully got RedisReplication", "replication name", replicationName, "namespace", replicationNamespace)
 	}
 
-	masterPods := GetRedisNodesByRole(ctx, client, &replicationInstance, "master")
+	masterPods, err := GetRedisNodesByRole(ctx, client, &replicationInstance, "master")
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Failed to get RedisReplication master pods", "replication name", replicationName, "namespace", replicationNamespace)
+		return emptyRedisInfo
+	}
 	if len(masterPods) == 0 {
 		log.FromContext(ctx).Error(errors.New("no master pods found"), "")
 		return emptyRedisInfo

@@ -2,7 +2,6 @@ package redissentinel
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
@@ -54,9 +53,9 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	reconcilers := []reconciler{
 		{typ: "finalizer", rec: r.reconcileFinalizer},
 		{typ: "replication", rec: r.reconcileReplication},
-		{typ: "sentinel", rec: r.reconcileSentinel},
 		{typ: "pdb", rec: r.reconcilePDB},
 		{typ: "service", rec: r.reconcileService},
+		{typ: "sentinel", rec: r.reconcileSentinel},
 	}
 
 	for _, reconciler := range reconcilers {
@@ -133,7 +132,7 @@ func (r *RedisSentinelReconciler) reconcileSentinel(ctx context.Context, instanc
 		return intctrlutil.RequeueE(ctx, err, "")
 	} else {
 		if instance.Spec.RedisSentinelConfig.ResolveHostnames == "yes" {
-			monitorAddr = fmt.Sprintf("%s.%s-headless.%s.svc", master.Name, rr.Name, rr.Namespace)
+			monitorAddr = common.GetHeadlessServiceNameFromPodName(master.Name)
 		} else {
 			monitorAddr = master.Status.PodIP
 		}

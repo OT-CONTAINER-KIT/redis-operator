@@ -9,6 +9,7 @@ data:
     
     import (
     	"context"
+    	"crypto/tls"
     	"fmt"
     	"os"
     	"strings"
@@ -164,8 +165,9 @@ data:
     	switch mode {
     	case "cluster":
     		return redis.NewClusterClient(&redis.ClusterOptions{
-    			Addrs:    hosts,
-    			Password: pass,
+    			Addrs:     hosts,
+    			Password:  pass,
+    			TLSConfig: &tls.Config{InsecureSkipVerify: true},
     		}), nil
     	case "sentinel":
     		return redis.NewFailoverClient(&redis.FailoverOptions{
@@ -173,6 +175,7 @@ data:
     			SentinelAddrs:    hosts,
     			Password:         pass,
     			SentinelPassword: sentinelPass,
+    			TLSConfig:        &tls.Config{InsecureSkipVerify: true},
     		}), nil
     	default:
     		return nil, fmt.Errorf("unsupported redis mode: %s", mode)
@@ -263,7 +266,7 @@ metadata:
 spec:
   containers:
     - name: data-assert
-      image: docker.io/library/golang:1.23.4
+      image: docker.m.daocloud.io/library/golang:1.23.4
       command: ["/bin/sh", "-c"]
       args:
         - |

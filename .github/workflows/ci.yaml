@@ -238,10 +238,13 @@ jobs:
 
       # NOTE: This is a workaround for the issue where the default storage class does not support volume expansion.
       # Since we don't require PVC resizing (unlike physical disks), we can simply ensure that the requested PVC size is met.
-      - name: Set allowVolumeExpansion to true
+      - name: Setup k8s Kind Cluster
         run: |
           DEFAULT_SC=$(kubectl get storageclass -o=jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}')
           kubectl patch storageclass $DEFAULT_SC -p '{"allowVolumeExpansion": true}'          
+
+          # install cert-manager
+          kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.18.2/cert-manager.yaml
 
       - name: Load Docker image into Kind
         run: |

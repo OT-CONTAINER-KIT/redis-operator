@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"os"
 	"strings"
@@ -157,8 +158,9 @@ func createRedisClient(mode string, hosts []string, pass string, sentinelPass st
 	switch mode {
 	case "cluster":
 		return redis.NewClusterClient(&redis.ClusterOptions{
-			Addrs:    hosts,
-			Password: pass,
+			Addrs:     hosts,
+			Password:  pass,
+			TLSConfig: &tls.Config{InsecureSkipVerify: true},
 		}), nil
 	case "sentinel":
 		return redis.NewFailoverClient(&redis.FailoverOptions{
@@ -166,6 +168,7 @@ func createRedisClient(mode string, hosts []string, pass string, sentinelPass st
 			SentinelAddrs:    hosts,
 			Password:         pass,
 			SentinelPassword: sentinelPass,
+			TLSConfig:        &tls.Config{InsecureSkipVerify: true},
 		}), nil
 	default:
 		return nil, fmt.Errorf("unsupported redis mode: %s", mode)

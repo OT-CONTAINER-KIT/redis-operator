@@ -7,6 +7,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util/cryptutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -59,10 +60,14 @@ func getRedisTLSConfig(ctx context.Context, client kubernetes.Interface, namespa
 	}
 
 	return &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		ServerName:   podName + "." + namespace,
-		RootCAs:      tlsCaCertificates,
-		MinVersion:   tls.VersionTLS12,
-		ClientAuth:   tls.NoClientCert,
+		Certificates:       []tls.Certificate{cert},
+		RootCAs:            tlsCaCertificates,
+		MinVersion:         tls.VersionTLS12,
+		ClientAuth:         tls.NoClientCert,
+		InsecureSkipVerify: true,
+		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+			_, _, err := cryptutil.VerifyCertificateExceptServerName(rawCerts, &tls.Config{RootCAs: tlsCaCertificates})
+			return err
+		},
 	}
 }
