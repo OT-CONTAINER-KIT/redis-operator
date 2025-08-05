@@ -55,7 +55,8 @@ spec:
             timeout: 10s
             content: |
               export MASTER_POD_FROM_STATUS=$(kubectl -n ${NAMESPACE} get redisreplication redis-replication -o jsonpath='{.status.masterNode}');
-              export FROM_SENTINEL=$(kubectl -n ${NAMESPACE} exec redis-sentinel-sentinel-0 -c redis-sentinel-sentinel -- redis-cli --no-auth-warning --tls --cacert /tls/ca.crt -a Opstree@1234sentinel -p 26379 sentinel get-master-addr-by-name myMaster | head -n 1 | cut -d'.' -f1);
+              export FROM_SENTINEL=$(kubectl -n ${NAMESPACE} exec redis-sentinel-sentinel-0 -c redis-sentinel-sentinel -- redis-cli --no-auth-warning \
+              --tls --cacert /tls/ca.crt -a Opstree@1234sentinel -p 26379 sentinel get-master-addr-by-name myMaster | head -n 1 | cut -d'.' -f1);
               export MASTER_POD_FROM_LABEL=$(kubectl -n ${NAMESPACE} get pod -l app=redis-replication,redis-role=master,redis_setup_type=replication -o jsonpath='{.items[0].metadata.name}');
               if [ "$FROM_SENTINEL" = "$MASTER_POD_FROM_LABEL" ] && [ "$FROM_SENTINEL" = "$MASTER_POD_FROM_STATUS" ]; then echo "OK"; else echo "FAIL"; fi
             check:
@@ -90,7 +91,8 @@ spec:
             timeout: 10s
             content: |
               export MASTER_POD_FROM_STATUS=$(kubectl -n ${NAMESPACE} get redisreplication redis-replication -o jsonpath='{.status.masterNode}');
-              export FROM_SENTINEL=$(kubectl -n ${NAMESPACE} exec redis-sentinel-sentinel-0 -c redis-sentinel-sentinel -- redis-cli --no-auth-warning --tls --cacert /tls/ca.crt -a Opstree@1234sentinel -p 26379 sentinel get-master-addr-by-name myMaster | head -n 1 | cut -d'.' -f1);
+              export FROM_SENTINEL=$(kubectl -n ${NAMESPACE} exec redis-sentinel-sentinel-0 -c redis-sentinel-sentinel -- redis-cli --no-auth-warning \
+              --tls --cacert /tls/ca.crt -a Opstree@1234sentinel -p 26379 sentinel get-master-addr-by-name myMaster | head -n 1 | cut -d'.' -f1);
               export MASTER_POD_FROM_LABEL=$(kubectl -n ${NAMESPACE} get pod -l app=redis-replication,redis-role=master,redis_setup_type=replication -o jsonpath='{.items[0].metadata.name}');
               if [ "$FROM_SENTINEL" = "$MASTER_POD_FROM_LABEL" ] && [ "$FROM_SENTINEL" = "$MASTER_POD_FROM_STATUS" ]; then echo "OK"; else echo "FAIL"; fi
             check:
