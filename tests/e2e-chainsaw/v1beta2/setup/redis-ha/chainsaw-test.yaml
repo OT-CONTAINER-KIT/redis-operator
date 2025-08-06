@@ -70,6 +70,7 @@ spec:
               bash -c  "cd /go/src/data-assert && go run main.go gen-redis-data \
                         --host redis-sentinel-sentinel.${NAMESPACE}.svc.cluster.local:26379 \
                         --mode sentinel \
+                        --tls \
                         --password-sentinel Opstree@1234sentinel \
                         --password Opstree@1234replication"
             check:
@@ -105,6 +106,7 @@ spec:
               bash -c "cd /go/src/data-assert && go run main.go chk-redis-data \
                        --host redis-sentinel-sentinel.${NAMESPACE}.svc.cluster.local:26379 \
                        --mode sentinel \
+                       --tls \
                        --password-sentinel Opstree@1234sentinel \
                        --password Opstree@1234replication"
             check:
