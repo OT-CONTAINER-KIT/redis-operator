@@ -137,9 +137,6 @@ func (r *Reconciler) reconcileService(ctx context.Context, instance *rrvb2.Redis
 }
 
 func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisReplication) (ctrl.Result, error) {
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
 	var realMaster string
 	masterNodes, err := k8sutils.GetRedisNodesByRole(ctx, r.K8sClient, instance, "master")
 	if err != nil {
