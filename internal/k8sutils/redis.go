@@ -568,8 +568,16 @@ func configureRedisReplicationClient(ctx context.Context, client kubernetes.Inte
 			log.FromContext(ctx).Error(err, "Error in getting redis password")
 		}
 	}
+	var addr string
+	if cr.Spec.TLS != nil {
+		// Use DNS name for TLS connections
+		addr = fmt.Sprintf("%s:%d", getRedisReplicationHostname(redisInfo, cr), 6379)
+	} else {
+		// Use IP address for non-TLS connections
+		addr = getRedisServerAddress(ctx, client, redisInfo, 6379)
+	}
 	opts := &redis.Options{
-		Addr:     getRedisServerAddress(ctx, client, redisInfo, 6379),
+		Addr:     addr,
 		Password: pass,
 		DB:       0,
 	}
@@ -579,12 +587,16 @@ func configureRedisReplicationClient(ctx context.Context, client kubernetes.Inte
 	return redis.NewClient(opts)
 }
 
+func getRedisReplicationHostname(redisInfo RedisDetails, cr *rrvb2.RedisReplication) string {
+	return fmt.Sprintf("%s.%s-headless.%s.svc.cluster.local", redisInfo.PodName, cr.Name, cr.Namespace)
+}
+
 // Get Redis nodes by it's role i.e. master, slave and sentinel
-func GetRedisNodesByRole(ctx context.Context, cl kubernetes.Interface, cr *rrvb2.RedisReplication, redisRole string) []string {
+func GetRedisNodesByRole(ctx context.Context, cl kubernetes.Interface, cr *rrvb2.RedisReplication, redisRole string) ([]string, error) {
 	statefulset, err := GetStatefulSet(ctx, cl, cr.GetNamespace(), cr.GetName())
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Failed to Get the Statefulset of the", "custom resource", cr.Name, "in namespace", cr.Namespace)
-		return nil
+		return nil, err
 	}
 
 	var pods []string
@@ -594,32 +606,35 @@ func GetRedisNodesByRole(ctx context.Context, cl kubernetes.Interface, cr *rrvb2
 		podName := statefulset.Name + "-" + strconv.Itoa(i)
 		redisClient := configureRedisReplicationClient(ctx, cl, cr, podName)
 		defer redisClient.Close()
-		podRole := checkRedisServerRole(ctx, redisClient, podName)
+		podRole, err := checkRedisServerRole(ctx, redisClient, podName)
+		if err != nil {
+			return nil, err
+		}
 		if podRole == redisRole {
 			pods = append(pods, podName)
 		}
 	}
 
-	return pods
+	return pods, nil
 }
 
 // Check the Redis Server Role i.e. master, slave and sentinel
-func checkRedisServerRole(ctx context.Context, redisClient *redis.Client, podName string) string {
+func checkRedisServerRole(ctx context.Context, redisClient *redis.Client, podName string) (string, error) {
 	info, err := redisClient.Info(ctx, "Replication").Result()
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Failed to Get the role Info of the", "redis pod", podName)
-		return ""
+		return "", err
 	}
 	lines := strings.Split(info, "\r\n")
 	for _, line := range lines {
 		if strings.HasPrefix(line, "role:") {
 			role := strings.TrimPrefix(line, "role:")
 			log.FromContext(ctx).V(1).Info("Role of the Redis Pod", "pod", podName, "role", role)
-			return role
+			return role, nil
 		}
 	}
 	log.FromContext(ctx).Error(err, "Failed to find role from Info # Replication in", "redis pod", podName)
-	return ""
+	return "", err
 }
 
 // checkAttachedSlave would return redis pod name which has slave
@@ -655,20 +670,29 @@ func CreateMasterSlaveReplication(ctx context.Context, client kubernetes.Interfa
 		Namespace: cr.Namespace,
 	}
 
-	realMasterPodIP := getRedisServerIP(ctx, client, realMasterInfo)
-
-	if realMasterPodIP == "" {
-		return errors.New("CreateMasterSlaveReplication got empty master IP, refusing")
+	var realMasterAddr string
+	if cr.Spec.TLS != nil {
+		// Use DNS name for TLS connections to match certificate validation
+		realMasterAddr = getRedisReplicationHostname(realMasterInfo, cr)
+		log.FromContext(ctx).V(1).Info("Using DNS address for TLS master replication", "masterAddr", realMasterAddr)
+	} else {
+		// Use IP address for non-TLS connections
+		realMasterPodIP := getRedisServerIP(ctx, client, realMasterInfo)
+		if realMasterPodIP == "" {
+			return errors.New("CreateMasterSlaveReplication got empty master IP, refusing")
+		}
+		realMasterAddr = realMasterPodIP
+		log.FromContext(ctx).V(1).Info("Using IP address for non-TLS master replication", "masterAddr", realMasterAddr)
 	}
 
 	for i := 0; i < len(masterPods); i++ {
 		if masterPods[i] != realMasterPod {
 			redisClient := configureRedisReplicationClient(ctx, client, cr, masterPods[i])
 			defer redisClient.Close()
-			log.FromContext(ctx).V(1).Info("Setting the", "pod", masterPods[i], "to slave of", realMasterPod)
-			err := redisClient.SlaveOf(ctx, realMasterPodIP, "6379").Err()
+			log.FromContext(ctx).V(1).Info("Setting the", "pod", masterPods[i], "to slave of", realMasterPod, "masterAddr", realMasterAddr)
+			err := redisClient.SlaveOf(ctx, realMasterAddr, "6379").Err()
 			if err != nil {
-				log.FromContext(ctx).Error(err, "Failed to set", "pod", masterPods[i], "to slave of", realMasterPod)
+				log.FromContext(ctx).Error(err, "Failed to set", "pod", masterPods[i], "to slave of", realMasterPod, "masterAddr", realMasterAddr)
 				return err
 			}
 		}

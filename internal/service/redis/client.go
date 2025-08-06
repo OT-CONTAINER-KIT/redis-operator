@@ -2,6 +2,7 @@ package redis
 
 import (
 	"context"
+	"crypto/tls"
 	"net"
 	"strconv"
 	"strings"
@@ -14,9 +15,18 @@ const (
 )
 
 type ConnectionInfo struct {
-	IP       string
+	// Host is the IP address or hostname for connection
+	Host string
+	// Port is the port for redis or sentinel
 	Port     string
 	Password string
+	// TLSConfig configuration, nil means TLS is disabled
+	TLSConfig *tls.Config
+}
+
+// GetAddress returns the connection address
+func (c *ConnectionInfo) GetAddress() string {
+	return net.JoinHostPort(c.Host, c.Port)
 }
 
 type Client interface {
@@ -55,9 +65,12 @@ func (s *service) createClient() *rediscli.Client {
 		return nil
 	}
 	opts := &rediscli.Options{
-		Addr:     net.JoinHostPort(s.connectionInfo.IP, s.connectionInfo.Port),
+		Addr:     s.connectionInfo.GetAddress(),
 		Password: s.connectionInfo.Password,
 		DB:       0,
+	}
+	if s.connectionInfo.TLSConfig != nil {
+		opts.TLSConfig = s.connectionInfo.TLSConfig
 	}
 	return rediscli.NewClient(opts)
 }
@@ -101,7 +114,7 @@ func (c *service) SentinelMonitor(ctx context.Context, master *ConnectionInfo, m
 		return err
 	}
 
-	cmd = rediscli.NewBoolCmd(ctx, "SENTINEL", "MONITOR", masterGroupName, master.IP, master.Port, quorum)
+	cmd = rediscli.NewBoolCmd(ctx, "SENTINEL", "MONITOR", masterGroupName, master.Host, master.Port, quorum)
 	err = client.Process(ctx, cmd)
 	if err != nil {
 		return err

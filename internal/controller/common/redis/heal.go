@@ -2,6 +2,8 @@ package redis
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"strings"
 
@@ -9,6 +11,7 @@ import (
 	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/service/redis"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util/cryptutil"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -22,7 +25,7 @@ type Healer interface {
 	SentinelReset(ctx context.Context, rs *rsvb2.RedisSentinel) error
 
 	// UpdatePodRoleLabel connect to all redis pods and update pod role label `redis-role` to `master` or `slave` according to their role.
-	UpdateRedisRoleLabel(ctx context.Context, ns string, labels map[string]string, secret *commonapi.ExistingPasswordSecret) error
+	UpdateRedisRoleLabel(ctx context.Context, ns string, labels map[string]string, secret *commonapi.ExistingPasswordSecret, tlsConfig *commonapi.TLSConfig) error
 }
 
 type healer struct {
@@ -37,7 +40,7 @@ func NewHealer(clientset kubernetes.Interface) Healer {
 	}
 }
 
-func (h *healer) UpdateRedisRoleLabel(ctx context.Context, ns string, labels map[string]string, secret *commonapi.ExistingPasswordSecret) error {
+func (h *healer) UpdateRedisRoleLabel(ctx context.Context, ns string, labels map[string]string, secret *commonapi.ExistingPasswordSecret, tlsConfig *commonapi.TLSConfig) error {
 	selector := make([]string, 0, len(labels))
 	for key, value := range labels {
 		selector = append(selector, fmt.Sprintf("%s=%s", key, value))
@@ -53,11 +56,7 @@ func (h *healer) UpdateRedisRoleLabel(ctx context.Context, ns string, labels map
 		return err
 	}
 	for _, pod := range pods.Items {
-		connInfo := &redis.ConnectionInfo{
-			IP:       pod.Status.PodIP,
-			Port:     "6379",
-			Password: password,
-		}
+		connInfo := createConnectionInfo(ctx, pod, password, tlsConfig, h.k8s, ns, "6379")
 		isMaster, err := h.redis.Connect(connInfo).IsMaster(ctx)
 		if err != nil {
 			return err
@@ -98,11 +97,8 @@ func (h *healer) SentinelReset(ctx context.Context, rs *rsvb2.RedisSentinel) err
 	}
 
 	for _, pod := range pods.Items {
-		connInfo := &redis.ConnectionInfo{
-			IP:       pod.Status.PodIP,
-			Port:     "26379",
-			Password: sentinelPass,
-		}
+		connInfo := createConnectionInfo(ctx, pod, sentinelPass, rs.Spec.TLS, h.k8s, rs.Namespace, "26379")
+
 		err = h.redis.Connect(connInfo).SentinelReset(ctx, rs.Spec.RedisSentinelConfig.MasterGroupName)
 		if err != nil {
 			return err
@@ -135,13 +131,10 @@ func (h *healer) SentinelMonitor(ctx context.Context, rs *rsvb2.RedisSentinel, m
 	}
 
 	for _, pod := range pods.Items {
-		connInfo := &redis.ConnectionInfo{
-			IP:       pod.Status.PodIP,
-			Port:     "26379",
-			Password: sentinelPass,
-		}
+		connInfo := createConnectionInfo(ctx, pod, sentinelPass, rs.Spec.TLS, h.k8s, rs.Namespace, "26379")
+
 		masterConnInfo := &redis.ConnectionInfo{
-			IP:       master,
+			Host:     master,
 			Port:     "6379",
 			Password: masterPass,
 		}
@@ -176,4 +169,64 @@ func (h *healer) getSentinelPods(ctx context.Context, rs *rsvb2.RedisSentinel) (
 		return nil, err
 	}
 	return pods, nil
+}
+
+// getRedisTLSConfig creates a TLS configuration for Redis connections
+func getRedisTLSConfig(ctx context.Context, client kubernetes.Interface, namespace, tlsSecretName string) *tls.Config {
+	// This is a wrapper to access the k8sutils internal function
+	// We'll implement a simplified version here for now
+	secret, err := client.CoreV1().Secrets(namespace).Get(ctx, tlsSecretName, metav1.GetOptions{})
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Failed in getting TLS secret", "secretName", tlsSecretName, "namespace", namespace)
+		return nil
+	}
+
+	tlsClientCert, certExists := secret.Data["tls.crt"]
+	tlsClientKey, keyExists := secret.Data["tls.key"]
+	tlsCACert, caExists := secret.Data["ca.crt"]
+
+	if !certExists || !keyExists || !caExists {
+		log.FromContext(ctx).Error(fmt.Errorf("TLS secret missing required keys"), "TLS secret is missing required keys", "secretName", tlsSecretName)
+		return nil
+	}
+
+	cert, err := tls.X509KeyPair(tlsClientCert, tlsClientKey)
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Failed to load TLS key pair", "secretName", tlsSecretName)
+		return nil
+	}
+
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM(tlsCACert)
+
+	return &tls.Config{
+		Certificates:       []tls.Certificate{cert},
+		RootCAs:            caCertPool,
+		MinVersion:         tls.VersionTLS12,
+		InsecureSkipVerify: true,
+		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+			_, _, err := cryptutil.VerifyCertificateExceptServerName(rawCerts, &tls.Config{RootCAs: caCertPool})
+			return err
+		},
+	}
+}
+
+// createConnectionInfo creates a Redis connection info with TLS support
+func createConnectionInfo(ctx context.Context, pod v1.Pod, password string, tlsConfig *commonapi.TLSConfig, k8sClient kubernetes.Interface, namespace, port string) *redis.ConnectionInfo {
+	connInfo := &redis.ConnectionInfo{
+		Host:     pod.Status.PodIP,
+		Port:     port,
+		Password: password,
+	}
+
+	// Configure TLS if enabled
+	if tlsConfig != nil && tlsConfig.Secret.SecretName != "" {
+		serviceName := common.GetHeadlessServiceNameFromPodName(pod.Name)
+		connInfo.Host = fmt.Sprintf("%s.%s.%s.svc.cluster.local", pod.Name, serviceName, namespace)
+		// Get TLS configuration
+		tlsCfg := getRedisTLSConfig(ctx, k8sClient, namespace, tlsConfig.Secret.SecretName)
+		connInfo.TLSConfig = tlsCfg
+	}
+
+	return connInfo
 }

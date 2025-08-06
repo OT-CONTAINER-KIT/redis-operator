@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"os"
 	"strings"
@@ -24,9 +25,10 @@ const (
 )
 
 var (
-	host string
-	pass string
-	mode string
+	host    string
+	pass    string
+	mode    string
+	tlsFlag bool
 
 	sentinelPass string
 )
@@ -52,6 +54,7 @@ func main() {
 	rootCmd.PersistentFlags().StringVarP(&host, hostFlag, "H", "", "redis host")
 	rootCmd.PersistentFlags().StringVarP(&pass, passFlag, "P", "", "redis password")
 	rootCmd.PersistentFlags().StringVarP(&mode, modeFlag, "M", "", "redis mode")
+	rootCmd.PersistentFlags().BoolVarP(&tlsFlag, "tls", "T", false, "enable tls")
 	rootCmd.PersistentFlags().StringVarP(&sentinelPass, sentinelPassFlag, "S", "", "redis sentinel password")
 	rootCmd.Execute()
 }
@@ -74,7 +77,7 @@ func genRedisDataCmd(cmd *cobra.Command, args []string) {
 		hosts[i] = strings.TrimSpace(hosts[i])
 	}
 
-	rdb, err := createRedisClient(mode, hosts, pass, sentinelPass)
+	rdb, err := createRedisClient(mode, hosts, pass, sentinelPass, tlsFlag)
 	if err != nil {
 		fmt.Printf("failed to create redis client: %v\n", err)
 		return
@@ -125,7 +128,7 @@ func checkRedisData() error {
 		hosts[i] = strings.TrimSpace(hosts[i])
 	}
 
-	rdb, err := createRedisClient(mode, hosts, pass, sentinelPass)
+	rdb, err := createRedisClient(mode, hosts, pass, sentinelPass, tlsFlag)
 	if err != nil {
 		return fmt.Errorf("failed to create redis client: %w", err)
 	}
@@ -153,20 +156,28 @@ func checkRedisData() error {
 	return nil
 }
 
-func createRedisClient(mode string, hosts []string, pass string, sentinelPass string) (redis.UniversalClient, error) {
+func createRedisClient(mode string, hosts []string, pass string, sentinelPass string, tlsFlag bool) (redis.UniversalClient, error) {
 	switch mode {
 	case "cluster":
-		return redis.NewClusterClient(&redis.ClusterOptions{
+		opts := &redis.ClusterOptions{
 			Addrs:    hosts,
 			Password: pass,
-		}), nil
+		}
+		if tlsFlag {
+			opts.TLSConfig = &tls.Config{InsecureSkipVerify: true}
+		}
+		return redis.NewClusterClient(opts), nil
 	case "sentinel":
-		return redis.NewFailoverClient(&redis.FailoverOptions{
+		opts := &redis.FailoverOptions{
 			MasterName:       "myMaster",
 			SentinelAddrs:    hosts,
 			Password:         pass,
 			SentinelPassword: sentinelPass,
-		}), nil
+		}
+		if tlsFlag {
+			opts.TLSConfig = &tls.Config{InsecureSkipVerify: true}
+		}
+		return redis.NewFailoverClient(opts), nil
 	default:
 		return nil, fmt.Errorf("unsupported redis mode: %s", mode)
 	}

@@ -837,7 +837,10 @@ func Test_checkRedisServerRole(t *testing.T) {
 				mock.ExpectInfo("Replication").SetVal(tt.infoReturn)
 			}
 
-			role := checkRedisServerRole(ctx, client, tt.podName)
+			role, err := checkRedisServerRole(ctx, client, tt.podName)
+			if err != nil {
+				assert.Error(t, err)
+			}
 			if tt.shouldFail {
 				assert.Empty(t, role, "Test case: "+tt.name)
 			} else {

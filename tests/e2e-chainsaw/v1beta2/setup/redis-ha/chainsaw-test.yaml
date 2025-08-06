@@ -17,6 +17,35 @@ spec:
             file: ha.yaml
         - apply:
             file: ../../../../data-assert/resources.yaml
+        # create certificate secret use script, because the namespace name is unknown in the yaml file
+        - script:
+            timeout: 10s
+            content: |
+              cat <<EOF | kubectl apply -f -
+              ---
+              apiVersion: cert-manager.io/v1
+              kind: Issuer
+              metadata:
+                name: selfsigned-issuer
+                namespace: ${NAMESPACE}
+              spec:
+                selfSigned: {}
+              ---
+              apiVersion: cert-manager.io/v1
+              kind: Certificate
+              metadata:
+                name: redis-tls
+                namespace: ${NAMESPACE}
+              spec:
+                commonName: redis-replication
+                dnsNames:
+                  - "*.redis-replication-headless.${NAMESPACE}.svc.cluster.local"
+                  - "*.redis-sentinel-sentinel-headless.${NAMESPACE}.svc.cluster.local"
+                issuerRef:
+                  name: selfsigned-issuer
+                  kind: Issuer
+                secretName: redis-tls-cert
+              EOF
 
     - name: Test Master IP consistency
       try:
@@ -26,10 +55,9 @@ spec:
             timeout: 10s
             content: |
               export MASTER_POD_FROM_STATUS=$(kubectl -n ${NAMESPACE} get redisreplication redis-replication -o jsonpath='{.status.masterNode}');
-              export MASTER_IP_FROM_STATUS=$(kubectl -n ${NAMESPACE} get pod ${MASTER_POD_FROM_STATUS} -o jsonpath='{.status.podIP}');
-              export FROM_SENTINEL=$(kubectl -n ${NAMESPACE} exec redis-sentinel-sentinel-0 -- redis-cli -a Opstree@1234sentinel -p 26379 sentinel get-master-addr-by-name myMaster | head -n 1);
-              export MASTER_IP_FROM_LABEL=$(kubectl -n ${NAMESPACE} get pod -l app=redis-replication,redis-role=master,redis_setup_type=replication -o jsonpath='{.items[0].status.podIP}');
-              if [ "$FROM_SENTINEL" = "$MASTER_IP_FROM_LABEL" ] && [ "$FROM_SENTINEL" = "$MASTER_IP_FROM_STATUS" ]; then echo "OK"; else echo "FAIL"; fi
+              export FROM_SENTINEL=$(kubectl -n ${NAMESPACE} exec redis-sentinel-sentinel-0 -c redis-sentinel-sentinel -- redis-cli --no-auth-warning --tls --cacert /tls/ca.crt -a Opstree@1234sentinel -p 26379 sentinel get-master-addr-by-name myMaster | head -n 1 | cut -d'.' -f1);
+              export MASTER_POD_FROM_LABEL=$(kubectl -n ${NAMESPACE} get pod -l app=redis-replication,redis-role=master,redis_setup_type=replication -o jsonpath='{.items[0].metadata.name}');
+              if [ "$FROM_SENTINEL" = "$MASTER_POD_FROM_LABEL" ] && [ "$FROM_SENTINEL" = "$MASTER_POD_FROM_STATUS" ]; then echo "OK"; else echo "FAIL"; fi
             check:
               (contains($stdout, 'OK')): true
 
@@ -42,6 +70,7 @@ spec:
               bash -c  "cd /go/src/data-assert && go run main.go gen-redis-data \
                         --host redis-sentinel-sentinel.${NAMESPACE}.svc.cluster.local:26379 \
                         --mode sentinel \
+                        --tls \
                         --password-sentinel Opstree@1234sentinel \
                         --password Opstree@1234replication"
             check:
@@ -62,10 +91,9 @@ spec:
             timeout: 10s
             content: |
               export MASTER_POD_FROM_STATUS=$(kubectl -n ${NAMESPACE} get redisreplication redis-replication -o jsonpath='{.status.masterNode}');
-              export MASTER_IP_FROM_STATUS=$(kubectl -n ${NAMESPACE} get pod ${MASTER_POD_FROM_STATUS} -o jsonpath='{.status.podIP}');
-              export FROM_SENTINEL=$(kubectl -n ${NAMESPACE} exec redis-sentinel-sentinel-0 -- redis-cli -a Opstree@1234sentinel -p 26379 sentinel get-master-addr-by-name myMaster | head -n 1);
-              export MASTER_IP_FROM_LABEL=$(kubectl -n ${NAMESPACE} get pod -l app=redis-replication,redis-role=master,redis_setup_type=replication -o jsonpath='{.items[0].status.podIP}');
-              if [ "$FROM_SENTINEL" = "$MASTER_IP_FROM_LABEL" ] && [ "$FROM_SENTINEL" = "$MASTER_IP_FROM_STATUS" ]; then echo "OK"; else echo "FAIL"; fi
+              export FROM_SENTINEL=$(kubectl -n ${NAMESPACE} exec redis-sentinel-sentinel-0 -c redis-sentinel-sentinel -- redis-cli --no-auth-warning --tls --cacert /tls/ca.crt -a Opstree@1234sentinel -p 26379 sentinel get-master-addr-by-name myMaster | head -n 1 | cut -d'.' -f1);
+              export MASTER_POD_FROM_LABEL=$(kubectl -n ${NAMESPACE} get pod -l app=redis-replication,redis-role=master,redis_setup_type=replication -o jsonpath='{.items[0].metadata.name}');
+              if [ "$FROM_SENTINEL" = "$MASTER_POD_FROM_LABEL" ] && [ "$FROM_SENTINEL" = "$MASTER_POD_FROM_STATUS" ]; then echo "OK"; else echo "FAIL"; fi
             check:
               (contains($stdout, 'OK')): true
 
@@ -78,6 +106,7 @@ spec:
               bash -c "cd /go/src/data-assert && go run main.go chk-redis-data \
                        --host redis-sentinel-sentinel.${NAMESPACE}.svc.cluster.local:26379 \
                        --mode sentinel \
+                       --tls \
                        --password-sentinel Opstree@1234sentinel \
                        --password Opstree@1234replication"
             check:

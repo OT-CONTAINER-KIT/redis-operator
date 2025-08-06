@@ -108,6 +108,8 @@ func GenerateConfig() error {
 			cfg.Append("tls-key-file", redisTLSCertKey)
 			cfg.Append("tls-ca-cert-file", redisTLSCAKey)
 			cfg.Append("tls-auth-clients", "optional")
+			// Sentinel should use tls for replication connection.
+			cfg.Append("tls-replication", "yes")
 		} else {
 			fmt.Println("Running sentinel without TLS mode")
 		}
