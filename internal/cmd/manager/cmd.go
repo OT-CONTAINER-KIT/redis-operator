@@ -75,6 +75,10 @@ func CMD() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "manager",
 		Short: "Start the Redis operator manager",
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			// Bind all flags to viper
+			return viper.BindPFlags(cmd.Flags())
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runManager(opts)
 		},
