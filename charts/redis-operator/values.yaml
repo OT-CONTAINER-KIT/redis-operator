@@ -108,3 +108,10 @@ securityContext: {}
 featureGates:
   # Enable generating Redis configuration using an init container instead of a regular container
   GenerateConfigInInitContainer: false
+
+manager:
+  # config values for the operator manager
+  config:
+    kubeClientTimeout: 60s
+    # -- If value > 0, it will override the default value in the operator
+    kubeClientQPS: 0

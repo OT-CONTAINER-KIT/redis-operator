@@ -18,11 +18,13 @@ package manager
 
 import (
 	"flag"
+	"time"
 
 	rvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redis/v1beta2"
 	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/operator"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/redis"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/scheme"
 	rediscontroller "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/redis"
@@ -36,6 +38,7 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/monitoring"
 	coreWebhook "github.com/OT-CONTAINER-KIT/redis-operator/internal/webhook"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -72,6 +75,10 @@ func CMD() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "manager",
 		Short: "Start the Redis operator manager",
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			// Bind all flags to viper
+			return viper.BindPFlags(cmd.Flags())
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runManager(opts)
 		},
@@ -92,7 +99,16 @@ func addFlags(cmd *cobra.Command, opts *managerOptions) {
 	cmd.Flags().IntVar(&opts.maxConcurrentReconciles, "max-concurrent-reconciles", 1, "Max concurrent reconciles")
 	cmd.Flags().StringVar(&opts.featureGatesString, "feature-gates", internalenv.GetFeatureGates(), "A set of key=value pairs that describe feature gates for alpha/experimental features. "+
 		"Options are:\n  GenerateConfigInInitContainer=true|false: enables using init container for config generation")
-
+	cmd.Flags().Duration(
+		operator.KubeClientTimeoutMGRFlag,
+		60*time.Second,
+		"Timeout for requests made by the Kubernetes API client.",
+	)
+	cmd.Flags().Float32(
+		operator.KubeClientQPSMGRFlag,
+		0,
+		"Maximum number of queries per second to the Kubernetes API.",
+	)
 	zapFlagSet := flag.NewFlagSet("zap", flag.ExitOnError)
 	opts.zapOptions.BindFlags(zapFlagSet)
 	zapFlagSet.VisitAll(func(f *flag.Flag) {
@@ -114,8 +130,18 @@ func runManager(opts *managerOptions) error {
 	if err := setupFeatureGates(opts.featureGatesString); err != nil {
 		return err
 	}
+
+	// Config to talk to k8s api server
+	cfg := ctrl.GetConfigOrDie()
+
+	if qps := float32(viper.GetFloat64(operator.KubeClientQPSMGRFlag)); qps > 0 {
+		cfg.QPS = qps
+		cfg.Burst = int(qps * 2)
+	}
+	cfg.Timeout = viper.GetDuration(operator.KubeClientTimeoutMGRFlag)
+
 	ctrlOptions := createControllerOptions(opts)
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrlOptions)
+	mgr, err := ctrl.NewManager(cfg, ctrlOptions)
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		return err
