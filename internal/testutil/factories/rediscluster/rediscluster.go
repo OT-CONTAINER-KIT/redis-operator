@@ -37,8 +37,8 @@ func New(name string, options ...customFieldOption) *v1beta2.RedisCluster {
 			Namespace: "default",
 		},
 		Spec: v1beta2.RedisClusterSpec{
-			Size:    &size,
-			Storage: &v1beta2.ClusterStorage{},
+			ClusterSize: &size,
+			Storage:     &v1beta2.ClusterStorage{},
 		},
 	}
 	for _, option := range options {

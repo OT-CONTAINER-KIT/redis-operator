@@ -22,7 +22,7 @@ func TestRedisClusterWebhook(t *testing.T) {
 			Object: func(t *testing.T, uid string) []byte {
 				t.Helper()
 				cluster := mkRedisCluster(uid)
-				cluster.Spec.Size = ptr.To(int32(3))
+				cluster.Spec.ClusterSize = ptr.To(int32(3))
 				return marshal(t, cluster)
 			},
 			Check: webhook.ValidationWebhookSucceeded,
@@ -33,7 +33,7 @@ func TestRedisClusterWebhook(t *testing.T) {
 			Object: func(t *testing.T, uid string) []byte {
 				t.Helper()
 				cluster := mkRedisCluster(uid)
-				cluster.Spec.Size = ptr.To(int32(2))
+				cluster.Spec.ClusterSize = ptr.To(int32(2))
 				return marshal(t, cluster)
 			},
 			Check: webhook.ValidationWebhookFailed("Redis cluster must have at least 3 shards"),

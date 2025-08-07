@@ -68,7 +68,7 @@ helm delete <my-release> --namespace <namespace>
 | podSecurityContext.fsGroup | int | `1000` |  |
 | podSecurityContext.runAsUser | int | `1000` |  |
 | priorityClassName | string | `""` |  |
-| redisCluster.clusterSize | int | `3` |  |
+| redisCluster.clusterSize | int | `3` | Default number of replicas for both leader and follower when not explicitly set |
 | redisCluster.clusterVersion | string | `"v7"` |  |
 | redisCluster.enableMasterSlaveAntiAffinity | bool | `false` | Enable pod anti-affinity between leader and follower pods by adding the appropriate label. Notice that this requires the operator to have its mutating webhook enabled, otherwise it will only add an annotation to the RedisCluster CR. Default is false. |
 | redisCluster.follower.affinity | string | `nil` |  |
@@ -78,7 +78,7 @@ helm delete <my-release> --namespace <namespace>
 | redisCluster.follower.pdb.maxUnavailable | int | `1` |  |
 | redisCluster.follower.pdb.minAvailable | int | `1` |  |
 | redisCluster.follower.readinessProbe | object | `{}` |  |
-| redisCluster.follower.replicas | int | `3` |  |
+| redisCluster.follower.replicas | int | `3` | Number of Redis follower (slave) nodes. If not set, uses clusterSize value |
 | redisCluster.follower.securityContext | object | `{}` |  |
 | redisCluster.follower.serviceType | string | `"ClusterIP"` |  |
 | redisCluster.follower.tolerations | list | `[]` |  |
@@ -92,7 +92,7 @@ helm delete <my-release> --namespace <namespace>
 | redisCluster.leader.pdb.maxUnavailable | int | `1` |  |
 | redisCluster.leader.pdb.minAvailable | int | `1` |  |
 | redisCluster.leader.readinessProbe | object | `{}` |  |
-| redisCluster.leader.replicas | int | `3` |  |
+| redisCluster.leader.replicas | int | `3` | Number of Redis leader (master) nodes. If not set, uses clusterSize value |
 | redisCluster.leader.securityContext | object | `{}` |  |
 | redisCluster.leader.serviceType | string | `"ClusterIP"` |  |
 | redisCluster.leader.tolerations | list | `[]` |  |

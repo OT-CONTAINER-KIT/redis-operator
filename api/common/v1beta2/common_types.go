@@ -199,6 +199,7 @@ type Sidecar struct {
 // RedisLeader interface will have the redis leader configuration
 // +k8s:deepcopy-gen=true
 type RedisLeader struct {
+	// Replicas overrides clusterSize for leader nodes count. If not set, uses clusterSize value
 	Replicas                  *int32                            `json:"replicas,omitempty"`
 	RedisConfig               *RedisConfig                      `json:"redisConfig,omitempty"`
 	Affinity                  *corev1.Affinity                  `json:"affinity,omitempty"`
@@ -213,6 +214,7 @@ type RedisLeader struct {
 // RedisFollower interface will have the redis follower configuration
 // +k8s:deepcopy-gen=true
 type RedisFollower struct {
+	// Replicas overrides clusterSize for follower nodes count. If not set, uses clusterSize value
 	Replicas                  *int32                            `json:"replicas,omitempty"`
 	RedisConfig               *RedisConfig                      `json:"redisConfig,omitempty"`
 	Affinity                  *corev1.Affinity                  `json:"affinity,omitempty"`

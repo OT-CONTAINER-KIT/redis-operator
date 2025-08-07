@@ -1,6 +1,7 @@
 ---
 redisCluster:
   name: ""
+  # -- Default number of replicas for both leader and follower when not explicitly set
   clusterSize: 3
   clusterVersion: v7
   persistenceEnabled: true
@@ -28,6 +29,7 @@ redisCluster:
   # otherwise it will only add an annotation to the RedisCluster CR. Default is false.
   enableMasterSlaveAntiAffinity: false
   leader:
+    # -- Number of Redis leader (master) nodes. If not set, uses clusterSize value
     replicas: 3
     serviceType: ClusterIP
     affinity: {}
@@ -65,6 +67,7 @@ redisCluster:
       # initialDelaySeconds: 15
     
   follower:
+    # -- Number of Redis follower (slave) nodes. If not set, uses clusterSize value
     replicas: 3
     serviceType: ClusterIP
     affinity: null

@@ -135,7 +135,7 @@ var _ = Describe("Redis Cluster Controller", func() {
 				Object: &rcvb2.RedisCluster{
 					ObjectMeta: testutil.CreateTestObject("redis-cluster-skip-test", ns, nil),
 					Spec: rcvb2.RedisClusterSpec{
-						Size: ptr.To(int32(3)),
+						ClusterSize: ptr.To(int32(3)),
 						KubernetesConfig: common.KubernetesConfig{
 							Image: testutil.DefaultRedisImage,
 						},

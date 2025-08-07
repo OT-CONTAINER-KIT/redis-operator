@@ -210,6 +210,8 @@ spec:
                     type: object
                 type: object
               clusterSize:
+                description: ClusterSize defines the default number of replicas for
+                  both leader and follower when not explicitly set
                 format: int32
                 type: integer
               clusterVersion:
@@ -2693,6 +2695,8 @@ spec:
                         type: integer
                     type: object
                   replicas:
+                    description: Replicas overrides clusterSize for follower nodes
+                      count. If not set, uses clusterSize value
                     format: int32
                     type: integer
                   resources:
@@ -4370,6 +4374,8 @@ spec:
                         type: integer
                     type: object
                   replicas:
+                    description: Replicas overrides clusterSize for leader nodes count.
+                      If not set, uses clusterSize value
                     format: int32
                     type: integer
                   resources:

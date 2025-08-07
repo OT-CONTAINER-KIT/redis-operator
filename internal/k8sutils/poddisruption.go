@@ -105,7 +105,7 @@ func generatePodDisruptionBudgetDef(ctx context.Context, cr *rcvb2.RedisCluster,
 	}
 	// If we don't have a value for either, assume quorum: (N/2)+1
 	if pdbTemplate.Spec.MaxUnavailable == nil && pdbTemplate.Spec.MinAvailable == nil {
-		pdbTemplate.Spec.MinAvailable = &intstr.IntOrString{Type: intstr.Int, IntVal: (*cr.Spec.Size / 2) + 1}
+		pdbTemplate.Spec.MinAvailable = &intstr.IntOrString{Type: intstr.Int, IntVal: (*cr.Spec.ClusterSize / 2) + 1}
 	}
 	AddOwnerRefToObject(pdbTemplate, redisClusterAsOwner(cr))
 	return pdbTemplate

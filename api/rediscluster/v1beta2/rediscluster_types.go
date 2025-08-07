@@ -24,7 +24,8 @@ import (
 
 // RedisClusterSpec defines the desired state of RedisCluster
 type RedisClusterSpec struct {
-	Size             *int32                  `json:"clusterSize"`
+	// ClusterSize defines the default number of replicas for both leader and follower when not explicitly set
+	ClusterSize      *int32                  `json:"clusterSize"`
 	KubernetesConfig common.KubernetesConfig `json:"kubernetesConfig"`
 	HostNetwork      bool                    `json:"hostNetwork,omitempty"`
 	// +kubebuilder:default:=6379
@@ -58,7 +59,7 @@ type ClusterStorage struct {
 }
 
 func (cr *RedisClusterSpec) GetReplicaCounts(t string) int32 {
-	replica := cr.Size
+	replica := cr.ClusterSize
 	if t == "leader" && cr.RedisLeader.Replicas != nil {
 		replica = cr.RedisLeader.Replicas
 	} else if t == "follower" && cr.RedisFollower.Replicas != nil {
