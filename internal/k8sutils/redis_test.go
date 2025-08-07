@@ -365,7 +365,7 @@ func TestCreateMultipleLeaderRedisCommand(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: rcvb2.RedisClusterSpec{
-					Size:           ptr.To(int32(3)),
+					ClusterSize:    ptr.To(int32(3)),
 					ClusterVersion: ptr.To("v7"),
 					Port:           ptr.To(6379),
 				},
@@ -386,8 +386,8 @@ func TestCreateMultipleLeaderRedisCommand(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: rcvb2.RedisClusterSpec{
-					Size: ptr.To(int32(3)),
-					Port: ptr.To(6379),
+					ClusterSize: ptr.To(int32(3)),
+					Port:        ptr.To(6379),
 				},
 			},
 			expectedCommands: []string{
@@ -466,7 +466,7 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: rcvb2.RedisClusterSpec{
-					Size: ptr.To(int32(3)),
+					ClusterSize: ptr.To(int32(3)),
 					KubernetesConfig: common.KubernetesConfig{
 						ExistingPasswordSecret: &common.ExistingPasswordSecret{
 							Name: ptr.To("redis-password-secret"),
@@ -506,7 +506,7 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: rcvb2.RedisClusterSpec{
-					Size: ptr.To(int32(3)),
+					ClusterSize: ptr.To(int32(3)),
 					KubernetesConfig: common.KubernetesConfig{
 						ExistingPasswordSecret: &common.ExistingPasswordSecret{
 							Name: ptr.To("redis-password-secret"),
@@ -540,8 +540,8 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: rcvb2.RedisClusterSpec{
-					Size: ptr.To(int32(3)),
-					Port: ptr.To(6379),
+					ClusterSize: ptr.To(int32(3)),
+					Port:        ptr.To(6379),
 				},
 			},
 			leaderPod: RedisDetails{

@@ -204,7 +204,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `clusterSize` _integer_ |  |  |  |
+| `clusterSize` _integer_ | ClusterSize defines the default number of replicas for both leader and follower when not explicitly set |  |  |
 | `kubernetesConfig` _[KubernetesConfig](#kubernetesconfig)_ |  |  |  |
 | `hostNetwork` _boolean_ |  |  |  |
 | `port` _integer_ |  | 6379 |  |
@@ -291,7 +291,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `replicas` _integer_ |  |  |  |
+| `replicas` _integer_ | Replicas overrides clusterSize for follower nodes count. If not set, uses clusterSize value |  |  |
 | `redisConfig` _[RedisConfig](#redisconfig)_ |  |  |  |
 | `affinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core)_ |  |  |  |
 | `pdb` _[RedisPodDisruptionBudget](#redispoddisruptionbudget)_ |  |  |  |
@@ -318,7 +318,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `replicas` _integer_ |  |  |  |
+| `replicas` _integer_ | Replicas overrides clusterSize for leader nodes count. If not set, uses clusterSize value |  |  |
 | `redisConfig` _[RedisConfig](#redisconfig)_ |  |  |  |
 | `affinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core)_ |  |  |  |
 | `pdb` _[RedisPodDisruptionBudget](#redispoddisruptionbudget)_ |  |  |  |

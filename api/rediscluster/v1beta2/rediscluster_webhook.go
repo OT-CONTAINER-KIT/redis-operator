@@ -71,15 +71,15 @@ func (r *RedisCluster) validate(_ *RedisCluster) (admission.Warnings, error) {
 	var errors field.ErrorList
 	var warnings admission.Warnings
 
-	if r.Spec.Size == nil {
+	if r.Spec.ClusterSize == nil {
 		return warnings, nil
 	}
 
 	// Check if the Size is at least 3 for proper cluster operation
-	if *r.Spec.Size < 3 {
+	if *r.Spec.ClusterSize < 3 {
 		errors = append(errors, field.Invalid(
 			field.NewPath("spec").Child("clusterSize"),
-			*r.Spec.Size,
+			*r.Spec.ClusterSize,
 			"Redis cluster must have at least 3 shards",
 		))
 	}

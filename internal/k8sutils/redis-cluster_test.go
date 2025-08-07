@@ -165,7 +165,7 @@ func Test_generateRedisClusterParams(t *testing.T) {
 		t.Fatalf("Failed to unmarshal file %s: %v", path, err)
 	}
 
-	actualLeaderSTS := generateRedisClusterParams(context.TODO(), input, *input.Spec.Size, input.Spec.RedisLeader.RedisConfig.AdditionalRedisConfig, RedisClusterSTS{
+	actualLeaderSTS := generateRedisClusterParams(context.TODO(), input, *input.Spec.ClusterSize, input.Spec.RedisLeader.RedisConfig.AdditionalRedisConfig, RedisClusterSTS{
 		RedisStateFulType:             "leader",
 		ExternalConfig:                input.Spec.RedisLeader.RedisConfig.AdditionalRedisConfig,
 		SecurityContext:               input.Spec.RedisLeader.SecurityContext,
@@ -179,7 +179,7 @@ func Test_generateRedisClusterParams(t *testing.T) {
 	})
 	assert.EqualValues(t, expectedLeaderSTS, actualLeaderSTS, "Expected %+v, got %+v", expectedLeaderSTS, actualLeaderSTS)
 
-	actualFollowerSTS := generateRedisClusterParams(context.TODO(), input, *input.Spec.Size, input.Spec.RedisFollower.RedisConfig.AdditionalRedisConfig, RedisClusterSTS{
+	actualFollowerSTS := generateRedisClusterParams(context.TODO(), input, *input.Spec.ClusterSize, input.Spec.RedisFollower.RedisConfig.AdditionalRedisConfig, RedisClusterSTS{
 		RedisStateFulType:             "follower",
 		ExternalConfig:                input.Spec.RedisFollower.RedisConfig.AdditionalRedisConfig,
 		SecurityContext:               input.Spec.RedisFollower.SecurityContext,
