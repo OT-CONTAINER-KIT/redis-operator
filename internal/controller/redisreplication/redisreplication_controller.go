@@ -156,6 +156,22 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 		if err := k8sutils.CreateMasterSlaveReplication(ctx, r.K8sClient, instance, masterNodes, realMaster); err != nil {
 			return intctrlutil.RequeueAfter(ctx, time.Second*60, "")
 		}
+	} else if len(masterNodes) == 1 && len(slaveNodes) > 0 {
+		realMaster = masterNodes[0]
+		currentRealMaster := k8sutils.GetRedisReplicationRealMaster(ctx, r.K8sClient, instance, masterNodes)
+
+		if currentRealMaster == "" {
+			log.FromContext(ctx).Info("Detected disconnected slaves, reconfiguring replication",
+				"master", realMaster, "slaves", slaveNodes)
+
+			allPods := append(masterNodes, slaveNodes...)
+			if err := k8sutils.CreateMasterSlaveReplication(ctx, r.K8sClient, instance, allPods, realMaster); err != nil {
+				log.FromContext(ctx).Error(err, "Failed to reconfigure master-slave replication",
+					"master", realMaster, "slaves", slaveNodes)
+				return intctrlutil.RequeueAfter(ctx, time.Second*60, "")
+			}
+			log.FromContext(ctx).Info("Successfully reconfigured slave replication")
+		}
 	}
 
 	monitoring.RedisReplicationReplicasSizeMismatch.WithLabelValues(instance.Namespace, instance.Name).Set(0)
