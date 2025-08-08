@@ -596,6 +596,7 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 			Image:           image,
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         []string{"/operator", "agent"},
+			SecurityContext: initcontainerParams.SecurityContext,
 			Env: getEnvironmentVariables(
 				containerParams.Role,
 				containerParams.EnabledPassword,

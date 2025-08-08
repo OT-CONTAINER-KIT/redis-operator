@@ -498,6 +498,16 @@ func Test_generateRedisClusterInitContainerParams(t *testing.T) {
 				Name:      "example-config",
 			},
 		},
+		SecurityContext: &corev1.SecurityContext{
+			RunAsUser:                ptr.To(int64(1000)),
+			RunAsGroup:               ptr.To(int64(1000)),
+			AllowPrivilegeEscalation: ptr.To(false),
+			ReadOnlyRootFilesystem:   ptr.To(true),
+			Capabilities: &corev1.Capabilities{
+				Drop: []corev1.Capability{"ALL"},
+				Add:  []corev1.Capability{"NET_BIND_SERVICE"},
+			},
+		},
 	}
 
 	data, err := os.ReadFile(path)
