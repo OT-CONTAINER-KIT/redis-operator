@@ -37,6 +37,7 @@ const (
 // Reconciler reconciles a Redis object
 type Reconciler struct {
 	client.Client
+	k8sutils.StatefulSet
 	K8sClient kubernetes.Interface
 }
 
@@ -59,15 +60,39 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if err = k8sutils.AddFinalizer(ctx, instance, RedisFinalizer, r.Client); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "failed to add finalizer")
 	}
+
+	if instance.Status.State == "" || instance.Status.State == rvb2.RedisFailed {
+		if err = k8sutils.UpdateRedisStatus(ctx, instance, rvb2.RedisInitializing, rvb2.InitializingReason, r.Client); err != nil {
+			return intctrlutil.RequeueE(ctx, err, "failed to update status to initializing")
+		}
+	}
+
 	err = k8sutils.CreateStandaloneRedis(ctx, instance, r.K8sClient)
 	if err != nil {
+		if statusErr := k8sutils.UpdateRedisStatus(ctx, instance, rvb2.RedisFailed, rvb2.FailedReason, r.Client); statusErr != nil {
+			return intctrlutil.RequeueE(ctx, statusErr, "failed to update status to failed")
+		}
 		return intctrlutil.RequeueE(ctx, err, "failed to create redis")
 	}
+
 	err = k8sutils.CreateStandaloneService(ctx, instance, r.K8sClient)
 	if err != nil {
+		if statusErr := k8sutils.UpdateRedisStatus(ctx, instance, rvb2.RedisFailed, rvb2.FailedReason, r.Client); statusErr != nil {
+			return intctrlutil.RequeueE(ctx, statusErr, "failed to update status to failed")
+		}
 		return intctrlutil.RequeueE(ctx, err, "failed to create service")
 	}
-	return intctrlutil.RequeueAfter(ctx, time.Second*10, "requeue after 10 seconds")
+
+	if r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name) {
+		if instance.Status.State != rvb2.RedisReady {
+			if err = k8sutils.UpdateRedisStatus(ctx, instance, rvb2.RedisReady, rvb2.ReadyReason, r.Client); err != nil {
+				return intctrlutil.RequeueE(ctx, err, "failed to update status to ready")
+			}
+		}
+		return intctrlutil.RequeueAfter(ctx, time.Second*30, "requeue after 30 seconds")
+	}
+
+	return intctrlutil.RequeueAfter(ctx, time.Second*10, "StatefulSet not ready, requeue after 10 seconds")
 }
 
 // SetupWithManager sets up the controller with the Manager.
