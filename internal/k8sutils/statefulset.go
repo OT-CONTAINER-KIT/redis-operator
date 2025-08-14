@@ -59,7 +59,7 @@ func (s *StatefulSetService) IsStatefulSetReady(ctx context.Context, namespace, 
 		replicas = int(*sts.Spec.Replicas)
 	}
 	if expectedUpdateReplicas := replicas - partition; sts.Status.UpdatedReplicas < int32(expectedUpdateReplicas) {
-		if sts.GetGeneration() == 1 && int(sts.Status.ReadyReplicas) == replicas {
+		if int(sts.Status.ReadyReplicas) == replicas {
 			// When we cannot update statefulset due to immutability, we delete it with cascade=false and recreate it
 			// This causes UpdatedReplicas to be 0, despite pod being ready
 			log.FromContext(ctx).V(1).Info("StatefulSet has been recreated", "ObservedGeneration", sts.Status.ObservedGeneration, "Generation", sts.Generation)
