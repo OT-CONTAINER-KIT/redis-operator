@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/features"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -1141,6 +1142,277 @@ func TestGenerateInitContainerDef(t *testing.T) {
 			initContainer := generateInitContainerDef("", test.initContainerName, test.initContainerDef, test.mountPaths, containerParameters{}, ptr.To("v6"))
 			assert.Equal(t, initContainer, test.expectedInitContainerDef, "Init Container Configuration")
 		})
+	}
+}
+
+func TestGenerateInitContainerDefWithSecurityContext(t *testing.T) {
+	// Save original feature gate state
+	originalEnabled := features.Enabled(features.GenerateConfigInInitContainer)
+
+	// Test cases for SecurityContext functionality
+	tests := []struct {
+		name                     string
+		initContainerName        string
+		initContainerDef         initContainerParameters
+		featureEnabled           bool
+		expectedInitContainerDef []corev1.Container
+		mountPaths               []corev1.VolumeMount
+	}{
+		{
+			name:              "Test with SecurityContext when feature is enabled",
+			initContainerName: "redis",
+			initContainerDef: initContainerParameters{
+				Enabled:            ptr.To(true),
+				Image:              "redis-init-container:latest",
+				ImagePullPolicy:    corev1.PullAlways,
+				Command:            []string{"/bin/bash", "-c", "/app/restore.bash"},
+				PersistenceEnabled: ptr.To(false),
+				SecurityContext: &corev1.SecurityContext{
+					RunAsUser:  ptr.To(int64(1000)),
+					RunAsGroup: ptr.To(int64(1000)),
+				},
+				Resources: &corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("100m"),
+						corev1.ResourceMemory: resource.MustParse("128Mi"),
+					},
+				},
+			},
+			featureEnabled: true,
+			expectedInitContainerDef: []corev1.Container{
+				{
+					Name:            "init-config",
+					Image:           "redis-operator:latest", // This will be the operator image
+					ImagePullPolicy: corev1.PullIfNotPresent,
+					Command:         []string{"/operator", "agent"},
+					Args:            []string{"bootstrap"},
+					SecurityContext: &corev1.SecurityContext{
+						RunAsUser:  ptr.To(int64(1000)),
+						RunAsGroup: ptr.To(int64(1000)),
+					},
+					VolumeMounts: []corev1.VolumeMount{
+						{
+							Name:      "config",
+							MountPath: "/etc/redis",
+						},
+					},
+				},
+				{
+					Name:            "initredis",
+					Image:           "redis-init-container:latest",
+					Command:         []string{"/bin/bash", "-c", "/app/restore.bash"},
+					ImagePullPolicy: corev1.PullAlways,
+					VolumeMounts:    getVolumeMount("redis", ptr.To(false), false, false, nil, []corev1.VolumeMount{}, nil, nil),
+					SecurityContext: &corev1.SecurityContext{
+						RunAsUser:  ptr.To(int64(1000)),
+						RunAsGroup: ptr.To(int64(1000)),
+					},
+					Resources: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("100m"),
+							corev1.ResourceMemory: resource.MustParse("128Mi"),
+						},
+					},
+					Env: []corev1.EnvVar{},
+				},
+			},
+			mountPaths: []corev1.VolumeMount{},
+		},
+		{
+			name:              "Test with SecurityContext when feature is disabled",
+			initContainerName: "redis",
+			initContainerDef: initContainerParameters{
+				Enabled:            ptr.To(true),
+				Image:              "redis-init-container:latest",
+				ImagePullPolicy:    corev1.PullAlways,
+				Command:            []string{"/bin/bash", "-c", "/app/restore.bash"},
+				PersistenceEnabled: ptr.To(false),
+				SecurityContext: &corev1.SecurityContext{
+					RunAsUser:  ptr.To(int64(1000)),
+					RunAsGroup: ptr.To(int64(1000)),
+				},
+				Resources: &corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("100m"),
+						corev1.ResourceMemory: resource.MustParse("128Mi"),
+					},
+				},
+			},
+			featureEnabled: false,
+			expectedInitContainerDef: []corev1.Container{
+				{
+					Name:            "initredis",
+					Image:           "redis-init-container:latest",
+					Command:         []string{"/bin/bash", "-c", "/app/restore.bash"},
+					ImagePullPolicy: corev1.PullAlways,
+					VolumeMounts:    getVolumeMount("redis", ptr.To(false), false, false, nil, []corev1.VolumeMount{}, nil, nil),
+					SecurityContext: &corev1.SecurityContext{
+						RunAsUser:  ptr.To(int64(1000)),
+						RunAsGroup: ptr.To(int64(1000)),
+					},
+					Resources: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("100m"),
+							corev1.ResourceMemory: resource.MustParse("128Mi"),
+						},
+					},
+					Env: []corev1.EnvVar{},
+				},
+			},
+			mountPaths: []corev1.VolumeMount{},
+		},
+		{
+			name:              "Test without SecurityContext when feature is enabled",
+			initContainerName: "redis",
+			initContainerDef: initContainerParameters{
+				Enabled:            ptr.To(true),
+				Image:              "redis-init-container:latest",
+				ImagePullPolicy:    corev1.PullAlways,
+				Command:            []string{"/bin/bash", "-c", "/app/restore.bash"},
+				PersistenceEnabled: ptr.To(false),
+				Resources: &corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("100m"),
+						corev1.ResourceMemory: resource.MustParse("128Mi"),
+					},
+				},
+			},
+			featureEnabled: true,
+			expectedInitContainerDef: []corev1.Container{
+				{
+					Name:            "init-config",
+					Image:           "redis-operator:latest", // This will be the operator image
+					ImagePullPolicy: corev1.PullIfNotPresent,
+					Command:         []string{"/operator", "agent"},
+					Args:            []string{"bootstrap"},
+					VolumeMounts: []corev1.VolumeMount{
+						{
+							Name:      "config",
+							MountPath: "/etc/redis",
+						},
+					},
+				},
+				{
+					Name:            "initredis",
+					Image:           "redis-init-container:latest",
+					Command:         []string{"/bin/bash", "-c", "/app/restore.bash"},
+					ImagePullPolicy: corev1.PullAlways,
+					VolumeMounts:    getVolumeMount("redis", ptr.To(false), false, false, nil, []corev1.VolumeMount{}, nil, nil),
+					Resources: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("100m"),
+							corev1.ResourceMemory: resource.MustParse("128Mi"),
+						},
+					},
+					Env: []corev1.EnvVar{},
+				},
+			},
+			mountPaths: []corev1.VolumeMount{},
+		},
+		{
+			name:              "Test sentinel role with SecurityContext when feature is enabled",
+			initContainerName: "sentinel",
+			initContainerDef: initContainerParameters{
+				Enabled:            ptr.To(true),
+				Image:              "redis-sentinel-init:latest",
+				ImagePullPolicy:    corev1.PullAlways,
+				Command:            []string{"/bin/bash", "-c", "/app/sentinel-init.bash"},
+				PersistenceEnabled: ptr.To(false),
+				SecurityContext: &corev1.SecurityContext{
+					RunAsUser:  ptr.To(int64(999)),
+					RunAsGroup: ptr.To(int64(999)),
+				},
+			},
+			featureEnabled: true,
+			expectedInitContainerDef: []corev1.Container{
+				{
+					Name:            "init-config",
+					Image:           "redis-operator:latest", // This will be the operator image
+					ImagePullPolicy: corev1.PullIfNotPresent,
+					Command:         []string{"/operator", "agent"},
+					Args:            []string{"bootstrap", "--sentinel"},
+					SecurityContext: &corev1.SecurityContext{
+						RunAsUser:  ptr.To(int64(999)),
+						RunAsGroup: ptr.To(int64(999)),
+					},
+					VolumeMounts: []corev1.VolumeMount{
+						{
+							Name:      "config",
+							MountPath: "/etc/redis",
+						},
+					},
+				},
+				{
+					Name:            "initsentinel",
+					Image:           "redis-sentinel-init:latest",
+					Command:         []string{"/bin/bash", "-c", "/app/sentinel-init.bash"},
+					ImagePullPolicy: corev1.PullAlways,
+					VolumeMounts:    getVolumeMount("sentinel", ptr.To(false), false, false, nil, []corev1.VolumeMount{}, nil, nil),
+					SecurityContext: &corev1.SecurityContext{
+						RunAsUser:  ptr.To(int64(999)),
+						RunAsGroup: ptr.To(int64(999)),
+					},
+					Resources: corev1.ResourceRequirements{},
+					Env:       []corev1.EnvVar{},
+				},
+			},
+			mountPaths: []corev1.VolumeMount{},
+		},
+	}
+
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			// Set feature gate state for this test
+			if test.featureEnabled {
+				if err := features.MutableFeatureGate.Set("GenerateConfigInInitContainer=true"); err != nil {
+					t.Fatalf("failed to set feature gate: %v", err)
+				}
+			} else {
+				if err := features.MutableFeatureGate.Set("GenerateConfigInInitContainer=false"); err != nil {
+					t.Fatalf("failed to set feature gate: %v", err)
+				}
+			}
+
+			// Note: The operator image will be determined by the actual implementation
+			// We'll test the SecurityContext functionality without mocking the image
+
+			initContainer := generateInitContainerDef("", test.initContainerName, test.initContainerDef, test.mountPaths, containerParameters{}, ptr.To("v6"))
+
+			// Verify the SecurityContext is correctly applied
+			if test.featureEnabled {
+				// When feature is enabled, we should have both init-config and user init container
+				assert.Len(t, initContainer, 2, "Should have 2 init containers when feature is enabled")
+
+				// Check init-config container
+				initConfigContainer := initContainer[0]
+				assert.Equal(t, "init-config", initConfigContainer.Name)
+				assert.Equal(t, test.initContainerDef.SecurityContext, initConfigContainer.SecurityContext, "init-config container should have SecurityContext")
+
+				// Check user init container
+				userInitContainer := initContainer[1]
+				assert.Equal(t, "init"+test.initContainerName, userInitContainer.Name)
+				assert.Equal(t, test.initContainerDef.SecurityContext, userInitContainer.SecurityContext, "user init container should have SecurityContext")
+			} else {
+				// When feature is disabled, we should only have user init container
+				assert.Len(t, initContainer, 1, "Should have 1 init container when feature is disabled")
+
+				userInitContainer := initContainer[0]
+				assert.Equal(t, "init"+test.initContainerName, userInitContainer.Name)
+				assert.Equal(t, test.initContainerDef.SecurityContext, userInitContainer.SecurityContext, "user init container should have SecurityContext")
+			}
+		})
+	}
+
+	// Restore original feature gate state
+	if originalEnabled {
+		if err := features.MutableFeatureGate.Set("GenerateConfigInInitContainer=true"); err != nil {
+			t.Fatalf("failed to restore feature gate: %v", err)
+		}
+	} else {
+		if err := features.MutableFeatureGate.Set("GenerateConfigInInitContainer=false"); err != nil {
+			t.Fatalf("failed to restore feature gate: %v", err)
+		}
 	}
 }
 

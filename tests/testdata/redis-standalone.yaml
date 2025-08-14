@@ -119,6 +119,16 @@ spec:
     imagePullPolicy: Always
     command: [/bin/bash, -c, /app/restore.bash]
     args: [--restore-from, redis-standalone-restore]
+    securityContext:
+      runAsUser: 1000
+      runAsGroup: 1000
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop:
+          - ALL
+        add:
+          - NET_BIND_SERVICE
     resources:
       requests:
         cpu: 100m
