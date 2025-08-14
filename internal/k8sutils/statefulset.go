@@ -58,6 +58,14 @@ func (s *StatefulSetService) IsStatefulSetReady(ctx context.Context, namespace, 
 	if sts.Spec.Replicas != nil {
 		replicas = int(*sts.Spec.Replicas)
 	}
+	if sts.Spec.UpdateStrategy.Type == appsv1.OnDeleteStatefulSetStrategyType {
+		// For OnDelete, we just check if the pods are ready
+		if int(sts.Status.ReadyReplicas) != replicas {
+			log.FromContext(ctx).V(1).Info("StatefulSet is not ready", "Status.ReadyReplicas", sts.Status.ReadyReplicas, "Replicas", replicas)
+			return false
+		}
+		return true
+	}
 	if expectedUpdateReplicas := replicas - partition; sts.Status.UpdatedReplicas < int32(expectedUpdateReplicas) {
 		if int(sts.Status.ReadyReplicas) == replicas {
 			// When we cannot update statefulset due to immutability, we delete it with cascade=false and recreate it
