@@ -89,7 +89,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				return intctrlutil.RequeueE(ctx, err, "failed to update status to ready")
 			}
 		}
-		return intctrlutil.RequeueAfter(ctx, time.Second*30, "requeue after 30 seconds")
+		return intctrlutil.Reconciled()
 	}
 
 	return intctrlutil.RequeueAfter(ctx, time.Second*10, "StatefulSet not ready, requeue after 10 seconds")
