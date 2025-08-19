@@ -1800,6 +1800,12 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 							},
 							Volumes: []corev1.Volume{
 								{
+									Name: "config",
+									VolumeSource: corev1.VolumeSource{
+										EmptyDir: &corev1.EmptyDirVolumeSource{},
+									},
+								},
+								{
 									Name: "external-config",
 									VolumeSource: corev1.VolumeSource{
 										ConfigMap: &corev1.ConfigMapVolumeSource{},
