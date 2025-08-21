@@ -388,6 +388,44 @@ func CheckRedisNodeCount(ctx context.Context, client kubernetes.Interface, cr *r
 	return int32(count)
 }
 
+// RedisClusterCheckSlotsAllAssigned Checks if slots in the Redis cluster all assigned
+func RedisClusterCheckSlotsAllAssigned(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) bool {
+	redisClient := configureRedisClient(ctx, client, cr, cr.Name+"-leader-0")
+	defer redisClient.Close()
+
+	cmd := []string{"redis-cli", "--cluster", "check", fmt.Sprintf("127.0.0.1:%d", *cr.Spec.Port)}
+	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
+		pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+		if err != nil {
+			log.FromContext(ctx).Error(err, "Error in getting redis password")
+		}
+		cmd = append(cmd, "-a")
+		cmd = append(cmd, pass)
+	}
+	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.Name+"-leader-0")...)
+	out, err := executeCommand1(ctx, client, cr, cmd, cr.Name+"-leader-0")
+
+	if err != nil {
+		log.FromContext(ctx).Info(out)
+	}
+
+	// Check if there are prompts about unallocated slots in the output
+	// Under normal circumstances, there will be "[OK] All 16384 slots covered."
+	// If there are unallocated slots, a message similar to "[ERR] Not all 16384 slots are covered by nodes." will appear
+	if strings.Contains(out, "[ERR] Not all 16384 slots are covered") {
+		return false
+	}
+
+	// Check if the OK message indicating all slots are covered is missing
+	// The original health check requires 3 OKs, and the last one is about slot coverage
+	if strings.Count(out, "[OK]") < 3 || !strings.Contains(out, "All 16384 slots covered") {
+		return false
+	}
+
+	// All slots have been allocated
+	return true
+}
+
 // RedisClusterStatusHealth use `redis-cli --cluster check 127.0.0.1:6379`
 func RedisClusterStatusHealth(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) bool {
 	redisClient := configureRedisClient(ctx, client, cr, cr.Name+"-leader-0")
