@@ -404,7 +404,6 @@ func RedisClusterCheckSlotsAllAssigned(ctx context.Context, client kubernetes.In
 	}
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.Name+"-leader-0")...)
 	out, err := executeCommand1(ctx, client, cr, cmd, cr.Name+"-leader-0")
-
 	if err != nil {
 		log.FromContext(ctx).Info(out)
 	}
