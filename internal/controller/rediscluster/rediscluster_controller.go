@@ -190,6 +190,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 
+	// When the number of leader replicas is 1 (single-node cluster)
+	if leaderReplicas == 1 {
+		// Check if the Redis cluster has no unassigned slots (i.e., all slots are properly allocated)
+		if !k8sutils.RedisClusterCheckSlotsAllAssigned(ctx, r.K8sClient, instance) {
+			logger.Info("Start creating a single-node redis cluster")
+			k8sutils.ExecuteRedisClusterCommand(ctx, r.K8sClient, instance)
+		}
+	}
+
 	if nc := k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, ""); nc != totalReplicas {
 		logger.Info("Creating redis cluster by executing cluster creation commands")
 		leaderCount := k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, "leader")
