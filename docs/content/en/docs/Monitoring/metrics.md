@@ -41,8 +41,20 @@ Total number of rediscluster rebalance operations. Type: Counter.
 ### rediscluster_remove_follower_attempt
 Number of times to remove follower attempts. Type: Counter.
 
+### rediscluster_repair_disconnected_attempt
+Number of times to repair a Redis cluster disconnected from the cluster. Type: Counter.
+
+### rediscluster_repair_failed
+Number of times to repair a Redis cluster failed. Type: Counter.
+
 ### rediscluster_replicas_size_desired
 Total desired number of rediscluster replicas. Type: Gauge.
+
+### rediscluster_reset_attempt
+Number of times to reset a Redis cluster. Type: Counter.
+
+### rediscluster_reset_failed
+Number of times to reset a Redis cluster failed. Type: Counter.
 
 ### rediscluster_reshard_total
 Total number of rediscluster reshard operations. Type: Counter.
