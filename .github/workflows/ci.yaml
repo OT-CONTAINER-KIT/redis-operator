@@ -209,7 +209,6 @@ jobs:
   helm_chart_test:
     needs: [gotest]
     name: Helm Chart Test
-    if: github.event_name == 'push' || contains(github.event.pull_request.changed_files, 'charts/')
     uses: ./.github/workflows/call-test-charts.yaml
 
   e2e_test:
