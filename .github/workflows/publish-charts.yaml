@@ -37,38 +37,7 @@ jobs:
   test-charts:
     needs:
       - lint-charts
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v4
-
-      - name: Create k8s Kind Cluster
-        uses: helm/kind-action@v1.12.0
-        with:
-          cluster_name: kind
-
-      - name: Install Helm
-        uses: azure/setup-helm@v4
-        with:
-          version: v3.5.4
-
-      - name: Install yq
-        run: |
-          sudo snap install yq
-
-      - name: Install and test Redis Related Helm charts
-        run: |
-          kubectl cluster-info --context kind-kind
-          chart_dirs=("redis-operator" "redis" "redis-cluster" "redis-replication" "redis-sentinel")
-          for dir in "${chart_dirs[@]}"
-          do
-            if [[ -f ./charts/$dir/Chart.yaml ]]; then
-              helm dependency update ./charts/$dir/
-            fi
-            helm install $dir ./charts/$dir/
-            helm test $dir
-          done
-          echo "Listing installed Helm charts..."
+    uses: ./.github/workflows/call-test-charts.yaml
 
   release-charts:
     runs-on: ubuntu-latest
