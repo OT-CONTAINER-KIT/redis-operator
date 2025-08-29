@@ -61,7 +61,7 @@ func GenerateConfig() error {
 		if ip, err := util.GetLocalIP(); err != nil {
 			log.Printf("Warning: Failed to get local IP: %v", err)
 		} else {
-			_, err = updateMyselfIP(nodeConfPath, strings.TrimSpace(string(ip)))
+			_, err = updateMyselfIP(nodeConfPath, strings.TrimSpace(ip))
 			if err != nil {
 				log.Printf("Warning: Failed to update nodes.conf: %v", err)
 			}
@@ -195,7 +195,7 @@ func updateMyselfIP(nodesConfPath, newIP string) (updated []byte, err error) {
 		return nil, err
 	}
 	if changed {
-		return out.Bytes(), os.WriteFile(nodesConfPath, out.Bytes(), 0644)
+		return out.Bytes(), os.WriteFile(nodesConfPath, out.Bytes(), 0o644)
 	}
 	return nil, nil
 }

@@ -17,7 +17,7 @@ vars currentEpoch 3 lastVoteEpoch 0
 `
 
 	tmpFile := "/tmp/test_nodes.conf"
-	err := os.WriteFile(tmpFile, []byte(testData), 0644)
+	err := os.WriteFile(tmpFile, []byte(testData), 0o644)
 	if err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
