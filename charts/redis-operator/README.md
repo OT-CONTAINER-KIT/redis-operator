@@ -102,7 +102,7 @@ kubectl create secret tls <webhook-server-cert> --key tls.key --cert tls.crt -n 
 | issuer.solver.enabled | bool | `true` |  |
 | issuer.solver.ingressClass | string | `"nginx"` |  |
 | issuer.type | string | `"selfSigned"` |  |
-| manager.config.kubeClientQPS | int | `0` | If value > 0, it will override the default value in the operator |
+| manager.config.kubeClientQPS | float | `0` | If value > 0, it will override the default value in the operator |
 | manager.config.kubeClientTimeout | string | `"60s"` |  |
 | nodeSelector | object | `{}` |  |
 | podSecurityContext | object | `{}` |  |

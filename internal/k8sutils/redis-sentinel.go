@@ -340,15 +340,23 @@ func getRedisReplicationMasterPod(ctx context.Context, client kubernetes.Interfa
 		log.FromContext(ctx).Error(errors.New("no master pods found"), "")
 		return emptyRedisInfo
 	}
-	for _, podName := range masterPods {
-		redisClient := configureRedisReplicationClient(ctx, client, &replicationInstance, podName)
-		defer redisClient.Close()
 
-		if checkAttachedSlave(ctx, redisClient, podName) > 0 {
-			realMasterPod = podName
-			break
+	replicasNum := *cr.Spec.Size
+
+	if replicasNum == 1 {
+		realMasterPod = masterPods[0]
+	} else {
+		for _, podName := range masterPods {
+			redisClient := configureRedisReplicationClient(ctx, client, &replicationInstance, podName)
+			defer redisClient.Close()
+
+			if checkAttachedSlave(ctx, redisClient, podName) > 0 {
+				realMasterPod = podName
+				break
+			}
 		}
 	}
+
 	if realMasterPod == "" {
 		log.FromContext(ctx).Error(errors.New("no real master pod found"), "")
 		return emptyRedisInfo

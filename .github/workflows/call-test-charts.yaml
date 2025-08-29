@@ -1,0 +1,46 @@
+name: Test Helm Charts
+
+on:
+  workflow_call:
+    inputs:
+      chart_dirs:
+        description: 'JSON array of chart directories to test'
+        required: false
+        type: string
+        default: '["redis-operator", "redis", "redis-cluster", "redis-replication", "redis-sentinel"]'
+
+jobs:
+  test-charts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Create k8s Kind Cluster
+        uses: helm/kind-action@v1.12.0
+        with:
+          cluster_name: kind
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.5.4
+
+      - name: Install yq
+        run: |
+          sudo snap install yq
+
+      - name: Install and test Redis Related Helm charts
+        run: |
+          kubectl cluster-info --context kind-kind
+          chart_dirs_json='${{ inputs.chart_dirs }}'
+          chart_dirs=($(echo $chart_dirs_json | jq -r '.[]'))
+          for dir in "${chart_dirs[@]}"
+          do
+            if [[ -f ./charts/$dir/Chart.yaml ]]; then
+              helm dependency update ./charts/$dir/
+            fi
+            helm install $dir ./charts/$dir/
+            helm test $dir
+          done
+          echo "Listing installed Helm charts..."

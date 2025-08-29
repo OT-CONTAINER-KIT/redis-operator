@@ -50,7 +50,7 @@ spec:
     - name: Test Master IP consistency
       try:
         - sleep:
-            duration: 180s
+            duration: 60s
         - script:
             timeout: 10s
             content: |
@@ -86,7 +86,7 @@ spec:
     - name: Test Master IP consistency
       try:
         - sleep:
-            duration: 180s
+            duration: 60s
         - script:
             timeout: 10s
             content: |

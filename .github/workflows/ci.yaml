@@ -206,11 +206,17 @@ jobs:
 
           GOSEC_OUTPUT: "junit-xml:/github/workspace/gosec-results.xml"
 
+  helm_chart_test:
+    needs: [gotest]
+    name: Helm Chart Test
+    uses: ./.github/workflows/call-test-charts.yaml
+
   e2e_test:
     # DEBUG
-    needs: [validate_yaml]
+    needs: [validate_yaml, helm_chart_test]
     name: E2E Test
     runs-on: ubuntu-latest
+    if: always() && (needs.validate_yaml.result == 'success') && (needs.helm_chart_test.result == 'success' || needs.helm_chart_test.result == 'skipped')
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

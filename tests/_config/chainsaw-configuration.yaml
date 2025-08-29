@@ -7,11 +7,11 @@ metadata:
 spec:
   execution:
     failFast: true
-    parallel: 10
+    parallel: 2
+    forceTerminationGracePeriod: 5s
   cleanup:
-    # DEBUG
     skipDelete: true
-    delayBeforeCleanup: 30m
+    delayBeforeCleanup: 10s
   timeouts:
     apply: 5m
     delete: 5m

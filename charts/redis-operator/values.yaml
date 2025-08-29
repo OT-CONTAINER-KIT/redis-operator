@@ -114,4 +114,4 @@ manager:
   config:
     kubeClientTimeout: 60s
     # -- If value > 0, it will override the default value in the operator
-    kubeClientQPS: 0
+    kubeClientQPS: 0.0

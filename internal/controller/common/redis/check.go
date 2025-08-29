@@ -91,6 +91,12 @@ func (c *checker) GetMasterFromReplication(ctx context.Context, rr *rr.RedisRepl
 		if count != 0 {
 			realMasterPod = pod
 			break
+		} else {
+			replicaNum := *sts.Spec.Replicas
+			if replicaNum == 1 {
+				realMasterPod = pod
+				break
+			}
 		}
 	}
 	return realMasterPod, nil
