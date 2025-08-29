@@ -26,6 +26,7 @@ require (
 
 require (
 	emperror.dev/errors v0.8.0 // indirect
+	github.com/Showmax/go-fqdn v1.0.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
