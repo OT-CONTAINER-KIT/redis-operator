@@ -26,4 +26,7 @@ spec:
       port: {{ .Values.externalService.port }}
       targetPort: 6379
       name: client
+      {{- if and (eq .Values.externalService.serviceType "NodePort") (hasKey .Values.externalService "nodePort") }}
+      nodePort: {{ .Values.externalService.nodePort }}
+      {{- end }}
 {{- end }}
