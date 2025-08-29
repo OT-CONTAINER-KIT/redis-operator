@@ -41,6 +41,7 @@ externalService:
   #   foo: bar
   serviceType: NodePort
   port: 6379
+  #nodePort: 31000
 
 serviceMonitor:
   enabled: false
