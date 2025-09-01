@@ -194,7 +194,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// When the number of leader replicas is 1 (single-node cluster)
 	if leaderReplicas == 1 {
 		// Check if the Redis cluster has no unassigned slots (i.e., all slots are properly allocated)
-		if slotsAssigned, err := r.Checker.CheckClusterSlotsAssigned(ctx, instance, instance.Spec.TLS); err != nil {
+		if slotsAssigned, err := r.Checker.CheckClusterSlotsAssigned(ctx, instance); err != nil {
 			return intctrlutil.RequeueE(ctx, err, "failed to get cluster slots")
 		} else {
 			if !slotsAssigned {

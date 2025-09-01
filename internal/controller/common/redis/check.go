@@ -18,7 +18,7 @@ import (
 type Checker interface {
 	GetMasterFromReplication(ctx context.Context, rr *rr.RedisReplication) (corev1.Pod, error)
 	GetPassword(ctx context.Context, ns string, secret *commonapi.ExistingPasswordSecret) (string, error)
-	CheckClusterSlotsAssigned(ctx context.Context, cr *rcvb2.RedisCluster, tlsConfig *commonapi.TLSConfig) (bool, error)
+	CheckClusterSlotsAssigned(ctx context.Context, cr *rcvb2.RedisCluster) (bool, error)
 }
 
 type checker struct {
@@ -105,7 +105,7 @@ func (c *checker) GetMasterFromReplication(ctx context.Context, rr *rr.RedisRepl
 }
 
 // CheckClusterSlotsAssigned verifies if all Redis cluster slots (16384 total) are properly assigned
-func (c *checker) CheckClusterSlotsAssigned(ctx context.Context, cr *rcvb2.RedisCluster, tlsConfig *commonapi.TLSConfig) (bool, error) {
+func (c *checker) CheckClusterSlotsAssigned(ctx context.Context, cr *rcvb2.RedisCluster) (bool, error) {
 	leaderPodName := cr.Name + "-leader-0"
 	pod, err := c.k8s.CoreV1().Pods(cr.Namespace).Get(ctx, leaderPodName, metav1.GetOptions{})
 	if err != nil {
@@ -117,7 +117,7 @@ func (c *checker) CheckClusterSlotsAssigned(ctx context.Context, cr *rcvb2.Redis
 		return false, err
 	}
 
-	connInfo := createConnectionInfo(ctx, *pod, password, tlsConfig, c.k8s, cr.Namespace, "6379")
+	connInfo := createConnectionInfo(ctx, *pod, password, cr.Spec.TLS, c.k8s, cr.Namespace, "6379")
 
 	clusterStatus, err := c.redis.Connect(connInfo).GetClusterInfo(ctx)
 	if err != nil {
