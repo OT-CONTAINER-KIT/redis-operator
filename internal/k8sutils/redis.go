@@ -110,14 +110,17 @@ func repairDisconnectedMasters(ctx context.Context, client kubernetes.Interface,
 		if !nodeFailedOrDisconnected(node) {
 			continue
 		}
-		podName, err := getMasterHostFromClusterNode(node)
+		host, err := getMasterHostFromClusterNode(node)
 		if err != nil {
 			lastError = err
 			log.FromContext(ctx).V(1).Error(err, "Failed to get pod name from cluster node. Continuing with other nodes.", "Node", node)
 			continue
 		}
 		ip := getRedisServerIP(ctx, client, RedisDetails{
-			PodName:   podName,
+			// host may be FQDN like redis-cluster-leader-0.redis-cluster-leader-headless.default.svc.cluster.local
+			// or it may be like redis-cluster-leader-0
+			// we need to adapt
+			PodName:   strings.Split(host, ".")[0],
 			Namespace: cr.Namespace,
 		})
 		err = redisClient.ClusterMeet(ctx, ip, strconv.Itoa(*cr.Spec.Port)).Err()
