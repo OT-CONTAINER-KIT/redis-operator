@@ -242,6 +242,7 @@ func setupControllers(mgr ctrl.Manager, k8sClient kubernetes.Interface, maxConcu
 		Client:      mgr.GetClient(),
 		K8sClient:   k8sClient,
 		Healer:      healer,
+		Checker:     redis.NewChecker(k8sClient),
 		Recorder:    mgr.GetEventRecorderFor("rediscluster-controller"),
 		StatefulSet: k8sutils.NewStatefulSetService(k8sClient),
 	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
