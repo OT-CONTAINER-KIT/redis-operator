@@ -4,6 +4,12 @@ kind: RedisCluster
 metadata:
   name: redis-cluster-v1beta2
 spec:
+  TLS:
+    ca: ca.crt
+    cert: tls.crt
+    key: tls.key
+    secret:
+      secretName: redis-tls-cert
   clusterSize: 3
   clusterVersion: v7
   persistenceEnabled: true
