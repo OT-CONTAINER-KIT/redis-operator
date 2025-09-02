@@ -48,6 +48,7 @@ type Reconciler struct {
 	client.Client
 	k8sutils.StatefulSet
 	Healer    redis.Healer
+	Checker   redis.Checker
 	K8sClient kubernetes.Interface
 	Recorder  record.EventRecorder
 }
@@ -187,6 +188,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		err = k8sutils.UpdateRedisClusterStatus(ctx, instance, rcvb2.RedisClusterBootstrap, rcvb2.BootstrapClusterReason, leaderReplicas, followerReplicas, r.Client)
 		if err != nil {
 			return intctrlutil.RequeueE(ctx, err, "")
+		}
+	}
+
+	// When the number of leader replicas is 1 (single-node cluster)
+	if leaderReplicas == 1 {
+		// Check if the Redis cluster has no unassigned slots (i.e., all slots are properly allocated)
+		if slotsAssigned, err := r.Checker.CheckClusterSlotsAssigned(ctx, instance); err != nil {
+			return intctrlutil.RequeueE(ctx, err, "failed to get cluster slots")
+		} else {
+			if !slotsAssigned {
+				logger.Info("Start creating a single-node redis cluster")
+				k8sutils.ExecuteRedisClusterCommand(ctx, r.K8sClient, instance)
+			}
 		}
 	}
 

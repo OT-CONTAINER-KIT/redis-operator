@@ -24,6 +24,11 @@ type ConnectionInfo struct {
 	TLSConfig *tls.Config
 }
 
+// ClusterStatus cluster status information, including the number of assigned slots
+type ClusterStatus struct {
+	SlotsAssigned int // Total number of assigned slots
+}
+
 // GetAddress returns the connection address
 func (c *ConnectionInfo) GetAddress() string {
 	return net.JoinHostPort(c.Host, c.Port)
@@ -50,6 +55,7 @@ type Service interface {
 	GetAttachedReplicaCount(ctx context.Context) (int, error)
 	SentinelMonitor(ctx context.Context, master *ConnectionInfo, masterGroupName, quorum string) error
 	SentinelReset(ctx context.Context, masterGroupName string) error
+	GetClusterInfo(ctx context.Context) (*ClusterStatus, error)
 }
 
 type service struct {
@@ -174,4 +180,30 @@ func (c *service) GetAttachedReplicaCount(ctx context.Context) (int, error) {
 		}
 	}
 	return count, nil
+}
+
+// GetClusterInfo get cluster information by checking slot allocation
+func (c *service) GetClusterInfo(ctx context.Context) (*ClusterStatus, error) {
+	client := c.createClient()
+	if client == nil {
+		return nil, nil
+	}
+	defer client.Close()
+
+	slots, err := client.ClusterSlots(ctx).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	status := &ClusterStatus{
+		SlotsAssigned: 0,
+	}
+
+	for _, slot := range slots {
+		if slot.Start <= slot.End && len(slot.Nodes) > 0 {
+			status.SlotsAssigned += slot.End - slot.Start + 1
+		}
+	}
+
+	return status, nil
 }

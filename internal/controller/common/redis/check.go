@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
+	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	rr "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/service/redis"
 	corev1 "k8s.io/api/core/v1"
@@ -17,6 +18,7 @@ import (
 type Checker interface {
 	GetMasterFromReplication(ctx context.Context, rr *rr.RedisReplication) (corev1.Pod, error)
 	GetPassword(ctx context.Context, ns string, secret *commonapi.ExistingPasswordSecret) (string, error)
+	CheckClusterSlotsAssigned(ctx context.Context, cr *rcvb2.RedisCluster) (bool, error)
 }
 
 type checker struct {
@@ -100,4 +102,29 @@ func (c *checker) GetMasterFromReplication(ctx context.Context, rr *rr.RedisRepl
 		}
 	}
 	return realMasterPod, nil
+}
+
+// CheckClusterSlotsAssigned verifies if all Redis cluster slots (16384 total) are properly assigned
+func (c *checker) CheckClusterSlotsAssigned(ctx context.Context, cr *rcvb2.RedisCluster) (bool, error) {
+	leaderPodName := cr.Name + "-leader-0"
+	pod, err := c.k8s.CoreV1().Pods(cr.Namespace).Get(ctx, leaderPodName, metav1.GetOptions{})
+	if err != nil {
+		return false, err
+	}
+
+	password, err := c.GetPassword(ctx, cr.Namespace, cr.Spec.KubernetesConfig.ExistingPasswordSecret)
+	if err != nil {
+		return false, err
+	}
+
+	connInfo := createConnectionInfo(ctx, *pod, password, cr.Spec.TLS, c.k8s, cr.Namespace, "6379")
+
+	clusterStatus, err := c.redis.Connect(connInfo).GetClusterInfo(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	allAssigned := clusterStatus.SlotsAssigned == 16384
+
+	return allAssigned, nil
 }
