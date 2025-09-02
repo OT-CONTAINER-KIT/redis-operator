@@ -67,7 +67,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		return intctrlutil.Reconciled()
 	}
-	monitoring.RedisReplicationSkipReconcile.WithLabelValues(instance.Namespace, instance.Name).Set(0)
+	monitoring.RedisClusterSkipReconcile.WithLabelValues(instance.Namespace, instance.Name).Set(0)
 	if common.IsSkipReconcile(ctx, instance) {
 		monitoring.RedisClusterSkipReconcile.WithLabelValues(instance.Namespace, instance.Name).Set(1)
 		return intctrlutil.Reconciled()
@@ -244,7 +244,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 
 		logger.Info("healthy leader count does not match desired; attempting to repair disconnected masters")
+		monitoring.RedisClusterRepairDisconnectedAttempt.WithLabelValues(instance.Namespace, instance.Name).Inc()
 		if err = k8sutils.RepairDisconnectedMasters(ctx, r.K8sClient, instance); err != nil {
+			monitoring.RedisClusterRepairDisconnectedFailed.WithLabelValues(instance.Namespace, instance.Name).Inc()
 			logger.Error(err, "failed to repair disconnected masters")
 		}
 
@@ -270,7 +272,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		if int(totalReplicas) > 1 && unhealthyNodeCount >= int(totalReplicas)-1 {
 			logger.Info("unhealthy nodes exist after attempting to repair disconnected masters; starting failover")
+			monitoring.RedisClusterResetAttempt.WithLabelValues(instance.Namespace, instance.Name).Inc()
 			if err = k8sutils.ExecuteFailoverOperation(ctx, r.K8sClient, instance); err != nil {
+				monitoring.RedisClusterResetFailed.WithLabelValues(instance.Namespace, instance.Name).Inc()
 				return intctrlutil.RequeueE(ctx, err, "")
 			}
 		}
