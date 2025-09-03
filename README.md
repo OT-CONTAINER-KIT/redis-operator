@@ -135,6 +135,8 @@ To monitor Redis performance we will be using Prometheus. In any case, extra Pro
     prometheus.io/port: "9121"
 ```
 
+In addition to the annotations you have the possibility to deploy a `ServiceMonitor` for each of the Redis installations (configurable via Helm values file).
+
 ## Contribution
 
 Please see our [CONTRIBUTING.md](./CONTRIBUTING.md) for details.
