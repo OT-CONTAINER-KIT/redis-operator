@@ -112,13 +112,13 @@ $ helm upgrade redis ot-helm/redis \
 
 ```shell
 # Create Redis replication setup
-$ helm upgrade redis-replication ot-helm/replication \
+$ helm upgrade redis-replication ot-helm/redis-replication \
   --install --namespace ot-operators
 ```
 
 ```shell
 # Create Redis sentinel setup
-$ helm upgrade redis-sentinel ot-helm/sentinel \
+$ helm upgrade redis-sentinel ot-helm/redis-sentinel \
   --install --namespace ot-operators
 ```
 
