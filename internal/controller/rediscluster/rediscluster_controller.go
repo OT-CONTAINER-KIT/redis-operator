@@ -266,13 +266,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// recheck if there's still a lot of unhealthy nodes after attempting to repair the masters
 		unhealthyNodeCount, err = k8sutils.UnhealthyNodesInCluster(ctx, r.K8sClient, instance)
 		if err != nil {
-			logger.Error(err, "failed to determine unhealthy node count in cluster")
+			return intctrlutil.RequeueE(ctx, err, "failed to determine unhealthy node count in cluster")
 		}
 		if int(totalReplicas) > 1 && unhealthyNodeCount >= int(totalReplicas)-1 {
-			logger.Info("unhealthy nodes exist after attempting to repair disconnected masters; starting failover")
-			if err = k8sutils.ExecuteFailoverOperation(ctx, r.K8sClient, instance); err != nil {
-				return intctrlutil.RequeueE(ctx, err, "")
-			}
+			return intctrlutil.RequeueE(ctx, fmt.Errorf("cluster broken: %d/%d nodes unhealthy, manual intervention required", unhealthyNodeCount, totalReplicas), "")
 		}
 	}
 
