@@ -76,9 +76,9 @@ func ReshardRedisCluster(ctx context.Context, client kubernetes.Interface, cr *r
 	cmd = append(cmd, "--cluster-yes")
 
 	log.FromContext(ctx).V(1).Info("redis cluster reshard command is", "Command", cmd)
-	log.FromContext(ctx).Info(fmt.Sprintf("transferring %s slots from shard %d to shard %d", slots, shardIdx, transferNodeIdx))
+	log.FromContext(ctx).Info(fmt.Sprintf("Transferring %s slots from shard %d to shard %d", slots, shardIdx, transferNodeIdx))
 	executeCommand(ctx, client, cr, cmd, transferNodeName)
-	log.FromContext(ctx).Info(fmt.Sprintf("transferring %s slots from shard %d to shard %d completed", slots, shardIdx, transferNodeIdx))
+	log.FromContext(ctx).Info(fmt.Sprintf("Transfer of %s slots from shard %d to shard %d complete", slots, shardIdx, transferNodeIdx))
 
 	if remove {
 		RemoveRedisNodeFromCluster(ctx, client, cr, removePOD)

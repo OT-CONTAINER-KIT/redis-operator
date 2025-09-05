@@ -323,36 +323,47 @@ func ExecuteFailoverOperation(ctx context.Context, client kubernetes.Interface, 
 
 // executeFailoverCommand will execute failover command
 func executeFailoverCommand(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, role string) error {
-	replicas := cr.Spec.GetReplicaCounts(role)
-	podName := fmt.Sprintf("%s-%s-", cr.Name, role)
-	for podCount := 0; podCount <= int(replicas)-1; podCount++ {
-		log.FromContext(ctx).V(1).Info("Executing redis failover operations", "Redis Node", podName+strconv.Itoa(podCount))
-		client := configureRedisClient(ctx, client, cr, podName+strconv.Itoa(podCount))
-		defer client.Close()
-		cmd := redis.NewStringCmd(ctx, "cluster", "reset")
-		err := client.Process(ctx, cmd)
-		if err != nil {
-			log.FromContext(ctx).Error(err, "Redis command failed with this error")
-			flushcommand := redis.NewStringCmd(ctx, "flushall")
-			err = client.Process(ctx, flushcommand)
-			if err != nil {
-				log.FromContext(ctx).Error(err, "Redis flush command failed with this error")
-				return err
-			}
-		}
-		err = client.Process(ctx, cmd)
-		if err != nil {
-			log.FromContext(ctx).Error(err, "Redis command failed with this error")
-			return err
-		}
-		output, err := cmd.Result()
-		if err != nil {
-			log.FromContext(ctx).Error(err, "Redis command failed with this error")
-			return err
-		}
-		log.FromContext(ctx).V(1).Info("Redis cluster failover executed", "Output", output)
-	}
-	return nil
+   replicas := cr.Spec.GetReplicaCounts(role)
+   podName := fmt.Sprintf("%s-%s-", cr.Name, role)
+
+   failover := func(pod string) error {
+	   log.FromContext(ctx).V(1).Info("Executing redis failover operations", "Redis Node", pod)
+	   client := configureRedisClient(ctx, client, cr, pod)
+	   defer client.Close()
+	   cmd := redis.NewStringCmd(ctx, "cluster", "reset")
+	   err := client.Process(ctx, cmd)
+	   if err != nil {
+		   log.FromContext(ctx).Error(err, "Redis command failed with this error")
+		   flushcommand := redis.NewStringCmd(ctx, "flushall")
+		   err = client.Process(ctx, flushcommand)
+		   if err != nil {
+			   log.FromContext(ctx).Error(err, "Redis flush command failed with this error")
+			   return err
+		   }
+	   }
+	   err = client.Process(ctx, cmd)
+	   if err != nil {
+		   log.FromContext(ctx).Error(err, "Redis command failed with this error")
+		   return err
+	   }
+	   output, err := cmd.Result()
+	   if err != nil {
+		   log.FromContext(ctx).Error(err, "Redis command failed with this error")
+		   return err
+	   }
+	   log.FromContext(ctx).V(1).Info("Redis cluster failover executed", "Output", output)
+	   return nil
+   }
+
+   if replicas == 1 {
+	   return failover(podName + "0")
+   }
+   for podCount := 0; podCount <= int(replicas)-1; podCount++ {
+	   if err := failover(podName + strconv.Itoa(podCount)); err != nil {
+		   return err
+	   }
+   }
+   return nil
 }
 
 // CheckRedisNodeCount will check the count of redis nodes
