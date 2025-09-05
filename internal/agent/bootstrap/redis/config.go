@@ -35,7 +35,6 @@ func GenerateConfig() error {
 		persistenceEnabled, _ = util.CoalesceEnv("PERSISTENCE_ENABLED", "false")
 		dataDir, _            = util.CoalesceEnv("DATA_DIR", "/data")
 		nodeConfDir, _        = util.CoalesceEnv("NODE_CONF_DIR", "/node-conf")
-		externalConfigFile, _ = util.CoalesceEnv("EXTERNAL_CONFIG_FILE", "/etc/redis/external.conf.d/redis-additional.conf")
 		redisMajorVersion, _  = util.CoalesceEnv("REDIS_MAJOR_VERSION", "v7")
 		redisPort, _          = util.CoalesceEnv("REDIS_PORT", "6379")
 	)
@@ -132,9 +131,8 @@ func GenerateConfig() error {
 		}
 	}
 
-	if _, err := os.Stat(externalConfigFile); err == nil {
-		cfg.Append("include", externalConfigFile)
-	}
+	// Always include all .conf files from /etc/redis/external.conf.d (even if not present yet)
+	cfg.Append("include", "/etc/redis/external.conf.d/*.conf")
 
 	// Add cluster announcement IP and hostname for cluster mode
 	if setupMode, ok := util.CoalesceEnv("SETUP_MODE", ""); ok && setupMode == "cluster" {
