@@ -613,6 +613,10 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 				generateConfigVolumeMount(common.VolumeNameConfig),
 			},
 		}
+		// Set init-config resources to match main container if present
+		if containerParams.Resources != nil {
+			container.Resources = *containerParams.Resources
+		}
 		if role == "sentinel" {
 			container.Args = []string{"bootstrap", "--sentinel"}
 		} else {
