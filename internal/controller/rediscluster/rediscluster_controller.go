@@ -61,6 +61,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if err != nil {
 		return intctrlutil.RequeueECheck(ctx, err, "failed to get redis cluster instance")
 	}
+
+	leaderReplicas := instance.Spec.GetReplicaCounts("leader")
+	followerReplicas := instance.Spec.GetReplicaCounts("follower")
+	totalReplicas := leaderReplicas + followerReplicas
+
+	// Block scaling from 1 node to multi-node cluster
+	if instance.Status.ReadyLeaderReplicas == 1 && leaderReplicas > 1 {
+		msg := fmt.Sprintf("Scaling from single-node to multi-node cluster is not supported (CurrentLeaders=%d, DesiredLeaders=%d)", instance.Status.ReadyLeaderReplicas, leaderReplicas)
+		return intctrlutil.RequeueE(ctx, fmt.Errorf("scaling single-node is not supported"), msg)
+	}
 	if instance.GetDeletionTimestamp() != nil {
 		if err = k8sutils.HandleRedisClusterFinalizer(ctx, r.Client, instance, RedisClusterFinalizer); err != nil {
 			return intctrlutil.RequeueE(ctx, err, "failed to handle redis cluster finalizer")
@@ -73,10 +83,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return intctrlutil.Reconciled()
 	}
 	instance.SetDefault()
-
-	leaderReplicas := instance.Spec.GetReplicaCounts("leader")
-	followerReplicas := instance.Spec.GetReplicaCounts("follower")
-	totalReplicas := leaderReplicas + followerReplicas
 
 	if err = k8sutils.AddFinalizer(ctx, instance, RedisClusterFinalizer, r.Client); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "failed to add finalizer")
