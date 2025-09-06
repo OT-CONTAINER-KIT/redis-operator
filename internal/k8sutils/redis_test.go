@@ -338,7 +338,8 @@ func TestGetRedisHostname(t *testing.T) {
 
 func TestCreateSingleLeaderRedisCommand(t *testing.T) {
 	cr := &rcvb2.RedisCluster{}
-	cmd := CreateSingleLeaderRedisCommand(context.TODO(), cr)
+	invocation := CreateSingleLeaderRedisCommand(context.TODO(), cr)
+	cmd := invocation.Args()
 
 	assert.Equal(t, "redis-cli", cmd[0])
 	assert.Equal(t, "CLUSTER", cmd[1])
@@ -404,7 +405,8 @@ func TestCreateMultipleLeaderRedisCommand(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			client := mock_utils.CreateFakeClientWithPodIPs_LeaderPods(tt.redisCluster)
 
-			cmd := CreateMultipleLeaderRedisCommand(context.TODO(), client, tt.redisCluster)
+			invocation := CreateMultipleLeaderRedisCommand(context.TODO(), client, tt.redisCluster)
+			cmd := invocation.Args()
 			assert.Equal(t, tt.expectedCommands, cmd)
 		})
 	}
