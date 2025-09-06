@@ -103,7 +103,7 @@ func Test_generateRedisStandaloneParams(t *testing.T) {
 func Test_generateRedisStandaloneContainerParams(t *testing.T) {
 	path := filepath.Join("..", "..", "tests", "testdata", "redis-standalone.yaml")
 	expected := containerParameters{
-		Image:           "quay.io/opstree/redis:v7.0.12",
+		Image:           "quay.io/opstree/redis:v7.4.5",
 		Port:            ptr.To(6379),
 		ImagePullPolicy: corev1.PullPolicy("IfNotPresent"),
 		Resources: &corev1.ResourceRequirements{
@@ -126,7 +126,7 @@ func Test_generateRedisStandaloneContainerParams(t *testing.T) {
 				Add:  []corev1.Capability{"NET_BIND_SERVICE"},
 			},
 		},
-		RedisExporterImage:           "quay.io/opstree/redis-exporter:v1.44.0",
+		RedisExporterImage:           "quay.io/opstree/redis-exporter:v1.76.0",
 		RedisExporterImagePullPolicy: corev1.PullPolicy("Always"),
 		RedisExporterResources: &corev1.ResourceRequirements{
 			Requests: corev1.ResourceList{

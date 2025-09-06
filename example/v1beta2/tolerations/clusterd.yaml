@@ -11,11 +11,11 @@ spec:
     fsGroup: 1000
   persistenceEnabled: true
   kubernetesConfig:
-    image: quay.io/opstree/redis:v7.0.12
+    image: quay.io/opstree/redis:v7.4.5
     imagePullPolicy: IfNotPresent
   redisExporter:
     enabled: false
-    image: quay.io/opstree/redis-exporter:v1.44.0
+    image: quay.io/opstree/redis-exporter:v1.76.0
   redisLeader:
     tolerations:
       - key: "key1"

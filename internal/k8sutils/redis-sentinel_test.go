@@ -100,7 +100,7 @@ func Test_generateRedisSentinelParams(t *testing.T) {
 func Test_generateRedisSentinelContainerParams(t *testing.T) {
 	path := filepath.Join("..", "..", "tests", "testdata", "redis-sentinel.yaml")
 	expected := containerParameters{
-		Image:           "quay.io/opstree/redis:v7.0.12",
+		Image:           "quay.io/opstree/redis:v7.4.5",
 		ImagePullPolicy: corev1.PullPolicy("IfNotPresent"),
 		Resources: &corev1.ResourceRequirements{
 			Requests: corev1.ResourceList{
@@ -122,7 +122,7 @@ func Test_generateRedisSentinelContainerParams(t *testing.T) {
 				Add:  []corev1.Capability{"NET_BIND_SERVICE"},
 			},
 		},
-		RedisExporterImage:           "quay.io/opstree/redis-exporter:v1.44.0",
+		RedisExporterImage:           "quay.io/opstree/redis-exporter:v1.76.0",
 		RedisExporterImagePullPolicy: corev1.PullPolicy("Always"),
 		RedisExporterResources: &corev1.ResourceRequirements{
 			Requests: corev1.ResourceList{

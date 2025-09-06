@@ -24,7 +24,8 @@ timeout 0
 tcp-keepalive 300
 daemonize no
 supervised no
-pidfile /var/run/redis.pid
+pidfile /etc/redis/redis.pid
+include /etc/redis/external.conf.d/*.conf
 `
 
 // GenerateConfig generates Redis configuration file
@@ -130,9 +131,6 @@ func GenerateConfig() error {
 			cfg.Append("cluster-announce-bus-port", clusterAnnounceBusPort)
 		}
 	}
-
-	// Always include all .conf files from /etc/redis/external.conf.d (even if not present yet)
-	cfg.Append("include", "/etc/redis/external.conf.d/*.conf")
 
 	// Add cluster announcement IP and hostname for cluster mode
 	if setupMode, ok := util.CoalesceEnv("SETUP_MODE", ""); ok && setupMode == "cluster" {

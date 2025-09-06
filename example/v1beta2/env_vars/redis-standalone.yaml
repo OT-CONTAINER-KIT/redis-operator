@@ -10,7 +10,7 @@ spec:
     runAsUser: 1000
     fsGroup: 1000
   kubernetesConfig:
-    image: quay.io/opstree/redis:v7.0.12
+    image: quay.io/opstree/redis:v7.4.5
     imagePullPolicy: IfNotPresent
     resources:
       requests:
@@ -26,7 +26,7 @@ spec:
         #   - name: regcred
   redisExporter:
     enabled: false
-    image: quay.io/opstree/redis-exporter:v1.44.0
+    image: quay.io/opstree/redis-exporter:v1.76.0
     imagePullPolicy: Always
     resources:
       requests:

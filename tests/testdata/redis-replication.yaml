@@ -24,7 +24,7 @@ spec:
       drop: [ALL]
       add: [NET_BIND_SERVICE]
   kubernetesConfig:
-    image: quay.io/opstree/redis:v7.0.12
+    image: quay.io/opstree/redis:v7.4.5
     imagePullPolicy: IfNotPresent
     imagePullSecrets:
       - name: mysecret
@@ -42,7 +42,7 @@ spec:
     minReadySeconds: 5
   redisExporter:
     enabled: true
-    image: quay.io/opstree/redis-exporter:v1.44.0
+    image: quay.io/opstree/redis-exporter:v1.76.0
     imagePullPolicy: Always
     resources:
       requests:

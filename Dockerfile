@@ -1,5 +1,12 @@
 # Build the manager or agent binary
 FROM golang:1.23-alpine3.21 AS builder
+ARG IMG
+		RUN if [ -z "$IMG" ]; then \
+			echo "\n[ERROR] The required build argument IMG is missing!" >&2; \
+			echo "You must build the image with: --build-arg IMG=<image>:<tag>" >&2; \
+			echo "Example: docker build -f Dockerfile -t redis-operator:v0.23.0 --build-arg IMG=quay.io/opstree/redis-operator:v0.23.0 ." >&2; \
+			exit 1; \
+		fi
 ARG BUILDOS
 ARG BUILDPLATFORM
 ARG BUILDARCH
@@ -8,7 +15,6 @@ ARG TARGETPLATFORM
 ARG TARGETOS
 ARG TARGETARCH
 ARG TARGETVARIANT
-ARG IMG
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
