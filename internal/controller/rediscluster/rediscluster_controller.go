@@ -230,7 +230,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 						k8sutils.RebalanceRedisClusterEmptyMasters(ctx, r.K8sClient, instance)
 					} else {
 						// Single node exists but has no slots - this is likely initial multi-node creation
-						logger.Info("Creating multi-node cluster")
+						logger.Info("Creating multi-node cluster", "Current.Leaders", leaderCount, "Desired.Leaders", leaderReplicas)
 						k8sutils.ExecuteRedisClusterCommand(ctx, r.K8sClient, instance)
 					}
 				} else {
