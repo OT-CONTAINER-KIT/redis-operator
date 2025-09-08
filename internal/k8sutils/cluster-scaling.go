@@ -34,7 +34,7 @@ func ReshardRedisCluster(ctx context.Context, client kubernetes.Interface, cr *r
 	}
 	cmd = []string{"redis-cli", "--cluster", "reshard"}
 
-	if *cr.Spec.ClusterVersion == "v7" {
+	if *cr.Spec.ClusterVersion == "v7" || *cr.Spec.ClusterVersion == "v8" {
 		cmd = append(cmd, getRedisHostname(transferPOD, cr, "leader")+fmt.Sprintf(":%d", *cr.Spec.Port))
 	} else {
 		cmd = append(cmd, getRedisServerAddress(ctx, client, transferPOD, *cr.Spec.Port))
@@ -143,7 +143,7 @@ func RebalanceRedisClusterEmptyMasters(ctx context.Context, client kubernetes.In
 	}
 	cmd = []string{"redis-cli", "--cluster", "rebalance"}
 
-	if *cr.Spec.ClusterVersion == "v7" {
+	if *cr.Spec.ClusterVersion == "v7" || *cr.Spec.ClusterVersion == "v8" {
 		cmd = append(cmd, getRedisHostname(pod, cr, "leader")+fmt.Sprintf(":%d", *cr.Spec.Port))
 	} else {
 		cmd = append(cmd, getRedisServerAddress(ctx, client, pod, *cr.Spec.Port))
@@ -197,7 +197,7 @@ func RebalanceRedisCluster(ctx context.Context, client kubernetes.Interface, cr 
 	}
 	cmd = []string{"redis-cli", "--cluster", "rebalance"}
 
-	if *cr.Spec.ClusterVersion == "v7" {
+	if *cr.Spec.ClusterVersion == "v7" || *cr.Spec.ClusterVersion == "v8" {
 		cmd = append(cmd, getRedisHostname(pod, cr, "leader")+fmt.Sprintf(":%d", *cr.Spec.Port))
 	} else {
 		cmd = append(cmd, getRedisServerAddress(ctx, client, pod, *cr.Spec.Port))
@@ -234,7 +234,7 @@ func AddRedisNodeToCluster(ctx context.Context, client kubernetes.Interface, cr 
 
 	cmd = []string{"redis-cli", "--cluster", "add-node"}
 
-	if *cr.Spec.ClusterVersion == "v7" {
+	if *cr.Spec.ClusterVersion == "v7" || *cr.Spec.ClusterVersion == "v8" {
 		cmd = append(cmd, getRedisHostname(newPod, cr, "leader")+fmt.Sprintf(":%d", *cr.Spec.Port))
 		cmd = append(cmd, getRedisHostname(existingPod, cr, "leader")+fmt.Sprintf(":%d", *cr.Spec.Port))
 	} else {
@@ -305,7 +305,7 @@ func RemoveRedisFollowerNodesFromCluster(ctx context.Context, client kubernetes.
 	followerNodeIDs := getAttachedFollowerNodeIDs(ctx, redisClient, lastLeaderPodNodeID)
 
 	cmd = append(cmd, "--cluster", "del-node")
-	if *cr.Spec.ClusterVersion == "v7" {
+	if *cr.Spec.ClusterVersion == "v7" || *cr.Spec.ClusterVersion == "v8" {
 		cmd = append(cmd, getRedisHostname(existingPod, cr, "leader")+fmt.Sprintf(":%d", *cr.Spec.Port))
 	} else {
 		cmd = append(cmd, getRedisServerAddress(ctx, client, existingPod, *cr.Spec.Port))
@@ -337,7 +337,7 @@ func RemoveRedisNodeFromCluster(ctx context.Context, client kubernetes.Interface
 
 	cmd = []string{"redis-cli", "--cluster", "del-node"}
 
-	if *cr.Spec.ClusterVersion == "v7" {
+	if *cr.Spec.ClusterVersion == "v7" || *cr.Spec.ClusterVersion == "v8" {
 		cmd = append(cmd, getRedisHostname(existingPod, cr, "leader")+fmt.Sprintf(":%d", *cr.Spec.Port))
 	} else {
 		cmd = append(cmd, getRedisServerAddress(ctx, client, existingPod, *cr.Spec.Port))
@@ -402,7 +402,7 @@ func ClusterFailover(ctx context.Context, client kubernetes.Interface, cr *rcvb2
 
 	cmd = []string{"redis-cli", "-h"}
 
-	if *cr.Spec.ClusterVersion == "v7" {
+	if *cr.Spec.ClusterVersion == "v7" || *cr.Spec.ClusterVersion == "v8" {
 		cmd = append(cmd, getRedisHostname(pod, cr, "leader"))
 	} else {
 		cmd = append(cmd, getRedisServerIP(ctx, client, pod))

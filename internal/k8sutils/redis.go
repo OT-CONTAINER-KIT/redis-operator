@@ -155,7 +155,7 @@ func CreateMultipleLeaderRedisCommand(ctx context.Context, client kubernetes.Int
 	for podCount := 0; podCount < int(replicas); podCount++ {
 		podName := cr.Name + "-leader-" + strconv.Itoa(podCount)
 		var address string
-		if cr.Spec.ClusterVersion != nil && *cr.Spec.ClusterVersion == "v7" {
+		if cr.Spec.ClusterVersion != nil && (*cr.Spec.ClusterVersion == "v7" || *cr.Spec.ClusterVersion == "v8") {
 			address = getRedisHostname(RedisDetails{PodName: podName, Namespace: cr.Namespace}, cr, "leader") + fmt.Sprintf(":%d", *cr.Spec.Port)
 		} else {
 			address = getRedisServerAddress(ctx, client, RedisDetails{PodName: podName, Namespace: cr.Namespace}, *cr.Spec.Port)
@@ -233,7 +233,7 @@ func createRedisReplicationCommand(ctx context.Context, client kubernetes.Interf
 	cmd := []string{"redis-cli", "--cluster", "add-node"}
 	var followerAddress, leaderAddress string
 
-	if cr.Spec.ClusterVersion != nil && *cr.Spec.ClusterVersion == "v7" {
+	if cr.Spec.ClusterVersion != nil && (*cr.Spec.ClusterVersion == "v7" || *cr.Spec.ClusterVersion == "v8") {
 		followerAddress = getRedisHostname(followerPod, cr, "follower") + fmt.Sprintf(":%d", *cr.Spec.Port)
 		leaderAddress = getRedisHostname(leaderPod, cr, "leader") + fmt.Sprintf(":%d", *cr.Spec.Port)
 	} else {
