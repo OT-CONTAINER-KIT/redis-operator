@@ -214,18 +214,25 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if leaderCount != leaderReplicas {
 			logger.Info("Not all leaders are part of the cluster...", "Leaders.Count", leaderCount, "Instance.Size", leaderReplicas)
 			if leaderCount < leaderReplicas {
-				// Check if the single node has slots assigned and is a functioning cluster
-				// This helps distingush between scaling up vs initial multi-node creation
-				if slotsAssigned, err := r.Checker.CheckClusterSlotsAssigned(ctx, instance); err != nil {
-					logger.Error(err, "Failed to check cluster slots, creating multi-node cluster")
-					k8sutils.ExecuteRedisClusterCommand(ctx, r.K8sClient, instance)
-				} else if slotsAssigned {
-					// This is a functioing single-node cluster being scaled up
-					logger.Info("Scaling up existing single-node cluster", "Current.Leaders", leaderCount, "Desired.Leaders", leaderReplicas)
-					k8sutils.AddRedisNodeToCluster(ctx, r.K8sClient, instance)
-					monitoring.RedisClusterAddingNodeAttempt.WithLabelValues(instance.Namespace, instance.Name).Inc()
-					// Rebalance the cluster using the empty masters
-					k8sutils.RebalanceRedisClusterEmptyMasters(ctx, r.K8sClient, instance)
+				// Check if we are expanding an existing single-node cluster or creating a new multi-node cluster
+				if leaderCount == 1 && leaderReplicas > 1 {
+					// Check if the single node has slots assigned and is a functioning cluster
+					// This helps distingush between scaling up vs initial multi-node creation
+					if slotsAssigned, err := r.Checker.CheckClusterSlotsAssigned(ctx, instance); err != nil {
+						logger.Error(err, "Failed to check cluster slots, creating multi-node cluster")
+						k8sutils.ExecuteRedisClusterCommand(ctx, r.K8sClient, instance)
+					} else if slotsAssigned {
+						// This is a functioing single-node cluster being scaled up
+						logger.Info("Scaling up existing single-node cluster", "Current.Leaders", leaderCount, "Desired.Leaders", leaderReplicas)
+						k8sutils.AddRedisNodeToCluster(ctx, r.K8sClient, instance)
+						monitoring.RedisClusterAddingNodeAttempt.WithLabelValues(instance.Namespace, instance.Name).Inc()
+						// Rebalance the cluster using the empty masters
+						k8sutils.RebalanceRedisClusterEmptyMasters(ctx, r.K8sClient, instance)
+					} else {
+						// Single node exists but has no slots - this is likely initial multi-node creation
+						logger.Info("Creating multi-node cluster")
+						k8sutils.ExecuteRedisClusterCommand(ctx, r.K8sClient, instance)
+					}
 				} else {
 					// Multi-node cluster scaling up
 					logger.Info("Adding node to existing multi-node cluster", "Current.Leaders", leaderCount, "Desired.Leaders", leaderReplicas)
