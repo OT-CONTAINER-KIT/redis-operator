@@ -111,7 +111,7 @@ kubectl create secret tls <webhook-server-cert> --key tls.key --cert tls.crt -n 
 | redisOperator.automountServiceAccountToken | bool | `true` |  |
 | redisOperator.env | list | `[]` |  |
 | redisOperator.extraArgs | list | `[]` |  |
-| redisOperator.imageName | string | `"ghcr.io/ot-container-kit/redis-operator/redis-operator"` |  |
+| redisOperator.imageName | string | `"quay.io/opstree/redis-operator"` |  |
 | redisOperator.imagePullPolicy | string | `"Always"` |  |
 | redisOperator.imagePullSecrets | list | `[]` |  |
 | redisOperator.imageTag | string | `""` |  |
