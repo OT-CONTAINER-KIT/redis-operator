@@ -118,3 +118,6 @@ spec:
   {{- if .Values.env }}
   env: {{ toYaml .Values.env | nindent 4 }}
   {{- end }}
+  {{- if and .Values.podManagementPolicy (ne .Values.podManagementPolicy "") }}
+  podManagementPolicy: "{{ .Values.podManagementPolicy }}"
+  {{- end }}

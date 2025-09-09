@@ -121,6 +121,7 @@ type statefulSetParameters struct {
 	IgnoreAnnotations                    []string
 	HostNetwork                          bool
 	MinReadySeconds                      int32
+	PodManagementPolicy                  *string
 }
 
 // containerParameters will define container input params
@@ -315,6 +316,10 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 	}
 
 	statefulset.Spec.Template.Spec.InitContainers = generateInitContainerDef(containerParams.Role, stsMeta.GetName(), initcontainerParams, initcontainerParams.AdditionalMountPath, containerParams, params.ClusterVersion)
+
+	if params.PodManagementPolicy != nil {
+		statefulset.Spec.PodManagementPolicy = appsv1.PodManagementPolicyType(*params.PodManagementPolicy)
+	}
 
 	if params.Tolerations != nil {
 		statefulset.Spec.Template.Spec.Tolerations = *params.Tolerations
