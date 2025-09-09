@@ -72,6 +72,7 @@ helm delete <my-release> --namespace <namespace>
 | pdb.enabled | bool | `false` |  |
 | pdb.maxUnavailable | string | `nil` |  |
 | pdb.minAvailable | int | `1` |  |
+| podManagementPolicy | string | `"OrderedReady"` |  |
 | podSecurityContext.fsGroup | int | `1000` |  |
 | podSecurityContext.runAsUser | int | `1000` |  |
 | priorityClassName | string | `""` |  |
@@ -127,4 +128,3 @@ helm delete <my-release> --namespace <namespace>
 | sidecars.resources.requests.cpu | string | `"50m"` |  |
 | sidecars.resources.requests.memory | string | `"64Mi"` |  |
 | tolerations | list | `[]` |  |
-| podManagementPolicy | string | `"OrderedReady"` |  |

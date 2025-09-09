@@ -68,6 +68,7 @@ helm delete <my-release> --namespace <namespace>
 | pdb.enabled | bool | `false` |  |
 | pdb.maxUnavailable | string | `nil` |  |
 | pdb.minAvailable | int | `1` |  |
+| podManagementPolicy | string | `"OrderedReady"` |  |
 | podSecurityContext.fsGroup | int | `1000` |  |
 | podSecurityContext.runAsUser | int | `1000` |  |
 | priorityClassName | string | `""` |  |
@@ -109,4 +110,3 @@ helm delete <my-release> --namespace <namespace>
 | storageSpec.volumeClaimTemplate.spec.accessModes[0] | string | `"ReadWriteOnce"` |  |
 | storageSpec.volumeClaimTemplate.spec.resources.requests.storage | string | `"1Gi"` |  |
 | tolerations | list | `[]` |  |
-| podManagementPolicy | string | `"OrderedReady"` |  |

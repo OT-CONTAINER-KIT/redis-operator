@@ -65,6 +65,7 @@ helm delete <my-release> --namespace <namespace>
 | initContainer.imagePullPolicy | string | `"IfNotPresent"` |  |
 | initContainer.resources | object | `{}` |  |
 | labels | object | `{}` |  |
+| podManagementPolicy | string | `"OrderedReady"` |  |
 | podSecurityContext.fsGroup | int | `1000` |  |
 | podSecurityContext.runAsUser | int | `1000` |  |
 | priorityClassName | string | `""` |  |
@@ -130,4 +131,3 @@ helm delete <my-release> --namespace <namespace>
 | storageSpec.nodeConfVolumeClaimTemplate.spec.resources.requests.storage | string | `"1Gi"` |  |
 | storageSpec.volumeClaimTemplate.spec.accessModes[0] | string | `"ReadWriteOnce"` |  |
 | storageSpec.volumeClaimTemplate.spec.resources.requests.storage | string | `"1Gi"` |  |
-| podManagementPolicy | string | `"OrderedReady"` |  |
