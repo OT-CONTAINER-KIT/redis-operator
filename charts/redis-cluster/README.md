@@ -130,3 +130,4 @@ helm delete <my-release> --namespace <namespace>
 | storageSpec.nodeConfVolumeClaimTemplate.spec.resources.requests.storage | string | `"1Gi"` |  |
 | storageSpec.volumeClaimTemplate.spec.accessModes[0] | string | `"ReadWriteOnce"` |  |
 | storageSpec.volumeClaimTemplate.spec.resources.requests.storage | string | `"1Gi"` |  |
+| podManagementPolicy | string | `"OrderedReady"` |  |

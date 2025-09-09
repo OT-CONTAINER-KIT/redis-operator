@@ -127,3 +127,4 @@ helm delete <my-release> --namespace <namespace>
 | sidecars.resources.requests.cpu | string | `"50m"` |  |
 | sidecars.resources.requests.memory | string | `"64Mi"` |  |
 | tolerations | list | `[]` |  |
+| podManagementPolicy | string | `"OrderedReady"` |  |

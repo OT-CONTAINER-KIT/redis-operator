@@ -109,3 +109,4 @@ helm delete <my-release> --namespace <namespace>
 | storageSpec.volumeClaimTemplate.spec.accessModes[0] | string | `"ReadWriteOnce"` |  |
 | storageSpec.volumeClaimTemplate.spec.resources.requests.storage | string | `"1Gi"` |  |
 | tolerations | list | `[]` |  |
+| podManagementPolicy | string | `"OrderedReady"` |  |
