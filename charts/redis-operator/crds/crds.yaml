@@ -6305,8 +6305,8 @@ spec:
                 type: boolean
               podManagementPolicy:
                 enum:
-                  - OrderedReady
-                  - Parallel
+                - OrderedReady
+                - Parallel
                 type: string
               podSecurityContext:
                 description: |-
@@ -15195,8 +15195,8 @@ spec:
                 type: object
               podManagementPolicy:
                 enum:
-                  - OrderedReady
-                  - Parallel
+                - OrderedReady
+                - Parallel
                 type: string
               podSecurityContext:
                 description: |-
@@ -20719,8 +20719,8 @@ spec:
                 type: object
               podManagementPolicy:
                 enum:
-                  - OrderedReady
-                  - Parallel
+                - OrderedReady
+                - Parallel
                 type: string
               podSecurityContext:
                 description: |-
