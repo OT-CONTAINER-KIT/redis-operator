@@ -42,7 +42,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           build-args: |
-            IMG=${{ env.QuayImageName }}:${{ env.TAG }}
+            IMG=${{ env.REGISTRY }}/${{ env.REPOSITORY }}/redis-operator:${{ env.TAG }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.REPOSITORY }}/redis-operator:${{ env.TAG }}
             ${{ env.REGISTRY }}/${{ env.REPOSITORY }}/redis-operator:latest
