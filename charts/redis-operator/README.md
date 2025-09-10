@@ -115,8 +115,14 @@ kubectl create secret tls <webhook-server-cert> --key tls.key --cert tls.crt -n 
 | redisOperator.imagePullPolicy | string | `"Always"` |  |
 | redisOperator.imagePullSecrets | list | `[]` |  |
 | redisOperator.imageTag | string | `""` |  |
-| redisOperator.metrics.bindAddress | string | `":8080"` |  |
-| redisOperator.metrics.enabled | bool | `true` |  |
+| redisOperator.metrics.bindAddress | string | `":8080"` | The address the metrics endpoint binds to |
+| redisOperator.metrics.enabled | bool | `true` | Enable metrics server |
+| redisOperator.metrics.port | string | `"8080"` | The port the metrics endpoint binds to |
+| redisOperator.metrics.serviceMonitor.enabled | bool | `false` |  |
+| redisOperator.metrics.serviceMonitor.extraLabels | object | `{}` | extraLabels are added to the servicemonitor when enabled set to true |
+| redisOperator.metrics.serviceMonitor.interval | string | `"30s"` |  |
+| redisOperator.metrics.serviceMonitor.namespace | string | `""` | Namespace where servicemonitor resource will be created, if empty it will be created in the same namespace as the operator |
+| redisOperator.metrics.serviceMonitor.scrapeTimeout | string | `"10s"` |  |
 | redisOperator.name | string | `"redis-operator"` |  |
 | redisOperator.podAnnotations | object | `{}` |  |
 | redisOperator.podLabels | object | `{}` |  |
