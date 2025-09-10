@@ -86,6 +86,8 @@ spec:
           readOnly: true
       {{- end }}
         env:
+        - name: OPERATOR_IMAGE
+          value: {{ .Values.redisOperator.imageName }}:{{ .Values.redisOperator.imageTag | default (printf "v%s" .Chart.AppVersion) }}
         - name: ENABLE_WEBHOOKS
           value: {{ .Values.redisOperator.webhook | quote }}
         {{- if .Values.redisOperator.watchNamespace }}

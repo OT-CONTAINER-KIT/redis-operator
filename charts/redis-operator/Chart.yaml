@@ -6,7 +6,6 @@ description: Provides easy redis setup definitions for Kubernetes services, and 
 engine: gotpl
 maintainers:
   - name: iamabhishek-dubey
-  
   - name: sandy724
   - name: shubham-cmyk
 name: redis-operator
