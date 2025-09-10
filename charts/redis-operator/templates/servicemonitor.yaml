@@ -1,0 +1,30 @@
+{{- if eq .Values.redisOperator.metrics.serviceMonitor.enabled true }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ .Values.redisOperator.name | default .Release.Name }}-prometheus-monitoring
+  namespace: {{ .Values.redisOperator.metrics.serviceMonitor.namespace | default .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.redisOperator.name | default .Release.Name }}
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/instance: {{ .Values.redisOperator.name | default .Release.Name }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    app.kubernetes.io/component: middleware
+    {{- with .Values.redisOperator.metrics.serviceMonitor.extraLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name : {{ .Values.redisOperator.name | default .Release.Name }}-metrics
+      app.kubernetes.io/component: metrics
+  endpoints:
+  - port: redis-operator-metrics
+    interval: {{ .Values.redisOperator.metrics.serviceMonitor.interval }}
+    scrapeTimeout: {{ .Values.redisOperator.metrics.serviceMonitor.scrapeTimeout }}
+  namespaceSelector:
+    matchNames:
+    - {{ .Release.Namespace }}
+{{- end }}

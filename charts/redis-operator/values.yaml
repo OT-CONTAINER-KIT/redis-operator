@@ -33,10 +33,23 @@ redisOperator:
 
   # metrics configuration for monitoring
   metrics:
-    # Enable metrics server
+    # -- Enable metrics server
     enabled: true
-    # The address the metrics endpoint binds to
+    # -- The address the metrics endpoint binds to
     bindAddress: ":8080"
+    # -- The port the metrics endpoint binds to
+    port: "8080"
+    # serviceMonitor configuration
+    serviceMonitor:
+      enabled: false
+      interval: 30s
+      scrapeTimeout: 10s
+      # -- Namespace where servicemonitor resource will be created, if empty it will be created in the same namespace as the operator
+      namespace: ""
+      # -- extraLabels are added to the servicemonitor when enabled set to true
+      extraLabels: {}
+        # foo: bar
+        # team: devops
 
 resources:
   limits:
