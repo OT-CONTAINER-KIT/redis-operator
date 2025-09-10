@@ -6,7 +6,8 @@ date: 2025-07-25T00:00:00Z
 description: >
   Release versions and their description about Redis Operator
 ---
-The most up to date release notes can be found on [GitHub](https://github.com/OT-CONTAINER-KIT/redis-operator/releases)
+
+> **NOT MAINTAINED**. Please refer to the [Release History](https://github.com/OT-CONTAINER-KIT/redis-operator/releases) for recent release notes.
 
 ### v0.21.0
 #### June 2025
