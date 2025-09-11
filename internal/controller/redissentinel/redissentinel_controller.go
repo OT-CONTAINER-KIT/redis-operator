@@ -115,7 +115,6 @@ func (r *RedisSentinelReconciler) reconcileSentinel(ctx context.Context, instanc
 	if err := k8sutils.CreateRedisSentinel(ctx, r.K8sClient, instance, r.K8sClient, r.Client); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
-
 	if instance.Spec.RedisSentinelConfig == nil {
 		return intctrlutil.Reconciled()
 	}
@@ -138,14 +137,15 @@ func (r *RedisSentinelReconciler) reconcileSentinel(ctx context.Context, instanc
 			monitorAddr = master.Status.PodIP
 		}
 	}
-
 	if err := r.Healer.SentinelMonitor(ctx, instance, monitorAddr); err != nil {
+		return intctrlutil.RequeueE(ctx, err, "")
+	}
+	if err := r.Healer.SentinelSet(ctx, instance, monitorAddr); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
 	if err := r.Healer.SentinelReset(ctx, instance); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
-
 	return intctrlutil.Reconciled()
 }
 

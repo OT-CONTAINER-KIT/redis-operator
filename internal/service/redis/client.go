@@ -54,6 +54,7 @@ type Service interface {
 	IsMaster(ctx context.Context) (bool, error)
 	GetAttachedReplicaCount(ctx context.Context) (int, error)
 	SentinelMonitor(ctx context.Context, master *ConnectionInfo, masterGroupName, quorum string) error
+	SentinelSet(ctx context.Context, masterGroupName, key, value string) error
 	SentinelReset(ctx context.Context, masterGroupName string) error
 	GetClusterInfo(ctx context.Context) (*ClusterStatus, error)
 }
@@ -79,6 +80,24 @@ func (s *service) createClient() *rediscli.Client {
 		opts.TLSConfig = s.connectionInfo.TLSConfig
 	}
 	return rediscli.NewClient(opts)
+}
+
+func (c *service) SentinelSet(ctx context.Context, masterGroupName, key, value string) error {
+	client := c.createClient()
+	if client == nil {
+		return nil
+	}
+	defer client.Close()
+
+	cmd := rediscli.NewStringCmd(ctx, "SENTINEL", "SET", masterGroupName, key, value)
+	err := client.Process(ctx, cmd)
+	if err != nil {
+		return err
+	}
+	if err = cmd.Err(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *service) SentinelReset(ctx context.Context, masterGroupName string) error {
