@@ -22,6 +22,9 @@ import (
 
 type Healer interface {
 	SentinelMonitor(ctx context.Context, rs *rsvb2.RedisSentinel, master string) error
+	// SentinelSet set the config for specific master
+	// reference: https://redis.io/docs/latest/operate/oss_and_stack/management/sentinel/#reconfiguring-sentinel-at-runtime
+	SentinelSet(ctx context.Context, rs *rsvb2.RedisSentinel, master string) error
 	SentinelReset(ctx context.Context, rs *rsvb2.RedisSentinel) error
 
 	// UpdatePodRoleLabel connect to all redis pods and update pod role label `redis-role` to `master` or `slave` according to their role.
@@ -79,6 +82,35 @@ func (h *healer) UpdateRedisRoleLabel(ctx context.Context, ns string, labels map
 				return fmt.Errorf("failed to update pod role label: %w", rErr)
 			}
 			log.FromContext(ctx).Info("updated pod role label", "pod", pod.Name, "oldRole", oldRole, "newRole", role)
+		}
+	}
+	return nil
+}
+
+func (h *healer) SentinelSet(ctx context.Context, rs *rsvb2.RedisSentinel, master string) error {
+	pods, err := h.getSentinelPods(ctx, rs)
+	if err != nil {
+		return err
+	}
+	sentinelPass, err := NewChecker(h.k8s).GetPassword(ctx, rs.Namespace, rs.Spec.KubernetesConfig.ExistingPasswordSecret)
+	if err != nil {
+		return err
+	}
+	for _, pod := range pods.Items {
+		connInfo := createConnectionInfo(ctx, pod, sentinelPass, rs.Spec.TLS, h.k8s, rs.Namespace, "26379")
+
+		for k, v := range map[string]string{
+			"down-after-milliseconds": rs.Spec.RedisSentinelConfig.DownAfterMilliseconds,
+			"parallel-syncs":          rs.Spec.RedisSentinelConfig.ParallelSyncs,
+			"failover-timeout":        rs.Spec.RedisSentinelConfig.FailoverTimeout,
+		} {
+			if v == "" {
+				continue
+			}
+			err = h.redis.Connect(connInfo).SentinelSet(ctx, rs.Spec.RedisSentinelConfig.MasterGroupName, k, v)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
