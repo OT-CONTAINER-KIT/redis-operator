@@ -26,5 +26,5 @@ spec:
     scrapeTimeout: {{ .Values.serviceMonitor.scrapeTimeout }}
   namespaceSelector:
     matchNames:
-    - {{ .Values.serviceMonitor.namespace }}
+    - {{ .Values.serviceMonitor.namespace | default .Release.Namespace }}
 {{- end }}
