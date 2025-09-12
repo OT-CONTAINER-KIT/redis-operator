@@ -68,7 +68,7 @@ metadata:
   name: redis-standalone
 spec:
   kubernetesConfig:
-    image: quay.io/opstree/redis:v7.0.15
+    image: quay.io/opstree/redis:v7.4.5
     imagePullPolicy: IfNotPresent
   storage:
     volumeClaimTemplate:

@@ -11,5 +11,5 @@ const (
 	DefaultInterval = time.Millisecond * 250
 
 	// Common test image
-	DefaultRedisImage = "quay.io/opstree/redis:v7.0.12"
+	DefaultRedisImage = "quay.io/opstree/redis:v7.4.5"
 )
