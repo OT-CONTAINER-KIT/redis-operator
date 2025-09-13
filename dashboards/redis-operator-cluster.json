@@ -9,12 +9,13 @@
       "pluginName": "Prometheus"
     }
   ],
+  "__elements": {},
   "__requires": [
     {
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "8.0.3"
+      "version": "12.1.1"
     },
     {
       "type": "datasource",
@@ -39,7 +40,10 @@
     "list": [
       {
         "builtIn": 1,
-        "datasource": "-- Grafana --",
+        "datasource": {
+          "type": "datasource",
+          "uid": "grafana"
+        },
         "enable": true,
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
@@ -49,14 +53,16 @@
     ]
   },
   "editable": true,
-  "gnetId": null,
+  "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1627311654672,
   "links": [],
   "panels": [
     {
-      "datasource": null,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -68,7 +74,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -91,6 +97,7 @@
         "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -98,24 +105,35 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": false,
         "text": {},
-        "textMode": "auto"
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "8.0.3",
+      "pluginVersion": "12.1.1",
       "targets": [
         {
-          "exemplar": true,
-          "expr": "count(redis_up{namespace=~\"$namespace\",service=~\"$service\",env=~\"$env\"})",
-          "interval": "",
-          "legendFormat": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "count(redis_up{namespace=~\"$namespace\",service=~\"$service\"})",
+          "instant": false,
+          "legendFormat": "__auto",
+          "range": true,
           "refId": "A"
         }
       ],
       "title": "Redis Nodes",
+      "transparent": true,
       "type": "stat"
     },
     {
-      "datasource": null,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -127,7 +145,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -150,6 +168,7 @@
         "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -157,24 +176,35 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": false,
         "text": {},
-        "textMode": "auto"
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "8.0.3",
+      "pluginVersion": "12.1.1",
       "targets": [
         {
-          "exemplar": true,
-          "expr": "sum(redis_connected_clients{namespace=~\"$namespace\",service=~\"$service\",env=~\"$env\"})",
-          "interval": "",
-          "legendFormat": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum(redis_connected_clients{namespace=~\"$namespace\",service=~\"$service\"})",
+          "instant": false,
+          "legendFormat": "__auto",
+          "range": true,
           "refId": "A"
         }
       ],
       "title": "Redis Connected Clients",
+      "transparent": true,
       "type": "stat"
     },
     {
-      "datasource": null,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -187,7 +217,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -211,6 +241,7 @@
         "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -218,35 +249,50 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": false,
         "text": {
           "valueSize": 40
         },
-        "textMode": "auto"
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "8.0.3",
+      "pluginVersion": "12.1.1",
       "targets": [
         {
-          "exemplar": true,
-          "expr": "avg((redis_config_maxclients{env=~\"$env\"} - redis_connected_clients{env=~\"$env\"}) / redis_config_maxclients{env=~\"$env\"})",
-          "interval": "",
-          "legendFormat": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "avg((redis_config_maxclients{namespace=~\"$namespace\",service=~\"$service\"} - redis_connected_clients{namespace=~\"$namespace\",service=~\"$service\"}) / redis_config_maxclients{namespace=~\"$namespace\",service=~\"$service\"})",
+          "instant": false,
+          "legendFormat": "__auto",
+          "range": true,
           "refId": "A"
         }
       ],
       "title": "Redis Connection Usage",
+      "transparent": true,
       "type": "stat"
     },
     {
-      "datasource": null,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -255,6 +301,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineStyle": {
               "fill": "solid"
@@ -280,7 +327,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -302,26 +349,40 @@
         "legend": {
           "calcs": [],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
-          "mode": "single"
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
         }
       },
+      "pluginVersion": "12.1.1",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
           "exemplar": true,
-          "expr": "increase(redis_commands_processed_total{namespace=~\"$namespace\",service=~\"$service\",env=~\"$env\"}[$__rate_interval])",
-          "interval": "",
+          "expr": "increase(redis_commands_processed_total{namespace=~\"$namespace\",service=~\"$service\"}[$__rate_interval])",
+          "instant": false,
           "legendFormat": "{{pod}}",
+          "range": true,
           "refId": "A"
         }
       ],
       "title": "Redis Commands Executed",
+      "transparent": true,
       "type": "timeseries"
     },
     {
-      "datasource": null,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -333,7 +394,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -356,6 +417,7 @@
         "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -363,24 +425,35 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": false,
         "text": {},
-        "textMode": "auto"
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "8.0.3",
+      "pluginVersion": "12.1.1",
       "targets": [
         {
-          "exemplar": true,
-          "expr": "sum(redis_cluster_slots_fail{namespace=~\"$namespace\",service=~\"$service\",env=~\"$env\"})",
-          "interval": "",
-          "legendFormat": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum(redis_cluster_slots_fail{namespace=~\"$namespace\",service=~\"$service\"})",
+          "instant": false,
+          "legendFormat": "__auto",
+          "range": true,
           "refId": "A"
         }
       ],
       "title": "Redis Slots Failed",
+      "transparent": true,
       "type": "stat"
     },
     {
-      "datasource": null,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -414,7 +487,7 @@
             "steps": [
               {
                 "color": "dark-orange",
-                "value": null
+                "value": 0
               }
             ]
           }
@@ -433,6 +506,7 @@
         "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -440,26 +514,37 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": false,
         "text": {
           "valueSize": 30
         },
-        "textMode": "auto"
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "8.0.3",
+      "pluginVersion": "12.1.1",
       "targets": [
         {
-          "exemplar": true,
-          "expr": "count(redis_instance_info{namespace=~\"$namespace\",service=~\"$service\",role=\"master\",env=~\"$env\"})",
-          "interval": "",
-          "legendFormat": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "count(redis_instance_info{namespace=~\"$namespace\",service=~\"$service\",role=\"master\"})",
+          "instant": false,
+          "legendFormat": "__auto",
+          "range": true,
           "refId": "A"
         }
       ],
       "title": "Redis Role",
+      "transparent": true,
       "type": "stat"
     },
     {
-      "datasource": null,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROEMETHEUS}"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -472,7 +557,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -496,6 +581,7 @@
         "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -503,33 +589,48 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": false,
         "text": {},
-        "textMode": "auto"
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "8.0.3",
+      "pluginVersion": "12.1.1",
       "targets": [
         {
-          "exemplar": true,
-          "expr": "avg(redis_rdb_changes_since_last_save{env=~\"$env\"})",
-          "interval": "",
-          "legendFormat": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "avg(redis_rdb_changes_since_last_save{namespace=~\"$namespace\", service=~\"$service\"})",
+          "instant": false,
+          "legendFormat": "__auto",
+          "range": true,
           "refId": "A"
         }
       ],
       "title": "Redis Last Changes",
+      "transparent": true,
       "type": "stat"
     },
     {
-      "datasource": null,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -538,6 +639,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -560,7 +662,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -582,35 +684,53 @@
         "legend": {
           "calcs": [],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
-          "mode": "single"
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
         }
       },
+      "pluginVersion": "12.1.1",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
           "exemplar": true,
-          "expr": "topk(5, increase(redis_commands_total{namespace=~\"$namespace\",service=~\"$service\",env=~\"$env\"} [$__rate_interval]))",
-          "interval": "",
+          "expr": "topk(5, increase(redis_commands_total{namespace=~\"$namespace\",service=~\"$service\"} [$__rate_interval]))",
+          "instant": false,
           "legendFormat": "{{cmd}}",
+          "range": true,
           "refId": "A"
         }
       ],
       "title": "Redis Executed Commands",
+      "transparent": true,
       "type": "timeseries"
     },
     {
-      "datasource": null,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -619,6 +739,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -641,7 +762,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -664,35 +785,53 @@
         "legend": {
           "calcs": [],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
-          "mode": "single"
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
         }
       },
+      "pluginVersion": "12.1.1",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
           "exemplar": true,
-          "expr": "avg(irate(redis_commands_duration_seconds_total{namespace=~\"$namespace\",service=~\"$service\",env=~\"$env\"}[1m])) by (cmd)\n  /\navg(irate(redis_commands_total{namespace=~\"$namespace\",service=~\"$service\",env=~\"$env\"}[1m])) by (cmd)",
-          "interval": "",
+          "expr": "avg(irate(redis_commands_duration_seconds_total{namespace=~\"$namespace\",service=~\"$service\"}[$__rate_interval])) by (cmd) / avg(irate(redis_commands_total{namespace=~\"$namespace\",service=~\"$service\"}[$__rate_interval])) by (cmd)",
+          "instant": false,
           "legendFormat": "{{cmd}}",
+          "range": true,
           "refId": "A"
         }
       ],
       "title": "Redis Command Latency",
+      "transparent": true,
       "type": "timeseries"
     },
     {
-      "datasource": null,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "none",
@@ -701,6 +840,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -723,7 +863,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -746,38 +886,53 @@
         "legend": {
           "calcs": [],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
-          "mode": "single"
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
         }
       },
-      "pluginVersion": "8.0.3",
+      "pluginVersion": "12.1.1",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
           "exemplar": true,
-          "expr": "redis_db_keys{namespace=~\"$namespace\",service=~\"$service\",env=~\"$env\"}",
-          "interval": "",
-          "legendFormat": "{{db}}",
+          "expr": "redis_db_keys{namespace=~\"$namespace\",service=~\"$service\"}",
+          "instant": false,
+          "legendFormat": "{{db}} - {{pod}}",
+          "range": true,
           "refId": "A"
         }
       ],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Redis Keys",
+      "transparent": true,
       "type": "timeseries"
     },
     {
-      "datasource": null,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "none",
@@ -786,6 +941,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -808,7 +964,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -831,38 +987,53 @@
         "legend": {
           "calcs": [],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
-          "mode": "single"
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
         }
       },
-      "pluginVersion": "8.0.3",
+      "pluginVersion": "12.1.1",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
           "exemplar": true,
-          "expr": "rate(redis_net_input_bytes_total{namespace=~\"$namespace\",service=~\"$service\",env=~\"$env\"}[$__rate_interval])",
-          "interval": "",
+          "expr": "rate(redis_net_input_bytes_total{namespace=~\"$namespace\",service=~\"$service\"}[$__rate_interval])",
+          "instant": false,
           "legendFormat": "{{pod}}",
+          "range": true,
           "refId": "A"
         }
       ],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Redis Input Network",
+      "transparent": true,
       "type": "timeseries"
     },
     {
-      "datasource": null,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "none",
@@ -871,6 +1042,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -893,7 +1065,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -916,38 +1088,53 @@
         "legend": {
           "calcs": [],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
-          "mode": "single"
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
         }
       },
-      "pluginVersion": "8.0.3",
+      "pluginVersion": "12.1.1",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
           "exemplar": true,
-          "expr": "rate(redis_net_output_bytes_total{namespace=~\"$namespace\",service=~\"$service\",env=~\"$env\"}[$__rate_interval])",
-          "interval": "",
+          "expr": "rate(redis_net_output_bytes_total{namespace=~\"$namespace\",service=~\"$service\"}[$__rate_interval])",
+          "instant": false,
           "legendFormat": "{{pod}}",
+          "range": true,
           "refId": "A"
         }
       ],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Redis Output Network",
+      "transparent": true,
       "type": "timeseries"
     },
     {
-      "datasource": null,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "none",
@@ -956,6 +1143,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -978,7 +1166,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -1001,38 +1189,53 @@
         "legend": {
           "calcs": [],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
-          "mode": "single"
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
         }
       },
-      "pluginVersion": "8.0.3",
+      "pluginVersion": "12.1.1",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
           "exemplar": true,
-          "expr": "redis_memory_used_bytes{namespace=~\"$namespace\",service=~\"$service\",env=~\"$env\"}",
-          "interval": "",
+          "expr": "redis_memory_used_bytes{namespace=~\"$namespace\",service=~\"$service\"}",
+          "instant": false,
           "legendFormat": "{{pod}}",
+          "range": true,
           "refId": "A"
         }
       ],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Redis Used Memory",
+      "transparent": true,
       "type": "timeseries"
     },
     {
-      "datasource": null,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "none",
@@ -1041,6 +1244,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -1063,7 +1267,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -1086,38 +1290,53 @@
         "legend": {
           "calcs": [],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
-          "mode": "single"
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
         }
       },
-      "pluginVersion": "8.0.3",
+      "pluginVersion": "12.1.1",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
           "exemplar": true,
-          "expr": "redis_connected_clients{namespace=~\"$namespace\",service=~\"$service\",env=~\"$env\"}",
-          "interval": "",
+          "expr": "redis_connected_clients{namespace=~\"$namespace\",service=~\"$service\"}",
+          "instant": false,
           "legendFormat": "{{pod}}",
+          "range": true,
           "refId": "A"
         }
       ],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Redis Connections",
+      "transparent": true,
       "type": "timeseries"
     },
     {
-      "datasource": null,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "none",
@@ -1126,6 +1345,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -1148,7 +1368,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -1171,38 +1391,53 @@
         "legend": {
           "calcs": [],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
-          "mode": "single"
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
         }
       },
-      "pluginVersion": "8.0.3",
+      "pluginVersion": "12.1.1",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
           "exemplar": true,
-          "expr": "redis_master_repl_offset{namespace=~\"$namespace\",service=~\"$service\",env=~\"$env\"} - redis_slave_repl_offset{namespace=~\"$namespace\",service=~\"$service\",env=~\"$env\"}",
-          "interval": "",
+          "expr": "redis_master_repl_offset{namespace=~\"$namespace\",service=~\"$service\"} - redis_slave_repl_offset{namespace=~\"$namespace\",service=~\"$service\"}",
+          "instant": false,
           "legendFormat": "{{pod}}",
+          "range": true,
           "refId": "A"
         }
       ],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Redis Replication Lag",
+      "transparent": true,
       "type": "timeseries"
     },
     {
-      "datasource": null,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "none",
@@ -1211,6 +1446,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -1233,7 +1469,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -1256,52 +1492,63 @@
         "legend": {
           "calcs": [],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
-          "mode": "single"
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
         }
       },
-      "pluginVersion": "8.0.3",
+      "pluginVersion": "12.1.1",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
           "exemplar": true,
-          "expr": "sum(redis_cluster_slots_ok{env=~\"$env\"})",
-          "interval": "",
-          "legendFormat": "Ok",
+          "expr": "sum(redis_cluster_slots_ok{namespace=~\"$namespace\", service=~\"$service\"})",
+          "instant": false,
+          "legendFormat": "ok",
+          "range": true,
           "refId": "A"
         },
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
           "exemplar": true,
-          "expr": "sum(redis_cluster_slots_fail{env=~\"$env\"})",
+          "expr": "sum(redis_cluster_slots_fail{namespace=~\"$namespace\", service=~\"$service\"})",
           "hide": false,
-          "interval": "",
+          "instant": false,
           "legendFormat": "fail",
+          "range": true,
           "refId": "B"
         }
       ],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Redis Cluster Slot",
+      "transparent": true,
       "type": "timeseries"
     }
   ],
-  "schemaVersion": 30,
-  "style": "dark",
+  "schemaVersion": 41,
   "tags": [],
   "templating": {
     "list": [
       {
-        "allValue": null,
         "current": {},
-        "datasource": "${DS_PROMETHEUS}",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
         "definition": "label_values(redis_up, namespace)",
-        "description": null,
-        "error": null,
-        "hide": 0,
         "includeAll": false,
         "label": "Namespace",
-        "multi": false,
         "name": "namespace",
         "options": [],
         "query": {
@@ -1310,54 +1557,26 @@
         },
         "refresh": 1,
         "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
         "type": "query"
       },
       {
-        "allValue": null,
         "current": {},
-        "datasource": "${DS_PROMETHEUS}",
-        "definition": "label_values(redis_up, service)",
-        "description": null,
-        "error": null,
-        "hide": 0,
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(redis_up{namespace=\"$namespace\"},service)",
         "includeAll": false,
         "label": "Service",
-        "multi": false,
         "name": "service",
         "options": [],
         "query": {
-          "query": "label_values(redis_up, service)",
-          "refId": "StandardVariableQuery"
+          "qryType": 1,
+          "query": "label_values(redis_up{namespace=\"$namespace\"},service)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
         "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "type": "query"
-      },
-      {
-        "allValue": null,
-        "current": {},
-        "datasource": "${DS_PROMETHEUS}",
-        "definition": "label_values(up,env)",
-        "description": null,
-        "error": null,
-        "hide": 0,
-        "includeAll": false,
-        "label": "Environment",
-        "multi": false,
-        "name": "env",
-        "options": [],
-        "query": {
-          "query": "label_values(up,env)",
-          "refId": "StandardVariableQuery"
-        },
-        "refresh": 2,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 1,
         "type": "query"
       }
     ]
@@ -1370,5 +1589,6 @@
   "timezone": "",
   "title": "Redis Operator | Cluster Dashboard",
   "uid": "OsAINfZnk",
-  "version": 27
+  "version": 28,
+  "weekStart": ""
 }
