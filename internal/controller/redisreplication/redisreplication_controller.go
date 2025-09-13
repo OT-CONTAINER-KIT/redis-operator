@@ -90,11 +90,9 @@ func (r *Reconciler) UpdateRedisReplicationMaster(ctx context.Context, instance 
 			"previous", instance.Status.MasterNode,
 			"new", masterNode)
 	}
-	instance.Status.MasterNode = masterNode
-	if err := r.Client.Status().Update(ctx, instance); err != nil {
-		return err
-	}
-	return nil
+	return r.updateStatus(ctx, instance, rrvb2.RedisReplicationStatus{
+		MasterNode: masterNode,
+	})
 }
 
 type reconciler struct {
@@ -214,6 +212,13 @@ func (r *Reconciler) reconcileStatus(ctx context.Context, instance *rrvb2.RedisR
 	}
 
 	return intctrlutil.Reconciled()
+}
+
+func (r *Reconciler) updateStatus(ctx context.Context, rr *rrvb2.RedisReplication, status rrvb2.RedisReplicationStatus) error {
+	copy := rr.DeepCopy()
+	copy.Spec = rrvb2.RedisReplicationSpec{}
+	copy.Status = status
+	return common.UpdateStatus(ctx, r.Client, copy)
 }
 
 // SetupWithManager sets up the controller with the Manager.
