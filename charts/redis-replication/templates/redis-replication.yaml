@@ -101,4 +101,6 @@ spec:
     minAvailable: {{ .Values.pdb.minAvailable }}
     maxUnavailable: {{ .Values.pdb.maxUnavailable }}
   {{- end }}
-  
+  {{- if and .Values.podManagementPolicy (ne .Values.podManagementPolicy "") }}
+  podManagementPolicy: "{{ .Values.podManagementPolicy }}"
+  {{- end }}
