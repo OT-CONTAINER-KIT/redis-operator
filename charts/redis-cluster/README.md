@@ -115,7 +115,7 @@ helm delete <my-release> --namespace <namespace>
 | serviceMonitor.enabled | bool | `false` |  |
 | serviceMonitor.extraLabels | object | `{}` | extraLabels are added to the servicemonitor when enabled set to true |
 | serviceMonitor.interval | string | `"30s"` |  |
-| serviceMonitor.namespace | string | `"monitoring"` |  |
+| serviceMonitor.namespace | string | `""` | Namespace where servicemonitor resource will be created, if empty it will be created in the same namespace as the redis-cluster |
 | serviceMonitor.scrapeTimeout | string | `"10s"` |  |
 | sidecars.env | object | `{}` |  |
 | sidecars.image | string | `""` |  |

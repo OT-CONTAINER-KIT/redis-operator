@@ -127,7 +127,8 @@ serviceMonitor:
   enabled: false
   interval: 30s
   scrapeTimeout: 10s
-  namespace: monitoring
+  # -- Namespace where servicemonitor resource will be created, if empty it will be created in the same namespace as the redis-cluster
+  namespace: ""
   # -- extraLabels are added to the servicemonitor when enabled set to true
   extraLabels: {}
     # foo: bar
