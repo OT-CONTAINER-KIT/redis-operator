@@ -380,6 +380,27 @@ func TestCreateMultipleLeaderRedisCommand(t *testing.T) {
 			},
 		},
 		{
+			name: "Multiple leaders cluster version v8",
+			redisCluster: &rcvb2.RedisCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "mycluster",
+					Namespace: "default",
+				},
+				Spec: rcvb2.RedisClusterSpec{
+					ClusterSize:    ptr.To(int32(3)),
+					ClusterVersion: ptr.To("v8"),
+					Port:           ptr.To(6379),
+				},
+			},
+			expectedCommands: []string{
+				"redis-cli", "--cluster", "create",
+				"mycluster-leader-0.mycluster-leader-headless.default.svc:6379",
+				"mycluster-leader-1.mycluster-leader-headless.default.svc:6379",
+				"mycluster-leader-2.mycluster-leader-headless.default.svc:6379",
+				"--cluster-yes",
+			},
+		},
+		{
 			name: "Multiple leaders cluster without version v7",
 			redisCluster: &rcvb2.RedisCluster{
 				ObjectMeta: metav1.ObjectMeta{
@@ -496,6 +517,46 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 			},
 		},
 		{
+			name: "Test case with cluster version v8",
+			secret: secret{
+				name:      "redis-password-secret",
+				namespace: "default",
+				key:       "password",
+			},
+			redisCluster: &rcvb2.RedisCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "redis-cluster",
+					Namespace: "default",
+				},
+				Spec: rcvb2.RedisClusterSpec{
+					ClusterSize: ptr.To(int32(3)),
+					KubernetesConfig: common.KubernetesConfig{
+						ExistingPasswordSecret: &common.ExistingPasswordSecret{
+							Name: ptr.To("redis-password-secret"),
+							Key:  ptr.To("password"),
+						},
+					},
+					ClusterVersion: ptr.To("v8"),
+					Port:           ptr.To(6379),
+				},
+			},
+			leaderPod: RedisDetails{
+				PodName:   "redis-cluster-leader-0",
+				Namespace: "default",
+			},
+			followerPod: RedisDetails{
+				PodName:   "redis-cluster-follower-0",
+				Namespace: "default",
+			},
+			expectedCommand: []string{
+				"redis-cli", "--cluster", "add-node",
+				"redis-cluster-follower-0.redis-cluster-follower-headless.default.svc:6379",
+				"redis-cluster-leader-0.redis-cluster-leader-headless.default.svc:6379",
+				"--cluster-slave",
+				"-a", "password",
+			},
+		},
+		{
 			name: "Test case with cluster version v7 failed to get password",
 			secret: secret{
 				name:      "wrong-name",
@@ -516,6 +577,45 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 						},
 					},
 					ClusterVersion: ptr.To("v7"),
+					Port:           ptr.To(6379),
+				},
+			},
+			leaderPod: RedisDetails{
+				PodName:   "redis-cluster-leader-0",
+				Namespace: "default",
+			},
+			followerPod: RedisDetails{
+				PodName:   "redis-cluster-follower-0",
+				Namespace: "default",
+			},
+			expectedCommand: []string{
+				"redis-cli", "--cluster", "add-node",
+				"redis-cluster-follower-0.redis-cluster-follower-headless.default.svc:6379",
+				"redis-cluster-leader-0.redis-cluster-leader-headless.default.svc:6379",
+				"--cluster-slave",
+			},
+		},
+		{
+			name: "Test case with cluster version v8 failed to get password",
+			secret: secret{
+				name:      "wrong-name",
+				namespace: "default",
+				key:       "password",
+			},
+			redisCluster: &rcvb2.RedisCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "redis-cluster",
+					Namespace: "default",
+				},
+				Spec: rcvb2.RedisClusterSpec{
+					ClusterSize: ptr.To(int32(3)),
+					KubernetesConfig: common.KubernetesConfig{
+						ExistingPasswordSecret: &common.ExistingPasswordSecret{
+							Name: ptr.To("redis-password-secret"),
+							Key:  ptr.To("password"),
+						},
+					},
+					ClusterVersion: ptr.To("v8"),
 					Port:           ptr.To(6379),
 				},
 			},

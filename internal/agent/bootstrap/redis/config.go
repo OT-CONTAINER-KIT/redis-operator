@@ -36,7 +36,7 @@ func GenerateConfig() error {
 		dataDir, _            = util.CoalesceEnv("DATA_DIR", "/data")
 		nodeConfDir, _        = util.CoalesceEnv("NODE_CONF_DIR", "/node-conf")
 		externalConfigFile, _ = util.CoalesceEnv("EXTERNAL_CONFIG_FILE", "/etc/redis/external.conf.d/redis-additional.conf")
-		redisMajorVersion, _  = util.CoalesceEnv("REDIS_MAJOR_VERSION", "v7")
+		redisMajorVersion, _  = util.CoalesceEnv("REDIS_MAJOR_VERSION", "v7") // default to v7, support v8
 		redisPort, _          = util.CoalesceEnv("REDIS_PORT", "6379")
 	)
 
@@ -83,7 +83,7 @@ func GenerateConfig() error {
 
 		if setupMode, ok := util.CoalesceEnv("SETUP_MODE", ""); ok && setupMode == "cluster" {
 			cfg.Append("tls-cluster", "yes")
-			if redisMajorVersion == "v7" {
+			if redisMajorVersion == "v7" || redisMajorVersion == "v8" {
 				cfg.Append("cluster-preferred-endpoint-type", "hostname")
 			}
 		}
@@ -152,7 +152,7 @@ func GenerateConfig() error {
 			cfg.Append("cluster-announce-ip", clusterAnnounceIP)
 		}
 
-		if redisMajorVersion == "v7" {
+		if redisMajorVersion == "v7" || redisMajorVersion == "v8" {
 			fqdnName, err := fqdn.FqdnHostname()
 			if err != nil {
 				log.Printf("Warning: Failed to get FQDN: %v", err)

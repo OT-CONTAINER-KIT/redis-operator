@@ -69,7 +69,7 @@ helm delete <my-release> --namespace <namespace>
 | podSecurityContext.runAsUser | int | `1000` |  |
 | priorityClassName | string | `""` |  |
 | redisCluster.clusterSize | int | `3` | Default number of replicas for both leader and follower when not explicitly set |
-| redisCluster.clusterVersion | string | `"v7"` |  |
+| redisCluster.clusterVersion | string | `"v7" \| "v8"` | Supported versions: v7 (default), v8 |
 | redisCluster.enableMasterSlaveAntiAffinity | bool | `false` | Enable pod anti-affinity between leader and follower pods by adding the appropriate label. Notice that this requires the operator to have its mutating webhook enabled, otherwise it will only add an annotation to the RedisCluster CR. Default is false. |
 | redisCluster.follower.affinity | string | `nil` |  |
 | redisCluster.follower.livenessProbe | object | `{}` |  |
@@ -103,7 +103,7 @@ helm delete <my-release> --namespace <namespace>
 | redisCluster.redisSecret.secretKey | string | `""` |  |
 | redisCluster.redisSecret.secretName | string | `""` |  |
 | redisCluster.resources | object | `{}` |  |
-| redisCluster.tag | string | `"v7.0.15"` |  |
+| redisCluster.tag | string | `"v7.x.x" \| "v8.x.x"` | Redis image tag, e.g., v7.0.15 or v8.0.0 |
 | redisExporter.enabled | bool | `false` |  |
 | redisExporter.env | list | `[]` |  |
 | redisExporter.image | string | `"quay.io/opstree/redis-exporter"` |  |
