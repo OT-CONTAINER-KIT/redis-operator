@@ -3,7 +3,7 @@
 # ===========================
 
 # Current Operator version
-VERSION ?= 0.22.0
+VERSION ?= 0.22.1
 
 # Default bundle image tag
 BUNDLE_IMG ?= controller-bundle:$(VERSION)
@@ -47,7 +47,7 @@ CRD_REF_DOCS = $(LOCALBIN)/crd-ref-docs-$(CRD_REF_DOCS_VERSION)
 KUSTOMIZE_VERSION ?= v5.6.0
 CONTROLLER_TOOLS_VERSION ?= v0.17.2
 ENVTEST_VERSION ?= release-0.17
-GOLANGCI_LINT_VERSION ?= v2.2.2
+GOLANGCI_LINT_VERSION ?= v2.4.0
 KUTTL_VERSION ?= 0.15.0
 KIND_VERSION ?= v0.24.0
 CRD_REF_DOCS_VERSION ?= v0.0.12

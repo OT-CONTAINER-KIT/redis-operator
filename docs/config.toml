@@ -83,7 +83,7 @@ gcs_engine_id = "016691298986124624340:x7qv2dywdao"
 # current release branch. Never is rc.
 release_branch = "release-1.27.0"
 # the main version. Never is rc.
-release_version = "0.22.0"
+release_version = "0.22.1"
 
 # shown for production
 supported_k8s = "1.23"
