@@ -115,6 +115,8 @@ type statefulSetParameters struct {
 	ServiceAccountName                   *string
 	UpdateStrategy                       appsv1.StatefulSetUpdateStrategy
 	PersistentVolumeClaimRetentionPolicy *appsv1.StatefulSetPersistentVolumeClaimRetentionPolicy
+	AdditionalVolumes                    []corev1.Volume
+	AdditionalVolumeMounts               []corev1.VolumeMount
 	RecreateStatefulSet                  bool
 	RecreateStatefulsetStrategy          *metav1.DeletionPropagation
 	TerminationGracePeriodSeconds        *int64
@@ -298,7 +300,7 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 						params.EnableMetrics,
 						params.ExternalConfig,
 						params.ClusterVersion,
-						containerParams.AdditionalMountPath,
+						append(containerParams.AdditionalMountPath, params.AdditionalVolumeMounts...),
 						sidecars,
 					),
 					NodeSelector:                  params.NodeSelector,
@@ -314,7 +316,7 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 		},
 	}
 
-	statefulset.Spec.Template.Spec.InitContainers = generateInitContainerDef(containerParams.Role, stsMeta.GetName(), initcontainerParams, params.ExternalConfig, initcontainerParams.AdditionalMountPath, containerParams, params.ClusterVersion)
+	statefulset.Spec.Template.Spec.InitContainers = generateInitContainerDef(containerParams.Role, stsMeta.GetName(), initcontainerParams, params.ExternalConfig, append(initcontainerParams.AdditionalMountPath, params.AdditionalVolumeMounts...), containerParams, params.ClusterVersion)
 
 	if params.Tolerations != nil {
 		statefulset.Spec.Template.Spec.Tolerations = *params.Tolerations
@@ -334,6 +336,9 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 	}
 	if containerParams.AdditionalVolume != nil {
 		statefulset.Spec.Template.Spec.Volumes = append(statefulset.Spec.Template.Spec.Volumes, containerParams.AdditionalVolume...)
+	}
+	if params.AdditionalVolumes != nil {
+		statefulset.Spec.Template.Spec.Volumes = append(statefulset.Spec.Template.Spec.Volumes, params.AdditionalVolumes...)
 	}
 
 	if containerParams.TLSConfig != nil {
