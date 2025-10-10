@@ -17,22 +17,21 @@ spec:
   clusterVersion: {{ .Values.redisCluster.clusterVersion }}
   redisLeader: {{- include "redis.role" .Values.redisCluster.leader | nindent 4 }}
     replicas: {{ .Values.redisCluster.leader.replicas }}
+    {{- if .Values.externalConfig.enabled }}
     redisConfig:
-  {{- if .Values.externalConfig.enabled }}
       additionalRedisConfig: "{{ .Values.redisCluster.name | default .Release.Name }}-ext-config"
-  {{- end }}
-  {{- if .Values.redisCluster.leader.redisConfig.maxMemoryPercentOfLimit }}
-      maxMemoryPercentOfLimit: {{ .Values.redisCluster.leader.redisConfig.maxMemoryPercentOfLimit }}
-  {{- end }}
+    {{- end }}
   
   redisFollower: {{-  include "redis.role" .Values.redisCluster.follower | nindent 4 }}
     replicas: {{ .Values.redisCluster.follower.replicas }}
+    {{- if .Values.externalConfig.enabled }}
     redisConfig:
-  {{- if .Values.externalConfig.enabled }}
       additionalRedisConfig: "{{ .Values.redisCluster.name | default .Release.Name }}-ext-config"
-  {{- end }}
-  {{- if .Values.redisCluster.follower.redisConfig.maxMemoryPercentOfLimit }}
-      maxMemoryPercentOfLimit: {{ .Values.redisCluster.follower.redisConfig.maxMemoryPercentOfLimit }}
+    {{- end }}
+  
+  {{- if and .Values.redisConfig .Values.redisConfig.maxMemoryPercentOfLimit }}
+  redisConfig:
+    maxMemoryPercentOfLimit: {{ .Values.redisConfig.maxMemoryPercentOfLimit }}
   {{- end }}
 
   redisExporter:

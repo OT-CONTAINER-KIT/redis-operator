@@ -49,8 +49,8 @@ spec:
   {{- if .Values.externalConfig.enabled }}
     additionalRedisConfig: "{{ .Values.redisReplication.name | default .Release.Name }}-ext-config"
   {{- end }}
-  {{- if .Values.redisConfig.maxMemoryPercentOfLimit }}
-      maxMemoryPercentOfLimit: {{ .Values.redisConfig.maxMemoryPercentOfLimit }}
+  {{- if and .Values.redisConfig .Values.redisConfig.maxMemoryPercentOfLimit }}
+    maxMemoryPercentOfLimit: {{ .Values.redisConfig.maxMemoryPercentOfLimit }}
   {{- end }}
   {{- if .Values.storageSpec }}
   storage: {{ toYaml .Values.storageSpec | nindent 4 }}
