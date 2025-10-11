@@ -48,7 +48,7 @@ spec:
   {{- if .Values.externalConfig.enabled }}
     additionalRedisConfig: "{{ .Values.redisStandalone.name | default .Release.Name }}-ext-config"
   {{- end }}
-  {{- if gt .Values.redisStandalone.maxMemoryPercentOfLimit 0 }}
+  {{- if and .Values.redisStandalone.maxMemoryPercentOfLimit (ne .Values.redisStandalone.maxMemoryPercentOfLimit 0) }}
     maxMemoryPercentOfLimit: {{ .Values.redisStandalone.maxMemoryPercentOfLimit }}
   {{- end }}
   {{- if .Values.storageSpec }}

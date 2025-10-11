@@ -49,7 +49,7 @@ spec:
   {{- if .Values.externalConfig.enabled }}
     additionalRedisConfig: "{{ .Values.redisReplication.name | default .Release.Name }}-ext-config"
   {{- end }}
-  {{- if gt .Values.redisReplication.maxMemoryPercentOfLimit 0 }}
+  {{- if and .Values.redisReplication.maxMemoryPercentOfLimit (ne .Values.redisReplication.maxMemoryPercentOfLimit 0) }}
     maxMemoryPercentOfLimit: {{ .Values.redisReplication.maxMemoryPercentOfLimit }}
   {{- end }}
   {{- if .Values.storageSpec }}
