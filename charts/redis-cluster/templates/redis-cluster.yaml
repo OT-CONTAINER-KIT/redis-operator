@@ -29,9 +29,9 @@ spec:
       additionalRedisConfig: "{{ .Values.redisCluster.name | default .Release.Name }}-ext-config"
     {{- end }}
   
-  {{- if and .Values.redisConfig .Values.redisConfig.maxMemoryPercentOfLimit }}
+  {{- if gt .Values.redisCluster.maxMemoryPercentOfLimit 0 }}
   redisConfig:
-    maxMemoryPercentOfLimit: {{ .Values.redisConfig.maxMemoryPercentOfLimit }}
+    maxMemoryPercentOfLimit: {{ .Values.redisCluster.maxMemoryPercentOfLimit }}
   {{- end }}
 
   redisExporter:

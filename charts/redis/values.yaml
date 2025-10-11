@@ -23,6 +23,9 @@ redisStandalone:
   # -- Some fields of statefulset are immutable, such as volumeClaimTemplates.
   # When set to true, the operator will delete the statefulset and recreate it. Default is false.
   recreateStatefulSetOnUpdateInvalid: false
+  # -- MaxMemoryPercentOfLimit is the percentage of redis container memory limit to be used as maxmemory. 
+  #    Default is 0 (disabled).
+  maxMemoryPercentOfLimit: 0
 
 labels: {}
 #   foo: bar

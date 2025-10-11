@@ -22,11 +22,16 @@ redisCluster:
     #   memory: 128Mi
   minReadySeconds: 0
   # -- Some fields of statefulset are immutable, such as volumeClaimTemplates.
-  # When set to true, the operator will delete the statefulset and recreate it. Default is false.
+  #    When set to true, the operator will delete the statefulset and recreate it. 
+  #    Default is false.
   recreateStatefulSetOnUpdateInvalid: false
+  # -- MaxMemoryPercentOfLimit is the percentage of redis container memory limit to be used as maxmemory. 
+  #    Default is 0 (disabled).
+  maxMemoryPercentOfLimit: 0
   # -- Enable pod anti-affinity between leader and follower pods by adding the appropriate label.
-  # Notice that this requires the operator to have its mutating webhook enabled,
-  # otherwise it will only add an annotation to the RedisCluster CR. Default is false.
+  #    Notice that this requires the operator to have its mutating webhook enabled,
+  #    otherwise it will only add an annotation to the RedisCluster CR. 
+  #    Default is false.
   enableMasterSlaveAntiAffinity: false
   leader:
     # -- Number of Redis leader (master) nodes. If not set, uses clusterSize value

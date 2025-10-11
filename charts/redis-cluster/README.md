@@ -70,7 +70,7 @@ helm delete <my-release> --namespace <namespace>
 | priorityClassName | string | `""` |  |
 | redisCluster.clusterSize | int | `3` | Default number of replicas for both leader and follower when not explicitly set |
 | redisCluster.clusterVersion | string | `"v7"` |  |
-| redisCluster.enableMasterSlaveAntiAffinity | bool | `false` | Enable pod anti-affinity between leader and follower pods by adding the appropriate label. Notice that this requires the operator to have its mutating webhook enabled, otherwise it will only add an annotation to the RedisCluster CR. Default is false. |
+| redisCluster.enableMasterSlaveAntiAffinity | bool | `false` | Enable pod anti-affinity between leader and follower pods by adding the appropriate label.    Notice that this requires the operator to have its mutating webhook enabled,    otherwise it will only add an annotation to the RedisCluster CR.     Default is false. |
 | redisCluster.follower.affinity | string | `nil` |  |
 | redisCluster.follower.livenessProbe | object | `{}` |  |
 | redisCluster.follower.nodeSelector | string | `nil` |  |
@@ -96,10 +96,11 @@ helm delete <my-release> --namespace <namespace>
 | redisCluster.leader.securityContext | object | `{}` |  |
 | redisCluster.leader.serviceType | string | `"ClusterIP"` |  |
 | redisCluster.leader.tolerations | list | `[]` |  |
+| redisCluster.maxMemoryPercentOfLimit | int | `0` | MaxMemoryPercentOfLimit is the percentage of redis container memory limit to be used as maxmemory.     Default is 0 (disabled). |
 | redisCluster.minReadySeconds | int | `0` |  |
 | redisCluster.name | string | `""` |  |
 | redisCluster.persistenceEnabled | bool | `true` |  |
-| redisCluster.recreateStatefulSetOnUpdateInvalid | bool | `false` | Some fields of statefulset are immutable, such as volumeClaimTemplates. When set to true, the operator will delete the statefulset and recreate it. Default is false. |
+| redisCluster.recreateStatefulSetOnUpdateInvalid | bool | `false` | Some fields of statefulset are immutable, such as volumeClaimTemplates.    When set to true, the operator will delete the statefulset and recreate it.     Default is false. |
 | redisCluster.redisSecret.secretKey | string | `""` |  |
 | redisCluster.redisSecret.secretName | string | `""` |  |
 | redisCluster.resources | object | `{}` |  |
