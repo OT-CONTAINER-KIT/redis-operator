@@ -78,6 +78,7 @@ helm delete <my-release> --namespace <namespace>
 | redisStandalone.image | string | `"quay.io/opstree/redis"` |  |
 | redisStandalone.imagePullPolicy | string | `"IfNotPresent"` |  |
 | redisStandalone.imagePullSecrets | list | `[]` |  |
+| redisStandalone.maxMemoryPercentOfLimit | int | `0` | MaxMemoryPercentOfLimit is the percentage of redis container memory limit to be used as maxmemory.     Default is 0 (disabled). |
 | redisStandalone.minReadySeconds | int | `0` |  |
 | redisStandalone.name | string | `""` |  |
 | redisStandalone.recreateStatefulSetOnUpdateInvalid | bool | `false` | Some fields of statefulset are immutable, such as volumeClaimTemplates. When set to true, the operator will delete the statefulset and recreate it. Default is false. |

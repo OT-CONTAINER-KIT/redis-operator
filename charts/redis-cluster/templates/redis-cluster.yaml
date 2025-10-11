@@ -17,16 +17,23 @@ spec:
   clusterVersion: {{ .Values.redisCluster.clusterVersion }}
   redisLeader: {{- include "redis.role" .Values.redisCluster.leader | nindent 4 }}
     replicas: {{ .Values.redisCluster.leader.replicas }}
-  {{- if .Values.externalConfig.enabled }}
+    {{- if .Values.externalConfig.enabled }}
     redisConfig:
       additionalRedisConfig: "{{ .Values.redisCluster.name | default .Release.Name }}-ext-config"
-  {{- end }}
+    {{- end }}
   
   redisFollower: {{-  include "redis.role" .Values.redisCluster.follower | nindent 4 }}
     replicas: {{ .Values.redisCluster.follower.replicas }}
-  {{- if .Values.externalConfig.enabled }}
+    {{- if .Values.externalConfig.enabled }}
     redisConfig:
       additionalRedisConfig: "{{ .Values.redisCluster.name | default .Release.Name }}-ext-config"
+    {{- end }}
+  
+  {{- if .Values.redisCluster.maxMemoryPercentOfLimit }}
+  {{- if gt .Values.redisCluster.maxMemoryPercentOfLimit 0 }}
+  redisConfig:
+    maxMemoryPercentOfLimit: {{ .Values.redisCluster.maxMemoryPercentOfLimit }}
+  {{- end }}
   {{- end }}
 
   redisExporter:
