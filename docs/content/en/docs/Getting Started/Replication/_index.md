@@ -82,7 +82,7 @@ spec:
     runAsUser: 1000
     fsGroup: 1000
   kubernetesConfig:
-    image: quay.io/opstree/redis:v7.0.15
+    image: quay.io/opstree/redis:v7.4.5
     imagePullPolicy: IfNotPresent
     resources:
       requests:
