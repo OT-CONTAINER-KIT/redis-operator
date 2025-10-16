@@ -109,6 +109,11 @@ func generateRedisReplicationParams(cr *rrvb2.RedisReplication) statefulSetParam
 		IgnoreAnnotations:                    cr.Spec.KubernetesConfig.IgnoreAnnotations,
 		MinReadySeconds:                      minreadyseconds,
 	}
+
+	if cr.Spec.PodManagementPolicy != nil {
+		res.PodManagementPolicy = cr.Spec.PodManagementPolicy
+	}
+
 	if cr.Spec.KubernetesConfig.ImagePullSecrets != nil {
 		res.ImagePullSecrets = cr.Spec.KubernetesConfig.ImagePullSecrets
 	}
