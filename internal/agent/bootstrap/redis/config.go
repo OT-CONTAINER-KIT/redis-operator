@@ -38,6 +38,8 @@ func GenerateConfig() error {
 		externalConfigFile, _ = util.CoalesceEnv("EXTERNAL_CONFIG_FILE", "/etc/redis/external.conf.d/redis-additional.conf")
 		redisMajorVersion, _  = util.CoalesceEnv("REDIS_MAJOR_VERSION", "v7")
 		redisPort, _          = util.CoalesceEnv("REDIS_PORT", "6379")
+		nodeport, _           = util.CoalesceEnv("NODEPORT", "false")
+		tlsMode, _            = util.CoalesceEnv("TLS_MODE", "false")
 	)
 
 	if val, ok := util.CoalesceEnv("REDIS_PASSWORD", ""); ok && val != "" {
@@ -70,7 +72,7 @@ func GenerateConfig() error {
 		fmt.Println("Setting up redis in standalone mode")
 	}
 
-	if tlsMode, ok := util.CoalesceEnv("TLS_MODE", ""); ok && tlsMode == "true" {
+	if tlsMode == "true" {
 		redisTLSCert, _ := util.CoalesceEnv("REDIS_TLS_CERT", "")
 		redisTLSCertKey, _ := util.CoalesceEnv("REDIS_TLS_CERT_KEY", "")
 		redisTLSCAKey, _ := util.CoalesceEnv("REDIS_TLS_CA_KEY", "")
@@ -83,7 +85,7 @@ func GenerateConfig() error {
 
 		if setupMode, ok := util.CoalesceEnv("SETUP_MODE", ""); ok && setupMode == "cluster" {
 			cfg.Append("tls-cluster", "yes")
-			if redisMajorVersion == "v7" {
+			if redisMajorVersion == "v7" && nodeport == "false" {
 				cfg.Append("cluster-preferred-endpoint-type", "hostname")
 			}
 		}
@@ -108,7 +110,7 @@ func GenerateConfig() error {
 		fmt.Println("Running without persistence mode")
 	}
 
-	if tlsMode, ok := util.CoalesceEnv("TLS_MODE", ""); ok && tlsMode == "true" {
+	if tlsMode == "true" {
 		cfg.Append("port", "0")
 		cfg.Append("tls-port", redisPort)
 	} else {
@@ -126,6 +128,9 @@ func GenerateConfig() error {
 
 		if clusterAnnouncePort != "" {
 			cfg.Append("cluster-announce-port", clusterAnnouncePort)
+			if tlsMode == "true" {
+				cfg.Append("cluster-announce-tls-port", clusterAnnouncePort)
+			}
 		}
 		if clusterAnnounceBusPort != "" {
 			cfg.Append("cluster-announce-bus-port", clusterAnnounceBusPort)
