@@ -207,7 +207,12 @@ func CreateMultipleLeaderRedisCommand(ctx context.Context, client kubernetes.Int
 			PodName:   cr.Name + "-leader-" + strconv.Itoa(podCount),
 			Namespace: cr.Namespace,
 		}
-		cmd.AddFlag(getEndpoint(ctx, client, cr, rd))
+		endpoint := getEndpoint(ctx, client, cr, rd)
+		if endpoint == "" {
+			log.FromContext(ctx).Error(errors.New("failed to get endpoint"), "Unable to resolve endpoint for pod", "Pod", rd.PodName)
+			continue
+		}
+		cmd.AddFlag(endpoint)
 	}
 	cmd.AddFlag("--cluster-yes")
 	return cmd
@@ -272,10 +277,19 @@ func getRedisTLSArgs(tlsConfig *commonapi.TLSConfig, clientHost string) []string
 }
 
 // createRedisReplicationCommand will create redis replication creation command
-func createRedisReplicationCommand(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, leaderPod RedisDetails, followerPod RedisDetails) []string {
+func createRedisReplicationCommand(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, leaderPod RedisDetails, followerPod RedisDetails) ([]string, error) {
+	followerEndpoint := getEndpoint(ctx, client, cr, followerPod)
+	if followerEndpoint == "" {
+		return nil, fmt.Errorf("failed to get endpoint for follower pod %s", followerPod.PodName)
+	}
+	leaderEndpoint := getEndpoint(ctx, client, cr, leaderPod)
+	if leaderEndpoint == "" {
+		return nil, fmt.Errorf("failed to get endpoint for leader pod %s", leaderPod.PodName)
+	}
+
 	cmd := []string{"redis-cli", "--cluster", "add-node"}
-	cmd = append(cmd, getEndpoint(ctx, client, cr, followerPod))
-	cmd = append(cmd, getEndpoint(ctx, client, cr, leaderPod))
+	cmd = append(cmd, followerEndpoint)
+	cmd = append(cmd, leaderEndpoint)
 	cmd = append(cmd, "--cluster-slave")
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
 		pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
@@ -286,7 +300,7 @@ func createRedisReplicationCommand(ctx context.Context, client kubernetes.Interf
 		}
 	}
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, leaderPod.PodName)...)
-	return cmd
+	return cmd, nil
 }
 
 // ExecuteRedisReplicationCommand will execute the replication command
@@ -316,7 +330,12 @@ func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Inter
 			podIP = getRedisServerIP(ctx, client, followerPod)
 			if !checkRedisNodePresence(ctx, nodes, podIP) {
 				log.FromContext(ctx).V(1).Info("Adding node to cluster.", "Node.IP", podIP, "Follower.Pod", followerPod)
-				cmd := createRedisReplicationCommand(ctx, client, cr, leaderPod, followerPod)
+				cmd, err := createRedisReplicationCommand(ctx, client, cr, leaderPod, followerPod)
+				if err != nil {
+					log.FromContext(ctx).Error(err, "Failed to create replication command")
+					followerIdx++
+					continue
+				}
 				redisClient := configureRedisClient(ctx, client, cr, followerPod.PodName)
 				pong, err := redisClient.Ping(ctx).Result()
 				redisClient.Close()
