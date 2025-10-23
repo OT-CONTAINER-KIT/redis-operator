@@ -40,6 +40,37 @@ For uninstalling the chart:-
 helm delete <my-release> --namespace <namespace>
 ```
 
+### Custom Volumes and Volume Mounts
+
+You can add custom volumes and volume mounts to Redis replication pods using the `additionalVolumes` and `additionalVolumeMounts` values:
+
+```yaml
+redisReplication:
+  additionalVolumes:
+    - name: config-volume
+      configMap:
+        name: redis-config
+    - name: logs-volume
+      emptyDir: {}
+  additionalVolumeMounts:
+    - name: config-volume
+      mountPath: /etc/redis/config
+      readOnly: true
+    - name: logs-volume
+      mountPath: /var/log/redis
+```
+
+### PersistentVolumeClaimRetentionPolicy
+
+You can control the lifecycle of PersistentVolumeClaims (PVCs) using the retention policy:
+
+```yaml
+redisReplication:
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Delete  # Delete PVCs when StatefulSet is deleted (default: Retain)
+    whenScaled: Delete   # Delete PVCs when StatefulSet is scaled down (default: Retain)
+```
+
 ## Values
 
 | Key | Type | Default | Description |
@@ -78,6 +109,8 @@ helm delete <my-release> --namespace <namespace>
 | redisExporter.resources | object | `{}` |  |
 | redisExporter.securityContext | object | `{}` |  |
 | redisExporter.tag | string | `"v1.44.0"` |  |
+| redisReplication.additionalVolumeMounts | list | `[]` |  |
+| redisReplication.additionalVolumes | list | `[]` |  |
 | redisReplication.clusterSize | int | `3` |  |
 | redisReplication.ignoreAnnotations | list | `[]` |  |
 | redisReplication.image | string | `"quay.io/opstree/redis"` |  |
@@ -86,6 +119,7 @@ helm delete <my-release> --namespace <namespace>
 | redisReplication.maxMemoryPercentOfLimit | int | `0` | MaxMemoryPercentOfLimit is the percentage of redis container memory limit to be used as maxmemory.    Default is 0 (disabled). |
 | redisReplication.minReadySeconds | int | `0` |  |
 | redisReplication.name | string | `""` |  |
+| redisReplication.persistentVolumeClaimRetentionPolicy | object | `{}` |  |
 | redisReplication.recreateStatefulSetOnUpdateInvalid | bool | `false` | Some fields of statefulset are immutable, such as volumeClaimTemplates. When set to true, the operator will delete the statefulset and recreate it. Default is false. |
 | redisReplication.redisSecret.secretKey | string | `""` |  |
 | redisReplication.redisSecret.secretName | string | `""` |  |

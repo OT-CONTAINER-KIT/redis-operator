@@ -1,0 +1,35 @@
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisReplication
+metadata:
+  name: redis-replication
+spec:
+  clusterSize: 3
+  kubernetesConfig:
+    image: quay.io/opstree/redis:v7.0.12
+    imagePullPolicy: IfNotPresent
+    additionalVolumes:
+      - name: backup-volume
+        persistentVolumeClaim:
+          claimName: redis-backup-pvc
+      - name: scripts-volume
+        configMap:
+          name: redis-scripts
+          defaultMode: 0755
+    additionalVolumeMounts:
+      - name: backup-volume
+        mountPath: /data/backup
+      - name: scripts-volume
+        mountPath: /usr/local/bin/scripts
+        readOnly: true
+  podSecurityContext:
+    runAsUser: 1000
+    fsGroup: 1000
+  storage:
+    volumeClaimTemplate:
+      spec:
+        # storageClassName: standard
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
