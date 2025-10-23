@@ -24,7 +24,7 @@ func ReconcileRedisPodDisruptionBudget(ctx context.Context, cr *rcvb2.RedisClust
 		labels := getRedisLabels(cr.Name, cluster, role, cr.GetLabels())
 		annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 		pdbMeta := generateObjectMetaInformation(pdbName, cr.Namespace, labels, annotations)
-		pdbDef := generatePodDisruptionBudgetDef(ctx, cr, role, pdbMeta, cr.Spec.RedisLeader.PodDisruptionBudget)
+		pdbDef := generatePodDisruptionBudgetDef(ctx, cr, role, pdbMeta, pdbParams)
 		return CreateOrUpdatePodDisruptionBudget(ctx, pdbDef, cl)
 	} else {
 		// Check if one exists, and delete it.
@@ -97,14 +97,14 @@ func generatePodDisruptionBudgetDef(ctx context.Context, cr *rcvb2.RedisCluster,
 			Selector: lblSelector,
 		},
 	}
-	if pdbParams.MinAvailable != nil {
-		pdbTemplate.Spec.MinAvailable = &intstr.IntOrString{Type: intstr.Int, IntVal: (*pdbParams.MinAvailable)}
-	}
+	// PodDisruptionBudget spec allows either MinAvailable OR MaxUnavailable, but not both
+	// Priority: MaxUnavailable > MinAvailable > default quorum
 	if pdbParams.MaxUnavailable != nil {
 		pdbTemplate.Spec.MaxUnavailable = &intstr.IntOrString{Type: intstr.Int, IntVal: *pdbParams.MaxUnavailable}
-	}
-	// If we don't have a value for either, assume quorum: (N/2)+1
-	if pdbTemplate.Spec.MaxUnavailable == nil && pdbTemplate.Spec.MinAvailable == nil {
+	} else if pdbParams.MinAvailable != nil {
+		pdbTemplate.Spec.MinAvailable = &intstr.IntOrString{Type: intstr.Int, IntVal: (*pdbParams.MinAvailable)}
+	} else {
+		// If we don't have a value for either, assume quorum: (N/2)+1
 		pdbTemplate.Spec.MinAvailable = &intstr.IntOrString{Type: intstr.Int, IntVal: (*cr.Spec.ClusterSize / 2) + 1}
 	}
 	AddOwnerRefToObject(pdbTemplate, redisClusterAsOwner(cr))
@@ -124,14 +124,14 @@ func generateReplicationPodDisruptionBudgetDef(ctx context.Context, cr *rrvb2.Re
 			Selector: lblSelector,
 		},
 	}
-	if pdbParams.MinAvailable != nil {
-		pdbTemplate.Spec.MinAvailable = &intstr.IntOrString{Type: intstr.Int, IntVal: *pdbParams.MinAvailable}
-	}
+	// PodDisruptionBudget spec allows either MinAvailable OR MaxUnavailable, but not both
+	// Priority: MaxUnavailable > MinAvailable > default quorum
 	if pdbParams.MaxUnavailable != nil {
 		pdbTemplate.Spec.MaxUnavailable = &intstr.IntOrString{Type: intstr.Int, IntVal: *pdbParams.MaxUnavailable}
-	}
-	// If we don't have a value for either, assume quorum: (N/2)+1
-	if pdbTemplate.Spec.MaxUnavailable == nil && pdbTemplate.Spec.MinAvailable == nil {
+	} else if pdbParams.MinAvailable != nil {
+		pdbTemplate.Spec.MinAvailable = &intstr.IntOrString{Type: intstr.Int, IntVal: *pdbParams.MinAvailable}
+	} else {
+		// If we don't have a value for either, assume quorum: (N/2)+1
 		pdbTemplate.Spec.MinAvailable = &intstr.IntOrString{Type: intstr.Int, IntVal: (*cr.Spec.Size / 2) + 1}
 	}
 	AddOwnerRefToObject(pdbTemplate, redisReplicationAsOwner(cr))
@@ -151,14 +151,14 @@ func generateSentinelPodDisruptionBudgetDef(ctx context.Context, cr *rsvb2.Redis
 			Selector: lblSelector,
 		},
 	}
-	if pdbParams.MinAvailable != nil {
-		pdbTemplate.Spec.MinAvailable = &intstr.IntOrString{Type: intstr.Int, IntVal: *pdbParams.MinAvailable}
-	}
+	// PodDisruptionBudget spec allows either MinAvailable OR MaxUnavailable, but not both
+	// Priority: MaxUnavailable > MinAvailable > default quorum
 	if pdbParams.MaxUnavailable != nil {
 		pdbTemplate.Spec.MaxUnavailable = &intstr.IntOrString{Type: intstr.Int, IntVal: *pdbParams.MaxUnavailable}
-	}
-	// If we don't have a value for either, assume quorum: (N/2)+1
-	if pdbTemplate.Spec.MaxUnavailable == nil && pdbTemplate.Spec.MinAvailable == nil {
+	} else if pdbParams.MinAvailable != nil {
+		pdbTemplate.Spec.MinAvailable = &intstr.IntOrString{Type: intstr.Int, IntVal: *pdbParams.MinAvailable}
+	} else {
+		// If we don't have a value for either, assume quorum: (N/2)+1
 		pdbTemplate.Spec.MinAvailable = &intstr.IntOrString{Type: intstr.Int, IntVal: (*cr.Spec.Size / 2) + 1}
 	}
 	AddOwnerRefToObject(pdbTemplate, redisSentinelAsOwner(cr))
