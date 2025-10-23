@@ -14,11 +14,11 @@ spec:
   clusterVersion: v7
   persistenceEnabled: true
   redisLeader:
-      redisConfig:
-        additionalRedisConfig: redis-external-config
+    redisConfig:
+      additionalRedisConfig: redis-external-config
   redisFollower:
-      redisConfig:
-        additionalRedisConfig: redis-external-config
+    redisConfig:
+      additionalRedisConfig: redis-external-config
   redisConfig:
     maxMemoryPercentOfLimit: 80
     dynamicConfig:
