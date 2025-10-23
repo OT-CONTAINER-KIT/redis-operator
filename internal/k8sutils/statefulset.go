@@ -314,7 +314,7 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 		},
 	}
 
-	statefulset.Spec.Template.Spec.InitContainers = generateInitContainerDef(containerParams.Role, stsMeta.GetName(), initcontainerParams, initcontainerParams.AdditionalMountPath, containerParams, params.ClusterVersion)
+	statefulset.Spec.Template.Spec.InitContainers = generateInitContainerDef(containerParams.Role, stsMeta.GetName(), initcontainerParams, params.ExternalConfig, initcontainerParams.AdditionalMountPath, containerParams, params.ClusterVersion)
 
 	if params.Tolerations != nil {
 		statefulset.Spec.Template.Spec.Tolerations = *params.Tolerations
@@ -571,7 +571,7 @@ if [ "$ROLE" = "master" ]; then
 fi`, authArgs, tlsArgs, authArgs, tlsArgs, authArgs, tlsArgs)
 }
 
-func generateInitContainerDef(role, name string, initcontainerParams initContainerParameters, mountpath []corev1.VolumeMount, containerParams containerParameters, clusterVersion *string) []corev1.Container {
+func generateInitContainerDef(role, name string, initcontainerParams initContainerParameters, externalConfig *string, mountpath []corev1.VolumeMount, containerParams containerParameters, clusterVersion *string) []corev1.Container {
 	containers := []corev1.Container{}
 
 	if features.Enabled(features.GenerateConfigInInitContainer) {
@@ -591,6 +591,14 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 				})
 			}
 		}
+
+		VolumeMounts := []corev1.VolumeMount{
+			generateConfigVolumeMount(common.VolumeNameConfig),
+		}
+		if externalConfig != nil {
+			VolumeMounts = append(VolumeMounts, externalConfigMount)
+		}
+
 		container := corev1.Container{
 			Name:            "init-config",
 			Image:           image,
@@ -609,9 +617,7 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 				containerParams.Port,
 				clusterVersion,
 			),
-			VolumeMounts: []corev1.VolumeMount{
-				generateConfigVolumeMount(common.VolumeNameConfig),
-			},
+			VolumeMounts: VolumeMounts,
 		}
 		// Set init-config resources to match main container if present
 		if containerParams.Resources != nil {
@@ -759,6 +765,11 @@ func getExporterEnvironmentVariables(params containerParameters) []corev1.EnvVar
 	return envVars
 }
 
+var externalConfigMount = corev1.VolumeMount{
+	Name:      "external-config",
+	MountPath: "/etc/redis/external.conf.d",
+}
+
 // getVolumeMount gives information about persistence mount
 func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nodeConfVolume bool, externalConfig *string, mountpath []corev1.VolumeMount, tlsConfig *commonapi.TLSConfig, aclConfig *commonapi.ACLConfig) []corev1.VolumeMount {
 	var VolumeMounts []corev1.VolumeMount
@@ -794,10 +805,7 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nod
 	}
 
 	if externalConfig != nil {
-		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
-			Name:      "external-config",
-			MountPath: "/etc/redis/external.conf.d",
-		})
+		VolumeMounts = append(VolumeMounts, externalConfigMount)
 	}
 
 	if features.Enabled(features.GenerateConfigInInitContainer) {
