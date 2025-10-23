@@ -31,9 +31,6 @@ spec:
     app: redis-cluster-v1beta2-leader
     redis_setup_type: cluster
     role: leader
-  type: ClusterIP
-status:
-  loadBalancer: {}
 ---
 apiVersion: v1
 kind: Service
@@ -71,9 +68,6 @@ spec:
     app: redis-cluster-v1beta2-leader
     redis_setup_type: cluster
     role: leader
-  type: ClusterIP
-status:
-  loadBalancer: {}
 ---
 apiVersion: v1
 kind: Service
@@ -95,7 +89,6 @@ metadata:
       kind: RedisCluster
       name: redis-cluster-v1beta2
 spec:
-  clusterIP: None
   ports:
     - name: redis-client
       port: 6379
@@ -109,9 +102,6 @@ spec:
     app: redis-cluster-v1beta2-leader
     redis_setup_type: cluster
     role: leader
-  type: ClusterIP
-status:
-  loadBalancer: {}
 ---
 apiVersion: v1
 kind: Service
@@ -149,9 +139,6 @@ spec:
     app: redis-cluster-v1beta2-follower
     redis_setup_type: cluster
     role: follower
-  type: ClusterIP
-status:
-  loadBalancer: {}
 ---
 apiVersion: v1
 kind: Service
@@ -185,9 +172,6 @@ spec:
     app: redis-cluster-v1beta2-follower
     redis_setup_type: cluster
     role: follower
-  type: ClusterIP
-status:
-  loadBalancer: {}
 ---
 apiVersion: v1
 kind: Service
@@ -209,7 +193,6 @@ metadata:
       kind: RedisCluster
       name: redis-cluster-v1beta2
 spec:
-  clusterIP: None
   ports:
     - name: redis-client
       port: 6379
@@ -223,9 +206,6 @@ spec:
     app: redis-cluster-v1beta2-follower
     redis_setup_type: cluster
     role: follower
-  type: ClusterIP
-status:
-  loadBalancer: {}
 ---
 apiVersion: v1
 kind: Service
@@ -250,4 +230,3 @@ spec:
     cluster: redis-cluster-v1beta2
     redis-role: master
     redis_setup_type: cluster
-  type: ClusterIP

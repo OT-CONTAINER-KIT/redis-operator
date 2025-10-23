@@ -22,7 +22,6 @@ import (
 )
 
 func TestCheckRedisNodePresence(t *testing.T) {
-	cr := &rcvb2.RedisCluster{}
 	output := "205dd1780dda981f9320c9d47d069b3c0ceaa358 172.17.0.24:6379@16379 slave b65312dcf5537b8826c344783f078096fdb7f27c 0 1654197347000 1 connected\nfaa21623054227826e93dd71314cce3706491dac 172.17.0.28:6379@16379 slave d54557b21bc5a5aa947ce58b7dbadc5d39bdd551 0 1654197347000 2 connected\nb65312dcf5537b8826c344783f078096fdb7f27c 172.17.0.25:6379@16379 master - 0 1654197346000 1 connected 0-5460\nd54557b21bc5a5aa947ce58b7dbadc5d39bdd551 172.17.0.29:6379@16379 myself,master - 0 1654197347000 2 connected 5461-10922\nc9fa05269c4e662295bf34eb93f1315f962493ba 172.17.0.3:6379@16379 master - 0 1654197348006 3 connected 10923-16383"
 	csvOutput := csv.NewReader(strings.NewReader(output))
 	csvOutput.Comma = ' '
@@ -47,7 +46,7 @@ func TestCheckRedisNodePresence(t *testing.T) {
 	for _, tt := range tests {
 		testname := fmt.Sprintf("%s,%s", tt.nodes, tt.ip)
 		t.Run(testname, func(t *testing.T) {
-			ans := checkRedisNodePresence(context.TODO(), cr, tt.nodes, tt.ip)
+			ans := checkRedisNodePresence(context.TODO(), tt.nodes, tt.ip)
 			if ans != tt.want {
 				t.Errorf("got %t, want %t", ans, tt.want)
 			}
@@ -303,39 +302,6 @@ func TestGetRedisServerAddress(t *testing.T) {
 	}
 }
 
-func TestGetRedisHostname(t *testing.T) {
-	tests := []struct {
-		name         string
-		redisInfo    RedisDetails
-		redisCluster *rcvb2.RedisCluster
-		role         string
-		expected     string
-	}{
-		{
-			name: "standard configuration",
-			redisInfo: RedisDetails{
-				PodName:   "redis-pod",
-				Namespace: "default",
-			},
-			redisCluster: &rcvb2.RedisCluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "mycluster",
-					Namespace: "default",
-				},
-			},
-			role:     "master",
-			expected: "redis-pod.mycluster-master-headless.default.svc",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			fqdn := getRedisHostname(tt.redisInfo, tt.redisCluster, tt.role)
-			assert.Equal(t, tt.expected, fqdn, "FQDN should match the expected output")
-		})
-	}
-}
-
 func TestCreateSingleLeaderRedisCommand(t *testing.T) {
 	cr := &rcvb2.RedisCluster{}
 	invocation := CreateSingleLeaderRedisCommand(context.TODO(), cr)
@@ -423,7 +389,7 @@ func TestGetRedisTLSArgs(t *testing.T) {
 			name:       "with TLS configuration",
 			tlsConfig:  &common.TLSConfig{},
 			clientHost: "redis-host",
-			expected:   []string{"--tls", "--cacert", "/tls/ca.crt", "-h", "redis-host"},
+			expected:   []string{"--tls", "--cacert", "/tls/ca.crt", "--insecure"},
 		},
 		{
 			name:       "without TLS configuration",

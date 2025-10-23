@@ -22,6 +22,7 @@ spec:
     fsGroup: 1000
   kubernetesConfig:
     service:
+      serviceType: NodePort
       includeBusPort: true
       headless:
         includeBusPort: true
