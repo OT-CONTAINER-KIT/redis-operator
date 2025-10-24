@@ -542,8 +542,10 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 			objects = append(objects, secret...)
 
 			client := k8sClientFake.NewSimpleClientset(objects...)
-			cmd := createRedisReplicationCommand(context.TODO(), client, tt.redisCluster, tt.leaderPod, tt.followerPod)
+			cmd, err := createRedisReplicationCommand(context.TODO(), client, tt.redisCluster, tt.leaderPod, tt.followerPod)
 
+			// Assert no error occurred
+			assert.NoError(t, err)
 			// Assert the command is as expected using testify
 			assert.Equal(t, tt.expectedCommand, cmd)
 		})
