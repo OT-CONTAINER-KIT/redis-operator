@@ -48,6 +48,9 @@ type RedisClusterSpec struct {
 	PersistenceEnabled *bool                        `json:"persistenceEnabled,omitempty"`
 	EnvVars            *[]corev1.EnvVar             `json:"env,omitempty"`
 	HostPort           *int                         `json:"hostPort,omitempty"`
+	// +optional
+	// +kubebuilder:validation:Enum=OrderedReady;Parallel
+	PodManagementPolicy *string `json:"podManagementPolicy,omitempty"`
 }
 
 // Node-conf needs to be added only in redis cluster
