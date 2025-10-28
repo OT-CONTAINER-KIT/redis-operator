@@ -14,6 +14,7 @@ import (
 	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	common "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/features"
 	redis "github.com/redis/go-redis/v9"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -120,6 +121,66 @@ func getEndpoint(ctx context.Context, client kubernetes.Interface, cr *rcvb2.Red
 		host = pod.Status.HostIP
 	}
 	return host + ":" + strconv.Itoa(port)
+}
+
+// checkRedisCLIAuthInEnv returns true if we can use the pod's REDISCLI_AUTH variable instead of sending redis-cli -a <password>.
+// It checks only variables specified via env[].valueFrom since this is what the operator sets; it does not look at envFrom.
+func checkRedisCLIAuthInEnv(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, podName, secretName, secretKey string) (bool, error) {
+	redisPod, err := client.CoreV1().Pods(cr.Namespace).Get(context.TODO(), podName, metav1.GetOptions{})
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Error checking Redis pod's REDISCLI_AUTH variable", "namespace", cr.Namespace, "podName", podName)
+		return false, err
+	}
+
+	for _, tr := range redisPod.Spec.Containers {
+		if tr.Name == cr.Name+"-leader" {
+			for _, e := range tr.Env {
+				if e.Name != "REDISCLI_AUTH" {
+					continue
+				}
+
+				if e.ValueFrom == nil || e.ValueFrom.SecretKeyRef == nil {
+					continue
+				}
+
+				if e.ValueFrom.SecretKeyRef.Name != secretName || e.ValueFrom.SecretKeyRef.Key != secretKey {
+					return false, nil
+				}
+
+				return true, nil
+			}
+
+			log.FromContext(ctx).V(1).Info("Leader container not configured with REDISCLI_AUTH", "podName", podName)
+			return false, nil
+		}
+	}
+
+	log.FromContext(ctx).V(1).Info("Leader container not found in pod", "podName", podName)
+	return false, nil
+}
+
+func getRedisClusterAuthArgs(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, podName string) ([]string, error) {
+	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
+		passwordInEnv, err := checkRedisCLIAuthInEnv(ctx, client, cr, podName, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+		if err != nil {
+			return []string{}, fmt.Errorf("error checking pod authentication config: %w", err)
+		}
+
+		if !passwordInEnv {
+			if features.Enabled(features.AvoidCommandLinePassword) {
+				return []string{}, errors.New("refusing to use command-line authentication because AvoidCommandLinePassword is set")
+			}
+
+			pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+			if err != nil {
+				return []string{}, fmt.Errorf("error getting Redis password: %w", err)
+			}
+
+			return []string{"-a", pass}, nil
+		}
+	}
+
+	return []string{}, nil
 }
 
 // CreateSingleLeaderRedisCommand will create command for single leader cluster creation
@@ -245,13 +306,12 @@ func ExecuteRedisClusterCommand(ctx context.Context, client kubernetes.Interface
 		cmd = CreateMultipleLeaderRedisCommand(ctx, client, cr)
 	}
 
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
-		if err != nil {
-			log.FromContext(ctx).Error(err, "Error in getting redis password")
-		}
-		cmd.AddFlag("-a")
-		cmd.AddFlag(pass)
+	authArgs, err := getRedisClusterAuthArgs(ctx, client, cr, cr.Name+"-leader-0")
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Failed to get password authentication arguments")
+	}
+	for _, arg := range authArgs {
+		cmd.AddFlag(arg)
 	}
 	cmd.AddFlag(getRedisTLSArgs(cr.Spec.TLS, cr.Name+"-leader-0")...)
 	executeCommand(ctx, client, cr, cmd.Args(), cr.Name+"-leader-0")
@@ -274,14 +334,11 @@ func createRedisReplicationCommand(ctx context.Context, client kubernetes.Interf
 	cmd = append(cmd, getEndpoint(ctx, client, cr, followerPod))
 	cmd = append(cmd, getEndpoint(ctx, client, cr, leaderPod))
 	cmd = append(cmd, "--cluster-slave")
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
-		if err != nil {
-			log.FromContext(ctx).Error(err, "Failed to retrieve Redis password", "Secret", *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name)
-		} else {
-			cmd = append(cmd, "-a", pass)
-		}
+	authArgs, err := getRedisClusterAuthArgs(ctx, client, cr, leaderPod.PodName)
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Failed to get password authentication arguments")
 	}
+	cmd = append(cmd, authArgs...)
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, leaderPod.PodName)...)
 	return cmd
 }
@@ -444,14 +501,11 @@ func RedisClusterStatusHealth(ctx context.Context, client kubernetes.Interface, 
 	defer redisClient.Close()
 
 	cmd := []string{"redis-cli", "--cluster", "check", fmt.Sprintf("127.0.0.1:%d", *cr.Spec.Port)}
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
-		if err != nil {
-			log.FromContext(ctx).Error(err, "Error in getting redis password")
-		}
-		cmd = append(cmd, "-a")
-		cmd = append(cmd, pass)
+	authArgs, err := getRedisClusterAuthArgs(ctx, client, cr, cr.Name+"-leader-0")
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Failed to get password authentication arguments")
 	}
+	cmd = append(cmd, authArgs...)
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.Name+"-leader-0")...)
 	out, err := executeCommand1(ctx, client, cr, cmd, cr.Name+"-leader-0")
 	if err != nil {

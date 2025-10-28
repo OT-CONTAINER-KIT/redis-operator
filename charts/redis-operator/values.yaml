@@ -106,6 +106,8 @@ securityContext: {}
 
 # Feature gates for alpha/experimental features
 featureGates:
+  # Never execute redis-cli -a <password>, even if authentication cannot succeed without it
+  AvoidCommandLinePassword: false
   # Enable generating Redis configuration using an init container instead of a regular container
   GenerateConfigInInitContainer: false
 
