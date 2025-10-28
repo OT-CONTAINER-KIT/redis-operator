@@ -1,0 +1,38 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: acl-init-replication
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: acl-writer
+          image: busybox:latest
+          command:
+            - sh
+            - -c
+            - |
+              cat > /acl/user.acl << 'EOF'
+              user default on nopass ~* &* +@all
+              user repluser on ~* &* +@all >repl@secure
+              user readonly on ~* &* +@read >readonly@secure
+              EOF
+
+              echo "ACL file created successfully:"
+              cat /acl/user.acl
+
+              echo ""
+              echo "File permissions:"
+              ls -la /acl/user.acl
+          volumeMounts:
+            - name: acl-volume
+              mountPath: /acl
+      volumes:
+        - name: acl-volume
+          persistentVolumeClaim:
+            claimName: redis-replication-acl-pvc
