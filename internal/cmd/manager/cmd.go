@@ -97,8 +97,9 @@ func addFlags(cmd *cobra.Command, opts *managerOptions) {
 	cmd.Flags().BoolVar(&opts.enableLeaderElection, "leader-elect", false, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	cmd.Flags().BoolVar(&opts.enableWebhooks, "enable-webhooks", internalenv.IsWebhookEnabled(), "Enable webhooks")
 	cmd.Flags().IntVar(&opts.maxConcurrentReconciles, "max-concurrent-reconciles", 1, "Max concurrent reconciles")
-	cmd.Flags().StringVar(&opts.featureGatesString, "feature-gates", internalenv.GetFeatureGates(), "A set of key=value pairs that describe feature gates for alpha/experimental features. "+
-		"Options are:\n  GenerateConfigInInitContainer=true|false: enables using init container for config generation")
+	cmd.Flags().StringVar(&opts.featureGatesString, "feature-gates", internalenv.GetFeatureGates(), "A set of key=value pairs that describe feature gates for alpha/experimental features. Options are:"+
+		"\n  GenerateConfigInInitContainer=true|false: enables using init container for config generation"+
+		"\n  AvoidCommandLinePassword=true|false: prevents using -a <password> in redis-cli commands")
 	cmd.Flags().Duration(
 		operator.KubeClientTimeoutMGRFlag,
 		60*time.Second,

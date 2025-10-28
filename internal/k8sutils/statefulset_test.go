@@ -22,24 +22,19 @@ import (
 
 func TestGenerateAuthAndTLSArgs(t *testing.T) {
 	tests := []struct {
-		name         string
-		enableAuth   bool
-		enableTLS    bool
-		expectedAuth string
-		expectedTLS  string
+		name        string
+		enableTLS   bool
+		expectedTLS string
 	}{
-		{"NoAuthNoTLS", false, false, "", ""},
-		{"AuthOnly", true, false, " -a \"${REDIS_PASSWORD}\"", ""},
-		{"TLSOnly", false, true, "", " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\" --cacert \"${REDIS_TLS_CA_KEY}\""},
-		{"AuthAndTLS", true, true, " -a \"${REDIS_PASSWORD}\"", " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\" --cacert \"${REDIS_TLS_CA_KEY}\""},
+		{"NoAuthNoTLS", false, ""},
+		{"AuthOnly", false, ""},
+		{"TLSOnly", true, " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\" --cacert \"${REDIS_TLS_CA_KEY}\""},
+		{"AuthAndTLS", true, " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\" --cacert \"${REDIS_TLS_CA_KEY}\""},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			authArgs, tlsArgs := GenerateAuthAndTLSArgs(tt.enableAuth, tt.enableTLS)
-			if authArgs != tt.expectedAuth {
-				t.Errorf("expected auth args %q, got %q", tt.expectedAuth, authArgs)
-			}
+			tlsArgs := GenerateTLSArgs(tt.enableTLS)
 			if tlsArgs != tt.expectedTLS {
 				t.Errorf("expected TLS args %q, got %q", tt.expectedTLS, tlsArgs)
 			}
@@ -62,7 +57,7 @@ func TestGeneratePreStopCommand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := GeneratePreStopCommand(tt.role, true, true)
+			result := GeneratePreStopCommand(tt.role, true)
 			if (result == "") != tt.expectEmpty {
 				t.Errorf("expected empty: %v, got: %q", tt.expectEmpty, result)
 			}
@@ -1501,6 +1496,14 @@ func TestGetEnvironmentVariables(t *testing.T) {
 						Key: "test-key",
 					},
 				}},
+				{Name: "REDISCLI_AUTH", ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "test-secret",
+						},
+						Key: "test-key",
+					},
+				}},
 				{Name: "SERVER_MODE", Value: "sentinel"},
 				{Name: "SETUP_MODE", Value: "sentinel"},
 				{Name: "TEST_ENV", Value: "test-value"},
@@ -1559,6 +1562,14 @@ func TestGetEnvironmentVariables(t *testing.T) {
 				{Name: "PERSISTENCE_ENABLED", Value: "true"},
 				{Name: "REDIS_ADDR", Value: "redis://localhost:6379"},
 				{Name: "REDIS_PASSWORD", ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "test-secret",
+						},
+						Key: "test-key",
+					},
+				}},
+				{Name: "REDISCLI_AUTH", ValueFrom: &corev1.EnvVarSource{
 					SecretKeyRef: &corev1.SecretKeySelector{
 						LocalObjectReference: corev1.LocalObjectReference{
 							Name: "test-secret",

@@ -35,15 +35,11 @@ func ReshardRedisCluster(ctx context.Context, client kubernetes.Interface, cr *r
 	}
 	cmd = []string{"redis-cli", "--cluster", "reshard"}
 	cmd = append(cmd, getEndpoint(ctx, client, cr, transferPOD))
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
-		if err != nil {
-			log.FromContext(ctx).Error(err, "error in getting redis password")
-			return
-		}
-		cmd = append(cmd, "-a")
-		cmd = append(cmd, pass)
+	authArgs, err := getRedisClusterAuthArgs(ctx, client, cr, transferNodeName)
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Failed to get password authentication arguments")
 	}
+	cmd = append(cmd, authArgs...)
 
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, transferNodeName)...)
 
@@ -129,7 +125,7 @@ func getRedisNodeID(ctx context.Context, client kubernetes.Interface, cr *rcvb2.
 
 // Rebalance the Redis CLuster using the Empty Master Nodes
 func RebalanceRedisClusterEmptyMasters(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) {
-	// cmd = redis-cli --cluster rebalance <redis>:<port> --cluster-use-empty-masters -a <pass>
+	// cmd = redis-cli --cluster rebalance <redis>:<port> --cluster-use-empty-masters
 	var cmd []string
 	pod := RedisDetails{
 		PodName:   cr.Name + "-leader-1",
@@ -138,14 +134,11 @@ func RebalanceRedisClusterEmptyMasters(ctx context.Context, client kubernetes.In
 	cmd = []string{"redis-cli", "--cluster", "rebalance"}
 	cmd = append(cmd, getEndpoint(ctx, client, cr, pod))
 	cmd = append(cmd, "--cluster-use-empty-masters")
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
-		if err != nil {
-			log.FromContext(ctx).Error(err, "Error in getting redis password")
-		}
-		cmd = append(cmd, "-a")
-		cmd = append(cmd, pass)
+	authArgs, err := getRedisClusterAuthArgs(ctx, client, cr, cr.Name+"-leader-0")
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Failed to get password authentication arguments")
 	}
+	cmd = append(cmd, authArgs...)
 
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.Name+"-leader-0")...)
 
@@ -175,7 +168,7 @@ func CheckIfEmptyMasters(ctx context.Context, client kubernetes.Interface, cr *r
 
 // Rebalance Redis Cluster Would Rebalance the Redis Cluster without using the empty masters
 func RebalanceRedisCluster(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) {
-	// cmd = redis-cli --cluster rebalance <redis>:<port> -a <pass>
+	// cmd = redis-cli --cluster rebalance <redis>:<port>
 	var cmd []string
 	pod := RedisDetails{
 		PodName:   cr.Name + "-leader-1",
@@ -183,14 +176,11 @@ func RebalanceRedisCluster(ctx context.Context, client kubernetes.Interface, cr 
 	}
 	cmd = []string{"redis-cli", "--cluster", "rebalance"}
 	cmd = append(cmd, getEndpoint(ctx, client, cr, pod))
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
-		if err != nil {
-			log.FromContext(ctx).Error(err, "Error in getting redis password")
-		}
-		cmd = append(cmd, "-a")
-		cmd = append(cmd, pass)
+	authArgs, err := getRedisClusterAuthArgs(ctx, client, cr, cr.Name+"-leader-0")
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Failed to get password authentication arguments")
 	}
+	cmd = append(cmd, authArgs...)
 
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.Name+"-leader-0")...)
 
@@ -211,14 +201,11 @@ func AddRedisNodeToCluster(ctx context.Context, client kubernetes.Interface, cr 
 	}
 	cmd = append(cmd, getEndpoint(ctx, client, cr, newPod))
 	cmd = append(cmd, getEndpoint(ctx, client, cr, existingPod))
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
-		if err != nil {
-			log.FromContext(ctx).Error(err, "Error in getting redis password")
-		}
-		cmd = append(cmd, "-a")
-		cmd = append(cmd, pass)
+	authArgs, err := getRedisClusterAuthArgs(ctx, client, cr, cr.Name+"-leader-0")
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Failed to get password authentication arguments")
 	}
+	cmd = append(cmd, authArgs...)
 
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.Name+"-leader-0")...)
 
@@ -259,14 +246,11 @@ func RemoveRedisFollowerNodesFromCluster(ctx context.Context, client kubernetes.
 
 	cmd = []string{"redis-cli"}
 
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
-		if err != nil {
-			log.FromContext(ctx).Error(err, "Error in getting redis password")
-		}
-		cmd = append(cmd, "-a")
-		cmd = append(cmd, pass)
+	authArgs, err := getRedisClusterAuthArgs(ctx, client, cr, cr.Name+"-leader-0")
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Failed to get password authentication arguments")
 	}
+	cmd = append(cmd, authArgs...)
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.Name+"-leader-0")...)
 
 	lastLeaderPodNodeID := getRedisNodeID(ctx, client, cr, lastLeaderPod)
@@ -292,14 +276,11 @@ func RemoveRedisNodeFromCluster(ctx context.Context, client kubernetes.Interface
 	cmd := []string{"redis-cli", "--cluster", "del-node"}
 	cmd = append(cmd, getEndpoint(ctx, client, cr, existingPod))
 	cmd = append(cmd, getRedisNodeID(ctx, client, cr, removePod))
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
-		if err != nil {
-			log.FromContext(ctx).Error(err, "Error in getting redis password")
-		}
-		cmd = append(cmd, "-a")
-		cmd = append(cmd, pass)
+	authArgs, err := getRedisClusterAuthArgs(ctx, client, cr, cr.Name+"-leader-0")
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Failed to get password authentication arguments")
 	}
+	cmd = append(cmd, authArgs...)
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.Name+"-leader-0")...)
 	executeCommand(ctx, client, cr, cmd, cr.Name+"-leader-0")
 }
@@ -333,7 +314,7 @@ func verifyLeaderPodInfo(ctx context.Context, redisClient *redis.Client, podName
 
 func ClusterFailover(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, shardIdx int32) error {
 	slavePodName := cr.Name + "-leader-" + strconv.Itoa(int(shardIdx))
-	// cmd = redis-cli cluster failover  -a <pass>
+	// cmd = redis-cli cluster failover
 	var cmd []string
 	pod := RedisDetails{
 		PodName:   slavePodName,
@@ -344,14 +325,11 @@ func ClusterFailover(ctx context.Context, client kubernetes.Interface, cr *rcvb2
 		return err
 	}
 	cmd = []string{"redis-cli", "-h", host, "-p", port}
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
-		if err != nil {
-			log.FromContext(ctx).Error(err, "Error in getting redis password")
-		}
-		cmd = append(cmd, "-a")
-		cmd = append(cmd, pass)
+	authArgs, err := getRedisClusterAuthArgs(ctx, client, cr, slavePodName)
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Failed to get password authentication arguments")
 	}
+	cmd = append(cmd, authArgs...)
 
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, slavePodName)...)
 	cmd = append(cmd, "cluster", "failover")

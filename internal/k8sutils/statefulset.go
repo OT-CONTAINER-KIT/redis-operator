@@ -458,7 +458,7 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 		}
 	}
 
-	if preStopCmd := GeneratePreStopCommand(containerParams.Role, enableAuth, enableTLS); preStopCmd != "" {
+	if preStopCmd := GeneratePreStopCommand(containerParams.Role, enableTLS); preStopCmd != "" {
 		containerDefinition[0].Lifecycle = &corev1.Lifecycle{
 			PreStop: &corev1.LifecycleHandler{
 				Exec: &corev1.ExecAction{
@@ -517,39 +517,35 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 
 // GeneratePreStopCommand generates the preStop script based on the Redis role.
 // Only "cluster" role is supported for now; other roles return an empty string.
-func GeneratePreStopCommand(role string, enableAuth, enableTLS bool) string {
-	authArgs, tlsArgs := GenerateAuthAndTLSArgs(enableAuth, enableTLS)
+func GeneratePreStopCommand(role string, enableTLS bool) string {
+	tlsArgs := GenerateTLSArgs(enableTLS)
 
 	switch role {
 	case "cluster":
-		return generateClusterPreStop(authArgs, tlsArgs)
+		return generateClusterPreStop(tlsArgs)
 	default:
 		return ""
 	}
 }
 
-// GenerateAuthAndTLSArgs constructs authentication and TLS arguments for redis-cli.
-func GenerateAuthAndTLSArgs(enableAuth, enableTLS bool) (string, string) {
-	authArgs := ""
+// GenerateTLSArgs constructs authentication and TLS arguments for redis-cli.
+func GenerateTLSArgs(enableTLS bool) string {
 	tlsArgs := ""
 
-	if enableAuth {
-		authArgs = " -a \"${REDIS_PASSWORD}\""
-	}
 	if enableTLS {
 		tlsArgs = " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\" --cacert \"${REDIS_TLS_CA_KEY}\""
 	}
-	return authArgs, tlsArgs
+	return tlsArgs
 }
 
 // generateClusterPreStop generates the preStop script for Redis cluster mode.
 // It identifies the master node and triggers a failover to the best available slave before shutdown.
-func generateClusterPreStop(authArgs, tlsArgs string) string {
+func generateClusterPreStop(tlsArgs string) string {
 	return fmt.Sprintf(`#!/bin/sh
-ROLE=$(redis-cli -h $(hostname) -p ${REDIS_PORT} %s %s info replication | awk -F: '/role:master/ {print "master"}')
+ROLE=$(redis-cli -h $(hostname) -p ${REDIS_PORT} %s info replication | awk -F: '/role:master/ {print "master"}')
 
 if [ "$ROLE" = "master" ]; then
-    BEST_SLAVE=$(redis-cli -h $(hostname) -p ${REDIS_PORT} %s %s info replication | awk -F: '
+    BEST_SLAVE=$(redis-cli -h $(hostname) -p ${REDIS_PORT} %s info replication | awk -F: '
         BEGIN { maxOffset = -1; bestSlave = "" }
         /slave[0-9]+:ip/ {
             split($2, a, ",");
@@ -566,9 +562,9 @@ if [ "$ROLE" = "master" ]; then
     ')
 
     if [ -n "$BEST_SLAVE" ]; then
-        redis-cli -h "$BEST_SLAVE" -p ${REDIS_PORT} %s %s cluster failover
+        redis-cli -h "$BEST_SLAVE" -p ${REDIS_PORT} %s cluster failover
     fi
-fi`, authArgs, tlsArgs, authArgs, tlsArgs, authArgs, tlsArgs)
+fi`, tlsArgs, tlsArgs, tlsArgs)
 }
 
 func generateInitContainerDef(role, name string, initcontainerParams initContainerParameters, externalConfig *string, mountpath []corev1.VolumeMount, containerParams containerParameters, clusterVersion *string) []corev1.Container {
@@ -832,9 +828,6 @@ func getProbeInfo(probe *corev1.Probe, sentinel, enableTLS, enableAuth bool) *co
 		} else {
 			healthChecker = append(healthChecker, "-p", "${REDIS_PORT}")
 		}
-		if enableAuth {
-			healthChecker = append(healthChecker, "-a", "${REDIS_PASSWORD}")
-		}
 		if enableTLS {
 			healthChecker = append(healthChecker, "--tls", "--cert", "${REDIS_TLS_CERT}", "--key", "${REDIS_TLS_CERT_KEY}", "--cacert", "${REDIS_TLS_CA_KEY}")
 		}
@@ -901,6 +894,16 @@ func getEnvironmentVariables(role string, enabledPassword *bool, secretName *str
 	if enabledPassword != nil && *enabledPassword {
 		envVars = append(envVars, corev1.EnvVar{
 			Name: "REDIS_PASSWORD",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: *secretName,
+					},
+					Key: *secretKey,
+				},
+			},
+		}, corev1.EnvVar{
+			Name: "REDISCLI_AUTH",
 			ValueFrom: &corev1.EnvVarSource{
 				SecretKeyRef: &corev1.SecretKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{

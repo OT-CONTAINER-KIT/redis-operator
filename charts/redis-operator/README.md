@@ -92,6 +92,7 @@ kubectl create secret tls <webhook-server-cert> --key tls.key --cert tls.crt -n 
 | certificate.secretName | string | `"webhook-server-cert"` |  |
 | certmanager.apiVersion | string | `"cert-manager.io/v1"` |  |
 | certmanager.enabled | bool | `false` |  |
+| featureGates.AvoidCommandLinePassword | bool | `false` |  |
 | featureGates.GenerateConfigInInitContainer | bool | `false` |  |
 | issuer.create | bool | `true` |  |
 | issuer.email | string | `"shubham.gupta@opstree.com"` |  |
