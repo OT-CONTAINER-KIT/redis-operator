@@ -1,0 +1,94 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: acl-pvc-redis-standalone
+spec:
+  timeouts:
+    apply: 30s
+    assert: 5m
+    exec: 1m
+  steps:
+    # Step 1: Create PVC for ACL storage
+    - name: Create ACL PVC
+      try:
+        - apply:
+            file: acl-pvc.yaml
+
+    # Step 2: Populate PVC with ACL file
+    - name: Populate ACL file in PVC
+      try:
+        - apply:
+            file: acl-init-job.yaml
+        - assert:
+            resource:
+              apiVersion: batch/v1
+              kind: Job
+              metadata:
+                name: acl-init-standalone
+              status:
+                succeeded: 1
+
+    # Step 3: Deploy Redis Standalone with ACL from PVC
+    - name: Deploy Redis Standalone with ACL PVC
+      try:
+        - apply:
+            file: standalone.yaml
+        - assert:
+            file: ready-standalone.yaml
+
+    # Step 4: Test ACL authentication
+    - name: Test ACL user authentication
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} redis-standalone-acl-pvc-0 --
+              redis-cli -p 6379 --user standaloneuser --pass standalone@pass ping 2>&1
+            check:
+              (contains($stdout, 'PONG')): true
+
+    # Step 5: Test write operation
+    - name: Test write operation with ACL user
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} redis-standalone-acl-pvc-0 --
+              redis-cli -p 6379 --user standaloneuser --pass standalone@pass set standalone-key "ACL PVC standalone test" 2>&1
+            check:
+              (contains($stdout, 'OK')): true
+
+    # Step 6: Test read operation
+    - name: Test read operation with ACL user
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} redis-standalone-acl-pvc-0 --
+              redis-cli -p 6379 --user standaloneuser --pass standalone@pass get standalone-key 2>&1
+            check:
+              (contains($stdout, 'ACL PVC standalone test')): true
+
+    # Step 7: Verify ACL file mounted from PVC
+    - name: Verify ACL file exists
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} redis-standalone-acl-pvc-0 --
+              cat /etc/redis/user.acl 2>&1
+            check:
+              (contains($stdout, 'user standaloneuser')): true
+
+    # Step 8: Test ACL list
+    - name: Verify ACL users loaded
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} redis-standalone-acl-pvc-0 --
+              redis-cli -p 6379 --user standaloneuser --pass standalone@pass ACL LIST 2>&1
+            check:
+              (contains($stdout, 'standaloneuser')): true

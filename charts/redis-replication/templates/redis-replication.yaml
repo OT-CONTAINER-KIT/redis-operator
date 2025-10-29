@@ -30,6 +30,15 @@ spec:
     {{- if .Values.redisReplication.minReadySeconds }}
     minReadySeconds: {{ .Values.redisReplication.minReadySeconds}}
     {{- end }}
+    {{- if .Values.redisReplication.persistentVolumeClaimRetentionPolicy }}
+    persistentVolumeClaimRetentionPolicy: {{ toYaml .Values.redisReplication.persistentVolumeClaimRetentionPolicy | nindent 6 }}
+    {{- end }}
+    {{- if .Values.redisReplication.additionalVolumes }}
+    additionalVolumes: {{ toYaml .Values.redisReplication.additionalVolumes | nindent 6 }}
+    {{- end }}
+    {{- if .Values.redisReplication.additionalVolumeMounts }}
+    additionalVolumeMounts: {{ toYaml .Values.redisReplication.additionalVolumeMounts | nindent 6 }}
+    {{- end }}
 
   redisExporter:
     enabled: {{ .Values.redisExporter.enabled }}
@@ -83,10 +92,15 @@ spec:
     secret:
       secretName: {{ .Values.TLS.secret.secretName | quote }}
   {{- end }}
-  {{- if and .Values.acl.secret (ne .Values.acl.secret.secretName "") }}
+  {{- if or (and .Values.acl.secret (ne .Values.acl.secret.secretName "")) .Values.acl.persistentVolumeClaim }}
   acl:
+    {{- if and .Values.acl.secret (ne .Values.acl.secret.secretName "") }}
     secret:
       secretName: {{ .Values.acl.secret.secretName | quote }}
+    {{- end }}
+    {{- if .Values.acl.persistentVolumeClaim }}
+    persistentVolumeClaim: {{ .Values.acl.persistentVolumeClaim | quote }}
+    {{- end }}
   {{- end }}
   {{- if and .Values.initContainer .Values.initContainer.enabled (ne .Values.initContainer.image "") }}
   initContainer: {{ include "initContainer.properties" . | nindent 4 }}

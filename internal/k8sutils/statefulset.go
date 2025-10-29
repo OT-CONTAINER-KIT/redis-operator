@@ -115,6 +115,8 @@ type statefulSetParameters struct {
 	ServiceAccountName                   *string
 	UpdateStrategy                       appsv1.StatefulSetUpdateStrategy
 	PersistentVolumeClaimRetentionPolicy *appsv1.StatefulSetPersistentVolumeClaimRetentionPolicy
+	AdditionalVolumes                    []corev1.Volume
+	AdditionalVolumeMounts               []corev1.VolumeMount
 	RecreateStatefulSet                  bool
 	RecreateStatefulsetStrategy          *metav1.DeletionPropagation
 	TerminationGracePeriodSeconds        *int64
@@ -298,7 +300,7 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 						params.EnableMetrics,
 						params.ExternalConfig,
 						params.ClusterVersion,
-						containerParams.AdditionalMountPath,
+						append(containerParams.AdditionalMountPath, params.AdditionalVolumeMounts...),
 						sidecars,
 					),
 					NodeSelector:                  params.NodeSelector,
@@ -314,7 +316,7 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 		},
 	}
 
-	statefulset.Spec.Template.Spec.InitContainers = generateInitContainerDef(containerParams.Role, stsMeta.GetName(), initcontainerParams, params.ExternalConfig, initcontainerParams.AdditionalMountPath, containerParams, params.ClusterVersion)
+	statefulset.Spec.Template.Spec.InitContainers = generateInitContainerDef(containerParams.Role, stsMeta.GetName(), initcontainerParams, params.ExternalConfig, append(initcontainerParams.AdditionalMountPath, params.AdditionalVolumeMounts...), containerParams, params.ClusterVersion)
 
 	if params.Tolerations != nil {
 		statefulset.Spec.Template.Spec.Tolerations = *params.Tolerations
@@ -335,6 +337,9 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 	if containerParams.AdditionalVolume != nil {
 		statefulset.Spec.Template.Spec.Volumes = append(statefulset.Spec.Template.Spec.Volumes, containerParams.AdditionalVolume...)
 	}
+	if params.AdditionalVolumes != nil {
+		statefulset.Spec.Template.Spec.Volumes = append(statefulset.Spec.Template.Spec.Volumes, params.AdditionalVolumes...)
+	}
 
 	if containerParams.TLSConfig != nil {
 		statefulset.Spec.Template.Spec.Volumes = append(statefulset.Spec.Template.Spec.Volumes,
@@ -346,14 +351,26 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 			})
 	}
 
-	if containerParams.ACLConfig != nil && containerParams.ACLConfig.Secret != nil {
-		statefulset.Spec.Template.Spec.Volumes = append(statefulset.Spec.Template.Spec.Volumes,
-			corev1.Volume{
-				Name: "acl-secret",
-				VolumeSource: corev1.VolumeSource{
-					Secret: containerParams.ACLConfig.Secret,
-				},
-			})
+	if containerParams.ACLConfig != nil {
+		if containerParams.ACLConfig.Secret != nil {
+			statefulset.Spec.Template.Spec.Volumes = append(statefulset.Spec.Template.Spec.Volumes,
+				corev1.Volume{
+					Name: "acl-secret",
+					VolumeSource: corev1.VolumeSource{
+						Secret: containerParams.ACLConfig.Secret,
+					},
+				})
+		} else if containerParams.ACLConfig.PersistentVolumeClaim != nil {
+			statefulset.Spec.Template.Spec.Volumes = append(statefulset.Spec.Template.Spec.Volumes,
+				corev1.Volume{
+					Name: "acl-pvc",
+					VolumeSource: corev1.VolumeSource{
+						PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: *containerParams.ACLConfig.PersistentVolumeClaim,
+						},
+					},
+				})
+		}
 	}
 
 	if params.ServiceAccountName != nil {
@@ -797,8 +814,12 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nod
 	}
 
 	if aclConfig != nil {
+		volumeName := "acl-secret"
+		if aclConfig.PersistentVolumeClaim != nil {
+			volumeName = "acl-pvc"
+		}
 		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
-			Name:      "acl-secret",
+			Name:      volumeName,
 			MountPath: "/etc/redis/user.acl",
 			SubPath:   "user.acl",
 		})

@@ -20,6 +20,21 @@ redisStandalone:
   ignoreAnnotations: []
     # - "redis.opstreelabs.in/ignore"
   minReadySeconds: 0
+  persistentVolumeClaimRetentionPolicy: {}
+    # whenDeleted: Delete  # or Retain (default)
+    # whenScaled: Delete   # or Retain (default)
+  additionalVolumes: []
+    # - name: config-volume
+    #   configMap:
+    #     name: redis-config
+    # - name: logs-volume
+    #   emptyDir: {}
+  additionalVolumeMounts: []
+    # - name: config-volume
+    #   mountPath: /etc/redis/config
+    #   readOnly: true
+    # - name: logs-volume
+    #   mountPath: /var/log/redis
   # -- Some fields of statefulset are immutable, such as volumeClaimTemplates.
   # When set to true, the operator will delete the statefulset and recreate it. Default is false.
   recreateStatefulSetOnUpdateInvalid: false
@@ -151,8 +166,12 @@ TLS:
     secretName: ""
 
 acl:
+  # Configure ACL from Kubernetes Secret
   secret:
     secretName: ""
+  # Configure ACL from PersistentVolumeClaim
+  # The PVC must contain a file named "user.acl" at root level
+  # persistentVolumeClaim: "redis-acl-pvc"
 
 env: []
   # - name: VAR_NAME

@@ -42,6 +42,38 @@ For uninstalling the chart:-
 helm delete <my-release> --namespace <namespace>
 ```
 
+### Custom Volumes and Volume Mounts
+
+You can add custom volumes and volume mounts to Redis cluster pods using the `additionalVolumes` and `additionalVolumeMounts` values:
+
+```yaml
+redisCluster:
+  additionalVolumes:
+    - name: monitoring-volume
+      hostPath:
+        path: /var/lib/redis/monitoring
+        type: DirectoryOrCreate
+    - name: temp-volume
+      emptyDir:
+        sizeLimit: 1Gi
+  additionalVolumeMounts:
+    - name: monitoring-volume
+      mountPath: /data/monitoring
+    - name: temp-volume
+      mountPath: /tmp/redis
+```
+
+### PersistentVolumeClaimRetentionPolicy
+
+You can control the lifecycle of PersistentVolumeClaims (PVCs) using the retention policy:
+
+```yaml
+redisCluster:
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Delete  # Delete PVCs when StatefulSet is deleted (default: Retain)
+    whenScaled: Delete   # Delete PVCs when StatefulSet is scaled down (default: Retain)
+```
+
 ## Values
 
 | Key | Type | Default | Description |
@@ -68,6 +100,8 @@ helm delete <my-release> --namespace <namespace>
 | podSecurityContext.fsGroup | int | `1000` |  |
 | podSecurityContext.runAsUser | int | `1000` |  |
 | priorityClassName | string | `""` |  |
+| redisCluster.additionalVolumeMounts | list | `[]` |  |
+| redisCluster.additionalVolumes | list | `[]` |  |
 | redisCluster.clusterSize | int | `3` | Default number of replicas for both leader and follower when not explicitly set |
 | redisCluster.clusterVersion | string | `"v7"` |  |
 | redisCluster.enableMasterSlaveAntiAffinity | bool | `false` | Enable pod anti-affinity between leader and follower pods by adding the appropriate label.    Notice that this requires the operator to have its mutating webhook enabled,    otherwise it will only add an annotation to the RedisCluster CR.     Default is false. |
@@ -100,7 +134,8 @@ helm delete <my-release> --namespace <namespace>
 | redisCluster.minReadySeconds | int | `0` |  |
 | redisCluster.name | string | `""` |  |
 | redisCluster.persistenceEnabled | bool | `true` |  |
-| redisCluster.recreateStatefulSetOnUpdateInvalid | bool | `false` | Some fields of statefulset are immutable, such as volumeClaimTemplates.    When set to true, the operator will delete the statefulset and recreate it.     Default is false. |
+| redisCluster.persistentVolumeClaimRetentionPolicy | object | `{}` |  |
+| redisCluster.recreateStatefulSetOnUpdateInvalid | bool | `false` | Some fields of statefulset are immutable, such as volumeClaimTemplates. When set to true, the operator will delete the statefulset and recreate it. Default is false. |
 | redisCluster.redisSecret.secretKey | string | `""` |  |
 | redisCluster.redisSecret.secretName | string | `""` |  |
 | redisCluster.resources | object | `{}` |  |

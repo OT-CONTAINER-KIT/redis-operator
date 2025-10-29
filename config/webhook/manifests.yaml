@@ -10,6 +10,26 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
+      path: /validate-redis-redis-opstreelabs-in-v1beta2-redis
+  failurePolicy: Fail
+  name: validate-redis.redis.opstreelabs.in
+  rules:
+  - apiGroups:
+    - redis.redis.opstreelabs.in
+    apiVersions:
+    - v1beta2
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - redis
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
       path: /validate-redis-redis-opstreelabs-in-v1beta2-rediscluster
   failurePolicy: Fail
   name: validate-rediscluster.redis.opstreelabs.in
@@ -23,6 +43,26 @@ webhooks:
     - UPDATE
     resources:
     - redisclusters
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-redis-redis-opstreelabs-in-v1beta2-redisreplication
+  failurePolicy: Fail
+  name: validate-redisreplication.redis.opstreelabs.in
+  rules:
+  - apiGroups:
+    - redis.redis.opstreelabs.in
+    apiVersions:
+    - v1beta2
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - redisreplications
   sideEffects: None
 - admissionReviewVersions:
   - v1
