@@ -9,11 +9,13 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 
 	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	common "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
+	retry "github.com/avast/retry-go"
 	redis "github.com/redis/go-redis/v9"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -440,30 +442,79 @@ func CheckRedisNodeCount(ctx context.Context, client kubernetes.Interface, cr *r
 
 // RedisClusterStatusHealth use `redis-cli --cluster check 127.0.0.1:6379`
 func RedisClusterStatusHealth(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) bool {
-	redisClient := configureRedisClient(ctx, client, cr, cr.Name+"-leader-0")
-	defer redisClient.Close()
+	logger := log.FromContext(ctx)
+	leaderReplicas := cr.Spec.GetReplicaCounts("leader")
+
+	// Try to check cluster health from multiple leader nodes with retry logic
+	var lastErr error
+	for i := int32(0); i < leaderReplicas; i++ {
+		podName := fmt.Sprintf("%s-leader-%d", cr.Name, i)
+
+		// Retry logic with exponential backoff for each node
+		err := retry.Do(
+			func() error {
+				return checkClusterHealth(ctx, client, cr, podName)
+			},
+			retry.Attempts(3),
+			retry.Delay(500*time.Millisecond),
+			retry.DelayType(retry.BackOffDelay),
+			retry.OnRetry(func(n uint, err error) {
+				logger.V(1).Info("Retrying cluster health check", "pod", podName, "attempt", n+1, "error", err)
+			}),
+		)
+
+		if err == nil {
+			// Successfully verified cluster health from this node
+			logger.V(1).Info("Cluster health check passed", "pod", podName)
+			return true
+		}
+
+		lastErr = err
+		logger.V(1).Info("Cluster health check failed from node", "pod", podName, "error", err)
+	}
+
+	// All nodes failed the health check
+	if lastErr != nil {
+		logger.Error(lastErr, "Cluster health check failed from all leader nodes")
+	}
+	return false
+}
+
+// checkClusterHealth performs a single cluster health check against a specific pod
+func checkClusterHealth(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, podName string) error {
+	logger := log.FromContext(ctx)
 
 	cmd := []string{"redis-cli", "--cluster", "check", fmt.Sprintf("127.0.0.1:%d", *cr.Spec.Port)}
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
 		pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
 		if err != nil {
-			log.FromContext(ctx).Error(err, "Error in getting redis password")
+			return fmt.Errorf("error getting redis password: %w", err)
 		}
-		cmd = append(cmd, "-a")
-		cmd = append(cmd, pass)
+		cmd = append(cmd, "-a", pass)
 	}
-	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.Name+"-leader-0")...)
-	out, err := executeCommand1(ctx, client, cr, cmd, cr.Name+"-leader-0")
+	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, podName)...)
+
+	out, err := executeCommand1(ctx, client, cr, cmd, podName)
 	if err != nil {
-		return false
+		return fmt.Errorf("failed to execute cluster check command: %w", err)
 	}
+
+	// Check for the expected success indicators
 	// [OK] xxx keys in xxx masters.
 	// [OK] All nodes agree about slots configuration.
 	// [OK] All 16384 slots covered.
-	if strings.Count(out, "[OK]") != 3 {
-		return false
+	okCount := strings.Count(out, "[OK]")
+	if okCount != 3 {
+		logger.V(1).Info("Cluster health check output", "pod", podName, "okCount", okCount, "output", out)
+		return fmt.Errorf("cluster health check failed: expected 3 [OK] messages, got %d", okCount)
 	}
-	return true
+
+	// Additional check: ensure no [ERR] or [WARNING] in critical lines
+	if strings.Contains(out, "[ERR]") {
+		return fmt.Errorf("cluster health check found errors in output")
+	}
+
+	return nil
 }
 
 // UnhealthyNodesInCluster returns the number of unhealthy nodes in the cluster cr
