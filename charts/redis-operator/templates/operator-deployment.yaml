@@ -94,6 +94,10 @@ spec:
         - name: WATCH_NAMESPACE
           value: {{ .Values.redisOperator.watchNamespace | quote }}
         {{- end }}
+        {{- if .Values.redisOperator.serviceDNSDomain }}
+        - name: SERVICE_DNS_DOMAIN
+          value: {{ .Values.redisOperator.serviceDNSDomain | quote }}
+        {{- end }}
         {{- range $env := .Values.redisOperator.env }}
         - name: {{ $env.name }}
           value: {{ $env.value | quote }}
