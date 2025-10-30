@@ -10,6 +10,7 @@ import (
 	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/env"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/service/redis"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util/cryptutil"
 	v1 "k8s.io/api/core/v1"
@@ -254,7 +255,7 @@ func createConnectionInfo(ctx context.Context, pod v1.Pod, password string, tlsC
 	// Configure TLS if enabled
 	if tlsConfig != nil && tlsConfig.Secret.SecretName != "" {
 		serviceName := common.GetHeadlessServiceNameFromPodName(pod.Name)
-		connInfo.Host = fmt.Sprintf("%s.%s.%s.svc.cluster.local", pod.Name, serviceName, namespace)
+		connInfo.Host = fmt.Sprintf("%s.%s.%s.svc.%s", pod.Name, serviceName, namespace, env.GetServiceDNSDomain())
 		// Get TLS configuration
 		tlsCfg := getRedisTLSConfig(ctx, k8sClient, namespace, tlsConfig.Secret.SecretName)
 		connInfo.TLSConfig = tlsCfg

@@ -20,6 +20,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 )
 
 // Environment variable keys
@@ -38,7 +40,13 @@ const (
 
 	// OperatorImageEnv defines the image of the operator
 	OperatorImageEnv = "OPERATOR_IMAGE"
+
+	ServiceDNSDomain = "SERVICE_DNS_DOMAIN"
 )
+
+func GetServiceDNSDomain() string {
+	return util.Coalesce(os.Getenv(ServiceDNSDomain), "cluster.local")
+}
 
 // GetOperatorImage returns the image of the operator
 func GetOperatorImage() string {

@@ -16,6 +16,9 @@ redisOperator:
   extraArgs: []
   # When not specified, the operator will watch all namespaces. It can be set to a specific namespace or multiple namespaces separated by commas.
   watchNamespace: ""
+  # -- The DNS domain suffix used for Kubernetes service discovery.
+  # Default is "cluster.local". Change this if your cluster uses a custom DNS domain.
+  serviceDNSDomain: "cluster.local"
   env: []
   # If set to true, webhook server will be enabled for masterSlaveAntiAffinity feature
   # When enabled, you need to either:
