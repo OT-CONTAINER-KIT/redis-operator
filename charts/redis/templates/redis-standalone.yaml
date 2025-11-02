@@ -54,6 +54,7 @@ spec:
     maxMemoryPercentOfLimit: {{ .Values.redisStandalone.maxMemoryPercentOfLimit }}
   {{- end }}
   {{- end }}
+  {{- end }}
   {{- if .Values.storageSpec }}
   storage: {{ toYaml .Values.storageSpec | nindent 4 }}
   {{- end }}
