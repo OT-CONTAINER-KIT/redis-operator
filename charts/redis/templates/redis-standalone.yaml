@@ -44,6 +44,7 @@ spec:
     securityContext: {{ toYaml .Values.redisExporter.securityContext | nindent 6 }}
     {{- end }}
   
+  {{- if (or .Values.externalConfig.enabled .Values.redisStandalone.maxMemoryPercentOfLimit) }}
   redisConfig:
   {{- if .Values.externalConfig.enabled }}
     additionalRedisConfig: "{{ .Values.redisStandalone.name | default .Release.Name }}-ext-config"
