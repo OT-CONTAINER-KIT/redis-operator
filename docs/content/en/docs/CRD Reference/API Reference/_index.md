@@ -151,6 +151,8 @@ _Appears in:_
 | `imagePullSecrets` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#localobjectreference-v1-core)_ |  |  |  |
 | `updateStrategy` _[StatefulSetUpdateStrategy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#statefulsetupdatestrategy-v1-apps)_ |  |  |  |
 | `persistentVolumeClaimRetentionPolicy` _[StatefulSetPersistentVolumeClaimRetentionPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#statefulsetpersistentvolumeclaimretentionpolicy-v1-apps)_ |  |  |  |
+| `additionalVolumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#volume-v1-core) array_ |  |  |  |
+| `additionalVolumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#volumemount-v1-core) array_ |  |  |  |
 | `service` _[ServiceConfig](#serviceconfig)_ |  |  |  |
 | `ignoreAnnotations` _string array_ |  |  |  |
 | `minReadySeconds` _integer_ |  |  |  |
@@ -302,7 +304,7 @@ _Appears in:_
 | `nodeSelector` _object (keys:string, values:string)_ |  |  |  |
 | `topologySpreadConstraints` _[TopologySpreadConstraint](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#topologyspreadconstraint-v1-core) array_ |  |  |  |
 | `securityContext` _[SecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#securitycontext-v1-core)_ |  |  |  |
-| `terminationGracePeriodSeconds` _integer_ |  |  |  |
+| `terminationGracePeriodSeconds` _[int64](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#int64-v1-core)_ |  |  |  |
 | `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcerequirements-v1-core)_ |  |  |  |
 
 
@@ -329,7 +331,7 @@ _Appears in:_
 | `nodeSelector` _object (keys:string, values:string)_ |  |  |  |
 | `topologySpreadConstraints` _[TopologySpreadConstraint](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#topologyspreadconstraint-v1-core) array_ |  |  |  |
 | `securityContext` _[SecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#securitycontext-v1-core)_ |  |  |  |
-| `terminationGracePeriodSeconds` _integer_ |  |  |  |
+| `terminationGracePeriodSeconds` _[int64](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#int64-v1-core)_ |  |  |  |
 | `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcerequirements-v1-core)_ |  |  |  |
 
 
@@ -406,7 +408,7 @@ _Appears in:_
 | `initContainer` _[InitContainer](#initcontainer)_ |  |  |  |
 | `sidecars` _[Sidecar](#sidecar)_ |  |  |  |
 | `serviceAccountName` _string_ |  |  |  |
-| `terminationGracePeriodSeconds` _integer_ |  |  |  |
+| `terminationGracePeriodSeconds` _[int64](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#int64-v1-core)_ |  |  |  |
 | `env` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#envvar-v1-core)_ |  |  |  |
 | `topologySpreadConstraints` _[TopologySpreadConstraint](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#topologyspreadconstraint-v1-core) array_ |  |  |  |
 | `hostPort` _integer_ |  |  |  |
@@ -486,7 +488,7 @@ _Appears in:_
 | `initContainer` _[InitContainer](#initcontainer)_ |  |  |  |
 | `sidecars` _[Sidecar](#sidecar)_ |  |  |  |
 | `serviceAccountName` _string_ |  |  |  |
-| `terminationGracePeriodSeconds` _integer_ |  |  |  |
+| `terminationGracePeriodSeconds` _[int64](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#int64-v1-core)_ |  |  |  |
 | `env` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#envvar-v1-core)_ |  |  |  |
 | `volumeMount` _[AdditionalVolume](#additionalvolume)_ |  |  |  |
 | `topologySpreadConstraints` _[TopologySpreadConstraint](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#topologyspreadconstraint-v1-core) array_ |  |  |  |
@@ -523,7 +525,7 @@ _Appears in:_
 | `initContainer` _[InitContainer](#initcontainer)_ |  |  |  |
 | `sidecars` _[Sidecar](#sidecar)_ |  |  |  |
 | `serviceAccountName` _string_ |  |  |  |
-| `terminationGracePeriodSeconds` _integer_ |  |  |  |
+| `terminationGracePeriodSeconds` _[int64](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#int64-v1-core)_ |  |  |  |
 | `env` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#envvar-v1-core)_ |  |  |  |
 | `hostPort` _integer_ |  |  |  |
 

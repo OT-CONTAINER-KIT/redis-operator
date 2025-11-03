@@ -51,6 +51,15 @@ spec:
     {{- if .Values.redisSentinel.minReadySeconds }}
     minReadySeconds: {{ .Values.redisSentinel.minReadySeconds }}
     {{- end }}
+    {{- if .Values.redisSentinel.persistentVolumeClaimRetentionPolicy }}
+    persistentVolumeClaimRetentionPolicy: {{ toYaml .Values.redisSentinel.persistentVolumeClaimRetentionPolicy | nindent 6 }}
+    {{- end }}
+    {{- if .Values.redisSentinel.additionalVolumes }}
+    additionalVolumes: {{ toYaml .Values.redisSentinel.additionalVolumes | nindent 6 }}
+    {{- end }}
+    {{- if .Values.redisSentinel.additionalVolumeMounts }}
+    additionalVolumeMounts: {{ toYaml .Values.redisSentinel.additionalVolumeMounts | nindent 6 }}
+    {{- end }}
 
   redisExporter:
     enabled: {{ .Values.redisExporter.enabled }}

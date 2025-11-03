@@ -22,9 +22,22 @@ redisCluster:
     #   cpu: 100m
     #   memory: 128Mi
   minReadySeconds: 0
-  # -- Some fields of statefulset are immutable, such as volumeClaimTemplates.
-  #    When set to true, the operator will delete the statefulset and recreate it. 
-  #    Default is false.
+  persistentVolumeClaimRetentionPolicy: {}
+    # whenDeleted: Delete  # or Retain (default)
+    # whenScaled: Delete   # or Retain (default)
+  additionalVolumes: []
+    # - name: config-volume
+    #   configMap:
+    #     name: redis-config
+    # - name: logs-volume
+    #   emptyDir: {}
+  additionalVolumeMounts: []
+    # - name: config-volume
+    #   mountPath: /etc/redis/config
+    #   readOnly: true
+    # - name: logs-volume
+    #   mountPath: /var/log/redis
+  # -- Some fields of statefulset are immutable, such as volumeClaimTemplates. When set to true, the operator will delete the statefulset and recreate it. Default is false.
   recreateStatefulSetOnUpdateInvalid: false
   # -- MaxMemoryPercentOfLimit is the percentage of redis container memory limit to be used as maxmemory. 
   #    Default is 0 (disabled).

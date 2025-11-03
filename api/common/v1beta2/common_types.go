@@ -17,6 +17,8 @@ type KubernetesConfig struct {
 	ImagePullSecrets                     *[]corev1.LocalObjectReference                          `json:"imagePullSecrets,omitempty"`
 	UpdateStrategy                       appsv1.StatefulSetUpdateStrategy                        `json:"updateStrategy,omitempty"`
 	PersistentVolumeClaimRetentionPolicy *appsv1.StatefulSetPersistentVolumeClaimRetentionPolicy `json:"persistentVolumeClaimRetentionPolicy,omitempty"`
+	AdditionalVolumes                    []corev1.Volume                                         `json:"additionalVolumes,omitempty"`
+	AdditionalVolumeMounts               []corev1.VolumeMount                                    `json:"additionalVolumeMounts,omitempty"`
 	Service                              *ServiceConfig                                          `json:"service,omitempty"`
 	IgnoreAnnotations                    []string                                                `json:"ignoreAnnotations,omitempty"`
 	MinReadySeconds                      *int32                                                  `json:"minReadySeconds,omitempty"`

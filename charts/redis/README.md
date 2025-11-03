@@ -30,6 +30,41 @@ helm install <my-release> ot-helm/redis --namespace <namespace>
 Redis setup can be upgraded by using `helm upgrade` command:-
 
 ```shell
+helm upgrade <my-release> ot-helm/redis --namespace <namespace>
+```
+
+### Custom Volumes and Volume Mounts
+
+You can add custom volumes and volume mounts to Redis pods using the `additionalVolumes` and `additionalVolumeMounts` values:
+
+```yaml
+redisStandalone:
+  additionalVolumes:
+    - name: config-volume
+      configMap:
+        name: redis-config
+    - name: logs-volume
+      emptyDir: {}
+  additionalVolumeMounts:
+    - name: config-volume
+      mountPath: /etc/redis/config
+      readOnly: true
+    - name: logs-volume
+      mountPath: /var/log/redis
+```
+
+### PersistentVolumeClaimRetentionPolicy
+
+You can control the lifecycle of PersistentVolumeClaims (PVCs) using the retention policy:
+
+```yaml
+redisStandalone:
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Delete  # Delete PVCs when StatefulSet is deleted (default: Retain)
+    whenScaled: Delete   # Delete PVCs when StatefulSet is scaled down (default: Retain)
+```
+
+```shell
 helm upgrade <my-release> ot-helm/redis --install --namespace <namespace>
 ```
 
@@ -74,6 +109,8 @@ helm delete <my-release> --namespace <namespace>
 | redisExporter.resources | object | `{}` |  |
 | redisExporter.securityContext | object | `{}` |  |
 | redisExporter.tag | string | `"v1.44.0"` |  |
+| redisStandalone.additionalVolumeMounts | list | `[]` |  |
+| redisStandalone.additionalVolumes | list | `[]` |  |
 | redisStandalone.ignoreAnnotations | list | `[]` |  |
 | redisStandalone.image | string | `"quay.io/opstree/redis"` |  |
 | redisStandalone.imagePullPolicy | string | `"IfNotPresent"` |  |
@@ -81,6 +118,7 @@ helm delete <my-release> --namespace <namespace>
 | redisStandalone.maxMemoryPercentOfLimit | int | `0` | MaxMemoryPercentOfLimit is the percentage of redis container memory limit to be used as maxmemory.     Default is 0 (disabled). |
 | redisStandalone.minReadySeconds | int | `0` |  |
 | redisStandalone.name | string | `""` |  |
+| redisStandalone.persistentVolumeClaimRetentionPolicy | object | `{}` |  |
 | redisStandalone.recreateStatefulSetOnUpdateInvalid | bool | `false` | Some fields of statefulset are immutable, such as volumeClaimTemplates. When set to true, the operator will delete the statefulset and recreate it. Default is false. |
 | redisStandalone.redisSecret.secretKey | string | `""` |  |
 | redisStandalone.redisSecret.secretName | string | `""` |  |

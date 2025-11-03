@@ -1,0 +1,49 @@
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisCluster
+metadata:
+  name: redis-cluster
+spec:
+  clusterSize: 3
+  clusterVersion: v7
+  persistenceEnabled: true
+  podSecurityContext:
+    runAsUser: 1000
+    fsGroup: 1000
+  kubernetesConfig:
+    image: quay.io/opstree/redis:v7.0.12
+    imagePullPolicy: IfNotPresent
+    additionalVolumes:
+      - name: config-volume
+        configMap:
+          name: redis-config
+      - name: logs-volume
+        emptyDir:
+          sizeLimit: 500Mi
+    additionalVolumeMounts:
+      - name: config-volume
+        mountPath: /etc/redis/custom
+        readOnly: true
+      - name: logs-volume
+        mountPath: /var/log/redis
+    resources:
+      requests:
+        cpu: 101m
+        memory: 128Mi
+      limits:
+        cpu: 101m
+        memory: 128Mi
+  storage:
+    volumeClaimTemplate:
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+    nodeConfVolume: true
+    nodeConfVolumeClaimTemplate:
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
