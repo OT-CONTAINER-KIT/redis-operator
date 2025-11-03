@@ -141,6 +141,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if err != nil {
 			return intctrlutil.RequeueE(ctx, err, "")
 		}
+		// Reload instance to get updated status for subsequent checks
+		if err = r.Get(ctx, req.NamespacedName, instance); err != nil {
+			return intctrlutil.RequeueE(ctx, err, "failed to reload redis cluster instance after status update")
+		}
 	}
 
 	err = k8sutils.CreateRedisLeader(ctx, instance, r.K8sClient)
@@ -171,6 +175,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			})
 			if err != nil {
 				return intctrlutil.RequeueE(ctx, err, "")
+			}
+			// Reload instance to get updated status for subsequent checks
+			if err = r.Get(ctx, req.NamespacedName, instance); err != nil {
+				return intctrlutil.RequeueE(ctx, err, "failed to reload redis cluster instance after status update")
 			}
 		}
 		// if we have followers create their service.
@@ -205,6 +213,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if err != nil {
 			return intctrlutil.RequeueE(ctx, err, "")
 		}
+		// Requeue to allow cluster formation before checking health
+		return intctrlutil.RequeueAfter(ctx, time.Second*10, "cluster bootstrapping, waiting before health check")
 	}
 
 	// When the number of leader replicas is 1 (single-node cluster)
@@ -300,7 +310,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// Mark the cluster status as ready if all the leader and follower nodes are ready
-	if instance.Status.ReadyLeaderReplicas == leaderReplicas && instance.Status.ReadyFollowerReplicas == followerReplicas {
+	// and the cluster is not already in Ready state (to avoid unnecessary status updates)
+	if instance.Status.ReadyLeaderReplicas == leaderReplicas && instance.Status.ReadyFollowerReplicas == followerReplicas && instance.Status.State != rcvb2.RedisClusterReady {
 		monitoring.RedisClusterHealthy.WithLabelValues(instance.Namespace, instance.Name).Set(0)
 		if k8sutils.RedisClusterStatusHealth(ctx, r.K8sClient, instance) {
 			monitoring.RedisClusterHealthy.WithLabelValues(instance.Namespace, instance.Name).Set(1)
