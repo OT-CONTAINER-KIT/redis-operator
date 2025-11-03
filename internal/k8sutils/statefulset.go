@@ -344,14 +344,26 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 			})
 	}
 
-	if containerParams.ACLConfig != nil && containerParams.ACLConfig.Secret != nil {
-		statefulset.Spec.Template.Spec.Volumes = append(statefulset.Spec.Template.Spec.Volumes,
-			corev1.Volume{
-				Name: "acl-secret",
-				VolumeSource: corev1.VolumeSource{
-					Secret: containerParams.ACLConfig.Secret,
-				},
-			})
+	if containerParams.ACLConfig != nil {
+		if containerParams.ACLConfig.Secret != nil {
+			statefulset.Spec.Template.Spec.Volumes = append(statefulset.Spec.Template.Spec.Volumes,
+				corev1.Volume{
+					Name: "acl-secret",
+					VolumeSource: corev1.VolumeSource{
+						Secret: containerParams.ACLConfig.Secret,
+					},
+				})
+		} else if containerParams.ACLConfig.PersistentVolumeClaim != nil {
+			statefulset.Spec.Template.Spec.Volumes = append(statefulset.Spec.Template.Spec.Volumes,
+				corev1.Volume{
+					Name: "acl-pvc",
+					VolumeSource: corev1.VolumeSource{
+						PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: *containerParams.ACLConfig.PersistentVolumeClaim,
+						},
+					},
+				})
+		}
 	}
 
 	if params.ServiceAccountName != nil {
@@ -794,8 +806,12 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nod
 	}
 
 	if aclConfig != nil {
+		volumeName := "acl-secret"
+		if aclConfig.PersistentVolumeClaim != nil {
+			volumeName = "acl-pvc"
+		}
 		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
-			Name:      "acl-secret",
+			Name:      volumeName,
 			MountPath: "/etc/redis/user.acl",
 			SubPath:   "user.acl",
 		})

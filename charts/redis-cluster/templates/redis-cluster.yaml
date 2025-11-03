@@ -85,10 +85,15 @@ spec:
     secret:
       secretName: {{ .Values.TLS.secret.secretName | quote }}
   {{- end }}
-  {{- if and .Values.acl.secret (ne .Values.acl.secret.secretName "") }}
+  {{- if or (and .Values.acl.secret (ne .Values.acl.secret.secretName "")) .Values.acl.persistentVolumeClaim }}
   acl:
+    {{- if and .Values.acl.secret (ne .Values.acl.secret.secretName "") }}
     secret:
       secretName: {{ .Values.acl.secret.secretName | quote }}
+    {{- end }}
+    {{- if .Values.acl.persistentVolumeClaim }}
+    persistentVolumeClaim: {{ .Values.acl.persistentVolumeClaim | quote }}
+    {{- end }}
   {{- end }}
   {{- if and .Values.sidecars (ne .Values.sidecars.name "") (ne .Values.sidecars.image "") }}
   sidecars: {{ include "sidecar.properties" . | nindent 4 }}

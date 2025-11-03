@@ -1,0 +1,30 @@
+---
+# Example: Redis Cluster with ACL from PVC
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisCluster
+metadata:
+  name: redis-cluster-acl-pvc
+spec:
+  clusterSize: 3
+  kubernetesConfig:
+    image: quay.io/opstree/redis:v7.0.12
+    imagePullPolicy: IfNotPresent
+  # ACL configuration from PVC
+  # The operator will mount /etc/redis/user.acl from the PVC
+  # Make sure the PVC contains a file named "user.acl" with Redis ACL rules
+  acl:
+    persistentVolumeClaim: "redis-acl-pvc"
+  podSecurityContext:
+    runAsUser: 1000
+    fsGroup: 1000
+  redisLeader:
+    replicas: 3
+  redisFollower:
+    replicas: 3
+  storage:
+    volumeClaimTemplate:
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi

@@ -1,6 +1,8 @@
 package v1beta2
 
 import (
+	"fmt"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -272,5 +274,27 @@ type InitContainer struct {
 
 // +k8s:deepcopy-gen=true
 type ACLConfig struct {
+	// Secret-based ACL configuration.
+	// Adapts a Secret into a volume containing ACL rules.
+	// The contents of the target Secret's Data field will be presented in a volume
+	// as files using the keys in the Data field as the file names.
+	// Secret volumes support ownership management and SELinux relabeling.
 	Secret *corev1.SecretVolumeSource `json:"secret,omitempty"`
+	// PersistentVolumeClaim-based ACL configuration
+	// Specify the PVC name to mount ACL file from persistent storage
+	// The operator will automatically mount /etc/redis/user.acl from the PVC
+	PersistentVolumeClaim *string `json:"persistentVolumeClaim,omitempty"`
+}
+
+// Validate checks that only one ACL source is specified
+func (a *ACLConfig) Validate() error {
+	if a == nil {
+		return nil
+	}
+
+	if a.Secret != nil && a.PersistentVolumeClaim != nil {
+		return fmt.Errorf("only one of 'secret' or 'persistentVolumeClaim' can be specified in ACL configuration")
+	}
+
+	return nil
 }
