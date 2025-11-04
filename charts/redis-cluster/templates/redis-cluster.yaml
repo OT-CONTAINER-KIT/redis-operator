@@ -30,7 +30,7 @@ spec:
     {{- end }}
   
   {{- if .Values.redisCluster.maxMemoryPercentOfLimit }}
-  {{- if gt .Values.redisCluster.maxMemoryPercentOfLimit 0 }}
+  {{- if gt (int .Values.redisCluster.maxMemoryPercentOfLimit) 0 }}
   redisConfig:
     maxMemoryPercentOfLimit: {{ .Values.redisCluster.maxMemoryPercentOfLimit }}
   {{- end }}
