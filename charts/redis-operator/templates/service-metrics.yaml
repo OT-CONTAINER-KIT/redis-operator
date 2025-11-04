@@ -1,0 +1,23 @@
+{{ if .Values.redisOperator.metrics.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name : {{ .Values.redisOperator.name | default .Release.Name }}-metrics
+    helm.sh/chart : {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    app.kubernetes.io/managed-by : {{ .Release.Service }}
+    app.kubernetes.io/instance : {{ .Release.Name }}
+    app.kubernetes.io/version : {{ .Chart.AppVersion }}
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/part-of : {{ .Release.Name }}
+  name: {{ .Values.redisOperator.name | default .Release.Name }}-metrics
+  namespace:  {{ .Release.Namespace }}
+spec:
+  ports:
+    - name: redis-operator-metrics
+      port: 8080
+      protocol: TCP
+      targetPort: {{ .Values.redisOperator.metrics.port }}
+  selector:
+    name: {{ .Values.redisOperator.name }}
+{{ end }}
