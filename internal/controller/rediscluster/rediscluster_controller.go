@@ -32,6 +32,7 @@ import (
 	retry "github.com/avast/retry-go"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -300,7 +301,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// Mark the cluster status as ready if all the leader and follower nodes are ready
-	if instance.Status.ReadyLeaderReplicas == leaderReplicas && instance.Status.ReadyFollowerReplicas == followerReplicas {
+	// and the cluster is not already in Ready state (to avoid unnecessary status updates)
+	if instance.Status.ReadyLeaderReplicas == leaderReplicas && instance.Status.ReadyFollowerReplicas == followerReplicas && instance.Status.State != rcvb2.RedisClusterReady {
 		monitoring.RedisClusterHealthy.WithLabelValues(instance.Namespace, instance.Name).Set(0)
 		if k8sutils.RedisClusterStatusHealth(ctx, r.K8sClient, instance) {
 			monitoring.RedisClusterHealthy.WithLabelValues(instance.Namespace, instance.Name).Set(1)
@@ -339,7 +341,22 @@ func (r *Reconciler) updateStatus(ctx context.Context, rc *rcvb2.RedisCluster, s
 	copy := rc.DeepCopy()
 	copy.Spec = rcvb2.RedisClusterSpec{}
 	copy.Status = status
-	return common.UpdateStatus(ctx, r.Client, copy)
+	err := common.UpdateStatus(ctx, r.Client, copy)
+	if err != nil && apierrors.IsConflict(err) {
+		log.FromContext(ctx).Info("conflict detected, reloading instance and retrying status update")
+		namespacedName := client.ObjectKey{
+			Namespace: rc.Namespace,
+			Name:      rc.Name,
+		}
+		if err := r.Get(ctx, namespacedName, rc); err != nil {
+			return err
+		}
+		copy = rc.DeepCopy()
+		copy.Spec = rcvb2.RedisClusterSpec{}
+		copy.Status = status
+		return common.UpdateStatus(ctx, r.Client, copy)
+	}
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
