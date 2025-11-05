@@ -14,12 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package env
+package envs
 
 import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 )
@@ -38,19 +39,33 @@ const (
 	// FeatureGatesEnv defines feature gates for alpha/experimental features
 	FeatureGatesEnv = "FEATURE_GATES"
 
-	// OperatorImageEnv defines the image of the operator
-	OperatorImageEnv = "OPERATOR_IMAGE"
+	// InitContainerImageEnv defines the image used for init containers
+	InitContainerImageEnv = "INIT_CONTAINER_IMAGE"
 
+	// ServiceDNSDomain defines the DNS domain suffix for Kubernetes services
 	ServiceDNSDomain = "SERVICE_DNS_DOMAIN"
 )
 
-func GetServiceDNSDomain() string {
-	return util.Coalesce(os.Getenv(ServiceDNSDomain), "cluster.local")
+var (
+	initContainerImage     string
+	initContainerImageOnce sync.Once
+)
+
+// GetInitContainerImage returns the image to use for init containers.
+// It reads from INIT_CONTAINER_IMAGE environment variable, falling back to latest if not set.
+// The value is cached after first access for performance.
+func GetInitContainerImage() string {
+	initContainerImageOnce.Do(func() {
+		val := os.Getenv(InitContainerImageEnv)
+		initContainerImage = util.Coalesce(val, "quay.io/opstree/redis-operator:latest")
+	})
+	return initContainerImage
 }
 
-// GetOperatorImage returns the image of the operator
-func GetOperatorImage() string {
-	return os.Getenv(OperatorImageEnv)
+// GetServiceDNSDomain returns the Kubernetes service DNS domain suffix.
+// It reads from SERVICE_DNS_DOMAIN environment variable, defaulting to "cluster.local".
+func GetServiceDNSDomain() string {
+	return util.Coalesce(os.Getenv(ServiceDNSDomain), "cluster.local")
 }
 
 // GetWatchNamespaces returns a list of namespaces that the operator should watch

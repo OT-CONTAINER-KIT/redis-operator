@@ -32,7 +32,7 @@ import (
 	redisreplicationcontroller "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/redisreplication"
 	redissentinelcontroller "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/redissentinel"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/controllerutil"
-	internalenv "github.com/OT-CONTAINER-KIT/redis-operator/internal/env"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/envs"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/features"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/monitoring"
@@ -95,9 +95,9 @@ func addFlags(cmd *cobra.Command, opts *managerOptions) {
 	cmd.Flags().StringVar(&opts.probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	cmd.Flags().StringVar(&opts.pprofAddr, "pprof-bind-address", "", "The address the pprof endpoint binds to. If empty, pprof is disabled. Example: ':6060'")
 	cmd.Flags().BoolVar(&opts.enableLeaderElection, "leader-elect", false, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
-	cmd.Flags().BoolVar(&opts.enableWebhooks, "enable-webhooks", internalenv.IsWebhookEnabled(), "Enable webhooks")
+	cmd.Flags().BoolVar(&opts.enableWebhooks, "enable-webhooks", envs.IsWebhookEnabled(), "Enable webhooks")
 	cmd.Flags().IntVar(&opts.maxConcurrentReconciles, "max-concurrent-reconciles", 1, "Max concurrent reconciles")
-	cmd.Flags().StringVar(&opts.featureGatesString, "feature-gates", internalenv.GetFeatureGates(), "A set of key=value pairs that describe feature gates for alpha/experimental features. "+
+	cmd.Flags().StringVar(&opts.featureGatesString, "feature-gates", envs.GetFeatureGates(), "A set of key=value pairs that describe feature gates for alpha/experimental features. "+
 		"Options are:\n  GenerateConfigInInitContainer=true|false: enables using init container for config generation")
 	cmd.Flags().Duration(
 		operator.KubeClientTimeoutMGRFlag,
@@ -200,7 +200,7 @@ func createControllerOptions(opts *managerOptions) ctrl.Options {
 		options.PprofBindAddress = opts.pprofAddr
 	}
 
-	watchNamespaces := internalenv.GetWatchNamespaces()
+	watchNamespaces := envs.GetWatchNamespaces()
 	if len(watchNamespaces) > 0 {
 		options.Cache.DefaultNamespaces = map[string]cache.Config{}
 		for _, ns := range watchNamespaces {
@@ -227,7 +227,7 @@ func createK8sClient() (kubernetes.Interface, error) {
 // setupControllers sets up all controllers
 func setupControllers(mgr ctrl.Manager, k8sClient kubernetes.Interface, maxConcurrentReconciles int) error {
 	// Get max concurrent reconciles from environment
-	maxConcurrentReconciles = internalenv.GetMaxConcurrentReconciles(maxConcurrentReconciles)
+	maxConcurrentReconciles = envs.GetMaxConcurrentReconciles(maxConcurrentReconciles)
 
 	healer := redis.NewHealer(k8sClient)
 

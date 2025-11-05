@@ -10,7 +10,7 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/redis"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/controllerutil"
-	"github.com/OT-CONTAINER-KIT/redis-operator/internal/env"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/envs"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -133,7 +133,7 @@ func (r *RedisSentinelReconciler) reconcileSentinel(ctx context.Context, instanc
 		return intctrlutil.RequeueE(ctx, err, "")
 	} else {
 		if instance.Spec.RedisSentinelConfig.ResolveHostnames == "yes" {
-			monitorAddr = fmt.Sprintf("%s.%s.%s.svc.%s", master.Name, common.GetHeadlessServiceNameFromPodName(master.Name), rr.Namespace, env.GetServiceDNSDomain())
+			monitorAddr = fmt.Sprintf("%s.%s.%s.svc.%s", master.Name, common.GetHeadlessServiceNameFromPodName(master.Name), rr.Namespace, envs.GetServiceDNSDomain())
 		} else {
 			monitorAddr = master.Status.PodIP
 		}
