@@ -52,8 +52,6 @@ var (
 )
 
 // GetInitContainerImage returns the image to use for init containers.
-// It reads from INIT_CONTAINER_IMAGE environment variable, falling back to latest if not set.
-// The value is cached after first access for performance.
 func GetInitContainerImage() string {
 	initContainerImageOnce.Do(func() {
 		val := os.Getenv(InitContainerImageEnv)
@@ -63,7 +61,6 @@ func GetInitContainerImage() string {
 }
 
 // GetServiceDNSDomain returns the Kubernetes service DNS domain suffix.
-// It reads from SERVICE_DNS_DOMAIN environment variable, defaulting to "cluster.local".
 func GetServiceDNSDomain() string {
 	return util.Coalesce(os.Getenv(ServiceDNSDomain), "cluster.local")
 }
