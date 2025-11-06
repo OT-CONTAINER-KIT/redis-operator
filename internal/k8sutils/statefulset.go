@@ -11,9 +11,8 @@ import (
 	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/consts"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
-	internalenv "github.com/OT-CONTAINER-KIT/redis-operator/internal/env"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/envs"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/features"
-	"github.com/OT-CONTAINER-KIT/redis-operator/internal/image"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/pkg/errors"
@@ -22,7 +21,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/utils/env"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -326,7 +324,7 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, createPVCTemplate("node-conf", stsMeta, params.NodeConfPersistentVolumeClaim))
 	}
 	if containerParams.PersistenceEnabled != nil && *containerParams.PersistenceEnabled {
-		pvcTplName := env.GetString(common.EnvOperatorSTSPVCTemplateName, stsMeta.GetName())
+		pvcTplName := util.CoalesceEnv1(common.EnvOperatorSTSPVCTemplateName, stsMeta.GetName())
 		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, createPVCTemplate(pvcTplName, stsMeta, params.PersistentVolumeClaim))
 	}
 	if params.ExternalConfig != nil {
@@ -575,7 +573,6 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 	containers := []corev1.Container{}
 
 	if features.Enabled(features.GenerateConfigInInitContainer) {
-		image, _ := util.CoalesceEnv(internalenv.OperatorImageEnv, image.GetOperatorImage())
 		// give all container env vars to init container
 		envVars := append(
 			ptr.Deref(containerParams.EnvVars, []corev1.EnvVar{}),
@@ -601,7 +598,7 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 
 		container := corev1.Container{
 			Name:            "init-config",
-			Image:           image,
+			Image:           envs.GetInitContainerImage(),
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         []string{"/operator", "agent"},
 			SecurityContext: initcontainerParams.SecurityContext,
@@ -783,7 +780,7 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nod
 
 	if persistenceEnabled != nil && *persistenceEnabled {
 		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
-			Name:      env.GetString(common.EnvOperatorSTSPVCTemplateName, name),
+			Name:      util.CoalesceEnv1(common.EnvOperatorSTSPVCTemplateName, name),
 			MountPath: "/data",
 		})
 	}

@@ -4,6 +4,10 @@ redisOperator:
   imageName: quay.io/opstree/redis-operator
   # Overrides the image tag whose default is the chart appVersion.
   imageTag: ""
+  # -- initContainerImageTag is the init-config init container image tag.
+  # If not specified, defaults to imageTag, then falls back to chart appVersion.
+  # Typically only needs to be set when using a different version for the init container.
+  initContainerImageTag: "v0.22.2"
   imagePullPolicy: Always
   imagePullSecrets: []
 

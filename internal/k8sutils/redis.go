@@ -15,7 +15,7 @@ import (
 	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	common "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
-	"github.com/OT-CONTAINER-KIT/redis-operator/internal/env"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/envs"
 	retry "github.com/avast/retry-go"
 	redis "github.com/redis/go-redis/v9"
 	"github.com/samber/lo"
@@ -34,7 +34,7 @@ type RedisDetails struct {
 }
 
 func (rd *RedisDetails) FQDN() string {
-	return fmt.Sprintf("%s.%s.%s.svc.%s", rd.PodName, common.GetHeadlessServiceNameFromPodName(rd.PodName), rd.Namespace, env.GetServiceDNSDomain())
+	return fmt.Sprintf("%s.%s.%s.svc.%s", rd.PodName, common.GetHeadlessServiceNameFromPodName(rd.PodName), rd.Namespace, envs.GetServiceDNSDomain())
 }
 
 func (rd *RedisDetails) String() string {
@@ -693,7 +693,7 @@ func configureRedisReplicationClient(ctx context.Context, client kubernetes.Inte
 }
 
 func getRedisReplicationHostname(redisInfo RedisDetails, cr *rrvb2.RedisReplication) string {
-	return fmt.Sprintf("%s.%s-headless.%s.svc.%s", redisInfo.PodName, cr.Name, cr.Namespace, env.GetServiceDNSDomain())
+	return fmt.Sprintf("%s.%s-headless.%s.svc.%s", redisInfo.PodName, cr.Name, cr.Namespace, envs.GetServiceDNSDomain())
 }
 
 // Get Redis nodes by it's role i.e. master, slave and sentinel
