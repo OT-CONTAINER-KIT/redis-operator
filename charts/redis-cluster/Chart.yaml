@@ -1,8 +1,8 @@
 apiVersion: v2
 name: redis-cluster
 description: Provides easy redis setup definitions for Kubernetes services, and deployment.
-version: 0.17.2
-appVersion: "0.17.2"
+version: 0.17.3
+appVersion: "0.17.3"
 home: https://github.com/ot-container-kit/redis-operator
 sources:
   - https://github.com/ot-container-kit/redis-operator
