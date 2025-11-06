@@ -49,7 +49,7 @@ spec:
     additionalRedisConfig: "{{ .Values.redisStandalone.name | default .Release.Name }}-ext-config"
   {{- end }}
   {{- if .Values.redisStandalone.maxMemoryPercentOfLimit }}
-  {{- if gt .Values.redisStandalone.maxMemoryPercentOfLimit 0 }}
+  {{- if gt (int .Values.redisStandalone.maxMemoryPercentOfLimit) 0 }}
     maxMemoryPercentOfLimit: {{ .Values.redisStandalone.maxMemoryPercentOfLimit }}
   {{- end }}
   {{- end }}
