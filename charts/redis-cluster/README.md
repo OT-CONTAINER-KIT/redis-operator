@@ -42,27 +42,6 @@ For uninstalling the chart:-
 helm delete <my-release> --namespace <namespace>
 ```
 
-## Pod Annotations
-
-You can add custom annotations to Redis pods using the `podAnnotations` field. This is useful for monitoring, service mesh integration, and operational metadata.
-
-**Example:**
-```yaml
-podAnnotations:
-  prometheus.io/scrape: "true"
-  prometheus.io/port: "6379"
-  custom.io/app: "redis-cluster"
-  service-mesh.io/inject: "true"
-```
-
-**Using with helm install:**
-```shell
-helm install <my-release> ot-helm/redis-cluster \
-    --set podAnnotations."prometheus\.io/scrape"="true" \
-    --set podAnnotations."prometheus\.io/port"="6379" \
-    --namespace <namespace>
-```
-
 ## Values
 
 | Key | Type | Default | Description |
