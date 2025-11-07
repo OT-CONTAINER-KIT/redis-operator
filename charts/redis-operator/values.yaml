@@ -57,18 +57,6 @@ replicas: 1
 
 rbac:
   enabled: true
-  # RBAC Scope Configuration
-  # This setting determines the scope of the RBAC permissions applied to the operator.
-  #
-  # By default, the operator uses cluster-wide permissions with ClusterRole and ClusterRoleBinding
-  # for enhanced backward compatibility and broader operational reach across the cluster.
-  #
-  # To restrict permissions to the deployment namespace only, set this value to 'namespace'.
-  # This will configure the operator with Role and RoleBinding, limiting its access to resources
-  # within the specified namespace.
-  #
-  # To enable namespace-specific permissions, uncomment the following line:
-  scope: namespace
 serviceAccountName: redis-operator
 
 serviceAccount:
