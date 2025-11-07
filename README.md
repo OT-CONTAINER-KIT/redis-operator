@@ -112,13 +112,13 @@ $ helm upgrade redis ot-helm/redis \
 
 ```shell
 # Create Redis replication setup
-$ helm upgrade redis-replication ot-helm/replication \
+$ helm upgrade redis-replication ot-helm/redis-replication \
   --install --namespace ot-operators
 ```
 
 ```shell
 # Create Redis sentinel setup
-$ helm upgrade redis-sentinel ot-helm/sentinel \
+$ helm upgrade redis-sentinel ot-helm/redis-sentinel \
   --install --namespace ot-operators
 ```
 
@@ -134,6 +134,8 @@ To monitor Redis performance we will be using Prometheus. In any case, extra Pro
     prometheus.io/scrape: "true"
     prometheus.io/port: "9121"
 ```
+
+In addition to the annotations you have the possibility to deploy a `ServiceMonitor` for each of the Redis installations (configurable via Helm values file).
 
 ## Contribution
 

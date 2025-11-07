@@ -1139,7 +1139,7 @@ func TestGenerateInitContainerDef(t *testing.T) {
 	for i := range tests {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
-			initContainer := generateInitContainerDef("", test.initContainerName, test.initContainerDef, test.mountPaths, containerParameters{}, ptr.To("v6"))
+			initContainer := generateInitContainerDef("", test.initContainerName, test.initContainerDef, nil, test.mountPaths, containerParameters{}, ptr.To("v6"))
 			assert.Equal(t, initContainer, test.expectedInitContainerDef, "Init Container Configuration")
 		})
 	}
@@ -1377,7 +1377,7 @@ func TestGenerateInitContainerDefWithSecurityContext(t *testing.T) {
 			// Note: The operator image will be determined by the actual implementation
 			// We'll test the SecurityContext functionality without mocking the image
 
-			initContainer := generateInitContainerDef("", test.initContainerName, test.initContainerDef, test.mountPaths, containerParameters{}, ptr.To("v6"))
+			initContainer := generateInitContainerDef("", test.initContainerName, test.initContainerDef, nil, test.mountPaths, containerParameters{}, ptr.To("v6"))
 
 			// Verify the SecurityContext is correctly applied
 			if test.featureEnabled {

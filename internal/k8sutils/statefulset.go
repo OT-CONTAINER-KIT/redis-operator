@@ -11,9 +11,8 @@ import (
 	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/consts"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
-	internalenv "github.com/OT-CONTAINER-KIT/redis-operator/internal/env"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/envs"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/features"
-	"github.com/OT-CONTAINER-KIT/redis-operator/internal/image"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/pkg/errors"
@@ -22,7 +21,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/utils/env"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -314,7 +312,7 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 		},
 	}
 
-	statefulset.Spec.Template.Spec.InitContainers = generateInitContainerDef(containerParams.Role, stsMeta.GetName(), initcontainerParams, initcontainerParams.AdditionalMountPath, containerParams, params.ClusterVersion)
+	statefulset.Spec.Template.Spec.InitContainers = generateInitContainerDef(containerParams.Role, stsMeta.GetName(), initcontainerParams, params.ExternalConfig, initcontainerParams.AdditionalMountPath, containerParams, params.ClusterVersion)
 
 	if params.Tolerations != nil {
 		statefulset.Spec.Template.Spec.Tolerations = *params.Tolerations
@@ -326,7 +324,7 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, createPVCTemplate("node-conf", stsMeta, params.NodeConfPersistentVolumeClaim))
 	}
 	if containerParams.PersistenceEnabled != nil && *containerParams.PersistenceEnabled {
-		pvcTplName := env.GetString(common.EnvOperatorSTSPVCTemplateName, stsMeta.GetName())
+		pvcTplName := util.CoalesceEnv1(common.EnvOperatorSTSPVCTemplateName, stsMeta.GetName())
 		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, createPVCTemplate(pvcTplName, stsMeta, params.PersistentVolumeClaim))
 	}
 	if params.ExternalConfig != nil {
@@ -571,11 +569,10 @@ if [ "$ROLE" = "master" ]; then
 fi`, authArgs, tlsArgs, authArgs, tlsArgs, authArgs, tlsArgs)
 }
 
-func generateInitContainerDef(role, name string, initcontainerParams initContainerParameters, mountpath []corev1.VolumeMount, containerParams containerParameters, clusterVersion *string) []corev1.Container {
+func generateInitContainerDef(role, name string, initcontainerParams initContainerParameters, externalConfig *string, mountpath []corev1.VolumeMount, containerParams containerParameters, clusterVersion *string) []corev1.Container {
 	containers := []corev1.Container{}
 
 	if features.Enabled(features.GenerateConfigInInitContainer) {
-		image, _ := util.CoalesceEnv(internalenv.OperatorImageEnv, image.GetOperatorImage())
 		// give all container env vars to init container
 		envVars := append(
 			ptr.Deref(containerParams.EnvVars, []corev1.EnvVar{}),
@@ -591,9 +588,17 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 				})
 			}
 		}
+
+		VolumeMounts := []corev1.VolumeMount{
+			generateConfigVolumeMount(common.VolumeNameConfig),
+		}
+		if externalConfig != nil {
+			VolumeMounts = append(VolumeMounts, externalConfigMount)
+		}
+
 		container := corev1.Container{
 			Name:            "init-config",
-			Image:           image,
+			Image:           envs.GetInitContainerImage(),
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         []string{"/operator", "agent"},
 			SecurityContext: initcontainerParams.SecurityContext,
@@ -609,9 +614,11 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 				containerParams.Port,
 				clusterVersion,
 			),
-			VolumeMounts: []corev1.VolumeMount{
-				generateConfigVolumeMount(common.VolumeNameConfig),
-			},
+			VolumeMounts: VolumeMounts,
+		}
+		// Set init-config resources to match main container if present
+		if containerParams.Resources != nil {
+			container.Resources = *containerParams.Resources
 		}
 		if role == "sentinel" {
 			container.Args = []string{"bootstrap", "--sentinel"}
@@ -755,6 +762,11 @@ func getExporterEnvironmentVariables(params containerParameters) []corev1.EnvVar
 	return envVars
 }
 
+var externalConfigMount = corev1.VolumeMount{
+	Name:      "external-config",
+	MountPath: "/etc/redis/external.conf.d",
+}
+
 // getVolumeMount gives information about persistence mount
 func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nodeConfVolume bool, externalConfig *string, mountpath []corev1.VolumeMount, tlsConfig *commonapi.TLSConfig, aclConfig *commonapi.ACLConfig) []corev1.VolumeMount {
 	var VolumeMounts []corev1.VolumeMount
@@ -768,7 +780,7 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nod
 
 	if persistenceEnabled != nil && *persistenceEnabled {
 		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
-			Name:      env.GetString(common.EnvOperatorSTSPVCTemplateName, name),
+			Name:      util.CoalesceEnv1(common.EnvOperatorSTSPVCTemplateName, name),
 			MountPath: "/data",
 		})
 	}
@@ -790,10 +802,7 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nod
 	}
 
 	if externalConfig != nil {
-		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
-			Name:      "external-config",
-			MountPath: "/etc/redis/external.conf.d",
-		})
+		VolumeMounts = append(VolumeMounts, externalConfigMount)
 	}
 
 	if features.Enabled(features.GenerateConfigInInitContainer) {

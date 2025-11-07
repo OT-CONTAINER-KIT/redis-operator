@@ -24,6 +24,9 @@ redisReplication:
   # -- Some fields of statefulset are immutable, such as volumeClaimTemplates.
   # When set to true, the operator will delete the statefulset and recreate it. Default is false.
   recreateStatefulSetOnUpdateInvalid: false
+  # -- MaxMemoryPercentOfLimit is the percentage of redis container memory limit to be used as maxmemory.
+  #    Default is 0 (disabled).
+  maxMemoryPercentOfLimit: 0
 
 # Overwite name for resources
 # name: ""
@@ -51,7 +54,8 @@ serviceMonitor:
   enabled: false
   interval: 30s
   scrapeTimeout: 10s
-  namespace: monitoring
+  # -- Namespace where servicemonitor resource will be created, if empty it will be created in the same namespace as the redis-replication
+  namespace: ""
   # -- extraLabels are added to the servicemonitor when enabled set to true
   extraLabels: {}
     # foo: bar

@@ -111,10 +111,11 @@ kubectl create secret tls <webhook-server-cert> --key tls.key --cert tls.crt -n 
 | redisOperator.automountServiceAccountToken | bool | `true` |  |
 | redisOperator.env | list | `[]` |  |
 | redisOperator.extraArgs | list | `[]` |  |
-| redisOperator.imageName | string | `"ghcr.io/ot-container-kit/redis-operator/redis-operator"` |  |
+| redisOperator.imageName | string | `"quay.io/opstree/redis-operator"` |  |
 | redisOperator.imagePullPolicy | string | `"Always"` |  |
 | redisOperator.imagePullSecrets | list | `[]` |  |
 | redisOperator.imageTag | string | `""` |  |
+| redisOperator.initContainerImageTag | string | `"v0.22.2"` | initContainerImageTag is the init-config init container image tag. If not specified, defaults to imageTag, then falls back to chart appVersion. Typically only needs to be set when using a different version for the init container. |
 | redisOperator.metrics.bindAddress | string | `":8080"` |  |
 | redisOperator.metrics.enabled | bool | `true` |  |
 | redisOperator.name | string | `"redis-operator"` |  |
@@ -122,6 +123,7 @@ kubectl create secret tls <webhook-server-cert> --key tls.key --cert tls.crt -n 
 | redisOperator.podLabels | object | `{}` |  |
 | redisOperator.pprof.bindAddress | string | `":6060"` |  |
 | redisOperator.pprof.enabled | bool | `false` |  |
+| redisOperator.serviceDNSDomain | string | `"cluster.local"` | The DNS domain suffix used for Kubernetes service discovery. Default is "cluster.local". Change this if your cluster uses a custom DNS domain. |
 | redisOperator.watchNamespace | string | `""` |  |
 | redisOperator.webhook | bool | `false` |  |
 | replicas | int | `1` |  |

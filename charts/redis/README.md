@@ -78,6 +78,7 @@ helm delete <my-release> --namespace <namespace>
 | redisStandalone.image | string | `"quay.io/opstree/redis"` |  |
 | redisStandalone.imagePullPolicy | string | `"IfNotPresent"` |  |
 | redisStandalone.imagePullSecrets | list | `[]` |  |
+| redisStandalone.maxMemoryPercentOfLimit | int | `0` | MaxMemoryPercentOfLimit is the percentage of redis container memory limit to be used as maxmemory.     Default is 0 (disabled). |
 | redisStandalone.minReadySeconds | int | `0` |  |
 | redisStandalone.name | string | `""` |  |
 | redisStandalone.recreateStatefulSetOnUpdateInvalid | bool | `false` | Some fields of statefulset are immutable, such as volumeClaimTemplates. When set to true, the operator will delete the statefulset and recreate it. Default is false. |
@@ -91,7 +92,7 @@ helm delete <my-release> --namespace <namespace>
 | serviceMonitor.enabled | bool | `false` |  |
 | serviceMonitor.extraLabels | object | `{}` | extraLabels are added to the servicemonitor when enabled set to true |
 | serviceMonitor.interval | string | `"30s"` |  |
-| serviceMonitor.namespace | string | `"monitoring"` |  |
+| serviceMonitor.namespace | string | `""` | Namespace where servicemonitor resource will be created, if empty it will be created in the same namespace as the redis |
 | serviceMonitor.scrapeTimeout | string | `"10s"` |  |
 | sidecars.env | list | `[]` |  |
 | sidecars.image | string | `""` |  |

@@ -86,11 +86,17 @@ spec:
           readOnly: true
       {{- end }}
         env:
+        - name: INIT_CONTAINER_IMAGE
+          value: {{ .Values.redisOperator.imageName }}:{{ .Values.redisOperator.initContainerImageTag | default .Values.redisOperator.imageTag | default (printf "v%s" .Chart.AppVersion) }}
         - name: ENABLE_WEBHOOKS
           value: {{ .Values.redisOperator.webhook | quote }}
         {{- if .Values.redisOperator.watchNamespace }}
         - name: WATCH_NAMESPACE
           value: {{ .Values.redisOperator.watchNamespace | quote }}
+        {{- end }}
+        {{- if .Values.redisOperator.serviceDNSDomain }}
+        - name: SERVICE_DNS_DOMAIN
+          value: {{ .Values.redisOperator.serviceDNSDomain | quote }}
         {{- end }}
         {{- range $env := .Values.redisOperator.env }}
         - name: {{ $env.name }}

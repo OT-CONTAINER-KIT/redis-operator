@@ -1,9 +1,13 @@
 ---
 redisOperator:
   name: redis-operator
-  imageName: ghcr.io/ot-container-kit/redis-operator/redis-operator
+  imageName: quay.io/opstree/redis-operator
   # Overrides the image tag whose default is the chart appVersion.
   imageTag: ""
+  # -- initContainerImageTag is the init-config init container image tag.
+  # If not specified, defaults to imageTag, then falls back to chart appVersion.
+  # Typically only needs to be set when using a different version for the init container.
+  initContainerImageTag: "v0.22.2"
   imagePullPolicy: Always
   imagePullSecrets: []
 
@@ -16,6 +20,9 @@ redisOperator:
   extraArgs: []
   # When not specified, the operator will watch all namespaces. It can be set to a specific namespace or multiple namespaces separated by commas.
   watchNamespace: ""
+  # -- The DNS domain suffix used for Kubernetes service discovery.
+  # Default is "cluster.local". Change this if your cluster uses a custom DNS domain.
+  serviceDNSDomain: "cluster.local"
   env: []
   # If set to true, webhook server will be enabled for masterSlaveAntiAffinity feature
   # When enabled, you need to either:

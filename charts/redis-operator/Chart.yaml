@@ -1,12 +1,11 @@
 ---
 apiVersion: v2
-version: 0.21.2
-appVersion: "0.21.0"
+version: 0.22.2
+appVersion: "0.22.2"
 description: Provides easy redis setup definitions for Kubernetes services, and deployment.
 engine: gotpl
 maintainers:
   - name: iamabhishek-dubey
-  
   - name: sandy724
   - name: shubham-cmyk
 name: redis-operator
