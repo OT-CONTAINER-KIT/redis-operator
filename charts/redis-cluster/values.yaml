@@ -220,8 +220,12 @@ TLS:
     secretName: ""
 
 acl:
+  # Configure ACL from Kubernetes Secret
   secret:
     secretName: ""
+  # Configure ACL from PersistentVolumeClaim
+  # The PVC must contain a file named "user.acl" at root level
+  # persistentVolumeClaim: "redis-acl-pvc"
 
 env: []
   # - name: VAR_NAME
