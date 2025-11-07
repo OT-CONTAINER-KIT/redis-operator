@@ -133,7 +133,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// Mark the cluster status as initializing if there are no leader or follower nodes
 	if (instance.Status.ReadyLeaderReplicas == 0 && instance.Status.ReadyFollowerReplicas == 0) ||
 		instance.Status.ReadyLeaderReplicas != leaderReplicas {
-		err = r.updateStatus(ctx, instance, rcvb2.RedisClusterStatus{
+		requeue, err := r.updateStatus(ctx, instance, rcvb2.RedisClusterStatus{
 			State:                 rcvb2.RedisClusterInitializing,
 			Reason:                rcvb2.InitializingClusterLeaderReason,
 			ReadyLeaderReplicas:   instance.Status.ReadyLeaderReplicas,
@@ -141,6 +141,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		})
 		if err != nil {
 			return intctrlutil.RequeueE(ctx, err, "")
+		}
+		if requeue {
+			return intctrlutil.Requeue()
 		}
 	}
 
@@ -164,7 +167,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// Mark the cluster status as initializing if there are no follower nodes
 		if (instance.Status.ReadyLeaderReplicas == 0 && instance.Status.ReadyFollowerReplicas == 0) ||
 			instance.Status.ReadyFollowerReplicas != followerReplicas {
-			err = r.updateStatus(ctx, instance, rcvb2.RedisClusterStatus{
+			requeue, err := r.updateStatus(ctx, instance, rcvb2.RedisClusterStatus{
 				State:                 rcvb2.RedisClusterInitializing,
 				Reason:                rcvb2.InitializingClusterFollowerReason,
 				ReadyLeaderReplicas:   leaderReplicas,
@@ -172,6 +175,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			})
 			if err != nil {
 				return intctrlutil.RequeueE(ctx, err, "")
+			}
+			if requeue {
+				return intctrlutil.Requeue()
 			}
 		}
 		// if we have followers create their service.
@@ -197,7 +203,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// Mark the cluster status as bootstrapping if all the leader and follower nodes are ready
 	if instance.Status.ReadyLeaderReplicas != leaderReplicas || instance.Status.ReadyFollowerReplicas != followerReplicas {
-		err = r.updateStatus(ctx, instance, rcvb2.RedisClusterStatus{
+		requeue, err := r.updateStatus(ctx, instance, rcvb2.RedisClusterStatus{
 			State:                 rcvb2.RedisClusterBootstrap,
 			Reason:                rcvb2.BootstrapClusterReason,
 			ReadyLeaderReplicas:   leaderReplicas,
@@ -205,6 +211,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		})
 		if err != nil {
 			return intctrlutil.RequeueE(ctx, err, "")
+		}
+		if requeue {
+			return intctrlutil.Requeue()
 		}
 	}
 
@@ -255,7 +264,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		logger.Error(err, "failed to determine unhealthy node count in cluster")
 	}
 	if int(totalReplicas) > 1 && unhealthyNodeCount > 0 {
-		err = r.updateStatus(ctx, instance, rcvb2.RedisClusterStatus{
+		requeue, err := r.updateStatus(ctx, instance, rcvb2.RedisClusterStatus{
 			State:                 rcvb2.RedisClusterFailed,
 			Reason:                "RedisCluster has unhealthy nodes",
 			ReadyLeaderReplicas:   leaderReplicas,
@@ -263,6 +272,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		})
 		if err != nil {
 			return intctrlutil.RequeueE(ctx, err, "")
+		}
+		if requeue {
+			return intctrlutil.Requeue()
 		}
 
 		logger.Info("healthy leader count does not match desired; attempting to repair disconnected masters")
@@ -312,7 +324,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				return intctrlutil.RequeueE(ctx, err, "failed to set dynamic config")
 			}
 
-			err = r.updateStatus(ctx, instance, rcvb2.RedisClusterStatus{
+			requeue, err := r.updateStatus(ctx, instance, rcvb2.RedisClusterStatus{
 				State:                 rcvb2.RedisClusterReady,
 				Reason:                rcvb2.ReadyClusterReason,
 				ReadyLeaderReplicas:   leaderReplicas,
@@ -320,6 +332,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			})
 			if err != nil {
 				return intctrlutil.RequeueE(ctx, err, "")
+			}
+			if requeue {
+				return intctrlutil.Requeue()
 			}
 		}
 	}
@@ -334,14 +349,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	return intctrlutil.RequeueAfter(ctx, time.Second*10, "")
 }
 
-func (r *Reconciler) updateStatus(ctx context.Context, rc *rcvb2.RedisCluster, status rcvb2.RedisClusterStatus) error {
+func (r *Reconciler) updateStatus(ctx context.Context, rc *rcvb2.RedisCluster, status rcvb2.RedisClusterStatus) (requeue bool, err error) {
 	if reflect.DeepEqual(rc.Status, status) {
-		return nil
+		return false, nil
 	}
 	copy := rc.DeepCopy()
 	copy.Spec = rcvb2.RedisClusterSpec{}
 	copy.Status = status
-	err := common.UpdateStatus(ctx, r.Client, copy)
+	err = common.UpdateStatus(ctx, r.Client, copy)
 	if err != nil && apierrors.IsConflict(err) {
 		log.FromContext(ctx).Info("conflict detected, reloading instance and retrying status update")
 		namespacedName := client.ObjectKey{
@@ -349,14 +364,14 @@ func (r *Reconciler) updateStatus(ctx context.Context, rc *rcvb2.RedisCluster, s
 			Name:      rc.Name,
 		}
 		if err := r.Get(ctx, namespacedName, rc); err != nil {
-			return err
+			return true, err
 		}
 		copy = rc.DeepCopy()
 		copy.Spec = rcvb2.RedisClusterSpec{}
 		copy.Status = status
-		return common.UpdateStatus(ctx, r.Client, copy)
+		return true, common.UpdateStatus(ctx, r.Client, copy)
 	}
-	return nil
+	return false, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
