@@ -40,6 +40,37 @@ For uninstalling the chart:-
 helm delete <my-release> --namespace <namespace>
 ```
 
+### Custom Volumes and Volume Mounts
+
+You can add custom volumes and volume mounts to Redis sentinel pods using the `additionalVolumes` and `additionalVolumeMounts` values:
+
+```yaml
+redisSentinel:
+  additionalVolumes:
+    - name: config-volume
+      configMap:
+        name: redis-config
+    - name: logs-volume
+      emptyDir: {}
+  additionalVolumeMounts:
+    - name: config-volume
+      mountPath: /etc/redis/config
+      readOnly: true
+    - name: logs-volume
+      mountPath: /var/log/redis
+```
+
+### PersistentVolumeClaimRetentionPolicy
+
+You can control the lifecycle of PersistentVolumeClaims (PVCs) using the retention policy:
+
+```yaml
+redisSentinel:
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Delete  # Delete PVCs when StatefulSet is deleted (default: Retain)
+    whenScaled: Delete   # Delete PVCs when StatefulSet is scaled down (default: Retain)
+```
+
 ## Values
 
 | Key | Type | Default | Description |
@@ -87,6 +118,8 @@ helm delete <my-release> --namespace <namespace>
 | redisExporter.resources | object | `{}` |  |
 | redisExporter.securityContext | object | `{}` |  |
 | redisExporter.tag | string | `"v1.44.0"` |  |
+| redisSentinel.additionalVolumeMounts | list | `[]` |  |
+| redisSentinel.additionalVolumes | list | `[]` |  |
 | redisSentinel.clusterSize | int | `3` |  |
 | redisSentinel.ignoreAnnotations | list | `[]` |  |
 | redisSentinel.image | string | `"quay.io/opstree/redis-sentinel"` |  |
@@ -94,6 +127,7 @@ helm delete <my-release> --namespace <namespace>
 | redisSentinel.imagePullSecrets | list | `[]` |  |
 | redisSentinel.minReadySeconds | int | `0` |  |
 | redisSentinel.name | string | `""` |  |
+| redisSentinel.persistentVolumeClaimRetentionPolicy | object | `{}` |  |
 | redisSentinel.recreateStatefulSetOnUpdateInvalid | bool | `false` | Some fields of statefulset are immutable, such as volumeClaimTemplates. When set to true, the operator will delete the statefulset and recreate it. Default is false. |
 | redisSentinel.redisSecret.secretKey | string | `""` |  |
 | redisSentinel.redisSecret.secretName | string | `""` |  |

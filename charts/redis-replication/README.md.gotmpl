@@ -40,4 +40,35 @@ For uninstalling the chart:-
 helm delete <my-release> --namespace <namespace>
 ```
 
+### Custom Volumes and Volume Mounts
+
+You can add custom volumes and volume mounts to Redis replication pods using the `additionalVolumes` and `additionalVolumeMounts` values:
+
+```yaml
+redisReplication:
+  additionalVolumes:
+    - name: config-volume
+      configMap:
+        name: redis-config
+    - name: logs-volume
+      emptyDir: {}
+  additionalVolumeMounts:
+    - name: config-volume
+      mountPath: /etc/redis/config
+      readOnly: true
+    - name: logs-volume
+      mountPath: /var/log/redis
+```
+
+### PersistentVolumeClaimRetentionPolicy
+
+You can control the lifecycle of PersistentVolumeClaims (PVCs) using the retention policy:
+
+```yaml
+redisReplication:
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Delete  # Delete PVCs when StatefulSet is deleted (default: Retain)
+    whenScaled: Delete   # Delete PVCs when StatefulSet is scaled down (default: Retain)
+```
+
 {{ template "chart.valuesSection" . }}

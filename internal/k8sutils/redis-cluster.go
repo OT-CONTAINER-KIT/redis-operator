@@ -55,6 +55,8 @@ func generateRedisClusterParams(ctx context.Context, cr *rcvb2.RedisCluster, rep
 		ServiceAccountName:                   cr.Spec.ServiceAccountName,
 		UpdateStrategy:                       cr.Spec.KubernetesConfig.UpdateStrategy,
 		PersistentVolumeClaimRetentionPolicy: cr.Spec.KubernetesConfig.PersistentVolumeClaimRetentionPolicy,
+		AdditionalVolumes:                    cr.Spec.KubernetesConfig.AdditionalVolumes,
+		AdditionalVolumeMounts:               cr.Spec.KubernetesConfig.AdditionalVolumeMounts,
 		IgnoreAnnotations:                    cr.Spec.KubernetesConfig.IgnoreAnnotations,
 		HostNetwork:                          cr.Spec.HostNetwork,
 		MinReadySeconds:                      minreadyseconds,

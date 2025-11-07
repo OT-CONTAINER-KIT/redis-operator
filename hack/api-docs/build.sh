@@ -3,7 +3,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-CRD_REF_DOCS_VERSION="v0.0.12"
+CRD_REF_DOCS_VERSION="v0.2.0"
 
 echo "Starting API documentation generation..."
 

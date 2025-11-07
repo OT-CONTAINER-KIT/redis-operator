@@ -1,0 +1,38 @@
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: Redis
+metadata:
+  name: redis-standalone
+spec:
+  kubernetesConfig:
+    image: quay.io/opstree/redis:v7.0.12
+    imagePullPolicy: IfNotPresent
+    additionalVolumes:
+      - name: config-volume
+        configMap:
+          name: redis-config
+      - name: logs-volume
+        emptyDir: {}
+      - name: secret-volume
+        secret:
+          secretName: redis-secret
+    additionalVolumeMounts:
+      - name: config-volume
+        mountPath: /etc/redis/config
+        readOnly: true
+      - name: logs-volume
+        mountPath: /var/log/redis
+      - name: secret-volume
+        mountPath: /etc/redis/secrets
+        readOnly: true
+  podSecurityContext:
+    runAsUser: 1000
+    fsGroup: 1000
+  storage:
+    volumeClaimTemplate:
+      spec:
+        # storageClassName: standard
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
