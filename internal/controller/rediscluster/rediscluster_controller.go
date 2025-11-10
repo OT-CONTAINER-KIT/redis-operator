@@ -414,12 +414,3 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, opts controller.Options)
 		Watches(&corev1.Secret{}, r.ResourceWatcher).
 		Complete(r)
 }
-
-//func (r *RedisSentinelReconciler) SetupWithManager(mgr ctrl.Manager, opts controller.Options) error {
-//	return ctrl.NewControllerManagedBy(mgr).
-//		For(&rsvb2.RedisSentinel{}).
-//		Owns(&appsv1.StatefulSet{}).
-//		WithOptions(opts).
-//		Watches(&rrvb2.RedisReplication{}, r.ReplicationWatcher).
-//		Complete(r)
-//}
