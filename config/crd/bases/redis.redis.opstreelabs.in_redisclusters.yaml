@@ -7858,6 +7858,8 @@ spec:
                 type: string
               state:
                 type: string
+              tlsLastVersion:
+                type: string
             type: object
         required:
         - spec
