@@ -289,6 +289,22 @@ func createRedisReplicationCommand(ctx context.Context, client kubernetes.Interf
 	return cmd
 }
 
+func HotReloadTLS(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, podName string) error {
+	redisClient := configureRedisClient(ctx, client, cr, podName)
+	commands := []struct{ k, v string }{
+		{"tls-cert-file", "/tls/tls.crt"},
+		{"tls-key-file", "/tls/tls.key"},
+		{"tls-ca-cert-file", "/tls/ca.crt"},
+	}
+	for _, cmd := range commands {
+		if err := redisClient.ConfigSet(ctx, cmd.k, cmd.v).Err(); err != nil {
+			log.FromContext(ctx).Error(err, "hotReloadTLS: Failed to set tls config", "cmd", cmd, "on pod", podName)
+			return err
+		}
+	}
+	return nil
+}
+
 // ExecuteRedisReplicationCommand will execute the replication command
 func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) {
 	var podIP string
