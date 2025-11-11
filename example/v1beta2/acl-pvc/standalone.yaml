@@ -6,7 +6,7 @@ metadata:
   name: redis-standalone-acl-pvc
 spec:
   kubernetesConfig:
-    image: quay.io/opstree/redis:v7.0.12
+    image: quay.io/opstree/redis:latest
     imagePullPolicy: IfNotPresent
   # ACL configuration from PVC
   # The operator will mount /etc/redis/user.acl from the PVC
