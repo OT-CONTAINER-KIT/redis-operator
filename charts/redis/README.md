@@ -63,6 +63,7 @@ helm delete <my-release> --namespace <namespace>
 | initContainer.imagePullPolicy | string | `"IfNotPresent"` |  |
 | initContainer.resources | object | `{}` |  |
 | labels | object | `{}` |  |
+| podAnnotations | object | `{}` | Pod annotations to be applied to all Redis pods |
 | nodeSelector | object | `{}` |  |
 | podSecurityContext.fsGroup | int | `1000` |  |
 | podSecurityContext.runAsUser | int | `1000` |  |
