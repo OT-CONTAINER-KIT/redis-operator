@@ -59,18 +59,13 @@ Redis Operator requires a Kubernetes cluster of version `>=1.18.0`. If you have 
 
 ## Image Compatibility
 
-The following table shows the compatibility between the Operator Version, Redis Image, Sentinel Image, and Exporter Image:
+The operator supports Redis versions `>=6.x`. However, **it is strongly recommended to use the latest stable version** to ensure you have the latest security fixes and bug patches from upstream.
 
-| Operator Version | Redis Image | Sentinel Image | Exporter Image |
-| ---------------- | ----------- | -------------- | -------------- |
-| v0.19.x          | > v7.0.12, >=v6.2.14     | > v7.0.12, >= v6.2.14        | v1.44.0        |
-| v0.18.x          | v7.0.12     | v7.0.12        | v1.44.0        |
-| v0.17.0          | v7.0.12     | v7.0.12        | v1.44.0        |
-| v0.16.0          | v7.0.12     | v7.0.12        | v1.44.0        |
-| v0.15.1          | v7.0.12     | v7.0.12        | v1.44.0        |
-| v0.15.0          | v7.0.11     | v7.0.11        | v1.44.0        |
-| v0.14.0          | v7.0.7      | v7.0.7         | v1.44.0        |
-| v0.13.0          | v6.2.5      | nil            | v1.44.0        |
+**Container Images:**
+- **Redis**: `quay.io/opstree/redis`
+- **Sentinel**: `quay.io/opstree/redis-sentinel`
+- **Exporter**: `quay.io/opstree/redis-exporter`
+
 
 ## Quickstart
 

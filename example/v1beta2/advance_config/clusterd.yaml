@@ -11,7 +11,7 @@ spec:
     fsGroup: 1000
   persistenceEnabled: true
   kubernetesConfig:
-    image: quay.io/opstree/redis:v7.0.12
+    image: quay.io/opstree/redis:latest
     resources:
       requests:
         cpu: 101m
@@ -23,7 +23,7 @@ spec:
       - name: regcred
   redisExporter:
     enabled: false
-    image: quay.io/opstree/redis-exporter:v1.44.0
+    image: quay.io/opstree/redis-exporter:latest
   storage:
     volumeClaimTemplate:
       spec:

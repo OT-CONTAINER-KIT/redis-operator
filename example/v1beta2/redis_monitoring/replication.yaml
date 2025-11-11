@@ -8,7 +8,7 @@ metadata:
 spec:
   clusterSize: 3
   kubernetesConfig:
-    image: quay.io/opstree/redis:v7.0.12
+    image: quay.io/opstree/redis:latest
     imagePullPolicy: IfNotPresent
   storage:
     volumeClaimTemplate:
@@ -20,7 +20,7 @@ spec:
             storage: 1Gi
   redisExporter:
     enabled: true
-    image: quay.io/opstree/redis-exporter:v1.44.0
+    image: quay.io/opstree/redis-exporter:latest
     imagePullPolicy: Always
     # env:
     # - name: REDIS_EXPORTER_INCL_SYSTEM_METRICS
