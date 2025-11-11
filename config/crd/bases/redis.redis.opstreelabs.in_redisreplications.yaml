@@ -1941,6 +1941,11 @@ spec:
                     format: int32
                     type: integer
                 type: object
+              podManagementPolicy:
+                enum:
+                - OrderedReady
+                - Parallel
+                type: string
               podSecurityContext:
                 description: |-
                   PodSecurityContext holds pod-level security attributes and common container settings.

@@ -109,6 +109,10 @@ func generateRedisSentinelParams(ctx context.Context, cr *rsvb2.RedisSentinel, r
 		MinReadySeconds:                      minreadyseconds,
 	}
 
+	if cr.Spec.PodManagementPolicy != nil {
+		res.PodManagementPolicy = cr.Spec.PodManagementPolicy
+	}
+
 	if cr.Spec.KubernetesConfig.ImagePullSecrets != nil {
 		res.ImagePullSecrets = cr.Spec.KubernetesConfig.ImagePullSecrets
 	}
