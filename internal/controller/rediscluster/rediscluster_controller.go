@@ -362,6 +362,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 }
 
 func (r *Reconciler) reloadTLS(ctx context.Context, rc *rcvb2.RedisCluster, leaderReplicas, followerReplicas int) error {
+	secretName := rc.Spec.TLS.Secret.SecretName
+	var tlsSecret corev1.Secret
+
+	if err := r.Get(ctx, client.ObjectKey{Name: secretName, Namespace: rc.Namespace}, &tlsSecret); err != nil {
+		return fmt.Errorf("failed to get TLS secret %s/%s: %w", rc.Namespace, rc.Name, err)
+	}
+
+	if rc.Status.TLSLastVersion == tlsSecret.ResourceVersion {
+		return nil
+	}
+
 	log.FromContext(ctx).Info("hotReloadTLS: reloading TLS configuration")
 	for i := 0; i < followerReplicas; i++ {
 		err := k8sutils.HotReloadTLS(ctx, r.K8sClient, rc, rc.Name+"-follower-"+strconv.Itoa(i))
@@ -375,7 +386,20 @@ func (r *Reconciler) reloadTLS(ctx context.Context, rc *rcvb2.RedisCluster, lead
 			return fmt.Errorf("RedisCluster controller -> failed reloading tls in leader: %w", err)
 		}
 	}
-	log.FromContext(ctx).Info("hotReloadTLS: reloaded TLS configuration has been completed")
+
+	// update status
+	err := r.updateStatus(ctx, rc, rcvb2.RedisClusterStatus{
+		State:                 rc.Status.State,
+		Reason:                rc.Status.Reason,
+		ReadyFollowerReplicas: rc.Status.ReadyFollowerReplicas,
+		ReadyLeaderReplicas:   rc.Status.ReadyLeaderReplicas,
+		TLSLastVersion:        tlsSecret.ResourceVersion,
+	})
+	if err != nil {
+		log.FromContext(ctx).Error(err, "update status error")
+	}
+
+	log.FromContext(ctx).Info("hotReloadTLS: reload TLS configuration has been completed")
 	return nil
 }
 
