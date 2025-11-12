@@ -6,6 +6,8 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels: {{- include "redisOperator.labels" . | nindent 4 }}
 spec:
+  strategy:
+  {{- toYaml .Values.redisOperator.strategy | nindent 4 }}
   replicas: {{ .Values.replicas }}
   selector:
     matchLabels: {{- include "redisOperator.selectorLabels" . | nindent 6 }}
