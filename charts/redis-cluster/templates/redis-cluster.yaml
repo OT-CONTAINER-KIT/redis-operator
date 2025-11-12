@@ -56,6 +56,10 @@ spec:
     {{- if .Values.redisCluster.imagePullSecrets}}
     imagePullSecrets: {{ toYaml .Values.redisCluster.imagePullSecrets | nindent 4 }}
     {{- end }}
+    {{- if .Values.redisCluster.serviceType }}
+    service:
+      serviceType: {{ .Values.redisCluster.serviceType }}
+    {{- end }}
     {{- if .Values.redisCluster.resources}}
     resources: {{ toYaml .Values.redisCluster.resources | nindent 6 }}
     {{- end }}
