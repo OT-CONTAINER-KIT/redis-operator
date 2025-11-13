@@ -19,7 +19,10 @@ package rediscluster
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/types"
 	"reflect"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"strconv"
 	"time"
 
 	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
@@ -49,10 +52,11 @@ const (
 type Reconciler struct {
 	client.Client
 	k8sutils.StatefulSet
-	Healer    redis.Healer
-	Checker   redis.Checker
-	K8sClient kubernetes.Interface
-	Recorder  record.EventRecorder
+	Healer          redis.Healer
+	Checker         redis.Checker
+	K8sClient       kubernetes.Interface
+	Recorder        record.EventRecorder
+	ResourceWatcher *intctrlutil.ResourceWatcher
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -82,6 +86,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	if err = k8sutils.AddFinalizer(ctx, instance, RedisClusterFinalizer, r.Client); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "failed to add finalizer")
+	}
+
+	// hotreload tls
+	if instance.Spec.TLS != nil {
+		r.ResourceWatcher.Watch(
+			ctx,
+			types.NamespacedName{
+				Namespace: instance.Namespace,
+				Name:      instance.Spec.TLS.Secret.SecretName,
+			},
+			types.NamespacedName{
+				Namespace: instance.Namespace,
+				Name:      instance.Name,
+			},
+		)
 	}
 
 	// Check if the cluster is downscaled
@@ -199,6 +218,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	if !r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-leader") || !r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-follower") {
 		return intctrlutil.Reconciled()
+	}
+
+	if instance.Spec.TLS != nil {
+		err := r.reloadTLS(ctx, instance, int(leaderReplicas), int(followerReplicas))
+		if err != nil {
+			log.FromContext(ctx).Error(err, "hotReloadTLS failed, will retry later")
+			return intctrlutil.RequeueAfter(ctx, 30*time.Second, "Retry hotReloadTLS")
+		}
 	}
 
 	// Mark the cluster status as bootstrapping if all the leader and follower nodes are ready
@@ -349,6 +376,48 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	return intctrlutil.RequeueAfter(ctx, time.Second*10, "")
 }
 
+func (r *Reconciler) reloadTLS(ctx context.Context, rc *rcvb2.RedisCluster, leaderReplicas, followerReplicas int) error {
+	secretName := rc.Spec.TLS.Secret.SecretName
+	var tlsSecret corev1.Secret
+
+	if err := r.Get(ctx, client.ObjectKey{Name: secretName, Namespace: rc.Namespace}, &tlsSecret); err != nil {
+		return fmt.Errorf("failed to get TLS secret %s/%s: %w", rc.Namespace, rc.Name, err)
+	}
+
+	if rc.Status.TLSLastVersion == tlsSecret.ResourceVersion {
+		return nil
+	}
+
+	log.FromContext(ctx).Info("hotReloadTLS: reloading TLS configuration")
+	for i := 0; i < followerReplicas; i++ {
+		err := k8sutils.HotReloadTLS(ctx, r.K8sClient, rc, rc.Name+"-follower-"+strconv.Itoa(i))
+		if err != nil {
+			return fmt.Errorf("RedisCluster controller -> failed reloading tls in follower: %w", err)
+		}
+	}
+	for j := 0; j < leaderReplicas; j++ {
+		err := k8sutils.HotReloadTLS(ctx, r.K8sClient, rc, rc.Name+"-leader-"+strconv.Itoa(j))
+		if err != nil {
+			return fmt.Errorf("RedisCluster controller -> failed reloading tls in leader: %w", err)
+		}
+	}
+
+	// update status
+	err := r.updateStatus(ctx, rc, rcvb2.RedisClusterStatus{
+		State:                 rc.Status.State,
+		Reason:                rc.Status.Reason,
+		ReadyFollowerReplicas: rc.Status.ReadyFollowerReplicas,
+		ReadyLeaderReplicas:   rc.Status.ReadyLeaderReplicas,
+		TLSLastVersion:        tlsSecret.ResourceVersion,
+	})
+	if err != nil {
+		log.FromContext(ctx).Error(err, "update status error")
+	}
+
+	log.FromContext(ctx).Info("hotReloadTLS: reload TLS configuration has been completed")
+	return nil
+}
+
 func (r *Reconciler) updateStatus(ctx context.Context, rc *rcvb2.RedisCluster, status rcvb2.RedisClusterStatus) (requeue bool, err error) {
 	if reflect.DeepEqual(rc.Status, status) {
 		return false, nil
@@ -380,5 +449,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, opts controller.Options)
 		For(&rcvb2.RedisCluster{}).
 		Owns(&appsv1.StatefulSet{}).
 		WithOptions(opts).
+		Watches(&rcvb2.RedisCluster{}, &handler.EnqueueRequestForObject{}).
+		Watches(&corev1.Secret{}, r.ResourceWatcher).
 		Complete(r)
 }

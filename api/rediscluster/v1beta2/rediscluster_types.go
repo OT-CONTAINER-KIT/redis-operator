@@ -121,7 +121,8 @@ type RedisClusterStatus struct {
 	// +kubebuilder:default=0
 	ReadyLeaderReplicas int32 `json:"readyLeaderReplicas,omitempty"`
 	// +kubebuilder:default=0
-	ReadyFollowerReplicas int32 `json:"readyFollowerReplicas,omitempty"`
+	ReadyFollowerReplicas int32  `json:"readyFollowerReplicas,omitempty"`
+	TLSLastVersion        string `json:"tlsLastVersion,omitempty"`
 }
 
 type RedisClusterState string
