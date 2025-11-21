@@ -11,6 +11,14 @@ redisOperator:
   imagePullPolicy: Always
   imagePullSecrets: []
 
+  # Update strategy
+  # strategy:
+  #   type: RollingUpdate
+  #   rollingUpdate:
+  #     maxSurge: 25%
+  #     maxUnavailable: 25%
+  strategy: {}
+
   # Additional pod annotations
   podAnnotations: {}
   # Additional Pod labels (e.g. for filtering Pod by custom labels)
