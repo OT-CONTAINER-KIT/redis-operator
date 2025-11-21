@@ -10,6 +10,7 @@ redisCluster:
   imagePullPolicy: IfNotPresent
   imagePullSecrets: {}
     # - name:  Secret with Registry credentials
+  serviceType: ClusterIP
   redisSecret:
     secretName: ""
     secretKey: ""

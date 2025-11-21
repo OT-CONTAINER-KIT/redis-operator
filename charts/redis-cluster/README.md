@@ -104,6 +104,7 @@ helm delete <my-release> --namespace <namespace>
 | redisCluster.redisSecret.secretKey | string | `""` |  |
 | redisCluster.redisSecret.secretName | string | `""` |  |
 | redisCluster.resources | object | `{}` |  |
+| redisCluster.serviceType | string | `"ClusterIP"` |  |
 | redisCluster.tag | string | `"v7.0.15"` |  |
 | redisExporter.enabled | bool | `false` |  |
 | redisExporter.env | list | `[]` |  |
