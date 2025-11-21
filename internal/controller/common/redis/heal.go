@@ -59,11 +59,21 @@ func (h *healer) UpdateRedisRoleLabel(ctx context.Context, ns string, labels map
 	if err != nil {
 		return err
 	}
+	patchFunc := func(pod string, patchBs []byte) func() error {
+		return func() error {
+			_, err := h.k8s.
+				CoreV1().
+				Pods(ns).
+				Patch(ctx, pod, types.JSONPatchType, patchBs, metav1.PatchOptions{})
+			return err
+		}
+	}
 	for _, pod := range pods.Items {
 		connInfo := createConnectionInfo(ctx, pod, password, tlsConfig, h.k8s, ns, "6379")
 		isMaster, err := h.redis.Connect(connInfo).IsMaster(ctx)
 		if err != nil {
-			return err
+			log.FromContext(ctx).Error(err, "failed to check redis role, skipping pod", "pod", pod.Name)
+			continue
 		}
 		role := common.RedisRoleLabelSlave
 		if isMaster {
@@ -71,18 +81,15 @@ func (h *healer) UpdateRedisRoleLabel(ctx context.Context, ns string, labels map
 		}
 		if oldRole := pod.Labels[common.RedisRoleLabelKey]; oldRole != role {
 			patch := []byte(fmt.Sprintf(`[{"op": "add", "path": "/metadata/labels/%s", "value": "%s"}]`, common.RedisRoleLabelKey, role))
-			rErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-				_, err = h.k8s.CoreV1().Pods(ns).Patch(ctx, pod.Name, types.JSONPatchType, patch, metav1.PatchOptions{})
-				if err != nil {
-					log.FromContext(ctx).Error(err, "failed to update pod role label", "pod", pod.Name, "oldRole", oldRole, "newRole", role)
-					return err
-				}
-				return nil
-			})
+			rErr := retry.RetryOnConflict(retry.DefaultRetry, patchFunc(pod.Name, patch))
 			if rErr != nil {
 				return fmt.Errorf("failed to update pod role label: %w", rErr)
 			}
-			log.FromContext(ctx).Info("updated pod role label", "pod", pod.Name, "oldRole", oldRole, "newRole", role)
+			log.FromContext(ctx).Info("updated pod role label",
+				"pod", pod.Name,
+				"oldRole", oldRole,
+				"newRole", role,
+			)
 		}
 	}
 	return nil
