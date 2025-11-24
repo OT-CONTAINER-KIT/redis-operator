@@ -47,24 +47,6 @@ readinessProbe:
 {{- end }}
 {{- end -}}
 
-{{/* Generate sidecar properties */}}
-{{- define "sidecar.properties" -}}
-{{- with .Values.sidecars }}
-name: {{ .name }}
-image: {{ .image }}
-{{- if .imagePullPolicy }}
-imagePullPolicy: {{ .imagePullPolicy }}
-{{- end }}
-{{- if .resources }}
-resources:
-  {{ toYaml .resources | nindent 2 }}
-{{- end }}
-{{- if .env }}
-env:
-{{ toYaml .env | nindent 2 }}
-{{- end }}
-{{- end }}
-{{- end -}}
 
 {{/* Generate init container properties */}}
 {{- define "initContainer.properties" -}}
