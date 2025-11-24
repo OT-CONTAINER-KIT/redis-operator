@@ -94,14 +94,7 @@ helm delete <my-release> --namespace <namespace>
 | serviceMonitor.interval | string | `"30s"` |  |
 | serviceMonitor.namespace | string | `""` | Namespace where servicemonitor resource will be created, if empty it will be created in the same namespace as the redis |
 | serviceMonitor.scrapeTimeout | string | `"10s"` |  |
-| sidecars.env | list | `[]` |  |
-| sidecars.image | string | `""` |  |
-| sidecars.imagePullPolicy | string | `"IfNotPresent"` |  |
-| sidecars.name | string | `""` |  |
-| sidecars.resources.limits.cpu | string | `"100m"` |  |
-| sidecars.resources.limits.memory | string | `"128Mi"` |  |
-| sidecars.resources.requests.cpu | string | `"50m"` |  |
-| sidecars.resources.requests.memory | string | `"64Mi"` |  |
+| sidecars | list | `[]` |  |
 | storageSpec.volumeClaimTemplate.spec.accessModes[0] | string | `"ReadWriteOnce"` |  |
 | storageSpec.volumeClaimTemplate.spec.resources.requests.storage | string | `"1Gi"` |  |
 | tolerations | list | `[]` |  |

@@ -157,20 +157,24 @@ redisExporter:
     #   value: "value1"
   securityContext: {}
 
-sidecars:
-  name: ""
-  image: ""
-  imagePullPolicy: "IfNotPresent"
-  resources:
-    limits:
-      cpu: "100m"
-      memory: "128Mi"
-    requests:
-      cpu: "50m"
-      memory: "64Mi"
-  env: {}
-    # - name: MY_ENV_VAR
-    #   value: "my-env-var-value"
+sidecars: []
+  # - name: "sidecar-example"
+  #   image: "busybox:latest"
+  #   imagePullPolicy: "IfNotPresent"
+  #   resources:
+  #     limits:
+  #       cpu: "100m"
+  #       memory: "128Mi"
+  #     requests:
+  #       cpu: "50m"
+  #       memory: "64Mi"
+  #   env: []
+  #   # - name: MY_ENV_VAR
+  #   #   value: "my-env-var-value"
+  #   command: []
+  #   # - "/bin/sh"
+  #   # - "-c"
+  #   # - "sleep 3600"
 
 initContainer:
   enabled: false
