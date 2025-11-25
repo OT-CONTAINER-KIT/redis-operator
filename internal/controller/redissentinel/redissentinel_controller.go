@@ -48,7 +48,7 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return intctrlutil.Reconciled()
 	}
 
-	if common.IsSkipReconcile(ctx, instance) {
+	if common.ShouldSkipReconcile(ctx, instance) {
 		return intctrlutil.Reconciled()
 	}
 

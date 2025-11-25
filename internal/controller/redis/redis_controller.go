@@ -53,7 +53,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		return intctrlutil.Reconciled()
 	}
-	if common.IsSkipReconcile(ctx, instance) {
+	if common.ShouldSkipReconcile(ctx, instance) {
 		return intctrlutil.Reconciled()
 	}
 	if err = k8sutils.AddFinalizer(ctx, instance, RedisFinalizer, r.Client); err != nil {
