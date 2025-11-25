@@ -69,9 +69,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		return intctrlutil.Reconciled()
 	}
-	monitoring.RedisReplicationSkipReconcile.WithLabelValues(instance.Namespace, instance.Name).Set(0)
-	if common.IsSkipReconcile(ctx, instance) {
-		monitoring.RedisClusterSkipReconcile.WithLabelValues(instance.Namespace, instance.Name).Set(1)
+	if common.ShouldSkipReconcile(ctx, instance) {
 		return intctrlutil.Reconciled()
 	}
 	instance.SetDefault()
