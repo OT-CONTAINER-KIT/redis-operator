@@ -53,9 +53,7 @@ Here are the features which are supported by this operator:
 - IPv4 and IPv6 support for Redis setup
 - Detailed monitoring Grafana dashboard
 
-## Prerequisites
-
-Redis Operator requires a Kubernetes cluster of version `>=1.18.0`. If you have just started with Operators, it's highly recommended using the latest version of Kubernetes.
+Check the [Installation](https://redis-operator.opstree.dev/docs/installation/) to deploy your first cluster with operator.
 
 ## Image Compatibility
 
@@ -65,59 +63,6 @@ The operator supports Redis versions `>=6.x`. However, **it is strongly recommen
 - **Redis**: `quay.io/opstree/redis`
 - **Sentinel**: `quay.io/opstree/redis-sentinel`
 - **Exporter**: `quay.io/opstree/redis-exporter`
-
-
-## Quickstart
-
-The setup can be done by using Helm. If you want to see more examples, please go through the [example](./example) folder.
-
-But you can simply use the Helm chart for installation.
-
-```shell
-# Add the Helm chart
-$ helm repo add ot-helm https://ot-container-kit.github.io/helm-charts/
-```
-
-```shell
-# Deploy the Redis operator
-$ helm upgrade redis-operator ot-helm/redis-operator \
-  --install --create-namespace --namespace ot-operators
-```
-
-After deployment, verify the installation of the operator
-
-```shell
-helm test redis-operator --namespace ot-operators
-```
-
-Creating Redis cluster, standalone, replication and sentinel setup.
-
-```shell
-# Create Redis cluster setup
-$ helm upgrade redis-cluster ot-helm/redis-cluster \
-  --set redisCluster.clusterSize=3 --install \
-  --namespace ot-operators
-```
-
-```shell
-# Create Redis standalone setup
-$ helm upgrade redis ot-helm/redis \
-  --install --namespace ot-operators
-```
-
-```shell
-# Create Redis replication setup
-$ helm upgrade redis-replication ot-helm/redis-replication \
-  --install --namespace ot-operators
-```
-
-```shell
-# Create Redis sentinel setup
-$ helm upgrade redis-sentinel ot-helm/redis-sentinel \
-  --install --namespace ot-operators
-```
-
-If you want to customize the values file by yourself while initializing the Helm command, the values files for reference are present [here](https://github.com/OT-CONTAINER-KIT/helm-charts/tree/main/charts/redis-setup).
 
 ## Monitoring with Prometheus
 
@@ -138,7 +83,7 @@ Please see our [CONTRIBUTING.md](./CONTRIBUTING.md) for details.
 
 ## Release History
 
-Please see our [CHANGELOG.md](./CHANGELOG.md) for details.
+Please see our [Release History](https://redis-operator.opstree.dev/docs/release-history/) for details.
 
 ## Contact Information
 
