@@ -3,7 +3,7 @@
 # ===========================
 
 # Current Operator version
-VERSION ?= 0.22.2
+VERSION ?= 0.22.3
 
 # Default bundle image tag
 BUNDLE_IMG ?= controller-bundle:$(VERSION)
