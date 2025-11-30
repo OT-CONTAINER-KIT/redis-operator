@@ -237,3 +237,5 @@ env: []
   #   value: "value1"
 
 serviceAccountName: ""
+
+podManagementPolicy: OrderedReady

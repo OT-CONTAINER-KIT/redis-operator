@@ -68,6 +68,7 @@ helm delete <my-release> --namespace <namespace>
 | pdb.enabled | bool | `false` |  |
 | pdb.maxUnavailable | string | `nil` |  |
 | pdb.minAvailable | int | `1` |  |
+| podManagementPolicy | string | `"OrderedReady"` |  |
 | podSecurityContext.fsGroup | int | `1000` |  |
 | podSecurityContext.runAsUser | int | `1000` |  |
 | priorityClassName | string | `""` |  |

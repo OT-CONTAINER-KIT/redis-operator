@@ -226,6 +226,7 @@ _Appears in:_
 | `persistenceEnabled` _boolean_ |  |  |  |
 | `env` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#envvar-v1-core)_ |  |  |  |
 | `hostPort` _integer_ |  |  |  |
+| `podManagementPolicy` _string_ |  |  | Enum: [OrderedReady Parallel] <br /> |
 
 
 
@@ -410,6 +411,7 @@ _Appears in:_
 | `env` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#envvar-v1-core)_ |  |  |  |
 | `topologySpreadConstraints` _[TopologySpreadConstraint](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#topologyspreadconstraint-v1-core) array_ |  |  |  |
 | `hostPort` _integer_ |  |  |  |
+| `podManagementPolicy` _string_ |  |  | Enum: [OrderedReady Parallel] <br /> |
 
 
 #### RedisSentinel
@@ -491,6 +493,7 @@ _Appears in:_
 | `volumeMount` _[AdditionalVolume](#additionalvolume)_ |  |  |  |
 | `topologySpreadConstraints` _[TopologySpreadConstraint](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#topologyspreadconstraint-v1-core) array_ |  |  |  |
 | `hostPort` _integer_ |  |  |  |
+| `podManagementPolicy` _string_ |  |  | Enum: [OrderedReady Parallel] <br /> |
 
 
 #### RedisSpec

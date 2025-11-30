@@ -111,3 +111,6 @@ spec:
   {{- if and .Values.serviceAccountName (ne .Values.serviceAccountName "") }}
   serviceAccountName: "{{ .Values.serviceAccountName }}"
   {{- end }}
+  {{- if and .Values.podManagementPolicy (ne .Values.podManagementPolicy "") }}
+  podManagementPolicy: "{{ .Values.podManagementPolicy }}"
+  {{- end }}

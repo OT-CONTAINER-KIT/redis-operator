@@ -174,3 +174,5 @@ pdb:
   enabled: false
   minAvailable: 1
   maxUnavailable: null
+
+podManagementPolicy: OrderedReady
