@@ -534,7 +534,7 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 			pods := mock_utils.CreateFakeObjectWithPodIPs(tt.redisCluster)
 			var secret []runtime.Object
 			if tt.redisCluster.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-				secret = mock_utils.CreateFakeObjectWithSecret(tt.secret.name, tt.secret.namespace, tt.secret.key) //nolint
+				secret = mock_utils.CreateFakeObjectWithSecret(tt.secret.name, tt.secret.namespace, tt.secret.key)
 			}
 
 			var objects []runtime.Object
