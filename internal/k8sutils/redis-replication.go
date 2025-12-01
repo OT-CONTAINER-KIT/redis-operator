@@ -7,6 +7,7 @@ import (
 	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util/maps"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -29,10 +30,10 @@ func CreateReplicationService(ctx context.Context, cr *rrvb2.RedisReplication, c
 	objectMetaInfo := generateObjectMetaInformation(cr.Name, cr.Namespace, labels, annotations)
 	headlessObjectMetaInfo := generateObjectMetaInformation(cr.Name+"-headless", cr.Namespace, labels, annotations)
 	additionalObjectMetaInfo := generateObjectMetaInformation(cr.Name+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.GetServiceAnnotations(), epp))
-	masterLabels := util.MergeMap(
+	masterLabels := maps.Merge(
 		labels, map[string]string{common.RedisRoleLabelKey: common.RedisRoleLabelMaster},
 	)
-	replicaLabels := util.MergeMap(
+	replicaLabels := maps.Merge(
 		labels, map[string]string{common.RedisRoleLabelKey: common.RedisRoleLabelSlave},
 	)
 	masterObjectMetaInfo := generateObjectMetaInformation(cr.Name+"-master", cr.Namespace, masterLabels, annotations)

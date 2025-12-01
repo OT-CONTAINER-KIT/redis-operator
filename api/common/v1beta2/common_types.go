@@ -238,9 +238,14 @@ type RedisPodDisruptionBudget struct {
 
 // +k8s:deepcopy-gen=true
 type RedisSentinelConfig struct {
-	AdditionalSentinelConfig *string              `json:"additionalSentinelConfig,omitempty"`
+	SentinelConfig           `json:",inline"`
 	RedisReplicationName     string               `json:"redisReplicationName"`
 	RedisReplicationPassword *corev1.EnvVarSource `json:"redisReplicationPassword,omitempty"`
+}
+
+// +k8s:deepcopy-gen=true
+type SentinelConfig struct {
+	AdditionalSentinelConfig *string `json:"additionalSentinelConfig,omitempty"`
 	// +kubebuilder:default:=myMaster
 	MasterGroupName string `json:"masterGroupName,omitempty"`
 	// +kubebuilder:default:="6379"

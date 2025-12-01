@@ -30,6 +30,13 @@ type RedisReplicationSpec struct {
 	EnvVars                       *[]corev1.EnvVar                  `json:"env,omitempty"`
 	TopologySpreadConstrains      []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
 	HostPort                      *int                              `json:"hostPort,omitempty"`
+	Sentinel                      *Sentinel                         `json:"sentinel,omitempty"`
+}
+
+type Sentinel struct {
+	common.KubernetesConfig `json:",inline"`
+	common.SentinelConfig   `json:",inline"`
+	Size                    int32 `json:"size"`
 }
 
 func (cr *RedisReplicationSpec) GetReplicationCounts(t string) int32 {

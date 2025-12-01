@@ -335,15 +335,17 @@ func Test_getSentinelEnvVariable(t *testing.T) {
 					Spec: rsvb2.RedisSentinelSpec{
 						RedisSentinelConfig: &rsvb2.RedisSentinelConfig{
 							RedisSentinelConfig: common.RedisSentinelConfig{
-								RedisReplicationName:  "redis-replication",
-								MasterGroupName:       "master",
-								RedisPort:             "6379",
-								Quorum:                "2",
-								DownAfterMilliseconds: "30000",
-								ParallelSyncs:         "1",
-								FailoverTimeout:       "180000",
-								ResolveHostnames:      "no",
-								AnnounceHostnames:     "no",
+								RedisReplicationName: "redis-replication",
+								SentinelConfig: common.SentinelConfig{
+									MasterGroupName:       "master",
+									RedisPort:             "6379",
+									Quorum:                "2",
+									DownAfterMilliseconds: "30000",
+									ParallelSyncs:         "1",
+									FailoverTimeout:       "180000",
+									ResolveHostnames:      "no",
+									AnnounceHostnames:     "no",
+								},
 							},
 						},
 					},

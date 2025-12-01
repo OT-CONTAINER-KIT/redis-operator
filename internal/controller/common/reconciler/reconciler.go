@@ -17,70 +17,66 @@ import (
 )
 
 type Params struct {
-	Context  context.Context
 	Client   client.Client
 	Owner    client.Object
 	Expected client.Object
 
-	Reconciled client.Object
-
-	NeedsUpdate      func() bool
-	UpdateReconciled func()
+	NeedUpdate func(existed client.Object) bool
+	Update     func(existed client.Object)
 }
 
-func Reconcile(params Params) error {
-	if params.Reconciled == nil {
-		return fmt.Errorf("params.Reconciled object must be provided")
-	}
+func Reconcile(ctx context.Context, params Params) (client.Object, error) {
 	if params.Owner != nil {
 		if err := controllerutil.SetControllerReference(params.Owner, params.Expected, scheme.Scheme); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	gvk, err := apiutil.GVKForObject(params.Expected, scheme.Scheme)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	kind := gvk.Kind
 	namespace := params.Expected.GetNamespace()
 	name := params.Expected.GetName()
-	log := log.FromContext(params.Context).WithValues("kind", kind, "namespace", namespace, "name", name)
+	// Create a new instance of the same type as Expected
+	existed := reflect.New(reflect.TypeOf(params.Expected).Elem()).Interface().(client.Object)
+	log := log.FromContext(ctx).WithValues("kind", kind, "namespace", namespace, "name", name)
 	create := func() error {
 		log.Info("Creating resource")
 		expectedCopy := reflect.ValueOf(params.Expected.DeepCopyObject()).Elem()
-		reflect.ValueOf(params.Reconciled).Elem().Set(expectedCopy)
-		err = params.Client.Create(params.Context, params.Reconciled)
+		reflect.ValueOf(existed).Elem().Set(expectedCopy)
+		err = params.Client.Create(ctx, existed)
 		if err != nil {
 			return err
 		}
-		log.Info("Created resource successfully", "resourceVersion", params.Reconciled.GetResourceVersion())
+		log.Info("Created resource successfully", "resourceVersion", existed.GetResourceVersion())
 		return nil
 	}
 
-	err = params.Client.Get(params.Context, types.NamespacedName{Name: name, Namespace: namespace}, params.Reconciled)
+	err = params.Client.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, existed)
 	if err != nil && apierrors.IsNotFound(err) {
-		return create()
+		return existed, create()
 	} else if err != nil {
-		return fmt.Errorf("failed to get %s %s/%s: %w", kind, namespace, name, err)
+		return nil, fmt.Errorf("failed to get %s %s/%s: %w", kind, namespace, name, err)
 	}
 
-	if params.NeedsUpdate() {
+	if params.NeedUpdate(existed) {
 		log.Info("Updating resource")
-		reconciledMeta, err := meta.Accessor(params.Reconciled)
+		reconciledMeta, err := meta.Accessor(existed)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		resourceVersion := reconciledMeta.GetResourceVersion()
-		params.UpdateReconciled()
+		params.Update(existed)
 		reconciledMeta.SetResourceVersion(resourceVersion)
 
 		// We ensure the params.Owners is set as the controller owner reference before update.
 		expectedMeta, err := meta.Accessor(params.Expected)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		expectedOwners := expectedMeta.GetOwnerReferences()
 		if len(expectedOwners) > 0 {
@@ -93,13 +89,13 @@ func Reconcile(params Params) error {
 			reconciledMeta.SetOwnerReferences(reconciledOwners)
 		}
 
-		err = params.Client.Update(params.Context, params.Reconciled)
+		err = params.Client.Update(ctx, existed)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		log.Info("Updated resource successfully", "resourceVersion", params.Reconciled.GetResourceVersion())
+		log.Info("Updated resource successfully", "resourceVersion", existed.GetResourceVersion())
 	}
-	return nil
+	return existed, nil
 }
 
 func indexOfControllerReference(owners []metav1.OwnerReference) int {

@@ -95,6 +95,7 @@ ExistingPasswordSecret is the struct to access the existing secret
 
 _Appears in:_
 - [KubernetesConfig](#kubernetesconfig)
+- [Sentinel](#sentinel)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
@@ -141,6 +142,7 @@ _Appears in:_
 - [RedisReplicationSpec](#redisreplicationspec)
 - [RedisSentinelSpec](#redissentinelspec)
 - [RedisSpec](#redisspec)
+- [Sentinel](#sentinel)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
@@ -410,6 +412,7 @@ _Appears in:_
 | `env` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#envvar-v1-core)_ |  |  |  |
 | `topologySpreadConstraints` _[TopologySpreadConstraint](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#topologyspreadconstraint-v1-core) array_ |  |  |  |
 | `hostPort` _integer_ |  |  |  |
+| `sentinel` _[Sentinel](#sentinel)_ |  |  |  |
 
 
 #### RedisSentinel
@@ -444,8 +447,6 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `additionalSentinelConfig` _string_ |  |  |  |
-| `redisReplicationName` _string_ |  |  |  |
-| `redisReplicationPassword` _[EnvVarSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#envvarsource-v1-core)_ |  |  |  |
 | `masterGroupName` _string_ |  | myMaster |  |
 | `redisPort` _string_ |  | 6379 |  |
 | `quorum` _string_ |  | 2 |  |
@@ -454,6 +455,8 @@ _Appears in:_
 | `downAfterMilliseconds` _string_ |  | 30000 |  |
 | `resolveHostnames` _string_ |  | no |  |
 | `announceHostnames` _string_ |  | no |  |
+| `redisReplicationName` _string_ |  |  |  |
+| `redisReplicationPassword` _[EnvVarSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#envvarsource-v1-core)_ |  |  |  |
 
 
 #### RedisSentinelSpec
@@ -528,6 +531,67 @@ _Appears in:_
 | `hostPort` _integer_ |  |  |  |
 
 
+#### Sentinel
+
+
+
+
+
+
+
+_Appears in:_
+- [RedisReplicationSpec](#redisreplicationspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `image` _string_ |  |  |  |
+| `imagePullPolicy` _[PullPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#pullpolicy-v1-core)_ |  |  |  |
+| `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcerequirements-v1-core)_ |  |  |  |
+| `redisSecret` _[ExistingPasswordSecret](#existingpasswordsecret)_ |  |  |  |
+| `imagePullSecrets` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#localobjectreference-v1-core)_ |  |  |  |
+| `updateStrategy` _[StatefulSetUpdateStrategy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#statefulsetupdatestrategy-v1-apps)_ |  |  |  |
+| `persistentVolumeClaimRetentionPolicy` _[StatefulSetPersistentVolumeClaimRetentionPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#statefulsetpersistentvolumeclaimretentionpolicy-v1-apps)_ |  |  |  |
+| `service` _[ServiceConfig](#serviceconfig)_ |  |  |  |
+| `ignoreAnnotations` _string array_ |  |  |  |
+| `minReadySeconds` _integer_ |  |  |  |
+| `additionalSentinelConfig` _string_ |  |  |  |
+| `masterGroupName` _string_ |  | myMaster |  |
+| `redisPort` _string_ |  | 6379 |  |
+| `quorum` _string_ |  | 2 |  |
+| `parallelSyncs` _string_ |  | 1 |  |
+| `failoverTimeout` _string_ |  | 180000 |  |
+| `downAfterMilliseconds` _string_ |  | 30000 |  |
+| `resolveHostnames` _string_ |  | no |  |
+| `announceHostnames` _string_ |  | no |  |
+| `size` _integer_ |  |  |  |
+
+
+#### SentinelConfig
+
+
+
+
+
+
+
+_Appears in:_
+- [RedisSentinelConfig](#redissentinelconfig)
+- [RedisSentinelConfig](#redissentinelconfig)
+- [Sentinel](#sentinel)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `additionalSentinelConfig` _string_ |  |  |  |
+| `masterGroupName` _string_ |  | myMaster |  |
+| `redisPort` _string_ |  | 6379 |  |
+| `quorum` _string_ |  | 2 |  |
+| `parallelSyncs` _string_ |  | 1 |  |
+| `failoverTimeout` _string_ |  | 180000 |  |
+| `downAfterMilliseconds` _string_ |  | 30000 |  |
+| `resolveHostnames` _string_ |  | no |  |
+| `announceHostnames` _string_ |  | no |  |
+
+
 #### Service
 
 
@@ -557,6 +621,7 @@ ServiceConfig define the type of service to be created and its annotations
 
 _Appears in:_
 - [KubernetesConfig](#kubernetesconfig)
+- [Sentinel](#sentinel)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
