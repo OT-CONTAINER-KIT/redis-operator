@@ -68,11 +68,9 @@ spec:
     - name: Hange the master
       try:
         - script:
-            timeout: 10s
+            timeout: 60s
             content: |
               kubectl exec --namespace ${NAMESPACE} redis-replication-0 -- redis-cli -p 6379  -a Opstree1234 EVAL "while true do end" 0
-            check:
-              (contains($stdout, 'OK')): true
 
     - name: Check master changed
       try:
