@@ -8,6 +8,10 @@ func (cr *RedisReplication) SentinelStatefulSet() string {
 	return cr.Name + "-s"
 }
 
+func (cr *RedisReplication) RedisStatefulSet() string {
+	return cr.Name
+}
+
 func (cr *RedisReplication) SentinelHLService() string {
 	return cr.Name + "-s-hl"
 }

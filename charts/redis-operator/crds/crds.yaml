@@ -16076,10 +16076,10 @@ spec:
                     default: "no"
                     type: string
                   downAfterMilliseconds:
-                    default: "30000"
+                    default: "5000"
                     type: string
                   failoverTimeout:
-                    default: "180000"
+                    default: "10000"
                     type: string
                   ignoreAnnotations:
                     items:
@@ -16105,9 +16105,6 @@ spec:
                       type: object
                       x-kubernetes-map-type: atomic
                     type: array
-                  masterGroupName:
-                    default: myMaster
-                    type: string
                   minReadySeconds:
                     format: int32
                     type: integer
@@ -16137,9 +16134,6 @@ spec:
                     type: object
                   quorum:
                     default: "2"
-                    type: string
-                  redisPort:
-                    default: "6379"
                     type: string
                   redisSecret:
                     description: ExistingPasswordSecret is the struct to access the
@@ -21664,10 +21658,10 @@ spec:
                     default: "no"
                     type: string
                   downAfterMilliseconds:
-                    default: "30000"
+                    default: "5000"
                     type: string
                   failoverTimeout:
-                    default: "180000"
+                    default: "10000"
                     type: string
                   masterGroupName:
                     default: myMaster

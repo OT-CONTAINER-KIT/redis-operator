@@ -80,9 +80,9 @@ spec:
             timeout: 10s
             content: |
               export MASTER_POD_FROM_STATUS=$(kubectl -n ${NAMESPACE} get redisreplication redis-replication -o jsonpath='{.status.masterNode}');
-              if [ "redis-replication-0" != "$MASTER_POD_FROM_STATUS" ]; then echo "failover"; else echo "FAIL"; fi
+              echo "$MASTER_POD_FROM_STATUS"
             check:
-              (contains($stdout, 'failover')): true
+              (contains($stdout, 'redis-replication-0')): false
 
     - name: Assert data
       try:

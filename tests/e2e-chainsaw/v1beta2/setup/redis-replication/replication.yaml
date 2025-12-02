@@ -5,7 +5,7 @@ metadata:
   name: redis-replication
 spec:
   sentinel:
-    size: 1
+    size: 3
     image: quay.io/opstree/redis-sentinel:latest
     imagePullPolicy: Always
   clusterSize: 3

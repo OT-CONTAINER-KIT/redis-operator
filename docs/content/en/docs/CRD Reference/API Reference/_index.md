@@ -447,14 +447,14 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `additionalSentinelConfig` _string_ |  |  |  |
-| `masterGroupName` _string_ |  | myMaster |  |
-| `redisPort` _string_ |  | 6379 |  |
 | `quorum` _string_ |  | 2 |  |
 | `parallelSyncs` _string_ |  | 1 |  |
-| `failoverTimeout` _string_ |  | 180000 |  |
-| `downAfterMilliseconds` _string_ |  | 30000 |  |
+| `failoverTimeout` _string_ |  | 10000 |  |
+| `downAfterMilliseconds` _string_ |  | 5000 |  |
 | `resolveHostnames` _string_ |  | no |  |
 | `announceHostnames` _string_ |  | no |  |
+| `redisPort` _string_ |  | 6379 |  |
+| `masterGroupName` _string_ |  | myMaster |  |
 | `redisReplicationName` _string_ |  |  |  |
 | `redisReplicationPassword` _[EnvVarSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#envvarsource-v1-core)_ |  |  |  |
 
@@ -555,12 +555,10 @@ _Appears in:_
 | `ignoreAnnotations` _string array_ |  |  |  |
 | `minReadySeconds` _integer_ |  |  |  |
 | `additionalSentinelConfig` _string_ |  |  |  |
-| `masterGroupName` _string_ |  | myMaster |  |
-| `redisPort` _string_ |  | 6379 |  |
 | `quorum` _string_ |  | 2 |  |
 | `parallelSyncs` _string_ |  | 1 |  |
-| `failoverTimeout` _string_ |  | 180000 |  |
-| `downAfterMilliseconds` _string_ |  | 30000 |  |
+| `failoverTimeout` _string_ |  | 10000 |  |
+| `downAfterMilliseconds` _string_ |  | 5000 |  |
 | `resolveHostnames` _string_ |  | no |  |
 | `announceHostnames` _string_ |  | no |  |
 | `size` _integer_ |  |  |  |
@@ -582,12 +580,10 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `additionalSentinelConfig` _string_ |  |  |  |
-| `masterGroupName` _string_ |  | myMaster |  |
-| `redisPort` _string_ |  | 6379 |  |
 | `quorum` _string_ |  | 2 |  |
 | `parallelSyncs` _string_ |  | 1 |  |
-| `failoverTimeout` _string_ |  | 180000 |  |
-| `downAfterMilliseconds` _string_ |  | 30000 |  |
+| `failoverTimeout` _string_ |  | 10000 |  |
+| `downAfterMilliseconds` _string_ |  | 5000 |  |
 | `resolveHostnames` _string_ |  | no |  |
 | `announceHostnames` _string_ |  | no |  |
 

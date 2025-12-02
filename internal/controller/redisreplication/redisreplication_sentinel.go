@@ -1,6 +1,8 @@
 package redisreplication
 
 import (
+	"fmt"
+
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/statefulset"
@@ -90,14 +92,7 @@ func buildSentinelContainer(rr *rrvb2.RedisReplication) corev1.Container {
 
 func buildSentinelEnv(rr *rrvb2.RedisReplication) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
-		{Name: "MASTER_GROUP_NAME", Value: rr.Spec.Sentinel.MasterGroupName},
-		{Name: "PORT", Value: rr.Spec.Sentinel.RedisPort},
-		{Name: "QUORUM", Value: rr.Spec.Sentinel.Quorum},
-		{Name: "DOWN_AFTER_MILLISECONDS", Value: rr.Spec.Sentinel.DownAfterMilliseconds},
-		{Name: "PARALLEL_SYNCS", Value: rr.Spec.Sentinel.ParallelSyncs},
-		{Name: "FAILOVER_TIMEOUT", Value: rr.Spec.Sentinel.FailoverTimeout},
-		{Name: "RESOLVE_HOSTNAMES", Value: rr.Spec.Sentinel.ResolveHostnames},
-		{Name: "ANNOUNCE_HOSTNAMES", Value: rr.Spec.Sentinel.AnnounceHostnames},
+		{Name: "QUORUM", Value: fmt.Sprintf("%d", rr.Spec.Sentinel.Size/2+1)},
 	}
 	if rr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
 		envs = append(envs, corev1.EnvVar{

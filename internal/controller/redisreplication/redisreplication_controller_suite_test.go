@@ -24,6 +24,7 @@ import (
 
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	redis "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/redis"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
@@ -97,9 +98,10 @@ var _ = BeforeSuite(func() {
 	healer := redis.NewHealer(k8sClient)
 
 	err = (&Reconciler{
-		Client:    k8sManager.GetClient(),
-		K8sClient: k8sClient,
-		Healer:    healer,
+		Client:      k8sManager.GetClient(),
+		K8sClient:   k8sClient,
+		Healer:      healer,
+		StatefulSet: k8sutils.NewStatefulSetService(k8sClient),
 	}).SetupWithManager(k8sManager, controller.Options{})
 	Expect(err).ToNot(HaveOccurred())
 

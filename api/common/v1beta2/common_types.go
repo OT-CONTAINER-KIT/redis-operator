@@ -238,7 +238,11 @@ type RedisPodDisruptionBudget struct {
 
 // +k8s:deepcopy-gen=true
 type RedisSentinelConfig struct {
-	SentinelConfig           `json:",inline"`
+	SentinelConfig `json:",inline"`
+	// +kubebuilder:default:="6379"
+	RedisPort string `json:"redisPort,omitempty"`
+	// +kubebuilder:default:=myMaster
+	MasterGroupName          string               `json:"masterGroupName,omitempty"`
 	RedisReplicationName     string               `json:"redisReplicationName"`
 	RedisReplicationPassword *corev1.EnvVarSource `json:"redisReplicationPassword,omitempty"`
 }
@@ -246,17 +250,13 @@ type RedisSentinelConfig struct {
 // +k8s:deepcopy-gen=true
 type SentinelConfig struct {
 	AdditionalSentinelConfig *string `json:"additionalSentinelConfig,omitempty"`
-	// +kubebuilder:default:=myMaster
-	MasterGroupName string `json:"masterGroupName,omitempty"`
-	// +kubebuilder:default:="6379"
-	RedisPort string `json:"redisPort,omitempty"`
 	// +kubebuilder:default:="2"
 	Quorum string `json:"quorum,omitempty"`
 	// +kubebuilder:default:="1"
 	ParallelSyncs string `json:"parallelSyncs,omitempty"`
-	// +kubebuilder:default:="180000"
+	// +kubebuilder:default:="10000"
 	FailoverTimeout string `json:"failoverTimeout,omitempty"`
-	// +kubebuilder:default:="30000"
+	// +kubebuilder:default:="5000"
 	DownAfterMilliseconds string `json:"downAfterMilliseconds,omitempty"`
 	// +kubebuilder:default:="no"
 	ResolveHostnames string `json:"resolveHostnames,omitempty"`

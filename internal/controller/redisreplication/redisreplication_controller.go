@@ -16,7 +16,6 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/monitoring"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/service/redis"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -28,11 +27,13 @@ import (
 
 const (
 	RedisReplicationFinalizer = "redisReplicationFinalizer"
+	masterGroupName           = "mymaster"
 )
 
 // Reconciler reconciles a RedisReplication object
 type Reconciler struct {
 	client.Client
+	k8sutils.StatefulSet
 	Healer    redishealer.Healer
 	K8sClient kubernetes.Interface
 }
@@ -73,7 +74,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 
-	return intctrlutil.RequeueAfter(ctx, time.Second*10, "")
+	return intctrlutil.RequeueAfter(ctx, time.Second*30, "")
 }
 
 func (r *Reconciler) UpdateRedisReplicationMaster(ctx context.Context, instance *rrvb2.RedisReplication, masterNode string) error {
@@ -253,11 +254,12 @@ func (r *Reconciler) configureSentinelPod(
 		Password: masterPassword,
 	}
 
+	quorum := int(inst.Spec.Sentinel.Size/2) + 1
 	if err := sentinelService.SentinelMonitor(
 		ctx,
 		masterConnInfo,
-		inst.Spec.Sentinel.MasterGroupName,
-		inst.Spec.Sentinel.Quorum,
+		masterGroupName,
+		fmt.Sprintf("%d", quorum),
 	); err != nil {
 		return err
 	}
@@ -270,19 +272,75 @@ func (r *Reconciler) configureSentinelPod(
 		if v == "" {
 			continue
 		}
-		if err := sentinelService.SentinelSet(ctx, inst.Spec.Sentinel.MasterGroupName, k, v); err != nil {
+		if err := sentinelService.SentinelSet(ctx, masterGroupName, k, v); err != nil {
 			return err
 		}
 	}
 
-	if err := sentinelService.SentinelReset(ctx, inst.Spec.Sentinel.MasterGroupName); err != nil {
+	if err := r.sentinelResetIfNeed(ctx, inst, sentinelService); err != nil {
 		return err
 	}
 
 	return nil
 }
 
+func (r *Reconciler) sentinelResetIfNeed(ctx context.Context, inst *rrvb2.RedisReplication, redisService redis.Service) error {
+	logger := log.FromContext(ctx)
+
+	sentinelInfo, err := redisService.GetInfoSentinel(ctx)
+	if err != nil {
+		return fmt.Errorf("get sentinel info: %w", err)
+	}
+
+	var masterInfo *redis.SentinelMasterInfo
+	for i := range sentinelInfo.Masters {
+		if sentinelInfo.Masters[i].Name == masterGroupName {
+			masterInfo = &sentinelInfo.Masters[i]
+			break
+		}
+	}
+
+	if masterInfo == nil {
+		return fmt.Errorf("master group %s not found in sentinel info", masterGroupName)
+	}
+
+	expectedSlaves := int(*inst.Spec.Size - 1)        // Total size minus 1 master
+	expectedSentinels := int(inst.Spec.Sentinel.Size) // Total sentinels minus current one
+
+	needReset := false
+	if masterInfo.Slaves != expectedSlaves {
+		logger.Info("Sentinel has incorrect number of slaves, reset needed",
+			"expected", expectedSlaves,
+			"actual", masterInfo.Slaves)
+		needReset = true
+	}
+
+	if masterInfo.Sentinels != expectedSentinels {
+		logger.Info("Sentinel has incorrect number of other sentinels, reset needed",
+			"expected", expectedSentinels,
+			"actual", masterInfo.Sentinels)
+		needReset = true
+	}
+
+	if needReset {
+		if err := redisService.SentinelReset(ctx, masterGroupName); err != nil {
+			return fmt.Errorf("reset sentinel: %w", err)
+		}
+	}
+
+	return nil
+}
+
 func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisReplication) (ctrl.Result, error) {
+	if instance.EnableSentinel() {
+		if !r.IsStatefulSetReady(ctx, instance.Namespace, instance.SentinelStatefulSet()) {
+			return intctrlutil.RequeueAfter(ctx, time.Second*30, "waiting for sentinel statefulset to be ready")
+		}
+		if !r.IsStatefulSetReady(ctx, instance.Namespace, instance.RedisStatefulSet()) {
+			return intctrlutil.RequeueAfter(ctx, time.Second*30, "waiting for redis statefulset to be ready")
+		}
+	}
+
 	var realMaster string
 	masterNodes, err := k8sutils.GetRedisNodesByRole(ctx, r.K8sClient, instance, "master")
 	if err != nil {
@@ -306,7 +364,7 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 		realMaster = masterNodes[0]
 		currentRealMaster := k8sutils.GetRedisReplicationRealMaster(ctx, r.K8sClient, instance, masterNodes)
 
-		if currentRealMaster == "" {
+		if currentRealMaster == "" && !instance.EnableSentinel() {
 			log.FromContext(ctx).Info("Detected disconnected slaves, reconfiguring replication",
 				"master", realMaster, "slaves", slaveNodes)
 
@@ -380,6 +438,5 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, opts controller.Options)
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&rrvb2.RedisReplication{}).
 		WithOptions(opts).
-		Owns(&appsv1.StatefulSet{}).
 		Complete(r)
 }
