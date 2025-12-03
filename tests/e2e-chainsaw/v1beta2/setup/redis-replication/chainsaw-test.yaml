@@ -61,6 +61,7 @@ spec:
               bash -c  "cd /go/src/data-assert && go run main.go gen-redis-data \
                         --host redis-replication-s-0.redis-replication-s-hl.${NAMESPACE}.svc.cluster.local:26379 \
                         --mode sentinel \
+                        --master-name mymaster \
                         --password Opstree1234"
             check:
               (contains($stdout, 'OK')): true
@@ -93,6 +94,7 @@ spec:
               bash -c "cd /go/src/data-assert && go run main.go chk-redis-data \
                        --host redis-replication-s-0.redis-replication-s-hl.${NAMESPACE}.svc.cluster.local:26379 \
                        --mode sentinel \
+                       --master-name mymaster \
                        --password Opstree1234"
             check:
               (contains($stdout, 'OK')): true
