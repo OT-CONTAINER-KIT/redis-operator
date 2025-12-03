@@ -11,6 +11,8 @@ spec:
             file: replication.yaml
         - apply:
             file: secret.yaml
+        - apply:
+            file: ../../../../data-assert/resources.yaml
         - assert:
             file: ready-sts.yaml
         - assert:
@@ -38,23 +40,6 @@ spec:
               fi
               exit 0
 
-    - name: Ping Replicated Cluster
-      try:
-        - script:
-            timeout: 10s
-            content: |
-              kubectl exec --namespace ${NAMESPACE} redis-replication-0 -- redis-cli -p 6379 -a Opstree1234 ping
-            check:
-              (contains($stdout, 'PONG')): true
-
-    - name: Try saving a key
-      try:
-        - script:
-            timeout: 10s
-            content: |
-              kubectl exec --namespace ${NAMESPACE} redis-replication-0 -- redis-cli -p 6379  -a Opstree1234 set foo-0 bar-0
-            check:
-              (contains($stdout, 'OK')): true
 
     - name: Resize pvc
       try:
@@ -66,6 +51,53 @@ spec:
         - assert:
             timeout: 300s
             file: ready-pvc-resized.yaml
+
+    - name: Put data
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container data-assert data-assert --
+              bash -c  "cd /go/src/data-assert && go run main.go gen-redis-data \
+                        --host redis-replication-s-0.redis-replication-s-hl.${NAMESPACE}.svc.cluster.local:26379 \
+                        --mode sentinel \
+                        --master-name mymaster \
+                        --password Opstree1234"
+            check:
+              (contains($stdout, 'OK')): true
+
+    - name: Hange the master
+      try:
+        - script:
+            timeout: 60s
+            content: |
+              kubectl exec --namespace ${NAMESPACE} redis-replication-0 -- redis-cli -p 6379  -a Opstree1234 EVAL "while true do end" 0
+
+    - name: Check master changed
+      try:
+        - sleep:
+            duration: 60s
+        - script:
+            timeout: 10s
+            content: |
+              export MASTER_POD_FROM_STATUS=$(kubectl -n ${NAMESPACE} get redisreplication redis-replication -o jsonpath='{.status.masterNode}');
+              echo "$MASTER_POD_FROM_STATUS"
+            check:
+              (contains($stdout, 'redis-replication-0')): false
+
+    - name: Assert data
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container data-assert data-assert --
+              bash -c "cd /go/src/data-assert && go run main.go chk-redis-data \
+                       --host redis-replication-s-0.redis-replication-s-hl.${NAMESPACE}.svc.cluster.local:26379 \
+                       --mode sentinel \
+                       --master-name mymaster \
+                       --password Opstree1234"
+            check:
+              (contains($stdout, 'OK')): true
 
     - name: redis-replication-uninstall
       description: Uninstall Redis Replication

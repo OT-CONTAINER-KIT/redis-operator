@@ -56,7 +56,20 @@ type Service interface {
 	SentinelMonitor(ctx context.Context, master *ConnectionInfo, masterGroupName, quorum string) error
 	SentinelSet(ctx context.Context, masterGroupName, key, value string) error
 	SentinelReset(ctx context.Context, masterGroupName string) error
+	GetInfoSentinel(ctx context.Context) (*InfoSentinelResult, error)
 	GetClusterInfo(ctx context.Context) (*ClusterStatus, error)
+}
+
+type InfoSentinelResult struct {
+	Masters []SentinelMasterInfo
+}
+
+type SentinelMasterInfo struct {
+	Name      string
+	Status    string
+	Address   string
+	Slaves    int
+	Sentinels int
 }
 
 type service struct {
@@ -80,6 +93,63 @@ func (s *service) createClient() *rediscli.Client {
 		opts.TLSConfig = s.connectionInfo.TLSConfig
 	}
 	return rediscli.NewClient(opts)
+}
+
+func (c *service) GetInfoSentinel(ctx context.Context) (*InfoSentinelResult, error) {
+	client := c.createClient()
+	if client == nil {
+		return nil, nil
+	}
+	defer client.Close()
+
+	result, err := client.Info(ctx, "sentinel").Result()
+	if err != nil {
+		return nil, err
+	}
+
+	info := &InfoSentinelResult{}
+
+	// Parse sentinel section
+	// Expected format: master0:name=myMaster,status=ok,address=10.233.93.209:6379,slaves=2,sentinels=1
+	for _, line := range strings.Split(result, "\r\n") {
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if strings.HasPrefix(line, "master") && strings.Contains(line, ":") {
+			parts := strings.SplitN(line, ":", 2)
+			if len(parts) != 2 {
+				continue
+			}
+
+			masterData := make(map[string]string)
+			for _, pair := range strings.Split(parts[1], ",") {
+				kv := strings.SplitN(pair, "=", 2)
+				if len(kv) == 2 {
+					masterData[kv[0]] = kv[1]
+				}
+			}
+
+			master := SentinelMasterInfo{
+				Name:    masterData["name"],
+				Status:  masterData["status"],
+				Address: masterData["address"],
+			}
+			if slavesStr, ok := masterData["slaves"]; ok {
+				if slaves, err := strconv.Atoi(slavesStr); err == nil {
+					master.Slaves = slaves
+				}
+			}
+			if sentinelsStr, ok := masterData["sentinels"]; ok {
+				if sentinels, err := strconv.Atoi(sentinelsStr); err == nil {
+					master.Sentinels = sentinels
+				}
+			}
+
+			info.Masters = append(info.Masters, master)
+		}
+	}
+
+	return info, nil
 }
 
 func (c *service) SentinelSet(ctx context.Context, masterGroupName, key, value string) error {
@@ -129,6 +199,38 @@ func (c *service) SentinelMonitor(ctx context.Context, master *ConnectionInfo, m
 		return nil
 	}
 	defer client.Close()
+
+	masterCheckCmd := rediscli.NewSliceCmd(ctx, "SENTINEL", "MASTER", masterGroupName)
+	if err = client.Process(ctx, masterCheckCmd); err == nil {
+		if err = masterCheckCmd.Err(); err == nil {
+			result, _ := masterCheckCmd.Result()
+			var monitoredHost, monitoredPort string
+			for i := 0; i+1 < len(result); i += 2 {
+				key, ok := result[i].(string)
+				if !ok {
+					continue
+				}
+				var val string
+				switch v := result[i+1].(type) {
+				case string:
+					val = v
+				case []byte:
+					val = string(v)
+				default:
+					continue
+				}
+				switch key {
+				case "ip":
+					monitoredHost = val
+				case "port":
+					monitoredPort = val
+				}
+			}
+			if monitoredHost == master.Host && monitoredPort == master.Port {
+				return nil
+			}
+		}
+	}
 
 	cmd = rediscli.NewBoolCmd(ctx, "SENTINEL", "REMOVE", masterGroupName)
 	err = client.Process(ctx, cmd)
@@ -190,8 +292,8 @@ func (c *service) GetAttachedReplicaCount(ctx context.Context) (int, error) {
 
 	var count int
 	for _, line := range strings.Split(result, "\r\n") {
-		if strings.HasPrefix(line, "connected_slaves:") {
-			count, err = strconv.Atoi(strings.TrimPrefix(line, "connected_slaves:"))
+		if value, found := strings.CutPrefix(line, "connected_slaves:"); found {
+			count, err = strconv.Atoi(value)
 			if err != nil {
 				return 0, err
 			}

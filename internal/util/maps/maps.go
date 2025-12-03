@@ -1,7 +1,7 @@
-package util
+package maps
 
-// MergeMap merges all the label maps received as argument into a single new label map.
-func MergeMap[K comparable, V any](all ...map[K]V) map[K]V {
+// Merge merges all the label maps received as argument into a single new label map.
+func Merge[K comparable, V any](all ...map[K]V) map[K]V {
 	res := make(map[K]V)
 
 	for _, m := range all {
@@ -16,8 +16,8 @@ func MergeMap[K comparable, V any](all ...map[K]V) map[K]V {
 // It returns a new map containing all key-value pairs from the source map.
 // Note: This is a shallow copy; if the values are reference types,
 // the copied map will reference the same underlying objects as the source.
-func CopyMap[K comparable, V any](src map[K]V) map[K]V {
-	return MergeMap(src)
+func Copy[K comparable, V any](src map[K]V) map[K]V {
+	return Merge(src)
 }
 
 // MergePreservingExistingKeys merges source into destination while skipping any keys that exist in the destination.
@@ -36,4 +36,16 @@ func MergePreservingExistingKeys[K comparable, V any](dest, src map[K]V) map[K]V
 	}
 
 	return dest
+}
+
+func IsSubset(toCheck, fullSet map[string]string) bool {
+	if len(toCheck) > len(fullSet) {
+		return false
+	}
+	for k, v := range toCheck {
+		if currValue, ok := fullSet[k]; !ok || currValue != v {
+			return false
+		}
+	}
+	return true
 }

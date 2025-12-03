@@ -2548,10 +2548,10 @@ spec:
                     default: "no"
                     type: string
                   downAfterMilliseconds:
-                    default: "30000"
+                    default: "5000"
                     type: string
                   failoverTimeout:
-                    default: "180000"
+                    default: "10000"
                     type: string
                   masterGroupName:
                     default: myMaster

@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
-	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util/maps"
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -37,7 +37,7 @@ func generateServiceDef(serviceMeta metav1.ObjectMeta, epp exporterPortProvider,
 		Spec: corev1.ServiceSpec{
 			Type:      generateServiceType(serviceType),
 			ClusterIP: "",
-			Selector:  util.CopyMap(serviceMeta.GetLabels()),
+			Selector:  maps.Copy(serviceMeta.GetLabels()),
 			Ports: []corev1.ServicePort{
 				{
 					Name:       PortName,
@@ -164,7 +164,7 @@ func patchService(ctx context.Context, storedService *corev1.Service, newService
 	if !patchResult.IsEmpty() {
 		log.FromContext(ctx).V(1).Info("Changes in service Detected, Updating...", "patch", string(patchResult.Patch))
 
-		util.MergePreservingExistingKeys(newService.Annotations, storedService.Annotations)
+		maps.MergePreservingExistingKeys(newService.Annotations, storedService.Annotations)
 		// util.MergePreservingExistingKeys(newService.Labels, storedService.Labels)
 		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(newService); err != nil {
 			log.FromContext(ctx).Error(err, "Unable to patch redis service with comparison object")
