@@ -611,7 +611,7 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 		container := corev1.Container{
 			Name:            "init-config",
 			Image:           envs.GetInitContainerImage(),
-			ImagePullPolicy: corev1.PullIfNotPresent,
+			ImagePullPolicy: initcontainerParams.ImagePullPolicy,
 			Command:         []string{"/operator", "agent"},
 			SecurityContext: initcontainerParams.SecurityContext,
 			Env: getEnvironmentVariables(
