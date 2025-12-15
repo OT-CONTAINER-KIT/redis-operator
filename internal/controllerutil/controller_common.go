@@ -39,3 +39,9 @@ func RequeueECheck(ctx context.Context, err error, msg string, keysAndValues ...
 	}
 	return RequeueE(ctx, err, msg, keysAndValues...)
 }
+
+func Requeue() (reconcile.Result, error) {
+	return reconcile.Result{
+		Requeue: true,
+	}, nil
+}
