@@ -296,7 +296,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return intctrlutil.RequeueAfter(ctx, time.Second*30, "no unhealthy nodes found after repairing disconnected masters")
 		}
 
-		if(leaderReplicas == 1 && followerReplicas == 1) {
+		if leaderReplicas == 1 && followerReplicas == 1 {
 			logger.Info("unhealthy nodes detected; attempting to repair disconnected nodes when in single-node cluster")
 			if err = k8sutils.RepairDisconnectedCluster(ctx, r.K8sClient, instance); err != nil {
 				logger.Error(err, "failed to repair disconnected nodes")
