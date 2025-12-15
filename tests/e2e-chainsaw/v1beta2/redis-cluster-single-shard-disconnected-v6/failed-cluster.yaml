@@ -1,0 +1,10 @@
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisCluster
+metadata:
+  name: redis-single-shard-ha
+status:
+  state: Failed
+  reason: RedisCluster has unhealthy nodes
+  readyLeaderReplicas: 1
+  readyFollowerReplicas: 1
