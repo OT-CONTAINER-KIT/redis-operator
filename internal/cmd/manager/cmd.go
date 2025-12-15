@@ -134,9 +134,10 @@ func runManager(opts *managerOptions) error {
 	// Config to talk to k8s api server
 	cfg := ctrl.GetConfigOrDie()
 
-	if qps := float32(viper.GetFloat64(operator.KubeClientQPSMGRFlag)); qps > 0 {
-		cfg.QPS = qps
-		cfg.Burst = int(qps * 2)
+	configuredQPS := float32(viper.GetFloat64(operator.KubeClientQPSMGRFlag))
+	if configuredQPS > 0 {
+		cfg.QPS = configuredQPS
+		cfg.Burst = int(configuredQPS * 2)
 	}
 	cfg.Timeout = viper.GetDuration(operator.KubeClientTimeoutMGRFlag)
 
@@ -146,7 +147,7 @@ func runManager(opts *managerOptions) error {
 		setupLog.Error(err, "unable to start manager")
 		return err
 	}
-	k8sClient, err := createK8sClient()
+	k8sClient, err := createK8sClient(configuredQPS)
 	if err != nil {
 		return err
 	}
@@ -212,10 +213,10 @@ func createControllerOptions(opts *managerOptions) ctrl.Options {
 }
 
 // createK8sClient creates Kubernetes client
-func createK8sClient() (kubernetes.Interface, error) {
+func createK8sClient(qps float32) (kubernetes.Interface, error) {
 	k8sConfig := k8sutils.GenerateK8sConfig()
 
-	k8sClient, err := k8sutils.GenerateK8sClient(k8sConfig)
+	k8sClient, err := k8sutils.GenerateK8sClient(k8sConfig, qps)
 	if err != nil {
 		setupLog.Error(err, "unable to create k8s client")
 		return nil, err
