@@ -20,28 +20,43 @@ func TestGenerateK8sClient(t *testing.T) {
 	tests := []struct {
 		name           string
 		configProvider func() (*rest.Config, error)
+		qps            float32
+		expectedQPS    float32
 		wantErr        bool
 	}{
 		{
 			name:           "valid config",
 			configProvider: mockK8sConfigProvider,
+			qps:            0,
+			expectedQPS:    5,
+			wantErr:        false,
+		},
+		{
+			name:           "valid config with custom qps",
+			configProvider: mockK8sConfigProvider,
+			qps:            1000,
+			expectedQPS:    1000,
 			wantErr:        false,
 		},
 		{
 			name:           "invalid config",
 			configProvider: mockInvalidK8sConfigProvider,
+			qps:            0,
+			expectedQPS:    5,
 			wantErr:        true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := GenerateK8sClient(tt.configProvider)
+			client, err := GenerateK8sClient(tt.configProvider, tt.qps)
 			if tt.wantErr {
 				assert.Error(t, err, "GenerateK8sClient() should return an error for invalid config")
 			} else {
 				assert.NoError(t, err, "GenerateK8sClient() should not return an error for valid config")
 				assert.NotNil(t, client, "expected a non-nil Kubernetes client")
+
+				assert.Equal(t, tt.expectedQPS, client.AppsV1().RESTClient().GetRateLimiter().QPS())
 			}
 		})
 	}
