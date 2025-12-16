@@ -30,6 +30,15 @@ spec:
     {{- if .Values.redisReplication.minReadySeconds }}
     minReadySeconds: {{ .Values.redisReplication.minReadySeconds}}
     {{- end }}
+    {{- if .Values.redisReplication.persistentVolumeClaimRetentionPolicy }}
+    persistentVolumeClaimRetentionPolicy: {{ toYaml .Values.redisReplication.persistentVolumeClaimRetentionPolicy | nindent 6 }}
+    {{- end }}
+    {{- if .Values.redisReplication.additionalVolumes }}
+    additionalVolumes: {{ toYaml .Values.redisReplication.additionalVolumes | nindent 6 }}
+    {{- end }}
+    {{- if .Values.redisReplication.additionalVolumeMounts }}
+    additionalVolumeMounts: {{ toYaml .Values.redisReplication.additionalVolumeMounts | nindent 6 }}
+    {{- end }}
 
   redisExporter:
     enabled: {{ .Values.redisExporter.enabled }}

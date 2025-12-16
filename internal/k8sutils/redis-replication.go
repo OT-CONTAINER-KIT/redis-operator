@@ -107,6 +107,8 @@ func generateRedisReplicationParams(cr *rrvb2.RedisReplication) statefulSetParam
 		TerminationGracePeriodSeconds:        cr.Spec.TerminationGracePeriodSeconds,
 		UpdateStrategy:                       cr.Spec.KubernetesConfig.UpdateStrategy,
 		PersistentVolumeClaimRetentionPolicy: cr.Spec.KubernetesConfig.PersistentVolumeClaimRetentionPolicy,
+		AdditionalVolumes:                    cr.Spec.KubernetesConfig.AdditionalVolumes,
+		AdditionalVolumeMounts:               cr.Spec.KubernetesConfig.AdditionalVolumeMounts,
 		IgnoreAnnotations:                    cr.Spec.KubernetesConfig.IgnoreAnnotations,
 		MinReadySeconds:                      minreadyseconds,
 	}

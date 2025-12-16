@@ -30,6 +30,41 @@ helm install <my-release> ot-helm/redis --namespace <namespace>
 Redis setup can be upgraded by using `helm upgrade` command:-
 
 ```shell
+helm upgrade <my-release> ot-helm/redis --namespace <namespace>
+```
+
+### Custom Volumes and Volume Mounts
+
+You can add custom volumes and volume mounts to Redis pods using the `additionalVolumes` and `additionalVolumeMounts` values:
+
+```yaml
+redisStandalone:
+  additionalVolumes:
+    - name: config-volume
+      configMap:
+        name: redis-config
+    - name: logs-volume
+      emptyDir: {}
+  additionalVolumeMounts:
+    - name: config-volume
+      mountPath: /etc/redis/config
+      readOnly: true
+    - name: logs-volume
+      mountPath: /var/log/redis
+```
+
+### PersistentVolumeClaimRetentionPolicy
+
+You can control the lifecycle of PersistentVolumeClaims (PVCs) using the retention policy:
+
+```yaml
+redisStandalone:
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Delete  # Delete PVCs when StatefulSet is deleted (default: Retain)
+    whenScaled: Delete   # Delete PVCs when StatefulSet is scaled down (default: Retain)
+```
+
+```shell
 helm upgrade <my-release> ot-helm/redis --install --namespace <namespace>
 ```
 
