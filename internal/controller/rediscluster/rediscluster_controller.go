@@ -117,10 +117,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				k8sutils.ReshardRedisCluster(ctx, r.K8sClient, instance, shardIdx, shardMoveNodeIdx, true)
 				monitoring.RedisClusterReshardTotal.WithLabelValues(instance.Namespace, instance.Name).Inc()
 			}
-			logger.Info("Redis cluster is downscaled... Rebalancing the cluster")
 			// Step 3 Rebalance the cluster
-			k8sutils.RebalanceRedisCluster(ctx, r.K8sClient, instance)
-			logger.Info("Redis cluster is downscaled... Rebalancing the cluster is done")
+			if leaderReplicas > 1 {
+				logger.Info("Redis cluster is downscaled... Rebalancing the cluster")
+				k8sutils.RebalanceRedisCluster(ctx, r.K8sClient, instance)
+				logger.Info("Redis cluster is downscaled... Rebalancing the cluster is done")
+			} else {
+				logger.Info("Redis cluster is downscaled... Skipping rebalance for single-node cluster")
+			}
 			monitoring.RedisClusterRebalanceTotal.WithLabelValues(instance.Namespace, instance.Name).Inc()
 			return intctrlutil.RequeueAfter(ctx, time.Second*10, "")
 		} else {
@@ -232,22 +236,39 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		logger.Info("Creating redis cluster by executing cluster creation commands")
 		leaderCount := k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, "leader")
 		if leaderCount != leaderReplicas {
-			logger.Info("Not all leader are part of the cluster...", "Leaders.Count", leaderCount, "Instance.Size", leaderReplicas)
-			if leaderCount <= 2 {
-				k8sutils.ExecuteRedisClusterCommand(ctx, r.K8sClient, instance)
-			} else {
-				if leaderCount < leaderReplicas {
-					// Scale up the cluster
-					// Step 2 : Add Redis Node
-					k8sutils.AddRedisNodeToCluster(ctx, r.K8sClient, instance)
+			logger.Info("Not all leaders are part of the cluster...", "Leaders.Count", leaderCount, "Instance.Size", leaderReplicas)
+			if leaderCount < leaderReplicas {
+				// Check if we are expanding an existing single-node cluster or creating a new multi-node cluster
+				if leaderCount == 1 && leaderReplicas > 1 {
+					// Check if the single node has slots assigned and is a functioning cluster
+					// This helps distingush between scaling up vs initial multi-node creation
+					if slotsAssigned, err := r.Checker.CheckClusterSlotsAssigned(ctx, instance); err != nil {
+						logger.Error(err, "Failed to check cluster slots, creating multi-node cluster")
+						k8sutils.ExecuteRedisClusterCommand(ctx, r.K8sClient, instance)
+					} else if slotsAssigned {
+						// This is a functioing single-node cluster being scaled up
+						logger.Info("Scaling up existing single-node cluster", "Current.Leaders", leaderCount, "Desired.Leaders", leaderReplicas)
+						k8sutils.AddRedisNodeToCluster(ctx, r.K8sClient, instance)
+						monitoring.RedisClusterAddingNodeAttempt.WithLabelValues(instance.Namespace, instance.Name).Inc()
+						// Rebalance the cluster using the empty masters
+						k8sutils.RebalanceRedisClusterEmptyMasters(ctx, r.K8sClient, instance)
+					} else {
+						// Single node exists but has no slots - this is likely initial multi-node creation
+						logger.Info("Creating multi-node cluster", "Current.Leaders", leaderCount, "Desired.Leaders", leaderReplicas)
+						k8sutils.ExecuteRedisClusterCommand(ctx, r.K8sClient, instance)
+					}
+				} else {
+					// Multi-node cluster scaling up
+					logger.Info("Adding node to existing multi-node cluster", "Current.Leaders", leaderCount, "Desired.Leaders", leaderReplicas)
+					k8sutils.ExecuteRedisClusterCommand(ctx, r.K8sClient, instance)
 					monitoring.RedisClusterAddingNodeAttempt.WithLabelValues(instance.Namespace, instance.Name).Inc()
-					// Step 3 Rebalance the cluster using the empty masters
+					// Rebalance the cluster using empty masters
 					k8sutils.RebalanceRedisClusterEmptyMasters(ctx, r.K8sClient, instance)
 				}
 			}
 		} else {
 			if followerReplicas > 0 {
-				logger.Info("All leader are part of the cluster, adding follower/replicas", "Leaders.Count", leaderCount, "Instance.Size", leaderReplicas, "Follower.Replicas", followerReplicas)
+				logger.Info("All leaders are part of the cluster, adding follower/replicas", "Leaders.Count", leaderCount, "Instance.Size", leaderReplicas, "Follower.Replicas", followerReplicas)
 				k8sutils.ExecuteRedisReplicationCommand(ctx, r.K8sClient, instance)
 			} else {
 				logger.Info("no follower/replicas configured, skipping replication configuration", "Leaders.Count", leaderCount, "Leader.Size", leaderReplicas, "Follower.Replicas", followerReplicas)
