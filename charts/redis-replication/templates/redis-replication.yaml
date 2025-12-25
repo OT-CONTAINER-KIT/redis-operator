@@ -30,6 +30,12 @@ spec:
     {{- if .Values.redisReplication.minReadySeconds }}
     minReadySeconds: {{ .Values.redisReplication.minReadySeconds}}
     {{- end }}
+  {{- if .Values.redisReplication.livenessProbe }}
+  livenessProbe: {{ toYaml .Values.redisReplication.livenessProbe | nindent 4 }}
+  {{- end }}
+  {{- if .Values.redisReplication.readinessProbe }}
+  readinessProbe: {{ toYaml .Values.redisReplication.readinessProbe | nindent 4 }}
+  {{- end }}
 
   redisExporter:
     enabled: {{ .Values.redisExporter.enabled }}
