@@ -836,26 +836,29 @@ func getProbeInfo(probe *corev1.Probe, sentinel, enableTLS, enableAuth bool) *co
 		probe = &corev1.Probe{}
 	}
 	if probe.Exec == nil && probe.HTTPGet == nil && probe.TCPSocket == nil && probe.GRPC == nil {
-		healthChecker := []string{
+		redisHealthCheck := []string{
 			"redis-cli",
 			"-h", "$(hostname)",
 		}
 		if sentinel {
-			healthChecker = append(healthChecker, "-p", "${SENTINEL_PORT}")
+			redisHealthCheck = append(redisHealthCheck, "-p", "${SENTINEL_PORT}")
 		} else {
-			healthChecker = append(healthChecker, "-p", "${REDIS_PORT}")
+			redisHealthCheck = append(redisHealthCheck, "-p", "${REDIS_PORT}")
 		}
 		if enableAuth {
-			healthChecker = append(healthChecker, "-a", "${REDIS_PASSWORD}")
+			redisHealthCheck = append(redisHealthCheck, "-a", "${REDIS_PASSWORD}")
 		}
 		if enableTLS {
-			healthChecker = append(healthChecker, "--tls", "--cert", "${REDIS_TLS_CERT}", "--key", "${REDIS_TLS_CERT_KEY}", "--cacert", "${REDIS_TLS_CA_KEY}")
+			redisHealthCheck = append(redisHealthCheck, "--tls", "--cert", "${REDIS_TLS_CERT}", "--key", "${REDIS_TLS_CERT_KEY}", "--cacert", "${REDIS_TLS_CA_KEY}")
 		}
-		healthChecker = append(healthChecker, "ping")
+		redisHealthCheck = append(redisHealthCheck, "ping")
+
+		redisHealthCheckSubshell := strings.Join(redisHealthCheck, " ")
+
 		// `-e` causes the shell to exit immediately if a (nontested) command fails
 		probe.ProbeHandler = corev1.ProbeHandler{
 			Exec: &corev1.ExecAction{
-				Command: []string{"sh", "-ec", strings.Join(healthChecker, " ")},
+				Command: []string{"sh", "-ec", redisHealthCheckSubshell},
 			},
 		}
 	}
