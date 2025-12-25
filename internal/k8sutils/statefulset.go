@@ -852,9 +852,10 @@ func getProbeInfo(probe *corev1.Probe, sentinel, enableTLS, enableAuth bool) *co
 			healthChecker = append(healthChecker, "--tls", "--cert", "${REDIS_TLS_CERT}", "--key", "${REDIS_TLS_CERT_KEY}", "--cacert", "${REDIS_TLS_CA_KEY}")
 		}
 		healthChecker = append(healthChecker, "ping")
+		// `-e` causes the shell to exit immediately if a (nontested) command fails
 		probe.ProbeHandler = corev1.ProbeHandler{
 			Exec: &corev1.ExecAction{
-				Command: []string{"sh", "-c", strings.Join(healthChecker, " ")},
+				Command: []string{"sh", "-ec", strings.Join(healthChecker, " ")},
 			},
 		}
 	}
