@@ -855,10 +855,12 @@ func getProbeInfo(probe *corev1.Probe, sentinel, enableTLS, enableAuth bool) *co
 
 		redisHealthCheckSubshell := strings.Join(redisHealthCheck, " ")
 
+		healthCheckScript := "RESP=\"$(" + redisHealthCheckSubshell + ")\"\n" + "[ \"$RESP\" = \"PONG\" ]"
+
 		// `-e` causes the shell to exit immediately if a (nontested) command fails
 		probe.ProbeHandler = corev1.ProbeHandler{
 			Exec: &corev1.ExecAction{
-				Command: []string{"sh", "-ec", redisHealthCheckSubshell},
+				Command: []string{"sh", "-ec", healthCheckScript},
 			},
 		}
 	}
