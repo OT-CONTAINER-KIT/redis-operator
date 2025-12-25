@@ -27,6 +27,18 @@ redisReplication:
   # -- MaxMemoryPercentOfLimit is the percentage of redis container memory limit to be used as maxmemory.
   #    Default is 0 (disabled).
   maxMemoryPercentOfLimit: 0
+  livenessProbe: {}
+    # timeoutSeconds: 5
+    # periodSeconds: 15
+    # successThreshold: 1
+    # failureThreshold: 5
+    # initialDelaySeconds: 15
+  readinessProbe: {}
+    # timeoutSeconds: 5
+    # periodSeconds: 15
+    # successThreshold: 1
+    # failureThreshold: 5
+    # initialDelaySeconds: 15
 
 # Overwite name for resources
 # name: ""
