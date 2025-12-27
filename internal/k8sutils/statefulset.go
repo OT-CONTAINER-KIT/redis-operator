@@ -831,6 +831,8 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nod
 }
 
 // getProbeInfo generate probe for Redis StatefulSet
+// The `ping` command will exit successfully even if the node is loading,
+// so we need to verify that the Redis `ping` command returns "PONG".
 func getProbeInfo(probe *corev1.Probe, sentinel, enableTLS, enableAuth bool) *corev1.Probe {
 	if probe == nil {
 		probe = &corev1.Probe{}
