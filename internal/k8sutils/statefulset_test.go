@@ -812,6 +812,13 @@ func TestEnableRedisMonitoring(t *testing.T) {
 }
 
 func TestGenerateContainerDef(t *testing.T) {
+	probe := corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			Exec: &corev1.ExecAction{
+				Command: []string{"sh", "-ec", "RESP=\"$(redis-cli -h $(hostname) -p ${REDIS_PORT} ping)\"\n[ \"$RESP\" = \"PONG\" ]"},
+			},
+		},
+	}
 	tests := []struct {
 		name                    string
 		containerName           string
@@ -869,20 +876,8 @@ func TestGenerateContainerDef(t *testing.T) {
 							Value: "Add_Value",
 						},
 					},
-					ReadinessProbe: &corev1.Probe{
-						ProbeHandler: corev1.ProbeHandler{
-							Exec: &corev1.ExecAction{
-								Command: []string{"sh", "-c", "redis-cli -h $(hostname) -p ${REDIS_PORT} ping"},
-							},
-						},
-					},
-					LivenessProbe: &corev1.Probe{
-						ProbeHandler: corev1.ProbeHandler{
-							Exec: &corev1.ExecAction{
-								Command: []string{"sh", "-c", "redis-cli -h $(hostname) -p ${REDIS_PORT} ping"},
-							},
-						},
-					},
+					ReadinessProbe: &probe,
+					LivenessProbe:  &probe,
 				},
 			},
 			redisClusterMode:        false,
@@ -953,20 +948,8 @@ func TestGenerateContainerDef(t *testing.T) {
 							corev1.ResourceMemory: resource.MustParse("128Mi"),
 						},
 					},
-					ReadinessProbe: &corev1.Probe{
-						ProbeHandler: corev1.ProbeHandler{
-							Exec: &corev1.ExecAction{
-								Command: []string{"sh", "-c", "redis-cli -h $(hostname) -p ${REDIS_PORT} ping"},
-							},
-						},
-					},
-					LivenessProbe: &corev1.Probe{
-						ProbeHandler: corev1.ProbeHandler{
-							Exec: &corev1.ExecAction{
-								Command: []string{"sh", "-c", "redis-cli -h $(hostname) -p ${REDIS_PORT} ping"},
-							},
-						},
-					},
+					ReadinessProbe: &probe,
+					LivenessProbe:  &probe,
 				},
 				{
 					Name: "redis-exporter",
@@ -1642,6 +1625,20 @@ func Test_getExporterEnvironmentVariables(t *testing.T) {
 }
 
 func TestGenerateStatefulSetsDef(t *testing.T) {
+	probe := &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			Exec: &corev1.ExecAction{
+				Command: []string{"sh", "-ec", "RESP=\"$(redis-cli -h $(hostname) -p ${REDIS_PORT} ping)\"\n[ \"$RESP\" = \"PONG\" ]"},
+			},
+		},
+	}
+	probeWithTLS := &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			Exec: &corev1.ExecAction{
+				Command: []string{"sh", "-ec", "RESP=\"$(redis-cli -h $(hostname) -p ${REDIS_PORT} --tls --cert ${REDIS_TLS_CERT} --key ${REDIS_TLS_CERT_KEY} --cacert ${REDIS_TLS_CA_KEY} ping)\"\n[ \"$RESP\" = \"PONG\" ]"},
+			},
+		},
+	}
 	tests := []struct {
 		name                string
 		statefulSetMeta     metav1.ObjectMeta
@@ -1766,20 +1763,8 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 											Value: "true",
 										},
 									},
-									ReadinessProbe: &corev1.Probe{
-										ProbeHandler: corev1.ProbeHandler{
-											Exec: &corev1.ExecAction{
-												Command: []string{"sh", "-c", "redis-cli -h $(hostname) -p ${REDIS_PORT} --tls --cert ${REDIS_TLS_CERT} --key ${REDIS_TLS_CERT_KEY} --cacert ${REDIS_TLS_CA_KEY} ping"},
-											},
-										},
-									},
-									LivenessProbe: &corev1.Probe{
-										ProbeHandler: corev1.ProbeHandler{
-											Exec: &corev1.ExecAction{
-												Command: []string{"sh", "-c", "redis-cli -h $(hostname) -p ${REDIS_PORT} --tls --cert ${REDIS_TLS_CERT} --key ${REDIS_TLS_CERT_KEY} --cacert ${REDIS_TLS_CA_KEY} ping"},
-											},
-										},
-									},
+									ReadinessProbe: probeWithTLS,
+									LivenessProbe:  probeWithTLS,
 									VolumeMounts: []corev1.VolumeMount{
 										{
 											Name:      "tls-certs",
@@ -1943,20 +1928,8 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 											Value: "",
 										},
 									},
-									ReadinessProbe: &corev1.Probe{
-										ProbeHandler: corev1.ProbeHandler{
-											Exec: &corev1.ExecAction{
-												Command: []string{"sh", "-c", "redis-cli -h $(hostname) -p ${REDIS_PORT} ping"},
-											},
-										},
-									},
-									LivenessProbe: &corev1.Probe{
-										ProbeHandler: corev1.ProbeHandler{
-											Exec: &corev1.ExecAction{
-												Command: []string{"sh", "-c", "redis-cli -h $(hostname) -p ${REDIS_PORT} ping"},
-											},
-										},
-									},
+									ReadinessProbe: probe,
+									LivenessProbe:  probe,
 									VolumeMounts: []corev1.VolumeMount{
 										{
 											Name:      "node-conf",
