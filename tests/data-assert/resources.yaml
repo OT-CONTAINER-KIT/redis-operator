@@ -288,10 +288,10 @@ spec:
       resources:
         limits:
           cpu: "500m"
-          memory: "1Gi"
+          memory: "512Mi"
         requests:
           cpu: "100m"
-          memory: "256Mi"
+          memory: "128Mi"
       volumeMounts:
         - name: data-assert
           mountPath: /go/src/data-assert
