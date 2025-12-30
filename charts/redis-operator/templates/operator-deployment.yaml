@@ -13,10 +13,14 @@ spec:
     matchLabels: {{- include "redisOperator.selectorLabels" . | nindent 6 }}
   template:
     metadata:
+      {{- if or .Values.certmanager.enabled .Values.redisOperator.podAnnotations }}
       annotations:
+        {{- if .Values.certmanager.enabled }}
         cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ .Values.certificate.name }}
-      {{- with .Values.redisOperator.podAnnotations }}
-      {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.redisOperator.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       {{- end }}
       labels: {{- include "redisOperator.selectorLabels" . | nindent 8 }}
       {{- with .Values.redisOperator.podLabels }}
