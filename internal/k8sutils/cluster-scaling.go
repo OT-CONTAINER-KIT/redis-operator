@@ -168,11 +168,7 @@ func clusterStableNoOpenSlots(clusterInfo string, nodes []clusterNodesResponse) 
 		}
 	}
 
-	if clusterHasOpenSlots(nodes) {
-		return false
-	}
-
-	return true
+	return !clusterHasOpenSlots(nodes)
 }
 
 func parseClusterInfo(info string) map[string]string {
@@ -464,7 +460,7 @@ func AddRedisNodeToCluster(ctx context.Context, client kubernetes.Interface, cr 
 	executeCommand(ctx, client, cr, cmd, cr.Name+"-leader-0")
 
 	if err := waitForNodePresence(ctx, client, cr, getRedisServerIP(ctx, client, newPod), 90*time.Second); err != nil {
-		fmt.Errorf("node added but not converged yet: %w", err)
+		log.FromContext(ctx).Error(err, "node added but not converged yet: %w")
 	}
 }
 
