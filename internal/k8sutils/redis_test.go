@@ -880,3 +880,75 @@ e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@31001,hostname1 myself,
 		})
 	}
 }
+
+func TestRepairDisconnectedCluster(t *testing.T) {
+	ctx := context.Background()
+	redisClient, mock := redismock.NewClientMock()
+
+	namespace := "default"
+	clusterName := "redis-cluster"
+	followerPodIP := "10.244.0.25"
+	port := 6379
+
+	k8sClient := k8sClientFake.NewSimpleClientset(&corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      clusterName + "-follower-0",
+			Namespace: namespace,
+		},
+		Status: corev1.PodStatus{
+			PodIP: followerPodIP,
+		},
+	})
+
+	mock.ExpectClusterMeet(followerPodIP, strconv.Itoa(port)).SetVal("OK")
+
+	err := repairDisconnectedCluster(ctx, k8sClient, &rcvb2.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      clusterName,
+			Namespace: namespace,
+		},
+		Spec: rcvb2.RedisClusterSpec{
+			Port: &port,
+		},
+	}, redisClient)
+
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestRepairDisconnectedClusterWithClusterMeetFailure(t *testing.T) {
+	ctx := context.Background()
+	redisClient, mock := redismock.NewClientMock()
+
+	namespace := "default"
+	clusterName := "redis-cluster"
+	followerPodIP := "10.244.0.25"
+	port := 6379
+	expectedErr := fmt.Errorf("CLUSTER MEET command failed")
+
+	k8sClient := k8sClientFake.NewSimpleClientset(&corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      clusterName + "-follower-0",
+			Namespace: namespace,
+		},
+		Status: corev1.PodStatus{
+			PodIP: followerPodIP,
+		},
+	})
+
+	mock.ExpectClusterMeet(followerPodIP, strconv.Itoa(port)).SetErr(expectedErr)
+
+	err := repairDisconnectedCluster(ctx, k8sClient, &rcvb2.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      clusterName,
+			Namespace: namespace,
+		},
+		Spec: rcvb2.RedisClusterSpec{
+			Port: &port,
+		},
+	}, redisClient)
+
+	assert.Error(t, err)
+	assert.Equal(t, expectedErr, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
