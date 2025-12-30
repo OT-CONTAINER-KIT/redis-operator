@@ -44,9 +44,23 @@ func (cr *RedisReplicationSpec) GetReplicationCounts(t string) int32 {
 	return *replica
 }
 
+// ConnectionInfo provides connection details for clients to connect to Redis
+type ConnectionInfo struct {
+	// Host is the service FQDN
+	Host string `json:"host,omitempty"`
+	// Port is the service port
+	Port int `json:"port,omitempty"`
+	// MasterName is the Sentinel master group name, only set when Sentinel mode is enabled
+	// +optional
+	MasterName string `json:"masterName,omitempty"`
+}
+
 // RedisStatus defines the observed state of Redis
 type RedisReplicationStatus struct {
 	MasterNode string `json:"masterNode,omitempty"`
+	// ConnectionInfo provides connection details for clients to connect to Redis
+	// +optional
+	ConnectionInfo *ConnectionInfo `json:"connectionInfo,omitempty"`
 }
 
 // +kubebuilder:object:root=true

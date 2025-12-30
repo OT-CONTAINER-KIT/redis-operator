@@ -7,7 +7,7 @@ description: >
   Instructions for setting up Redis Replication
 ---
 
-> **Note:** It is recommended to use [Sentinel](../Sentinel) to monitor the Replication cluster for enhanced high availability and reliability. By implementing Redis Sentinel, you can ensure that your Redis Replication remains operational even if one or more nodes fail, thereby improving the resilience and reliability of your application.
+> **Note:** It is recommended to enable Sentinel mode for the Replication cluster for enhanced high availability and automatic failover. See [Sentinel Mode](#sentinel-mode) section for configuration details.
 
 ## Architecture
 
@@ -106,3 +106,45 @@ The yaml manifest can easily get applied by using `kubectl`.
 ```shell
 kubectl apply -f replication.yaml
 ```
+
+## Sentinel Mode
+
+RedisReplication supports an integrated Sentinel mode for automatic failover and high availability. When Sentinel mode is enabled, the operator deploys Redis Sentinel alongside the Redis replication cluster.
+
+### Enabling Sentinel Mode
+
+Add the `sentinel` section to your RedisReplication spec:
+
+```yaml
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisReplication
+metadata:
+  name: redis-replication
+spec:
+  clusterSize: 3
+  sentinel:
+    size: 3
+    image: quay.io/opstree/redis-sentinel:v7.0.15
+    imagePullPolicy: IfNotPresent
+  kubernetesConfig:
+    image: quay.io/opstree/redis:v7.0.15
+    imagePullPolicy: IfNotPresent
+  storage:
+    volumeClaimTemplate:
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+```
+
+### Sentinel Configuration Options
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `size` | - | Number of Sentinel instances (recommended: 3) |
+| `quorum` | "2" | Number of Sentinels required to agree on master failure |
+| `parallelSyncs` | "1" | Number of replicas that can sync with master in parallel during failover |
+| `failoverTimeout` | "10000" | Failover timeout in milliseconds |
+| `downAfterMilliseconds` | "5000" | Time in ms before a master is considered down |

@@ -19098,6 +19098,21 @@ spec:
           status:
             description: RedisStatus defines the observed state of Redis
             properties:
+              connectionInfo:
+                description: ConnectionInfo provides connection details for clients
+                  to connect to Redis
+                properties:
+                  host:
+                    description: Host is the service FQDN
+                    type: string
+                  masterName:
+                    description: MasterName is the Sentinel master group name, only
+                      set when Sentinel mode is enabled
+                    type: string
+                  port:
+                    description: Port is the service port
+                    type: integer
+                type: object
               masterNode:
                 type: string
             type: object
