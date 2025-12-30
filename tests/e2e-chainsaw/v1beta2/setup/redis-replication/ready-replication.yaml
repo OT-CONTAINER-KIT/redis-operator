@@ -6,3 +6,7 @@ metadata:
 status:
   # by default, the first pod is being selected as master
   masterNode: redis-replication-0
+  connectionInfo:
+    host: (join('.', ['redis-replication-s-hl', $namespace, 'svc', 'cluster', 'local']))
+    port: 26379
+    masterName: mymaster

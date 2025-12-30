@@ -36,7 +36,7 @@ func CreateReplicationService(ctx context.Context, cr *rrvb2.RedisReplication, c
 	replicaLabels := maps.Merge(
 		labels, map[string]string{common.RedisRoleLabelKey: common.RedisRoleLabelSlave},
 	)
-	masterObjectMetaInfo := generateObjectMetaInformation(cr.Name+"-master", cr.Namespace, masterLabels, annotations)
+	masterObjectMetaInfo := generateObjectMetaInformation(cr.MasterService(), cr.Namespace, masterLabels, annotations)
 	replicaObjectMetaInfo := generateObjectMetaInformation(cr.Name+"-replica", cr.Namespace, replicaLabels, annotations)
 
 	if err := CreateOrUpdateService(ctx, cr.Namespace, headlessObjectMetaInfo, redisReplicationAsOwner(cr), disableMetrics, true, "ClusterIP", common.RedisPort, cl); err != nil {

@@ -5,6 +5,7 @@ kind: Test
 metadata:
   name: setup-redis-replication
 spec:
+  template: true
   steps:
     - try:
         - apply:

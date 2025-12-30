@@ -84,7 +84,9 @@ func (r *Reconciler) UpdateRedisReplicationMaster(ctx context.Context, instance 
 		monitoring.RedisReplicationHasMaster.WithLabelValues(instance.Namespace, instance.Name).Set(1)
 	}
 
-	if instance.Status.MasterNode == masterNode {
+	connectionInfo := instance.GetConnectionInfo(envs.GetServiceDNSDomain())
+
+	if instance.Status.MasterNode == masterNode && connectionInfoEqual(instance.Status.ConnectionInfo, connectionInfo) {
 		return nil
 	}
 
@@ -96,8 +98,19 @@ func (r *Reconciler) UpdateRedisReplicationMaster(ctx context.Context, instance 
 			"new", masterNode)
 	}
 	return r.updateStatus(ctx, instance, rrvb2.RedisReplicationStatus{
-		MasterNode: masterNode,
+		MasterNode:     masterNode,
+		ConnectionInfo: connectionInfo,
 	})
+}
+
+func connectionInfoEqual(a, b *rrvb2.ConnectionInfo) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return a.Host == b.Host && a.Port == b.Port && a.MasterName == b.MasterName
 }
 
 type reconciler struct {

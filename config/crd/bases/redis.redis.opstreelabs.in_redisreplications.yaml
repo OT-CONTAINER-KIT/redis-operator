@@ -5833,6 +5833,27 @@ spec:
           status:
             description: RedisStatus defines the observed state of Redis
             properties:
+              connectionInfo:
+                description: ConnectionInfo provides connection details for clients
+                  to connect to Redis
+                properties:
+                  host:
+                    description: |-
+                      Host is the service FQDN
+                      Non-sentinel mode: {name}-master.{namespace}.svc.cluster.local
+                      Sentinel mode: {name}-s-hl.{namespace}.svc.cluster.local
+                    type: string
+                  masterName:
+                    description: MasterName is the Sentinel master group name, only
+                      set when Sentinel mode is enabled
+                    type: string
+                  port:
+                    description: |-
+                      Port is the service port
+                      Non-sentinel mode: 6379
+                      Sentinel mode: 26379
+                    type: integer
+                type: object
               masterNode:
                 type: string
             type: object
