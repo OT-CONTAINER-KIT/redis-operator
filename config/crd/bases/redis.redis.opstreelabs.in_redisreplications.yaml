@@ -5838,20 +5838,14 @@ spec:
                   to connect to Redis
                 properties:
                   host:
-                    description: |-
-                      Host is the service FQDN
-                      Non-sentinel mode: {name}-master.{namespace}.svc.cluster.local
-                      Sentinel mode: {name}-s-hl.{namespace}.svc.cluster.local
+                    description: Host is the service FQDN
                     type: string
                   masterName:
                     description: MasterName is the Sentinel master group name, only
                       set when Sentinel mode is enabled
                     type: string
                   port:
-                    description: |-
-                      Port is the service port
-                      Non-sentinel mode: 6379
-                      Sentinel mode: 26379
+                    description: Port is the service port
                     type: integer
                 type: object
               masterNode:
