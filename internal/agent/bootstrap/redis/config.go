@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -32,15 +33,12 @@ func GenerateConfig() error {
 	cfg := agentutil.NewConfig("/etc/redis/redis.conf", defaultRedisConfig)
 
 	var (
-		persistenceEnabled = util.CoalesceEnv1("PERSISTENCE_ENABLED", "false")
-		dataDir            = util.CoalesceEnv1("DATA_DIR", "/data")
-		nodeConfDir        = util.CoalesceEnv1("NODE_CONF_DIR", "/node-conf")
-		externalConfigFile = util.CoalesceEnv1("EXTERNAL_CONFIG_FILE", "/etc/redis/external.conf.d/redis-additional.conf")
-		redisMajorVersion  = util.CoalesceEnv1("REDIS_MAJOR_VERSION", "v7")
-		redisPort          = util.CoalesceEnv1("REDIS_PORT", "6379")
-		nodeport           = util.CoalesceEnv1("NODEPORT", "false")
-		tlsMode            = util.CoalesceEnv1("TLS_MODE", "false")
-		clusterMode        = util.CoalesceEnv1("SETUP_MODE", "standalone")
+		persistenceEnabled, _ = util.CoalesceEnv("PERSISTENCE_ENABLED", "false")
+		dataDir, _            = util.CoalesceEnv("DATA_DIR", "/data")
+		nodeConfDir, _        = util.CoalesceEnv("NODE_CONF_DIR", "/node-conf")
+		externalConfigFile, _ = util.CoalesceEnv("EXTERNAL_CONFIG_FILE", "/etc/redis/external.conf.d/redis-additional.conf")
+		redisMajorVersion, _  = util.CoalesceEnv("REDIS_MAJOR_VERSION", "v7")
+		redisPort, _          = util.CoalesceEnv("REDIS_PORT", "6379")
 	)
 
 	if val, ok := util.CoalesceEnv("REDIS_PASSWORD", ""); ok && val != "" {
@@ -52,7 +50,7 @@ func GenerateConfig() error {
 		cfg.Append("protected-mode", "no")
 	}
 
-	if clusterMode == "cluster" {
+	if setupMode, ok := util.CoalesceEnv("SETUP_MODE", ""); ok && setupMode == "cluster" {
 		nodeConfPath := filepath.Join(nodeConfDir, "nodes.conf")
 
 		cfg.Append("cluster-enabled", "yes")
@@ -61,7 +59,7 @@ func GenerateConfig() error {
 		cfg.Append("cluster-migration-barrier", "1")
 		cfg.Append("cluster-config-file", nodeConfPath)
 
-		if ip, err := util.GetLocalIP(); err != nil {
+		if ip, err := util.GetLocalIP(context.Background()); err != nil {
 			log.Printf("Warning: Failed to get local IP: %v", err)
 		} else {
 			_, err = updateMyselfIP(nodeConfPath, strings.TrimSpace(ip))
@@ -69,42 +67,24 @@ func GenerateConfig() error {
 				log.Printf("Warning: Failed to update nodes.conf: %v", err)
 			}
 		}
-
-		var err error
-		var clusterAnnounceIP string
-		if nodeport == "true" {
-			clusterAnnounceIP = os.Getenv("HOST_IP")
-		} else {
-			clusterAnnounceIP, err = util.GetLocalIP()
-			if err != nil {
-				log.Printf("Warning: Failed to get local IP: %v", err)
-			}
-		}
-		if clusterAnnounceIP != "" {
-			cfg.Append("cluster-announce-ip", clusterAnnounceIP)
-		}
-		if redisMajorVersion == "v7" {
-			fqdnName, err := fqdn.FqdnHostname()
-			if err != nil {
-				log.Printf("Warning: Failed to get FQDN: %v", err)
-			} else {
-				cfg.Append("cluster-announce-hostname", fqdnName)
-			}
-		}
 	} else {
 		fmt.Println("Setting up redis in standalone mode")
 	}
 
-	if tlsMode == "true" {
-		cfg.Append("tls-cert-file", util.CoalesceEnv1("REDIS_TLS_CERT", ""))
-		cfg.Append("tls-key-file", util.CoalesceEnv1("REDIS_TLS_CERT_KEY", ""))
-		cfg.Append("tls-ca-cert-file", util.CoalesceEnv1("REDIS_TLS_CA_KEY", ""))
+	if tlsMode, ok := util.CoalesceEnv("TLS_MODE", ""); ok && tlsMode == "true" {
+		redisTLSCert, _ := util.CoalesceEnv("REDIS_TLS_CERT", "")
+		redisTLSCertKey, _ := util.CoalesceEnv("REDIS_TLS_CERT_KEY", "")
+		redisTLSCAKey, _ := util.CoalesceEnv("REDIS_TLS_CA_KEY", "")
+
+		cfg.Append("tls-cert-file", redisTLSCert)
+		cfg.Append("tls-key-file", redisTLSCertKey)
+		cfg.Append("tls-ca-cert-file", redisTLSCAKey)
 		cfg.Append("tls-auth-clients", "optional")
 		cfg.Append("tls-replication", "yes")
 
-		if clusterMode == "cluster" {
+		if setupMode, ok := util.CoalesceEnv("SETUP_MODE", ""); ok && setupMode == "cluster" {
 			cfg.Append("tls-cluster", "yes")
-			if redisMajorVersion == "v7" && nodeport == "false" {
+			if redisMajorVersion == "v7" {
 				cfg.Append("cluster-preferred-endpoint-type", "hostname")
 			}
 		}
@@ -112,7 +92,7 @@ func GenerateConfig() error {
 		fmt.Println("Running without TLS mode")
 	}
 
-	if aclMode := util.CoalesceEnv1("ACL_MODE", ""); aclMode == "true" {
+	if aclMode, ok := util.CoalesceEnv("ACL_MODE", ""); ok && aclMode == "true" {
 		cfg.Append("aclfile", "/etc/redis/user.acl")
 	} else {
 		fmt.Println("ACL_MODE is not true, skipping ACL file modification")
@@ -129,14 +109,14 @@ func GenerateConfig() error {
 		fmt.Println("Running without persistence mode")
 	}
 
-	if tlsMode == "true" {
+	if tlsMode, ok := util.CoalesceEnv("TLS_MODE", ""); ok && tlsMode == "true" {
 		cfg.Append("port", "0")
 		cfg.Append("tls-port", redisPort)
 	} else {
 		cfg.Append("port", redisPort)
 	}
 
-	if nodeport == "true" {
+	if nodePort, ok := util.CoalesceEnv("NODEPORT", ""); ok && nodePort == "true" {
 		podHostname, _ := os.Hostname()
 		announcePortVar := "announce_port_" + strings.ReplaceAll(podHostname, "-", "_")
 		announceBusPortVar := "announce_bus_port_" + strings.ReplaceAll(podHostname, "-", "_")
@@ -147,21 +127,46 @@ func GenerateConfig() error {
 
 		if clusterAnnouncePort != "" {
 			cfg.Append("cluster-announce-port", clusterAnnouncePort)
-			if tlsMode == "true" {
-				cfg.Append("cluster-announce-tls-port", clusterAnnouncePort)
-			}
 		}
 		if clusterAnnounceBusPort != "" {
 			cfg.Append("cluster-announce-bus-port", clusterAnnounceBusPort)
 		}
 	}
-	if maxMemory := util.CoalesceEnv1(consts.ENV_KEY_REDIS_MAX_MEMORY, ""); maxMemory != "" {
-		cfg.Append("maxmemory", maxMemory)
-	}
-	// External configuration defined by user at the end
+
 	if _, err := os.Stat(externalConfigFile); err == nil {
 		cfg.Append("include", externalConfigFile)
 	}
+
+	// Add cluster announcement IP and hostname for cluster mode
+	if setupMode, ok := util.CoalesceEnv("SETUP_MODE", ""); ok && setupMode == "cluster" {
+		var err error
+		var clusterAnnounceIP string
+		if nodePort, ok := util.CoalesceEnv("NODEPORT", ""); ok && nodePort == "true" {
+			clusterAnnounceIP = os.Getenv("HOST_IP")
+		} else {
+			clusterAnnounceIP, err = util.GetLocalIP(context.Background())
+			if err != nil {
+				log.Printf("Warning: Failed to get local IP: %v", err)
+			}
+		}
+		if clusterAnnounceIP != "" {
+			cfg.Append("cluster-announce-ip", clusterAnnounceIP)
+		}
+
+		if redisMajorVersion == "v7" {
+			fqdnName, err := fqdn.FqdnHostname()
+			if err != nil {
+				log.Printf("Warning: Failed to get FQDN: %v", err)
+			} else {
+				cfg.Append("cluster-announce-hostname", fqdnName)
+			}
+		}
+	}
+
+	if maxMemory, ok := util.CoalesceEnv(consts.ENV_KEY_REDIS_MAX_MEMORY, ""); ok && maxMemory != "" {
+		cfg.Append("maxmemory", maxMemory)
+	}
+
 	return cfg.Commit()
 }
 
