@@ -233,8 +233,9 @@ func setupControllers(mgr ctrl.Manager, k8sClient kubernetes.Interface, maxConcu
 	healer := redis.NewHealer(k8sClient)
 
 	if err := (&rediscontroller.Reconciler{
-		Client:    mgr.GetClient(),
-		K8sClient: k8sClient,
+		Client:      mgr.GetClient(),
+		K8sClient:   k8sClient,
+		StatefulSet: k8sutils.NewStatefulSetService(k8sClient),
 	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Redis")
 		return err
