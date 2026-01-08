@@ -543,7 +543,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_PROEMETHEUS}"
+        "uid": "${DS_PROMETHEUS}"
       },
       "fieldConfig": {
         "defaults": {
