@@ -65,7 +65,7 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		if err != nil {
 			return intctrlutil.RequeueE(ctx, err, "")
 		}
-		if result.Requeue {
+		if result.RequeueAfter > 0 {
 			return result, nil
 		}
 	}

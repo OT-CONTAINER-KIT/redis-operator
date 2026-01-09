@@ -33,11 +33,11 @@ import (
 // PodAntiAffiniytMutate mutate Pods
 type PodAntiAffiniytMutate struct {
 	Client  client.Client
-	decoder *admission.Decoder
+	decoder admission.Decoder
 	logger  logr.Logger
 }
 
-func NewPodAffiniytMutate(c client.Client, d *admission.Decoder, log logr.Logger) admission.Handler {
+func NewPodAffiniytMutate(c client.Client, d admission.Decoder, log logr.Logger) admission.Handler {
 	return &PodAntiAffiniytMutate{
 		Client:  c,
 		decoder: d,
@@ -90,15 +90,6 @@ func (v *PodAntiAffiniytMutate) Handle(ctx context.Context, req admission.Reques
 	}
 
 	return admission.Allowed("")
-}
-
-// PodAntiAffiniytMutate implements admission.DecoderInjector.
-// A decoder will be automatically injected.
-
-// InjectDecoder injects the decoder.
-func (v *PodAntiAffiniytMutate) InjectDecoder(d *admission.Decoder) error {
-	v.decoder = d
-	return nil
 }
 
 func (m *PodAntiAffiniytMutate) InjectLogger(l logr.Logger) error {

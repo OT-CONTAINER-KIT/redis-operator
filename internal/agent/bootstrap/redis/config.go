@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -61,7 +62,7 @@ func GenerateConfig() error {
 		cfg.Append("cluster-migration-barrier", "1")
 		cfg.Append("cluster-config-file", nodeConfPath)
 
-		if ip, err := util.GetLocalIP(); err != nil {
+		if ip, err := util.GetLocalIP(context.Background()); err != nil {
 			log.Printf("Warning: Failed to get local IP: %v", err)
 		} else {
 			_, err = updateMyselfIP(nodeConfPath, strings.TrimSpace(ip))
@@ -75,7 +76,7 @@ func GenerateConfig() error {
 		if nodeport == "true" {
 			clusterAnnounceIP = os.Getenv("HOST_IP")
 		} else {
-			clusterAnnounceIP, err = util.GetLocalIP()
+			clusterAnnounceIP, err = util.GetLocalIP(context.Background())
 			if err != nil {
 				log.Printf("Warning: Failed to get local IP: %v", err)
 			}

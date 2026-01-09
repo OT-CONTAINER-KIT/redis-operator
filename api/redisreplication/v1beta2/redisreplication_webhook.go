@@ -17,6 +17,9 @@ limitations under the License.
 package v1beta2
 
 import (
+	"context"
+	"fmt"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -28,7 +31,8 @@ import (
 )
 
 const (
-	webhookPath = "/validate-redis-redis-opstreelabs-in-v1beta2-redisreplication"
+	// IMPORTANT: use a unique const name per file/package (can't reuse `webhookPath` in multiple files)
+	redisReplicationWebhookPath = "/validate-redis-redis-opstreelabs-in-v1beta2-redisreplication"
 )
 
 // log is for logging in this package.
@@ -36,32 +40,47 @@ var redisreplicationlog = logf.Log.WithName("redisreplication-v1beta2-validation
 
 // +kubebuilder:webhook:path=/validate-redis-redis-opstreelabs-in-v1beta2-redisreplication,mutating=false,failurePolicy=fail,sideEffects=None,groups=redis.redis.opstreelabs.in,resources=redisreplications,verbs=create;update,versions=v1beta2,name=validate-redisreplication.redis.opstreelabs.in,admissionReviewVersions=v1
 
+type RedisReplicationCustomValidator struct{}
+
+var _ webhook.CustomValidator = &RedisReplicationCustomValidator{}
+
+// SetupWebhookWithManager will setup the manager
 func (r *RedisReplication) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
+		For(&RedisReplication{}).
+		WithValidator(&RedisReplicationCustomValidator{}).
 		Complete()
 }
 
-var _ webhook.Validator = &RedisReplication{}
-
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *RedisReplication) ValidateCreate() (admission.Warnings, error) {
-	redisreplicationlog.Info("validate create", "name", r.Name)
-
-	return r.validate(nil)
+func (v *RedisReplicationCustomValidator) ValidateCreate(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
+	rr, ok := obj.(*RedisReplication)
+	if !ok {
+		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected RedisReplication but got %T", obj))
+	}
+	redisreplicationlog.Info("validate create", "name", rr.Name)
+	return rr.validate(nil)
 }
 
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *RedisReplication) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
-	redisreplicationlog.Info("validate update", "name", r.Name)
+func (v *RedisReplicationCustomValidator) ValidateUpdate(_ context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
+	oldRR, ok := oldObj.(*RedisReplication)
+	if !ok {
+		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected RedisReplication (old) but got %T", oldObj))
+	}
+	rr, ok := newObj.(*RedisReplication)
+	if !ok {
+		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected RedisReplication (new) but got %T", newObj))
+	}
 
-	return r.validate(old.(*RedisReplication))
+	redisreplicationlog.Info("validate update", "name", rr.Name)
+	return rr.validate(oldRR)
 }
 
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *RedisReplication) ValidateDelete() (admission.Warnings, error) {
-	redisreplicationlog.Info("validate delete", "name", r.Name)
-
+func (v *RedisReplicationCustomValidator) ValidateDelete(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
+	rr, ok := obj.(*RedisReplication)
+	if !ok {
+		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected RedisReplication but got %T", obj))
+	}
+	redisreplicationlog.Info("validate delete", "name", rr.Name)
 	return nil, nil
 }
 
@@ -92,5 +111,5 @@ func (r *RedisReplication) validate(_ *RedisReplication) (admission.Warnings, er
 }
 
 func (r *RedisReplication) WebhookPath() string {
-	return webhookPath
+	return redisReplicationWebhookPath
 }
