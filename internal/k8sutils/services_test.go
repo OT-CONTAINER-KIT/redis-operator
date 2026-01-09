@@ -313,9 +313,9 @@ func Test_createService(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var k8sClient *k8sClientFake.Clientset
 			if tt.exist {
-				k8sClient = k8sClientFake.NewSimpleClientset(tt.service.DeepCopyObject())
+				k8sClient = k8sClientFake.NewClientset(tt.service.DeepCopyObject())
 			} else {
-				k8sClient = k8sClientFake.NewSimpleClientset()
+				k8sClient = k8sClientFake.NewClientset()
 			}
 
 			err := createService(context.TODO(), k8sClient, tt.service.GetNamespace(), tt.service)
@@ -326,6 +326,7 @@ func Test_createService(t *testing.T) {
 				// Verify the service was created
 				got, err := k8sClient.CoreV1().Services(tt.service.GetNamespace()).Get(context.TODO(), tt.service.GetName(), metav1.GetOptions{})
 				assert.NoError(t, err)
+				got.TypeMeta = metav1.TypeMeta{}
 				assert.Equal(t, tt.service, got)
 			}
 		})
@@ -406,7 +407,7 @@ func Test_updateService(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			k8sClient := k8sClientFake.NewSimpleClientset(tt.current.DeepCopyObject())
+			k8sClient := k8sClientFake.NewClientset(tt.current.DeepCopyObject())
 
 			err := updateService(context.TODO(), k8sClient, tt.servinceNamespace, tt.updated)
 			if tt.wantErr {
@@ -416,6 +417,7 @@ func Test_updateService(t *testing.T) {
 				// Verify the service was updated
 				got, err := k8sClient.CoreV1().Services(tt.servinceNamespace).Get(context.TODO(), tt.serviceName, metav1.GetOptions{})
 				assert.NoError(t, err)
+				got.ManagedFields = nil
 				assert.Equal(t, tt.updated, got)
 			}
 		})
@@ -460,9 +462,9 @@ func Test_getService(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var k8sClient *k8sClientFake.Clientset
 			if tt.have != nil {
-				k8sClient = k8sClientFake.NewSimpleClientset(tt.have.DeepCopyObject())
+				k8sClient = k8sClientFake.NewClientset(tt.have.DeepCopyObject())
 			} else {
-				k8sClient = k8sClientFake.NewSimpleClientset()
+				k8sClient = k8sClientFake.NewClientset()
 			}
 
 			got, err := getService(context.TODO(), k8sClient, tt.want.GetNamespace(), tt.want.GetName())

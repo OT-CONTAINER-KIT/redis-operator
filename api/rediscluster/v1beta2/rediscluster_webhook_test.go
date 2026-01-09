@@ -6,10 +6,10 @@ import (
 	"testing"
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
-	v1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
+	"github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/testutil/webhook"
 	"github.com/stretchr/testify/require"
-	admissionv1beta1 "k8s.io/api/admission/v1beta1"
+	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -20,7 +20,7 @@ func TestRedisClusterWebhook(t *testing.T) {
 	cases := []webhook.ValidationWebhookTestCase{
 		{
 			Name:      "success-create-v1beta2-rediscluster-validate-clusterSize-3",
-			Operation: admissionv1beta1.Create,
+			Operation: admissionv1.Create,
 			Object: func(t *testing.T, uid string) []byte {
 				t.Helper()
 				cluster := mkRedisCluster(uid)
@@ -31,7 +31,7 @@ func TestRedisClusterWebhook(t *testing.T) {
 		},
 		{
 			Name:      "failed-create-v1beta2-rediscluster-validate-clusterSize-2",
-			Operation: admissionv1beta1.Create,
+			Operation: admissionv1.Create,
 			Object: func(t *testing.T, uid string) []byte {
 				t.Helper()
 				cluster := mkRedisCluster(uid)
@@ -42,7 +42,7 @@ func TestRedisClusterWebhook(t *testing.T) {
 		},
 		{
 			Name:      "failed-create-v1beta2-rediscluster-acl-both-sources",
-			Operation: admissionv1beta1.Create,
+			Operation: admissionv1.Create,
 			Object: func(t *testing.T, uid string) []byte {
 				t.Helper()
 				cluster := mkRedisCluster(uid)
@@ -61,7 +61,8 @@ func TestRedisClusterWebhook(t *testing.T) {
 	}
 
 	cluster := &v1beta2.RedisCluster{}
-	webhook.RunValidationWebhookTests(t, gvk, cluster, cases...)
+	validator := &v1beta2.RedisClusterCustomValidator{}
+	webhook.RunValidationWebhookTests(t, gvk, cluster, validator, cases...)
 }
 
 func mkRedisCluster(uid string) *v1beta2.RedisCluster {
