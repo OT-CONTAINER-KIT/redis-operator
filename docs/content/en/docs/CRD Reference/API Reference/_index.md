@@ -196,6 +196,8 @@ RedisCluster is the Schema for the redisclusters API
 | `spec` _[RedisClusterSpec](#redisclusterspec)_ |  |  |  |
 
 
+
+
 #### RedisClusterSpec
 
 
@@ -256,6 +258,8 @@ _Appears in:_
 | `maxMemoryPercentOfLimit` _integer_ | MaxMemoryPercentOfLimit is the percentage of redis container memory limit to be used as maxmemory. |  | Maximum: 100 <br />Minimum: 1 <br /> |
 | `dynamicConfig` _string array_ |  |  |  |
 | `additionalRedisConfig` _string_ |  |  |  |
+
+
 
 
 #### RedisExporter
@@ -378,6 +382,8 @@ Redis is the Schema for the redis API
 | `spec` _[RedisReplicationSpec](#redisreplicationspec)_ |  |  |  |
 
 
+
+
 #### RedisReplicationSpec
 
 
@@ -459,6 +465,8 @@ _Appears in:_
 | `masterGroupName` _string_ |  | myMaster |  |
 | `redisReplicationName` _string_ |  |  |  |
 | `redisReplicationPassword` _[EnvVarSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#envvarsource-v1-core)_ |  |  |  |
+
+
 
 
 #### RedisSentinelSpec
