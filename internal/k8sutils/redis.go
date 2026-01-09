@@ -16,7 +16,7 @@ import (
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	common "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/envs"
-	retry "github.com/avast/retry-go"
+	retry "github.com/avast/retry-go/v5"
 	redis "github.com/redis/go-redis/v9"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -452,16 +452,17 @@ func RedisClusterStatusHealth(ctx context.Context, client kubernetes.Interface, 
 		podName := fmt.Sprintf("%s-leader-%d", cr.Name, i)
 
 		// Retry logic with exponential backoff for each node
-		err := retry.Do(
-			func() error {
-				return checkClusterHealth(ctx, client, cr, podName)
-			},
+		err := retry.New(
 			retry.Attempts(3),
 			retry.Delay(500*time.Millisecond),
 			retry.DelayType(retry.BackOffDelay),
 			retry.OnRetry(func(n uint, err error) {
 				logger.V(1).Info("Retrying cluster health check", "pod", podName, "attempt", n+1, "error", err)
 			}),
+		).Do(
+			func() error {
+				return checkClusterHealth(ctx, client, cr, podName)
+			},
 		)
 
 		if err == nil {

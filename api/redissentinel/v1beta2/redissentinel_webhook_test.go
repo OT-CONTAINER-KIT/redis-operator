@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"testing"
 
-	v1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
+	"github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/testutil/webhook"
 	"github.com/stretchr/testify/require"
-	admissionv1beta1 "k8s.io/api/admission/v1beta1"
+	admissionv1 "k8s.io/api/admission/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
@@ -18,7 +18,7 @@ func TestRedisSentinelWebhook(t *testing.T) {
 	cases := []webhook.ValidationWebhookTestCase{
 		{
 			Name:      "success-create-v1beta2-redissentinel-validate-clusterSize",
-			Operation: admissionv1beta1.Create,
+			Operation: admissionv1.Create,
 			Object: func(t *testing.T, uid string) []byte {
 				t.Helper()
 				sentinel := mkRedisSentinel(uid)
@@ -30,7 +30,7 @@ func TestRedisSentinelWebhook(t *testing.T) {
 
 		{
 			Name:      "failed-create-v1beta2-redissentinel-validate-clusterSize",
-			Operation: admissionv1beta1.Create,
+			Operation: admissionv1.Create,
 			Object: func(t *testing.T, uid string) []byte {
 				t.Helper()
 				sentinel := mkRedisSentinel(uid)
@@ -48,7 +48,8 @@ func TestRedisSentinelWebhook(t *testing.T) {
 	}
 
 	sentinel := &v1beta2.RedisSentinel{}
-	webhook.RunValidationWebhookTests(t, gvk, sentinel, cases...)
+	validator := &v1beta2.RedisSentinelCustomValidator{}
+	webhook.RunValidationWebhookTests(t, gvk, sentinel, validator, cases...)
 }
 
 func mkRedisSentinel(uid string) *v1beta2.RedisSentinel {

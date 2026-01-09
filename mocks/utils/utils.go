@@ -28,7 +28,7 @@ func CreateFakeClientWithPodIPs_LeaderPods(cr *rcvb2.RedisCluster) *fake.Clients
 			},
 		}
 	}
-	return fake.NewSimpleClientset(pods...)
+	return fake.NewClientset(pods...)
 }
 
 func CreateFakeObjectWithPodIPs(cr *rcvb2.RedisCluster) []runtime.Object {
@@ -117,5 +117,5 @@ func CreateFakeClientWithSecrets(ctx context.Context, cr *rcvb2.RedisCluster, se
 		},
 	}
 
-	return fake.NewSimpleClientset(append(pods, secret)...)
+	return fake.NewClientset(append(pods, secret)...)
 }

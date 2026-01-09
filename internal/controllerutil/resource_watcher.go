@@ -2,19 +2,19 @@ package controllerutil
 
 import (
 	"context"
+	"sync"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-// ResourceWatcher implements handler.EventHandler and is used to trigger reconciliation when
-// a watched object changes. It's designed to only be used for a single type of object.
-// If multiple types should be watched, one ResourceWatcher for each type should be used.
+// ResourceWatcher triggers reconciliation of dependent objects when a watched object changes.
 type ResourceWatcher struct {
+	mu      sync.RWMutex
 	watched map[types.NamespacedName][]types.NamespacedName
 }
 
@@ -27,50 +27,48 @@ func NewResourceWatcher() *ResourceWatcher {
 	}
 }
 
-// Watch will add a new object to watch.
-func (w ResourceWatcher) Watch(ctx context.Context, watchedName, dependentName types.NamespacedName) {
-	existing, hasExisting := w.watched[watchedName]
-	if !hasExisting {
-		existing = []types.NamespacedName{}
-	}
+// Watch adds a dependent object to be reconciled when watchedName changes.
+func (w *ResourceWatcher) Watch(ctx context.Context, watchedName, dependentName types.NamespacedName) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 
-	for _, dependent := range existing {
-		if dependent == dependentName {
+	existing := w.watched[watchedName]
+	for _, dep := range existing {
+		if dep == dependentName {
 			return
 		}
 	}
 	w.watched[watchedName] = append(existing, dependentName)
 }
 
-func (w ResourceWatcher) Create(ctx context.Context, event event.CreateEvent, queue workqueue.RateLimitingInterface) {
-	w.handleEvent(event.Object, queue)
+func (w *ResourceWatcher) Create(ctx context.Context, e event.TypedCreateEvent[client.Object], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+	w.handleEvent(e.Object, q)
 }
 
-func (w ResourceWatcher) Update(ctx context.Context, event event.UpdateEvent, queue workqueue.RateLimitingInterface) {
-	w.handleEvent(event.ObjectOld, queue)
+func (w *ResourceWatcher) Update(ctx context.Context, e event.TypedUpdateEvent[client.Object], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+	// name/namespace can’t change, so old vs new usually doesn’t matter; new is conventional
+	w.handleEvent(e.ObjectNew, q)
 }
 
-func (w ResourceWatcher) Delete(ctx context.Context, event event.DeleteEvent, queue workqueue.RateLimitingInterface) {
-	w.handleEvent(event.Object, queue)
+func (w *ResourceWatcher) Delete(ctx context.Context, e event.TypedDeleteEvent[client.Object], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+	w.handleEvent(e.Object, q)
 }
 
-func (w ResourceWatcher) Generic(ctx context.Context, event event.GenericEvent, queue workqueue.RateLimitingInterface) {
-	w.handleEvent(event.Object, queue)
+func (w *ResourceWatcher) Generic(ctx context.Context, e event.TypedGenericEvent[client.Object], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+	w.handleEvent(e.Object, q)
 }
 
 // handleEvent is called when an event is received for an object.
 // It will check if the object is being watched and trigger a reconciliation for
 // the dependent object.
-func (w ResourceWatcher) handleEvent(meta metav1.Object, queue workqueue.RateLimitingInterface) {
-	changedObjectName := types.NamespacedName{
-		Name:      meta.GetName(),
-		Namespace: meta.GetNamespace(),
-	}
+func (w *ResourceWatcher) handleEvent(obj client.Object, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+	key := types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}
 
-	// Enqueue reconciliation for each dependent object.
-	for _, dep := range w.watched[changedObjectName] {
-		queue.Add(reconcile.Request{
-			NamespacedName: dep,
-		})
+	w.mu.RLock()
+	deps := append([]types.NamespacedName(nil), w.watched[key]...) // copy to avoid holding lock while enqueueing
+	w.mu.RUnlock()
+
+	for _, dep := range deps {
+		q.Add(reconcile.Request{NamespacedName: dep})
 	}
 }

@@ -429,10 +429,10 @@ func Test_generateRedisClusterContainerParams(t *testing.T) {
 		t.Fatalf("Failed to unmarshal file %s: %v", path, err)
 	}
 
-	actualLeaderContainer := generateRedisClusterContainerParams(context.TODO(), fake.NewSimpleClientset(), input, input.Spec.RedisLeader.SecurityContext, input.Spec.RedisLeader.ReadinessProbe, input.Spec.RedisLeader.LivenessProbe, "leader", input.Spec.GetRedisLeaderResources())
+	actualLeaderContainer := generateRedisClusterContainerParams(context.TODO(), fake.NewClientset(), input, input.Spec.RedisLeader.SecurityContext, input.Spec.RedisLeader.ReadinessProbe, input.Spec.RedisLeader.LivenessProbe, "leader", input.Spec.GetRedisLeaderResources())
 	assert.EqualValues(t, expectedLeaderContainer, actualLeaderContainer, "Expected %+v, got %+v", expectedLeaderContainer, actualLeaderContainer)
 
-	actualFollowerContainer := generateRedisClusterContainerParams(context.TODO(), fake.NewSimpleClientset(), input, input.Spec.RedisFollower.SecurityContext, input.Spec.RedisFollower.ReadinessProbe, input.Spec.RedisFollower.LivenessProbe, "follower", input.Spec.GetRedisFollowerResources())
+	actualFollowerContainer := generateRedisClusterContainerParams(context.TODO(), fake.NewClientset(), input, input.Spec.RedisFollower.SecurityContext, input.Spec.RedisFollower.ReadinessProbe, input.Spec.RedisFollower.LivenessProbe, "follower", input.Spec.GetRedisFollowerResources())
 	assert.EqualValues(t, expectedFollowerContainer, actualFollowerContainer, "Expected %+v, got %+v", expectedFollowerContainer, actualFollowerContainer)
 }
 

@@ -61,7 +61,7 @@ func TestHandlePVCResizing_NoUpdateNeeded(t *testing.T) {
 	// newStateful is identical to storedStateful (no spec change).
 	newStateful := storedStateful.DeepCopy()
 
-	cl := fake.NewSimpleClientset()
+	cl := fake.NewClientset()
 
 	err := HandlePVCResizing(ctx, storedStateful, newStateful, cl)
 	if err != nil {
@@ -154,7 +154,7 @@ func TestHandlePVCResizing_UpdatePVC(t *testing.T) {
 		},
 		Spec: storedPVCSpec,
 	}
-	cl := fake.NewSimpleClientset(existingPVC)
+	cl := fake.NewClientset(existingPVC)
 
 	err := HandlePVCResizing(ctx, storedStateful, newStateful, cl)
 	if err != nil {
@@ -254,7 +254,7 @@ func TestHandlePVCResizing_UpdateFailure(t *testing.T) {
 		Spec: storedPVCSpec,
 	}
 
-	cl := fake.NewSimpleClientset(existingPVC)
+	cl := fake.NewClientset(existingPVC)
 	// Prepend a reactor to simulate an update failure.
 	cl.PrependReactor("update", "persistentvolumeclaims", func(action ktesting.Action) (bool, runtime.Object, error) {
 		return true, nil, fmt.Errorf("simulated update error")
