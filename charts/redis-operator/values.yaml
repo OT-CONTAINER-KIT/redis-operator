@@ -57,6 +57,10 @@ replicas: 1
 
 rbac:
   enabled: true
+  # Choose RBAC scope: "cluster" for ClusterRole/ClusterRoleBinding or "namespace" for Role/RoleBinding
+  # cluster: Operator can manage Redis resources across all namespaces (default behavior)
+  # namespace: Operator can only manage Redis resources in its own namespace
+  # scope: "cluster"
 serviceAccountName: redis-operator
 
 serviceAccount:
