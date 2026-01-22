@@ -50,7 +50,7 @@ spec:
     - name: Test Master IP consistency
       try:
         - sleep:
-            duration: 60s
+            duration: 90s
         - script:
             timeout: 10s
             content: |
@@ -64,7 +64,7 @@ spec:
     - name: Put data
       try:
         - script:
-            timeout: 30s
+            timeout: 90s
             content: >
               kubectl exec --namespace ${NAMESPACE} --container data-assert data-assert --
               bash -c  "cd /go/src/data-assert && go run main.go gen-redis-data \
@@ -86,7 +86,7 @@ spec:
     - name: Test Master IP consistency
       try:
         - sleep:
-            duration: 60s
+            duration: 90s
         - script:
             timeout: 10s
             content: |

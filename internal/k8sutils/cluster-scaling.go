@@ -6,12 +6,227 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 
 	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	redis "github.com/redis/go-redis/v9"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
+
+// ClusterHasEmptyMasters returns true if the cluster contains at least one master
+// with no slot ranges assigned.
+// This is useful to decide if `redis-cli --cluster rebalance --cluster-use-empty-masters`
+// should be attempted.
+func ClusterHasEmptyMasters(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) (bool, error) {
+	seedPod := fmt.Sprintf("%s-leader-0", cr.Name)
+	redisClient := configureRedisClient(ctx, client, cr, seedPod)
+	defer redisClient.Close()
+
+	nodes, err := clusterNodes(ctx, redisClient)
+	if err != nil {
+		return false, err
+	}
+
+	return clusterHasEmptyMasters(nodes), nil
+}
+
+func clusterHasEmptyMasters(nodes []clusterNodesResponse) bool {
+	for _, fields := range nodes {
+		// CLUSTER NODES format:
+		// 0:id 1:addr 2:flags 3:master 4:ping 5:pong 6:epoch 7:link [8+:slots...]
+		if len(fields) < 8 {
+			// malformed line; ignore rather than failing hard
+			continue
+		}
+
+		flags := fields[2]
+		linkState := fields[7]
+
+		if !hasFlag(flags, "master") {
+			continue
+		}
+
+		// Ignore masters that are clearly not healthy participants
+		if hasAnyFlag(flags, "fail", "handshake", "noaddr") || linkState != "connected" {
+			continue
+		}
+
+		// Slots are everything after index 7.
+		// If none exist, this master is "empty".
+		if len(fields) == 8 {
+			return true
+		}
+
+		hasSlotToken := false
+		for _, tok := range fields[8:] {
+			if looksLikeSlotToken(tok) {
+				hasSlotToken = true
+				break
+			}
+		}
+		if !hasSlotToken {
+			return true
+		}
+	}
+
+	return false
+}
+
+func hasAnyFlag(flags string, wanted ...string) bool {
+	for _, w := range wanted {
+		if hasFlag(flags, w) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasFlag(flags string, flag string) bool {
+	// flags are comma-separated: "master", "myself,master", "slave", ...
+	for _, f := range strings.Split(flags, ",") {
+		if f == flag {
+			return true
+		}
+	}
+	return false
+}
+
+func looksLikeSlotToken(tok string) bool {
+	// Very permissive on purpose.
+	// We only need to distinguish "some slot-related token exists" from "none".
+	if tok == "" {
+		return false
+	}
+	// migration markers are also slot-related
+	if strings.Contains(tok, "->-") || strings.Contains(tok, "-<-") {
+		return true
+	}
+	// common cases: "0-5460" or "5461"
+	if tok[0] >= '0' && tok[0] <= '9' {
+		return true
+	}
+	// bracketed forms: "[0-5460]" or "[5461->-...]"
+	if strings.HasPrefix(tok, "[") && len(tok) > 1 && tok[1] >= '0' && tok[1] <= '9' {
+		return true
+	}
+	return false
+}
+
+// ClusterStableNoOpenSlots returns true if the cluster appears safe for
+// disruptive operations like rebalance/reshard:
+//   - cluster_state == ok
+//   - no migrating/importing slot markers in CLUSTER NODES ("->-" / "-<-")
+//   - no nodes in handshake/fail/noaddr
+//   - (optional) cluster_slot_migration_active_tasks == 0 if present in CLUSTER INFO
+func ClusterStableNoOpenSlots(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) (bool, error) {
+	seedPod := fmt.Sprintf("%s-leader-0", cr.Name)
+	redisClient := configureRedisClient(ctx, client, cr, seedPod)
+	defer redisClient.Close()
+
+	info, err := redisClient.ClusterInfo(ctx).Result()
+	if err != nil {
+		return false, err
+	}
+
+	nodes, err := clusterNodes(ctx, redisClient)
+	if err != nil {
+		return false, err
+	}
+
+	return clusterStableNoOpenSlots(info, nodes), nil
+}
+
+func clusterStableNoOpenSlots(clusterInfo string, nodes []clusterNodesResponse) bool {
+	// 1) cluster_state gate
+	kv := parseClusterInfo(clusterInfo)
+	if kv["cluster_state"] != "ok" {
+		return false
+	}
+
+	// 2) migration-task gate (Redis 7 exposes these fields in your output)
+	if v, ok := kv["cluster_slot_migration_active_tasks"]; ok {
+		n, convErr := strconv.Atoi(strings.TrimSpace(v))
+		if convErr == nil && n > 0 {
+			return false
+		}
+	}
+
+	// 3) open slot + node health gate from CLUSTER NODES
+	for _, fields := range nodes {
+		if len(fields) < 8 {
+			// malformed line -> treat as not stable (conservative)
+			return false
+		}
+
+		flags := fields[2]
+		linkState := fields[7]
+
+		// If nodes are not fully established, don't rebalance.
+		if hasAnyFlag(flags, "handshake", "fail", "noaddr") || linkState != "connected" {
+			return false
+		}
+	}
+
+	return !clusterHasOpenSlots(nodes)
+}
+
+func parseClusterInfo(info string) map[string]string {
+	out := make(map[string]string)
+	for _, line := range strings.Split(info, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		out[parts[0]] = strings.TrimSpace(parts[1])
+	}
+	return out
+}
+
+func clusterHasOpenSlots(nodes []clusterNodesResponse) bool {
+	for _, fields := range nodes {
+		// Open slot markers appear in the slot tokens:
+		// "[5491->-...]" migrating / "[5491-<-...]" importing
+		for _, tok := range fields[8:] {
+			if strings.Contains(tok, "->-") || strings.Contains(tok, "-<-") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func waitForClusterNoOpenSlots(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, timeout time.Duration) error {
+	redisClient := configureRedisClient(ctx, client, cr, cr.Name+"-leader-0")
+	defer redisClient.Close()
+
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		info, err := redisClient.ClusterInfo(ctx).Result()
+		if err != nil || !strings.Contains(info, "cluster_state:ok") {
+			time.Sleep(2 * time.Second)
+			continue
+		}
+
+		nodes, err := clusterNodes(ctx, redisClient)
+		if err != nil {
+			time.Sleep(2 * time.Second)
+			continue
+		}
+
+		if clusterHasOpenSlots(nodes) {
+			time.Sleep(2 * time.Second)
+			continue
+		}
+
+		return nil
+	}
+	return fmt.Errorf("cluster still has open slots or is not converged after %s", timeout)
+}
 
 // ReshardRedisCluster transfer the slots from the last node to the provided transfer node.
 //
@@ -129,6 +344,11 @@ func getRedisNodeID(ctx context.Context, client kubernetes.Interface, cr *rcvb2.
 
 // Rebalance the Redis CLuster using the Empty Master Nodes
 func RebalanceRedisClusterEmptyMasters(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) {
+	if err := waitForClusterNoOpenSlots(ctx, client, cr, 2*time.Minute); err != nil {
+		log.FromContext(ctx).Info("Skipping rebalance: cluster not ready", "reason", err.Error())
+		return
+	}
+
 	// cmd = redis-cli --cluster rebalance <redis>:<port> --cluster-use-empty-masters -a <pass>
 	var cmd []string
 	pod := RedisDetails{
@@ -197,6 +417,21 @@ func RebalanceRedisCluster(ctx context.Context, client kubernetes.Interface, cr 
 	executeCommand(ctx, client, cr, cmd, cr.Name+"-leader-1")
 }
 
+func waitForNodePresence(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, nodeIP string, timeout time.Duration) error {
+	redisClient := configureRedisClient(ctx, client, cr, cr.Name+"-leader-0")
+	defer redisClient.Close()
+
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		nodes, err := clusterNodes(ctx, redisClient)
+		if err == nil && checkRedisNodePresence(ctx, nodes, nodeIP) {
+			return nil
+		}
+		time.Sleep(2 * time.Second)
+	}
+	return fmt.Errorf("node %s did not appear in cluster nodes after %s", nodeIP, timeout)
+}
+
 // Add redis cluster node would add a node to the existing redis cluster using redis-cli
 func AddRedisNodeToCluster(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) {
 	cmd := []string{"redis-cli", "--cluster", "add-node"}
@@ -223,6 +458,10 @@ func AddRedisNodeToCluster(ctx context.Context, client kubernetes.Interface, cr 
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.Name+"-leader-0")...)
 
 	executeCommand(ctx, client, cr, cmd, cr.Name+"-leader-0")
+
+	if err := waitForNodePresence(ctx, client, cr, getRedisServerIP(ctx, client, newPod), 90*time.Second); err != nil {
+		log.FromContext(ctx).Error(err, "node added but not converged yet: %w")
+	}
 }
 
 // getAttachedFollowerNodeIDs would return a slice of redis followers attached to a redis leader

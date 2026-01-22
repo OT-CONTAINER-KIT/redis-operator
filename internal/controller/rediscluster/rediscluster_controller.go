@@ -241,11 +241,27 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 					// Step 2 : Add Redis Node
 					k8sutils.AddRedisNodeToCluster(ctx, r.K8sClient, instance)
 					monitoring.RedisClusterAddingNodeAttempt.WithLabelValues(instance.Namespace, instance.Name).Inc()
-					// Step 3 Rebalance the cluster using the empty masters
-					k8sutils.RebalanceRedisClusterEmptyMasters(ctx, r.K8sClient, instance)
+
+					return intctrlutil.RequeueAfter(ctx, 10*time.Second, "added node, waiting for cluster convergence before rebalancing")
 				}
 			}
 		} else {
+			stable, err := k8sutils.ClusterStableNoOpenSlots(ctx, r.K8sClient, instance)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			if !stable {
+				return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+			}
+
+			empty, err := k8sutils.ClusterHasEmptyMasters(ctx, r.K8sClient, instance)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			if empty {
+				k8sutils.RebalanceRedisClusterEmptyMasters(ctx, r.K8sClient, instance)
+			}
+
 			if followerReplicas > 0 {
 				logger.Info("All leader are part of the cluster, adding follower/replicas", "Leaders.Count", leaderCount, "Instance.Size", leaderReplicas, "Follower.Replicas", followerReplicas)
 				k8sutils.ExecuteRedisReplicationCommand(ctx, r.K8sClient, instance)
