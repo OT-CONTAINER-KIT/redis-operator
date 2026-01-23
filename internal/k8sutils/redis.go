@@ -196,6 +196,38 @@ func getMasterHostFromClusterNode(node clusterNodesResponse) (string, error) {
 	return strings.Split(addressAndHost, ",")[1], nil
 }
 
+// RepairDisconnectedNode attempts to repair disconnected/failed single shard cluster by issuing
+// a CLUSTER MEET with the updated address of the slave
+func RepairDisconnectedCluster(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) error {
+	redisClient := configureRedisClient(ctx, client, cr, cr.Name+"-leader-0")
+	defer redisClient.Close()
+	return repairDisconnectedCluster(ctx, client, cr, redisClient)
+}
+
+func repairDisconnectedCluster(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, redisClient *redis.Client) error {
+	podName := cr.Name + "-follower-0"
+
+	ip := getRedisServerIP(ctx, client, RedisDetails{
+		PodName:   podName,
+		Namespace: cr.Namespace,
+	})
+
+	if ip == "" {
+		err := fmt.Errorf("failed to get IP for pod %s", podName)
+		log.FromContext(ctx).Error(err, "Failed to get follower pod IP")
+		return err
+	}
+
+	err := redisClient.ClusterMeet(ctx, ip, strconv.Itoa(*cr.Spec.Port)).Err()
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Failed to execute CLUSTER MEET on follower node", "PodName", podName, "IP", ip)
+		return err
+	}
+
+	log.FromContext(ctx).Info("Successfully executed CLUSTER MEET for follower node", "PodName", podName, "IP", ip)
+	return nil
+}
+
 // CreateMultipleLeaderRedisCommand will create command for single leader cluster creation
 func CreateMultipleLeaderRedisCommand(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) RedisInvocation {
 	cmd := RedisInvocation{
