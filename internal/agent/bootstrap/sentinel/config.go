@@ -103,13 +103,13 @@ func GenerateConfig() error {
 		if tlsMode, ok := util.CoalesceEnv("TLS_MODE", ""); ok && tlsMode == "true" {
 			redisTLSCert, _ := util.CoalesceEnv("REDIS_TLS_CERT", "")
 			redisTLSCertKey, _ := util.CoalesceEnv("REDIS_TLS_CERT_KEY", "")
-			redisTLSCAKey, _ := util.CoalesceEnv("REDIS_TLS_CA_KEY", "")
+			redisTLSCACert, _ := util.CoalesceEnv("REDIS_TLS_CA_CERT", "")
 
 			cfg.Append("port", "0")
 			cfg.Append("tls-port", "26379")
 			cfg.Append("tls-cert-file", redisTLSCert)
 			cfg.Append("tls-key-file", redisTLSCertKey)
-			cfg.Append("tls-ca-cert-file", redisTLSCAKey)
+			cfg.Append("tls-ca-cert-file", redisTLSCACert)
 			cfg.Append("tls-auth-clients", "optional")
 			// Sentinel should use tls for replication connection.
 			cfg.Append("tls-replication", "yes")
