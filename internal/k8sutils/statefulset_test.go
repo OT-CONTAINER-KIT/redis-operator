@@ -31,8 +31,8 @@ func TestGenerateAuthAndTLSArgs(t *testing.T) {
 	}{
 		{"NoAuthNoTLS", false, false, "", ""},
 		{"AuthOnly", true, false, " -a \"${REDIS_PASSWORD}\"", ""},
-		{"TLSOnly", false, true, "", " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\" --cacert \"${REDIS_TLS_CA_KEY}\""},
-		{"AuthAndTLS", true, true, " -a \"${REDIS_PASSWORD}\"", " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\" --cacert \"${REDIS_TLS_CA_KEY}\""},
+		{"TLSOnly", false, true, "", " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\" --cacert \"${REDIS_TLS_CA_CERT}\""},
+		{"AuthAndTLS", true, true, " -a \"${REDIS_PASSWORD}\"", " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\" --cacert \"${REDIS_TLS_CA_CERT}\""},
 	}
 
 	for _, tt := range tests {
@@ -1431,7 +1431,7 @@ func TestGenerateInitContainerDefWithSecurityContext(t *testing.T) {
 
 func TestGenerateTLSEnvironmentVariables(t *testing.T) {
 	tlsConfig := &common.TLSConfig{
-		CaKeyFile:   "test_ca.crt",
+		CaCertFile:   "test_ca.crt",
 		CertKeyFile: "test_tls.crt",
 		KeyFile:     "test_tls.key",
 	}
@@ -1444,7 +1444,7 @@ func TestGenerateTLSEnvironmentVariables(t *testing.T) {
 			Value: "true",
 		},
 		{
-			Name:  "REDIS_TLS_CA_KEY",
+			Name:  "REDIS_TLS_CA_CERT",
 			Value: path.Join("/tls/", "test_ca.crt"),
 		},
 		{
@@ -1482,7 +1482,7 @@ func TestGetEnvironmentVariables(t *testing.T) {
 			secretKey:          ptr.To("test-key"),
 			persistenceEnabled: ptr.To(true),
 			tlsConfig: &common.TLSConfig{
-				CaKeyFile:   "test_ca.crt",
+				CaCertFile:   "test_ca.crt",
 				CertKeyFile: "test_tls.crt",
 				KeyFile:     "test_tls.key",
 				Secret: corev1.SecretVolumeSource{
@@ -1503,7 +1503,7 @@ func TestGetEnvironmentVariables(t *testing.T) {
 				{Name: "PERSISTENCE_ENABLED", Value: "true"},
 				{Name: "REDIS_ADDR", Value: "redis://localhost:26379"},
 				{Name: "TLS_MODE", Value: "true"},
-				{Name: "REDIS_TLS_CA_KEY", Value: path.Join("/tls/", "test_ca.crt")},
+				{Name: "REDIS_TLS_CA_CERT", Value: path.Join("/tls/", "test_ca.crt")},
 				{Name: "REDIS_TLS_CERT", Value: path.Join("/tls/", "test_tls.crt")},
 				{Name: "REDIS_TLS_CERT_KEY", Value: path.Join("/tls/", "test_tls.key")},
 				{Name: "REDIS_PASSWORD", ValueFrom: &corev1.EnvVarSource{
@@ -1625,7 +1625,7 @@ func Test_getExporterEnvironmentVariables(t *testing.T) {
 			name: "Test with tls enabled and env var",
 			params: containerParameters{
 				TLSConfig: &common.TLSConfig{
-					CaKeyFile:   "test_ca.crt",
+					CaCertFile:   "test_ca.crt",
 					CertKeyFile: "test_tls.crt",
 					KeyFile:     "test_tls.key",
 					Secret: corev1.SecretVolumeSource{
@@ -1665,7 +1665,7 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 	probeWithTLS := &corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
 			Exec: &corev1.ExecAction{
-				Command: []string{"sh", "-ec", "RESP=\"$(redis-cli -h $(hostname) -p ${REDIS_PORT} --tls --cert ${REDIS_TLS_CERT} --key ${REDIS_TLS_CERT_KEY} --cacert ${REDIS_TLS_CA_KEY} ping)\"\n[ \"$RESP\" = \"PONG\" ]"},
+				Command: []string{"sh", "-ec", "RESP=\"$(redis-cli -h $(hostname) -p ${REDIS_PORT} --tls --cert ${REDIS_TLS_CERT} --key ${REDIS_TLS_CERT_KEY} --cacert ${REDIS_TLS_CA_CERT} ping)\"\n[ \"$RESP\" = \"PONG\" ]"},
 			},
 		},
 	}
@@ -1769,7 +1769,7 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 											Value: "1.0",
 										},
 										{
-											Name:  "REDIS_TLS_CA_KEY",
+											Name:  "REDIS_TLS_CA_CERT",
 											Value: path.Join("/tls/", "ca.crt"),
 										},
 										{
