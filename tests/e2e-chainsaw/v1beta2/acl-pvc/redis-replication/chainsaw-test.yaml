@@ -76,7 +76,7 @@ spec:
             timeout: 30s
             content: >
               kubectl exec --namespace ${NAMESPACE} redis-replication-acl-pvc-0 --
-              cat /etc/redis/user.acl 2>&1
+              cat /data/redis/user.acl 2>&1
             check:
               (contains($stdout, 'user repluser')): true
 
@@ -87,7 +87,7 @@ spec:
             timeout: 30s
             content: >
               kubectl exec --namespace ${NAMESPACE} redis-replication-acl-pvc-1 --
-              cat /etc/redis/user.acl 2>&1
+              cat /data/redis/user.acl 2>&1
             check:
               (contains($stdout, 'user repluser')): true
 
