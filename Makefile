@@ -291,3 +291,4 @@ GOBIN=$(LOCALBIN) go install $${package} ;\
 mv "$$(echo "$(1)" | sed "s/-$(3)$$//")" $(1) ;\
 }
 endef
+
