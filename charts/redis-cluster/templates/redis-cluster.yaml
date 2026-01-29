@@ -71,6 +71,9 @@ spec:
     {{- if .Values.redisCluster.minReadySeconds }}
     minReadySeconds: {{ .Values.redisCluster.minReadySeconds}}
     {{- end }}
+    {{- if .Values.redisCluster.persistentVolumeClaimRetentionPolicy }}
+    persistentVolumeClaimRetentionPolicy: {{ toYaml .Values.redisCluster.persistentVolumeClaimRetentionPolicy | nindent 6 }}
+    {{- end }}
 
   {{- if .Values.storageSpec }}
   storage: {{ toYaml .Values.storageSpec | nindent 4 }}

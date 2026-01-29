@@ -33,6 +33,10 @@ pdb:
 nodeSelector:
   {{- toYaml .nodeSelector | nindent 2 }}
 {{- end }}
+{{- if .topologySpreadConstraints }}
+topologySpreadConstraints:
+  {{- toYaml .topologySpreadConstraints | nindent 2 }}
+{{- end }}
 {{- if .securityContext }}
 securityContext:
   {{- toYaml .securityContext | nindent 2 }}

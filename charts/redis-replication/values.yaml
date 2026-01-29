@@ -27,6 +27,9 @@ redisReplication:
   # -- MaxMemoryPercentOfLimit is the percentage of redis container memory limit to be used as maxmemory.
   #    Default is 0 (disabled).
   maxMemoryPercentOfLimit: 0
+  persistentVolumeClaimRetentionPolicy: {}
+    # whenDeleted: Delete
+    # whenScaled: Retain
   livenessProbe: {}
     # timeoutSeconds: 5
     # periodSeconds: 15
@@ -160,6 +163,15 @@ tolerations: []
   #   operator: "Equal"
   #   value: "value"
   #   effect: "NoSchedule"
+
+topologySpreadConstraints: []
+  # - maxSkew: 1
+  #   topologyKey: kubernetes.io/hostname
+  #   whenUnsatisfiable: DoNotSchedule
+  #   labelSelector:
+  #     matchLabels:
+  #       role: replication
+  #       app: redis-replication
 
 serviceAccountName: ""
 
