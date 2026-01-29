@@ -51,6 +51,9 @@ spec:
     {{- if .Values.redisSentinel.minReadySeconds }}
     minReadySeconds: {{ .Values.redisSentinel.minReadySeconds }}
     {{- end }}
+    {{- if .Values.redisSentinel.persistentVolumeClaimRetentionPolicy }}
+    persistentVolumeClaimRetentionPolicy: {{ toYaml .Values.redisSentinel.persistentVolumeClaimRetentionPolicy | nindent 6 }}
+    {{- end }}
 
   redisExporter:
     enabled: {{ .Values.redisExporter.enabled }}
@@ -83,6 +86,9 @@ spec:
   {{- end }}
   {{- if .Values.tolerations }}
   tolerations: {{ toYaml .Values.tolerations | nindent 4 }}
+  {{- end }}
+  {{- if .Values.topologySpreadConstraints }}
+  topologySpreadConstraints: {{ toYaml .Values.topologySpreadConstraints | nindent 4 }}
   {{- end }}
   {{- if and .Values.TLS.ca .Values.TLS.cert .Values.TLS.key .Values.TLS.secret.secretName }}
   TLS:
