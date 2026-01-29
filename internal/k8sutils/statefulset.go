@@ -451,6 +451,8 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 				containerParams.EnvVars,
 				containerParams.Port,
 				clusterVersion,
+				containerParams.Resources,
+				containerParams.MaxMemoryPercentOfLimit,
 			),
 			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe, sentinelCntr, enableTLS, enableAuth),
 			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe, sentinelCntr, enableTLS, enableAuth),
@@ -590,16 +592,6 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 			ptr.Deref(containerParams.EnvVars, []corev1.EnvVar{}),
 			ptr.Deref(containerParams.AdditionalEnvVariable, []corev1.EnvVar{})...,
 		)
-		if containerParams.Resources != nil && containerParams.MaxMemoryPercentOfLimit != nil {
-			memLimit := containerParams.Resources.Limits.Memory().Value()
-			if memLimit != 0 {
-				maxMem := int(float64(memLimit) * float64(*containerParams.MaxMemoryPercentOfLimit) / 100)
-				envVars = append(envVars, corev1.EnvVar{
-					Name:  consts.ENV_KEY_REDIS_MAX_MEMORY,
-					Value: fmt.Sprintf("%d", maxMem),
-				})
-			}
-		}
 
 		VolumeMounts := []corev1.VolumeMount{
 			generateConfigVolumeMount(common.VolumeNameConfig),
@@ -625,6 +617,8 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 				&envVars,
 				containerParams.Port,
 				clusterVersion,
+				containerParams.Resources,
+				containerParams.MaxMemoryPercentOfLimit,
 			),
 			VolumeMounts: VolumeMounts,
 		}
@@ -873,6 +867,7 @@ func getProbeInfo(probe *corev1.Probe, sentinel, enableTLS, enableAuth bool) *co
 func getEnvironmentVariables(role string, enabledPassword *bool, secretName *string,
 	secretKey *string, persistenceEnabled *bool, tlsConfig *commonapi.TLSConfig,
 	aclConfig *commonapi.ACLConfig, envVar *[]corev1.EnvVar, port *int, clusterVersion *string,
+	resources *corev1.ResourceRequirements, maxMemoryPercentOfLimit *int,
 ) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{Name: "SERVER_MODE", Value: role},
@@ -884,6 +879,16 @@ func getEnvironmentVariables(role string, enabledPassword *bool, secretName *str
 			Name:  "REDIS_MAJOR_VERSION",
 			Value: *clusterVersion,
 		})
+	}
+
+	if resources != nil && resources.Limits != nil && maxMemoryPercentOfLimit != nil && *maxMemoryPercentOfLimit > 0 {
+		if memLimit := resources.Limits.Memory().Value(); memLimit > 0 {
+			maxMem := int(float64(memLimit) * float64(*maxMemoryPercentOfLimit) / 100)
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  consts.ENV_KEY_REDIS_MAX_MEMORY,
+				Value: strconv.FormatInt(int64(maxMem), 10),
+			})
+		}
 	}
 
 	var redisHost string

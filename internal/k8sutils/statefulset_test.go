@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/consts"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/features"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -68,6 +69,35 @@ func TestGeneratePreStopCommand(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGenerateContainerDefAddsMaxMemoryEnv(t *testing.T) {
+	percent := 80
+	memLimit := resource.MustParse("512Mi")
+	containers := generateContainerDef(
+		"redis",
+		containerParameters{
+			Role:  "redis",
+			Image: "redis:latest",
+			Resources: &corev1.ResourceRequirements{
+				Limits: corev1.ResourceList{
+					corev1.ResourceMemory: memLimit,
+				},
+			},
+			MaxMemoryPercentOfLimit: &percent,
+		},
+		false,
+		false,
+		false,
+		nil,
+		nil,
+		nil,
+		nil,
+	)
+
+	require.Len(t, containers, 1)
+	expectedValue := strconv.FormatInt(memLimit.Value()*int64(percent)/100, 10)
+	assert.Contains(t, containers[0].Env, corev1.EnvVar{Name: consts.ENV_KEY_REDIS_MAX_MEMORY, Value: expectedValue})
 }
 
 func TestGetVolumeMount(t *testing.T) {
@@ -1576,7 +1606,7 @@ func TestGetEnvironmentVariables(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			actualEnvironment := getEnvironmentVariables(tt.role, tt.enabledPassword, tt.secretName,
-				tt.secretKey, tt.persistenceEnabled, tt.tlsConfig, tt.aclConfig, tt.envVar, tt.port, tt.clusterVersion)
+				tt.secretKey, tt.persistenceEnabled, tt.tlsConfig, tt.aclConfig, tt.envVar, tt.port, tt.clusterVersion, nil, nil)
 
 			assert.ElementsMatch(t, tt.expectedEnvironment, actualEnvironment)
 		})
