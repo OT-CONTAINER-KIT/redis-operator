@@ -29,6 +29,9 @@ redisCluster:
   # -- MaxMemoryPercentOfLimit is the percentage of redis container memory limit to be used as maxmemory. 
   #    Default is 0 (disabled).
   maxMemoryPercentOfLimit: 0
+  persistentVolumeClaimRetentionPolicy: {}
+    # whenDeleted: Delete
+    # whenScaled: Retain
   # -- Enable pod anti-affinity between leader and follower pods by adding the appropriate label.
   #    Notice that this requires the operator to have its mutating webhook enabled,
   #    otherwise it will only add an annotation to the RedisCluster CR. 
@@ -55,6 +58,14 @@ redisCluster:
     nodeSelector: null
       # memory: medium
     securityContext: {}
+    topologySpreadConstraints: []
+      # - maxSkew: 1
+      #   topologyKey: kubernetes.io/hostname
+      #   whenUnsatisfiable: DoNotSchedule
+      #   labelSelector:
+      #     matchLabels:
+      #       role: leader
+      #       clusterId: redis-cluster
     pdb:
       enabled: false
       maxUnavailable: 1
@@ -93,6 +104,14 @@ redisCluster:
     nodeSelector: null
       # memory: medium
     securityContext: {}
+    topologySpreadConstraints: []
+      # - maxSkew: 1
+      #   topologyKey: kubernetes.io/hostname
+      #   whenUnsatisfiable: DoNotSchedule
+      #   labelSelector:
+      #     matchLabels:
+      #       role: follower
+      #       clusterId: redis-cluster
     pdb:
       enabled: false
       maxUnavailable: 1

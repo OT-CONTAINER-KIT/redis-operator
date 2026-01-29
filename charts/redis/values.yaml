@@ -26,6 +26,9 @@ redisStandalone:
   # -- MaxMemoryPercentOfLimit is the percentage of redis container memory limit to be used as maxmemory. 
   #    Default is 0 (disabled).
   maxMemoryPercentOfLimit: 0
+  persistentVolumeClaimRetentionPolicy: {}
+    # whenDeleted: Delete
+    # whenScaled: Retain
 
 labels: {}
 #   foo: bar
@@ -144,6 +147,14 @@ tolerations: []
   #   operator: "Equal"
   #   value: "value"
   #   effect: "NoSchedule"
+
+topologySpreadConstraints: []
+  # - maxSkew: 1
+  #   topologyKey: kubernetes.io/hostname
+  #   whenUnsatisfiable: DoNotSchedule
+  #   labelSelector:
+  #     matchLabels:
+  #       app: redis
 
 serviceAccountName: ""
 
