@@ -89,7 +89,8 @@ func GenerateConfig() error {
 	// acl_setup
 	{
 		if aclMode, ok := util.CoalesceEnv("ACL_MODE", ""); ok && aclMode == "true" {
-			cfg.Append("aclfile", "/etc/redis/user.acl")
+			aclFilePath, _ := util.CoalesceEnv("ACL_FILE_PATH", "/etc/redis/user.acl")
+			cfg.Append("aclfile", aclFilePath)
 		} else {
 			fmt.Println("ACL_MODE is not true, skipping ACL file modification")
 		}

@@ -288,7 +288,7 @@ type ACLConfig struct {
 	Secret *corev1.SecretVolumeSource `json:"secret,omitempty"`
 	// PersistentVolumeClaim-based ACL configuration
 	// Specify the PVC name to mount ACL file from persistent storage
-	// The operator will automatically mount /etc/redis/user.acl from the PVC
+	// The operator mounts the PVC at /data/redis so Redis can read and update /data/redis/user.acl
 	PersistentVolumeClaim *string `json:"persistentVolumeClaim,omitempty"`
 }
 

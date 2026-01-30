@@ -96,7 +96,7 @@ spec:
             timeout: 30s
             content: >
               kubectl exec --namespace ${NAMESPACE} --container redis-cluster-acl-pvc-leader redis-cluster-acl-pvc-leader-0 --
-              cat /etc/redis/user.acl 2>&1
+              cat /data/redis/user.acl 2>&1
             check:
               (contains($stdout, 'user pvcuser')): true
               (contains($stdout, 'user readonly')): true
@@ -131,6 +131,6 @@ spec:
             timeout: 30s
             content: >
               kubectl exec --namespace ${NAMESPACE} --container redis-cluster-acl-pvc-leader redis-cluster-acl-pvc-leader-0 --
-              cat /proc/mounts | grep '/etc/redis/user.acl' 2>&1
+              cat /proc/mounts | grep '/data/redis' 2>&1
             check:
-              (contains($stdout, '/etc/redis/user.acl')): true
+              (contains($stdout, '/data/redis')): true
