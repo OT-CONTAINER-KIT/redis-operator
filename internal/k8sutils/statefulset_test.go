@@ -48,6 +48,62 @@ func TestGenerateAuthAndTLSArgs(t *testing.T) {
 	}
 }
 
+func TestStorageHasVolumeClaimTemplate(t *testing.T) {
+	tests := []struct {
+		name    string
+		storage *common.Storage
+		want    bool
+	}{
+		{"nil storage", nil, false},
+		{"empty VolumeClaimTemplate", &common.Storage{}, false},
+		{"only volumeMount", &common.Storage{
+			VolumeMount: common.AdditionalVolume{
+				Volume:    []corev1.Volume{{Name: "data", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}}},
+				MountPath: []corev1.VolumeMount{{Name: "data", MountPath: "/data"}},
+			},
+		}, false},
+		{"with AccessModes", &common.Storage{
+			VolumeClaimTemplate: corev1.PersistentVolumeClaim{
+				Spec: corev1.PersistentVolumeClaimSpec{
+					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+				},
+			},
+		}, true},
+		{"with Resources.Requests", &common.Storage{
+			VolumeClaimTemplate: corev1.PersistentVolumeClaim{
+				Spec: corev1.PersistentVolumeClaimSpec{
+					Resources: corev1.VolumeResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceStorage: resource.MustParse("1Gi"),
+						},
+					},
+				},
+			},
+		}, true},
+		{"with StorageClassName", &common.Storage{
+			VolumeClaimTemplate: corev1.PersistentVolumeClaim{
+				Spec: corev1.PersistentVolumeClaimSpec{
+					StorageClassName: ptr.To("standard"),
+				},
+			},
+		}, true},
+		{"with VolumeName", &common.Storage{
+			VolumeClaimTemplate: corev1.PersistentVolumeClaim{
+				Spec: corev1.PersistentVolumeClaimSpec{
+					VolumeName: "pv-data",
+				},
+			},
+		}, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := storageHasVolumeClaimTemplate(tt.storage)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestGeneratePreStopCommand(t *testing.T) {
 	tests := []struct {
 		name        string
