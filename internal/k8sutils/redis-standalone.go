@@ -197,7 +197,7 @@ func generateRedisStandaloneContainerParams(cr *rvb2.Redis) containerParameters 
 	if cr.Spec.LivenessProbe != nil {
 		containerProp.LivenessProbe = cr.Spec.LivenessProbe
 	}
-	if cr.Spec.Storage != nil {
+	if storageHasVolumeClaimTemplate(cr.Spec.Storage) {
 		containerProp.PersistenceEnabled = &trueProperty
 	}
 	if cr.Spec.TLS != nil {
@@ -233,7 +233,7 @@ func generateRedisStandaloneInitContainerParams(cr *rvb2.Redis) initContainerPar
 			initcontainerProp.AdditionalVolume = cr.Spec.Storage.VolumeMount.Volume
 			initcontainerProp.AdditionalMountPath = cr.Spec.Storage.VolumeMount.MountPath
 		}
-		if cr.Spec.Storage != nil {
+		if storageHasVolumeClaimTemplate(cr.Spec.Storage) {
 			initcontainerProp.PersistenceEnabled = &trueProperty
 		}
 	}
