@@ -191,15 +191,34 @@ func TestGetVolumeMount(t *testing.T) {
 			expectedMounts:     []corev1.VolumeMount{{Name: "tls-certs", MountPath: "/tls", ReadOnly: true}},
 		},
 		{
-			name:               "6. Only acl enabled",
+			name:               "6. Only acl enabled (secret)",
 			persistenceEnabled: nil,
 			clusterMode:        false,
 			nodeConfVolume:     false,
 			externalConfig:     nil,
 			mountpath:          []corev1.VolumeMount{},
 			tlsConfig:          nil,
-			aclConfig:          &common.ACLConfig{},
-			expectedMounts:     []corev1.VolumeMount{{Name: "acl-secret", MountPath: "/etc/redis/user.acl", SubPath: "user.acl"}},
+			aclConfig: &common.ACLConfig{
+				Secret: &corev1.SecretVolumeSource{SecretName: "acl-secret"},
+			},
+			expectedMounts: []corev1.VolumeMount{
+				{Name: "acl-secret", MountPath: "/etc/redis/user.acl", SubPath: "user.acl"},
+			},
+		},
+		{
+			name:               "6b. Only acl enabled (PVC)",
+			persistenceEnabled: nil,
+			clusterMode:        false,
+			nodeConfVolume:     false,
+			externalConfig:     nil,
+			mountpath:          []corev1.VolumeMount{},
+			tlsConfig:          nil,
+			aclConfig: &common.ACLConfig{
+				PersistentVolumeClaim: ptr.To("acl-pvc"),
+			},
+			expectedMounts: []corev1.VolumeMount{
+				{Name: "acl-pvc", MountPath: "/data/redis"},
+			},
 		},
 		{
 			name:               "7. Everything enabled except externalConfig",
@@ -214,7 +233,9 @@ func TestGetVolumeMount(t *testing.T) {
 				},
 			},
 			tlsConfig: &common.TLSConfig{},
-			aclConfig: &common.ACLConfig{},
+			aclConfig: &common.ACLConfig{
+				Secret: &corev1.SecretVolumeSource{SecretName: "acl-secret"},
+			},
 			expectedMounts: []corev1.VolumeMount{
 				{Name: "persistent-volume", MountPath: "/data"},
 				{Name: "node-conf", MountPath: "/node-conf"},
@@ -242,7 +263,9 @@ func TestGetVolumeMount(t *testing.T) {
 			externalConfig:     nil,
 			mountpath:          []corev1.VolumeMount{},
 			tlsConfig:          nil,
-			aclConfig:          &common.ACLConfig{},
+			aclConfig: &common.ACLConfig{
+				Secret: &corev1.SecretVolumeSource{SecretName: "acl-secret"},
+			},
 			expectedMounts: []corev1.VolumeMount{
 				{Name: "persistent-volume", MountPath: "/data"},
 				{Name: "node-conf", MountPath: "/node-conf"},
@@ -1499,6 +1522,7 @@ func TestGetEnvironmentVariables(t *testing.T) {
 			},
 			clusterVersion: ptr.To("v6"),
 			expectedEnvironment: []corev1.EnvVar{
+				{Name: "ACL_FILE_PATH", Value: "/etc/redis/user.acl"},
 				{Name: "ACL_MODE", Value: "true"},
 				{Name: "PERSISTENCE_ENABLED", Value: "true"},
 				{Name: "REDIS_ADDR", Value: "redis://localhost:26379"},
@@ -1562,12 +1586,15 @@ func TestGetEnvironmentVariables(t *testing.T) {
 			secretKey:          ptr.To("test-key"),
 			persistenceEnabled: ptr.To(true),
 			tlsConfig:          nil,
-			aclConfig:          &common.ACLConfig{},
+			aclConfig: &common.ACLConfig{
+				Secret: &corev1.SecretVolumeSource{SecretName: "acl-secret"},
+			},
 			envVar: &[]corev1.EnvVar{
 				{Name: "TEST_ENV", Value: "test-value"},
 			},
 			port: ptr.To(6380),
 			expectedEnvironment: []corev1.EnvVar{
+				{Name: "ACL_FILE_PATH", Value: "/etc/redis/user.acl"},
 				{Name: "ACL_MODE", Value: "true"},
 				{Name: "PERSISTENCE_ENABLED", Value: "true"},
 				{Name: "REDIS_ADDR", Value: "redis://localhost:6379"},
@@ -1583,6 +1610,37 @@ func TestGetEnvironmentVariables(t *testing.T) {
 				{Name: "SETUP_MODE", Value: "cluster"},
 				{Name: "TEST_ENV", Value: "test-value"},
 				{Name: "REDIS_PORT", Value: "6380"},
+			},
+		},
+		{
+			name:               "Test with cluster role and acl pvc",
+			role:               "cluster",
+			enabledPassword:    ptr.To(true),
+			secretName:         ptr.To("test-secret"),
+			secretKey:          ptr.To("test-key"),
+			persistenceEnabled: ptr.To(true),
+			tlsConfig:          nil,
+			aclConfig: &common.ACLConfig{
+				PersistentVolumeClaim: ptr.To("acl-pvc"),
+			},
+			envVar: nil,
+			port:   ptr.To(6381),
+			expectedEnvironment: []corev1.EnvVar{
+				{Name: "ACL_FILE_PATH", Value: "/data/redis/user.acl"},
+				{Name: "ACL_MODE", Value: "true"},
+				{Name: "PERSISTENCE_ENABLED", Value: "true"},
+				{Name: "REDIS_ADDR", Value: "redis://localhost:6379"},
+				{Name: "REDIS_PASSWORD", ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "test-secret",
+						},
+						Key: "test-key",
+					},
+				}},
+				{Name: "REDIS_PORT", Value: "6381"},
+				{Name: "SERVER_MODE", Value: "cluster"},
+				{Name: "SETUP_MODE", Value: "cluster"},
 			},
 		},
 		{
@@ -1756,6 +1814,10 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 									Name:  "test-sts",
 									Image: "redis:latest",
 									Env: []corev1.EnvVar{
+										{
+											Name:  "ACL_FILE_PATH",
+											Value: "/etc/redis/user.acl",
+										},
 										{
 											Name:  "ACL_MODE",
 											Value: "true",
