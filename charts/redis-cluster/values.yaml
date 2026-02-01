@@ -234,6 +234,11 @@ podSecurityContext:
   runAsUser: 1000
   fsGroup: 1000
 
+# -- Pod annotations to be applied to all Redis pods
+podAnnotations: {}
+  # annotation-key: "annotation-value"
+  # prometheus.io/scrape: "true"
+  # prometheus.io/port: "6379"
 
 # serviceAccountName: redis-sa
 
