@@ -29,7 +29,7 @@ import (
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/controllerutil"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/monitoring"
-	retry "github.com/avast/retry-go"
+	retry "github.com/avast/retry-go/v5"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -296,7 +296,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			logger.Error(err, "failed to repair disconnected masters")
 		}
 
-		err = retry.Do(func() error {
+		err = retry.New(
+			retry.Attempts(3),
+			retry.Delay(time.Second*5),
+		).Do(func() error {
 			nc, nErr := k8sutils.UnhealthyNodesInCluster(ctx, r.K8sClient, instance)
 			if nErr != nil {
 				return nErr
@@ -305,7 +308,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				return nil
 			}
 			return fmt.Errorf("%d unhealthy nodes", nc)
-		}, retry.Attempts(3), retry.Delay(time.Second*5))
+		})
 
 		if err == nil {
 			logger.Info("repairing unhealthy masters successful, no unhealthy masters left")

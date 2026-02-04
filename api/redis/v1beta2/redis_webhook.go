@@ -17,6 +17,9 @@ limitations under the License.
 package v1beta2
 
 import (
+	"context"
+	"fmt"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -28,7 +31,7 @@ import (
 )
 
 const (
-	webhookPath = "/validate-redis-redis-opstreelabs-in-v1beta2-redis"
+	redisWebhookPath = "/validate-redis-redis-opstreelabs-in-v1beta2-redis"
 )
 
 // log is for logging in this package.
@@ -36,32 +39,47 @@ var redislog = logf.Log.WithName("redis-v1beta2-validation")
 
 // +kubebuilder:webhook:path=/validate-redis-redis-opstreelabs-in-v1beta2-redis,mutating=false,failurePolicy=fail,sideEffects=None,groups=redis.redis.opstreelabs.in,resources=redis,verbs=create;update,versions=v1beta2,name=validate-redis.redis.opstreelabs.in,admissionReviewVersions=v1
 
+type RedisCustomValidator struct{}
+
+var _ webhook.CustomValidator = &RedisCustomValidator{}
+
+// SetupWebhookWithManager will setup the manager
 func (r *Redis) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
+		For(&Redis{}).
+		WithValidator(&RedisCustomValidator{}).
 		Complete()
 }
 
-var _ webhook.Validator = &Redis{}
-
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *Redis) ValidateCreate() (admission.Warnings, error) {
-	redislog.Info("validate create", "name", r.Name)
-
-	return r.validate(nil)
+func (v *RedisCustomValidator) ValidateCreate(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
+	rr, ok := obj.(*Redis)
+	if !ok {
+		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected Redis but got %T", obj))
+	}
+	redislog.Info("validate create", "name", rr.Name)
+	return rr.validate(nil)
 }
 
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *Redis) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
+func (v *RedisCustomValidator) ValidateUpdate(_ context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
+	oldR, ok := oldObj.(*Redis)
+	if !ok {
+		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected Redis (old) but got %T", oldObj))
+	}
+	r, ok := newObj.(*Redis)
+	if !ok {
+		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected Redis (new) but got %T", newObj))
+	}
+
 	redislog.Info("validate update", "name", r.Name)
-
-	return r.validate(old.(*Redis))
+	return r.validate(oldR)
 }
 
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *Redis) ValidateDelete() (admission.Warnings, error) {
+func (v *RedisCustomValidator) ValidateDelete(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
+	r, ok := obj.(*Redis)
+	if !ok {
+		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected Redis but got %T", obj))
+	}
 	redislog.Info("validate delete", "name", r.Name)
-
 	return nil, nil
 }
 
@@ -92,5 +110,5 @@ func (r *Redis) validate(_ *Redis) (admission.Warnings, error) {
 }
 
 func (r *Redis) WebhookPath() string {
-	return webhookPath
+	return redisWebhookPath
 }

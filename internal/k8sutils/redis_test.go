@@ -66,7 +66,7 @@ e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@31001,redis-cluster-lea
 
 	namespace := "default"
 	newPodIP := "0.0.0.0"
-	k8sClient := k8sClientFake.NewSimpleClientset(&corev1.Pod{
+	k8sClient := k8sClientFake.NewClientset(&corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "redis-cluster-leader-0",
 			Namespace: namespace,
@@ -126,7 +126,7 @@ bffda5dec210cd73576a3993156dc134b5c63a4f :6379@16379,redis-cluster-leader-9 mast
 			},
 		})
 	}
-	k8sClient := k8sClientFake.NewSimpleClientset(k8sObjects...)
+	k8sClient := k8sClientFake.NewClientset(k8sObjects...)
 
 	port := 6379
 	err := repairDisconnectedMasters(ctx, k8sClient, &rcvb2.RedisCluster{
@@ -152,7 +152,7 @@ func TestGetRedisServerIP(t *testing.T) {
 		{
 			name: "Successfully retrieve IPv4 address",
 			setup: func() *k8sClientFake.Clientset {
-				return k8sClientFake.NewSimpleClientset(&corev1.Pod{
+				return k8sClientFake.NewClientset(&corev1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "redis-pod",
 						Namespace: "default",
@@ -172,7 +172,7 @@ func TestGetRedisServerIP(t *testing.T) {
 		{
 			name: "Successfully retrieve IPv6 address",
 			setup: func() *k8sClientFake.Clientset {
-				return k8sClientFake.NewSimpleClientset(&corev1.Pod{
+				return k8sClientFake.NewClientset(&corev1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "redis-pod",
 						Namespace: "default",
@@ -192,7 +192,7 @@ func TestGetRedisServerIP(t *testing.T) {
 		{
 			name: "Error retrieving pod results in empty IP",
 			setup: func() *k8sClientFake.Clientset {
-				client := k8sClientFake.NewSimpleClientset()
+				client := k8sClientFake.NewClientset()
 				return client
 			},
 			redisInfo: RedisDetails{
@@ -204,7 +204,7 @@ func TestGetRedisServerIP(t *testing.T) {
 		{
 			name: "Empty results in empty IP",
 			setup: func() *k8sClientFake.Clientset {
-				return k8sClientFake.NewSimpleClientset(&corev1.Pod{
+				return k8sClientFake.NewClientset(&corev1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "redis-pod",
 						Namespace: "default",
@@ -248,7 +248,7 @@ func TestGetRedisServerAddress(t *testing.T) {
 		{
 			name: "Successfully retrieve IPv4 URI",
 			setup: func() *k8sClientFake.Clientset {
-				return k8sClientFake.NewSimpleClientset(&corev1.Pod{
+				return k8sClientFake.NewClientset(&corev1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "redis-pod",
 						Namespace: "default",
@@ -268,7 +268,7 @@ func TestGetRedisServerAddress(t *testing.T) {
 		{
 			name: "Successfully retrieve IPv6 URI",
 			setup: func() *k8sClientFake.Clientset {
-				return k8sClientFake.NewSimpleClientset(&corev1.Pod{
+				return k8sClientFake.NewClientset(&corev1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "redis-pod",
 						Namespace: "default",
@@ -541,7 +541,7 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 			objects = append(objects, pods...)
 			objects = append(objects, secret...)
 
-			client := k8sClientFake.NewSimpleClientset(objects...)
+			client := k8sClientFake.NewClientset(objects...)
 			cmd := createRedisReplicationCommand(context.TODO(), client, tt.redisCluster, tt.leaderPod, tt.followerPod)
 
 			// Assert the command is as expected using testify
@@ -625,7 +625,7 @@ func TestGetContainerID(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			client := k8sClientFake.NewSimpleClientset(test.setupPod)
+			client := k8sClientFake.NewClientset(test.setupPod)
 			id, pod := getContainerID(context.TODO(), client, test.redisCluster, test.setupPod.Name)
 			if test.expectError {
 				assert.Nil(t, pod, "Expected no pod but got one")
