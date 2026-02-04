@@ -800,15 +800,18 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nod
 	}
 
 	if aclConfig != nil {
-		volumeName := "acl-secret"
 		if aclConfig.PersistentVolumeClaim != nil {
-			volumeName = "acl-pvc"
+			VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
+				Name:      "acl-pvc",
+				MountPath: "/data/redis",
+			})
+		} else {
+			VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
+				Name:      "acl-secret",
+				MountPath: "/etc/redis/user.acl",
+				SubPath:   "user.acl",
+			})
 		}
-		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
-			Name:      volumeName,
-			MountPath: "/etc/redis/user.acl",
-			SubPath:   "user.acl",
-		})
 	}
 
 	if externalConfig != nil {
@@ -916,6 +919,14 @@ func getEnvironmentVariables(role string, enabledPassword *bool, secretName *str
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  "ACL_MODE",
 			Value: "true",
+		})
+		aclFilePath := "/etc/redis/user.acl"
+		if aclConfig.PersistentVolumeClaim != nil {
+			aclFilePath = "/data/redis/user.acl"
+		}
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  "ACL_FILE_PATH",
+			Value: aclFilePath,
 		})
 	}
 
