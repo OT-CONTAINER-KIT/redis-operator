@@ -2483,8 +2483,9 @@ spec:
                       type: string
                     type: array
                   maxMemoryPercentOfLimit:
-                    description: MaxMemoryPercentOfLimit is the percentage of redis
-                      container memory limit to be used as maxmemory.
+                    description: |-
+                      MaxMemoryPercentOfLimit is the percentage of the Redis container memory limit to be used as maxmemory.
+                      When set with a memory limit, the operator also exports the computed value via the REDIS_MAX_MEMORY environment variable.
                     maximum: 100
                     minimum: 1
                     type: integer
@@ -7406,8 +7407,9 @@ spec:
                       type: string
                     type: array
                   maxMemoryPercentOfLimit:
-                    description: MaxMemoryPercentOfLimit is the percentage of redis
-                      container memory limit to be used as maxmemory.
+                    description: |-
+                      MaxMemoryPercentOfLimit is the percentage of the Redis container memory limit to be used as maxmemory.
+                      When set with a memory limit, the operator also exports the computed value via the REDIS_MAX_MEMORY environment variable.
                     maximum: 100
                     minimum: 1
                     type: integer
@@ -9099,8 +9101,9 @@ spec:
                           type: string
                         type: array
                       maxMemoryPercentOfLimit:
-                        description: MaxMemoryPercentOfLimit is the percentage of
-                          redis container memory limit to be used as maxmemory.
+                        description: |-
+                          MaxMemoryPercentOfLimit is the percentage of the Redis container memory limit to be used as maxmemory.
+                          When set with a memory limit, the operator also exports the computed value via the REDIS_MAX_MEMORY environment variable.
                         maximum: 100
                         minimum: 1
                         type: integer
@@ -10837,8 +10840,9 @@ spec:
                           type: string
                         type: array
                       maxMemoryPercentOfLimit:
-                        description: MaxMemoryPercentOfLimit is the percentage of
-                          redis container memory limit to be used as maxmemory.
+                        description: |-
+                          MaxMemoryPercentOfLimit is the percentage of the Redis container memory limit to be used as maxmemory.
+                          When set with a memory limit, the operator also exports the computed value via the REDIS_MAX_MEMORY environment variable.
                         maximum: 100
                         minimum: 1
                         type: integer
@@ -17250,8 +17254,9 @@ spec:
                       type: string
                     type: array
                   maxMemoryPercentOfLimit:
-                    description: MaxMemoryPercentOfLimit is the percentage of redis
-                      container memory limit to be used as maxmemory.
+                    description: |-
+                      MaxMemoryPercentOfLimit is the percentage of the Redis container memory limit to be used as maxmemory.
+                      When set with a memory limit, the operator also exports the computed value via the REDIS_MAX_MEMORY environment variable.
                     maximum: 100
                     minimum: 1
                     type: integer
