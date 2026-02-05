@@ -250,6 +250,17 @@ func syncManagedFields(stored, new *appsv1.StatefulSet) {
 	new.ManagedFields = stored.ManagedFields
 }
 
+// storageHasVolumeClaimTemplate checks if the Storage has a meaningful VolumeClaimTemplate defined
+// (i.e., not just the zero value). This distinguishes between storage configured with only
+// volumeMount (e.g. emptyDir) vs. storage that actually requests a PersistentVolumeClaim.
+func storageHasVolumeClaimTemplate(storage *commonapi.Storage) bool {
+	if storage == nil {
+		return false
+	}
+	vct := storage.VolumeClaimTemplate
+	return len(vct.Spec.AccessModes) > 0 || vct.Spec.Resources.Requests != nil || vct.Spec.StorageClassName != nil || vct.Spec.VolumeName != ""
+}
+
 // hasVolumeClaimTemplates checks if the StatefulSet has VolumeClaimTemplates and if their counts match.
 func hasVolumeClaimTemplates(new, stored *appsv1.StatefulSet) bool {
 	return len(new.Spec.VolumeClaimTemplates) >= 1 && len(new.Spec.VolumeClaimTemplates) == len(stored.Spec.VolumeClaimTemplates)
