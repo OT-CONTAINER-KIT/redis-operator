@@ -43,7 +43,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `secret` _[SecretVolumeSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#secretvolumesource-v1-core)_ | Secret-based ACL configuration.<br />Adapts a Secret into a volume containing ACL rules.<br />The contents of the target Secret's Data field will be presented in a volume<br />as files using the keys in the Data field as the file names.<br />Secret volumes support ownership management and SELinux relabeling. |  |  |
-| `persistentVolumeClaim` _string_ | PersistentVolumeClaim-based ACL configuration<br />Specify the PVC name to mount ACL file from persistent storage<br />The operator will automatically mount /etc/redis/user.acl from the PVC |  |  |
+| `persistentVolumeClaim` _string_ | PersistentVolumeClaim-based ACL configuration<br />Specify the PVC name to mount ACL file from persistent storage<br />The operator mounts the PVC at /data/redis so Redis can read and update /data/redis/user.acl<br />This feature requires the GenerateConfigInInitContainer feature gate to be enabled. |  |  |
 
 
 #### AdditionalVolume
