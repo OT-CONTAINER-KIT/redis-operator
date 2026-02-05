@@ -18,9 +18,14 @@ metadata:
 spec:
   selector:
     matchLabels:
+      {{- if .Values.redisExporter.enabled }}
+      app.kubernetes.io/instance: {{ .Values.redisSentinel.name | default .Release.Name }}
+      service-type: metrics
+      {{- else }}
       app: {{ .Values.redisSentinel.name | default .Release.Name }}
       redis_setup_type: sentinel
       role: sentinel
+      {{- end }}
   endpoints:
   - port: redis-exporter
     interval: {{ .Values.serviceMonitor.interval }}

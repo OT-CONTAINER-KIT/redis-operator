@@ -1,0 +1,26 @@
+{{- if .Values.redisExporter.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.redisStandalone.name | default .Release.Name }}-metrics
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.redisStandalone.name | default .Release.Name }}
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/instance: {{ .Values.redisStandalone.name | default .Release.Name }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    app.kubernetes.io/component: metrics
+    service-type: metrics
+spec:
+  type: ClusterIP
+  ports:
+    - name: redis-exporter
+      port: 9121
+      targetPort: 9121
+      protocol: TCP
+  selector:
+    app: {{ .Values.redisStandalone.name | default .Release.Name }}
+    redis_setup_type: standalone
+    role: standalone
+{{- end }}
