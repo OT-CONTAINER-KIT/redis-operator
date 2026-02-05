@@ -311,6 +311,30 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			logger.Info("repairing unhealthy masters successful, no unhealthy masters left")
 			return intctrlutil.RequeueAfter(ctx, time.Second*30, "no unhealthy nodes found after repairing disconnected masters")
 		}
+
+		if leaderReplicas == 1 && followerReplicas == 1 {
+			logger.Info("unhealthy nodes detected; attempting to repair disconnected nodes when in single-node cluster")
+			if err = k8sutils.RepairDisconnectedCluster(ctx, r.K8sClient, instance); err != nil {
+				logger.Error(err, "failed to repair disconnected nodes")
+			}
+
+			err = retry.Do(func() error {
+				nc, nErr := k8sutils.UnhealthyNodesInCluster(ctx, r.K8sClient, instance)
+				if nErr != nil {
+					return nErr
+				}
+				if nc == 0 {
+					return nil
+				}
+				return fmt.Errorf("%d unhealthy nodes", nc)
+			}, retry.Attempts(3), retry.Delay(time.Second*5))
+
+			if err == nil {
+				logger.Info("repairing unhealthy single shard cluster successful, no unhealthy nodes left")
+				return intctrlutil.Requeue()
+			}
+		}
+
 		// recheck if there's still a lot of unhealthy nodes after attempting to repair the masters
 		unhealthyNodeCount, err = k8sutils.UnhealthyNodesInCluster(ctx, r.K8sClient, instance)
 		if err != nil {
