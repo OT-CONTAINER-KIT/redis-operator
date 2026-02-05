@@ -18,9 +18,15 @@ metadata:
 spec:
   selector:
     matchLabels:
+      {{- if .Values.redisExporter.enabled }}
+      app.kubernetes.io/instance: {{ .Values.redisCluster.name | default .Release.Name }}
+      service-type: metrics
+      role: leader
+      {{- else }}
       app: {{ .Values.redisCluster.name | default .Release.Name }}-leader
       redis_setup_type: cluster
       role: leader
+      {{- end }}
   endpoints:
   - port: redis-exporter
     interval: {{ .Values.serviceMonitor.interval }}
