@@ -2228,3 +2228,163 @@ func TestStatefulSetSelectorLabels(t *testing.T) {
 		})
 	}
 }
+
+// TestInitConfigContainerImagePullPolicy test that the init-config container
+// respects the imagePullPolicy setting from initContainerParameters.
+// This is a regression test for the bug where ImagePullPolicy was hardcoded to PullIfNotPresent.
+func TestInitConfigContainerImagePullPolicy(t *testing.T) {
+	// Save original feature gate state and enable for testing
+	if err := features.MutableFeatureGate.Set("GenerateConfigInInitContainer=true"); err != nil {
+		t.Fatalf("failed to set feature gate: %v", err)
+	}
+	defer func() {
+		if err := features.MutableFeatureGate.Set("GenerateConfigInInitContainer=false"); err != nil {
+			t.Logf("failed to restore feature gate: %v", err)
+		}
+	}()
+
+	tests := []struct {
+		name                    string
+		initContainerParams     initContainerParameters
+		expectedImagePullPolicy corev1.PullPolicy
+		description             string
+	}{
+		{
+			name: "init-config respects Always policy",
+			initContainerParams: initContainerParameters{
+				Enabled:         ptr.To(true),
+				Image:           "redis-operator:v0.22.2",
+				ImagePullPolicy: corev1.PullAlways,
+			},
+			expectedImagePullPolicy: corev1.PullAlways,
+			description:             "init-config container should use Always when specified in CRD",
+		},
+		{
+			name: "init-config respects Never policy",
+			initContainerParams: initContainerParameters{
+				Enabled:         ptr.To(true),
+				Image:           "redis-operator:v0.22.2",
+				ImagePullPolicy: corev1.PullNever,
+			},
+			expectedImagePullPolicy: corev1.PullNever,
+			description:             "init-config container should use Never when specified in CRD",
+		},
+		{
+			name: "init-config respects IfNotPresent policy",
+			initContainerParams: initContainerParameters{
+				Enabled:         ptr.To(true),
+				Image:           "redis-operator:v0.22.2",
+				ImagePullPolicy: corev1.PullIfNotPresent,
+			},
+			expectedImagePullPolicy: corev1.PullIfNotPresent,
+			description:             "init-config container should use IfNotPresent when specified in CRD",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			containerParams := containerParameters{
+				Role:      "redis",
+				Image:     "quay.io/opstree/redis:v7.0.15",
+				Resources: &corev1.ResourceRequirements{},
+			}
+
+			containers := generateInitContainerDef(
+				"redis",
+				"test",
+				tt.initContainerParams,
+				nil,
+				[]corev1.VolumeMount{},
+				containerParams,
+				ptr.To("v7"),
+			)
+
+			// Find the init-config container
+			var initConfigContainer *corev1.Container
+			for i := range containers {
+				if containers[i].Name == "init-config" {
+					initConfigContainer = &containers[i]
+					break
+				}
+			}
+
+			assert.NotNil(t, initConfigContainer, "init-config container should be generated")
+			assert.Equal(
+				t,
+				tt.expectedImagePullPolicy,
+				initConfigContainer.ImagePullPolicy,
+				tt.description,
+			)
+		})
+	}
+}
+
+// TestInitConfigAndCustomInitContainerConsistency verifies that both init-config
+// and custom init containers use the same ImagePullPolicy from the CRD configuration.
+func TestInitConfigAndCustomInitContainerConsistency(t *testing.T) {
+	if err := features.MutableFeatureGate.Set("GenerateConfigInInitContainer=true"); err != nil {
+		t.Fatalf("failed to set feature gate: %v", err)
+	}
+	defer func() {
+		if err := features.MutableFeatureGate.Set("GenerateConfigInInitContainer=false"); err != nil {
+			t.Logf("failed to restore feature gate: %v", err)
+		}
+	}()
+
+	imagePullPolicy := corev1.PullAlways
+
+	initContainerParams := initContainerParameters{
+		Enabled:         ptr.To(true),
+		Image:           "redis-operator:v0.22.2",
+		ImagePullPolicy: imagePullPolicy,
+		Command:         []string{"/bin/sh"},
+		Arguments:       []string{"-c", "echo test"},
+	}
+
+	containerParams := containerParameters{
+		Role:      "redis",
+		Image:     "quay.io/opstree/redis:v7.0.15",
+		Resources: &corev1.ResourceRequirements{},
+	}
+
+	containers := generateInitContainerDef(
+		"redis",
+		"test",
+		initContainerParams,
+		nil,
+		[]corev1.VolumeMount{},
+		containerParams,
+		ptr.To("v7"),
+	)
+
+	// Should have 2 init containers: init-config and custom init
+	assert.Len(t, containers, 2, "should have both init-config and custom init container")
+
+	var initConfigContainer, customInitContainer *corev1.Container
+	for i := range containers {
+		switch containers[i].Name {
+		case "init-config":
+			initConfigContainer = &containers[i]
+		case "inittest":
+			customInitContainer = &containers[i]
+		}
+	}
+
+	assert.NotNil(t, initConfigContainer, "init-config container should exist")
+	assert.NotNil(t, customInitContainer, "custom init container should exist")
+
+	// Both init containers should use the same ImagePullPolicy
+	assert.Equal(
+		t,
+		customInitContainer.ImagePullPolicy,
+		initConfigContainer.ImagePullPolicy,
+		"init-config and custom init container should have consistent ImagePullPolicy",
+	)
+
+	assert.Equal(
+		t,
+		imagePullPolicy,
+		initConfigContainer.ImagePullPolicy,
+		"init-config should respect the configured ImagePullPolicy",
+	)
+}
