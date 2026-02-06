@@ -13,7 +13,7 @@ Redis replication configuration can be customized by [values.yaml](https://githu
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| TLS.ca | string | `"ca.key"` |  |
+| TLS.ca | string | `"ca.crt"` |  |
 | TLS.cert | string | `"tls.crt"` |  |
 | TLS.key | string | `"tls.key"` |  |
 | TLS.secret.secretName | string | `""` |  |
