@@ -329,7 +329,7 @@ func Test_GetStatefulSet(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			client := k8sClientFake.NewSimpleClientset(test.sts.DeepCopy())
+			client := k8sClientFake.NewClientset(test.sts.DeepCopy())
 			_, err := GetStatefulSet(context.TODO(), client, test.stsNamespace, test.stsName)
 			if test.present {
 				assert.Nil(t, err)
@@ -374,9 +374,9 @@ func Test_createStatefulSet(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			var client *k8sClientFake.Clientset
 			if test.present {
-				client = k8sClientFake.NewSimpleClientset(test.sts.DeepCopy())
+				client = k8sClientFake.NewClientset(test.sts.DeepCopy())
 			} else {
-				client = k8sClientFake.NewSimpleClientset()
+				client = k8sClientFake.NewClientset()
 			}
 			err := createStatefulSet(context.TODO(), client, test.sts.GetNamespace(), &test.sts)
 			if test.present {
@@ -490,9 +490,9 @@ func TestUpdateStatefulSet(t *testing.T) {
 			}
 			var client *k8sClientFake.Clientset
 			if test.stsPresent {
-				client = k8sClientFake.NewSimpleClientset(existingSts.DeepCopyObject())
+				client = k8sClientFake.NewClientset(existingSts.DeepCopyObject())
 			} else {
-				client = k8sClientFake.NewSimpleClientset()
+				client = k8sClientFake.NewClientset()
 			}
 			err := updateStatefulSet(context.TODO(), client, updatedSts.GetNamespace(), &updatedSts, test.recreateSts, &test.deletePropagation)
 			if test.expectErr != nil {
@@ -644,9 +644,9 @@ func TestCreateOrUpdateStateFul(t *testing.T) {
 					Spec: *test.updatedStatefulSet.DeepCopy(),
 				}
 				if test.stsPresent {
-					client = k8sClientFake.NewSimpleClientset(existingSts.DeepCopy())
+					client = k8sClientFake.NewClientset(existingSts.DeepCopy())
 				} else {
-					client = k8sClientFake.NewSimpleClientset()
+					client = k8sClientFake.NewClientset()
 				}
 				err := CreateOrUpdateStateFul(context.TODO(), client, updatedSts.GetNamespace(), updatedSts.ObjectMeta, test.stsParams, test.stsOwnerDef, test.initContainerParams, test.containerParams, test.sidecar)
 				if test.expectErr != nil {
@@ -669,7 +669,7 @@ func TestCreateOrUpdateStateFul(t *testing.T) {
 					Spec: *test.updatedStatefulSet.DeepCopy(),
 				}
 
-				client = k8sClientFake.NewSimpleClientset()
+				client = k8sClientFake.NewClientset()
 
 				err := CreateOrUpdateStateFul(context.TODO(), client, updatedSts.GetNamespace(), updatedSts.ObjectMeta, test.stsParams, test.stsOwnerDef, test.initContainerParams, test.containerParams, test.sidecar)
 				assert.Nil(err)
@@ -783,7 +783,7 @@ func TestCreateOrUpdateResizingPVC(t *testing.T) {
 					},
 				},
 			}
-			client := k8sClientFake.NewSimpleClientset()
+			client := k8sClientFake.NewClientset()
 			// create the STS with the initial params and PVC so that we know there shouldn't be any other differences
 			err := CreateOrUpdateStateFul(context.Background(), client, objMeta.Namespace, objMeta,
 				stsParams, stsOwnerDef, initContainerParams, containerParams, sidecar)

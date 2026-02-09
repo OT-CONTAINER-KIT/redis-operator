@@ -37,7 +37,7 @@ func Test_getRedisPassword(t *testing.T) {
 						"password": []byte("secret-password"),
 					},
 				}
-				client := k8sClientFake.NewSimpleClientset(secret.DeepCopyObject())
+				client := k8sClientFake.NewClientset(secret.DeepCopyObject())
 				return client
 			},
 			namespace:   "default",
@@ -49,7 +49,7 @@ func Test_getRedisPassword(t *testing.T) {
 		{
 			name: "secret not found",
 			setup: func() *k8sClientFake.Clientset {
-				client := k8sClientFake.NewSimpleClientset()
+				client := k8sClientFake.NewClientset()
 				return client
 			},
 			namespace:   "default",
@@ -70,7 +70,7 @@ func Test_getRedisPassword(t *testing.T) {
 						"anotherKey": []byte("some-value"),
 					},
 				}
-				client := k8sClientFake.NewSimpleClientset(secret.DeepCopyObject())
+				client := k8sClientFake.NewClientset(secret.DeepCopyObject())
 				return client
 			},
 			namespace:   "default",
@@ -119,7 +119,7 @@ func Test_getRedisTLSConfig(t *testing.T) {
 						"tls.key": helperReadFile(filepath.Join("..", "..", "tests", "testdata", "secrets", "tls.key")),
 					},
 				}
-				client := k8sClientFake.NewSimpleClientset(tlsSecret)
+				client := k8sClientFake.NewClientset(tlsSecret)
 				return client
 			},
 			redisCluster: &rcvb2.RedisCluster{
@@ -147,7 +147,7 @@ func Test_getRedisTLSConfig(t *testing.T) {
 		{
 			name: "TLS enabled but secret not found",
 			setup: func() *k8sClientFake.Clientset {
-				client := k8sClientFake.NewSimpleClientset()
+				client := k8sClientFake.NewClientset()
 				return client
 			},
 			redisCluster: &rcvb2.RedisCluster{
@@ -185,7 +185,7 @@ func Test_getRedisTLSConfig(t *testing.T) {
 						// Missing tls.crt and tls.key
 					},
 				}
-				client := k8sClientFake.NewSimpleClientset(tlsSecret)
+				client := k8sClientFake.NewClientset(tlsSecret)
 				return client
 			},
 			redisCluster: &rcvb2.RedisCluster{

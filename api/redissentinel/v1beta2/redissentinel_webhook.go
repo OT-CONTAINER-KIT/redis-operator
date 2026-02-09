@@ -17,6 +17,9 @@ limitations under the License.
 package v1beta2
 
 import (
+	"context"
+	"fmt"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -36,33 +39,46 @@ var redissentinellog = logf.Log.WithName("redissentinel-v1beta2-validation")
 
 // +kubebuilder:webhook:path=/validate-redis-redis-opstreelabs-in-v1beta2-redissentinel,mutating=false,failurePolicy=fail,sideEffects=None,groups=redis.redis.opstreelabs.in,resources=redissentinels,verbs=create;update,versions=v1beta2,name=validate-redissentinel.redis.opstreelabs.in,admissionReviewVersions=v1
 
+type RedisSentinelCustomValidator struct{}
+
+var _ webhook.CustomValidator = &RedisSentinelCustomValidator{}
+
 // SetupWebhookWithManager will setup the manager
 func (r *RedisSentinel) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
+		For(&RedisSentinel{}).
+		WithValidator(&RedisSentinelCustomValidator{}).
 		Complete()
 }
 
-var _ webhook.Validator = &RedisSentinel{}
-
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *RedisSentinel) ValidateCreate() (admission.Warnings, error) {
-	redissentinellog.Info("validate create", "name", r.Name)
-
-	return r.validate(nil)
+func (v *RedisSentinelCustomValidator) ValidateCreate(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
+	rs, ok := obj.(*RedisSentinel)
+	if !ok {
+		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected RedisSentinel but got %T", obj))
+	}
+	redissentinellog.Info("validate create", "name", rs.Name)
+	return rs.validate(nil)
 }
 
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *RedisSentinel) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
-	redissentinellog.Info("validate update", "name", r.Name)
-
-	return r.validate(old.(*RedisSentinel))
+func (v *RedisSentinelCustomValidator) ValidateUpdate(_ context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
+	oldRS, ok := oldObj.(*RedisSentinel)
+	if !ok {
+		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected RedisSentinel (old) but got %T", oldObj))
+	}
+	rs, ok := newObj.(*RedisSentinel)
+	if !ok {
+		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected RedisSentinel (new) but got %T", newObj))
+	}
+	redissentinellog.Info("validate update", "name", rs.Name)
+	return rs.validate(oldRS)
 }
 
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *RedisSentinel) ValidateDelete() (admission.Warnings, error) {
-	redissentinellog.Info("validate delete", "name", r.Name)
-
+func (v *RedisSentinelCustomValidator) ValidateDelete(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
+	rs, ok := obj.(*RedisSentinel)
+	if !ok {
+		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected RedisSentinel but got %T", obj))
+	}
+	redissentinellog.Info("validate delete", "name", rs.Name)
 	return nil, nil
 }
 
@@ -98,5 +114,3 @@ func (r *RedisSentinel) validate(_ *RedisSentinel) (admission.Warnings, error) {
 func (r *RedisSentinel) WebhookPath() string {
 	return webhookPath
 }
-
-// TODO(user): EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
