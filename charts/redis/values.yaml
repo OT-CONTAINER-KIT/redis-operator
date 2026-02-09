@@ -23,9 +23,13 @@ redisStandalone:
   # -- Some fields of statefulset are immutable, such as volumeClaimTemplates.
   # When set to true, the operator will delete the statefulset and recreate it. Default is false.
   recreateStatefulSetOnUpdateInvalid: false
-  # -- MaxMemoryPercentOfLimit is the percentage of redis container memory limit to be used as maxmemory. 
+  # -- MaxMemoryPercentOfLimit is the percentage of the Redis container memory limit to be used as maxmemory.
+  #    When a memory limit exists, the operator also exposes the computed value via the REDIS_MAX_MEMORY env var.
   #    Default is 0 (disabled).
   maxMemoryPercentOfLimit: 0
+  persistentVolumeClaimRetentionPolicy: {}
+    # whenDeleted: Delete
+    # whenScaled: Retain
 
 labels: {}
 #   foo: bar
@@ -144,6 +148,14 @@ tolerations: []
   #   operator: "Equal"
   #   value: "value"
   #   effect: "NoSchedule"
+
+topologySpreadConstraints: []
+  # - maxSkew: 1
+  #   topologyKey: kubernetes.io/hostname
+  #   whenUnsatisfiable: DoNotSchedule
+  #   labelSelector:
+  #     matchLabels:
+  #       app: redis
 
 serviceAccountName: ""
 

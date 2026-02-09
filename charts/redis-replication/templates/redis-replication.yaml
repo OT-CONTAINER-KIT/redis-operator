@@ -30,6 +30,9 @@ spec:
     {{- if .Values.redisReplication.minReadySeconds }}
     minReadySeconds: {{ .Values.redisReplication.minReadySeconds}}
     {{- end }}
+    {{- if .Values.redisReplication.persistentVolumeClaimRetentionPolicy }}
+    persistentVolumeClaimRetentionPolicy: {{ toYaml .Values.redisReplication.persistentVolumeClaimRetentionPolicy | nindent 6 }}
+    {{- end }}
   {{- if .Values.redisReplication.livenessProbe }}
   livenessProbe: {{ toYaml .Values.redisReplication.livenessProbe | nindent 4 }}
   {{- end }}
@@ -80,6 +83,9 @@ spec:
   {{- end }}
   {{- if .Values.tolerations }}
   tolerations: {{ toYaml .Values.tolerations | nindent 4 }}
+  {{- end }}
+  {{- if .Values.topologySpreadConstraints }}
+  topologySpreadConstraints: {{ toYaml .Values.topologySpreadConstraints | nindent 4 }}
   {{- end }}
   {{- if and .Values.TLS.ca .Values.TLS.cert .Values.TLS.key .Values.TLS.secret.secretName }}
   TLS:

@@ -151,7 +151,8 @@ type RedisExporter struct {
 // RedisConfig defines the external configuration of Redis
 // +k8s:deepcopy-gen=true
 type RedisConfig struct {
-	// MaxMemoryPercentOfLimit is the percentage of redis container memory limit to be used as maxmemory.
+	// MaxMemoryPercentOfLimit is the percentage of the Redis container memory limit to be used as maxmemory.
+	// When set with a memory limit, the operator also exports the computed value via the REDIS_MAX_MEMORY environment variable.
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=100
 	MaxMemoryPercentOfLimit *int     `json:"maxMemoryPercentOfLimit,omitempty"`
@@ -287,7 +288,8 @@ type ACLConfig struct {
 	Secret *corev1.SecretVolumeSource `json:"secret,omitempty"`
 	// PersistentVolumeClaim-based ACL configuration
 	// Specify the PVC name to mount ACL file from persistent storage
-	// The operator will automatically mount /etc/redis/user.acl from the PVC
+	// The operator mounts the PVC at /data/redis so Redis can read and update /data/redis/user.acl
+	// This feature requires the GenerateConfigInInitContainer feature gate to be enabled.
 	PersistentVolumeClaim *string `json:"persistentVolumeClaim,omitempty"`
 }
 
