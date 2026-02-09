@@ -265,7 +265,7 @@ func Test_generateRedisClusterContainerParams(t *testing.T) {
 		SecretKey:          ptr.To("password"),
 		PersistenceEnabled: ptr.To(true),
 		TLSConfig: &common.TLSConfig{
-			CaKeyFile:   "ca.key",
+			CaCertFile:  "ca.crt",
 			CertKeyFile: "tls.crt",
 			KeyFile:     "tls.key",
 			Secret: corev1.SecretVolumeSource{
@@ -376,7 +376,7 @@ func Test_generateRedisClusterContainerParams(t *testing.T) {
 		SecretKey:          ptr.To("password"),
 		PersistenceEnabled: ptr.To(true),
 		TLSConfig: &common.TLSConfig{
-			CaKeyFile:   "ca.key",
+			CaCertFile:  "ca.crt",
 			CertKeyFile: "tls.crt",
 			KeyFile:     "tls.key",
 			Secret: corev1.SecretVolumeSource{
