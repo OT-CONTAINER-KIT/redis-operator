@@ -1,9 +1,16 @@
 {{- if .Values.rbac.enabled }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+{{- if or (not .Values.rbac.scope) (eq .Values.rbac.scope "cluster") }}
 kind: ClusterRoleBinding
+{{- else }}
+kind: RoleBinding
+{{- end }}
 metadata:
   name: {{ .Values.redisOperator.name }}
+{{- if eq .Values.rbac.scope "namespace" }}
+  namespace: {{ .Release.Namespace }}
+{{- end }}
   labels:
     app.kubernetes.io/name : {{ .Values.redisOperator.name }}
     helm.sh/chart : {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
@@ -17,7 +24,11 @@ subjects:
   name: {{ .Values.serviceAccountName }}
   namespace: {{ .Release.Namespace }}
 roleRef:
+{{- if or (not .Values.rbac.scope) (eq .Values.rbac.scope "cluster") }}
   kind: ClusterRole
+{{- else }}
+  kind: Role
+{{- end }}
   name: {{ .Values.redisOperator.name }}
   apiGroup: rbac.authorization.k8s.io
 {{- end }}
