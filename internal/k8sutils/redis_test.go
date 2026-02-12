@@ -336,20 +336,37 @@ func TestGetRedisHostname(t *testing.T) {
 	}
 }
 
-func TestCreateSingleLeaderRedisCommand(t *testing.T) {
+func TestCreateSingleLeaderRedisCommands(t *testing.T) {
 	cr := &rcvb2.RedisCluster{}
-	invocation := CreateSingleLeaderRedisCommand(context.TODO(), cr)
-	cmd := invocation.Args()
+	invocations := CreateSingleLeaderRedisCommands(context.TODO(), cr)
 
-	assert.Equal(t, "redis-cli", cmd[0])
-	assert.Equal(t, "CLUSTER", cmd[1])
-	assert.Equal(t, "ADDSLOTS", cmd[2])
+	// With batch size of 2048 and 16384 total slots, we expect 8 batches
+	assert.Equal(t, 8, len(invocations))
 
-	expectedLength := 16384 + 3
+	// Verify each batch
+	totalSlots := 0
+	for i, invocation := range invocations {
+		cmd := invocation.Args()
 
-	assert.Equal(t, expectedLength, len(cmd))
-	assert.Equal(t, "0", cmd[3])
-	assert.Equal(t, "16383", cmd[expectedLength-1])
+		assert.Equal(t, "redis-cli", cmd[0])
+		assert.Equal(t, "CLUSTER", cmd[1])
+		assert.Equal(t, "ADDSLOTS", cmd[2])
+
+		// Each batch should have 2048 slots (2048 + 3 for redis-cli, CLUSTER, ADDSLOTS)
+		expectedBatchLength := 2048 + 3
+		assert.Equal(t, expectedBatchLength, len(cmd), "batch %d has unexpected length", i)
+
+		// Verify first and last slot in each batch
+		expectedFirstSlot := strconv.Itoa(i * 2048)
+		expectedLastSlot := strconv.Itoa((i+1)*2048 - 1)
+		assert.Equal(t, expectedFirstSlot, cmd[3], "batch %d first slot mismatch", i)
+		assert.Equal(t, expectedLastSlot, cmd[len(cmd)-1], "batch %d last slot mismatch", i)
+
+		totalSlots += len(cmd) - 3
+	}
+
+	// Verify all 16384 slots are covered
+	assert.Equal(t, 16384, totalSlots)
 }
 
 func TestCreateMultipleLeaderRedisCommand(t *testing.T) {
