@@ -1,0 +1,37 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: max-memory-env-redis-standalone
+spec:
+  timeouts:
+    apply: 30s
+    assert: 5m
+    exec: 1m
+  steps:
+    - name: Deploy Redis Standalone
+      try:
+        - apply:
+            file: standalone.yaml
+        - assert:
+            file: ready-standalone.yaml
+
+    - name: Verify REDIS_MAX_MEMORY env variable
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} redis-standalone-max-memory-0 -- env 2>&1
+            check:
+              (contains($stdout, 'REDIS_MAX_MEMORY=83886080')): true
+
+    - name: Verify redis maxmemory config
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} redis-standalone-max-memory-0 --
+              redis-cli -p 6379 CONFIG GET maxmemory 2>&1
+            check:
+              (contains($stdout, '83886080')): true
