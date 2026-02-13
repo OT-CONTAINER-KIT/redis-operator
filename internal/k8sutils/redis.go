@@ -125,21 +125,32 @@ func getEndpoint(ctx context.Context, client kubernetes.Interface, cr *rcvb2.Red
 	return host + ":" + strconv.Itoa(port)
 }
 
-// CreateSingleLeaderRedisCommand will create command for single leader cluster creation
-func CreateSingleLeaderRedisCommand(ctx context.Context, cr *rcvb2.RedisCluster) RedisInvocation {
-	cmd := RedisInvocation{
-		Command:      []string{"redis-cli"},
-		RedisCommand: []string{"CLUSTER", "ADDSLOTS"},
-	}
-	for i := 0; i < 16384; i++ {
-		cmd.RedisCommand = append(cmd.RedisCommand, strconv.Itoa(i))
-	}
-	log.FromContext(ctx).V(1).Info("Generating Redis Add Slots command for single node cluster",
-		"BaseCommand", []string{"redis-cli", "CLUSTER", "ADDSLOTS"},
-		"SlotsRange", "0-16383",
-		"TotalSlots", 16384)
+// CreateSingleLeaderRedisCommands will create commands for single leader cluster creation.
+// The slots are batched to avoid exceeding Kubernetes API request size limits.
+func CreateSingleLeaderRedisCommands(ctx context.Context, cr *rcvb2.RedisCluster) []RedisInvocation {
+	const batchSize = 2048
+	const totalSlots = 16384
 
-	return cmd
+	var cmds []RedisInvocation
+	for start := 0; start < totalSlots; start += batchSize {
+		end := min(start+batchSize, totalSlots)
+
+		cmd := RedisInvocation{
+			Command:      []string{"redis-cli"},
+			RedisCommand: []string{"CLUSTER", "ADDSLOTS"},
+		}
+		for i := start; i < end; i++ {
+			cmd.RedisCommand = append(cmd.RedisCommand, strconv.Itoa(i))
+		}
+		cmds = append(cmds, cmd)
+	}
+
+	log.FromContext(ctx).V(1).Info("Generating Redis Add Slots commands for single node cluster",
+		"TotalSlots", totalSlots,
+		"BatchSize", batchSize,
+		"NumberOfBatches", len(cmds))
+
+	return cmds
 }
 
 // RepairDisconnectedMasters attempts to repair disconnected/failed masters by issuing
@@ -235,19 +246,30 @@ func (ri *RedisInvocation) AddFlag(flag ...string) *RedisInvocation {
 
 // ExecuteRedisClusterCommand will execute redis cluster creation command
 func ExecuteRedisClusterCommand(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) {
-	var cmd RedisInvocation
 	replicas := cr.Spec.GetReplicaCounts("leader")
-	switch int(replicas) {
-	case 1:
+
+	if int(replicas) == 1 {
 		err := executeFailoverCommand(ctx, client, cr, "leader")
 		if err != nil {
 			log.FromContext(ctx).Error(err, "error executing failover command")
 		}
-		cmd = CreateSingleLeaderRedisCommand(ctx, cr)
-	default:
-		cmd = CreateMultipleLeaderRedisCommand(ctx, client, cr)
+		cmds := CreateSingleLeaderRedisCommands(ctx, cr)
+		for _, cmd := range cmds {
+			if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
+				pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+				if err != nil {
+					log.FromContext(ctx).Error(err, "Error in getting redis password")
+				}
+				cmd.AddFlag("-a")
+				cmd.AddFlag(pass)
+			}
+			cmd.AddFlag(getRedisTLSArgs(cr.Spec.TLS, cr.Name+"-leader-0")...)
+			executeCommand(ctx, client, cr, cmd.Args(), cr.Name+"-leader-0")
+		}
+		return
 	}
 
+	cmd := CreateMultipleLeaderRedisCommand(ctx, client, cr)
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
 		pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
 		if err != nil {
@@ -257,6 +279,7 @@ func ExecuteRedisClusterCommand(ctx context.Context, client kubernetes.Interface
 		cmd.AddFlag(pass)
 	}
 	cmd.AddFlag(getRedisTLSArgs(cr.Spec.TLS, cr.Name+"-leader-0")...)
+	log.FromContext(ctx).V(1).Info("Redis cluster creation command is", "Command", cmd)
 	executeCommand(ctx, client, cr, cmd.Args(), cr.Name+"-leader-0")
 }
 
