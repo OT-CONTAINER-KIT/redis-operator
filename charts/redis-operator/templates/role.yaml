@@ -12,6 +12,7 @@ metadata:
     app.kubernetes.io/version : {{ .Chart.AppVersion }}
     app.kubernetes.io/component: role
     app.kubernetes.io/part-of : {{ .Release.Name }}
+    rbac.authorization.k8s.io/aggregate-to-admin: "true"
 rules:
 - apiGroups:
   - redis.redis.opstreelabs.in
