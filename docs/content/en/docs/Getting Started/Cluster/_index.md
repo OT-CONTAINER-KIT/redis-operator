@@ -105,6 +105,13 @@ spec:
         resources:
           requests:
             storage: 1Gi
+    nodeConfVolume: true
+    nodeConfVolumeClaimTemplate:
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
 ```
 
 The yaml manifest can easily get applied by using `kubectl`.
