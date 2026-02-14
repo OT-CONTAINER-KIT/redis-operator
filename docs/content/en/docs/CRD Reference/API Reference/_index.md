@@ -661,7 +661,7 @@ _Appears in:_
 
 
 
-Storage is the inteface to add pvc and pv support in redis
+Storage is the interface to add pvc and pv support in redis
 
 
 
@@ -697,5 +697,4 @@ _Appears in:_
 | `cert` _string_ |  |  |  |
 | `key` _string_ |  |  |  |
 | `secret` _[SecretVolumeSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#secretvolumesource-v1-core)_ | Reference to secret which contains the certificates |  |  |
-
 
