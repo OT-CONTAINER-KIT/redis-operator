@@ -23,8 +23,8 @@ spec:
     redisSecret:
       name: redis-secret
       key: password
-      # imagePullSecrets:
-      #   - name: regcred
+    # imagePullSecrets:
+    #   - name: regcred
   redisExporter:
     enabled: false
     image: quay.io/opstree/redis-exporter:latest
