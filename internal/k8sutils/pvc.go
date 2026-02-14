@@ -91,6 +91,10 @@ func HandlePVCResizing(ctx context.Context, storedStateful, newStateful *appsv1.
 			continue // Skip PVCs that do not belong to the target template.
 		}
 		currentCapacity := pvc.Spec.Resources.Requests.Storage().Value()
+		if desiredCapacity < currentCapacity {
+			log.FromContext(ctx).Info(fmt.Sprintf("sts:%s skipping PVC resize for [%s]: desired %d < current capacity %d (PVC shrink not supported)", storedStateful.Name, pvc.Name, desiredCapacity, currentCapacity))
+			continue
+		}
 		if currentCapacity != desiredCapacity {
 			pvc.Spec.Resources.Requests = newStateful.Spec.VolumeClaimTemplates[targetIndex].Spec.Resources.Requests
 			if _, err := cl.CoreV1().PersistentVolumeClaims(storedStateful.Namespace).Update(context.Background(), pvc, metav1.UpdateOptions{}); err != nil {

@@ -178,6 +178,112 @@ func TestHandlePVCResizing_UpdatePVC(t *testing.T) {
 	}
 }
 
+// TestHandlePVCResizing_ShrinkSkipped verifies that when the desired capacity is smaller than
+// the current PVC size, the resize is skipped and no update is attempted.
+func TestHandlePVCResizing_ShrinkSkipped(t *testing.T) {
+	ctx := context.Background()
+
+	// Stored PVC spec with 10Gi and new spec with 4Gi for the target (redis-data).
+	storedQuantity := resource.MustParse("10Gi")
+	desiredQuantity := resource.MustParse("4Gi")
+	storedPVCSpec := corev1.PersistentVolumeClaimSpec{
+		Resources: corev1.VolumeResourceRequirements{
+			Requests: corev1.ResourceList{
+				corev1.ResourceStorage: storedQuantity,
+			},
+		},
+	}
+	newPVCSpec := corev1.PersistentVolumeClaimSpec{
+		Resources: corev1.VolumeResourceRequirements{
+			Requests: corev1.ResourceList{
+				corev1.ResourceStorage: desiredQuantity,
+			},
+		},
+	}
+
+	storedTemplates := []corev1.PersistentVolumeClaim{
+		{
+			ObjectMeta: metav1.ObjectMeta{Name: "node-conf"},
+			Spec:       storedPVCSpec,
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{Name: "redis-data"},
+			Spec:       storedPVCSpec,
+		},
+	}
+
+	annotations := map[string]string{
+		"storageCapacity": strconv.FormatInt(storedQuantity.Value(), 10),
+	}
+
+	storedStateful := &appsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "redis",
+			Namespace:   "default",
+			Annotations: annotations,
+		},
+		Spec: appsv1.StatefulSetSpec{
+			VolumeClaimTemplates: storedTemplates,
+		},
+	}
+
+	newTemplates := []corev1.PersistentVolumeClaim{
+		{
+			ObjectMeta: metav1.ObjectMeta{Name: "node-conf"},
+			Spec:       storedPVCSpec,
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{Name: "redis-data"},
+			Spec:       newPVCSpec,
+		},
+	}
+	newStateful := storedStateful.DeepCopy()
+	newStateful.Spec.VolumeClaimTemplates = newTemplates
+
+	existingPVC := &corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "redis-data-0",
+			Namespace: "default",
+			Labels: map[string]string{
+				"app":                         "redis",
+				"app.kubernetes.io/component": "middleware",
+			},
+		},
+		Spec: storedPVCSpec,
+	}
+
+	cl := fake.NewSimpleClientset(existingPVC)
+
+	err := HandlePVCResizing(ctx, storedStateful, newStateful, cl)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	// Ensure no PVC update action occurred.
+	actions := cl.Actions()
+	for _, action := range actions {
+		if action.GetVerb() == "update" {
+			t.Errorf("Unexpected PVC update action: %#v", action)
+		}
+	}
+
+	// Annotation is updated to desired capacity even when shrinking is skipped.
+	expectedAnnotation := strconv.FormatInt(desiredQuantity.Value(), 10)
+	if storedStateful.Annotations["storageCapacity"] != expectedAnnotation {
+		t.Errorf("Expected annotation storageCapacity to be %s, got %s", expectedAnnotation, storedStateful.Annotations["storageCapacity"])
+	}
+
+	// PVC spec should remain unchanged.
+	updatedPVC, err := cl.CoreV1().PersistentVolumeClaims("default").Get(ctx, "redis-data-0", metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("Failed to get PVC: %v", err)
+	}
+	updatedCapacity := updatedPVC.Spec.Resources.Requests.Storage().Value()
+	if updatedCapacity != storedQuantity.Value() {
+		t.Errorf("Expected PVC capacity to remain %d, got %d", storedQuantity.Value(), updatedCapacity)
+	}
+}
+
 // TestHandlePVCResizing_UpdateFailure simulates a failure during PVC update and verifies that an error is returned.
 func TestHandlePVCResizing_UpdateFailure(t *testing.T) {
 	ctx := context.Background()
