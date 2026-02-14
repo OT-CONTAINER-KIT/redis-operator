@@ -80,7 +80,7 @@ rules:
   - configmaps
   - events
   - persistentvolumeclaims
-  - namespace
+  - namespaces
   verbs:
   - create
   - delete
