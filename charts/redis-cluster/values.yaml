@@ -40,7 +40,7 @@ redisCluster:
   enableMasterSlaveAntiAffinity: false
   leader:
     # -- Number of Redis leader (master) nodes. If not set, uses clusterSize value
-    replicas: 3
+    replicas: null
     serviceType: ClusterIP
     affinity: {}
       # nodeAffinity:
@@ -86,7 +86,7 @@ redisCluster:
     
   follower:
     # -- Number of Redis follower (slave) nodes. If not set, uses clusterSize value
-    replicas: 3
+    replicas: null
     serviceType: ClusterIP
     affinity: null
       # nodeAffinity:
