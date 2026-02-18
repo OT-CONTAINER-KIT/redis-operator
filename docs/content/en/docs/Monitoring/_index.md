@@ -46,7 +46,7 @@ Once the exporter is configured, we may have to update Prometheus to monitor thi
 
 ```yaml
 serviceMonitor:
-  enabled: false
+  enabled: true
   interval: 30s
   scrapeTimeout: 10s
   namespace: monitoring
