@@ -123,4 +123,51 @@ spec:
     minAvailable: {{ .Values.pdb.minAvailable }}
     maxUnavailable: {{ .Values.pdb.maxUnavailable }}
   {{- end }}
-  
+  {{- if .Values.sentinel.enabled }}
+  sentinel:
+    image: "{{ .Values.sentinel.image }}:{{ .Values.sentinel.tag }}"
+    imagePullPolicy: "{{ .Values.sentinel.imagePullPolicy }}"
+    size: {{ .Values.sentinel.size }}
+    {{- if .Values.sentinel.imagePullSecrets }}
+    imagePullSecrets: {{ toYaml .Values.sentinel.imagePullSecrets | nindent 4 }}
+    {{- end }}
+    {{- if and .Values.sentinel.redisSecret.secretName .Values.sentinel.redisSecret.secretKey }}
+    redisSecret:
+      name: {{ .Values.sentinel.redisSecret.secretName | quote }}
+      key: {{ .Values.sentinel.redisSecret.secretKey | quote }}
+    {{- end }}
+    {{- if .Values.sentinel.resources }}
+    resources: {{ toYaml .Values.sentinel.resources | nindent 6 }}
+    {{- end }}
+    {{- if .Values.sentinel.ignoreAnnotations }}
+    ignoreAnnotations: {{ toYaml .Values.sentinel.ignoreAnnotations | nindent 6 }}
+    {{- end }}
+    {{- if .Values.sentinel.minReadySeconds }}
+    minReadySeconds: {{ .Values.sentinel.minReadySeconds }}
+    {{- end }}
+    {{- if .Values.sentinel.persistentVolumeClaimRetentionPolicy }}
+    persistentVolumeClaimRetentionPolicy: {{ toYaml .Values.sentinel.persistentVolumeClaimRetentionPolicy | nindent 6 }}
+    {{- end }}
+    {{- if .Values.sentinel.quorum }}
+    quorum: {{ .Values.sentinel.quorum | quote }}
+    {{- end }}
+    {{- if .Values.sentinel.parallelSyncs }}
+    parallelSyncs: {{ .Values.sentinel.parallelSyncs | quote }}
+    {{- end }}
+    {{- if .Values.sentinel.failoverTimeout }}
+    failoverTimeout: {{ .Values.sentinel.failoverTimeout | quote }}
+    {{- end }}
+    {{- if .Values.sentinel.downAfterMilliseconds }}
+    downAfterMilliseconds: {{ .Values.sentinel.downAfterMilliseconds | quote }}
+    {{- end }}
+    {{- if .Values.sentinel.resolveHostnames }}
+    resolveHostnames: {{ .Values.sentinel.resolveHostnames | quote }}
+    {{- end }}
+    {{- if .Values.sentinel.announceHostnames }}
+    announceHostnames: {{ .Values.sentinel.announceHostnames | quote }}
+    {{- end }}
+    {{- if .Values.sentinel.additionalSentinelConfig }}
+    additionalSentinelConfig: {{ .Values.sentinel.additionalSentinelConfig | quote }}
+    {{- end }}
+  {{- end }}
+

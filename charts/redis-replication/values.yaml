@@ -199,3 +199,48 @@ pdb:
   enabled: false
   minAvailable: 1
   maxUnavailable: null
+
+# -- Sentinel configuration for automatic failover.
+# When enabled, the operator creates a Sentinel StatefulSet alongside the replication pods.
+# The operator queries Sentinel for the current master instead of forcing master-by-ordinal.
+sentinel:
+  enabled: false
+  image: quay.io/opstree/redis-sentinel
+  tag: v7.0.15
+  imagePullPolicy: IfNotPresent
+  size: 3
+  imagePullSecrets: []
+    # - name: Secret with Registry credentials
+  redisSecret:
+    secretName: ""
+    secretKey: ""
+  resources: {}
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ignoreAnnotations: []
+    # - "redis.opstreelabs.in/ignore"
+  minReadySeconds: 0
+  persistentVolumeClaimRetentionPolicy: {}
+    # whenDeleted: Delete
+    # whenScaled: Retain
+  # -- Number of Sentinels that must agree that master is unreachable for failover
+  quorum: "2"
+  # -- Number of replicas to reconfigure in parallel during failover
+  parallelSyncs: "1"
+  # -- Failover timeout in milliseconds
+  failoverTimeout: "10000"
+  # -- Time in milliseconds before master is considered down
+  downAfterMilliseconds: "5000"
+  # -- Use hostnames instead of IPs for Sentinel monitoring.
+  # WARNING: the operator does not pass RESOLVE_HOSTNAMES env var to sentinel pods,
+  # so setting this to "yes" will cause SENTINEL MONITOR to fail. Keep as "no".
+  resolveHostnames: "no"
+  # -- Whether Sentinel announces hostnames instead of IPs to clients
+  announceHostnames: "no"
+  # -- Additional raw sentinel.conf lines
+  # additionalSentinelConfig: |
+  #   sentinel auth-pass mymaster password123
