@@ -122,6 +122,12 @@ spec:
   {{- if .Values.env }}
   env: {{ toYaml .Values.env | nindent 4 }}
   {{- end }}
+  {{- if .Values.resolveHostnames }}
+  resolveHostnames: {{ .Values.resolveHostnames | quote }}
+  {{- end }}
+  {{- if .Values.announceHostnames }}
+  announceHostnames: {{ .Values.announceHostnames | quote }}
+  {{- end }}
   {{- if .Values.pdb.enabled }}
   pdb:
     enabled: {{ .Values.pdb.enabled }}

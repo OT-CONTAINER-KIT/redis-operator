@@ -30,7 +30,15 @@ type RedisReplicationSpec struct {
 	EnvVars                       *[]corev1.EnvVar                  `json:"env,omitempty"`
 	TopologySpreadConstrains      []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
 	HostPort                      *int                              `json:"hostPort,omitempty"`
-	Sentinel                      *Sentinel                         `json:"sentinel,omitempty"`
+	// ResolveHostnames enables resolving hostnames instead of using IP addresses. Set to "yes" to enable.
+	// Required when running with a service mesh (e.g. Istio) where pod IPs may not be routable.
+	// +kubebuilder:default:="no"
+	ResolveHostnames string `json:"resolveHostnames,omitempty"`
+	// AnnounceHostnames enables announcing hostnames (FQDN) instead of IP addresses. Set to "yes" to enable.
+	// When enabled, replica-announce-ip and sentinel announce-ip will use the pod's FQDN.
+	// +kubebuilder:default:="no"
+	AnnounceHostnames string    `json:"announceHostnames,omitempty"`
+	Sentinel          *Sentinel `json:"sentinel,omitempty"`
 	// PodManagementPolicy controls how pods are created during initial scale up,
 	// when replacing pods on nodes, or when scaling down. This field is immutable
 	// on an existing StatefulSet; changing it for a running cluster requires
