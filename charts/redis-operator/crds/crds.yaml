@@ -14351,6 +14351,12 @@ spec:
                         type: array
                     type: object
                 type: object
+              announceHostnames:
+                default: "no"
+                description: |-
+                  AnnounceHostnames enables announcing hostnames (FQDN) instead of IP addresses. Set to "yes" to enable.
+                  When enabled, replica-announce-ip and sentinel announce-ip will use the pod's FQDN.
+                type: string
               clusterSize:
                 format: int32
                 type: integer
@@ -15909,6 +15915,12 @@ spec:
                 required:
                 - image
                 type: object
+              resolveHostnames:
+                default: "no"
+                description: |-
+                  ResolveHostnames enables resolving hostnames instead of using IP addresses. Set to "yes" to enable.
+                  Required when running with a service mesh (e.g. Istio) where pod IPs may not be routable.
+                type: string
               securityContext:
                 description: |-
                   SecurityContext holds security configuration that will be applied to a container.

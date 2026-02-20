@@ -199,6 +199,12 @@ env: []
   # - name: VAR_NAME
   #   value: "value1"
 
+# -- Set to "yes" to resolve and announce hostnames instead of IPs.
+# Required when running with service mesh (e.g. Istio) where pod IPs may be loopback addresses.
+# When enabled, replica-announce-ip will use the pod's FQDN instead of its IP.
+resolveHostnames: ""
+announceHostnames: ""
+
 pdb:
   enabled: false
   minAvailable: 1
