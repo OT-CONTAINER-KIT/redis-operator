@@ -34,7 +34,7 @@ This operator only supports versions of Redis `>=6`.
 ## Architecture
 
 <div align="center">
-    <img src="./static/redis-operator-architecture.png">
+    <img src="./static/updated-redis-operator-architecture-using-meshery.jpg">
 </div>
 
 ## Purpose
