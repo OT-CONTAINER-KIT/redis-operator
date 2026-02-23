@@ -94,6 +94,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			// Before resharding, ensure all remaining leader pods (the transfer targets) are masters.
 			// After scale-out, a failover may have converted some leader pods to slaves, which causes
 			// reshard to fail with "The specified node is not known or not a master".
+			// We handle one failover per reconcile cycle and requeue — the loop will converge
+			// over successive reconciliations until all target pods are masters.
 			for i := int32(0); i < leaderReplicas; i++ {
 				if !(k8sutils.VerifyLeaderPod(ctx, r.K8sClient, instance, i)) {
 					logger.Info("Transfer target leader pod is not a master, initiating failover before scale-down", "Pod.Index", i)
@@ -254,7 +256,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				if leaderCount < leaderReplicas {
 					// Scale up the cluster
 					// Step 1 : Fix any open slots from previous interrupted operations
-					k8sutils.FixRedisCluster(ctx, r.K8sClient, instance)
+					if err := k8sutils.FixRedisCluster(ctx, r.K8sClient, instance); err != nil {
+						logger.Error(err, "Failed to fix redis cluster slots, proceeding with scale-up")
+					}
 					// Step 2 : Add Redis Node
 					k8sutils.AddRedisNodeToCluster(ctx, r.K8sClient, instance)
 					monitoring.RedisClusterAddingNodeAttempt.WithLabelValues(instance.Namespace, instance.Name).Inc()

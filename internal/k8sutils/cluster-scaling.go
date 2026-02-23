@@ -345,7 +345,7 @@ func getRedisNodeID(ctx context.Context, client kubernetes.Interface, cr *rcvb2.
 // FixRedisCluster runs `redis-cli --cluster fix` to resolve any open/stuck slots
 // (e.g., slots left in migrating/importing state from a previous interrupted rebalance).
 // This must be called before add-node or rebalance when the cluster may have open slots.
-func FixRedisCluster(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) {
+func FixRedisCluster(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) error {
 	pod := RedisDetails{
 		PodName:   cr.Name + "-leader-0",
 		Namespace: cr.Namespace,
@@ -360,9 +360,11 @@ func FixRedisCluster(ctx context.Context, client kubernetes.Interface, cr *rcvb2
 		cmd = append(cmd, "-a")
 		cmd = append(cmd, pass)
 	}
+	cmd = append(cmd, "--cluster-yes")
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.Name+"-leader-0")...)
 
-	executeCommand(ctx, client, cr, cmd, cr.Name+"-leader-0")
+	_, err := executeCommand1(ctx, client, cr, cmd, cr.Name+"-leader-0")
+	return err
 }
 
 // Rebalance the Redis CLuster using the Empty Master Nodes
