@@ -9,6 +9,7 @@ redisStandalone:
   redisSecret:
     secretName: ""
     secretKey: ""
+  # serviceType must be one of: ClusterIP, NodePort, LoadBalancer
   serviceType: ClusterIP
   resources: {}
     # requests:
