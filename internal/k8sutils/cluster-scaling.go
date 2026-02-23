@@ -342,6 +342,29 @@ func getRedisNodeID(ctx context.Context, client kubernetes.Interface, cr *rcvb2.
 	return output
 }
 
+// FixRedisCluster runs `redis-cli --cluster fix` to resolve any open/stuck slots
+// (e.g., slots left in migrating/importing state from a previous interrupted rebalance).
+// This must be called before add-node or rebalance when the cluster may have open slots.
+func FixRedisCluster(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) {
+	pod := RedisDetails{
+		PodName:   cr.Name + "-leader-0",
+		Namespace: cr.Namespace,
+	}
+	cmd := []string{"redis-cli", "--cluster", "fix"}
+	cmd = append(cmd, getEndpoint(ctx, client, cr, pod))
+	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
+		pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+		if err != nil {
+			log.FromContext(ctx).Error(err, "Error in getting redis password")
+		}
+		cmd = append(cmd, "-a")
+		cmd = append(cmd, pass)
+	}
+	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.Name+"-leader-0")...)
+
+	executeCommand(ctx, client, cr, cmd, cr.Name+"-leader-0")
+}
+
 // Rebalance the Redis CLuster using the Empty Master Nodes
 func RebalanceRedisClusterEmptyMasters(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) {
 	if err := waitForClusterNoOpenSlots(ctx, client, cr, 2*time.Minute); err != nil {
