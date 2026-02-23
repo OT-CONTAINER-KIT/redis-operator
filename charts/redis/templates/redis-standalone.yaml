@@ -16,6 +16,10 @@ spec:
     {{- if .Values.redisStandalone.imagePullSecrets }}
     imagePullSecrets: {{ toYaml .Values.redisStandalone.imagePullSecrets | nindent 4 }}
     {{- end }}
+    {{- if .Values.redisStandalone.serviceType }}
+    service:
+      serviceType: {{ .Values.redisStandalone.serviceType }}
+    {{- end }}
     {{- if .Values.redisStandalone.resources}}
     resources: {{ toYaml .Values.redisStandalone.resources | nindent 6 }}
     {{- end }}
