@@ -698,4 +698,3 @@ _Appears in:_
 | `key` _string_ |  |  |  |
 | `secret` _[SecretVolumeSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#secretvolumesource-v1-core)_ | Reference to secret which contains the certificates |  |  |
 
-
