@@ -3220,7 +3220,7 @@ spec:
                   type: object
                 type: array
               storage:
-                description: Storage is the inteface to add pvc and pv support in
+                description: Storage is the interface to add pvc and pv support in
                   redis
                 properties:
                   keepAfterDelete:
@@ -16760,7 +16760,7 @@ spec:
                   type: object
                 type: array
               storage:
-                description: Storage is the inteface to add pvc and pv support in
+                description: Storage is the interface to add pvc and pv support in
                   redis
                 properties:
                   keepAfterDelete:
