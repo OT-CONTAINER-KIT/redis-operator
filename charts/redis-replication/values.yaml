@@ -209,11 +209,6 @@ sentinel:
   tag: v7.0.15
   imagePullPolicy: IfNotPresent
   size: 3
-  imagePullSecrets: []
-    # - name: Secret with Registry credentials
-  redisSecret:
-    secretName: ""
-    secretKey: ""
   resources: {}
     # requests:
     #   cpu: 100m
@@ -227,8 +222,6 @@ sentinel:
   persistentVolumeClaimRetentionPolicy: {}
     # whenDeleted: Delete
     # whenScaled: Retain
-  # -- Number of Sentinels that must agree that master is unreachable for failover
-  quorum: "2"
   # -- Number of replicas to reconfigure in parallel during failover
   parallelSyncs: "1"
   # -- Failover timeout in milliseconds
