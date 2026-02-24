@@ -21,7 +21,7 @@ description: >
 
 For development and testing of operator on local system, we need to set up a [Minikube](https://minikube.sigs.k8s.io/docs/start/) or local Kubernetes cluster.
 
-Minikube is a single node Kubernetes cluster that generally gets used for the development and testing on Kubernetes. For creating a Minkube cluster we need to simply run:
+Minikube is a single node Kubernetes cluster that generally gets used for the development and testing on Kubernetes. For creating a Minikube cluster we need to simply run:
 
 ```shell
 $ minikube start --vm-driver virtualbox
