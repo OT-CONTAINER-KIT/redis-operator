@@ -4,4 +4,5 @@ resources:
 - redis_v1beta2_rediscluster.yaml
 - redis_v1beta2_redisreplication.yaml
 - redis_v1beta2_redissentinel.yaml
+- redis_v1alpha1_redisbackup.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples
