@@ -1,0 +1,88 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.17.2
+  name: redisbackups.redis.redis.opstreelabs.in
+spec:
+  group: redis.redis.opstreelabs.in
+  names:
+    kind: RedisBackup
+    listKind: RedisBackupList
+    plural: redisbackups
+    singular: redisbackup
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: RedisBackup is the Schema for the redisbackups API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: RedisBackupSpec defines the desired state of RedisBackup
+            properties:
+              redisClusterName:
+                description: RedisClusterName is the exact name of the target Redis
+                  cluster you want to backup.
+                minLength: 1
+                type: string
+              s3Bucket:
+                description: S3Bucket specifies the name of the destination AWS S3
+                  bucket.
+                type: string
+              secretName:
+                description: |-
+                  SecretName points to a Kubernetes Secret that holds the AWS Access Keys
+                  so your operator can securely upload the .rdb file.
+                type: string
+              storageType:
+                description: StorageType forces the user to choose only 's3' or 'gcs'.
+                enum:
+                - s3
+                - gcs
+                type: string
+            required:
+            - redisClusterName
+            - s3Bucket
+            - secretName
+            - storageType
+            type: object
+          status:
+            description: RedisBackupStatus defines the observed state of RedisBackup
+            properties:
+              lastBackupTime:
+                description: LastBackupTime records a timestamp of when the snapshot
+                  was successfully uploaded.
+                type: string
+              phase:
+                description: Phase tracks the real-time status of the backup operation.
+                enum:
+                - Pending
+                - InProgress
+                - Completed
+                - Failed
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
