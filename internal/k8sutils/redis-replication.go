@@ -8,6 +8,7 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util/maps"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -148,7 +149,16 @@ func generateRedisReplicationContainerParams(cr *rrvb2.RedisReplication) contain
 	if cr.Spec.RedisConfig != nil {
 		containerProp.MaxMemoryPercentOfLimit = cr.Spec.RedisConfig.MaxMemoryPercentOfLimit
 	}
-	if cr.Spec.EnvVars != nil {
+	if cr.Spec.Sentinel != nil && cr.Spec.Sentinel.AnnounceHostnames == "yes" {
+		announceEnv := corev1.EnvVar{Name: "ANNOUNCE_HOSTNAME", Value: "yes"}
+		if cr.Spec.EnvVars != nil {
+			envs := append(*cr.Spec.EnvVars, announceEnv)
+			containerProp.EnvVars = &envs
+		} else {
+			envs := []corev1.EnvVar{announceEnv}
+			containerProp.EnvVars = &envs
+		}
+	} else if cr.Spec.EnvVars != nil {
 		containerProp.EnvVars = cr.Spec.EnvVars
 	}
 	if cr.Spec.Storage != nil {

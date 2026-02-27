@@ -91,6 +91,15 @@ func GenerateConfig() error {
 				cfg.Append("cluster-announce-hostname", fqdnName)
 			}
 		}
+	} else if clusterMode == "replication" {
+		if util.CoalesceEnv1("ANNOUNCE_HOSTNAME", "no") == "yes" {
+			fqdnName, err := fqdn.FqdnHostname()
+			if err != nil {
+				log.Printf("Warning: Failed to get FQDN: %v", err)
+			} else {
+				cfg.Append("replica-announce-ip", fqdnName)
+			}
+		}
 	} else {
 		fmt.Println("Setting up redis in standalone mode")
 	}
