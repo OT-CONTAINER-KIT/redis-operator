@@ -8,7 +8,7 @@ metadata:
 spec:
   clusterSize: 3
   kubernetesConfig:
-    image: quay.io/opstree/redis:v7.0.12
+    image: quay.io/opstree/redis:latest
     imagePullPolicy: IfNotPresent
   podSecurityContext:
     runAsUser: 1000
@@ -23,5 +23,5 @@ spec:
             storage: 1Gi
   redisExporter:
     enabled: false
-    image: quay.io/opstree/redis-exporter:v1.44.0
+    image: quay.io/opstree/redis-exporter:latest
   priorityClassName: system-cluster-critical

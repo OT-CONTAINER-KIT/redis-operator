@@ -2,7 +2,7 @@
 apiVersion: redis.redis.opstreelabs.in/v1beta2
 kind: RedisCluster
 metadata:
-  name: redis-cluster-v1beta2
+  name: redis-cluster-acl-pvc
 status:
   readyFollowerReplicas: 3
   readyLeaderReplicas: 3

@@ -10,6 +10,7 @@ redisCluster:
   imagePullPolicy: IfNotPresent
   imagePullSecrets: {}
     # - name:  Secret with Registry credentials
+  serviceType: ClusterIP
   redisSecret:
     secretName: ""
     secretKey: ""
@@ -22,11 +23,16 @@ redisCluster:
     #   memory: 128Mi
   minReadySeconds: 0
   # -- Some fields of statefulset are immutable, such as volumeClaimTemplates.
-  # When set to true, the operator will delete the statefulset and recreate it. Default is false.
+  #    When set to true, the operator will delete the statefulset and recreate it. 
+  #    Default is false.
   recreateStatefulSetOnUpdateInvalid: false
+  # -- MaxMemoryPercentOfLimit is the percentage of redis container memory limit to be used as maxmemory. 
+  #    Default is 0 (disabled).
+  maxMemoryPercentOfLimit: 0
   # -- Enable pod anti-affinity between leader and follower pods by adding the appropriate label.
-  # Notice that this requires the operator to have its mutating webhook enabled,
-  # otherwise it will only add an annotation to the RedisCluster CR. Default is false.
+  #    Notice that this requires the operator to have its mutating webhook enabled,
+  #    otherwise it will only add an annotation to the RedisCluster CR. 
+  #    Default is false.
   enableMasterSlaveAntiAffinity: false
   leader:
     # -- Number of Redis leader (master) nodes. If not set, uses clusterSize value
@@ -127,7 +133,8 @@ serviceMonitor:
   enabled: false
   interval: 30s
   scrapeTimeout: 10s
-  namespace: monitoring
+  # -- Namespace where servicemonitor resource will be created, if empty it will be created in the same namespace as the redis-cluster
+  namespace: ""
   # -- extraLabels are added to the servicemonitor when enabled set to true
   extraLabels: {}
     # foo: bar
@@ -150,20 +157,24 @@ redisExporter:
     #   value: "value1"
   securityContext: {}
 
-sidecars:
-  name: ""
-  image: ""
-  imagePullPolicy: "IfNotPresent"
-  resources:
-    limits:
-      cpu: "100m"
-      memory: "128Mi"
-    requests:
-      cpu: "50m"
-      memory: "64Mi"
-  env: {}
-    # - name: MY_ENV_VAR
-    #   value: "my-env-var-value"
+sidecars: []
+  # - name: "sidecar-example"
+  #   image: "busybox:latest"
+  #   imagePullPolicy: "IfNotPresent"
+  #   resources:
+  #     limits:
+  #       cpu: "100m"
+  #       memory: "128Mi"
+  #     requests:
+  #       cpu: "50m"
+  #       memory: "64Mi"
+  #   env: []
+  #   # - name: MY_ENV_VAR
+  #   #   value: "my-env-var-value"
+  #   command: []
+  #   # - "/bin/sh"
+  #   # - "-c"
+  #   # - "sleep 3600"
 
 initContainer:
   enabled: false
@@ -214,8 +225,12 @@ TLS:
     secretName: ""
 
 acl:
+  # Configure ACL from Kubernetes Secret
   secret:
     secretName: ""
+  # Configure ACL from PersistentVolumeClaim
+  # The PVC must contain a file named "user.acl" at root level
+  # persistentVolumeClaim: "redis-acl-pvc"
 
 env: []
   # - name: VAR_NAME

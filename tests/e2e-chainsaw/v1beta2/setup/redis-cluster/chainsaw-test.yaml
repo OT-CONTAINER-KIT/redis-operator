@@ -13,6 +13,8 @@ spec:
             file: secret.yaml
         - apply:
             file: ../../../../data-assert/resources.yaml
+        - apply:
+            file: ../../../../testdata/additional-config.yaml
         - script:
             timeout: 10s
             content: |
@@ -52,7 +54,7 @@ spec:
         - assert:
             file: secret.yaml
 
-    - name: Random Check Dynamic Config
+    - name: Assert config
       try:
         - script:
             timeout: 30s
@@ -68,19 +70,29 @@ spec:
 
               # Check leader configuration
               LEADER_CMD="kubectl exec -n ${NAMESPACE} redis-cluster-v1beta2-leader-${LEADER_INDEX}"
-              LEADER_CMD="${LEADER_CMD} -c redis-cluster-v1beta2-leader -- redis-cli -a Opstree1234 --tls --cacert /tls/ca.crt"
+              LEADER_CMD="${LEADER_CMD} -c redis-cluster-v1beta2-leader -- redis-cli --no-auth-warning -a Opstree1234 --tls --cacert /tls/ca.crt"
               SLOWLOG_VALUE=$(${LEADER_CMD} config get slowlog-log-slower-than | grep -A1 "slowlog-log-slower-than" | tail -n1)
+              TCP_KEEPALIVE_VALUE=$(${LEADER_CMD} config get tcp-keepalive | grep -A1 "tcp-keepalive" | tail -n1)
               if [ "$SLOWLOG_VALUE" != "5000" ]; then
                 echo "leader-${LEADER_INDEX} slowlog-log-slower-than value is $SLOWLOG_VALUE, expected 5000"
+                exit 1
+              fi
+              if [ "$TCP_KEEPALIVE_VALUE" != "400" ]; then
+                echo "leader-${LEADER_INDEX} tcp-keepalive value is $TCP_KEEPALIVE_VALUE, expected 400"
                 exit 1
               fi
 
               # Check follower configuration
               FOLLOWER_CMD="kubectl exec -n ${NAMESPACE} redis-cluster-v1beta2-follower-${FOLLOWER_INDEX}"
-              FOLLOWER_CMD="${FOLLOWER_CMD} -c redis-cluster-v1beta2-follower -- redis-cli -a Opstree1234 --tls --cacert /tls/ca.crt"
+              FOLLOWER_CMD="${FOLLOWER_CMD} -c redis-cluster-v1beta2-follower -- redis-cli --no-auth-warning -a Opstree1234 --tls --cacert /tls/ca.crt"
               SLOWLOG_VALUE=$(${FOLLOWER_CMD} config get slowlog-log-slower-than | grep -A1 "slowlog-log-slower-than" | tail -n1)
+              TCP_KEEPALIVE_VALUE=$(${FOLLOWER_CMD} config get tcp-keepalive | grep -A1 "tcp-keepalive" | tail -n1)
               if [ "$SLOWLOG_VALUE" != "5000" ]; then
                 echo "follower-${FOLLOWER_INDEX} slowlog-log-slower-than value is $SLOWLOG_VALUE, expected 5000"
+                exit 1
+              fi
+              if [ "$TCP_KEEPALIVE_VALUE" != "400" ]; then
+                echo "follower-${LEADER_INDEX} tcp-keepalive value is $TCP_KEEPALIVE_VALUE, expected 400"
                 exit 1
               fi
 

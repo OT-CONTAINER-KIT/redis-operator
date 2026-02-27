@@ -17,16 +17,23 @@ spec:
   clusterVersion: {{ .Values.redisCluster.clusterVersion }}
   redisLeader: {{- include "redis.role" .Values.redisCluster.leader | nindent 4 }}
     replicas: {{ .Values.redisCluster.leader.replicas }}
-  {{- if .Values.externalConfig.enabled }}
+    {{- if .Values.externalConfig.enabled }}
     redisConfig:
       additionalRedisConfig: "{{ .Values.redisCluster.name | default .Release.Name }}-ext-config"
-  {{- end }}
+    {{- end }}
   
   redisFollower: {{-  include "redis.role" .Values.redisCluster.follower | nindent 4 }}
     replicas: {{ .Values.redisCluster.follower.replicas }}
-  {{- if .Values.externalConfig.enabled }}
+    {{- if .Values.externalConfig.enabled }}
     redisConfig:
       additionalRedisConfig: "{{ .Values.redisCluster.name | default .Release.Name }}-ext-config"
+    {{- end }}
+  
+  {{- if .Values.redisCluster.maxMemoryPercentOfLimit }}
+  {{- if gt (int .Values.redisCluster.maxMemoryPercentOfLimit) 0 }}
+  redisConfig:
+    maxMemoryPercentOfLimit: {{ .Values.redisCluster.maxMemoryPercentOfLimit }}
+  {{- end }}
   {{- end }}
 
   redisExporter:
@@ -48,6 +55,10 @@ spec:
     imagePullPolicy: "{{ .Values.redisCluster.imagePullPolicy }}"
     {{- if .Values.redisCluster.imagePullSecrets}}
     imagePullSecrets: {{ toYaml .Values.redisCluster.imagePullSecrets | nindent 4 }}
+    {{- end }}
+    {{- if .Values.redisCluster.serviceType }}
+    service:
+      serviceType: {{ .Values.redisCluster.serviceType }}
     {{- end }}
     {{- if .Values.redisCluster.resources}}
     resources: {{ toYaml .Values.redisCluster.resources | nindent 6 }}
@@ -78,13 +89,18 @@ spec:
     secret:
       secretName: {{ .Values.TLS.secret.secretName | quote }}
   {{- end }}
-  {{- if and .Values.acl.secret (ne .Values.acl.secret.secretName "") }}
+  {{- if or (and .Values.acl.secret (ne .Values.acl.secret.secretName "")) .Values.acl.persistentVolumeClaim }}
   acl:
+    {{- if and .Values.acl.secret (ne .Values.acl.secret.secretName "") }}
     secret:
       secretName: {{ .Values.acl.secret.secretName | quote }}
+    {{- end }}
+    {{- if .Values.acl.persistentVolumeClaim }}
+    persistentVolumeClaim: {{ .Values.acl.persistentVolumeClaim | quote }}
+    {{- end }}
   {{- end }}
-  {{- if and .Values.sidecars (ne .Values.sidecars.name "") (ne .Values.sidecars.image "") }}
-  sidecars: {{ include "sidecar.properties" . | nindent 4 }}
+  {{- if .Values.sidecars }}
+  sidecars: {{ toYaml .Values.sidecars | nindent 4 }}
   {{- end }}
   {{- if and .Values.initContainer .Values.initContainer.enabled (ne .Values.initContainer.image "") }}
   initContainer: {{ include "initContainer.properties" . | nindent 4 }}

@@ -4,6 +4,10 @@ kind: RedisReplication
 metadata:
   name: redis-replication
 spec:
+  sentinel:
+    size: 3
+    image: quay.io/opstree/redis-sentinel:latest
+    imagePullPolicy: Always
   clusterSize: 3
   redisConfig:
     maxMemoryPercentOfLimit: 80
@@ -22,6 +26,7 @@ spec:
         memory: 128Mi
     redisSecret:
       name: redis-secret
+      # Opstree1234
       key: password
   storage:
     volumeClaimTemplate:

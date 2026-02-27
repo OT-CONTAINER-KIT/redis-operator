@@ -109,8 +109,8 @@ spec:
   {{- if and .Values.initContainer .Values.initContainer.enabled (ne .Values.initContainer.image "") }}
   initContainer: {{ include "initContainer.properties" . | nindent 4 }}
   {{- end }}
-  {{- if and .Values.sidecars (ne .Values.sidecars.name "") (ne .Values.sidecars.image "") }}
-  sidecars: {{ include "sidecar.properties" . | nindent 4 }}
+  {{- if .Values.sidecars }}
+  sidecars: {{ toYaml .Values.sidecars | nindent 4 }}
   {{- end }}
   {{- if and .Values.serviceAccountName (ne .Values.serviceAccountName "") }}
   serviceAccountName: "{{ .Values.serviceAccountName }}"

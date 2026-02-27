@@ -1,19 +1,11 @@
 ---
 apiVersion: redis.redis.opstreelabs.in/v1beta2
-kind: RedisCluster
+kind: Redis
 metadata:
-  name: redis-cluster-v1beta2
+  name: redis-standalone-acl-pvc
 spec:
-  clusterSize: 3
-  clusterVersion: v6
-  persistenceEnabled: true
-  podSecurityContext:
-    runAsUser: 1000
-    fsGroup: 1000
   kubernetesConfig:
-    service:
-      serviceType: NodePort
-    image: quay.io/opstree/redis:v6.2.14
+    image: quay.io/opstree/redis:latest
     imagePullPolicy: Always
     resources:
       requests:
@@ -22,6 +14,12 @@ spec:
       limits:
         cpu: 101m
         memory: 128Mi
+  # ACL configuration from PVC
+  acl:
+    persistentVolumeClaim: redis-standalone-acl-pvc
+  podSecurityContext:
+    runAsUser: 1000
+    fsGroup: 1000
   redisExporter:
     enabled: true
     image: quay.io/opstree/redis-exporter:v1.44.0
@@ -37,13 +35,6 @@ spec:
     volumeClaimTemplate:
       spec:
         # storageClassName: standard
-        accessModes: [ReadWriteOnce]
-        resources:
-          requests:
-            storage: 1Gi
-    nodeConfVolume: true
-    nodeConfVolumeClaimTemplate:
-      spec:
         accessModes: [ReadWriteOnce]
         resources:
           requests:

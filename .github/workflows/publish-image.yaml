@@ -39,11 +39,13 @@ jobs:
         with:
           context: .
           file: Dockerfile
+          platforms: linux/amd64,linux/arm64
           push: true
+          build-args: |
+            IMG=${{ env.REGISTRY }}/${{ env.REPOSITORY }}/redis-operator:${{ env.TAG }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.REPOSITORY }}/redis-operator:${{ env.TAG }}
             ${{ env.REGISTRY }}/${{ env.REPOSITORY }}/redis-operator:latest
-          platforms: linux/amd64,linux/arm64
 
   release-quay-image:
     runs-on: ubuntu-latest
@@ -76,36 +78,8 @@ jobs:
           file: Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
+          build-args: |
+            IMG=${{ env.QuayImageName }}:${{ env.TAG }}
           tags: |
             ${{ env.QuayImageName }}:${{ env.TAG }}
             ${{ env.QuayImageName }}:latest
-
-#   trivy_scan:
-#     needs: [release_image]
-#     runs-on: ubuntu-latest
-#     steps:
-#     - name: Checkout
-#       uses: actions/checkout@v2
-#     - name: Run Trivy vulnerability scanner for arm64 image
-#       uses: aquasecurity/trivy-action@master
-
-#     - name: Run Trivy vulnerability scanner for multi-arch image
-#       uses: aquasecurity/trivy-action@master
-#       with:
-#         image-ref: ${{ env.QuayImageName }}:${{ env.APP_VERSION }}
-#         format: 'template'
-#         template: '@/contrib/sarif.tpl'
-#         output: 'trivy-results-latest.sarif'
-#         exit-code: '1'
-#         ignore-unfixed: true
-#         severity: 'CRITICAL,HIGH'
-#     - name: Run Trivy vulnerability scanner for latest image
-#       uses: aquasecurity/trivy-action@master
-#       with:
-#         image-ref:  ${{ env.QuayImageName }}:latest
-#         format: 'template'
-#         template: '@/contrib/sarif.tpl'
-#         output: 'trivy-results-latest.sarif'
-#         exit-code: '1'
-#         ignore-unfixed: true
-#         severity: 'CRITICAL,HIGH'

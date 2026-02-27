@@ -113,10 +113,16 @@ spec:
                 type: object
               acl:
                 properties:
+                  persistentVolumeClaim:
+                    description: |-
+                      PersistentVolumeClaim-based ACL configuration
+                      Specify the PVC name to mount ACL file from persistent storage
+                      The operator will automatically mount /etc/redis/user.acl from the PVC
+                    type: string
                   secret:
                     description: |-
-                      Adapts a Secret into a volume.
-
+                      Secret-based ACL configuration.
+                      Adapts a Secret into a volume containing ACL rules.
                       The contents of the target Secret's Data field will be presented in a volume
                       as files using the keys in the Data field as the file names.
                       Secret volumes support ownership management and SELinux relabeling.
@@ -5533,10 +5539,16 @@ spec:
                 type: object
               acl:
                 properties:
+                  persistentVolumeClaim:
+                    description: |-
+                      PersistentVolumeClaim-based ACL configuration
+                      Specify the PVC name to mount ACL file from persistent storage
+                      The operator will automatically mount /etc/redis/user.acl from the PVC
+                    type: string
                   secret:
                     description: |-
-                      Adapts a Secret into a volume.
-
+                      Secret-based ACL configuration.
+                      Adapts a Secret into a volume containing ACL rules.
                       The contents of the target Secret's Data field will be presented in a volume
                       as files using the keys in the Data field as the file names.
                       Secret volumes support ownership management and SELinux relabeling.
@@ -13373,10 +13385,16 @@ spec:
                 type: object
               acl:
                 properties:
+                  persistentVolumeClaim:
+                    description: |-
+                      PersistentVolumeClaim-based ACL configuration
+                      Specify the PVC name to mount ACL file from persistent storage
+                      The operator will automatically mount /etc/redis/user.acl from the PVC
+                    type: string
                   secret:
                     description: |-
-                      Adapts a Secret into a volume.
-
+                      Secret-based ACL configuration.
+                      Adapts a Secret into a volume containing ACL rules.
                       The contents of the target Secret's Data field will be presented in a volume
                       as files using the keys in the Data field as the file names.
                       Secret volumes support ownership management and SELinux relabeling.
@@ -16049,6 +16067,252 @@ spec:
                           PodSecurityContext, the value specified in SecurityContext takes precedence.
                         type: string
                     type: object
+                type: object
+              sentinel:
+                properties:
+                  additionalSentinelConfig:
+                    type: string
+                  announceHostnames:
+                    default: "no"
+                    type: string
+                  downAfterMilliseconds:
+                    default: "5000"
+                    type: string
+                  failoverTimeout:
+                    default: "10000"
+                    type: string
+                  ignoreAnnotations:
+                    items:
+                      type: string
+                    type: array
+                  image:
+                    type: string
+                  imagePullPolicy:
+                    description: PullPolicy describes a policy for if/when to pull
+                      a container image
+                    type: string
+                  imagePullSecrets:
+                    items:
+                      description: |-
+                        LocalObjectReference contains enough information to let you locate the
+                        referenced object inside the same namespace.
+                      properties:
+                        name:
+                          description: |-
+                            Name of the referent.
+                            More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                          type: string
+                      type: object
+                      x-kubernetes-map-type: atomic
+                    type: array
+                  minReadySeconds:
+                    format: int32
+                    type: integer
+                  parallelSyncs:
+                    default: "1"
+                    type: string
+                  persistentVolumeClaimRetentionPolicy:
+                    description: |-
+                      StatefulSetPersistentVolumeClaimRetentionPolicy describes the policy used for PVCs
+                      created from the StatefulSet VolumeClaimTemplates.
+                    properties:
+                      whenDeleted:
+                        description: |-
+                          WhenDeleted specifies what happens to PVCs created from StatefulSet
+                          VolumeClaimTemplates when the StatefulSet is deleted. The default policy
+                          of `Retain` causes PVCs to not be affected by StatefulSet deletion. The
+                          `Delete` policy causes those PVCs to be deleted.
+                        type: string
+                      whenScaled:
+                        description: |-
+                          WhenScaled specifies what happens to PVCs created from StatefulSet
+                          VolumeClaimTemplates when the StatefulSet is scaled down. The default
+                          policy of `Retain` causes PVCs to not be affected by a scaledown. The
+                          `Delete` policy causes the associated PVCs for any excess pods above
+                          the replica count to be deleted.
+                        type: string
+                    type: object
+                  quorum:
+                    default: "2"
+                    type: string
+                  redisSecret:
+                    description: ExistingPasswordSecret is the struct to access the
+                      existing secret
+                    properties:
+                      key:
+                        type: string
+                      name:
+                        type: string
+                    type: object
+                  resolveHostnames:
+                    default: "no"
+                    type: string
+                  resources:
+                    description: ResourceRequirements describes the compute resource
+                      requirements.
+                    properties:
+                      claims:
+                        description: |-
+                          Claims lists the names of resources, defined in spec.resourceClaims,
+                          that are used by this container.
+
+                          This is an alpha field and requires enabling the
+                          DynamicResourceAllocation feature gate.
+
+                          This field is immutable. It can only be set for containers.
+                        items:
+                          description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                          properties:
+                            name:
+                              description: |-
+                                Name must match the name of one entry in pod.spec.resourceClaims of
+                                the Pod where this field is used. It makes that resource available
+                                inside a container.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - name
+                        x-kubernetes-list-type: map
+                      limits:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: |-
+                          Limits describes the maximum amount of compute resources allowed.
+                          More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                        type: object
+                      requests:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: |-
+                          Requests describes the minimum amount of compute resources required.
+                          If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
+                          otherwise to an implementation-defined value. Requests cannot exceed Limits.
+                          More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                        type: object
+                    type: object
+                  service:
+                    description: ServiceConfig define the type of service to be created
+                      and its annotations
+                    properties:
+                      additional:
+                        description: Additional config for which suffix is -additional
+                          service
+                        properties:
+                          additionalAnnotations:
+                            additionalProperties:
+                              type: string
+                            type: object
+                          enabled:
+                            default: true
+                            type: boolean
+                          includeBusPort:
+                            description: |-
+                              IncludeBusPort when set to true, it will add bus port to the service, such as 16379.
+                              This field is only used for Redis cluster mode.
+                            type: boolean
+                          type:
+                            default: ClusterIP
+                            enum:
+                            - LoadBalancer
+                            - NodePort
+                            - ClusterIP
+                            type: string
+                        type: object
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      headless:
+                        description: Headless config for which suffix is -headless
+                          service
+                        properties:
+                          additionalAnnotations:
+                            additionalProperties:
+                              type: string
+                            type: object
+                          enabled:
+                            default: true
+                            type: boolean
+                          includeBusPort:
+                            description: |-
+                              IncludeBusPort when set to true, it will add bus port to the service, such as 16379.
+                              This field is only used for Redis cluster mode.
+                            type: boolean
+                          type:
+                            default: ClusterIP
+                            enum:
+                            - LoadBalancer
+                            - NodePort
+                            - ClusterIP
+                            type: string
+                        type: object
+                      includeBusPort:
+                        description: |-
+                          IncludeBusPort when set to true, it will add bus port to the service, such as 16379.
+                          This field is only used for Redis cluster mode.
+                        type: boolean
+                      serviceType:
+                        enum:
+                        - LoadBalancer
+                        - NodePort
+                        - ClusterIP
+                        type: string
+                    type: object
+                  size:
+                    format: int32
+                    type: integer
+                  updateStrategy:
+                    description: |-
+                      StatefulSetUpdateStrategy indicates the strategy that the StatefulSet
+                      controller will use to perform updates. It includes any additional parameters
+                      necessary to perform the update for the indicated strategy.
+                    properties:
+                      rollingUpdate:
+                        description: RollingUpdate is used to communicate parameters
+                          when Type is RollingUpdateStatefulSetStrategyType.
+                        properties:
+                          maxUnavailable:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: |-
+                              The maximum number of pods that can be unavailable during the update.
+                              Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%).
+                              Absolute number is calculated from percentage by rounding up. This can not be 0.
+                              Defaults to 1. This field is alpha-level and is only honored by servers that enable the
+                              MaxUnavailableStatefulSet feature. The field applies to all pods in the range 0 to
+                              Replicas-1. That means if there is any unavailable pod in the range 0 to Replicas-1, it
+                              will be counted towards MaxUnavailable.
+                            x-kubernetes-int-or-string: true
+                          partition:
+                            description: |-
+                              Partition indicates the ordinal at which the StatefulSet should be partitioned
+                              for updates. During a rolling update, all pods from ordinal Replicas-1 to
+                              Partition are updated. All pods from ordinal Partition-1 to 0 remain untouched.
+                              This is helpful in being able to do a canary based deployment. The default value is 0.
+                            format: int32
+                            type: integer
+                        type: object
+                      type:
+                        description: |-
+                          Type indicates the type of the StatefulSetUpdateStrategy.
+                          Default is RollingUpdate.
+                        type: string
+                    type: object
+                required:
+                - image
+                - size
                 type: object
               serviceAccountName:
                 type: string
@@ -18834,6 +19098,21 @@ spec:
           status:
             description: RedisStatus defines the observed state of Redis
             properties:
+              connectionInfo:
+                description: ConnectionInfo provides connection details for clients
+                  to connect to Redis
+                properties:
+                  host:
+                    description: Host is the service FQDN
+                    type: string
+                  masterName:
+                    description: MasterName is the Sentinel master group name, only
+                      set when Sentinel mode is enabled
+                    type: string
+                  port:
+                    description: Port is the service port
+                    type: integer
+                type: object
               masterNode:
                 type: string
             type: object
@@ -21394,10 +21673,10 @@ spec:
                     default: "no"
                     type: string
                   downAfterMilliseconds:
-                    default: "30000"
+                    default: "5000"
                     type: string
                   failoverTimeout:
-                    default: "180000"
+                    default: "10000"
                     type: string
                   masterGroupName:
                     default: myMaster

@@ -1,17 +1,42 @@
-{{ if .Values.redisOperator.webhook }}
-
+{{- if .Values.redisOperator.webhook }}
+{{- $caCert := "" }}
+{{- $tlsCert := "" }}
+{{- $tlsKey := "" }}
+{{- if not .Values.certmanager.enabled }}
+  {{- $secretName := .Values.certificate.secretName }}
+  {{- $secret := lookup "v1" "Secret" .Release.Namespace $secretName }}
+  {{- $cn := printf "%s.%s.svc" .Values.service.name .Release.Namespace }}
+  {{- $altNames := list $cn (printf "%s.%s.svc.cluster.local" .Values.service.name .Release.Namespace) }}
+  {{- if $secret }}
+    {{- $caCert = index $secret.data "ca.crt" | b64dec }}
+    {{- $tlsCert = index $secret.data "tls.crt" | b64dec }}
+    {{- $tlsKey = index $secret.data "tls.key" | b64dec }}
+  {{- else }}
+    {{- $ca := genCA "webhook-ca" 365 }}
+    {{- $cert := genSignedCert $cn nil $altNames 365 $ca }}
+    {{- $caCert = $ca.Cert }}
+    {{- $tlsCert = $cert.Cert }}
+    {{- $tlsKey = $cert.Key }}
+  {{- end }}
+{{- end }}
+---
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
   name: mutating-webhook-configuration
+  {{- if .Values.certmanager.enabled }}
   annotations:
-    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/serving-cert
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ .Values.certificate.name }}
+  {{- end }}
 webhooks:
 - admissionReviewVersions:
   - v1
   clientConfig:
+    {{- if not .Values.certmanager.enabled }}
+    caBundle: {{ $caCert | b64enc }}
+    {{- end }}
     service:
-      name: webhook-service
+      name: {{ .Values.service.name }}
       namespace: {{ .Release.Namespace }}
       path: /mutate-core-v1-pod
   failurePolicy: Fail
@@ -30,5 +55,18 @@ webhooks:
     matchExpressions:
       - key: redis_setup_type
         operator: Exists
-
-{{ end }}
+{{- if not .Values.certmanager.enabled }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Values.certificate.secretName }}
+  namespace: {{ .Release.Namespace }}
+  labels: {{- include "redisOperator.labels" . | nindent 4 }}
+type: kubernetes.io/tls
+data:
+  tls.crt: {{ $tlsCert | b64enc }}
+  tls.key: {{ $tlsKey | b64enc }}
+  ca.crt: {{ $caCert | b64enc }}
+{{- end }}
+{{- end }}

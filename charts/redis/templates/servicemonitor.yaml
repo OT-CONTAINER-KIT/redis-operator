@@ -4,6 +4,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: {{ .Values.redisStandalone.name | default .Release.Name }}-prometheus-monitoring
+  namespace: {{ .Values.serviceMonitor.namespace | default .Release.Namespace }}
   labels:
     app.kubernetes.io/name: {{ .Values.redisStandalone.name | default .Release.Name }}
     helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
@@ -26,5 +27,5 @@ spec:
     scrapeTimeout: {{ .Values.serviceMonitor.scrapeTimeout }}
   namespaceSelector:
     matchNames:
-    - {{ .Values.serviceMonitor.namespace }}
+    - {{ .Release.Namespace }}
 {{- end }}

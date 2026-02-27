@@ -1,6 +1,8 @@
 package v1beta2
 
 import (
+	"fmt"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -236,20 +238,25 @@ type RedisPodDisruptionBudget struct {
 
 // +k8s:deepcopy-gen=true
 type RedisSentinelConfig struct {
-	AdditionalSentinelConfig *string              `json:"additionalSentinelConfig,omitempty"`
-	RedisReplicationName     string               `json:"redisReplicationName"`
-	RedisReplicationPassword *corev1.EnvVarSource `json:"redisReplicationPassword,omitempty"`
-	// +kubebuilder:default:=myMaster
-	MasterGroupName string `json:"masterGroupName,omitempty"`
+	SentinelConfig `json:",inline"`
 	// +kubebuilder:default:="6379"
 	RedisPort string `json:"redisPort,omitempty"`
+	// +kubebuilder:default:=myMaster
+	MasterGroupName          string               `json:"masterGroupName,omitempty"`
+	RedisReplicationName     string               `json:"redisReplicationName"`
+	RedisReplicationPassword *corev1.EnvVarSource `json:"redisReplicationPassword,omitempty"`
+}
+
+// +k8s:deepcopy-gen=true
+type SentinelConfig struct {
+	AdditionalSentinelConfig *string `json:"additionalSentinelConfig,omitempty"`
 	// +kubebuilder:default:="2"
 	Quorum string `json:"quorum,omitempty"`
 	// +kubebuilder:default:="1"
 	ParallelSyncs string `json:"parallelSyncs,omitempty"`
-	// +kubebuilder:default:="180000"
+	// +kubebuilder:default:="10000"
 	FailoverTimeout string `json:"failoverTimeout,omitempty"`
-	// +kubebuilder:default:="30000"
+	// +kubebuilder:default:="5000"
 	DownAfterMilliseconds string `json:"downAfterMilliseconds,omitempty"`
 	// +kubebuilder:default:="no"
 	ResolveHostnames string `json:"resolveHostnames,omitempty"`
@@ -272,5 +279,27 @@ type InitContainer struct {
 
 // +k8s:deepcopy-gen=true
 type ACLConfig struct {
+	// Secret-based ACL configuration.
+	// Adapts a Secret into a volume containing ACL rules.
+	// The contents of the target Secret's Data field will be presented in a volume
+	// as files using the keys in the Data field as the file names.
+	// Secret volumes support ownership management and SELinux relabeling.
 	Secret *corev1.SecretVolumeSource `json:"secret,omitempty"`
+	// PersistentVolumeClaim-based ACL configuration
+	// Specify the PVC name to mount ACL file from persistent storage
+	// The operator will automatically mount /etc/redis/user.acl from the PVC
+	PersistentVolumeClaim *string `json:"persistentVolumeClaim,omitempty"`
+}
+
+// Validate checks that only one ACL source is specified
+func (a *ACLConfig) Validate() error {
+	if a == nil {
+		return nil
+	}
+
+	if a.Secret != nil && a.PersistentVolumeClaim != nil {
+		return fmt.Errorf("only one of 'secret' or 'persistentVolumeClaim' can be specified in ACL configuration")
+	}
+
+	return nil
 }

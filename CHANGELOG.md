@@ -1,3 +1,7 @@
+## Release History
+
+> **NOT MAINTAINED**. Please refer to the [Release History](https://github.com/OT-CONTAINER-KIT/redis-operator/releases) for recent release notes.
+
 ### v0.21.0
 ##### June 2025 Latest
 

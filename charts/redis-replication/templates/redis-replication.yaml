@@ -30,6 +30,12 @@ spec:
     {{- if .Values.redisReplication.minReadySeconds }}
     minReadySeconds: {{ .Values.redisReplication.minReadySeconds}}
     {{- end }}
+  {{- if .Values.redisReplication.livenessProbe }}
+  livenessProbe: {{ toYaml .Values.redisReplication.livenessProbe | nindent 4 }}
+  {{- end }}
+  {{- if .Values.redisReplication.readinessProbe }}
+  readinessProbe: {{ toYaml .Values.redisReplication.readinessProbe | nindent 4 }}
+  {{- end }}
 
   redisExporter:
     enabled: {{ .Values.redisExporter.enabled }}
@@ -45,9 +51,14 @@ spec:
     securityContext: {{ toYaml .Values.redisExporter.securityContext | nindent 6 }}
     {{- end }}
   
-  {{- if .Values.externalConfig.enabled }}
   redisConfig:
+  {{- if .Values.externalConfig.enabled }}
     additionalRedisConfig: "{{ .Values.redisReplication.name | default .Release.Name }}-ext-config"
+  {{- end }}
+  {{- if .Values.redisReplication.maxMemoryPercentOfLimit }}
+  {{- if gt (int .Values.redisReplication.maxMemoryPercentOfLimit) 0 }}
+    maxMemoryPercentOfLimit: {{ .Values.redisReplication.maxMemoryPercentOfLimit }}
+  {{- end }}
   {{- end }}
   {{- if .Values.storageSpec }}
   storage: {{ toYaml .Values.storageSpec | nindent 4 }}
@@ -78,16 +89,21 @@ spec:
     secret:
       secretName: {{ .Values.TLS.secret.secretName | quote }}
   {{- end }}
-  {{- if and .Values.acl.secret (ne .Values.acl.secret.secretName "") }}
+  {{- if or (and .Values.acl.secret (ne .Values.acl.secret.secretName "")) .Values.acl.persistentVolumeClaim }}
   acl:
+    {{- if and .Values.acl.secret (ne .Values.acl.secret.secretName "") }}
     secret:
       secretName: {{ .Values.acl.secret.secretName | quote }}
+    {{- end }}
+    {{- if .Values.acl.persistentVolumeClaim }}
+    persistentVolumeClaim: {{ .Values.acl.persistentVolumeClaim | quote }}
+    {{- end }}
   {{- end }}
   {{- if and .Values.initContainer .Values.initContainer.enabled (ne .Values.initContainer.image "") }}
   initContainer: {{ include "initContainer.properties" . | nindent 4 }}
   {{- end }}
-  {{- if and .Values.sidecars (ne .Values.sidecars.name "") (ne .Values.sidecars.image "") }}
-  sidecars: {{ include "sidecar.properties" . | nindent 4 }}
+  {{- if .Values.sidecars }}
+  sidecars: {{ toYaml .Values.sidecars | nindent 4 }}
   {{- end }}
   {{- if and .Values.serviceAccountName (ne .Values.serviceAccountName "") }}
   serviceAccountName: "{{ .Values.serviceAccountName }}"

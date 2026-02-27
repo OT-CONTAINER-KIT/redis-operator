@@ -9,9 +9,7 @@ app.kubernetes.io/instance: {{ .Values.redisStandalone.name | default .Release.N
 app.kubernetes.io/version: {{ .Chart.AppVersion }}
 app.kubernetes.io/component: middleware
 {{- if .Values.labels }}
-{{- range $labelkey, $labelvalue := .Values.labels }}
-{{ $labelkey}}: {{ $labelvalue }}
-{{- end }}
+{{ toYaml .Values.labels }}
 {{- end }}
 {{- end -}}
 
@@ -40,25 +38,6 @@ command:
 args:
 {{ toYaml .args | nindent 2 }}
 {{- end }}
-{{- end }}
-{{- end }}
-{{- end -}}
-
-{{/* Generate sidecar properties */}}
-{{- define "sidecar.properties" -}}
-{{- with .Values.sidecars }}
-name: {{ .name }}
-image: {{ .image }}
-{{- if .imagePullPolicy }}
-imagePullPolicy: {{ .imagePullPolicy }}
-{{- end }}
-{{- if .resources }}
-resources:
-  {{ toYaml .resources | nindent 2 }}
-{{- end }}
-{{- if .env }}
-env:
-{{ toYaml .env | nindent 2 }}
 {{- end }}
 {{- end }}
 {{- end -}}

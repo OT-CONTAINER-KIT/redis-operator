@@ -1,0 +1,104 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: acl-pvc-redis-replication
+spec:
+  steps:
+    # Step 1: Create PVC for ACL storage
+    - name: Create ACL PVC
+      try:
+        - apply:
+            file: acl-pvc.yaml
+
+    # Step 2: Populate PVC with ACL file
+    - name: Populate ACL file in PVC
+      try:
+        - apply:
+            file: acl-init-job.yaml
+        - assert:
+            resource:
+              apiVersion: batch/v1
+              kind: Job
+              metadata:
+                name: acl-init-replication
+              status:
+                succeeded: 1
+
+    # Step 3: Deploy Redis Replication with ACL from PVC
+    - name: Deploy Redis Replication with ACL PVC
+      try:
+        - apply:
+            file: replication.yaml
+        - assert:
+            file: ready-replication.yaml
+
+    # Step 4: Test ACL authentication on master
+    - name: Test ACL user authentication on master
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} redis-replication-acl-pvc-0 --
+              redis-cli -p 6379 --user repluser --pass repl@secure ping 2>&1
+            check:
+              (contains($stdout, 'PONG')): true
+
+    # Step 5: Test write operation on master
+    - name: Test write operation on master
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} redis-replication-acl-pvc-0 --
+              redis-cli -p 6379 --user repluser --pass repl@secure set repl-key "ACL PVC replication test" 2>&1
+            check:
+              (contains($stdout, 'OK')): true
+
+    # Step 6: Test read operation on replica
+    - name: Test read operation on replica
+      try:
+        - sleep:
+            duration: 30s
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} redis-replication-acl-pvc-1 --
+              redis-cli -p 6379 --user repluser --pass repl@secure get repl-key 2>&1
+            check:
+              (contains($stdout, 'ACL PVC replication test')): true
+
+    # Step 7: Verify ACL file on master
+    - name: Verify ACL file on master
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} redis-replication-acl-pvc-0 --
+              cat /etc/redis/user.acl 2>&1
+            check:
+              (contains($stdout, 'user repluser')): true
+
+    # Step 8: Verify ACL file on replica
+    - name: Verify ACL file on replica
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} redis-replication-acl-pvc-1 --
+              cat /etc/redis/user.acl 2>&1
+            check:
+              (contains($stdout, 'user repluser')): true
+
+    # Step 9: Test replication status
+    - name: Verify replication status
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} redis-replication-acl-pvc-1 --
+              redis-cli -p 6379 --user repluser --pass repl@secure info replication 2>&1
+            check:
+              (contains($stdout, 'role:slave')): true
+              (contains($stdout, 'master_link_status:up')): true

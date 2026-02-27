@@ -368,10 +368,7 @@ func (service RedisClusterService) CreateRedisClusterService(ctx context.Context
 		log.FromContext(ctx).Error(err, "Cannot create service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err
 	}
-	additionalServiceType := cr.Spec.KubernetesConfig.GetServiceType()
-	if additionalServiceType == "NodePort" {
-		// If NodePort is enabled, we need to create a service for every redis pod.
-		// Then use --cluster-announce-ip --cluster-announce-port --cluster-announce-bus-port to make cluster.
+	if cr.Spec.KubernetesConfig.GetServiceType() == "NodePort" {
 		err = service.createOrUpdateClusterNodePortService(ctx, cr, cl)
 		if err != nil {
 			log.FromContext(ctx).Error(err, "Cannot create nodeport service for Redis", "Setup.Type", service.RedisServiceRole)
@@ -383,7 +380,7 @@ func (service RedisClusterService) CreateRedisClusterService(ctx context.Context
 		additionalExtraPorts = append(additionalExtraPorts, busPort)
 	}
 	if cr.Spec.KubernetesConfig.ShouldCreateAdditionalService() {
-		err = CreateOrUpdateService(ctx, cr.Namespace, additionalObjectMetaInfo, redisClusterAsOwner(cr), disableMetrics, false, additionalServiceType, *cr.Spec.Port, cl, additionalExtraPorts...)
+		err = CreateOrUpdateService(ctx, cr.Namespace, additionalObjectMetaInfo, redisClusterAsOwner(cr), disableMetrics, false, cr.Spec.KubernetesConfig.GetServiceType(), *cr.Spec.Port, cl, additionalExtraPorts...)
 		if err != nil {
 			log.FromContext(ctx).Error(err, "Cannot create additional service for Redis", "Setup.Type", service.RedisServiceRole)
 			return err

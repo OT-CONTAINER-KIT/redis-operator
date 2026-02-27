@@ -45,22 +45,35 @@ jobs:
       - name: Create release notes
         id: release_notes
         if: steps.check_release.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           PREVIOUS_TAG=$(git describe --tags --abbrev=0 ${{ steps.get_version.outputs.VERSION }}^ 2>/dev/null || git rev-list --max-parents=0 HEAD)
-          
+
           CHANGELOG=""
+          declare -A SEEN_PRS
+
           while IFS= read -r line; do
             commit_hash=$(echo "$line" | cut -d' ' -f1)
             commit_msg=$(echo "$line" | cut -d' ' -f2-)
-            author_login=$(gh api repos/${{ github.repository }}/commits/$commit_hash --jq '.author.login' 2>/dev/null || echo "unknown")
-            if [ "$author_login" != "null" ] && [ "$author_login" != "unknown" ]; then
-              CHANGELOG="$CHANGELOG* $commit_msg (@$author_login)"$'\n'
+
+            # Prefer author login from associated PR
+            pr_json=$(gh api repos/${{ github.repository }}/commits/$commit_hash/pulls -H "Accept: application/vnd.github+json" 2>/dev/null || true)
+            pr_number=$(echo "$pr_json" | jq -r '.[0].number // empty')
+            if [ -n "$pr_number" ] && [ -z "${SEEN_PRS[$pr_number]+x}" ]; then
+              pr_title=$(echo "$pr_json" | jq -r '.[0].title // empty')
+              pr_author=$(echo "$pr_json" | jq -r '.[0].user.login // empty')
+              if [ -z "$pr_author" ] || [ "$pr_author" = "null" ]; then
+                pr_author="unknown"
+              fi
+              CHANGELOG="$CHANGELOG* ${pr_title:-$commit_msg} (#$pr_number) (@$pr_author)"$'\n'
+              SEEN_PRS[$pr_number]=1
             else
-              author_name=$(git show --pretty=format:"%an" -s $commit_hash)
-              CHANGELOG="$CHANGELOG* $commit_msg (@$author_name)"$'\n'
+              # No PR associated: include commit message without PR info
+              CHANGELOG="$CHANGELOG* $commit_msg"$'\n'
             fi
           done < <(git log --pretty=format:"%H %s" ${PREVIOUS_TAG}..${{ steps.get_version.outputs.VERSION }})
-          
+
           cat > release_notes.md << EOF
           ## Changes
           ${CHANGELOG}
@@ -70,7 +83,7 @@ jobs:
         if: steps.check_release.outputs.exists == 'false'
         uses: softprops/action-gh-release@v2
         with:
-          name: Release ${{ steps.get_version.outputs.VERSION }}
+          name: ${{ steps.get_version.outputs.VERSION }}
           body_path: release_notes.md
           draft: true
           prerelease: false

@@ -13,6 +13,12 @@ spec:
   clusterSize: 3
   clusterVersion: v7
   persistenceEnabled: true
+  redisLeader:
+    redisConfig:
+      additionalRedisConfig: redis-external-config
+  redisFollower:
+    redisConfig:
+      additionalRedisConfig: redis-external-config
   redisConfig:
     maxMemoryPercentOfLimit: 80
     dynamicConfig:
@@ -22,6 +28,7 @@ spec:
     fsGroup: 1000
   kubernetesConfig:
     service:
+      serviceType: NodePort
       includeBusPort: true
       headless:
         includeBusPort: true
