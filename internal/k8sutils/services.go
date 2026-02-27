@@ -14,8 +14,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-var serviceType corev1.ServiceType
-
 // exporterPortProvider return the exporter port if bool is true
 type exporterPortProvider func() (port int, enable bool)
 
@@ -75,6 +73,7 @@ func enableMetricsPort(port int) *corev1.ServicePort {
 
 // generateServiceType generates service type
 func generateServiceType(k8sServiceType string) corev1.ServiceType {
+	var serviceType corev1.ServiceType
 	switch k8sServiceType {
 	case "LoadBalancer":
 		serviceType = corev1.ServiceTypeLoadBalancer
