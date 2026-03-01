@@ -661,7 +661,7 @@ _Appears in:_
 
 
 
-Storage is the interface to add pvc and pv support in redis
+Storage is the inteface to add pvc and pv support in redis
 
 
 
