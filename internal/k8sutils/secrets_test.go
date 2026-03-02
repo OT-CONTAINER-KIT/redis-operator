@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sClientFake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/utils/ptr"
 )
 
 func Test_getRedisPassword(t *testing.T) {
@@ -104,6 +105,7 @@ func Test_getRedisTLSConfig(t *testing.T) {
 		redisCluster *rcvb2.RedisCluster
 		redisInfo    RedisDetails
 		expectTLS    bool
+		expectRootCA *bool
 	}{
 		{
 			name: "TLS enabled and successful configuration",
@@ -142,7 +144,46 @@ func Test_getRedisTLSConfig(t *testing.T) {
 				PodName:   "redis-pod",
 				Namespace: "default",
 			},
-			expectTLS: true,
+			expectTLS:    true,
+			expectRootCA: ptr.To(true),
+		},
+		{
+			name: "TLS enabled with no CA key and implicit CA config",
+			setup: func() *k8sClientFake.Clientset {
+				tlsSecret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "redis-tls-secret",
+						Namespace: "default",
+					},
+					Data: map[string][]byte{
+						"tls.crt": helperReadFile(filepath.Join("..", "..", "tests", "testdata", "secrets", "tls.crt")),
+						"tls.key": helperReadFile(filepath.Join("..", "..", "tests", "testdata", "secrets", "tls.key")),
+					},
+				}
+				client := k8sClientFake.NewSimpleClientset(tlsSecret)
+				return client
+			},
+			redisCluster: &rcvb2.RedisCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "redis-cluster",
+					Namespace: "default",
+				},
+				Spec: rcvb2.RedisClusterSpec{
+					TLS: &common.TLSConfig{
+						CertKeyFile: "tls.crt",
+						KeyFile:     "tls.key",
+						Secret: corev1.SecretVolumeSource{
+							SecretName: "redis-tls-secret",
+						},
+					},
+				},
+			},
+			redisInfo: RedisDetails{
+				PodName:   "redis-pod",
+				Namespace: "default",
+			},
+			expectTLS:    true,
+			expectRootCA: ptr.To(false),
 		},
 		{
 			name: "TLS enabled but secret not found",
@@ -216,12 +257,17 @@ func Test_getRedisTLSConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			client := tt.setup()
 
-			tlsConfig := getRedisTLSConfig(context.TODO(), client, tt.redisCluster.Namespace, tt.redisCluster.Spec.TLS.Secret.SecretName, tt.redisInfo.PodName)
+			tlsConfig := getRedisTLSConfig(context.TODO(), client, tt.redisCluster.Namespace, tt.redisCluster.Spec.TLS)
 
 			if tt.expectTLS {
 				require.NotNil(t, tlsConfig, "Expected TLS configuration but got nil")
 				require.NotEmpty(t, tlsConfig.Certificates, "TLS Certificates should not be empty")
-				require.NotNil(t, tlsConfig.RootCAs, "Root CAs should not be nil")
+				if tt.expectRootCA != nil && *tt.expectRootCA {
+					require.NotNil(t, tlsConfig.RootCAs, "Root CAs should not be nil")
+				}
+				if tt.expectRootCA != nil && !*tt.expectRootCA {
+					require.Nil(t, tlsConfig.RootCAs, "Root CAs should be nil to use system trust store")
+				}
 			} else {
 				assert.Nil(t, tlsConfig, "Expected no TLS configuration but got one")
 			}

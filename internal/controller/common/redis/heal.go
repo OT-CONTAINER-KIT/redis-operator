@@ -211,22 +211,46 @@ func (h *healer) getSentinelPods(ctx context.Context, rs *rsvb2.RedisSentinel) (
 	return pods, nil
 }
 
+func tlsKeyOrDefault(override, fallback string) string {
+	if override != "" {
+		return override
+	}
+	return fallback
+}
+
+func getTLSSecretKeys(tlsConfig *commonapi.TLSConfig) (caFile, certFile, keyFile string) {
+	caFile = "ca.crt"
+	certFile = "tls.crt"
+	keyFile = "tls.key"
+	if tlsConfig == nil {
+		return caFile, certFile, keyFile
+	}
+	caFile = tlsKeyOrDefault(tlsConfig.CaKeyFile, caFile)
+	certFile = tlsKeyOrDefault(tlsConfig.CertKeyFile, certFile)
+	keyFile = tlsKeyOrDefault(tlsConfig.KeyFile, keyFile)
+	return caFile, certFile, keyFile
+}
+
 // getRedisTLSConfig creates a TLS configuration for Redis connections
-func getRedisTLSConfig(ctx context.Context, client kubernetes.Interface, namespace, tlsSecretName string) *tls.Config {
-	// This is a wrapper to access the k8sutils internal function
-	// We'll implement a simplified version here for now
+func getRedisTLSConfig(ctx context.Context, client kubernetes.Interface, namespace string, tlsConfig *commonapi.TLSConfig) *tls.Config {
+	if tlsConfig == nil || tlsConfig.Secret.SecretName == "" {
+		return nil
+	}
+
+	tlsSecretName := tlsConfig.Secret.SecretName
 	secret, err := client.CoreV1().Secrets(namespace).Get(ctx, tlsSecretName, metav1.GetOptions{})
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Failed in getting TLS secret", "secretName", tlsSecretName, "namespace", namespace)
 		return nil
 	}
 
-	tlsClientCert, certExists := secret.Data["tls.crt"]
-	tlsClientKey, keyExists := secret.Data["tls.key"]
-	tlsCACert, caExists := secret.Data["ca.crt"]
+	caFile, certFile, keyFile := getTLSSecretKeys(tlsConfig)
+	tlsClientCert, certExists := secret.Data[certFile]
+	tlsClientKey, keyExists := secret.Data[keyFile]
+	tlsCACert, caExists := secret.Data[caFile]
 
-	if !certExists || !keyExists || !caExists {
-		log.FromContext(ctx).Error(fmt.Errorf("TLS secret missing required keys"), "TLS secret is missing required keys", "secretName", tlsSecretName)
+	if !certExists || !keyExists {
+		log.FromContext(ctx).Error(fmt.Errorf("TLS secret missing required cert/key"), "TLS secret is missing required cert/key", "secretName", tlsSecretName)
 		return nil
 	}
 
@@ -234,6 +258,18 @@ func getRedisTLSConfig(ctx context.Context, client kubernetes.Interface, namespa
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Failed to load TLS key pair", "secretName", tlsSecretName)
 		return nil
+	}
+
+	if !caExists && tlsConfig.CaKeyFile != "" {
+		log.FromContext(ctx).Error(fmt.Errorf("configured TLS CA key file is missing in the secret"), "TLS secret is missing configured CA key", "secretName", tlsSecretName, "caKeyFile", tlsConfig.CaKeyFile)
+		return nil
+	}
+
+	if !caExists {
+		return &tls.Config{
+			Certificates: []tls.Certificate{cert},
+			MinVersion:   tls.VersionTLS12,
+		}
 	}
 
 	caCertPool := x509.NewCertPool()
@@ -264,7 +300,7 @@ func createConnectionInfo(ctx context.Context, pod v1.Pod, password string, tlsC
 		serviceName := common.GetHeadlessServiceNameFromPodName(pod.Name)
 		connInfo.Host = fmt.Sprintf("%s.%s.%s.svc.%s", pod.Name, serviceName, namespace, envs.GetServiceDNSDomain())
 		// Get TLS configuration
-		tlsCfg := getRedisTLSConfig(ctx, k8sClient, namespace, tlsConfig.Secret.SecretName)
+		tlsCfg := getRedisTLSConfig(ctx, k8sClient, namespace, tlsConfig)
 		connInfo.TLSConfig = tlsCfg
 	}
 

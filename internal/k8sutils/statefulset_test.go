@@ -31,8 +31,8 @@ func TestGenerateAuthAndTLSArgs(t *testing.T) {
 	}{
 		{"NoAuthNoTLS", false, false, "", ""},
 		{"AuthOnly", true, false, " -a \"${REDIS_PASSWORD}\"", ""},
-		{"TLSOnly", false, true, "", " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\" --cacert \"${REDIS_TLS_CA_KEY}\""},
-		{"AuthAndTLS", true, true, " -a \"${REDIS_PASSWORD}\"", " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\" --cacert \"${REDIS_TLS_CA_KEY}\""},
+		{"TLSOnly", false, true, "", " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\"${REDIS_TLS_CA_KEY:+ --cacert \"${REDIS_TLS_CA_KEY}\"}"},
+		{"AuthAndTLS", true, true, " -a \"${REDIS_PASSWORD}\"", " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\"${REDIS_TLS_CA_KEY:+ --cacert \"${REDIS_TLS_CA_KEY}\"}"},
 	}
 
 	for _, tt := range tests {
@@ -1482,6 +1482,31 @@ func TestGenerateTLSEnvironmentVariables(t *testing.T) {
 	assert.ElementsMatch(t, envVars, expectedEnvVars, "EnvVars generated for TLS config are not as expected")
 }
 
+func TestGenerateTLSEnvironmentVariables_NoExplicitCA(t *testing.T) {
+	tlsConfig := &common.TLSConfig{
+		CertKeyFile: "test_tls.crt",
+		KeyFile:     "test_tls.key",
+	}
+
+	envVars := GenerateTLSEnvironmentVariables(tlsConfig)
+
+	expectedEnvVars := []corev1.EnvVar{
+		{
+			Name:  "TLS_MODE",
+			Value: "true",
+		},
+		{
+			Name:  "REDIS_TLS_CERT",
+			Value: path.Join("/tls/", "test_tls.crt"),
+		},
+		{
+			Name:  "REDIS_TLS_CERT_KEY",
+			Value: path.Join("/tls/", "test_tls.key"),
+		},
+	}
+	assert.ElementsMatch(t, envVars, expectedEnvVars, "EnvVars generated for TLS config without explicit CA are not as expected")
+}
+
 func TestGetEnvironmentVariables(t *testing.T) {
 	tests := []struct {
 		name                string
@@ -1695,11 +1720,28 @@ func Test_getExporterEnvironmentVariables(t *testing.T) {
 				},
 			},
 			expectedEnvironment: []corev1.EnvVar{
-				{Name: "REDIS_EXPORTER_TLS_CLIENT_KEY_FILE", Value: "/tls/tls.key"},
-				{Name: "REDIS_EXPORTER_TLS_CLIENT_CERT_FILE", Value: "/tls/tls.crt"},
-				{Name: "REDIS_EXPORTER_TLS_CA_CERT_FILE", Value: "/tls/ca.crt"},
+				{Name: "REDIS_EXPORTER_TLS_CLIENT_KEY_FILE", Value: "/tls/test_tls.key"},
+				{Name: "REDIS_EXPORTER_TLS_CLIENT_CERT_FILE", Value: "/tls/test_tls.crt"},
+				{Name: "REDIS_EXPORTER_TLS_CA_CERT_FILE", Value: "/tls/test_ca.crt"},
 				{Name: "REDIS_EXPORTER_SKIP_TLS_VERIFICATION", Value: "true"},
 				{Name: "TEST_ENV", Value: "test-value"},
+			},
+		},
+		{
+			name: "Test with tls enabled and no explicit CA",
+			params: containerParameters{
+				TLSConfig: &common.TLSConfig{
+					CertKeyFile: "test_tls.crt",
+					KeyFile:     "test_tls.key",
+					Secret: corev1.SecretVolumeSource{
+						SecretName: "tls-secret",
+					},
+				},
+			},
+			expectedEnvironment: []corev1.EnvVar{
+				{Name: "REDIS_EXPORTER_TLS_CLIENT_KEY_FILE", Value: "/tls/test_tls.key"},
+				{Name: "REDIS_EXPORTER_TLS_CLIENT_CERT_FILE", Value: "/tls/test_tls.crt"},
+				{Name: "REDIS_EXPORTER_SKIP_TLS_VERIFICATION", Value: "true"},
 			},
 		},
 	}
@@ -1723,7 +1765,7 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 	probeWithTLS := &corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
 			Exec: &corev1.ExecAction{
-				Command: []string{"sh", "-ec", "RESP=\"$(redis-cli -h $(hostname) -p ${REDIS_PORT} --tls --cert ${REDIS_TLS_CERT} --key ${REDIS_TLS_CERT_KEY} --cacert ${REDIS_TLS_CA_KEY} ping)\"\n[ \"$RESP\" = \"PONG\" ]"},
+				Command: []string{"sh", "-ec", "RESP=\"$(redis-cli -h $(hostname) -p ${REDIS_PORT} --tls --cert ${REDIS_TLS_CERT} --key ${REDIS_TLS_CERT_KEY} ${REDIS_TLS_CA_KEY:+--cacert} ${REDIS_TLS_CA_KEY} ping)\"\n[ \"$RESP\" = \"PONG\" ]"},
 			},
 		},
 	}
@@ -1829,10 +1871,6 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 										{
 											Name:  "REDIS_MAJOR_VERSION",
 											Value: "1.0",
-										},
-										{
-											Name:  "REDIS_TLS_CA_KEY",
-											Value: path.Join("/tls/", "ca.crt"),
 										},
 										{
 											Name:  "REDIS_TLS_CERT",
