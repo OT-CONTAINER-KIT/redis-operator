@@ -78,7 +78,7 @@ helm delete <my-release> --namespace <namespace>
 | redisCluster.follower.pdb.maxUnavailable | int | `1` |  |
 | redisCluster.follower.pdb.minAvailable | int | `1` |  |
 | redisCluster.follower.readinessProbe | object | `{}` |  |
-| redisCluster.follower.replicas | int | `nil` | Number of Redis follower (slave) nodes. If not set, uses clusterSize value |
+| redisCluster.follower.replicas | string | `nil` | Number of Redis follower (slave) nodes. If not set, uses clusterSize value |
 | redisCluster.follower.securityContext | object | `{}` |  |
 | redisCluster.follower.serviceType | string | `"ClusterIP"` |  |
 | redisCluster.follower.tolerations | list | `[]` |  |
@@ -93,7 +93,7 @@ helm delete <my-release> --namespace <namespace>
 | redisCluster.leader.pdb.maxUnavailable | int | `1` |  |
 | redisCluster.leader.pdb.minAvailable | int | `1` |  |
 | redisCluster.leader.readinessProbe | object | `{}` |  |
-| redisCluster.leader.replicas | int | `nil` | Number of Redis leader (master) nodes. If not set, uses clusterSize value |
+| redisCluster.leader.replicas | string | `nil` | Number of Redis leader (master) nodes. If not set, uses clusterSize value |
 | redisCluster.leader.securityContext | object | `{}` |  |
 | redisCluster.leader.serviceType | string | `"ClusterIP"` |  |
 | redisCluster.leader.tolerations | list | `[]` |  |
