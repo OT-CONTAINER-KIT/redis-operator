@@ -103,7 +103,7 @@ func generateRedisClusterInitContainerParams(cr *rcvb2.RedisCluster) initContain
 			initcontainerProp.AdditionalVolume = cr.Spec.Storage.VolumeMount.Volume
 			initcontainerProp.AdditionalMountPath = cr.Spec.Storage.VolumeMount.MountPath
 		}
-		if cr.Spec.Storage != nil {
+		if cr.Spec.Storage != nil && cr.Spec.PersistenceEnabled != nil && *cr.Spec.PersistenceEnabled {
 			initcontainerProp.PersistenceEnabled = &trueProperty
 		}
 	}
