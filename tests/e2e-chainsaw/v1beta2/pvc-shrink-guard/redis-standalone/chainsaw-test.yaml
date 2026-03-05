@@ -1,0 +1,83 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: pvc-shrink-guard-redis-standalone
+spec:
+  steps:
+    - name: Deploy Redis standalone with 1Gi storage
+      try:
+        - apply:
+            file: standalone.yaml
+        - assert:
+            file: ready-sts.yaml
+        - assert:
+            file: ready-pvc.yaml
+
+    - name: Attempt to shrink storage to 512Mi (should be blocked)
+      try:
+        - apply:
+            file: shrink-patch.yaml
+        # Wait for the operator to reconcile the change
+        - sleep:
+            duration: 30s
+        # PVC must remain at 1Gi - shrink should have been skipped
+        - assert:
+            file: pvc-unchanged.yaml
+        # StatefulSet should still be healthy
+        - assert:
+            file: ready-sts.yaml
+
+    - name: Verify annotation not updated on shrink
+      try:
+        - script:
+            timeout: 30s
+            content: |
+              #!/bin/bash
+              set -e
+              ANNOTATION=$(kubectl get statefulset -n ${NAMESPACE} redis-standalone-shrink-test -o jsonpath='{.metadata.annotations.storageCapacity}')
+              CURRENT_PVC_SIZE=$(kubectl get pvc -n ${NAMESPACE} redis-standalone-shrink-test-redis-standalone-shrink-test-0 -o jsonpath='{.status.capacity.storage}')
+              echo "storageCapacity annotation: ${ANNOTATION}"
+              echo "Current PVC size: ${CURRENT_PVC_SIZE}"
+              if [ "${CURRENT_PVC_SIZE}" != "1Gi" ]; then
+                echo "FAIL: PVC was resized to ${CURRENT_PVC_SIZE}, expected 1Gi"
+                exit 1
+              fi
+              # Annotation should either be empty/unset or reflect actual capacity, not the shrink target
+              if [ "${ANNOTATION}" == "536870912" ]; then
+                echo "FAIL: annotation was incorrectly updated to shrink target (512Mi = 536870912)"
+                exit 1
+              fi
+              echo "PASS: PVC shrink was correctly blocked"
+
+    - name: Expand storage to 2Gi (should succeed after prior shrink attempt)
+      try:
+        - apply:
+            file: expand-patch.yaml
+        - assert:
+            timeout: 5m
+            file: pvc-expanded.yaml
+        - assert:
+            file: ready-sts.yaml
+
+    - name: Wait for operator to reconcile annotation
+      try:
+        - sleep:
+            duration: 30s
+
+    - name: Verify annotation updated after successful expand
+      try:
+        - script:
+            timeout: 30s
+            content: |
+              #!/bin/bash
+              set -e
+              ANNOTATION=$(kubectl get statefulset -n ${NAMESPACE} redis-standalone-shrink-test -o jsonpath='{.metadata.annotations.storageCapacity}')
+              echo "storageCapacity annotation: ${ANNOTATION}"
+              # 2Gi = 2147483648 bytes
+              if [ "${ANNOTATION}" != "2147483648" ]; then
+                echo "FAIL: annotation should be 2147483648 (2Gi), got ${ANNOTATION}"
+                exit 1
+              fi
+              echo "PASS: annotation correctly updated to 2Gi after expansion"
