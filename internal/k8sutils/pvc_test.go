@@ -259,28 +259,18 @@ func TestHandlePVCResizing_ShrinkSkipped(t *testing.T) {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
 
-	// Ensure no PVC update action occurred.
+	// Ensure no PVC list or update actions occurred (early return before PVC listing).
 	actions := cl.Actions()
 	for _, action := range actions {
-		if action.GetVerb() == "update" {
-			t.Errorf("Unexpected PVC update action: %#v", action)
+		if action.GetVerb() == "list" || action.GetVerb() == "update" {
+			t.Errorf("Unexpected action %q on shrink skip: %#v", action.GetVerb(), action)
 		}
 	}
 
-	// Annotation is updated to desired capacity even when shrinking is skipped.
-	expectedAnnotation := strconv.FormatInt(desiredQuantity.Value(), 10)
+	// Annotation should remain at the original stored capacity (not updated on shrink).
+	expectedAnnotation := strconv.FormatInt(storedQuantity.Value(), 10)
 	if storedStateful.Annotations["storageCapacity"] != expectedAnnotation {
-		t.Errorf("Expected annotation storageCapacity to be %s, got %s", expectedAnnotation, storedStateful.Annotations["storageCapacity"])
-	}
-
-	// PVC spec should remain unchanged.
-	updatedPVC, err := cl.CoreV1().PersistentVolumeClaims("default").Get(ctx, "redis-data-0", metav1.GetOptions{})
-	if err != nil {
-		t.Fatalf("Failed to get PVC: %v", err)
-	}
-	updatedCapacity := updatedPVC.Spec.Resources.Requests.Storage().Value()
-	if updatedCapacity != storedQuantity.Value() {
-		t.Errorf("Expected PVC capacity to remain %d, got %d", storedQuantity.Value(), updatedCapacity)
+		t.Errorf("Expected annotation storageCapacity to remain %s, got %s", expectedAnnotation, storedStateful.Annotations["storageCapacity"])
 	}
 }
 

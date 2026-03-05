@@ -65,6 +65,15 @@ func HandlePVCResizing(ctx context.Context, storedStateful, newStateful *appsv1.
 		return nil
 	}
 
+	// If the desired capacity is less than the stored capacity, skip the resize entirely.
+	// Kubernetes does not support PVC shrinking.
+	if desiredCapacity < storedCapacity {
+		log.FromContext(ctx).Info(fmt.Sprintf(
+			"sts:%s skipping PVC resize: desired capacity %d is less than current %d (Kubernetes does not support PVC shrinking)",
+			storedStateful.Name, desiredCapacity, storedCapacity))
+		return nil
+	}
+
 	// Create a label selector to list all related PVCs.
 	labelSelector := labels.FormatLabels(map[string]string{
 		"app": storedStateful.Name,
@@ -91,10 +100,6 @@ func HandlePVCResizing(ctx context.Context, storedStateful, newStateful *appsv1.
 			continue // Skip PVCs that do not belong to the target template.
 		}
 		currentCapacity := pvc.Spec.Resources.Requests.Storage().Value()
-		if desiredCapacity < currentCapacity {
-			log.FromContext(ctx).Info(fmt.Sprintf("sts:%s skipping PVC resize for [%s]: desired %d < current capacity %d (PVC shrink not supported)", storedStateful.Name, pvc.Name, desiredCapacity, currentCapacity))
-			continue
-		}
 		if currentCapacity != desiredCapacity {
 			pvc.Spec.Resources.Requests = newStateful.Spec.VolumeClaimTemplates[targetIndex].Spec.Resources.Requests
 			if _, err := cl.CoreV1().PersistentVolumeClaims(storedStateful.Namespace).Update(context.Background(), pvc, metav1.UpdateOptions{}); err != nil {
