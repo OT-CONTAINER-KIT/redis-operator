@@ -167,7 +167,7 @@ func Test_generateRedisSentinelContainerParams(t *testing.T) {
 		SecretName:      ptr.To("redis-secret"),
 		SecretKey:       ptr.To("password"),
 		TLSConfig: &common.TLSConfig{
-			CaKeyFile:   "ca.key",
+			CaCertFile:  "ca.crt",
 			CertKeyFile: "tls.crt",
 			KeyFile:     "tls.key",
 			Secret: corev1.SecretVolumeSource{
