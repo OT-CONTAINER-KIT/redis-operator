@@ -17,7 +17,10 @@ pipelines:
               variables:
                 COMPLIANT: "true"
             - source .artifactory/activate.sh
+            - export VERSION=${CUSTOM_VERSION:-v0.23.1-atlassian}
             - docker build -t docker.atl-paas.net/sox/atlassian/redis-operator:${BITBUCKET_COMMIT} .
             - docker push docker.atl-paas.net/sox/atlassian/redis-operator:${BITBUCKET_COMMIT}
+            - docker tag docker.atl-paas.net/sox/atlassian/redis-operator:${BITBUCKET_COMMIT} docker.atl-paas.net/sox/atlassian/redis-operator:${VERSION}
+            - docker push docker.atl-paas.net/sox/atlassian/redis-operator:${VERSION}
             - docker tag docker.atl-paas.net/sox/atlassian/redis-operator:${BITBUCKET_COMMIT} docker.atl-paas.net/sox/atlassian/redis-operator:latest
             - docker push docker.atl-paas.net/sox/atlassian/redis-operator:latest
