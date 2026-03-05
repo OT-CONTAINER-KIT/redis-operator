@@ -18,3 +18,15 @@ resources:
 # default, aiding admins in cluster management. Those roles are
 # not used by the {{ .ProjectName }} itself. You can comment the following lines
 # if you do not want those helpers be installed with your Project.
+
+patches:
+  - target:
+      group: rbac.authorization.k8s.io
+      version: v1
+      kind: ClusterRole
+      name: manager-role
+    patch: |
+      - op: add
+        path: /metadata/labels
+        value:
+          rbac.authorization.k8s.io/aggregate-to-admin: "true"
