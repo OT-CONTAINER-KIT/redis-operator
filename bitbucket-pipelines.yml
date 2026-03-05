@@ -1,0 +1,23 @@
+image: atlassian/default-image:4
+
+definitions:
+  services:
+    docker:
+      memory: 4096
+
+pipelines:
+  branches:
+    main:
+      - step:
+          name: Build and push SOX Docker image
+          services:
+            - docker
+          script:
+            - pipe: atlassian/artifactory-sidekick:v1
+              variables:
+                COMPLIANT: "true"
+            - source .artifactory/activate.sh
+            - docker build -t docker.atl-paas.net/sox/atlassian/redis-operator:${BITBUCKET_COMMIT} .
+            - docker push docker.atl-paas.net/sox/atlassian/redis-operator:${BITBUCKET_COMMIT}
+            - docker tag docker.atl-paas.net/sox/atlassian/redis-operator:${BITBUCKET_COMMIT} docker.atl-paas.net/sox/atlassian/redis-operator:latest
+            - docker push docker.atl-paas.net/sox/atlassian/redis-operator:latest
