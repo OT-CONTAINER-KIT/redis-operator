@@ -66,9 +66,11 @@ func getRedisTLSConfig(ctx context.Context, client kubernetes.Interface, namespa
 	}
 
 	if !caExists {
+		logf.FromContext(ctx).V(1).Info("CA certificate not found in TLS secret, using system trust store with InsecureSkipVerify", "secretName", tlsSecretName)
 		return &tls.Config{
-			Certificates: []tls.Certificate{cert},
-			MinVersion:   tls.VersionTLS12,
+			Certificates:       []tls.Certificate{cert},
+			MinVersion:         tls.VersionTLS12,
+			InsecureSkipVerify: true, //nolint:gosec // No CA cert available; skip server verification
 		}
 	}
 

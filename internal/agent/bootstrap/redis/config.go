@@ -100,7 +100,11 @@ func GenerateConfig() error {
 	if tlsMode == "true" {
 		cfg.Append("tls-cert-file", util.CoalesceEnv1("REDIS_TLS_CERT", ""))
 		cfg.Append("tls-key-file", util.CoalesceEnv1("REDIS_TLS_CERT_KEY", ""))
-		cfg.Append("tls-ca-cert-file", util.CoalesceEnv1("REDIS_TLS_CA_KEY", ""))
+		if caKey := util.CoalesceEnv1("REDIS_TLS_CA_KEY", ""); caKey != "" {
+			cfg.Append("tls-ca-cert-file", caKey)
+		} else {
+			cfg.Append("tls-ca-cert-file", "/etc/ssl/certs/ca-certificates.crt")
+		}
 		cfg.Append("tls-auth-clients", "optional")
 		cfg.Append("tls-replication", "yes")
 
