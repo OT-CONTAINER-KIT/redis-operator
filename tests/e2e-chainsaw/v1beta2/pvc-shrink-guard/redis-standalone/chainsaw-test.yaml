@@ -61,6 +61,11 @@ spec:
         - assert:
             file: ready-sts.yaml
 
+    - name: Wait for operator to reconcile annotation
+      try:
+        - sleep:
+            duration: 30s
+
     - name: Verify annotation updated after successful expand
       try:
         - script:
