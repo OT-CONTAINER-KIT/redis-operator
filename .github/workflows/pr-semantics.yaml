@@ -68,6 +68,7 @@ jobs:
             replication
             sentinel
             cluster
+            metrics
           ignoreLabels: |
             bot
             ignore-semantic-pull-request
