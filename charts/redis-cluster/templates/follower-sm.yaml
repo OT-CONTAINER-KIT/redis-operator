@@ -1,4 +1,4 @@
-{{- if and (eq .Values.serviceMonitor.enabled true)  (gt (int .Values.redisCluster.follower.replicas) 0) }}
+{{- if and (eq .Values.serviceMonitor.enabled true) (eq .Values.redisExporter.enabled true) (gt (int .Values.redisCluster.follower.replicas) 0) }}
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
@@ -19,6 +19,7 @@ spec:
   selector:
     matchLabels:
       app: {{ .Values.redisCluster.name | default .Release.Name }}-follower
+      app.kubernetes.io/component: metrics
       redis_setup_type: cluster
       role: follower
   endpoints:

@@ -1,0 +1,88 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: metrics-service-redis-sentinel
+spec:
+  steps:
+    - name: Deploy Redis Replication (prerequisite for Sentinel)
+      try:
+        - apply:
+            file: secret.yaml
+        - apply:
+            file: replication.yaml
+        - assert:
+            file: ready-replication-sts.yaml
+
+    - name: Deploy Redis Sentinel with exporter
+      try:
+        - apply:
+            file: sentinel.yaml
+        - assert:
+            file: ready-sentinel-sts.yaml
+
+    - name: Assert sentinel metrics service created
+      try:
+        - assert:
+            file: ready-metrics-svc.yaml
+
+    - name: Verify sentinel metrics service only exposes exporter port
+      try:
+        - script:
+            timeout: 30s
+            content: |
+              #!/bin/bash
+              set -e
+              PORTS=$(kubectl get svc -n ${NAMESPACE} redis-sentinel-metrics-sentinel-metrics -o jsonpath='{.spec.ports[*].port}')
+              if [ "$PORTS" != "9121" ]; then
+                echo "Expected metrics service to only expose port 9121, got: $PORTS"
+                exit 1
+              fi
+              # Verify it does NOT expose sentinel port 26379
+              HAS_SENTINEL_PORT=$(kubectl get svc -n ${NAMESPACE} redis-sentinel-metrics-sentinel-metrics -o jsonpath='{.spec.ports[?(@.port==26379)].port}')
+              if [ -n "$HAS_SENTINEL_PORT" ]; then
+                echo "Metrics service should not expose Sentinel port 26379"
+                exit 1
+              fi
+              COMPONENT=$(kubectl get svc -n ${NAMESPACE} redis-sentinel-metrics-sentinel-metrics -o jsonpath='{.metadata.labels.app\.kubernetes\.io/component}')
+              if [ "$COMPONENT" != "metrics" ]; then
+                echo "Expected app.kubernetes.io/component=metrics label, got: $COMPONENT"
+                exit 1
+              fi
+              echo "Sentinel metrics service validation passed"
+            check:
+              (contains($stdout, 'Sentinel metrics service validation passed')): true
+
+    - name: Verify metrics are fetchable via sentinel metrics service
+      try:
+        - script:
+            timeout: 60s
+            content: |
+              #!/bin/bash
+              set -e
+              OUTPUT=$(kubectl run -n ${NAMESPACE} metrics-check --rm -i --restart=Never --image=busybox:1.36 -- \
+                wget -qO- --timeout=10 http://redis-sentinel-metrics-sentinel-metrics.${NAMESPACE}.svc.cluster.local:9121/metrics 2>&1)
+              echo "$OUTPUT"
+              if ! echo "$OUTPUT" | grep -q "redis_"; then
+                echo "ERROR: No redis_ metrics found in output"
+                exit 1
+              fi
+              echo "Sentinel metrics fetch validation passed"
+            check:
+              (contains($stdout, 'redis_')): true
+
+    - name: Cleanup
+      try:
+        - delete:
+            ref:
+              name: redis-sentinel-metrics
+              kind: RedisSentinel
+              apiVersion: redis.redis.opstreelabs.in/v1beta2
+        - delete:
+            ref:
+              name: redis-replication-sentinel-metrics
+              kind: RedisReplication
+              apiVersion: redis.redis.opstreelabs.in/v1beta2
+        - error:
+            file: ready-metrics-svc.yaml

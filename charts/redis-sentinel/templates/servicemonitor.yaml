@@ -1,4 +1,4 @@
-{{- if eq .Values.serviceMonitor.enabled true }}
+{{- if and (eq .Values.serviceMonitor.enabled true) (eq .Values.redisExporter.enabled true) }}
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
@@ -18,7 +18,8 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: {{ .Values.redisSentinel.name | default .Release.Name }}
+      app: {{ .Values.redisSentinel.name | default .Release.Name }}-sentinel
+      app.kubernetes.io/component: metrics
       redis_setup_type: sentinel
       role: sentinel
   endpoints:

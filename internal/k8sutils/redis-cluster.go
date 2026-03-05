@@ -402,6 +402,17 @@ func (service RedisClusterService) CreateRedisClusterService(ctx context.Context
 		log.FromContext(ctx).Error(err, "Cannot create master service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err
 	}
+
+	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
+		defaultP := ptr.To(common.RedisExporterPort)
+		exporterPort := *util.Coalesce(cr.Spec.RedisExporter.Port, defaultP)
+		selectorLabels := getRedisStableLabels(serviceName, string(cluster), service.RedisServiceRole)
+		err = CreateOrUpdateMetricsService(ctx, cr.Namespace, serviceName+"-metrics", selectorLabels, redisClusterAsOwner(cr), exporterPort, cl)
+		if err != nil {
+			log.FromContext(ctx).Error(err, "Cannot create metrics service for Redis", "Setup.Type", service.RedisServiceRole)
+			return err
+		}
+	}
 	return nil
 }
 

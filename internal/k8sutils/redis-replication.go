@@ -59,6 +59,14 @@ func CreateReplicationService(ctx context.Context, cr *rrvb2.RedisReplication, c
 		log.FromContext(ctx).Error(err, "Cannot create replica service for Redis")
 		return err
 	}
+	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
+		exporterPort := *util.Coalesce(cr.Spec.RedisExporter.Port, ptr.To(common.RedisExporterPort))
+		selectorLabels := getRedisStableLabels(cr.Name, string(replication), "replication")
+		if err := CreateOrUpdateMetricsService(ctx, cr.Namespace, cr.Name+"-metrics", selectorLabels, redisReplicationAsOwner(cr), exporterPort, cl); err != nil {
+			log.FromContext(ctx).Error(err, "Cannot create metrics service for Redis Replication")
+			return err
+		}
+	}
 
 	return nil
 }
