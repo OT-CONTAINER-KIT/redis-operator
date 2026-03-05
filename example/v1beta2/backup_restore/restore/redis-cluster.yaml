@@ -20,11 +20,11 @@ spec:
       limits:
         cpu: 101m
         memory: 128Mi
-        # redisSecret:
-        #   name: redis-secret
-        #   key: password
-        # imagePullSecrets:
-        #   - name: regcred
+    # redisSecret:
+    #   name: redis-secret
+    #   key: password
+    # imagePullSecrets:
+    #   - name: regcred
   initContainer:
     enabled: true
     image: quay.io/opstree/redis-operator-restore:latest
