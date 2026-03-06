@@ -47,14 +47,14 @@ spec:
     securityContext: {{ toYaml .Values.redisExporter.securityContext | nindent 6 }}
     {{- end }}
   
+  {{- if or .Values.externalConfig.enabled (and .Values.redisStandalone.maxMemoryPercentOfLimit (gt (int .Values.redisStandalone.maxMemoryPercentOfLimit) 0)) }}
   redisConfig:
-  {{- if .Values.externalConfig.enabled }}
+    {{- if .Values.externalConfig.enabled }}
     additionalRedisConfig: "{{ .Values.redisStandalone.name | default .Release.Name }}-ext-config"
-  {{- end }}
-  {{- if .Values.redisStandalone.maxMemoryPercentOfLimit }}
-  {{- if gt (int .Values.redisStandalone.maxMemoryPercentOfLimit) 0 }}
+    {{- end }}
+    {{- if and .Values.redisStandalone.maxMemoryPercentOfLimit (gt (int .Values.redisStandalone.maxMemoryPercentOfLimit) 0) }}
     maxMemoryPercentOfLimit: {{ .Values.redisStandalone.maxMemoryPercentOfLimit }}
-  {{- end }}
+    {{- end }}
   {{- end }}
   {{- if .Values.storageSpec }}
   storage: {{ toYaml .Values.storageSpec | nindent 4 }}
