@@ -9,6 +9,10 @@ spec:
     runAsUser: 1000
     fsGroup: 1000
   kubernetesConfig:
+    service:
+      headless:
+        additionalAnnotations:
+          opstreelabs.in/additional-annotation: present
     image: quay.io/opstree/redis-sentinel:latest
     imagePullPolicy: Always
     redisSecret:

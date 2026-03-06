@@ -28,7 +28,12 @@ func CreateReplicationService(ctx context.Context, cr *rrvb2.RedisReplication, c
 
 	annotations := generateServiceAnots(cr.ObjectMeta, nil, epp)
 	objectMetaInfo := generateObjectMetaInformation(cr.Name, cr.Namespace, labels, annotations)
-	headlessObjectMetaInfo := generateObjectMetaInformation(cr.Name+"-headless", cr.Namespace, labels, annotations)
+	headlessObjectMetaInfo := generateObjectMetaInformation(
+		cr.Name+"-headless",
+		cr.Namespace,
+		labels,
+		generateServiceAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.GetHeadlessServiceAnnotations(), epp),
+	)
 	additionalObjectMetaInfo := generateObjectMetaInformation(cr.Name+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.GetServiceAnnotations(), epp))
 	masterLabels := maps.Merge(
 		labels, map[string]string{common.RedisRoleLabelKey: common.RedisRoleLabelMaster},
