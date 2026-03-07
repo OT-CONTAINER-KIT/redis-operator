@@ -58,6 +58,7 @@ jobs:
             config
             client
             config
+            chart
             data
             test
             utils
