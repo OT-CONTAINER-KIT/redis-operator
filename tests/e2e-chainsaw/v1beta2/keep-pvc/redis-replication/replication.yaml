@@ -21,6 +21,9 @@ spec:
   storage:
     keepAfterDelete: true
     volumeClaimTemplate:
+      metadata:
+        annotations:
+          custom.example.com/purpose: test-pvc-annotation
       spec:
         accessModes: [ReadWriteOnce]
         resources:

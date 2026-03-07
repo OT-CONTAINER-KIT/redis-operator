@@ -412,8 +412,11 @@ func createPVCTemplate(volumeName string, stsMeta metav1.ObjectMeta, storageSpec
 	pvcTemplate.CreationTimestamp = metav1.Time{}
 	pvcTemplate.Name = volumeName
 	pvcTemplate.Labels = stsMeta.GetLabels()
-	// We want the same annotation as the StatefulSet here
+	// Merge user-provided PVC annotations with the generated StatefulSet annotations
 	pvcTemplate.Annotations = generateStatefulSetsAnots(stsMeta, nil)
+	for k, v := range storageSpec.GetAnnotations() {
+		pvcTemplate.Annotations[k] = v
+	}
 	if storageSpec.Spec.AccessModes == nil {
 		pvcTemplate.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
 	} else {

@@ -2135,6 +2135,98 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 	}
 }
 
+func TestCreatePVCTemplate(t *testing.T) {
+	tests := []struct {
+		name                string
+		volumeName          string
+		stsMeta             metav1.ObjectMeta
+		storageSpec         corev1.PersistentVolumeClaim
+		expectedAnnotations map[string]string
+	}{
+		{
+			name:       "no custom PVC annotations",
+			volumeName: "redis-data",
+			stsMeta: metav1.ObjectMeta{
+				Name: "test-sts",
+			},
+			storageSpec: corev1.PersistentVolumeClaim{
+				Spec: corev1.PersistentVolumeClaimSpec{
+					Resources: corev1.VolumeResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceStorage: resource.MustParse("5Gi"),
+						},
+					},
+				},
+			},
+			expectedAnnotations: map[string]string{
+				"redis.opstreelabs.in":       "true",
+				"redis.opstreelabs.instance": "test-sts",
+			},
+		},
+		{
+			name:       "custom PVC annotations are merged",
+			volumeName: "redis-data",
+			stsMeta: metav1.ObjectMeta{
+				Name: "test-sts",
+			},
+			storageSpec: corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"helm.sh/resource-policy": "keep",
+						"custom-annotation":       "custom-value",
+					},
+				},
+				Spec: corev1.PersistentVolumeClaimSpec{
+					Resources: corev1.VolumeResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceStorage: resource.MustParse("5Gi"),
+						},
+					},
+				},
+			},
+			expectedAnnotations: map[string]string{
+				"redis.opstreelabs.in":       "true",
+				"redis.opstreelabs.instance": "test-sts",
+				"helm.sh/resource-policy":    "keep",
+				"custom-annotation":          "custom-value",
+			},
+		},
+		{
+			name:       "custom PVC annotations override generated ones",
+			volumeName: "redis-data",
+			stsMeta: metav1.ObjectMeta{
+				Name: "test-sts",
+			},
+			storageSpec: corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"redis.opstreelabs.in": "custom-override",
+					},
+				},
+				Spec: corev1.PersistentVolumeClaimSpec{
+					Resources: corev1.VolumeResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceStorage: resource.MustParse("5Gi"),
+						},
+					},
+				},
+			},
+			expectedAnnotations: map[string]string{
+				"redis.opstreelabs.in":       "custom-override",
+				"redis.opstreelabs.instance": "test-sts",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := createPVCTemplate(tt.volumeName, tt.stsMeta, tt.storageSpec)
+			assert.Equal(t, tt.volumeName, result.Name)
+			assert.Equal(t, tt.expectedAnnotations, result.Annotations)
+		})
+	}
+}
+
 func TestGetSidecars(t *testing.T) {
 	tests := []struct {
 		name            string

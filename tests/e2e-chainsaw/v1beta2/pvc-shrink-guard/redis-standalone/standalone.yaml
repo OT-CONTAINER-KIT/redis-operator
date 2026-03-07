@@ -19,6 +19,9 @@ spec:
         memory: 128Mi
   storage:
     volumeClaimTemplate:
+      metadata:
+        annotations:
+          custom.example.com/purpose: test-pvc-annotation
       spec:
         accessModes: [ReadWriteOnce]
         resources:
