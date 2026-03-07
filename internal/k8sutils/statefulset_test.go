@@ -750,8 +750,8 @@ func TestCreateOrUpdateResizingPVC(t *testing.T) {
 				Replicas:            ptr.To(int32(4)),
 				RecreateStatefulSet: test.recreateStatefulSet,
 				NodeConfVolume:      true,
-				NodeConfPersistentVolumeClaim: corev1.PersistentVolumeClaim{
-					ObjectMeta: metav1.ObjectMeta{
+				NodeConfPersistentVolumeClaim: common.EmbeddedPersistentVolumeClaim{
+					Metadata: common.EmbeddedObjectMetadata{
 						Name: "node-conf",
 						Annotations: map[string]string{
 							"redis.opstreelabs.in":       "true",
@@ -766,8 +766,8 @@ func TestCreateOrUpdateResizingPVC(t *testing.T) {
 						},
 					},
 				},
-				PersistentVolumeClaim: corev1.PersistentVolumeClaim{
-					ObjectMeta: metav1.ObjectMeta{
+				PersistentVolumeClaim: common.EmbeddedPersistentVolumeClaim{
+					Metadata: common.EmbeddedObjectMetadata{
 						Name: objMeta.Name,
 						Annotations: map[string]string{
 							"redis.opstreelabs.in":       "true",
@@ -2140,7 +2140,7 @@ func TestCreatePVCTemplate(t *testing.T) {
 		name                string
 		volumeName          string
 		stsMeta             metav1.ObjectMeta
-		storageSpec         corev1.PersistentVolumeClaim
+		storageSpec         common.EmbeddedPersistentVolumeClaim
 		expectedAnnotations map[string]string
 	}{
 		{
@@ -2149,7 +2149,7 @@ func TestCreatePVCTemplate(t *testing.T) {
 			stsMeta: metav1.ObjectMeta{
 				Name: "test-sts",
 			},
-			storageSpec: corev1.PersistentVolumeClaim{
+			storageSpec: common.EmbeddedPersistentVolumeClaim{
 				Spec: corev1.PersistentVolumeClaimSpec{
 					Resources: corev1.VolumeResourceRequirements{
 						Requests: corev1.ResourceList{
@@ -2169,8 +2169,8 @@ func TestCreatePVCTemplate(t *testing.T) {
 			stsMeta: metav1.ObjectMeta{
 				Name: "test-sts",
 			},
-			storageSpec: corev1.PersistentVolumeClaim{
-				ObjectMeta: metav1.ObjectMeta{
+			storageSpec: common.EmbeddedPersistentVolumeClaim{
+				Metadata: common.EmbeddedObjectMetadata{
 					Annotations: map[string]string{
 						"helm.sh/resource-policy": "keep",
 						"custom-annotation":       "custom-value",
@@ -2197,8 +2197,8 @@ func TestCreatePVCTemplate(t *testing.T) {
 			stsMeta: metav1.ObjectMeta{
 				Name: "test-sts",
 			},
-			storageSpec: corev1.PersistentVolumeClaim{
-				ObjectMeta: metav1.ObjectMeta{
+			storageSpec: common.EmbeddedPersistentVolumeClaim{
+				Metadata: common.EmbeddedObjectMetadata{
 					Annotations: map[string]string{
 						"redis.opstreelabs.in": "custom-override",
 					},
