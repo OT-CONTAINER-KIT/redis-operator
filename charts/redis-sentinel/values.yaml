@@ -35,6 +35,10 @@ labels: {}
 #   foo: bar
 #   test: echo
 
+annotations: {}
+#   annotation-key: "annotation-value"
+#   prometheus.io/scrape: "true"
+
 redisSentinelConfig:
   redisReplicationName: "redis-replication"
   redisReplicationPassword:
@@ -163,12 +167,6 @@ topologySpreadConstraints: []
   #       app: redis-sentinel
 
 serviceAccountName: ""
-
-# -- Pod annotations to be applied to all sentinel pods
-podAnnotations: {}
-  # annotation-key: "annotation-value"
-  # prometheus.io/scrape: "true"
-  # prometheus.io/port: "6379"
 
 TLS:
   ca: ca.crt

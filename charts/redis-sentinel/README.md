@@ -49,6 +49,7 @@ helm delete <my-release> --namespace <namespace>
 | TLS.key | string | `"tls.key"` |  |
 | TLS.secret.secretName | string | `""` |  |
 | affinity | object | `{}` |  |
+| annotations | object | `{}` |  |
 | env | list | `[]` |  |
 | externalConfig.data | string | `"tcp-keepalive 400\nslowlog-max-len 158\nstream-node-max-bytes 2048\n"` |  |
 | externalConfig.enabled | bool | `false` |  |
@@ -63,7 +64,6 @@ helm delete <my-release> --namespace <namespace>
 | initContainer.imagePullPolicy | string | `"IfNotPresent"` |  |
 | initContainer.resources | object | `{}` |  |
 | labels | object | `{}` |  |
-| podAnnotations | object | `{}` | Pod annotations to be applied to all sentinel pods |
 | livenessProbe.failureThreshold | int | `3` |  |
 | livenessProbe.initialDelaySeconds | int | `1` |  |
 | livenessProbe.periodSeconds | int | `10` |  |

@@ -49,6 +49,7 @@ helm delete <my-release> --namespace <namespace>
 | TLS.secret.secretName | string | `""` |  |
 | acl.secret.secretName | string | `""` |  |
 | affinity | object | `{}` |  |
+| annotations | object | `{}` |  |
 | env | list | `[]` |  |
 | externalConfig.data | string | `"tcp-keepalive 400\nslowlog-max-len 158\nstream-node-max-bytes 2048\n"` |  |
 | externalConfig.enabled | bool | `false` |  |
@@ -63,7 +64,6 @@ helm delete <my-release> --namespace <namespace>
 | initContainer.imagePullPolicy | string | `"IfNotPresent"` |  |
 | initContainer.resources | object | `{}` |  |
 | labels | object | `{}` |  |
-| podAnnotations | object | `{}` | Pod annotations to be applied to all Redis pods |
 | nodeSelector | object | `{}` |  |
 | podSecurityContext.fsGroup | int | `1000` |  |
 | podSecurityContext.runAsUser | int | `1000` |  |

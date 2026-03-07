@@ -51,6 +51,10 @@ labels: {}
 #   foo: bar
 #   test: echo
 
+annotations: {}
+#   annotation-key: "annotation-value"
+#   prometheus.io/scrape: "true"
+
 externalConfig:
   enabled: false
   data: |
@@ -175,12 +179,6 @@ topologySpreadConstraints: []
   #       app: redis-replication
 
 serviceAccountName: ""
-
-# -- Pod annotations to be applied to all Redis pods
-podAnnotations: {}
-  # annotation-key: "annotation-value"
-  # prometheus.io/scrape: "true"
-  # prometheus.io/port: "6379"
 
 TLS:
   ca: ca.crt
