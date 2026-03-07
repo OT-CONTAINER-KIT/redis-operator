@@ -134,6 +134,10 @@ labels: {}
 #   foo: bar
 #   test: echo
 
+annotations: {}
+#   annotation-key: "annotation-value"
+#   prometheus.io/scrape: "true"
+
 
 externalConfig:
   enabled: false
@@ -233,7 +237,6 @@ storageSpec:
 podSecurityContext:
   runAsUser: 1000
   fsGroup: 1000
-
 
 # serviceAccountName: redis-sa
 

@@ -5,6 +5,7 @@ metadata:
   name: {{ .Values.redisReplication.name | default .Release.Name }}
   labels: {{- include "common.labels" . | nindent 4 }}
   annotations:
+    {{- include "common.annotations" . | nindent 4 }}
     {{ if .Values.redisReplication.recreateStatefulSetOnUpdateInvalid }}
     redis.opstreelabs.in/recreate-statefulset: "true"
     {{ end }}

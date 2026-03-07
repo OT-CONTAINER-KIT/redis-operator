@@ -35,6 +35,10 @@ labels: {}
 #   foo: bar
 #   test: echo
 
+annotations: {}
+#   annotation-key: "annotation-value"
+#   prometheus.io/scrape: "true"
+
 redisSentinelConfig:
   redisReplicationName: "redis-replication"
   redisReplicationPassword:

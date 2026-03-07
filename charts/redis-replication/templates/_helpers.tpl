@@ -13,6 +13,13 @@ app.kubernetes.io/component: middleware
 {{- end }}
 {{- end -}}
 
+{{/* Define common annotations */}}
+{{- define "common.annotations" -}}
+{{- if .Values.annotations }}
+{{ toYaml .Values.annotations }}
+{{- end }}
+{{- end -}}
+
 {{/* Generate init container properties */}}
 {{- define "initContainer.properties" -}}
 {{- with .Values.initContainer }}

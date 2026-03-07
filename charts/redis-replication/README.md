@@ -50,6 +50,7 @@ helm delete <my-release> --namespace <namespace>
 | TLS.secret.secretName | string | `""` |  |
 | acl.secret.secretName | string | `""` |  |
 | affinity | object | `{}` |  |
+| annotations | object | `{}` |  |
 | env | list | `[]` |  |
 | externalConfig.data | string | `"tcp-keepalive 400\nslowlog-max-len 158\nstream-node-max-bytes 2048\n"` |  |
 | externalConfig.enabled | bool | `false` |  |
