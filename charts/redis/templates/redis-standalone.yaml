@@ -16,6 +16,8 @@ spec:
     {{- if .Values.redisStandalone.imagePullSecrets }}
     imagePullSecrets: {{ toYaml .Values.redisStandalone.imagePullSecrets | nindent 4 }}
     {{- end }}
+    service:
+      serviceType: {{ include "common.validateServiceType" (dict "serviceType" .Values.redisStandalone.serviceType "name" (.Values.redisStandalone.name | default .Release.Name)) }}
     {{- if .Values.redisStandalone.resources}}
     resources: {{ toYaml .Values.redisStandalone.resources | nindent 6 }}
     {{- end }}

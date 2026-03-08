@@ -59,7 +59,7 @@ spec:
     {{- end }}
     {{- if .Values.redisCluster.serviceType }}
     service:
-      serviceType: {{ .Values.redisCluster.serviceType }}
+      serviceType: {{ include "common.validateServiceType" (dict "serviceType" .Values.redisCluster.serviceType "name" (.Values.redisCluster.name | default .Release.Name)) }}
     {{- end }}
     {{- if .Values.redisCluster.resources}}
     resources: {{ toYaml .Values.redisCluster.resources | nindent 6 }}
