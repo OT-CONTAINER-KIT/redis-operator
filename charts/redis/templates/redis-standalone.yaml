@@ -16,14 +16,8 @@ spec:
     {{- if .Values.redisStandalone.imagePullSecrets }}
     imagePullSecrets: {{ toYaml .Values.redisStandalone.imagePullSecrets | nindent 4 }}
     {{- end }}
-    {{- $allowedServiceTypes := list "ClusterIP" "NodePort" "LoadBalancer" -}}
-    {{- $serviceType := .Values.redisStandalone.serviceType | default "ClusterIP" -}}
-    {{- if has $serviceType $allowedServiceTypes }}
     service:
-      serviceType: {{ $serviceType }}
-    {{- else }}
-    {{- fail (printf "redisStandalone.serviceType must be one of ClusterIP, NodePort, LoadBalancer; got: %s" $serviceType) }}
-    {{- end }}
+      serviceType: {{ include "common.validateServiceType" (dict "serviceType" .Values.redisStandalone.serviceType "name" (.Values.redisStandalone.name | default .Release.Name)) }}
     {{- if .Values.redisStandalone.resources}}
     resources: {{ toYaml .Values.redisStandalone.resources | nindent 6 }}
     {{- end }}

@@ -17,6 +17,10 @@ spec:
     {{- if .Values.redisReplication.imagePullSecrets }}
     imagePullSecrets: {{ toYaml .Values.redisReplication.imagePullSecrets | nindent 4 }}
     {{- end }}
+    {{- if .Values.redisReplication.serviceType }}
+    service:
+      serviceType: {{ include "common.validateServiceType" (dict "serviceType" .Values.redisReplication.serviceType "name" (.Values.redisReplication.name | default .Release.Name)) }}
+    {{- end }}
     {{- if .Values.redisReplication.resources}}
     resources: {{ toYaml .Values.redisReplication.resources | nindent 6 }}
     {{- end }}

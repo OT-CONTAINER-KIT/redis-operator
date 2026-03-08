@@ -38,6 +38,10 @@ spec:
     {{- if .Values.redisSentinel.imagePullSecrets }}
     imagePullSecrets: {{ toYaml .Values.redisSentinel.imagePullSecrets | nindent 4 }}
     {{- end }}
+    {{- if .Values.redisSentinel.serviceType }}
+    service:
+      serviceType: {{ include "common.validateServiceType" (dict "serviceType" .Values.redisSentinel.serviceType "name" (.Values.redisSentinel.name | default .Release.Name)) }}
+    {{- end }}
     {{- if .Values.redisSentinel.resources}}
     resources: {{ toYaml .Values.redisSentinel.resources | nindent 6 }}
     {{- end }}
