@@ -3,7 +3,6 @@ package k8sutils
 import (
 	"context"
 	"fmt"
-	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -603,10 +602,12 @@ func ClusterFailover(ctx context.Context, client kubernetes.Interface, cr *rcvb2
 		PodName:   slavePodName,
 		Namespace: cr.Namespace,
 	}
-	host, port, err := net.SplitHostPort(getEndpoint(ctx, client, cr, pod))
-	if err != nil {
-		return err
+	endpoint := getEndpoint(ctx, client, cr, pod)
+	lastColon := strings.LastIndex(endpoint, ":")
+	if lastColon < 0 {
+		return fmt.Errorf("invalid endpoint format: %s", endpoint)
 	}
+	host, port := endpoint[:lastColon], endpoint[lastColon+1:]
 	cmd = []string{"redis-cli", "-h", host, "-p", port}
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
 		pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
