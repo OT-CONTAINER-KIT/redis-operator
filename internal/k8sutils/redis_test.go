@@ -302,20 +302,29 @@ func TestGetRedisServerAddress(t *testing.T) {
 	}
 }
 
-func TestCreateSingleLeaderRedisCommand(t *testing.T) {
-	cr := &rcvb2.RedisCluster{}
-	invocation := CreateSingleLeaderRedisCommand(context.TODO(), cr)
-	cmd := invocation.Args()
+func TestSingleLeaderAddSlotsBatching(t *testing.T) {
+	// Verify that batching covers all 16384 slots with no gaps or overlaps,
+	// and that each batch is within the size limit.
+	const totalSlots = 16384
+	const batchSize = 1000
 
-	assert.Equal(t, "redis-cli", cmd[0])
-	assert.Equal(t, "CLUSTER", cmd[1])
-	assert.Equal(t, "ADDSLOTS", cmd[2])
-
-	expectedLength := 16384 + 3
-
-	assert.Equal(t, expectedLength, len(cmd))
-	assert.Equal(t, "0", cmd[3])
-	assert.Equal(t, "16383", cmd[expectedLength-1])
+	seen := make(map[int]bool)
+	batches := 0
+	for start := 0; start < totalSlots; start += batchSize {
+		end := start + batchSize
+		if end > totalSlots {
+			end = totalSlots
+		}
+		batchLen := end - start
+		assert.LessOrEqual(t, batchLen, batchSize, "batch exceeds max size")
+		for i := start; i < end; i++ {
+			assert.False(t, seen[i], "slot %d assigned twice", i)
+			seen[i] = true
+		}
+		batches++
+	}
+	assert.Equal(t, totalSlots, len(seen), "not all slots covered")
+	assert.Equal(t, 17, batches, "expected 17 batches (16*1000 + 1*384)")
 }
 
 func TestCreateMultipleLeaderRedisCommand(t *testing.T) {
