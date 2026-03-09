@@ -6,6 +6,14 @@ definitions:
       memory: 4096
 
 pipelines:
+  pull-requests:
+    '**':
+      - step:
+          name: Build Docker image (PR validation)
+          services:
+            - docker
+          script:
+            - docker build -t redis-operator:pr-${BITBUCKET_PR_ID}-${BITBUCKET_COMMIT} .
   branches:
     main:
       - step:
@@ -17,7 +25,11 @@ pipelines:
               variables:
                 COMPLIANT: "true"
             - source .artifactory/activate.sh
+            - export SHORT_COMMIT=$(echo ${BITBUCKET_COMMIT} | cut -c1-11)
+            - export VERSION=${CUSTOM_VERSION:-v0.23.0-${SHORT_COMMIT}}
             - docker build -t docker.atl-paas.net/sox/atlassian/redis-operator:${BITBUCKET_COMMIT} .
             - docker push docker.atl-paas.net/sox/atlassian/redis-operator:${BITBUCKET_COMMIT}
+            - docker tag docker.atl-paas.net/sox/atlassian/redis-operator:${BITBUCKET_COMMIT} docker.atl-paas.net/sox/atlassian/redis-operator:${VERSION}
+            - docker push docker.atl-paas.net/sox/atlassian/redis-operator:${VERSION}
             - docker tag docker.atl-paas.net/sox/atlassian/redis-operator:${BITBUCKET_COMMIT} docker.atl-paas.net/sox/atlassian/redis-operator:latest
             - docker push docker.atl-paas.net/sox/atlassian/redis-operator:latest
