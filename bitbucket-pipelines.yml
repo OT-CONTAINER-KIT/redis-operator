@@ -6,6 +6,19 @@ definitions:
       memory: 4096
 
 pipelines:
+  pull-requests:
+    '**':
+      - step:
+          name: Build Docker image (PR validation)
+          services:
+            - docker
+          script:
+            - pipe: atlassian/artifactory-sidekick:v1
+              variables:
+                COMPLIANT: "true"
+            - source .artifactory/activate.sh
+            - docker build -t docker.atl-paas.net/sox/atlassian/redis-operator:pr-${BITBUCKET_PR_ID}-${BITBUCKET_COMMIT} .
+            - docker push docker.atl-paas.net/sox/atlassian/redis-operator:pr-${BITBUCKET_PR_ID}-${BITBUCKET_COMMIT}
   branches:
     main:
       - step:
