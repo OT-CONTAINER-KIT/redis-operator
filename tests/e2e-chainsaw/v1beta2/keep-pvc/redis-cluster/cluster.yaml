@@ -34,6 +34,9 @@ spec:
   storage:
     keepAfterDelete: true
     volumeClaimTemplate:
+      metadata:
+        annotations:
+          custom.example.com/purpose: test-pvc-annotation
       spec:
         # storageClassName: standard
         accessModes: [ReadWriteOnce]
@@ -42,6 +45,9 @@ spec:
             storage: 1Gi
     nodeConfVolume: true
     nodeConfVolumeClaimTemplate:
+      metadata:
+        annotations:
+          custom.example.com/purpose: test-nodeconf-annotation
       spec:
         accessModes: [ReadWriteOnce]
         resources:
