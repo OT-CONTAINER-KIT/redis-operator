@@ -1,0 +1,10 @@
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisCluster
+metadata:
+  name: redis-single-shard-ha
+status:
+  readyLeaderReplicas: 1
+  readyFollowerReplicas: 1
+  state: Ready
+  reason: RedisCluster is ready
