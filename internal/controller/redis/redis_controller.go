@@ -18,12 +18,13 @@ package redis
 
 import (
 	"context"
-	"time"
 
 	rvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redis/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/controllerutil"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -67,13 +68,22 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if err != nil {
 		return intctrlutil.RequeueE(ctx, err, "failed to create service")
 	}
-	return intctrlutil.RequeueAfter(ctx, time.Second*10, "requeue after 10 seconds")
+	return intctrlutil.Reconciled()
 }
 
 // SetupWithManager sets up the controller with the Manager.
+//
+// Unlike RedisCluster, RedisReplication, and RedisSentinel controllers, the Redis standalone
+// controller does not require periodic requeue. Those controllers need timed requeues to
+// continuously monitor cluster topology, replication health, slot distribution, and sentinel
+// readiness — state that can change independently of Kubernetes resource events. The standalone
+// controller only creates a StatefulSet and a Service with no ongoing distributed state to poll,
+// so a timed requeue is unnecessary.
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, opts controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&rvb2.Redis{}).
 		WithOptions(opts).
+		Owns(&corev1.Service{}).
+		Owns(&appsv1.StatefulSet{}).
 		Complete(r)
 }
