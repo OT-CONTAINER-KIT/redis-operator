@@ -2,20 +2,26 @@ package util
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"time"
 )
 
-func GetLocalIP() (string, error) {
-	dialer := net.Dialer{}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+func GetLocalIP(ctx context.Context) (string, error) {
+	// Safety net so this can’t hang forever.
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 
-	conn, err := dialer.DialContext(ctx, "udp", "8.8.8.8:80")
+	d := net.Dialer{}
+	conn, err := d.DialContext(ctx, "udp", "8.8.8.8:80")
 	if err != nil {
 		return "", err
 	}
 	defer conn.Close()
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
-	return localAddr.IP.String(), nil
+
+	udpAddr, ok := conn.LocalAddr().(*net.UDPAddr)
+	if !ok || udpAddr.IP == nil {
+		return "", fmt.Errorf("unexpected local addr: %T %v", conn.LocalAddr(), conn.LocalAddr())
+	}
+	return udpAddr.IP.String(), nil
 }
