@@ -234,6 +234,106 @@ func Test_generateRedisReplicationContainerParams(t *testing.T) {
 	assert.EqualValues(t, expected, actual, "Expected %+v, got %+v", expected, actual)
 }
 
+func Test_generateRedisReplicationContainerParams_hostnameEnvVars(t *testing.T) {
+	tests := []struct {
+		name              string
+		resolveHostnames  string
+		announceHostnames string
+		expectEnvVars     bool
+	}{
+		{
+			name:              "both yes - env vars injected",
+			resolveHostnames:  "yes",
+			announceHostnames: "yes",
+			expectEnvVars:     true,
+		},
+		{
+			name:              "both no - no env vars injected",
+			resolveHostnames:  "no",
+			announceHostnames: "no",
+			expectEnvVars:     false,
+		},
+		{
+			name:              "both empty - no env vars injected",
+			resolveHostnames:  "",
+			announceHostnames: "",
+			expectEnvVars:     false,
+		},
+		{
+			name:              "only resolveHostnames yes - env vars injected",
+			resolveHostnames:  "yes",
+			announceHostnames: "no",
+			expectEnvVars:     true,
+		},
+		{
+			name:              "only announceHostnames yes - env vars injected",
+			resolveHostnames:  "no",
+			announceHostnames: "yes",
+			expectEnvVars:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cr := &rrvb2.RedisReplication{
+				Spec: rrvb2.RedisReplicationSpec{
+					Size: ptr.To(int32(3)),
+					KubernetesConfig: common.KubernetesConfig{
+						Image: "quay.io/opstree/redis:v7.0.12",
+					},
+					ResolveHostnames:  tt.resolveHostnames,
+					AnnounceHostnames: tt.announceHostnames,
+				},
+			}
+
+			actual := generateRedisReplicationContainerParams(cr)
+
+			if tt.expectEnvVars {
+				assert.NotNil(t, actual.EnvVars, "EnvVars should not be nil")
+				envVars := *actual.EnvVars
+				found := map[string]string{}
+				for _, e := range envVars {
+					found[e.Name] = e.Value
+				}
+				assert.Equal(t, tt.resolveHostnames, found["RESOLVE_HOSTNAMES"], "RESOLVE_HOSTNAMES env var mismatch")
+				assert.Equal(t, tt.announceHostnames, found["ANNOUNCE_HOSTNAMES"], "ANNOUNCE_HOSTNAMES env var mismatch")
+			} else {
+				assert.Nil(t, actual.EnvVars, "EnvVars should be nil when hostname fields are not enabled")
+			}
+		})
+	}
+}
+
+func Test_generateRedisReplicationContainerParams_hostnameEnvVarsAppendedToExisting(t *testing.T) {
+	existingEnvVars := []corev1.EnvVar{
+		{Name: "EXISTING_VAR", Value: "existing_value"},
+	}
+	cr := &rrvb2.RedisReplication{
+		Spec: rrvb2.RedisReplicationSpec{
+			Size: ptr.To(int32(3)),
+			KubernetesConfig: common.KubernetesConfig{
+				Image: "quay.io/opstree/redis:v7.0.12",
+			},
+			EnvVars:           &existingEnvVars,
+			ResolveHostnames:  "yes",
+			AnnounceHostnames: "yes",
+		},
+	}
+
+	actual := generateRedisReplicationContainerParams(cr)
+
+	assert.NotNil(t, actual.EnvVars)
+	envVars := *actual.EnvVars
+	assert.Len(t, envVars, 3, "Should have existing env var plus two hostname env vars")
+
+	assert.Equal(t, "EXISTING_VAR", envVars[0].Name)
+	assert.Equal(t, "existing_value", envVars[0].Value)
+	assert.Equal(t, "RESOLVE_HOSTNAMES", envVars[1].Name)
+	assert.Equal(t, "yes", envVars[1].Value)
+	assert.Equal(t, "ANNOUNCE_HOSTNAMES", envVars[2].Name)
+	assert.Equal(t, "yes", envVars[2].Value)
+}
+
 func Test_generateRedisReplicationInitContainerParams(t *testing.T) {
 	path := filepath.Join("..", "..", "tests", "testdata", "redis-replication.yaml")
 	expected := initContainerParameters{
