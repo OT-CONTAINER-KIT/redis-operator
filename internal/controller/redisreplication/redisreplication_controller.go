@@ -367,8 +367,26 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 		log.FromContext(ctx).Info("Creating redis replication by executing replication creation commands")
 
 		realMaster = k8sutils.GetRedisReplicationRealMaster(ctx, r.K8sClient, instance, masterNodes)
-		if len(slaveNodes) == 0 {
-			realMaster = masterNodes[0]
+
+		// Cascading fallback when no pod has connected_slaves > 0
+		if realMaster == "" {
+			// Fallback 1: use last-known master from Status.MasterNode if valid
+			if instance.Status.MasterNode != "" && k8sutils.IsPodRunning(ctx, r.K8sClient, instance.Namespace, instance.Status.MasterNode) {
+				log.FromContext(ctx).Info("No master with attached slaves found, falling back to Status.MasterNode",
+					"statusMasterNode", instance.Status.MasterNode)
+				realMaster = instance.Status.MasterNode
+			}
+			// Fallback 2: use first master pod as last resort
+			if realMaster == "" && len(masterNodes) > 0 {
+				log.FromContext(ctx).Info("No valid Status.MasterNode, falling back to first master pod",
+					"masterNode", masterNodes[0])
+				realMaster = masterNodes[0]
+			}
+		}
+
+		if realMaster == "" {
+			log.FromContext(ctx).Error(nil, "No valid master found after all fallbacks, requeueing")
+			return intctrlutil.RequeueAfter(ctx, time.Second*60, "no valid master found")
 		}
 		if err := k8sutils.CreateMasterSlaveReplication(ctx, r.K8sClient, instance, masterNodes, realMaster); err != nil {
 			return intctrlutil.RequeueAfter(ctx, time.Second*60, "")
