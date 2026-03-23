@@ -376,10 +376,13 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 					"statusMasterNode", instance.Status.MasterNode)
 				realMaster = instance.Status.MasterNode
 			}
-			// Fallback 2: use first master pod as last resort
+			// Last resort: all pods are standalone masters (fresh cluster or full restart).
+			// Arbitrarily pick masterNodes[0] as the new master to bootstrap replication.
+			// This choice is stable within a reconcile cycle and will be corrected by
+			// Status.MasterNode on subsequent cycles once replication is established.
 			if realMaster == "" && len(masterNodes) > 0 {
-				log.FromContext(ctx).Info("No valid Status.MasterNode, falling back to first master pod",
-					"masterNode", masterNodes[0])
+				log.FromContext(ctx).Info("No real master found via slave count or Status.MasterNode; "+
+					"electing first master node as bootstrap master", "podName", masterNodes[0])
 				realMaster = masterNodes[0]
 			}
 		}
