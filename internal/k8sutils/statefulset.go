@@ -855,6 +855,17 @@ func getProbeInfo(probe *corev1.Probe, sentinel, enableTLS, enableAuth bool) *co
 	if probe == nil {
 		probe = &corev1.Probe{}
 	}
+	// Harden probe timing defaults to prevent Kubernetes from prematurely
+	// evicting Redis pods during transient blips (BGSAVE, NLB health checks,
+	// network flaps). With 5 failures × 5s timeout = ~50s tolerance, which
+	// gives the cluster-node-timeout (15s) time to detect and gossip recover
+	// before Kubernetes kills the pod and makes things worse.
+	if probe.TimeoutSeconds == 0 {
+		probe.TimeoutSeconds = 5
+	}
+	if probe.FailureThreshold == 0 {
+		probe.FailureThreshold = 5
+	}
 	if probe.Exec == nil && probe.HTTPGet == nil && probe.TCPSocket == nil && probe.GRPC == nil {
 		redisHealthCheck := []string{
 			"redis-cli",
