@@ -17,6 +17,9 @@ limitations under the License.
 package v1beta2
 
 import (
+	"context"
+	"fmt"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -36,33 +39,46 @@ var redisclusterlog = logf.Log.WithName("rediscluster-v1beta2-validation")
 
 // +kubebuilder:webhook:path=/validate-redis-redis-opstreelabs-in-v1beta2-rediscluster,mutating=false,failurePolicy=fail,sideEffects=None,groups=redis.redis.opstreelabs.in,resources=redisclusters,verbs=create;update,versions=v1beta2,name=validate-rediscluster.redis.opstreelabs.in,admissionReviewVersions=v1
 
+type RedisClusterCustomValidator struct{}
+
+var _ webhook.CustomValidator = &RedisClusterCustomValidator{}
+
 // SetupWebhookWithManager will setup the manager
 func (r *RedisCluster) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
+		For(&RedisCluster{}).
+		WithValidator(&RedisClusterCustomValidator{}).
 		Complete()
 }
 
-var _ webhook.Validator = &RedisCluster{}
-
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *RedisCluster) ValidateCreate() (admission.Warnings, error) {
-	redisclusterlog.Info("validate create", "name", r.Name)
-
-	return r.validate(nil)
+func (v *RedisClusterCustomValidator) ValidateCreate(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
+	rc, ok := obj.(*RedisCluster)
+	if !ok {
+		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected RedisCluster but got %T", obj))
+	}
+	redisclusterlog.Info("validate create", "name", rc.Name)
+	return rc.validate(nil)
 }
 
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *RedisCluster) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
-	redisclusterlog.Info("validate update", "name", r.Name)
-
-	return r.validate(old.(*RedisCluster))
+func (v *RedisClusterCustomValidator) ValidateUpdate(_ context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
+	oldRC, ok := oldObj.(*RedisCluster)
+	if !ok {
+		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected RedisCluster (old) but got %T", oldObj))
+	}
+	rc, ok := newObj.(*RedisCluster)
+	if !ok {
+		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected RedisCluster (new) but got %T", newObj))
+	}
+	redisclusterlog.Info("validate update", "name", rc.Name)
+	return rc.validate(oldRC)
 }
 
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *RedisCluster) ValidateDelete() (admission.Warnings, error) {
-	redisclusterlog.Info("validate delete", "name", r.Name)
-
+func (v *RedisClusterCustomValidator) ValidateDelete(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
+	rc, ok := obj.(*RedisCluster)
+	if !ok {
+		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected RedisCluster but got %T", obj))
+	}
+	redisclusterlog.Info("validate delete", "name", rc.Name)
 	return nil, nil
 }
 

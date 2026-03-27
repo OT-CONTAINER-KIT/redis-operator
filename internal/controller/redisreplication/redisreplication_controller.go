@@ -69,7 +69,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if err != nil {
 			return intctrlutil.RequeueE(ctx, err, "")
 		}
-		if result.Requeue {
+		if result.RequeueAfter > 0 {
 			return result, nil
 		}
 	}
