@@ -160,12 +160,34 @@ type RedisConfig struct {
 	AdditionalRedisConfig   *string  `json:"additionalRedisConfig,omitempty"`
 }
 
+// EmbeddedObjectMetadata contains a subset of the fields from k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta.
+// Only fields which are relevant to embedded PVC templates are included.
+// +k8s:deepcopy-gen=true
+type EmbeddedObjectMetadata struct {
+	Name        string            `json:"name,omitempty"`
+	Labels      map[string]string `json:"labels,omitempty"`
+	Annotations map[string]string `json:"annotations,omitempty"`
+}
+
+// EmbeddedPersistentVolumeClaim is an embedded version of k8s.io/api/core/v1.PersistentVolumeClaim.
+// It contains TypeMeta and a reduced ObjectMeta so that controller-gen can generate
+// a CRD schema that includes metadata fields like annotations and labels.
+// +k8s:deepcopy-gen=true
+type EmbeddedPersistentVolumeClaim struct {
+	// +optional
+	Metadata EmbeddedObjectMetadata `json:"metadata,omitempty"`
+
+	// Spec defines the desired characteristics of a volume requested by a pod author.
+	// +optional
+	Spec corev1.PersistentVolumeClaimSpec `json:"spec,omitempty"`
+}
+
 // Storage is the interface to add pvc and pv support in redis
 // +k8s:deepcopy-gen=true
 type Storage struct {
-	KeepAfterDelete     bool                         `json:"keepAfterDelete,omitempty"`
-	VolumeClaimTemplate corev1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
-	VolumeMount         AdditionalVolume             `json:"volumeMount,omitempty"`
+	KeepAfterDelete     bool                          `json:"keepAfterDelete,omitempty"`
+	VolumeClaimTemplate EmbeddedPersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
+	VolumeMount         AdditionalVolume              `json:"volumeMount,omitempty"`
 }
 
 // Additional Volume is provided by user that is mounted on the pods

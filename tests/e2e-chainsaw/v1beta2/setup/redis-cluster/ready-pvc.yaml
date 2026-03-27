@@ -7,6 +7,8 @@ metadata:
     app: redis-cluster-v1beta2-leader
     redis_setup_type: cluster
     role: leader
+  annotations:
+    custom.example.com/purpose: test-nodeconf-annotation
 status:
   accessModes: [ReadWriteOnce]
   capacity:
@@ -21,6 +23,8 @@ metadata:
     app: redis-cluster-v1beta2-leader
     redis_setup_type: cluster
     role: leader
+  annotations:
+    custom.example.com/purpose: test-nodeconf-annotation
 status:
   accessModes: [ReadWriteOnce]
   capacity:
@@ -35,6 +39,8 @@ metadata:
     app: redis-cluster-v1beta2-leader
     redis_setup_type: cluster
     role: leader
+  annotations:
+    custom.example.com/purpose: test-nodeconf-annotation
 status:
   accessModes: [ReadWriteOnce]
   capacity:
@@ -49,6 +55,8 @@ metadata:
     app: redis-cluster-v1beta2-follower
     redis_setup_type: cluster
     role: follower
+  annotations:
+    custom.example.com/purpose: test-nodeconf-annotation
 status:
   accessModes: [ReadWriteOnce]
   capacity:
@@ -63,6 +71,8 @@ metadata:
     app: redis-cluster-v1beta2-follower
     redis_setup_type: cluster
     role: follower
+  annotations:
+    custom.example.com/purpose: test-nodeconf-annotation
 status:
   accessModes: [ReadWriteOnce]
   capacity:
@@ -77,6 +87,8 @@ metadata:
     app: redis-cluster-v1beta2-follower
     redis_setup_type: cluster
     role: follower
+  annotations:
+    custom.example.com/purpose: test-nodeconf-annotation
 status:
   accessModes: [ReadWriteOnce]
   capacity:
@@ -91,6 +103,8 @@ metadata:
     app: redis-cluster-v1beta2-leader
     redis_setup_type: cluster
     role: leader
+  annotations:
+    custom.example.com/purpose: test-pvc-annotation
 status:
   accessModes: [ReadWriteOnce]
   capacity:
@@ -105,6 +119,8 @@ metadata:
     app: redis-cluster-v1beta2-leader
     redis_setup_type: cluster
     role: leader
+  annotations:
+    custom.example.com/purpose: test-pvc-annotation
 status:
   accessModes: [ReadWriteOnce]
   capacity:
@@ -119,6 +135,8 @@ metadata:
     app: redis-cluster-v1beta2-leader
     redis_setup_type: cluster
     role: leader
+  annotations:
+    custom.example.com/purpose: test-pvc-annotation
 status:
   accessModes: [ReadWriteOnce]
   capacity:
@@ -133,6 +151,8 @@ metadata:
     app: redis-cluster-v1beta2-follower
     redis_setup_type: cluster
     role: follower
+  annotations:
+    custom.example.com/purpose: test-pvc-annotation
 status:
   accessModes: [ReadWriteOnce]
   capacity:
@@ -147,6 +167,8 @@ metadata:
     app: redis-cluster-v1beta2-follower
     redis_setup_type: cluster
     role: follower
+  annotations:
+    custom.example.com/purpose: test-pvc-annotation
 status:
   accessModes: [ReadWriteOnce]
   capacity:
@@ -161,6 +183,8 @@ metadata:
     app: redis-cluster-v1beta2-follower
     redis_setup_type: cluster
     role: follower
+  annotations:
+    custom.example.com/purpose: test-pvc-annotation
 status:
   accessModes: [ReadWriteOnce]
   capacity:
