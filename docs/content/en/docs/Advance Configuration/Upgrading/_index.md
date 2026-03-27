@@ -9,6 +9,10 @@ description: >
 
 The upgrade strategy for standalone Redis includes the downtime of the system but for cluster setup mode any application will not face any type of issues or downtime. The operator uses the rolling deployment strategy for cluster setup where it will upgrade the redis leader pods and once the leader is upgraded it will follow the same strategy for redis follower pods.
 
+{{< alert color="info" title="Context" >}}
+This page includes both Helm-based upgrades and direct CRD updates. Each example is labeled.
+{{< /alert >}}
+
 ## Upgrade of standalone setup
 
 For upgrading the standalone setup of Redis, first we need to identify the current version of it and that can be done via combination of `kubectl` and `redis-server` command.
@@ -18,6 +22,8 @@ $ kubectl exec -it redis-0 -n ot-operators -c redis -- redis-server --version
 ...
 Redis server v=6.2.5 sha=00000000:0 malloc=jemalloc-5.1.0 bits=64 build=3e393a4e624651a3
 ```
+
+### Helm values (charts)
 
 Now let's say the new version, we want to migrate is `7.0.5`. In that case, we can simply use `helm upgrade` command to upgrade the redis cluster.
 
@@ -51,14 +57,22 @@ $ kubectl exec -it redis-0 -n ot-operators -c redis -- redis-server --version
 Redis server v=7.0.5 sha=00000000:0 malloc=jemalloc-5.2.1 bits=64 build=90d2ef529791ba03
 ```
 
-For YAML manifest based upgrade, please update the `spec` section of Redis Object. For further details check [here](../../crd-reference/redis-api/#kubernetesconfig).
+### CRD manifest (operator)
+
+If you apply CRDs directly (no chart), update the Redis custom resource:
 
 ```yaml
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: Redis
+metadata:
+  name: redis
 spec:
   kubernetesConfig:
     image: "quay.io/opstree/redis:v7.0.15"
     imagePullPolicy: "IfNotPresent"
 ```
+
+For further details check [here](../../crd-reference/redis-api/#kubernetesconfig).
 
 **Things to keep in mind:**
 
@@ -103,6 +117,8 @@ a00493797d566f2cb1f861962e94fee453d23857 192.168.2.131:6379@16379 slave 2321a671
 670c7c36d3d89c93d4bc546e6ee02b2b843d8801 192.168.33.178:6379@16379 master - 0 1667400526000 2 connected 5461-10922
 af958687b0048c734b13cef5632ab2b46e386fb1 192.168.72.57:6379@16379 master - 0 1667400527000 3 connected 10923-16383
 ```
+
+### Helm values (charts)
 
 Once the version and cluster health is verified, we can trigger the upgrade of the cluster by using `helm` command. Let's upgrade the cluster version to v7.
 
@@ -153,14 +169,24 @@ a00493797d566f2cb1f861962e94fee453d23857 192.168.8.246:6379@16379 slave 2321a671
 93eb534f0e748b04ff4be6fe984173cdc65703eb 192.168.52.229:6379@16379 slave 670c7c36d3d89c93d4bc546e6ee02b2b843d8801 0 1667400984687 2 connected
 ```
 
-For YAML manifest based upgrade, please update the `spec` section of Redis Object. For further details check [here](../../crd-reference/redis-api/#kubernetesconfig).
+### CRD manifest (operator)
+
+If you apply CRDs directly (no chart), update the RedisCluster custom resource:
 
 ```yaml
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisCluster
+metadata:
+  name: redis-cluster
 spec:
+  clusterSize: 3
+  clusterVersion: v7
   kubernetesConfig:
     image: "quay.io/opstree/redis:v7.0.15"
     imagePullPolicy: "IfNotPresent"
 ```
+
+For further details check [here](../../crd-reference/redis-api/#kubernetesconfig).
 
 
 **Things to keep in mind:**
@@ -214,4 +240,3 @@ Using the "orphan" strategy will keep the Pods running, but they won't be manage
 {{< /alert >}}
 
 This feature is useful when upgrading Redis with changes to immutable StatefulSet fields, allowing administrators to control the recreation process according to their operational requirements.
-
