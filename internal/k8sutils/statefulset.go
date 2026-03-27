@@ -556,6 +556,8 @@ func GeneratePreStopCommand(role string, enableAuth, enableTLS bool) string {
 	switch role {
 	case "cluster":
 		return generateClusterPreStop(authArgs, tlsArgs)
+	case "replication":
+		return generateReplicationPreStop(authArgs, tlsArgs)
 	default:
 		return ""
 	}
@@ -602,6 +604,29 @@ if [ "$ROLE" = "master" ]; then
         redis-cli -h "$BEST_SLAVE" -p ${REDIS_PORT} %s %s cluster failover
     fi
 fi`, authArgs, tlsArgs, authArgs, tlsArgs, authArgs, tlsArgs)
+}
+
+// generateReplicationPreStop generates the preStop script for Redis replication mode.
+// It checks if this pod is the master, and if so, triggers a Sentinel failover
+// before allowing the pod to terminate, preventing unnecessary downtime.
+func generateReplicationPreStop(authArgs, tlsArgs string) string {
+	return fmt.Sprintf(`#!/bin/sh
+ROLE=$(redis-cli -h $(hostname) -p ${REDIS_PORT} %s %s --no-auth-warning info replication | awk -F: '/role:master/ {print "master"}')
+
+if [ "$ROLE" = "master" ]; then
+    CR_NAME=$(echo $HOSTNAME | sed 's/-[0-9]*$//')
+    SENTINEL_SVC="${CR_NAME}-s-hl"
+
+    redis-cli -h "$SENTINEL_SVC" -p 26379 SENTINEL FAILOVER mymaster
+
+    for i in $(seq 1 30); do
+        NEW_ROLE=$(redis-cli -h $(hostname) -p ${REDIS_PORT} %s %s --no-auth-warning info replication | awk -F: '/role:slave/ {print "slave"}')
+        if [ "$NEW_ROLE" = "slave" ]; then
+            break
+        fi
+        sleep 1
+    done
+fi`, authArgs, tlsArgs, authArgs, tlsArgs)
 }
 
 func generateInitContainerDef(role, name string, initcontainerParams initContainerParameters, externalConfig *string, mountpath []corev1.VolumeMount, containerParams containerParameters, clusterVersion *string) []corev1.Container {
