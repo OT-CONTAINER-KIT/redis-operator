@@ -38,6 +38,8 @@ Here the features which are supported by this operator:
 
 ## Architecture
 
+For a high-level system overview and reconciliation flow, see the [Architecture]({{< relref "../Architecture/_index.md" >}}) page.
+
 ![redis_operator_architecture](../../../images/redis-operator-architecture.png)
 
 ## Code of Conduct
