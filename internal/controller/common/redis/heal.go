@@ -11,6 +11,7 @@ import (
 	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/envs"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/service/redis"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util/cryptutil"
 	v1 "k8s.io/api/core/v1"
@@ -69,6 +70,10 @@ func (h *healer) UpdateRedisRoleLabel(ctx context.Context, ns string, labels map
 		}
 	}
 	for _, pod := range pods.Items {
+		if !k8sutils.IsRedisPodProbeable(&pod) {
+			continue
+		}
+
 		connInfo := createConnectionInfo(ctx, pod, password, tlsConfig, h.k8s, ns, "6379")
 		isMaster, err := h.redis.Connect(connInfo).IsMaster(ctx)
 		if err != nil {
