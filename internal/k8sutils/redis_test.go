@@ -887,6 +887,79 @@ func Test_checkRedisServerRole(t *testing.T) {
 	}
 }
 
+func TestResetFollowerIfNotEmpty(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name             string
+		clusterNodes     string
+		dbSize           int64
+		expectReset      bool
+		clusterNodesErr  error
+		dbSizeErr        error
+		wantErr          bool
+	}{
+		{
+			name:         "empty node — no reset needed",
+			clusterNodes: "abc123 127.0.0.1:6379@16379,myself myself,master - 0 0 0 connected",
+			dbSize:       0,
+			expectReset:  false,
+		},
+		{
+			name: "stale cluster state — reset needed",
+			clusterNodes: "abc123 127.0.0.1:6379@16379,follower-0 myself,slave def456 0 0 0 connected\n" +
+				"def456 10.0.0.1:6379@16379,leader-0 master - 0 0 0 connected 0-16383",
+			dbSize:      0,
+			expectReset: true,
+		},
+		{
+			name:         "keys in db0 — reset needed",
+			clusterNodes: "abc123 127.0.0.1:6379@16379,myself myself,master - 0 0 0 connected",
+			dbSize:       42,
+			expectReset:  true,
+		},
+		{
+			name:            "cluster nodes error — returns error",
+			clusterNodesErr: redis.ErrClosed,
+			wantErr:         true,
+		},
+		{
+			name:         "db size error — returns error",
+			clusterNodes: "abc123 127.0.0.1:6379@16379,myself myself,master - 0 0 0 connected",
+			dbSizeErr:    redis.ErrClosed,
+			wantErr:      true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			db, mock := redismock.NewClientMock()
+
+			if tc.clusterNodesErr != nil {
+				mock.ExpectClusterNodes().SetErr(tc.clusterNodesErr)
+			} else {
+				mock.ExpectClusterNodes().SetVal(tc.clusterNodes)
+				if tc.dbSizeErr != nil {
+					mock.ExpectDBSize().SetErr(tc.dbSizeErr)
+				} else {
+					mock.ExpectDBSize().SetVal(tc.dbSize)
+					if tc.expectReset {
+						mock.Regexp().ExpectClusterResetHard().SetVal("OK")
+					}
+				}
+			}
+
+			err := resetFollowerIfNotEmpty(ctx, db)
+			if tc.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
 func TestClusterNodes(t *testing.T) {
 	// Discard logs
 

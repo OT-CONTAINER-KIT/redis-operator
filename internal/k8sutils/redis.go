@@ -347,18 +347,27 @@ func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Inter
 			if !checkRedisNodePresence(ctx, nodes, podIP) {
 				log.FromContext(ctx).V(1).Info("Adding node to cluster.", "Node.IP", podIP, "Follower.Pod", followerPod)
 				cmd := createRedisReplicationCommand(ctx, client, cr, leaderPod, followerPod)
-				redisClient := configureRedisClient(ctx, client, cr, followerPod.PodName)
-				pong, err := redisClient.Ping(ctx).Result()
-				redisClient.Close()
+				followerClient := configureRedisClient(ctx, client, cr, followerPod.PodName)
+				pong, err := followerClient.Ping(ctx).Result()
 				if err != nil {
+					followerClient.Close()
 					log.FromContext(ctx).Error(err, "Failed to ping Redis server", "Follower.Pod", followerPod)
 					continue
 				}
-				if pong == "PONG" {
-					executeCommand(ctx, client, cr, cmd, cr.Name+"-leader-0")
-				} else {
+				if pong != "PONG" {
+					followerClient.Close()
 					log.FromContext(ctx).V(1).Info("Skipping execution of command due to failed Redis ping", "Follower.Pod", followerPod)
+					continue
 				}
+				// redis-cli --cluster add-node requires the target node to be
+				// completely empty (no cluster state, no keys in db0). After a
+				// leader CLUSTER RESET the follower retains stale state which
+				// causes add-node to fail with "Node is not empty". Reset it.
+				if err := resetFollowerIfNotEmpty(ctx, followerClient); err != nil {
+					log.FromContext(ctx).Error(err, "Failed to reset follower before add-node", "Follower.Pod", followerPod)
+				}
+				followerClient.Close()
+				executeCommand(ctx, client, cr, cmd, cr.Name+"-leader-0")
 			} else {
 				log.FromContext(ctx).V(1).Info("Skipping Adding node to cluster, already present.", "Follower.Pod", followerPod)
 			}
@@ -366,6 +375,38 @@ func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Inter
 			followerIdx++
 		}
 	}
+}
+
+// resetFollowerIfNotEmpty checks whether a follower node has stale cluster
+// state or data in database 0 and, if so, issues CLUSTER RESET HARD to clear
+// it. redis-cli --cluster add-node requires the target to be completely empty;
+// without this reset the command fails with "Node is not empty" when the
+// follower retains state from a previous cluster incarnation (e.g. after a
+// leader-only CLUSTER RESET during single-node bootstrap).
+func resetFollowerIfNotEmpty(ctx context.Context, client *redis.Client) error {
+	nodesOutput, err := client.ClusterNodes(ctx).Result()
+	if err != nil {
+		return fmt.Errorf("failed to check follower cluster nodes: %w", err)
+	}
+	lines := strings.Split(strings.TrimSpace(nodesOutput), "\n")
+	knownNodes := len(lines)
+
+	dbSize, err := client.DBSize(ctx).Result()
+	if err != nil {
+		return fmt.Errorf("failed to check follower db size: %w", err)
+	}
+
+	if knownNodes <= 1 && dbSize == 0 {
+		return nil
+	}
+
+	log.FromContext(ctx).Info("Follower is not empty, issuing CLUSTER RESET HARD before add-node",
+		"KnownNodes", knownNodes, "DBSize", dbSize)
+	resetCmd := redis.NewStringCmd(ctx, "cluster", "reset", "hard")
+	if err := client.Process(ctx, resetCmd); err != nil {
+		return fmt.Errorf("CLUSTER RESET HARD failed: %w", err)
+	}
+	return nil
 }
 
 type clusterNodesResponse []string
