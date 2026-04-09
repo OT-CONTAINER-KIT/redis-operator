@@ -927,6 +927,8 @@ func TestGenerateContainerDef(t *testing.T) {
 				Command: []string{"sh", "-ec", "RESP=\"$(redis-cli -h $(hostname) -p ${REDIS_PORT} ping)\"\n[ \"$RESP\" = \"PONG\" ]"},
 			},
 		},
+		TimeoutSeconds:  5,
+		FailureThreshold: 5,
 	}
 	tests := []struct {
 		name                    string
@@ -1775,6 +1777,8 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 				Command: []string{"sh", "-ec", "RESP=\"$(redis-cli -h $(hostname) -p ${REDIS_PORT} ping)\"\n[ \"$RESP\" = \"PONG\" ]"},
 			},
 		},
+		TimeoutSeconds:  5,
+		FailureThreshold: 5,
 	}
 	probeWithTLS := &corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
@@ -1782,6 +1786,8 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 				Command: []string{"sh", "-ec", "RESP=\"$(redis-cli -h $(hostname) -p ${REDIS_PORT} --tls --cert ${REDIS_TLS_CERT} --key ${REDIS_TLS_CERT_KEY} --cacert ${REDIS_TLS_CA_CERT} ping)\"\n[ \"$RESP\" = \"PONG\" ]"},
 			},
 		},
+		TimeoutSeconds:  5,
+		FailureThreshold: 5,
 	}
 	tests := []struct {
 		name                string
