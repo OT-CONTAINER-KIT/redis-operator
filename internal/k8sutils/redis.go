@@ -174,52 +174,140 @@ func executeSingleLeaderAddSlots(ctx context.Context, client kubernetes.Interfac
 	}
 }
 
-// RepairDisconnectedMasters attempts to repair disconnected/failed masters by issuing
-// a CLUSTER MEET with the updated address of the host
-func RepairDisconnectedMasters(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) error {
+// RepairDisconnectedNodes attempts to repair disconnected/failed nodes (both masters and slaves)
+// by issuing CLUSTER MEET with the updated address, and for slaves, re-establishing replication
+// via CLUSTER REPLICATE so the follower resolves its master's current IP from gossip.
+func RepairDisconnectedNodes(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) error {
 	redisClient := configureRedisClient(ctx, client, cr, cr.Name+"-leader-0")
 	defer redisClient.Close()
-	return repairDisconnectedMasters(ctx, client, cr, redisClient)
+	return repairDisconnectedNodes(ctx, client, cr, redisClient)
 }
 
-func repairDisconnectedMasters(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, redisClient *redis.Client) error {
+func repairDisconnectedNodes(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, redisClient *redis.Client) error {
 	nodes, err := clusterNodes(ctx, redisClient)
 	if err != nil {
 		return err
 	}
-	masterNodeType := "master"
 	var lastError error
 	for _, node := range nodes {
-		if !nodeIsOfType(node, masterNodeType) {
-			continue
-		}
 		if !nodeFailedOrDisconnected(node) {
 			continue
 		}
-		host, err := getMasterHostFromClusterNode(node)
+		host, err := getHostFromClusterNode(node)
 		if err != nil {
 			lastError = err
 			log.FromContext(ctx).V(1).Error(err, "Failed to get pod name from cluster node. Continuing with other nodes.", "Node", node)
 			continue
 		}
+		podName := strings.Split(host, ".")[0]
 		ip := getRedisServerIP(ctx, client, RedisDetails{
-			// host may be FQDN like redis-cluster-leader-0.redis-cluster-leader-headless.default.svc.cluster.local
-			// or it may be like redis-cluster-leader-0
-			// we need to adapt
-			PodName:   strings.Split(host, ".")[0],
+			PodName:   podName,
 			Namespace: cr.Namespace,
 		})
-		err = redisClient.ClusterMeet(ctx, ip, strconv.Itoa(*cr.Spec.Port)).Err()
-		if err != nil {
+		if ip == "" {
+			lastError = fmt.Errorf("failed to get IP for pod %s", podName)
+			log.FromContext(ctx).V(1).Error(lastError, "Empty IP for pod, skipping.", "Pod", podName)
+			continue
+		}
+		if err = redisClient.ClusterMeet(ctx, ip, strconv.Itoa(*cr.Spec.Port)).Err(); err != nil {
 			lastError = err
 			log.FromContext(ctx).V(1).Error(err, "Failed to execute CLUSTER MEET on node. Continuing with other nodes.", "Node", node)
 			continue
+		}
+		if nodeIsOfType(node, "slave") {
+			masterNodeID := node[3]
+			followerClient := configureRedisClient(ctx, client, cr, podName)
+			if err = followerClient.ClusterReplicate(ctx, masterNodeID).Err(); err != nil {
+				lastError = err
+				log.FromContext(ctx).V(1).Error(err, "Failed to execute CLUSTER REPLICATE on follower.", "Follower", podName, "MasterNodeID", masterNodeID)
+			}
+			followerClient.Close()
 		}
 	}
 	return lastError
 }
 
-func getMasterHostFromClusterNode(node clusterNodesResponse) (string, error) {
+// RepairStaleReplication checks connected followers for broken replication
+// (master_link_status != up) and re-issues CLUSTER REPLICATE to force
+// the follower to re-resolve its master's current IP from gossip.
+// This handles the scenario where a master pod restarts with a new IP:
+// gossip propagates the update, but follower replication remains
+// pointed at the stale address until explicitly refreshed.
+// Returns the number of followers that were repaired and any error.
+func RepairStaleReplication(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) (int, error) {
+	redisClient := configureRedisClient(ctx, client, cr, cr.Name+"-leader-0")
+	defer redisClient.Close()
+	return repairStaleReplication(ctx, redisClient, func(podName string) *redis.Client {
+		return configureRedisClient(ctx, client, cr, podName)
+	})
+}
+
+func repairStaleReplication(ctx context.Context, redisClient *redis.Client, makeClient func(podName string) *redis.Client) (int, error) {
+	logger := log.FromContext(ctx)
+
+	nodes, err := clusterNodes(ctx, redisClient)
+	if err != nil {
+		return 0, err
+	}
+
+	repaired := 0
+	var lastError error
+	for _, node := range nodes {
+		if !nodeIsOfType(node, "slave") {
+			continue
+		}
+		if nodeFailedOrDisconnected(node) {
+			continue
+		}
+		host, err := getHostFromClusterNode(node)
+		if err != nil {
+			lastError = err
+			continue
+		}
+		podName := strings.Split(host, ".")[0]
+		masterNodeID := node[3]
+
+		followerClient := makeClient(podName)
+		info, err := followerClient.Info(ctx, "replication").Result()
+		if err != nil {
+			followerClient.Close()
+			lastError = err
+			logger.V(1).Error(err, "Failed to get replication info", "Follower", podName)
+			continue
+		}
+
+		if replicationLinkUp(info) {
+			followerClient.Close()
+			continue
+		}
+
+		logger.Info("Follower replication link is down, re-issuing CLUSTER REPLICATE",
+			"Follower", podName, "MasterNodeID", masterNodeID)
+		if err = followerClient.ClusterReplicate(ctx, masterNodeID).Err(); err != nil {
+			lastError = err
+			logger.Error(err, "Failed to re-establish replication",
+				"Follower", podName, "MasterNodeID", masterNodeID)
+		} else {
+			repaired++
+		}
+		followerClient.Close()
+	}
+	return repaired, lastError
+}
+
+// replicationLinkUp returns true when the INFO Replication output
+// contains master_link_status:up, indicating healthy replication.
+// Returns true for master nodes (no master_link_status field).
+func replicationLinkUp(info string) bool {
+	for _, line := range strings.Split(info, "\r\n") {
+		if strings.HasPrefix(line, "master_link_status:") {
+			return strings.TrimPrefix(line, "master_link_status:") == "up"
+		}
+	}
+	return true
+}
+
+func getHostFromClusterNode(node clusterNodesResponse) (string, error) {
 	addressAndHost := node[1]
 	s := strings.Split(addressAndHost, ",")
 	if len(s) != 2 {
@@ -479,7 +567,10 @@ func executeFailoverCommand(ctx context.Context, client kubernetes.Interface, cr
 	return nil
 }
 
-// CheckRedisNodeCount will check the count of redis nodes
+// CheckRedisNodeCount will check the count of redis nodes known to the cluster
+// (including failed/disconnected ones). This is used by the controller to
+// decide whether the cluster topology exists at all. For detecting unhealthy
+// nodes that need repair, use UnhealthyNodesInCluster instead.
 func CheckRedisNodeCount(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, nodeType string) int32 {
 	redisClient := configureRedisClient(ctx, client, cr, cr.Name+"-leader-0")
 	defer redisClient.Close()
