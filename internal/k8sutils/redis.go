@@ -705,9 +705,13 @@ func GetRedisNodesByRole(ctx context.Context, cl kubernetes.Interface, cr *rrvb2
 
 	for i := 0; i < int(replicas); i++ {
 		podName := statefulset.Name + "-" + strconv.Itoa(i)
-		redisClient := configureRedisReplicationClient(ctx, cl, cr, podName)
-		defer redisClient.Close()
-		podRole, err := checkRedisServerRole(ctx, redisClient, podName)
+		// Use anonymous function so redisClient.Close() is called at end of each
+		// iteration rather than deferred until the outer function returns.
+		podRole, err := func() (string, error) {
+			redisClient := configureRedisReplicationClient(ctx, cl, cr, podName)
+			defer redisClient.Close()
+			return checkRedisServerRole(ctx, redisClient, podName)
+		}()
 		if err != nil {
 			return nil, err
 		}
