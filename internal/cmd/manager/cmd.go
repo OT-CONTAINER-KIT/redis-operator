@@ -106,7 +106,7 @@ func addFlags(cmd *cobra.Command, opts *managerOptions) {
 	)
 	cmd.Flags().Float32(
 		operator.KubeClientQPSMGRFlag,
-		0,
+		300,
 		"Maximum number of queries per second to the Kubernetes API.",
 	)
 	zapFlagSet := flag.NewFlagSet("zap", flag.ExitOnError)
