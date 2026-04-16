@@ -60,8 +60,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	reconcilers := []reconciler{
 		{typ: "finalizer", rec: r.reconcileFinalizer},
 		{typ: "resources", rec: r.reconcileResources},
-		{typ: "redis", rec: r.reconcileRedis},
-		{typ: "status", rec: r.reconcileStatus},
+		{typ: "redisAndStatus", rec: r.reconcileRedisAndStatus},
 	}
 
 	for _, reconciler := range reconcilers {
@@ -344,7 +343,10 @@ func (r *Reconciler) sentinelResetIfNeed(ctx context.Context, inst *rrvb2.RedisR
 	return nil
 }
 
-func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisReplication) (ctrl.Result, error) {
+// reconcileRedisAndStatus combines the redis topology reconciliation and status/label
+// update into a single step so that GetRedisNodesByRole is called only once per
+// reconcile loop instead of twice (once in reconcileRedis, once in reconcileStatus).
+func (r *Reconciler) reconcileRedisAndStatus(ctx context.Context, instance *rrvb2.RedisReplication) (ctrl.Result, error) {
 	if instance.EnableSentinel() {
 		if !r.IsStatefulSetReady(ctx, instance.Namespace, instance.SentinelStatefulSet()) {
 			return intctrlutil.RequeueAfter(ctx, time.Second*30, "waiting for sentinel statefulset to be ready")
@@ -354,7 +356,7 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 		}
 	}
 
-	var realMaster string
+	// --- Single round-trip to Redis pods ---
 	masterNodes, err := k8sutils.GetRedisNodesByRole(ctx, r.K8sClient, instance, "master")
 	if err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
@@ -363,23 +365,20 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 	if err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
+
+	// --- reconcileRedis logic ---
+	var realMaster string
 	if len(masterNodes) > 1 {
 		log.FromContext(ctx).Info("Creating redis replication by executing replication creation commands")
 
 		realMaster = k8sutils.GetRedisReplicationRealMaster(ctx, r.K8sClient, instance, masterNodes)
 
-		// Cascading fallback when no pod has connected_slaves > 0
 		if realMaster == "" {
-			// Fallback 1: use last-known master from Status.MasterNode if valid
 			if instance.Status.MasterNode != "" && k8sutils.IsPodRunning(ctx, r.K8sClient, instance.Namespace, instance.Status.MasterNode) {
 				log.FromContext(ctx).Info("No master with attached slaves found, falling back to Status.MasterNode",
 					"statusMasterNode", instance.Status.MasterNode)
 				realMaster = instance.Status.MasterNode
 			}
-			// Last resort: all pods are standalone masters (fresh cluster or full restart).
-			// Arbitrarily pick masterNodes[0] as the new master to bootstrap replication.
-			// This choice is stable within a reconcile cycle and will be corrected by
-			// Status.MasterNode on subsequent cycles once replication is established.
 			if realMaster == "" && len(masterNodes) > 0 {
 				log.FromContext(ctx).Info("No real master found via slave count or Status.MasterNode; "+
 					"electing first master node as bootstrap master", "podName", masterNodes[0])
@@ -416,7 +415,6 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 	if instance.Spec.Size != nil && int(*instance.Spec.Size) != (len(masterNodes)+len(slaveNodes)) {
 		monitoring.RedisReplicationReplicasSizeMismatch.WithLabelValues(instance.Namespace, instance.Name).Set(1)
 	}
-
 	monitoring.RedisReplicationReplicasSizeCurrent.WithLabelValues(instance.Namespace, instance.Name).Set(float64(len(masterNodes) + len(slaveNodes)))
 	monitoring.RedisReplicationReplicasSizeDesired.WithLabelValues(instance.Namespace, instance.Name).Set(float64(*instance.Spec.Size))
 
@@ -426,29 +424,12 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 		}
 	}
 
-	return intctrlutil.Reconciled()
-}
-
-// reconcileStatus update status and label.
-func (r *Reconciler) reconcileStatus(ctx context.Context, instance *rrvb2.RedisReplication) (ctrl.Result, error) {
-	var err error
-	var realMaster string
-
-	masterNodes, err := k8sutils.GetRedisNodesByRole(ctx, r.K8sClient, instance, "master")
-	if err != nil {
-		return intctrlutil.RequeueE(ctx, err, "")
-	}
-	realMaster = k8sutils.GetRedisReplicationRealMaster(ctx, r.K8sClient, instance, masterNodes)
+	// --- reconcileStatus logic (reuses masterNodes/slaveNodes already fetched above) ---
 	if err = r.UpdateRedisReplicationMaster(ctx, instance, realMaster); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
 	labels := common.GetRedisLabels(instance.GetName(), common.SetupTypeReplication, "replication", instance.GetLabels())
 	if err = r.Healer.UpdateRedisRoleLabel(ctx, instance.GetNamespace(), labels, instance.Spec.KubernetesConfig.ExistingPasswordSecret, instance.Spec.TLS); err != nil {
-		return intctrlutil.RequeueE(ctx, err, "")
-	}
-
-	slaveNodes, err := k8sutils.GetRedisNodesByRole(ctx, r.K8sClient, instance, "slave")
-	if err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
 	if realMaster != "" {
