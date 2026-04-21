@@ -74,8 +74,16 @@ func GenerateConfig() error {
 			cfg.Append("sentinel myid", sentinelID)
 		}
 
-		// If resolveHostnames is set to yes, then we need to announce the hostnames
-		if announceHostnames == "yes" && resolveHostnames == "yes" {
+		// When announceHostnames=yes + resolveHostnames=yes, peer
+		// discovery is expected to go through DNS, not IP. The
+		// previous behaviour here wrote `sentinel announce-ip <ip>`
+		// with whatever IP env var happened to hold - in practice the
+		// operator never sets IP, so the default "0.0.0.0" wound up
+		// in sentinel.conf and Sentinels could not find each other
+		// (#1748). Emit an announce-ip only when we actually have a
+		// concrete IP to announce (i.e. the operator has set IP), and
+		// rely on announce-hostnames + resolve-hostnames otherwise.
+		if announceHostnames == "yes" && resolveHostnames == "yes" && ip != "" && ip != "0.0.0.0" {
 			cfg.Append("sentinel announce-ip", ip)
 		}
 	}
