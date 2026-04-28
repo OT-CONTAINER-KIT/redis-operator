@@ -3,6 +3,7 @@ package redissentinel
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"time"
 
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
@@ -13,11 +14,13 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/envs"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	appsv1 "k8s.io/api/apps/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -27,6 +30,7 @@ const (
 // RedisSentinelReconciler reconciles a RedisSentinel object
 type RedisSentinelReconciler struct {
 	client.Client
+	k8sutils.StatefulSet
 	Checker            redis.Checker
 	Healer             redis.Healer
 	K8sClient          kubernetes.Interface
@@ -58,6 +62,7 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		{typ: "pdb", rec: r.reconcilePDB},
 		{typ: "service", rec: r.reconcileService},
 		{typ: "sentinel", rec: r.reconcileSentinel},
+		{typ: "status", rec: r.reconcileStatus},
 	}
 
 	for _, reconciler := range reconcilers {
@@ -162,6 +167,56 @@ func (r *RedisSentinelReconciler) reconcileService(ctx context.Context, instance
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
 	return intctrlutil.Reconciled()
+}
+
+// reconcileStatus updates the RedisSentinel status based on StatefulSet readiness.
+func (r *RedisSentinelReconciler) reconcileStatus(ctx context.Context, instance *rsvb2.RedisSentinel) (ctrl.Result, error) {
+	stsName := instance.GetStatefulSetName()
+	ready := r.IsStatefulSetReady(ctx, instance.Namespace, stsName)
+	readyReplicas := r.GetStatefulSetReplicas(ctx, instance.Namespace, stsName)
+
+	var state rsvb2.RedisSentinelState
+	var reason string
+	desiredReplicas := *instance.Spec.Size
+	if ready && readyReplicas == desiredReplicas {
+		state = rsvb2.RedisSentinelReady
+		reason = rsvb2.ReadySentinelReason
+	} else if readyReplicas == 0 {
+		state = rsvb2.RedisSentinelInitializing
+		reason = rsvb2.InitializingSentinelReason
+	} else {
+		state = rsvb2.RedisSentinelInitializing
+		reason = rsvb2.InitializingSentinelReason
+	}
+
+	newStatus := rsvb2.RedisSentinelStatus{
+		State:         state,
+		Reason:        reason,
+		ReadyReplicas: readyReplicas,
+	}
+	if err := r.updateStatus(ctx, instance, newStatus); err != nil {
+		return intctrlutil.RequeueE(ctx, err, "failed to update sentinel status")
+	}
+	return intctrlutil.Reconciled()
+}
+
+func (r *RedisSentinelReconciler) updateStatus(ctx context.Context, rs *rsvb2.RedisSentinel, status rsvb2.RedisSentinelStatus) error {
+	if reflect.DeepEqual(rs.Status, status) {
+		return nil
+	}
+	copy := rs.DeepCopy()
+	copy.Status = status
+	err := common.UpdateStatus(ctx, r.Client, copy)
+	if err != nil && apierrors.IsConflict(err) {
+		log.FromContext(ctx).Info("conflict detected, reloading instance and retrying status update")
+		if err := r.Get(ctx, client.ObjectKey{Namespace: rs.Namespace, Name: rs.Name}, rs); err != nil {
+			return err
+		}
+		copy = rs.DeepCopy()
+		copy.Status = status
+		return common.UpdateStatus(ctx, r.Client, copy)
+	}
+	return err
 }
 
 // SetupWithManager sets up the controller with the Manager.

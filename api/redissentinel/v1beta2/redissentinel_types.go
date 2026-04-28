@@ -42,13 +42,43 @@ type RedisSentinelConfig struct {
 	common.RedisSentinelConfig `json:",inline"`
 }
 
-type RedisSentinelStatus struct{}
+// RedisSentinelStatus defines the observed state of RedisSentinel
+type RedisSentinelStatus struct {
+	// State is the current lifecycle state of the RedisSentinel resource.
+	State RedisSentinelState `json:"state,omitempty"`
+	// Reason provides a human-readable explanation of the current state.
+	Reason string `json:"reason,omitempty"`
+	// ReadyReplicas is the number of sentinel pods that are currently ready.
+	// +kubebuilder:default=0
+	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
+}
+
+// RedisSentinelState describes the lifecycle state of a RedisSentinel resource.
+type RedisSentinelState string
+
+const (
+	// RedisSentinelInitializing means the sentinel StatefulSet and pods are being created.
+	RedisSentinelInitializing RedisSentinelState = "Initializing"
+	// RedisSentinelReady means all sentinel pods are ready and monitoring a master.
+	RedisSentinelReady RedisSentinelState = "Ready"
+	// RedisSentinelFailed means the sentinel setup is unhealthy.
+	RedisSentinelFailed RedisSentinelState = "Failed"
+)
+
+const (
+	InitializingSentinelReason = "RedisSentinel is initializing"
+	ReadySentinelReason        = "RedisSentinel is ready"
+	FailedSentinelReason       = "RedisSentinel pods are not ready"
+)
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-//+kubebuilder:storageversion
+// +kubebuilder:storageversion
+// +kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.state",description="The current state of the RedisSentinel"
+// +kubebuilder:printcolumn:name="ReadyReplicas",type="integer",JSONPath=".status.readyReplicas",description="Number of ready sentinel replicas"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
-// Redis is the Schema for the redis API
+// RedisSentinel is the Schema for the redis sentinel API
 type RedisSentinel struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

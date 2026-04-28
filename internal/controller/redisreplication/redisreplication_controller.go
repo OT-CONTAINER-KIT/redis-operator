@@ -3,6 +3,7 @@ package redisreplication
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/monitoring"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/service/redis"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -77,7 +79,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	return intctrlutil.RequeueAfter(ctx, time.Second*30, "")
 }
 
-func (r *Reconciler) UpdateRedisReplicationMaster(ctx context.Context, instance *rrvb2.RedisReplication, masterNode string) error {
+func (r *Reconciler) UpdateRedisReplicationMaster(ctx context.Context, instance *rrvb2.RedisReplication, masterNode string, readyReplicas int32) error {
 	if masterNode == "" {
 		monitoring.RedisReplicationHasMaster.WithLabelValues(instance.Namespace, instance.Name).Set(0)
 	} else {
@@ -86,8 +88,25 @@ func (r *Reconciler) UpdateRedisReplicationMaster(ctx context.Context, instance 
 
 	connectionInfo := instance.GetConnectionInfo(envs.GetServiceDNSDomain())
 
-	if instance.Status.MasterNode == masterNode && connectionInfoEqual(instance.Status.ConnectionInfo, connectionInfo) {
-		return nil
+	var state rrvb2.RedisReplicationState
+	var reason string
+	if masterNode == "" {
+		state = rrvb2.RedisReplicationFailed
+		reason = rrvb2.FailedReplicationReason
+	} else if readyReplicas < *instance.Spec.Size {
+		state = rrvb2.RedisReplicationInitializing
+		reason = rrvb2.InitializingReplicationReason
+	} else {
+		state = rrvb2.RedisReplicationReady
+		reason = rrvb2.ReadyReplicationReason
+	}
+
+	newStatus := rrvb2.RedisReplicationStatus{
+		State:          state,
+		Reason:         reason,
+		ReadyReplicas:  readyReplicas,
+		MasterNode:     masterNode,
+		ConnectionInfo: connectionInfo,
 	}
 
 	if instance.Status.MasterNode != masterNode {
@@ -97,10 +116,7 @@ func (r *Reconciler) UpdateRedisReplicationMaster(ctx context.Context, instance 
 			"previous", instance.Status.MasterNode,
 			"new", masterNode)
 	}
-	return r.updateStatus(ctx, instance, rrvb2.RedisReplicationStatus{
-		MasterNode:     masterNode,
-		ConnectionInfo: connectionInfo,
-	})
+	return r.updateStatus(ctx, instance, newStatus)
 }
 
 func connectionInfoEqual(a, b *rrvb2.ConnectionInfo) bool {
@@ -429,28 +445,29 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 	return intctrlutil.Reconciled()
 }
 
-// reconcileStatus update status and label.
+// reconcileStatus updates the status and pod role labels.
 func (r *Reconciler) reconcileStatus(ctx context.Context, instance *rrvb2.RedisReplication) (ctrl.Result, error) {
-	var err error
-	var realMaster string
-
 	masterNodes, err := k8sutils.GetRedisNodesByRole(ctx, r.K8sClient, instance, "master")
 	if err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
-	realMaster = k8sutils.GetRedisReplicationRealMaster(ctx, r.K8sClient, instance, masterNodes)
-	if err = r.UpdateRedisReplicationMaster(ctx, instance, realMaster); err != nil {
+	slaveNodes, err := k8sutils.GetRedisNodesByRole(ctx, r.K8sClient, instance, "slave")
+	if err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
+
+	readyReplicas := int32(len(masterNodes) + len(slaveNodes))
+	realMaster := k8sutils.GetRedisReplicationRealMaster(ctx, r.K8sClient, instance, masterNodes)
+
+	if err = r.UpdateRedisReplicationMaster(ctx, instance, realMaster, readyReplicas); err != nil {
+		return intctrlutil.RequeueE(ctx, err, "")
+	}
+
 	labels := common.GetRedisLabels(instance.GetName(), common.SetupTypeReplication, "replication", instance.GetLabels())
 	if err = r.Healer.UpdateRedisRoleLabel(ctx, instance.GetNamespace(), labels, instance.Spec.KubernetesConfig.ExistingPasswordSecret, instance.Spec.TLS); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
 
-	slaveNodes, err := k8sutils.GetRedisNodesByRole(ctx, r.K8sClient, instance, "slave")
-	if err != nil {
-		return intctrlutil.RequeueE(ctx, err, "")
-	}
 	if realMaster != "" {
 		monitoring.RedisReplicationConnectedSlavesTotal.WithLabelValues(instance.Namespace, instance.Name).Set(float64(len(slaveNodes)))
 	} else {
@@ -461,10 +478,24 @@ func (r *Reconciler) reconcileStatus(ctx context.Context, instance *rrvb2.RedisR
 }
 
 func (r *Reconciler) updateStatus(ctx context.Context, rr *rrvb2.RedisReplication, status rrvb2.RedisReplicationStatus) error {
+	if reflect.DeepEqual(rr.Status, status) {
+		return nil
+	}
 	copy := rr.DeepCopy()
 	copy.Spec = rrvb2.RedisReplicationSpec{}
 	copy.Status = status
-	return common.UpdateStatus(ctx, r.Client, copy)
+	err := common.UpdateStatus(ctx, r.Client, copy)
+	if err != nil && apierrors.IsConflict(err) {
+		log.FromContext(ctx).Info("conflict detected, reloading instance and retrying status update")
+		if err := r.Get(ctx, client.ObjectKey{Namespace: rr.Namespace, Name: rr.Name}, rr); err != nil {
+			return err
+		}
+		copy = rr.DeepCopy()
+		copy.Spec = rrvb2.RedisReplicationSpec{}
+		copy.Status = status
+		return common.UpdateStatus(ctx, r.Client, copy)
+	}
+	return err
 }
 
 // SetupWithManager sets up the controller with the Manager.
