@@ -55,17 +55,44 @@ type ConnectionInfo struct {
 	MasterName string `json:"masterName,omitempty"`
 }
 
-// RedisStatus defines the observed state of Redis
+// RedisReplicationStatus defines the observed state of RedisReplication
 type RedisReplicationStatus struct {
+	// State is the current lifecycle state of the RedisReplication resource.
+	State RedisReplicationState `json:"state,omitempty"`
+	// Reason provides a human-readable explanation of the current state.
+	Reason string `json:"reason,omitempty"`
+	// ReadyReplicas is the number of pods that are currently ready.
+	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
+	// MasterNode is the pod name of the current Redis master.
 	MasterNode string `json:"masterNode,omitempty"`
-	// ConnectionInfo provides connection details for clients to connect to Redis
+	// ConnectionInfo provides connection details for clients to connect to Redis.
 	// +optional
 	ConnectionInfo *ConnectionInfo `json:"connectionInfo,omitempty"`
 }
 
+// RedisReplicationState describes the lifecycle state of a RedisReplication resource.
+type RedisReplicationState string
+
+const (
+	// RedisReplicationInitializing means the StatefulSet and pods are being created.
+	RedisReplicationInitializing RedisReplicationState = "Initializing"
+	// RedisReplicationReady means all replicas are up and a master has been elected.
+	RedisReplicationReady RedisReplicationState = "Ready"
+	// RedisReplicationFailed means the replication setup is unhealthy.
+	RedisReplicationFailed RedisReplicationState = "Failed"
+)
+
+const (
+	InitializingReplicationReason = "RedisReplication is initializing"
+	ReadyReplicationReason        = "RedisReplication is ready"
+	FailedReplicationReason       = "RedisReplication has no master"
+)
+
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
+// +kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.state",description="The current state of the RedisReplication"
+// +kubebuilder:printcolumn:name="ReadyReplicas",type="integer",JSONPath=".status.readyReplicas",description="Number of ready replicas"
 // +kubebuilder:printcolumn:name="Master",type="string",JSONPath=".status.masterNode"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 

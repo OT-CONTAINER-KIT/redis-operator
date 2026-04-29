@@ -26,6 +26,7 @@ import (
 	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/redis"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/controllerutil"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
@@ -103,6 +104,7 @@ var _ = BeforeSuite(func() {
 	healer := redis.NewHealer(k8sClient)
 	err = (&RedisSentinelReconciler{
 		Client:             k8sManager.GetClient(),
+		StatefulSet:        k8sutils.NewStatefulSetService(k8sClient),
 		Checker:            checker,
 		Healer:             healer,
 		K8sClient:          k8sClient,

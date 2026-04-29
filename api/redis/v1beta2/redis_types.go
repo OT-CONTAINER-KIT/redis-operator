@@ -50,11 +50,33 @@ type RedisSpec struct {
 }
 
 // RedisStatus defines the observed state of Redis
-type RedisStatus struct{}
+type RedisStatus struct {
+	// State is the current lifecycle state of the Redis resource.
+	State RedisState `json:"state,omitempty"`
+	// Reason provides a human-readable explanation of the current state.
+	Reason string `json:"reason,omitempty"`
+}
+
+// RedisState describes the lifecycle state of a Redis standalone resource.
+type RedisState string
+
+const (
+	// RedisInitializing means the StatefulSet and pod are being created.
+	RedisInitializing RedisState = "Initializing"
+	// RedisReady means the pod is running and ready to serve traffic.
+	RedisReady RedisState = "Ready"
+)
+
+const (
+	InitializingRedisReason = "Redis is initializing"
+	ReadyRedisReason        = "Redis is ready"
+)
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
+// +kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.state",description="The current state of the Redis instance"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
 // Redis is the Schema for the redis API
 type Redis struct {
