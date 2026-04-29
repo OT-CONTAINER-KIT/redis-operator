@@ -90,13 +90,17 @@ func (r *Reconciler) UpdateRedisReplicationMaster(ctx context.Context, instance 
 
 	var state rrvb2.RedisReplicationState
 	var reason string
-	if masterNode == "" {
-		state = rrvb2.RedisReplicationFailed
-		reason = rrvb2.FailedReplicationReason
-	} else if readyReplicas < *instance.Spec.Size {
+	switch {
+	case readyReplicas == 0:
 		state = rrvb2.RedisReplicationInitializing
 		reason = rrvb2.InitializingReplicationReason
-	} else {
+	case masterNode == "":
+		state = rrvb2.RedisReplicationFailed
+		reason = rrvb2.FailedReplicationReason
+	case readyReplicas < *instance.Spec.Size:
+		state = rrvb2.RedisReplicationInitializing
+		reason = rrvb2.InitializingReplicationReason
+	default:
 		state = rrvb2.RedisReplicationReady
 		reason = rrvb2.ReadyReplicationReason
 	}

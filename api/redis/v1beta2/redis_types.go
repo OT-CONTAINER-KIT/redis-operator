@@ -65,14 +65,11 @@ const (
 	RedisInitializing RedisState = "Initializing"
 	// RedisReady means the pod is running and ready to serve traffic.
 	RedisReady RedisState = "Ready"
-	// RedisFailed means the pod is not ready.
-	RedisFailed RedisState = "Failed"
 )
 
 const (
 	InitializingRedisReason = "Redis is initializing"
 	ReadyRedisReason        = "Redis is ready"
-	FailedRedisReason       = "Redis pod is not ready"
 )
 
 // +kubebuilder:object:root=true
