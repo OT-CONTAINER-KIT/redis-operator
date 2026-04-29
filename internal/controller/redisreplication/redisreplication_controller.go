@@ -119,16 +119,6 @@ func (r *Reconciler) UpdateRedisReplicationMaster(ctx context.Context, instance 
 	return r.updateStatus(ctx, instance, newStatus)
 }
 
-func connectionInfoEqual(a, b *rrvb2.ConnectionInfo) bool {
-	if a == nil && b == nil {
-		return true
-	}
-	if a == nil || b == nil {
-		return false
-	}
-	return a.Host == b.Host && a.Port == b.Port && a.MasterName == b.MasterName
-}
-
 type reconciler struct {
 	typ string
 	rec func(ctx context.Context, instance *rrvb2.RedisReplication) (ctrl.Result, error)
@@ -370,6 +360,10 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 		}
 	}
 
+	// Fetch master and slave nodes once here. reconcileStatus (which runs after
+	// this step in the chain) will fetch them again independently — this is
+	// intentional: reconcileStatus always reflects the state *after* reconcileRedis
+	// has run, so a second query is needed to capture any topology changes made above.
 	var realMaster string
 	masterNodes, err := k8sutils.GetRedisNodesByRole(ctx, r.K8sClient, instance, "master")
 	if err != nil {

@@ -62,7 +62,6 @@ type RedisReplicationStatus struct {
 	// Reason provides a human-readable explanation of the current state.
 	Reason string `json:"reason,omitempty"`
 	// ReadyReplicas is the number of pods that are currently ready.
-	// +kubebuilder:default=0
 	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
 	// MasterNode is the pod name of the current Redis master.
 	MasterNode string `json:"masterNode,omitempty"`

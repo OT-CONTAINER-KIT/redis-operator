@@ -65,16 +65,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return intctrlutil.RequeueE(ctx, err, "failed to add finalizer")
 	}
 
-	// Mark as Initializing until the StatefulSet is ready.
-	if !r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name) {
-		if err = r.updateStatus(ctx, instance, rvb2.RedisStatus{
-			State:  rvb2.RedisInitializing,
-			Reason: rvb2.InitializingRedisReason,
-		}); err != nil {
-			return intctrlutil.RequeueE(ctx, err, "failed to update redis status")
-		}
-	}
-
 	err = k8sutils.CreateStandaloneRedis(ctx, instance, r.K8sClient)
 	if err != nil {
 		return intctrlutil.RequeueE(ctx, err, "failed to create redis")
@@ -84,7 +74,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return intctrlutil.RequeueE(ctx, err, "failed to create service")
 	}
 
-	// Update status to Ready or Failed based on StatefulSet readiness.
+	// Update status based on StatefulSet readiness. The StatefulSet owns this
+	// reconcile loop (via Owns), so we will be re-triggered when it becomes ready.
 	var newStatus rvb2.RedisStatus
 	if r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name) {
 		newStatus = rvb2.RedisStatus{State: rvb2.RedisReady, Reason: rvb2.ReadyRedisReason}

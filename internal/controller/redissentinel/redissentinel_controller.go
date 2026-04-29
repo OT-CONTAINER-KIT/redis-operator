@@ -172,21 +172,24 @@ func (r *RedisSentinelReconciler) reconcileService(ctx context.Context, instance
 // reconcileStatus updates the RedisSentinel status based on StatefulSet readiness.
 func (r *RedisSentinelReconciler) reconcileStatus(ctx context.Context, instance *rsvb2.RedisSentinel) (ctrl.Result, error) {
 	stsName := instance.GetStatefulSetName()
-	ready := r.IsStatefulSetReady(ctx, instance.Namespace, stsName)
 	readyReplicas := r.GetStatefulSetReplicas(ctx, instance.Namespace, stsName)
+	desiredReplicas := *instance.Spec.Size
 
 	var state rsvb2.RedisSentinelState
 	var reason string
-	desiredReplicas := *instance.Spec.Size
-	if ready && readyReplicas == desiredReplicas {
+	switch {
+	case readyReplicas == desiredReplicas:
+		// All desired sentinel pods are ready.
 		state = rsvb2.RedisSentinelReady
 		reason = rsvb2.ReadySentinelReason
-	} else if readyReplicas == 0 {
+	case readyReplicas == 0:
+		// No pods ready yet — still bootstrapping.
 		state = rsvb2.RedisSentinelInitializing
 		reason = rsvb2.InitializingSentinelReason
-	} else {
-		state = rsvb2.RedisSentinelInitializing
-		reason = rsvb2.InitializingSentinelReason
+	default:
+		// Some pods ready but not all — cluster is degraded / partially available.
+		state = rsvb2.RedisSentinelFailed
+		reason = rsvb2.FailedSentinelReason
 	}
 
 	newStatus := rsvb2.RedisSentinelStatus{

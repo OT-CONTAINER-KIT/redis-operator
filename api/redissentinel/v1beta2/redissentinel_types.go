@@ -49,7 +49,6 @@ type RedisSentinelStatus struct {
 	// Reason provides a human-readable explanation of the current state.
 	Reason string `json:"reason,omitempty"`
 	// ReadyReplicas is the number of sentinel pods that are currently ready.
-	// +kubebuilder:default=0
 	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
 }
 
