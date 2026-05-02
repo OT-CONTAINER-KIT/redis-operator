@@ -50,7 +50,14 @@ func Reconcile(ctx context.Context, k8sClient client.Client, expected appsv1.Sta
 			update(&expected, existed.(*appsv1.StatefulSet))
 		},
 	})
-	return *reconciled.(*appsv1.StatefulSet), err
+	if reconciled == nil {
+		return expected, err
+	}
+	sts, ok := reconciled.(*appsv1.StatefulSet)
+	if !ok || sts == nil {
+		return expected, err
+	}
+	return *sts, err
 }
 
 func needUpdate(expected, existed *appsv1.StatefulSet) bool {
