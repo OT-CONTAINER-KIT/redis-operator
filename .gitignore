@@ -32,3 +32,8 @@ coverage.html
 docs/build
 kubeconfig
 CLAUDE.md
+# Backup and binary files — never commit these
+*.tar.gz
+*.rdb
+*.dump
+bin/
