@@ -869,6 +869,12 @@ func GetRedisReplicationRealMaster(ctx context.Context, client kubernetes.Interf
 
 // SetRedisClusterDynamicConfig applies dynamic configuration to each Redis instance in the cluster
 func SetRedisClusterDynamicConfig(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) error {
+	return setRedisClusterDynamicConfig(ctx, cr, func(podName string) *redis.Client {
+		return configureRedisClient(ctx, client, cr, podName)
+	})
+}
+
+func setRedisClusterDynamicConfig(ctx context.Context, cr *rcvb2.RedisCluster, clientFactory func(podName string) *redis.Client) error {
 	// Get dynamic configuration
 	dynamicConfig := cr.Spec.GetRedisDynamicConfig()
 	if len(dynamicConfig) == 0 {
@@ -888,7 +894,7 @@ func SetRedisClusterDynamicConfig(ctx context.Context, client kubernetes.Interfa
 			podName = cr.Name + "-follower-" + strconv.Itoa(i-int(leaderReplicas))
 		}
 
-		redisClient := configureRedisClient(ctx, client, cr, podName)
+		redisClient := clientFactory(podName)
 		defer redisClient.Close()
 
 		// Check if Redis instance is accessible
