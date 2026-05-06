@@ -937,3 +937,81 @@ e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@31001,hostname1 myself,
 		})
 	}
 }
+
+// TestSetRedisClusterDynamicConfigAppliesConfigSet is a regression test for issue #1757.
+func TestSetRedisClusterDynamicConfigAppliesConfigSet(t *testing.T) {
+	leaderReplicas := int32(2)
+	followerReplicas := int32(1)
+	cr := &rcvb2.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "rc", Namespace: "default"},
+		Spec: rcvb2.RedisClusterSpec{
+			ClusterSize: ptr.To(leaderReplicas),
+			RedisLeader: rcvb2.RedisLeader{
+				RedisLeader: common.RedisLeader{Replicas: ptr.To(leaderReplicas)},
+			},
+			RedisFollower: rcvb2.RedisFollower{
+				RedisFollower: common.RedisFollower{Replicas: ptr.To(followerReplicas)},
+			},
+			RedisConfig: &common.RedisConfig{
+				DynamicConfig: []string{
+					"maxmemory-samples 11",
+					"maxmemory-policy allkeys-lru",
+				},
+			},
+		},
+	}
+
+	clientByPod := map[string]*redis.Client{}
+	mockByPod := map[string]redismock.ClientMock{}
+	expectedPods := []string{"rc-leader-0", "rc-leader-1", "rc-follower-0"}
+	for _, pod := range expectedPods {
+		c, m := redismock.NewClientMock()
+		m.ExpectPing().SetVal("PONG")
+		m.ExpectConfigSet("maxmemory-samples", "11").SetVal("OK")
+		m.ExpectConfigSet("maxmemory-policy", "allkeys-lru").SetVal("OK")
+		clientByPod[pod] = c
+		mockByPod[pod] = m
+	}
+
+	visited := map[string]int{}
+	factory := func(podName string) *redis.Client {
+		visited[podName]++
+		c, ok := clientByPod[podName]
+		if !ok {
+			t.Fatalf("unexpected pod %q passed to client factory", podName)
+		}
+		return c
+	}
+
+	err := setRedisClusterDynamicConfig(context.Background(), cr, factory)
+	assert.NoError(t, err)
+
+	for _, pod := range expectedPods {
+		assert.Equalf(t, 1, visited[pod], "expected %s to be configured exactly once", pod)
+		if mErr := mockByPod[pod].ExpectationsWereMet(); mErr != nil {
+			t.Errorf("unfulfilled CONFIG SET expectations for %s: %s", pod, mErr)
+		}
+	}
+}
+
+func TestSetRedisClusterDynamicConfigEmptyIsNoop(t *testing.T) {
+	cr := &rcvb2.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "rc", Namespace: "default"},
+		Spec: rcvb2.RedisClusterSpec{
+			ClusterSize: ptr.To(int32(1)),
+			RedisLeader: rcvb2.RedisLeader{
+				RedisLeader: common.RedisLeader{Replicas: ptr.To(int32(1))},
+			},
+			RedisFollower: rcvb2.RedisFollower{
+				RedisFollower: common.RedisFollower{Replicas: ptr.To(int32(0))},
+			},
+		},
+	}
+
+	factory := func(podName string) *redis.Client {
+		t.Fatalf("client factory must not be called when dynamicConfig is empty (got pod %q)", podName)
+		return nil
+	}
+
+	assert.NoError(t, setRedisClusterDynamicConfig(context.Background(), cr, factory))
+}
