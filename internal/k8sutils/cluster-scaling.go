@@ -3,7 +3,6 @@ package k8sutils
 import (
 	"context"
 	"fmt"
-	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -342,6 +341,31 @@ func getRedisNodeID(ctx context.Context, client kubernetes.Interface, cr *rcvb2.
 	return output
 }
 
+// FixRedisCluster runs `redis-cli --cluster fix` to resolve any open/stuck slots
+// (e.g., slots left in migrating/importing state from a previous interrupted rebalance).
+// This must be called before add-node or rebalance when the cluster may have open slots.
+func FixRedisCluster(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) error {
+	pod := RedisDetails{
+		PodName:   cr.Name + "-leader-0",
+		Namespace: cr.Namespace,
+	}
+	cmd := []string{"redis-cli", "--cluster", "fix"}
+	cmd = append(cmd, getEndpoint(ctx, client, cr, pod))
+	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
+		pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+		if err != nil {
+			log.FromContext(ctx).Error(err, "Error in getting redis password")
+		}
+		cmd = append(cmd, "-a")
+		cmd = append(cmd, pass)
+	}
+	cmd = append(cmd, "--cluster-yes")
+	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.Name+"-leader-0")...)
+
+	_, err := executeCommand1(ctx, client, cr, cmd, cr.Name+"-leader-0")
+	return err
+}
+
 // Rebalance the Redis CLuster using the Empty Master Nodes
 func RebalanceRedisClusterEmptyMasters(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) {
 	if err := waitForClusterNoOpenSlots(ctx, client, cr, 2*time.Minute); err != nil {
@@ -578,10 +602,12 @@ func ClusterFailover(ctx context.Context, client kubernetes.Interface, cr *rcvb2
 		PodName:   slavePodName,
 		Namespace: cr.Namespace,
 	}
-	host, port, err := net.SplitHostPort(getEndpoint(ctx, client, cr, pod))
-	if err != nil {
-		return err
+	endpoint := getEndpoint(ctx, client, cr, pod)
+	lastColon := strings.LastIndex(endpoint, ":")
+	if lastColon < 0 {
+		return fmt.Errorf("invalid endpoint format: %s", endpoint)
 	}
+	host, port := endpoint[:lastColon], endpoint[lastColon+1:]
 	cmd = []string{"redis-cli", "-h", host, "-p", port}
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
 		pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)

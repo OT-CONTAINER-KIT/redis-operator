@@ -46,6 +46,24 @@ spec:
                   kind: Issuer
                 secretName: redis-tls-cert
               EOF
+        # Wait for replication StatefulSet to be ready
+        - assert:
+            resource:
+              apiVersion: apps/v1
+              kind: StatefulSet
+              metadata:
+                name: redis-replication
+              status:
+                readyReplicas: 3
+        # Wait for sentinel StatefulSet to be ready
+        - assert:
+            resource:
+              apiVersion: apps/v1
+              kind: StatefulSet
+              metadata:
+                name: redis-sentinel-sentinel
+              status:
+                readyReplicas: 1
 
     - name: Test Master IP consistency
       try:

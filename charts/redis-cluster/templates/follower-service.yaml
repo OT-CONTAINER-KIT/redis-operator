@@ -1,4 +1,5 @@
-{{- if and (gt (int .Values.redisCluster.follower.replicas) 0) (eq .Values.externalService.enabled true) }}
+{{- $followerReplicas := .Values.redisCluster.follower.replicas | default .Values.redisCluster.clusterSize }}
+{{- if and (gt (int $followerReplicas) 0) (eq .Values.externalService.enabled true) }}
 ---
 apiVersion: v1
 kind: Service

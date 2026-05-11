@@ -31,6 +31,30 @@ func CreateFakeClientWithPodIPs_LeaderPods(cr *rcvb2.RedisCluster) *fake.Clients
 	return fake.NewSimpleClientset(pods...)
 }
 
+func CreateFakeClientWithIPv6PodIPs_LeaderPods(cr *rcvb2.RedisCluster) *fake.Clientset {
+	replicas := cr.Spec.GetReplicaCounts("leader")
+	pods := make([]runtime.Object, replicas)
+
+	ipv6Addrs := []string{
+		"2001:db8:42:1::100",
+		"2001:db8:42:1::101",
+		"2001:db8:42:1::102",
+	}
+	for i := 0; i < int(replicas); i++ {
+		podName := cr.Name + "-leader-" + strconv.Itoa(i)
+		pods[i] = &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      podName,
+				Namespace: cr.Namespace,
+			},
+			Status: corev1.PodStatus{
+				PodIP: ipv6Addrs[i],
+			},
+		}
+	}
+	return fake.NewSimpleClientset(pods...)
+}
+
 func CreateFakeObjectWithPodIPs(cr *rcvb2.RedisCluster) []runtime.Object {
 	leaderReplicas := cr.Spec.GetReplicaCounts("leader")
 	followerReplicas := cr.Spec.GetReplicaCounts("follower")
@@ -57,6 +81,50 @@ func CreateFakeObjectWithPodIPs(cr *rcvb2.RedisCluster) []runtime.Object {
 			},
 			Status: corev1.PodStatus{
 				PodIP: fmt.Sprintf("192.168.2.%d", i+1),
+			},
+		}
+	}
+
+	return pods
+}
+
+func CreateFakeObjectWithIPv6PodIPs(cr *rcvb2.RedisCluster) []runtime.Object {
+	leaderReplicas := cr.Spec.GetReplicaCounts("leader")
+	followerReplicas := cr.Spec.GetReplicaCounts("follower")
+	pods := make([]runtime.Object, leaderReplicas+followerReplicas)
+
+	leaderIPv6Addrs := []string{
+		"2001:db8:42:1::100",
+		"2001:db8:42:1::101",
+		"2001:db8:42:1::102",
+	}
+	followerIPv6Addrs := []string{
+		"2001:db8:42:2::200",
+		"2001:db8:42:2::201",
+		"2001:db8:42:2::202",
+	}
+
+	for i := 0; i < int(leaderReplicas); i++ {
+		podName := cr.Name + "-leader-" + strconv.Itoa(i)
+		pods[i] = &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      podName,
+				Namespace: cr.Namespace,
+			},
+			Status: corev1.PodStatus{
+				PodIP: leaderIPv6Addrs[i],
+			},
+		}
+	}
+	for i := 0; i < int(followerReplicas); i++ {
+		podName := cr.Name + "-follower-" + strconv.Itoa(i)
+		pods[i+int(leaderReplicas)] = &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      podName,
+				Namespace: cr.Namespace,
+			},
+			Status: corev1.PodStatus{
+				PodIP: followerIPv6Addrs[i],
 			},
 		}
 	}

@@ -71,6 +71,7 @@ metadata:
     prometheus.io/scrape: 'true'
     redis.opstreelabs.in: 'true'
     redis.opstreelabs.instance: redis-sentinel
+    opstreelabs.in/additional-annotation: present
   labels:
     app: redis-sentinel-sentinel
     redis_setup_type: sentinel

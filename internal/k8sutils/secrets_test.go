@@ -129,7 +129,7 @@ func Test_getRedisTLSConfig(t *testing.T) {
 				},
 				Spec: rcvb2.RedisClusterSpec{
 					TLS: &common.TLSConfig{
-						CaKeyFile:   "ca.crt",
+						CaCertFile:  "ca.crt",
 						CertKeyFile: "tls.crt",
 						KeyFile:     "tls.key",
 						Secret: corev1.SecretVolumeSource{
@@ -157,7 +157,7 @@ func Test_getRedisTLSConfig(t *testing.T) {
 				},
 				Spec: rcvb2.RedisClusterSpec{
 					TLS: &common.TLSConfig{
-						CaKeyFile:   "ca.crt",
+						CaCertFile:  "ca.crt",
 						CertKeyFile: "tls.crt",
 						KeyFile:     "tls.key",
 						Secret: corev1.SecretVolumeSource{
@@ -195,7 +195,7 @@ func Test_getRedisTLSConfig(t *testing.T) {
 				},
 				Spec: rcvb2.RedisClusterSpec{
 					TLS: &common.TLSConfig{
-						CaKeyFile:   "ca.crt",
+						CaCertFile:  "ca.crt",
 						CertKeyFile: "tls.crt",
 						KeyFile:     "tls.key",
 						Secret: corev1.SecretVolumeSource{

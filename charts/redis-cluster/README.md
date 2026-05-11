@@ -46,11 +46,12 @@ helm delete <my-release> --namespace <namespace>
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| TLS.ca | string | `"ca.key"` |  |
+| TLS.ca | string | `"ca.crt"` |  |
 | TLS.cert | string | `"tls.crt"` |  |
 | TLS.key | string | `"tls.key"` |  |
 | TLS.secret.secretName | string | `""` |  |
 | acl.secret.secretName | string | `""` |  |
+| annotations | object | `{}` |  |
 | env | list | `[]` |  |
 | externalConfig.data | string | `"tcp-keepalive 400\nslowlog-max-len 158\nstream-node-max-bytes 2048\n"` |  |
 | externalConfig.enabled | bool | `false` |  |
@@ -70,7 +71,7 @@ helm delete <my-release> --namespace <namespace>
 | priorityClassName | string | `""` |  |
 | redisCluster.clusterSize | int | `3` | Default number of replicas for both leader and follower when not explicitly set |
 | redisCluster.clusterVersion | string | `"v7"` |  |
-| redisCluster.enableMasterSlaveAntiAffinity | bool | `false` | Enable pod anti-affinity between leader and follower pods by adding the appropriate label.    Notice that this requires the operator to have its mutating webhook enabled,    otherwise it will only add an annotation to the RedisCluster CR.     Default is false. |
+| redisCluster.enableMasterSlaveAntiAffinity | bool | `false` | Enable pod anti-affinity between leader and follower pods by adding the appropriate label.    Notice that this requires the operator to have its mutating webhook enabled,    otherwise it will only add an annotation to the RedisCluster CR.    Default is false. |
 | redisCluster.follower.affinity | string | `nil` |  |
 | redisCluster.follower.livenessProbe | object | `{}` |  |
 | redisCluster.follower.nodeSelector | string | `nil` |  |
@@ -103,7 +104,7 @@ helm delete <my-release> --namespace <namespace>
 | redisCluster.name | string | `""` |  |
 | redisCluster.persistenceEnabled | bool | `true` |  |
 | redisCluster.persistentVolumeClaimRetentionPolicy | object | `{}` |  |
-| redisCluster.recreateStatefulSetOnUpdateInvalid | bool | `false` | Some fields of statefulset are immutable, such as volumeClaimTemplates.    When set to true, the operator will delete the statefulset and recreate it.     Default is false. |
+| redisCluster.recreateStatefulSetOnUpdateInvalid | bool | `false` | Some fields of statefulset are immutable, such as volumeClaimTemplates.    When set to true, the operator will delete the statefulset and recreate it.    Default is false. |
 | redisCluster.redisSecret.secretKey | string | `""` |  |
 | redisCluster.redisSecret.secretName | string | `""` |  |
 | redisCluster.resources | object | `{}` |  |

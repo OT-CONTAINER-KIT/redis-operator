@@ -13,6 +13,13 @@ app.kubernetes.io/component: middleware
 {{- end }}
 {{- end -}}
 
+{{/* Define common annotations */}}
+{{- define "common.annotations" -}}
+{{- if .Values.annotations }}
+{{ toYaml .Values.annotations }}
+{{- end }}
+{{- end -}}
+
 {{/* Helper for Redis Cluster (leader & follower) */}}
 {{- define "redis.role" -}}
 {{- if .affinity }}
@@ -81,3 +88,14 @@ args:
 {{- end }}
 {{- end -}}
 
+{{/* Validate service type and return the value */}}
+{{/* Usage: include "common.validateServiceType" (dict "serviceType" .Values.xxx.serviceType "name" (.Values.xxx.name | default .Release.Name)) */}}
+{{- define "common.validateServiceType" -}}
+{{- $allowedServiceTypes := list "ClusterIP" "NodePort" "LoadBalancer" -}}
+{{- $serviceType := .serviceType | default "ClusterIP" -}}
+{{- if has $serviceType $allowedServiceTypes -}}
+{{- $serviceType -}}
+{{- else -}}
+{{- fail (printf "%s serviceType must be one of ClusterIP, NodePort, LoadBalancer; got: %s" .name $serviceType) -}}
+{{- end -}}
+{{- end -}}

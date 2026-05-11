@@ -9,6 +9,7 @@ redisStandalone:
   redisSecret:
     secretName: ""
     secretKey: ""
+  # serviceType must be one of: ClusterIP, NodePort, LoadBalancer
   serviceType: ClusterIP
   resources: {}
     # requests:
@@ -34,6 +35,10 @@ redisStandalone:
 labels: {}
 #   foo: bar
 #   test: echo
+
+annotations: {}
+#   annotation-key: "annotation-value"
+#   prometheus.io/scrape: "true"
 
 externalConfig:
   enabled: false
@@ -160,7 +165,7 @@ topologySpreadConstraints: []
 serviceAccountName: ""
 
 TLS:
-  ca: ca.key
+  ca: ca.crt
   cert: tls.crt
   key: tls.key
   secret:

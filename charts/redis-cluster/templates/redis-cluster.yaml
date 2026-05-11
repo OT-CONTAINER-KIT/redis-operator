@@ -5,6 +5,7 @@ metadata:
   name: {{ .Values.redisCluster.name | default .Release.Name }}
   labels: {{- include "common.labels" . | nindent 4 }}
   annotations:
+    {{- include "common.annotations" . | nindent 4 }}
     {{ if .Values.redisCluster.recreateStatefulSetOnUpdateInvalid }}
     redis.opstreelabs.in/recreate-statefulset: "true"
     {{ end }}
@@ -16,14 +17,14 @@ spec:
   persistenceEnabled: {{ .Values.redisCluster.persistenceEnabled }}
   clusterVersion: {{ .Values.redisCluster.clusterVersion }}
   redisLeader: {{- include "redis.role" .Values.redisCluster.leader | nindent 4 }}
-    replicas: {{ .Values.redisCluster.leader.replicas }}
+    replicas: {{ .Values.redisCluster.leader.replicas | default .Values.redisCluster.clusterSize }}
     {{- if .Values.externalConfig.enabled }}
     redisConfig:
       additionalRedisConfig: "{{ .Values.redisCluster.name | default .Release.Name }}-ext-config"
     {{- end }}
   
   redisFollower: {{-  include "redis.role" .Values.redisCluster.follower | nindent 4 }}
-    replicas: {{ .Values.redisCluster.follower.replicas }}
+    replicas: {{ .Values.redisCluster.follower.replicas | default .Values.redisCluster.clusterSize }}
     {{- if .Values.externalConfig.enabled }}
     redisConfig:
       additionalRedisConfig: "{{ .Values.redisCluster.name | default .Release.Name }}-ext-config"
@@ -58,7 +59,7 @@ spec:
     {{- end }}
     {{- if .Values.redisCluster.serviceType }}
     service:
-      serviceType: {{ .Values.redisCluster.serviceType }}
+      serviceType: {{ include "common.validateServiceType" (dict "serviceType" .Values.redisCluster.serviceType "name" (.Values.redisCluster.name | default .Release.Name)) }}
     {{- end }}
     {{- if .Values.redisCluster.resources}}
     resources: {{ toYaml .Values.redisCluster.resources | nindent 6 }}

@@ -250,6 +250,17 @@ func syncManagedFields(stored, new *appsv1.StatefulSet) {
 	new.ManagedFields = stored.ManagedFields
 }
 
+// storageHasVolumeClaimTemplate checks if the Storage has a meaningful VolumeClaimTemplate defined
+// (i.e., not just the zero value). This distinguishes between storage configured with only
+// volumeMount (e.g. emptyDir) vs. storage that actually requests a PersistentVolumeClaim.
+func storageHasVolumeClaimTemplate(storage *commonapi.Storage) bool {
+	if storage == nil {
+		return false
+	}
+	vct := storage.VolumeClaimTemplate
+	return len(vct.Spec.AccessModes) > 0 || vct.Spec.Resources.Requests != nil || vct.Spec.StorageClassName != nil || vct.Spec.VolumeName != ""
+}
+
 // hasVolumeClaimTemplates checks if the StatefulSet has VolumeClaimTemplates and if their counts match.
 func hasVolumeClaimTemplates(new, stored *appsv1.StatefulSet) bool {
 	return len(new.Spec.VolumeClaimTemplates) >= 1 && len(new.Spec.VolumeClaimTemplates) == len(stored.Spec.VolumeClaimTemplates)
@@ -470,6 +481,16 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 		}
 	}
 
+	// Mount the config emptyDir volume for sentinel containers so that
+	// sentinel.conf persists across container restarts. Without this,
+	// sentinel.conf lives on the overlay filesystem and is lost on restart,
+	// causing sentinel to lose all runtime-discovered master topology.
+	// The config volume is already created on all StatefulSets but only
+	// mounted when GenerateConfigInInitContainer is enabled.
+	if sentinelCntr && !features.Enabled(features.GenerateConfigInInitContainer) {
+		containerDefinition[0].VolumeMounts = append(containerDefinition[0].VolumeMounts, generateConfigVolumeMount(common.VolumeNameConfig))
+	}
+
 	if preStopCmd := GeneratePreStopCommand(containerParams.Role, enableAuth, enableTLS); preStopCmd != "" {
 		containerDefinition[0].Lifecycle = &corev1.Lifecycle{
 			PreStop: &corev1.LifecycleHandler{
@@ -549,7 +570,7 @@ func GenerateAuthAndTLSArgs(enableAuth, enableTLS bool) (string, string) {
 		authArgs = " -a \"${REDIS_PASSWORD}\""
 	}
 	if enableTLS {
-		tlsArgs = " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\" --cacert \"${REDIS_TLS_CA_KEY}\""
+		tlsArgs = " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\" --cacert \"${REDIS_TLS_CA_CERT}\""
 	}
 	return authArgs, tlsArgs
 }
@@ -659,8 +680,8 @@ func GenerateTLSEnvironmentVariables(tlsconfig *commonapi.TLSConfig) []corev1.En
 	tlsCert := "tls.crt"
 	tlsCertKey := "tls.key"
 
-	if tlsconfig.CaKeyFile != "" {
-		caCert = tlsconfig.CaKeyFile
+	if tlsconfig.CaCertFile != "" {
+		caCert = tlsconfig.CaCertFile
 	}
 	if tlsconfig.CertKeyFile != "" {
 		tlsCert = tlsconfig.CertKeyFile
@@ -674,7 +695,7 @@ func GenerateTLSEnvironmentVariables(tlsconfig *commonapi.TLSConfig) []corev1.En
 		Value: "true",
 	})
 	envVars = append(envVars, corev1.EnvVar{
-		Name:  "REDIS_TLS_CA_KEY",
+		Name:  "REDIS_TLS_CA_CERT",
 		Value: path.Join(root, caCert),
 	})
 	envVars = append(envVars, corev1.EnvVar{
@@ -848,7 +869,7 @@ func getProbeInfo(probe *corev1.Probe, sentinel, enableTLS, enableAuth bool) *co
 			redisHealthCheck = append(redisHealthCheck, "-a", "${REDIS_PASSWORD}")
 		}
 		if enableTLS {
-			redisHealthCheck = append(redisHealthCheck, "--tls", "--cert", "${REDIS_TLS_CERT}", "--key", "${REDIS_TLS_CERT_KEY}", "--cacert", "${REDIS_TLS_CA_KEY}")
+			redisHealthCheck = append(redisHealthCheck, "--tls", "--cert", "${REDIS_TLS_CERT}", "--key", "${REDIS_TLS_CERT_KEY}", "--cacert", "${REDIS_TLS_CA_CERT}")
 		}
 		redisHealthCheck = append(redisHealthCheck, "ping")
 

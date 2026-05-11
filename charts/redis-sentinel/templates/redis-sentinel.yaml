@@ -5,6 +5,7 @@ metadata:
   name: {{ .Values.redisSentinel.name | default .Release.Name }}
   labels: {{- include "common.labels" . | nindent 4 }}
   annotations:
+    {{- include "common.annotations" . | nindent 4 }}
     {{ if .Values.redisSentinel.recreateStatefulSetOnUpdateInvalid }}
     redis.opstreelabs.in/recreate-statefulset: "true"
     {{ end }}
@@ -36,6 +37,10 @@ spec:
     imagePullPolicy: "{{ .Values.redisSentinel.imagePullPolicy }}"
     {{- if .Values.redisSentinel.imagePullSecrets }}
     imagePullSecrets: {{ toYaml .Values.redisSentinel.imagePullSecrets | nindent 4 }}
+    {{- end }}
+    {{- if .Values.redisSentinel.serviceType }}
+    service:
+      serviceType: {{ include "common.validateServiceType" (dict "serviceType" .Values.redisSentinel.serviceType "name" (.Values.redisSentinel.name | default .Release.Name)) }}
     {{- end }}
     {{- if .Values.redisSentinel.resources}}
     resources: {{ toYaml .Values.redisSentinel.resources | nindent 6 }}

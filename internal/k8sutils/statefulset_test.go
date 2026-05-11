@@ -31,8 +31,8 @@ func TestGenerateAuthAndTLSArgs(t *testing.T) {
 	}{
 		{"NoAuthNoTLS", false, false, "", ""},
 		{"AuthOnly", true, false, " -a \"${REDIS_PASSWORD}\"", ""},
-		{"TLSOnly", false, true, "", " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\" --cacert \"${REDIS_TLS_CA_KEY}\""},
-		{"AuthAndTLS", true, true, " -a \"${REDIS_PASSWORD}\"", " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\" --cacert \"${REDIS_TLS_CA_KEY}\""},
+		{"TLSOnly", false, true, "", " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\" --cacert \"${REDIS_TLS_CA_CERT}\""},
+		{"AuthAndTLS", true, true, " -a \"${REDIS_PASSWORD}\"", " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\" --cacert \"${REDIS_TLS_CA_CERT}\""},
 	}
 
 	for _, tt := range tests {
@@ -44,6 +44,62 @@ func TestGenerateAuthAndTLSArgs(t *testing.T) {
 			if tlsArgs != tt.expectedTLS {
 				t.Errorf("expected TLS args %q, got %q", tt.expectedTLS, tlsArgs)
 			}
+		})
+	}
+}
+
+func TestStorageHasVolumeClaimTemplate(t *testing.T) {
+	tests := []struct {
+		name    string
+		storage *common.Storage
+		want    bool
+	}{
+		{"nil storage", nil, false},
+		{"empty VolumeClaimTemplate", &common.Storage{}, false},
+		{"only volumeMount", &common.Storage{
+			VolumeMount: common.AdditionalVolume{
+				Volume:    []corev1.Volume{{Name: "data", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}}},
+				MountPath: []corev1.VolumeMount{{Name: "data", MountPath: "/data"}},
+			},
+		}, false},
+		{"with AccessModes", &common.Storage{
+			VolumeClaimTemplate: corev1.PersistentVolumeClaim{
+				Spec: corev1.PersistentVolumeClaimSpec{
+					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+				},
+			},
+		}, true},
+		{"with Resources.Requests", &common.Storage{
+			VolumeClaimTemplate: corev1.PersistentVolumeClaim{
+				Spec: corev1.PersistentVolumeClaimSpec{
+					Resources: corev1.VolumeResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceStorage: resource.MustParse("1Gi"),
+						},
+					},
+				},
+			},
+		}, true},
+		{"with StorageClassName", &common.Storage{
+			VolumeClaimTemplate: corev1.PersistentVolumeClaim{
+				Spec: corev1.PersistentVolumeClaimSpec{
+					StorageClassName: ptr.To("standard"),
+				},
+			},
+		}, true},
+		{"with VolumeName", &common.Storage{
+			VolumeClaimTemplate: corev1.PersistentVolumeClaim{
+				Spec: corev1.PersistentVolumeClaimSpec{
+					VolumeName: "pv-data",
+				},
+			},
+		}, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := storageHasVolumeClaimTemplate(tt.storage)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -1454,7 +1510,7 @@ func TestGenerateInitContainerDefWithSecurityContext(t *testing.T) {
 
 func TestGenerateTLSEnvironmentVariables(t *testing.T) {
 	tlsConfig := &common.TLSConfig{
-		CaKeyFile:   "test_ca.crt",
+		CaCertFile:  "test_ca.crt",
 		CertKeyFile: "test_tls.crt",
 		KeyFile:     "test_tls.key",
 	}
@@ -1467,7 +1523,7 @@ func TestGenerateTLSEnvironmentVariables(t *testing.T) {
 			Value: "true",
 		},
 		{
-			Name:  "REDIS_TLS_CA_KEY",
+			Name:  "REDIS_TLS_CA_CERT",
 			Value: path.Join("/tls/", "test_ca.crt"),
 		},
 		{
@@ -1505,7 +1561,7 @@ func TestGetEnvironmentVariables(t *testing.T) {
 			secretKey:          ptr.To("test-key"),
 			persistenceEnabled: ptr.To(true),
 			tlsConfig: &common.TLSConfig{
-				CaKeyFile:   "test_ca.crt",
+				CaCertFile:  "test_ca.crt",
 				CertKeyFile: "test_tls.crt",
 				KeyFile:     "test_tls.key",
 				Secret: corev1.SecretVolumeSource{
@@ -1527,7 +1583,7 @@ func TestGetEnvironmentVariables(t *testing.T) {
 				{Name: "PERSISTENCE_ENABLED", Value: "true"},
 				{Name: "REDIS_ADDR", Value: "redis://localhost:26379"},
 				{Name: "TLS_MODE", Value: "true"},
-				{Name: "REDIS_TLS_CA_KEY", Value: path.Join("/tls/", "test_ca.crt")},
+				{Name: "REDIS_TLS_CA_CERT", Value: path.Join("/tls/", "test_ca.crt")},
 				{Name: "REDIS_TLS_CERT", Value: path.Join("/tls/", "test_tls.crt")},
 				{Name: "REDIS_TLS_CERT_KEY", Value: path.Join("/tls/", "test_tls.key")},
 				{Name: "REDIS_PASSWORD", ValueFrom: &corev1.EnvVarSource{
@@ -1683,7 +1739,7 @@ func Test_getExporterEnvironmentVariables(t *testing.T) {
 			name: "Test with tls enabled and env var",
 			params: containerParameters{
 				TLSConfig: &common.TLSConfig{
-					CaKeyFile:   "test_ca.crt",
+					CaCertFile:  "test_ca.crt",
 					CertKeyFile: "test_tls.crt",
 					KeyFile:     "test_tls.key",
 					Secret: corev1.SecretVolumeSource{
@@ -1723,7 +1779,7 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 	probeWithTLS := &corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
 			Exec: &corev1.ExecAction{
-				Command: []string{"sh", "-ec", "RESP=\"$(redis-cli -h $(hostname) -p ${REDIS_PORT} --tls --cert ${REDIS_TLS_CERT} --key ${REDIS_TLS_CERT_KEY} --cacert ${REDIS_TLS_CA_KEY} ping)\"\n[ \"$RESP\" = \"PONG\" ]"},
+				Command: []string{"sh", "-ec", "RESP=\"$(redis-cli -h $(hostname) -p ${REDIS_PORT} --tls --cert ${REDIS_TLS_CERT} --key ${REDIS_TLS_CERT_KEY} --cacert ${REDIS_TLS_CA_CERT} ping)\"\n[ \"$RESP\" = \"PONG\" ]"},
 			},
 		},
 	}
@@ -1831,7 +1887,7 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 											Value: "1.0",
 										},
 										{
-											Name:  "REDIS_TLS_CA_KEY",
+											Name:  "REDIS_TLS_CA_CERT",
 											Value: path.Join("/tls/", "ca.crt"),
 										},
 										{

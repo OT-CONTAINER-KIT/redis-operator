@@ -160,7 +160,7 @@ type RedisConfig struct {
 	AdditionalRedisConfig   *string  `json:"additionalRedisConfig,omitempty"`
 }
 
-// Storage is the inteface to add pvc and pv support in redis
+// Storage is the interface to add pvc and pv support in redis
 // +k8s:deepcopy-gen=true
 type Storage struct {
 	KeepAfterDelete     bool                         `json:"keepAfterDelete,omitempty"`
@@ -178,7 +178,7 @@ type AdditionalVolume struct {
 // TLS Configuration for redis instances
 // +k8s:deepcopy-gen=true
 type TLSConfig struct {
-	CaKeyFile   string `json:"ca,omitempty"`
+	CaCertFile  string `json:"ca,omitempty"`
 	CertKeyFile string `json:"cert,omitempty"`
 	KeyFile     string `json:"key,omitempty"`
 	// Reference to secret which contains the certificates

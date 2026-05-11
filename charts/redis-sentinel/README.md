@@ -44,11 +44,12 @@ helm delete <my-release> --namespace <namespace>
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| TLS.ca | string | `"ca.key"` |  |
+| TLS.ca | string | `"ca.crt"` |  |
 | TLS.cert | string | `"tls.crt"` |  |
 | TLS.key | string | `"tls.key"` |  |
 | TLS.secret.secretName | string | `""` |  |
 | affinity | object | `{}` |  |
+| annotations | object | `{}` |  |
 | env | list | `[]` |  |
 | externalConfig.data | string | `"tcp-keepalive 400\nslowlog-max-len 158\nstream-node-max-bytes 2048\n"` |  |
 | externalConfig.enabled | bool | `false` |  |

@@ -1,0 +1,8 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-standalone-metrics
+status:
+  replicas: 1
+  readyReplicas: 1

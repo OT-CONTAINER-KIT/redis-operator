@@ -35,6 +35,10 @@ labels: {}
 #   foo: bar
 #   test: echo
 
+annotations: {}
+#   annotation-key: "annotation-value"
+#   prometheus.io/scrape: "true"
+
 redisSentinelConfig:
   redisReplicationName: "redis-replication"
   redisReplicationPassword:
@@ -165,7 +169,7 @@ topologySpreadConstraints: []
 serviceAccountName: ""
 
 TLS:
-  ca: ca.key
+  ca: ca.crt
   cert: tls.crt
   key: tls.key
   secret:
