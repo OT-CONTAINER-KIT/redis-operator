@@ -225,7 +225,7 @@ func (service RedisSentinelService) CreateRedisSentinelService(ctx context.Conte
 	}
 	annotations := generateServiceAnots(cr.ObjectMeta, nil, epp)
 	objectMetaInfo := generateObjectMetaInformation(serviceName, cr.Namespace, labels, annotations)
-	headlessObjectMetaInfo := generateObjectMetaInformation(serviceName+"-headless", cr.Namespace, labels, annotations)
+	headlessObjectMetaInfo := generateObjectMetaInformation(serviceName+"-headless", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.GetHeadlessServiceAnnotations(), epp))
 	additionalObjectMetaInfo := generateObjectMetaInformation(serviceName+"-additional", cr.Namespace, labels, generateServiceAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.GetServiceAnnotations(), epp))
 
 	err := CreateOrUpdateService(ctx, cr.Namespace, headlessObjectMetaInfo, redisSentinelAsOwner(cr), disableMetrics, true, "ClusterIP", common.SentinelPort, cl)
@@ -253,6 +253,15 @@ func (service RedisSentinelService) CreateRedisSentinelService(ctx context.Conte
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Cannot create additional service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err
+	}
+	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
+		exporterPort := *util.Coalesce(cr.Spec.RedisExporter.Port, ptr.To(common.RedisExporterPort))
+		selectorLabels := getRedisStableLabels(serviceName, string(sentinel), service.RedisServiceRole)
+		err = CreateOrUpdateMetricsService(ctx, cr.Namespace, serviceName+"-metrics", selectorLabels, redisSentinelAsOwner(cr), exporterPort, cl)
+		if err != nil {
+			log.FromContext(ctx).Error(err, "Cannot create metrics service for Redis", "Setup.Type", service.RedisServiceRole)
+			return err
+		}
 	}
 	return nil
 }
@@ -358,7 +367,23 @@ func getRedisReplicationMasterPod(ctx context.Context, client kubernetes.Interfa
 	}
 
 	if realMasterPod == "" {
-		log.FromContext(ctx).Error(errors.New("no real master pod found"), "")
+		// Cascading fallback when no pod has connected_slaves > 0
+		// Fallback 1: use last-known master from RedisReplication Status.MasterNode
+		if replicationInstance.Status.MasterNode != "" && IsPodRunning(ctx, client, replicationNamespace, replicationInstance.Status.MasterNode) {
+			log.FromContext(ctx).Info("No master with attached slaves found, falling back to RedisReplication Status.MasterNode",
+				"statusMasterNode", replicationInstance.Status.MasterNode)
+			realMasterPod = replicationInstance.Status.MasterNode
+		}
+		// Fallback 2: use first master pod as last resort
+		if realMasterPod == "" && len(masterPods) > 0 {
+			log.FromContext(ctx).Info("No valid Status.MasterNode, falling back to first master pod",
+				"masterPod", masterPods[0])
+			realMasterPod = masterPods[0]
+		}
+	}
+
+	if realMasterPod == "" {
+		log.FromContext(ctx).Error(errors.New("no real master pod found after all fallbacks"), "")
 		return emptyRedisInfo
 	}
 

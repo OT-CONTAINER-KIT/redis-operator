@@ -1,0 +1,29 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-sentinel-metrics-sentinel-metrics
+  labels:
+    app: redis-sentinel-metrics-sentinel
+    redis_setup_type: sentinel
+    role: sentinel
+    app.kubernetes.io/component: metrics
+  annotations:
+    prometheus.io/port: "9121"
+    prometheus.io/scrape: "true"
+  ownerReferences:
+    - apiVersion: redis.redis.opstreelabs.in/v1beta2
+      controller: true
+      kind: RedisSentinel
+      name: redis-sentinel-metrics
+spec:
+  type: ClusterIP
+  ports:
+    - name: redis-exporter
+      port: 9121
+      protocol: TCP
+      targetPort: 9121
+  selector:
+    app: redis-sentinel-metrics-sentinel
+    redis_setup_type: sentinel
+    role: sentinel

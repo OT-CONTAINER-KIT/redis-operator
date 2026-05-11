@@ -41,6 +41,8 @@ func GenerateConfig() error {
 		nodeport           = util.CoalesceEnv1("NODEPORT", "false")
 		tlsMode            = util.CoalesceEnv1("TLS_MODE", "false")
 		clusterMode        = util.CoalesceEnv1("SETUP_MODE", "standalone")
+		aclMode            = util.CoalesceEnv1("ACL_MODE", "")
+		aclFilePath        = util.CoalesceEnv1("ACL_FILE_PATH", "/etc/redis/user.acl")
 	)
 
 	if val, ok := util.CoalesceEnv("REDIS_PASSWORD", ""); ok && val != "" {
@@ -98,7 +100,7 @@ func GenerateConfig() error {
 	if tlsMode == "true" {
 		cfg.Append("tls-cert-file", util.CoalesceEnv1("REDIS_TLS_CERT", ""))
 		cfg.Append("tls-key-file", util.CoalesceEnv1("REDIS_TLS_CERT_KEY", ""))
-		cfg.Append("tls-ca-cert-file", util.CoalesceEnv1("REDIS_TLS_CA_KEY", ""))
+		cfg.Append("tls-ca-cert-file", util.CoalesceEnv1("REDIS_TLS_CA_CERT", ""))
 		cfg.Append("tls-auth-clients", "optional")
 		cfg.Append("tls-replication", "yes")
 
@@ -112,8 +114,9 @@ func GenerateConfig() error {
 		fmt.Println("Running without TLS mode")
 	}
 
-	if aclMode := util.CoalesceEnv1("ACL_MODE", ""); aclMode == "true" {
-		cfg.Append("aclfile", "/etc/redis/user.acl")
+	if aclMode == "true" {
+		fmt.Println("ACL_MODE is true, modifying ACL file path to", aclFilePath)
+		cfg.Append("aclfile", aclFilePath)
 	} else {
 		fmt.Println("ACL_MODE is not true, skipping ACL file modification")
 	}

@@ -44,11 +44,12 @@ helm delete <my-release> --namespace <namespace>
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| TLS.ca | string | `"ca.key"` |  |
+| TLS.ca | string | `"ca.crt"` |  |
 | TLS.cert | string | `"tls.crt"` |  |
 | TLS.key | string | `"tls.key"` |  |
 | TLS.secret.secretName | string | `""` |  |
 | affinity | object | `{}` |  |
+| annotations | object | `{}` |  |
 | env | list | `[]` |  |
 | externalConfig.data | string | `"tcp-keepalive 400\nslowlog-max-len 158\nstream-node-max-bytes 2048\n"` |  |
 | externalConfig.enabled | bool | `false` |  |
@@ -94,6 +95,7 @@ helm delete <my-release> --namespace <namespace>
 | redisSentinel.imagePullSecrets | list | `[]` |  |
 | redisSentinel.minReadySeconds | int | `0` |  |
 | redisSentinel.name | string | `""` |  |
+| redisSentinel.persistentVolumeClaimRetentionPolicy | object | `{}` |  |
 | redisSentinel.recreateStatefulSetOnUpdateInvalid | bool | `false` | Some fields of statefulset are immutable, such as volumeClaimTemplates. When set to true, the operator will delete the statefulset and recreate it. Default is false. |
 | redisSentinel.redisSecret.secretKey | string | `""` |  |
 | redisSentinel.redisSecret.secretName | string | `""` |  |
@@ -120,3 +122,4 @@ helm delete <my-release> --namespace <namespace>
 | serviceMonitor.scrapeTimeout | string | `"10s"` |  |
 | sidecars | list | `[]` |  |
 | tolerations | list | `[]` |  |
+| topologySpreadConstraints | list | `[]` |  |

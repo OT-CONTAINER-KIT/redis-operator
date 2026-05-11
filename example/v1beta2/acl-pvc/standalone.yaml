@@ -9,7 +9,7 @@ spec:
     image: quay.io/opstree/redis:latest
     imagePullPolicy: IfNotPresent
   # ACL configuration from PVC
-  # The operator will mount /etc/redis/user.acl from the PVC
+  # The operator mounts the PVC at /data/redis, so Redis reads /data/redis/user.acl
   # Make sure the PVC contains a file named "user.acl" with Redis ACL rules
   acl:
     persistentVolumeClaim: "redis-acl-pvc"

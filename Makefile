@@ -3,7 +3,7 @@
 # ===========================
 
 # Current Operator version
-VERSION ?= 0.23.0
+VERSION ?= 0.24.0
 
 # Default bundle image tag
 BUNDLE_IMG ?= controller-bundle:$(VERSION)
@@ -291,3 +291,4 @@ GOBIN=$(LOCALBIN) go install $${package} ;\
 mv "$$(echo "$(1)" | sed "s/-$(3)$$//")" $(1) ;\
 }
 endef
+

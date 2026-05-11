@@ -200,9 +200,11 @@ func (c *service) SentinelMonitor(ctx context.Context, master *ConnectionInfo, m
 	}
 	defer client.Close()
 
+	masterExists := false
 	masterCheckCmd := rediscli.NewSliceCmd(ctx, "SENTINEL", "MASTER", masterGroupName)
 	if err = client.Process(ctx, masterCheckCmd); err == nil {
 		if err = masterCheckCmd.Err(); err == nil {
+			masterExists = true
 			result, _ := masterCheckCmd.Result()
 			var monitoredHost, monitoredPort string
 			for i := 0; i+1 < len(result); i += 2 {
@@ -232,13 +234,18 @@ func (c *service) SentinelMonitor(ctx context.Context, master *ConnectionInfo, m
 		}
 	}
 
-	cmd = rediscli.NewBoolCmd(ctx, "SENTINEL", "REMOVE", masterGroupName)
-	err = client.Process(ctx, cmd)
-	if err != nil {
-		return err
-	}
-	if err = cmd.Err(); err != nil {
-		return err
+	// Only remove if master was already being monitored (with wrong host/port).
+	// On first-time setup, SENTINEL REMOVE would fail with "ERR No such master
+	// with that name" and prevent SENTINEL MONITOR from ever being called.
+	if masterExists {
+		cmd = rediscli.NewBoolCmd(ctx, "SENTINEL", "REMOVE", masterGroupName)
+		err = client.Process(ctx, cmd)
+		if err != nil {
+			return err
+		}
+		if err = cmd.Err(); err != nil {
+			return err
+		}
 	}
 
 	cmd = rediscli.NewBoolCmd(ctx, "SENTINEL", "MONITOR", masterGroupName, master.Host, master.Port, quorum)

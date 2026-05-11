@@ -1,0 +1,9 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-standalone-shrink-test-redis-standalone-shrink-test-0
+status:
+  capacity:
+    storage: 2Gi
+  phase: Bound

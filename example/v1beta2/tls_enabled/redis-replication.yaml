@@ -8,7 +8,7 @@ metadata:
 spec:
   clusterSize: 3
   TLS:
-    ca: ca.key
+    ca: ca.crt
     cert: tls.crt
     key: tls.key
     secret:

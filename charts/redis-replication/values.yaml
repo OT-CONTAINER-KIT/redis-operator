@@ -24,9 +24,13 @@ redisReplication:
   # -- Some fields of statefulset are immutable, such as volumeClaimTemplates.
   # When set to true, the operator will delete the statefulset and recreate it. Default is false.
   recreateStatefulSetOnUpdateInvalid: false
-  # -- MaxMemoryPercentOfLimit is the percentage of redis container memory limit to be used as maxmemory.
+  # -- MaxMemoryPercentOfLimit is the percentage of the Redis container memory limit to be used as maxmemory.
+  #    When a memory limit exists, the operator also exposes the computed value via the REDIS_MAX_MEMORY env var.
   #    Default is 0 (disabled).
   maxMemoryPercentOfLimit: 0
+  persistentVolumeClaimRetentionPolicy: {}
+    # whenDeleted: Delete
+    # whenScaled: Retain
   livenessProbe: {}
     # timeoutSeconds: 5
     # periodSeconds: 15
@@ -46,6 +50,10 @@ redisReplication:
 labels: {}
 #   foo: bar
 #   test: echo
+
+annotations: {}
+#   annotation-key: "annotation-value"
+#   prometheus.io/scrape: "true"
 
 externalConfig:
   enabled: false
@@ -161,10 +169,19 @@ tolerations: []
   #   value: "value"
   #   effect: "NoSchedule"
 
+topologySpreadConstraints: []
+  # - maxSkew: 1
+  #   topologyKey: kubernetes.io/hostname
+  #   whenUnsatisfiable: DoNotSchedule
+  #   labelSelector:
+  #     matchLabels:
+  #       role: replication
+  #       app: redis-replication
+
 serviceAccountName: ""
 
 TLS:
-  ca: ca.key
+  ca: ca.crt
   cert: tls.crt
   key: tls.key
   secret:
@@ -186,3 +203,41 @@ pdb:
   enabled: false
   minAvailable: 1
   maxUnavailable: null
+
+# -- Sentinel configuration for automatic failover.
+# When enabled, the operator creates a Sentinel StatefulSet alongside the replication pods.
+# The operator queries Sentinel for the current master instead of forcing master-by-ordinal.
+sentinel:
+  enabled: false
+  image: quay.io/opstree/redis-sentinel
+  tag: v7.0.15
+  imagePullPolicy: IfNotPresent
+  size: 3
+  resources: {}
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ignoreAnnotations: []
+    # - "redis.opstreelabs.in/ignore"
+  minReadySeconds: 0
+  persistentVolumeClaimRetentionPolicy: {}
+    # whenDeleted: Delete
+    # whenScaled: Retain
+  # -- Number of replicas to reconfigure in parallel during failover
+  parallelSyncs: "1"
+  # -- Failover timeout in milliseconds
+  failoverTimeout: "10000"
+  # -- Time in milliseconds before master is considered down
+  downAfterMilliseconds: "5000"
+  # -- Use hostnames instead of IPs for Sentinel monitoring.
+  # WARNING: the operator does not pass RESOLVE_HOSTNAMES env var to sentinel pods,
+  # so setting this to "yes" will cause SENTINEL MONITOR to fail. Keep as "no".
+  resolveHostnames: "no"
+  # -- Whether Sentinel announces hostnames instead of IPs to clients
+  announceHostnames: "no"
+  # -- Additional raw sentinel.conf lines
+  # additionalSentinelConfig: |
+  #   sentinel auth-pass mymaster password123

@@ -121,7 +121,7 @@ spec:
     - name: Put data
       try:
         - script:
-            timeout: 30s
+            timeout: 90s
             content: >
               kubectl exec --namespace ${NAMESPACE} --container data-assert data-assert --
               bash -c  "cd /go/src/data-assert && go run main.go gen-redis-data --host redis-cluster-v1beta2-leader.${NAMESPACE}.svc.cluster.local:6379 --mode cluster --password Opstree1234 --tls"

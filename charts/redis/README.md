@@ -43,12 +43,13 @@ helm delete <my-release> --namespace <namespace>
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| TLS.ca | string | `"ca.key"` |  |
+| TLS.ca | string | `"ca.crt"` |  |
 | TLS.cert | string | `"tls.crt"` |  |
 | TLS.key | string | `"tls.key"` |  |
 | TLS.secret.secretName | string | `""` |  |
 | acl.secret.secretName | string | `""` |  |
 | affinity | object | `{}` |  |
+| annotations | object | `{}` |  |
 | env | list | `[]` |  |
 | externalConfig.data | string | `"tcp-keepalive 400\nslowlog-max-len 158\nstream-node-max-bytes 2048\n"` |  |
 | externalConfig.enabled | bool | `false` |  |
@@ -78,9 +79,10 @@ helm delete <my-release> --namespace <namespace>
 | redisStandalone.image | string | `"quay.io/opstree/redis"` |  |
 | redisStandalone.imagePullPolicy | string | `"IfNotPresent"` |  |
 | redisStandalone.imagePullSecrets | list | `[]` |  |
-| redisStandalone.maxMemoryPercentOfLimit | int | `0` | MaxMemoryPercentOfLimit is the percentage of redis container memory limit to be used as maxmemory.     Default is 0 (disabled). |
+| redisStandalone.maxMemoryPercentOfLimit | int | `0` | MaxMemoryPercentOfLimit is the percentage of the Redis container memory limit to be used as maxmemory.    When a memory limit exists, the operator also exposes the computed value via the REDIS_MAX_MEMORY env var.    Default is 0 (disabled). |
 | redisStandalone.minReadySeconds | int | `0` |  |
 | redisStandalone.name | string | `""` |  |
+| redisStandalone.persistentVolumeClaimRetentionPolicy | object | `{}` |  |
 | redisStandalone.recreateStatefulSetOnUpdateInvalid | bool | `false` | Some fields of statefulset are immutable, such as volumeClaimTemplates. When set to true, the operator will delete the statefulset and recreate it. Default is false. |
 | redisStandalone.redisSecret.secretKey | string | `""` |  |
 | redisStandalone.redisSecret.secretName | string | `""` |  |
@@ -98,3 +100,4 @@ helm delete <my-release> --namespace <namespace>
 | storageSpec.volumeClaimTemplate.spec.accessModes[0] | string | `"ReadWriteOnce"` |  |
 | storageSpec.volumeClaimTemplate.spec.resources.requests.storage | string | `"1Gi"` |  |
 | tolerations | list | `[]` |  |
+| topologySpreadConstraints | list | `[]` |  |

@@ -365,11 +365,36 @@ func TestCreateMultipleLeaderRedisCommand(t *testing.T) {
 				"--cluster-yes",
 			},
 		},
+		{
+			name: "Multiple leaders cluster without version v7 with IPv6",
+			redisCluster: &rcvb2.RedisCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "mycluster",
+					Namespace: "default",
+				},
+				Spec: rcvb2.RedisClusterSpec{
+					ClusterSize: ptr.To(int32(3)),
+					Port:        ptr.To(6379),
+				},
+			},
+			expectedCommands: []string{
+				"redis-cli", "--cluster", "create",
+				"2001:db8:42:1::100:6379",
+				"2001:db8:42:1::101:6379",
+				"2001:db8:42:1::102:6379",
+				"--cluster-yes",
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client := mock_utils.CreateFakeClientWithPodIPs_LeaderPods(tt.redisCluster)
+			var client *k8sClientFake.Clientset
+			if strings.Contains(tt.name, "IPv6") {
+				client = mock_utils.CreateFakeClientWithIPv6PodIPs_LeaderPods(tt.redisCluster)
+			} else {
+				client = mock_utils.CreateFakeClientWithPodIPs_LeaderPods(tt.redisCluster)
+			}
 
 			invocation := CreateMultipleLeaderRedisCommand(context.TODO(), client, tt.redisCluster)
 			cmd := invocation.Args()
@@ -527,11 +552,43 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 				"--cluster-slave",
 			},
 		},
+		{
+			name: "Test case without cluster version v7 with IPv6",
+			redisCluster: &rcvb2.RedisCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "redis-cluster",
+					Namespace: "default",
+				},
+				Spec: rcvb2.RedisClusterSpec{
+					ClusterSize: ptr.To(int32(3)),
+					Port:        ptr.To(6379),
+				},
+			},
+			leaderPod: RedisDetails{
+				PodName:   "redis-cluster-leader-0",
+				Namespace: "default",
+			},
+			followerPod: RedisDetails{
+				PodName:   "redis-cluster-follower-0",
+				Namespace: "default",
+			},
+			expectedCommand: []string{
+				"redis-cli", "--cluster", "add-node",
+				"2001:db8:42:2::200:6379",
+				"2001:db8:42:1::100:6379",
+				"--cluster-slave",
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pods := mock_utils.CreateFakeObjectWithPodIPs(tt.redisCluster)
+			var pods []runtime.Object
+			if strings.Contains(tt.name, "IPv6") {
+				pods = mock_utils.CreateFakeObjectWithIPv6PodIPs(tt.redisCluster)
+			} else {
+				pods = mock_utils.CreateFakeObjectWithPodIPs(tt.redisCluster)
+			}
 			var secret []runtime.Object
 			if tt.redisCluster.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
 				secret = mock_utils.CreateFakeObjectWithSecret(tt.secret.name, tt.secret.namespace, tt.secret.key) //nolint

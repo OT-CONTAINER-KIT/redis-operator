@@ -1,0 +1,108 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: metrics-service-redis-cluster
+spec:
+  steps:
+    - name: Deploy Redis Cluster with exporter
+      try:
+        - apply:
+            file: secret.yaml
+        - apply:
+            file: cluster.yaml
+        - assert:
+            file: ready-cluster.yaml
+
+    - name: Assert metrics services created for leader and follower
+      try:
+        - assert:
+            file: ready-metrics-svc.yaml
+
+    - name: Verify leader metrics service only exposes exporter port
+      try:
+        - script:
+            timeout: 30s
+            content: |
+              #!/bin/bash
+              set -e
+              # Verify leader metrics service has exactly one port (9121)
+              PORTS=$(kubectl get svc -n ${NAMESPACE} redis-cluster-metrics-leader-metrics -o jsonpath='{.spec.ports[*].port}')
+              if [ "$PORTS" != "9121" ]; then
+                echo "Expected leader metrics service to only expose port 9121, got: $PORTS"
+                exit 1
+              fi
+              # Verify follower metrics service has exactly one port (9121)
+              PORTS=$(kubectl get svc -n ${NAMESPACE} redis-cluster-metrics-follower-metrics -o jsonpath='{.spec.ports[*].port}')
+              if [ "$PORTS" != "9121" ]; then
+                echo "Expected follower metrics service to only expose port 9121, got: $PORTS"
+                exit 1
+              fi
+              # Verify neither metrics service exposes Redis data port 6379
+              for ROLE in leader follower; do
+                HAS_REDIS_PORT=$(kubectl get svc -n ${NAMESPACE} redis-cluster-metrics-${ROLE}-metrics -o jsonpath='{.spec.ports[?(@.port==6379)].port}')
+                if [ -n "$HAS_REDIS_PORT" ]; then
+                  echo "${ROLE} metrics service should not expose Redis port 6379"
+                  exit 1
+                fi
+                HAS_BUS_PORT=$(kubectl get svc -n ${NAMESPACE} redis-cluster-metrics-${ROLE}-metrics -o jsonpath='{.spec.ports[?(@.port==16379)].port}')
+                if [ -n "$HAS_BUS_PORT" ]; then
+                  echo "${ROLE} metrics service should not expose Redis bus port 16379"
+                  exit 1
+                fi
+                COMPONENT=$(kubectl get svc -n ${NAMESPACE} redis-cluster-metrics-${ROLE}-metrics -o jsonpath='{.metadata.labels.app\.kubernetes\.io/component}')
+                if [ "$COMPONENT" != "metrics" ]; then
+                  echo "Expected app.kubernetes.io/component=metrics label on ${ROLE}, got: $COMPONENT"
+                  exit 1
+                fi
+              done
+              echo "Cluster metrics services validation passed"
+            check:
+              (contains($stdout, 'Cluster metrics services validation passed')): true
+
+    - name: Verify metrics are fetchable via leader metrics service
+      try:
+        - script:
+            timeout: 60s
+            content: |
+              #!/bin/bash
+              set -e
+              OUTPUT=$(kubectl run -n ${NAMESPACE} metrics-check-leader --rm -i --restart=Never --image=busybox:1.36 -- \
+                wget -qO- --timeout=10 http://redis-cluster-metrics-leader-metrics.${NAMESPACE}.svc.cluster.local:9121/metrics 2>&1)
+              echo "$OUTPUT"
+              if ! echo "$OUTPUT" | grep -q "redis_"; then
+                echo "ERROR: No redis_ metrics found in leader output"
+                exit 1
+              fi
+              echo "Leader metrics fetch validation passed"
+            check:
+              (contains($stdout, 'redis_')): true
+
+    - name: Verify metrics are fetchable via follower metrics service
+      try:
+        - script:
+            timeout: 60s
+            content: |
+              #!/bin/bash
+              set -e
+              OUTPUT=$(kubectl run -n ${NAMESPACE} metrics-check-follower --rm -i --restart=Never --image=busybox:1.36 -- \
+                wget -qO- --timeout=10 http://redis-cluster-metrics-follower-metrics.${NAMESPACE}.svc.cluster.local:9121/metrics 2>&1)
+              echo "$OUTPUT"
+              if ! echo "$OUTPUT" | grep -q "redis_"; then
+                echo "ERROR: No redis_ metrics found in follower output"
+                exit 1
+              fi
+              echo "Follower metrics fetch validation passed"
+            check:
+              (contains($stdout, 'redis_')): true
+
+    - name: Cleanup
+      try:
+        - delete:
+            ref:
+              name: redis-cluster-metrics
+              kind: RedisCluster
+              apiVersion: redis.redis.opstreelabs.in/v1beta2
+        - error:
+            file: ready-metrics-svc.yaml

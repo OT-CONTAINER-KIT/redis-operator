@@ -94,10 +94,6 @@ func getEndpoint(ctx context.Context, client kubernetes.Interface, cr *rcvb2.Red
 		if host == "" {
 			return ""
 		}
-		// if ip is IPv6, wrap it in brackets
-		if net.ParseIP(host).To4() == nil {
-			host = "[" + host + "]"
-		}
 	}
 	if cr.Spec.KubernetesConfig.GetServiceType() == "NodePort" {
 		svc, err := getService(ctx, client, cr.Namespace, rd.PodName)

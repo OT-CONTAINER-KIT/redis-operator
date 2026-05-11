@@ -96,7 +96,7 @@ spec:
             timeout: 30s
             content: >
               kubectl exec --namespace ${NAMESPACE} --container redis-cluster-acl-pvc-leader redis-cluster-acl-pvc-leader-0 --
-              cat /etc/redis/user.acl 2>&1
+              cat /data/redis/user.acl 2>&1
             check:
               (contains($stdout, 'user pvcuser')): true
               (contains($stdout, 'user readonly')): true
@@ -113,7 +113,32 @@ spec:
               (contains($stdout, 'pvcuser')): true
               (contains($stdout, 'readonly')): true
 
-    # Step 11: Test cluster operations with ACL
+    # Step 11: Test ACL SAVE persists to PVC
+    - name: Verify ACL SAVE writes to PVC
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container redis-cluster-acl-pvc-leader redis-cluster-acl-pvc-leader-0 --
+              redis-cli -c -p 6379 --user admin --pass admin@secure456 ACL SETUSER saveduser on ~* &* +@all >saved@secure789 2>&1
+            check:
+              (contains($stdout, 'OK')): true
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container redis-cluster-acl-pvc-leader redis-cluster-acl-pvc-leader-0 --
+              redis-cli -c -p 6379 --user admin --pass admin@secure456 ACL SAVE 2>&1
+            check:
+              (contains($stdout, 'OK')): true
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container redis-cluster-acl-pvc-leader redis-cluster-acl-pvc-leader-0 --
+              cat /data/redis/user.acl 2>&1
+            check:
+              (contains($stdout, 'user saveduser')): true
+
+    # Step 12: Test cluster operations with ACL
     - name: Test cluster info with ACL user
       try:
         - script:
@@ -124,13 +149,13 @@ spec:
             check:
               (contains($stdout, 'cluster_state:ok')): true
 
-    # Step 12: Verify PVC data persistence
+    # Step 13: Verify PVC data persistence
     - name: Verify ACL PVC volume mount
       try:
         - script:
             timeout: 30s
             content: >
               kubectl exec --namespace ${NAMESPACE} --container redis-cluster-acl-pvc-leader redis-cluster-acl-pvc-leader-0 --
-              cat /proc/mounts | grep '/etc/redis/user.acl' 2>&1
+              cat /proc/mounts | grep '/data/redis' 2>&1
             check:
-              (contains($stdout, '/etc/redis/user.acl')): true
+              (contains($stdout, '/data/redis')): true

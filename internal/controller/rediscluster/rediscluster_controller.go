@@ -90,6 +90,23 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if masterCount := k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, "leader"); masterCount == leaderCount {
 			r.Recorder.Event(instance, corev1.EventTypeNormal, events.EventReasonRedisClusterDownscale, "Redis cluster is downscaling...")
 			logger.Info("Redis cluster is downscaling...", "Current.LeaderReplicas", leaderCount, "Desired.LeaderReplicas", leaderReplicas)
+
+			// Before resharding, ensure all remaining leader pods (the transfer targets) are masters.
+			// After scale-out, a failover may have converted some leader pods to slaves, which causes
+			// reshard to fail with "The specified node is not known or not a master".
+			// We handle one failover per reconcile cycle and requeue — the loop will converge
+			// over successive reconciliations until all target pods are masters.
+			for i := int32(0); i < leaderReplicas; i++ {
+				if !(k8sutils.VerifyLeaderPod(ctx, r.K8sClient, instance, i)) {
+					logger.Info("Transfer target leader pod is not a master, initiating failover before scale-down", "Pod.Index", i)
+					if err = k8sutils.ClusterFailover(ctx, r.K8sClient, instance, i); err != nil {
+						logger.Error(err, "Failed to initiate cluster failover for transfer target")
+						return intctrlutil.RequeueE(ctx, err, "")
+					}
+					return intctrlutil.RequeueAfter(ctx, time.Second*10, "Waiting for failover to complete before scale-down")
+				}
+			}
+
 			for shardIdx := leaderCount - 1; shardIdx >= leaderReplicas; shardIdx-- {
 				logger.Info("Remove the shard", "Shard.Index", shardIdx)
 				//  Imp if the last index of leader sts is not leader make it then
@@ -238,14 +255,34 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			} else {
 				if leaderCount < leaderReplicas {
 					// Scale up the cluster
+					// Step 1 : Fix any open slots from previous interrupted operations
+					if err := k8sutils.FixRedisCluster(ctx, r.K8sClient, instance); err != nil {
+						logger.Error(err, "Failed to fix redis cluster slots, proceeding with scale-up")
+					}
 					// Step 2 : Add Redis Node
 					k8sutils.AddRedisNodeToCluster(ctx, r.K8sClient, instance)
 					monitoring.RedisClusterAddingNodeAttempt.WithLabelValues(instance.Namespace, instance.Name).Inc()
-					// Step 3 Rebalance the cluster using the empty masters
-					k8sutils.RebalanceRedisClusterEmptyMasters(ctx, r.K8sClient, instance)
+
+					return intctrlutil.RequeueAfter(ctx, 10*time.Second, "added node, waiting for cluster convergence before rebalancing")
 				}
 			}
 		} else {
+			stable, err := k8sutils.ClusterStableNoOpenSlots(ctx, r.K8sClient, instance)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			if !stable {
+				return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+			}
+
+			empty, err := k8sutils.ClusterHasEmptyMasters(ctx, r.K8sClient, instance)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			if empty {
+				k8sutils.RebalanceRedisClusterEmptyMasters(ctx, r.K8sClient, instance)
+			}
+
 			if followerReplicas > 0 {
 				logger.Info("All leader are part of the cluster, adding follower/replicas", "Leaders.Count", leaderCount, "Instance.Size", leaderReplicas, "Follower.Replicas", followerReplicas)
 				k8sutils.ExecuteRedisReplicationCommand(ctx, r.K8sClient, instance)

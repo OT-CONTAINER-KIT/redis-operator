@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/consts"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/features"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,8 +31,8 @@ func TestGenerateAuthAndTLSArgs(t *testing.T) {
 	}{
 		{"NoAuthNoTLS", false, false, "", ""},
 		{"AuthOnly", true, false, " -a \"${REDIS_PASSWORD}\"", ""},
-		{"TLSOnly", false, true, "", " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\" --cacert \"${REDIS_TLS_CA_KEY}\""},
-		{"AuthAndTLS", true, true, " -a \"${REDIS_PASSWORD}\"", " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\" --cacert \"${REDIS_TLS_CA_KEY}\""},
+		{"TLSOnly", false, true, "", " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\" --cacert \"${REDIS_TLS_CA_CERT}\""},
+		{"AuthAndTLS", true, true, " -a \"${REDIS_PASSWORD}\"", " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\" --cacert \"${REDIS_TLS_CA_CERT}\""},
 	}
 
 	for _, tt := range tests {
@@ -43,6 +44,62 @@ func TestGenerateAuthAndTLSArgs(t *testing.T) {
 			if tlsArgs != tt.expectedTLS {
 				t.Errorf("expected TLS args %q, got %q", tt.expectedTLS, tlsArgs)
 			}
+		})
+	}
+}
+
+func TestStorageHasVolumeClaimTemplate(t *testing.T) {
+	tests := []struct {
+		name    string
+		storage *common.Storage
+		want    bool
+	}{
+		{"nil storage", nil, false},
+		{"empty VolumeClaimTemplate", &common.Storage{}, false},
+		{"only volumeMount", &common.Storage{
+			VolumeMount: common.AdditionalVolume{
+				Volume:    []corev1.Volume{{Name: "data", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}}},
+				MountPath: []corev1.VolumeMount{{Name: "data", MountPath: "/data"}},
+			},
+		}, false},
+		{"with AccessModes", &common.Storage{
+			VolumeClaimTemplate: corev1.PersistentVolumeClaim{
+				Spec: corev1.PersistentVolumeClaimSpec{
+					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+				},
+			},
+		}, true},
+		{"with Resources.Requests", &common.Storage{
+			VolumeClaimTemplate: corev1.PersistentVolumeClaim{
+				Spec: corev1.PersistentVolumeClaimSpec{
+					Resources: corev1.VolumeResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceStorage: resource.MustParse("1Gi"),
+						},
+					},
+				},
+			},
+		}, true},
+		{"with StorageClassName", &common.Storage{
+			VolumeClaimTemplate: corev1.PersistentVolumeClaim{
+				Spec: corev1.PersistentVolumeClaimSpec{
+					StorageClassName: ptr.To("standard"),
+				},
+			},
+		}, true},
+		{"with VolumeName", &common.Storage{
+			VolumeClaimTemplate: corev1.PersistentVolumeClaim{
+				Spec: corev1.PersistentVolumeClaimSpec{
+					VolumeName: "pv-data",
+				},
+			},
+		}, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := storageHasVolumeClaimTemplate(tt.storage)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -68,6 +125,35 @@ func TestGeneratePreStopCommand(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGenerateContainerDefAddsMaxMemoryEnv(t *testing.T) {
+	percent := 80
+	memLimit := resource.MustParse("512Mi")
+	containers := generateContainerDef(
+		"redis",
+		containerParameters{
+			Role:  "redis",
+			Image: "redis:latest",
+			Resources: &corev1.ResourceRequirements{
+				Limits: corev1.ResourceList{
+					corev1.ResourceMemory: memLimit,
+				},
+			},
+			MaxMemoryPercentOfLimit: &percent,
+		},
+		false,
+		false,
+		false,
+		nil,
+		nil,
+		nil,
+		nil,
+	)
+
+	require.Len(t, containers, 1)
+	expectedValue := strconv.FormatInt(memLimit.Value()*int64(percent)/100, 10)
+	assert.Contains(t, containers[0].Env, corev1.EnvVar{Name: consts.ENV_KEY_REDIS_MAX_MEMORY, Value: expectedValue})
 }
 
 func TestGetVolumeMount(t *testing.T) {
@@ -161,15 +247,34 @@ func TestGetVolumeMount(t *testing.T) {
 			expectedMounts:     []corev1.VolumeMount{{Name: "tls-certs", MountPath: "/tls", ReadOnly: true}},
 		},
 		{
-			name:               "6. Only acl enabled",
+			name:               "6. Only acl enabled (secret)",
 			persistenceEnabled: nil,
 			clusterMode:        false,
 			nodeConfVolume:     false,
 			externalConfig:     nil,
 			mountpath:          []corev1.VolumeMount{},
 			tlsConfig:          nil,
-			aclConfig:          &common.ACLConfig{},
-			expectedMounts:     []corev1.VolumeMount{{Name: "acl-secret", MountPath: "/etc/redis/user.acl", SubPath: "user.acl"}},
+			aclConfig: &common.ACLConfig{
+				Secret: &corev1.SecretVolumeSource{SecretName: "acl-secret"},
+			},
+			expectedMounts: []corev1.VolumeMount{
+				{Name: "acl-secret", MountPath: "/etc/redis/user.acl", SubPath: "user.acl"},
+			},
+		},
+		{
+			name:               "6b. Only acl enabled (PVC)",
+			persistenceEnabled: nil,
+			clusterMode:        false,
+			nodeConfVolume:     false,
+			externalConfig:     nil,
+			mountpath:          []corev1.VolumeMount{},
+			tlsConfig:          nil,
+			aclConfig: &common.ACLConfig{
+				PersistentVolumeClaim: ptr.To("acl-pvc"),
+			},
+			expectedMounts: []corev1.VolumeMount{
+				{Name: "acl-pvc", MountPath: "/data/redis"},
+			},
 		},
 		{
 			name:               "7. Everything enabled except externalConfig",
@@ -184,7 +289,9 @@ func TestGetVolumeMount(t *testing.T) {
 				},
 			},
 			tlsConfig: &common.TLSConfig{},
-			aclConfig: &common.ACLConfig{},
+			aclConfig: &common.ACLConfig{
+				Secret: &corev1.SecretVolumeSource{SecretName: "acl-secret"},
+			},
 			expectedMounts: []corev1.VolumeMount{
 				{Name: "persistent-volume", MountPath: "/data"},
 				{Name: "node-conf", MountPath: "/node-conf"},
@@ -212,7 +319,9 @@ func TestGetVolumeMount(t *testing.T) {
 			externalConfig:     nil,
 			mountpath:          []corev1.VolumeMount{},
 			tlsConfig:          nil,
-			aclConfig:          &common.ACLConfig{},
+			aclConfig: &common.ACLConfig{
+				Secret: &corev1.SecretVolumeSource{SecretName: "acl-secret"},
+			},
 			expectedMounts: []corev1.VolumeMount{
 				{Name: "persistent-volume", MountPath: "/data"},
 				{Name: "node-conf", MountPath: "/node-conf"},
@@ -1401,7 +1510,7 @@ func TestGenerateInitContainerDefWithSecurityContext(t *testing.T) {
 
 func TestGenerateTLSEnvironmentVariables(t *testing.T) {
 	tlsConfig := &common.TLSConfig{
-		CaKeyFile:   "test_ca.crt",
+		CaCertFile:  "test_ca.crt",
 		CertKeyFile: "test_tls.crt",
 		KeyFile:     "test_tls.key",
 	}
@@ -1414,7 +1523,7 @@ func TestGenerateTLSEnvironmentVariables(t *testing.T) {
 			Value: "true",
 		},
 		{
-			Name:  "REDIS_TLS_CA_KEY",
+			Name:  "REDIS_TLS_CA_CERT",
 			Value: path.Join("/tls/", "test_ca.crt"),
 		},
 		{
@@ -1452,7 +1561,7 @@ func TestGetEnvironmentVariables(t *testing.T) {
 			secretKey:          ptr.To("test-key"),
 			persistenceEnabled: ptr.To(true),
 			tlsConfig: &common.TLSConfig{
-				CaKeyFile:   "test_ca.crt",
+				CaCertFile:  "test_ca.crt",
 				CertKeyFile: "test_tls.crt",
 				KeyFile:     "test_tls.key",
 				Secret: corev1.SecretVolumeSource{
@@ -1469,11 +1578,12 @@ func TestGetEnvironmentVariables(t *testing.T) {
 			},
 			clusterVersion: ptr.To("v6"),
 			expectedEnvironment: []corev1.EnvVar{
+				{Name: "ACL_FILE_PATH", Value: "/etc/redis/user.acl"},
 				{Name: "ACL_MODE", Value: "true"},
 				{Name: "PERSISTENCE_ENABLED", Value: "true"},
 				{Name: "REDIS_ADDR", Value: "redis://localhost:26379"},
 				{Name: "TLS_MODE", Value: "true"},
-				{Name: "REDIS_TLS_CA_KEY", Value: path.Join("/tls/", "test_ca.crt")},
+				{Name: "REDIS_TLS_CA_CERT", Value: path.Join("/tls/", "test_ca.crt")},
 				{Name: "REDIS_TLS_CERT", Value: path.Join("/tls/", "test_tls.crt")},
 				{Name: "REDIS_TLS_CERT_KEY", Value: path.Join("/tls/", "test_tls.key")},
 				{Name: "REDIS_PASSWORD", ValueFrom: &corev1.EnvVarSource{
@@ -1532,12 +1642,15 @@ func TestGetEnvironmentVariables(t *testing.T) {
 			secretKey:          ptr.To("test-key"),
 			persistenceEnabled: ptr.To(true),
 			tlsConfig:          nil,
-			aclConfig:          &common.ACLConfig{},
+			aclConfig: &common.ACLConfig{
+				Secret: &corev1.SecretVolumeSource{SecretName: "acl-secret"},
+			},
 			envVar: &[]corev1.EnvVar{
 				{Name: "TEST_ENV", Value: "test-value"},
 			},
 			port: ptr.To(6380),
 			expectedEnvironment: []corev1.EnvVar{
+				{Name: "ACL_FILE_PATH", Value: "/etc/redis/user.acl"},
 				{Name: "ACL_MODE", Value: "true"},
 				{Name: "PERSISTENCE_ENABLED", Value: "true"},
 				{Name: "REDIS_ADDR", Value: "redis://localhost:6379"},
@@ -1553,6 +1666,37 @@ func TestGetEnvironmentVariables(t *testing.T) {
 				{Name: "SETUP_MODE", Value: "cluster"},
 				{Name: "TEST_ENV", Value: "test-value"},
 				{Name: "REDIS_PORT", Value: "6380"},
+			},
+		},
+		{
+			name:               "Test with cluster role and acl pvc",
+			role:               "cluster",
+			enabledPassword:    ptr.To(true),
+			secretName:         ptr.To("test-secret"),
+			secretKey:          ptr.To("test-key"),
+			persistenceEnabled: ptr.To(true),
+			tlsConfig:          nil,
+			aclConfig: &common.ACLConfig{
+				PersistentVolumeClaim: ptr.To("acl-pvc"),
+			},
+			envVar: nil,
+			port:   ptr.To(6381),
+			expectedEnvironment: []corev1.EnvVar{
+				{Name: "ACL_FILE_PATH", Value: "/data/redis/user.acl"},
+				{Name: "ACL_MODE", Value: "true"},
+				{Name: "PERSISTENCE_ENABLED", Value: "true"},
+				{Name: "REDIS_ADDR", Value: "redis://localhost:6379"},
+				{Name: "REDIS_PASSWORD", ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "test-secret",
+						},
+						Key: "test-key",
+					},
+				}},
+				{Name: "REDIS_PORT", Value: "6381"},
+				{Name: "SERVER_MODE", Value: "cluster"},
+				{Name: "SETUP_MODE", Value: "cluster"},
 			},
 		},
 		{
@@ -1576,7 +1720,7 @@ func TestGetEnvironmentVariables(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			actualEnvironment := getEnvironmentVariables(tt.role, tt.enabledPassword, tt.secretName,
-				tt.secretKey, tt.persistenceEnabled, tt.tlsConfig, tt.aclConfig, tt.envVar, tt.port, tt.clusterVersion)
+				tt.secretKey, tt.persistenceEnabled, tt.tlsConfig, tt.aclConfig, tt.envVar, tt.port, tt.clusterVersion, nil, nil)
 
 			assert.ElementsMatch(t, tt.expectedEnvironment, actualEnvironment)
 		})
@@ -1595,7 +1739,7 @@ func Test_getExporterEnvironmentVariables(t *testing.T) {
 			name: "Test with tls enabled and env var",
 			params: containerParameters{
 				TLSConfig: &common.TLSConfig{
-					CaKeyFile:   "test_ca.crt",
+					CaCertFile:  "test_ca.crt",
 					CertKeyFile: "test_tls.crt",
 					KeyFile:     "test_tls.key",
 					Secret: corev1.SecretVolumeSource{
@@ -1635,7 +1779,7 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 	probeWithTLS := &corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
 			Exec: &corev1.ExecAction{
-				Command: []string{"sh", "-ec", "RESP=\"$(redis-cli -h $(hostname) -p ${REDIS_PORT} --tls --cert ${REDIS_TLS_CERT} --key ${REDIS_TLS_CERT_KEY} --cacert ${REDIS_TLS_CA_KEY} ping)\"\n[ \"$RESP\" = \"PONG\" ]"},
+				Command: []string{"sh", "-ec", "RESP=\"$(redis-cli -h $(hostname) -p ${REDIS_PORT} --tls --cert ${REDIS_TLS_CERT} --key ${REDIS_TLS_CERT_KEY} --cacert ${REDIS_TLS_CA_CERT} ping)\"\n[ \"$RESP\" = \"PONG\" ]"},
 			},
 		},
 	}
@@ -1727,6 +1871,10 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 									Image: "redis:latest",
 									Env: []corev1.EnvVar{
 										{
+											Name:  "ACL_FILE_PATH",
+											Value: "/etc/redis/user.acl",
+										},
+										{
 											Name:  "ACL_MODE",
 											Value: "true",
 										},
@@ -1739,7 +1887,7 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 											Value: "1.0",
 										},
 										{
-											Name:  "REDIS_TLS_CA_KEY",
+											Name:  "REDIS_TLS_CA_CERT",
 											Value: path.Join("/tls/", "ca.crt"),
 										},
 										{
