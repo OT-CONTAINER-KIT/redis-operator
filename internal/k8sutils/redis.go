@@ -814,6 +814,94 @@ func GetRedisReplicationRealMaster(ctx context.Context, client kubernetes.Interf
 	return ""
 }
 
+// ConfigureExternalMasterReplication configures every pod in the replication StatefulSet
+// as a read-replica (slave) of an external Redis master. It is used exclusively in
+// slave-only mode (ExternalMaster.Enabled = true).
+//
+// For each pod the function:
+//  1. Checks the current INFO replication output; if the pod is already a slave of the
+//     correct external master it is skipped to avoid unnecessary resync disruption.
+//  2. Issues CONFIG SET masterauth before REPLICAOF so authentication to the external
+//     master succeeds on the first attempt.
+//  3. Issues REPLICAOF <host> <port>.
+//
+// All operations are idempotent and safe to call on every reconcile loop.
+func ConfigureExternalMasterReplication(ctx context.Context, client kubernetes.Interface, cr *rrvb2.RedisReplication) error {
+	logger := log.FromContext(ctx)
+
+	externalHost := cr.Spec.ExternalMaster.Host
+	externalPort := cr.GetExternalMasterPort()
+	externalPortStr := strconv.Itoa(int(externalPort))
+
+	var pass string
+	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
+		var err error
+		pass, err = getRedisPassword(
+			ctx, client, cr.Namespace,
+			*cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name,
+			*cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key,
+		)
+		if err != nil {
+			logger.Error(err, "Failed to get Redis password for external master replication")
+			return err
+		}
+	}
+
+	replicas := cr.Spec.GetReplicationCounts("replication")
+	for i := 0; i < int(replicas); i++ {
+		podName := cr.Name + "-" + strconv.Itoa(i)
+		redisClient := configureRedisReplicationClient(ctx, client, cr, podName)
+		defer redisClient.Close()
+
+		// Check current replication state; skip pod if already correctly configured
+		// to avoid unnecessary resync disruption every 30 s.
+		info, err := redisClient.Info(ctx, "Replication").Result()
+		if err != nil {
+			logger.Error(err, "Failed to get replication info, skipping pod", "pod", podName)
+			continue
+		}
+		if isAlreadySlaveOf(info, externalHost, externalPortStr) {
+			logger.V(1).Info("Pod already replicating from correct external master, skipping",
+				"pod", podName, "host", externalHost, "port", externalPort)
+			continue
+		}
+
+		// Set masterauth BEFORE issuing REPLICAOF so the first handshake authenticates.
+		if pass != "" {
+			if err := redisClient.ConfigSet(ctx, "masterauth", pass).Err(); err != nil {
+				logger.Error(err, "Failed to set masterauth on pod", "pod", podName)
+				return err
+			}
+		}
+
+		logger.V(1).Info("Configuring pod as slave of external master",
+			"pod", podName, "host", externalHost, "port", externalPort)
+		if err := redisClient.SlaveOf(ctx, externalHost, externalPortStr).Err(); err != nil {
+			logger.Error(err, "Failed to issue REPLICAOF to external master", "pod", podName)
+			return err
+		}
+	}
+
+	return nil
+}
+
+// isAlreadySlaveOf reports whether an INFO replication output indicates the instance
+// is already a slave of the given host:port. Both host and port must match exactly.
+func isAlreadySlaveOf(info, host, port string) bool {
+	var isSlave, correctHost, correctPort bool
+	for _, line := range strings.Split(info, "\r\n") {
+		switch {
+		case strings.HasPrefix(line, "role:"):
+			isSlave = strings.TrimPrefix(line, "role:") == "slave"
+		case strings.HasPrefix(line, "master_host:"):
+			correctHost = strings.TrimPrefix(line, "master_host:") == host
+		case strings.HasPrefix(line, "master_port:"):
+			correctPort = strings.TrimPrefix(line, "master_port:") == port
+		}
+	}
+	return isSlave && correctHost && correctPort
+}
+
 // SetRedisClusterDynamicConfig applies dynamic configuration to each Redis instance in the cluster
 func SetRedisClusterDynamicConfig(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) error {
 	// Get dynamic configuration

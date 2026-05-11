@@ -6,6 +6,25 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// ExternalMaster defines an external Redis master endpoint for slave-only deployments.
+// When set (non-nil), all pods in this deployment become read-replicas of the specified
+// external master instead of having a local master elected within the cluster.
+// This is useful for cross-cluster replication where the primary cluster runs a full
+// RedisReplication deployment and secondary clusters run slave-only deployments.
+// Cannot be combined with Sentinel.
+// +k8s:deepcopy-gen=true
+type ExternalMaster struct {
+	// Host is the DNS name or IP address of the external Redis master.
+	// +kubebuilder:validation:MinLength=1
+	Host string `json:"host"`
+	// Port is the port of the external Redis master.
+	// Defaults to 6379 when omitted.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +kubebuilder:default:=6379
+	Port *int32 `json:"port,omitempty"`
+}
+
 type RedisReplicationSpec struct {
 	Size                          *int32                            `json:"clusterSize"`
 	KubernetesConfig              common.KubernetesConfig           `json:"kubernetesConfig"`
@@ -31,6 +50,12 @@ type RedisReplicationSpec struct {
 	TopologySpreadConstrains      []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
 	HostPort                      *int                              `json:"hostPort,omitempty"`
 	Sentinel                      *Sentinel                         `json:"sentinel,omitempty"`
+	// ExternalMaster configures slave-only mode where all pods replicate from an
+	// external Redis master residing in another cluster. When enabled, no local
+	// master is elected, the master-role service is not created, and all
+	// leader-election / failover logic is skipped.
+	// Cannot be combined with Sentinel.
+	ExternalMaster *ExternalMaster `json:"externalMaster,omitempty"`
 }
 
 type Sentinel struct {
