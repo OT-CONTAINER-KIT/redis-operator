@@ -389,6 +389,18 @@ func (r *Reconciler) sentinelResetIfNeed(ctx context.Context, inst *rrvb2.RedisR
 }
 
 func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisReplication) (ctrl.Result, error) {
+	// Slave-only mode: skip all local master-election and failover logic.
+	// Every pod is configured as a read-replica of the external master.
+	if instance.UseExternalMaster() {
+		if err := k8sutils.ConfigureExternalMasterReplication(ctx, r.K8sClient, instance); err != nil {
+			return intctrlutil.RequeueAfter(ctx, time.Second*60, "failed to configure external master replication")
+		}
+		monitoring.RedisReplicationReplicasSizeMismatch.WithLabelValues(instance.Namespace, instance.Name).Set(0)
+		monitoring.RedisReplicationReplicasSizeCurrent.WithLabelValues(instance.Namespace, instance.Name).Set(float64(*instance.Spec.Size))
+		monitoring.RedisReplicationReplicasSizeDesired.WithLabelValues(instance.Namespace, instance.Name).Set(float64(*instance.Spec.Size))
+		return intctrlutil.Reconciled()
+	}
+
 	if instance.EnableSentinel() {
 		if !r.IsStatefulSetReady(ctx, instance.Namespace, instance.SentinelStatefulSet()) {
 			return intctrlutil.RequeueAfter(ctx, time.Second*30, "waiting for sentinel statefulset to be ready")
@@ -490,8 +502,26 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 // reconcileStatus update status and label.
 func (r *Reconciler) reconcileStatus(ctx context.Context, instance *rrvb2.RedisReplication) (ctrl.Result, error) {
 	var err error
-	var realMaster string
 
+	// Slave-only mode: no local master to discover.
+	// Status.MasterNode is set to the external "host:port"; all pods are slaves,
+	// so UpdateRedisRoleLabel will label them all with redis-role=slave which
+	// makes the replica service selector resolve correctly.
+	if instance.UseExternalMaster() {
+		externalMaster := instance.GetExternalMasterEndpoint()
+		if err = r.UpdateRedisReplicationMaster(ctx, instance, externalMaster); err != nil {
+			return intctrlutil.RequeueE(ctx, err, "")
+		}
+		labels := common.GetRedisLabels(instance.GetName(), common.SetupTypeReplication, "replication", instance.GetLabels())
+		if err = r.Healer.UpdateRedisRoleLabel(ctx, instance.GetNamespace(), labels, instance.Spec.KubernetesConfig.ExistingPasswordSecret, instance.Spec.TLS); err != nil {
+			return intctrlutil.RequeueE(ctx, err, "")
+		}
+		// All pods are slaves of the external master.
+		monitoring.RedisReplicationConnectedSlavesTotal.WithLabelValues(instance.Namespace, instance.Name).Set(float64(*instance.Spec.Size))
+		return intctrlutil.Reconciled()
+	}
+
+	var realMaster string
 	masterNodes, err := r.redisNodesByRole(ctx, instance, "master")
 	if err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")

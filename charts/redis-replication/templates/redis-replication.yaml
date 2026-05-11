@@ -167,3 +167,8 @@ spec:
     additionalSentinelConfig: {{ .Values.sentinel.additionalSentinelConfig | quote }}
     {{- end }}
   {{- end }}
+  {{- if and .Values.externalMaster .Values.externalMaster.enabled }}
+  externalMaster:
+    host: {{ required "externalMaster.host is required when externalMaster.enabled is true" .Values.externalMaster.host | quote }}
+    port: {{ .Values.externalMaster.port | default 6379 }}
+  {{- end }}
