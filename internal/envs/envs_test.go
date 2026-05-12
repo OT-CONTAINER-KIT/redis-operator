@@ -103,6 +103,56 @@ func TestGetMaxConcurrentReconciles(t *testing.T) {
 	}
 }
 
+func TestGetRedisPodReachAttempts(t *testing.T) {
+	tests := []struct {
+		name          string
+		envValue      string
+		defaultValue  int
+		expectedValue int
+	}{
+		{
+			name:          "empty value with default",
+			envValue:      "",
+			defaultValue:  3,
+			expectedValue: 3,
+		},
+		{
+			name:          "valid value",
+			envValue:      "5",
+			defaultValue:  3,
+			expectedValue: 5,
+		},
+		{
+			name:          "invalid value with default",
+			envValue:      "invalid",
+			defaultValue:  3,
+			expectedValue: 3,
+		},
+		{
+			name:          "non-positive value with default",
+			envValue:      "0",
+			defaultValue:  3,
+			expectedValue: 3,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.envValue != "" {
+				os.Setenv(RedisPodReachAttemptsEnv, tt.envValue)
+				defer os.Unsetenv(RedisPodReachAttemptsEnv)
+			} else {
+				os.Unsetenv(RedisPodReachAttemptsEnv)
+			}
+
+			actualValue := GetRedisPodReachAttempts(tt.defaultValue)
+			if actualValue != tt.expectedValue {
+				t.Errorf("GetRedisPodReachAttempts() = %v, want %v", actualValue, tt.expectedValue)
+			}
+		})
+	}
+}
+
 func TestIsWebhookEnabled(t *testing.T) {
 	tests := []struct {
 		name          string
