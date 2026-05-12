@@ -79,6 +79,27 @@ Redis replication configuration can be customized by [values.yaml](https://githu
 | sentinel.resolveHostnames | string | `"no"` | Whether Sentinel resolves hostnames instead of IPs |
 | sentinel.announceHostnames | string | `"no"` | Whether Sentinel announces hostnames to clients |
 
+## Operator Reconciliation Behavior
+
+During RedisReplication reconciliation, the operator discovers each Redis pod role by querying Redis `INFO replication`. If a pod is temporarily unreachable, the operator retries the connection with exponential backoff before classifying the pod.
+
+- The operator retries each pod up to `REDIS_POD_REACH_ATTEMPTS` times. The default is `3`.
+- Retries use exponential backoff with a 1 second base delay.
+- If the role still cannot be read after the configured attempts, the operator assumes the pod is a replica.
+- When listing masters, unreachable pods are omitted. When listing replicas, they are included.
+- StatefulSet lookup failures still fail reconciliation.
+
+Set `REDIS_POD_REACH_ATTEMPTS` on the redis-operator deployment. With the operator Helm chart, pass it through `redisOperator.env`:
+
+```yaml
+redisOperator:
+  env:
+    - name: REDIS_POD_REACH_ATTEMPTS
+      value: "5"
+```
+
+Invalid or non-positive values fall back to the default of `3`.
+
 ## RedisReplication Instance Configuration
 
 ### Dynamic Configuration

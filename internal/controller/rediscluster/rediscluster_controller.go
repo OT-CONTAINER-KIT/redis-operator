@@ -220,7 +220,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	leaderSTSReady := r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-leader")
-	followerSTSReady := r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-follower")
+	// Skip follower readiness when no followers are configured. A 0-replica
+	// follower StatefulSet can fail IsStatefulSetReady after recreate because
+	// CurrentRevision never catches UpdateRevision with no pods to roll.
+	followerSTSReady := followerReplicas == 0 || r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-follower")
 	if !leaderSTSReady || !followerSTSReady {
 		// Sync the actual ready replica counts from the StatefulSets so the status
 		// leaves Ready (and the reported counts drop) when pods go down after the

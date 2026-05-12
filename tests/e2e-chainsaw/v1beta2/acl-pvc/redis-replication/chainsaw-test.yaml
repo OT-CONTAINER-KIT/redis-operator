@@ -32,9 +32,34 @@ spec:
         - apply:
             file: replication.yaml
         - assert:
+            file: ready-sts.yaml
+        - assert:
             file: ready-replication.yaml
 
-    # Step 4: Test ACL authentication on master
+    # Step 4: Wait until replicas are linked to the master before exercising data path
+    - name: Wait for replication link
+      try:
+        - script:
+            timeout: 3m
+            content: |
+              #!/bin/bash
+              set -e
+              for i in $(seq 1 60); do
+                INFO=$(kubectl exec --namespace "${NAMESPACE}" redis-replication-acl-pvc-1 -- \
+                  redis-cli -p 6379 --user repluser --pass repl@secure --no-auth-warning info replication 2>&1 || true)
+                if echo "${INFO}" | grep -q 'role:slave' && echo "${INFO}" | grep -q 'master_link_status:up'; then
+                  echo "replication link is up"
+                  exit 0
+                fi
+                echo "attempt ${i}: waiting for replica link..."
+                sleep 3
+              done
+              echo "timed out waiting for replication link"
+              exit 1
+            check:
+              (contains($stdout, 'replication link is up')): true
+
+    # Step 5: Test ACL authentication on master
     - name: Test ACL user authentication on master
       try:
         - script:
@@ -45,7 +70,7 @@ spec:
             check:
               (contains($stdout, 'PONG')): true
 
-    # Step 5: Test write operation on master
+    # Step 6: Test write operation on master
     - name: Test write operation on master
       try:
         - script:
@@ -56,20 +81,30 @@ spec:
             check:
               (contains($stdout, 'OK')): true
 
-    # Step 6: Test read operation on replica
+    # Step 7: Test read operation on replica
     - name: Test read operation on replica
       try:
-        - sleep:
-            duration: 30s
         - script:
-            timeout: 30s
-            content: >
-              kubectl exec --namespace ${NAMESPACE} redis-replication-acl-pvc-1 --
-              redis-cli -p 6379 --user repluser --pass repl@secure get repl-key 2>&1
+            timeout: 90s
+            content: |
+              #!/bin/bash
+              set -e
+              for i in $(seq 1 20); do
+                VALUE=$(kubectl exec --namespace "${NAMESPACE}" redis-replication-acl-pvc-1 -- \
+                  redis-cli -p 6379 --user repluser --pass repl@secure --no-auth-warning get repl-key 2>&1 || true)
+                if echo "${VALUE}" | grep -q 'ACL PVC replication test'; then
+                  echo "${VALUE}"
+                  exit 0
+                fi
+                echo "attempt ${i}: replica value='${VALUE}', waiting..."
+                sleep 2
+              done
+              echo "timed out waiting for key on replica"
+              exit 1
             check:
               (contains($stdout, 'ACL PVC replication test')): true
 
-    # Step 7: Verify ACL file on master
+    # Step 8: Verify ACL file on master
     - name: Verify ACL file on master
       try:
         - script:
@@ -80,7 +115,7 @@ spec:
             check:
               (contains($stdout, 'user repluser')): true
 
-    # Step 8: Verify ACL file on replica
+    # Step 9: Verify ACL file on replica
     - name: Verify ACL file on replica
       try:
         - script:
@@ -90,15 +125,3 @@ spec:
               cat /data/redis/user.acl 2>&1
             check:
               (contains($stdout, 'user repluser')): true
-
-    # Step 9: Test replication status
-    - name: Verify replication status
-      try:
-        - script:
-            timeout: 30s
-            content: >
-              kubectl exec --namespace ${NAMESPACE} redis-replication-acl-pvc-1 --
-              redis-cli -p 6379 --user repluser --pass repl@secure info replication 2>&1
-            check:
-              (contains($stdout, 'role:slave')): true
-              (contains($stdout, 'master_link_status:up')): true

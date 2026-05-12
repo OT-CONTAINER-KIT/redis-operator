@@ -59,6 +59,17 @@ func (s *StatefulSetService) IsStatefulSetReady(ctx context.Context, namespace, 
 		replicas = int(*sts.Spec.Replicas)
 	}
 
+	// Scaled-to-zero StatefulSets have no pods to roll CurrentRevision forward.
+	// After recreate/update, CurrentRevision can permanently differ from
+	// UpdateRevision, which would otherwise leave callers stuck "not ready".
+	if replicas == 0 {
+		if sts.Status.ObservedGeneration != sts.Generation {
+			log.FromContext(ctx).V(1).Info("StatefulSet is not ready", "Status.ObservedGeneration", sts.Status.ObservedGeneration, "Generation", sts.Generation)
+			return false
+		}
+		return true
+	}
+
 	if expectedUpdateReplicas := replicas - partition; sts.Status.UpdatedReplicas < int32(expectedUpdateReplicas) {
 		log.FromContext(ctx).V(1).Info("StatefulSet is not ready", "Status.UpdatedReplicas", sts.Status.UpdatedReplicas, "ExpectedUpdateReplicas", expectedUpdateReplicas)
 		return false

@@ -19,8 +19,10 @@ import (
 	clientfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-func TestReconcileRedisSkipsReplicationChangesWhenTopologyIsIncomplete(t *testing.T) {
+func TestReconcileRedisReconfiguresDisconnectedSlavesEvenWhenTopologyIsIncomplete(t *testing.T) {
 	createCalled := false
+	var gotPods []string
+	var gotMaster string
 	r := &Reconciler{
 		K8sClient: fake.NewSimpleClientset(),
 		RedisNodesByRole: func(_ context.Context, _ kubernetes.Interface, _ *rrvb2.RedisReplication, role string) ([]string, error) {
@@ -32,8 +34,10 @@ func TestReconcileRedisSkipsReplicationChangesWhenTopologyIsIncomplete(t *testin
 		RedisReplicationRealMaster: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string {
 			return ""
 		},
-		CreateRedisReplicationLink: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string, string) error {
+		CreateRedisReplicationLink: func(_ context.Context, _ kubernetes.Interface, _ *rrvb2.RedisReplication, pods []string, realMaster string) error {
 			createCalled = true
+			gotPods = append([]string{}, pods...)
+			gotMaster = realMaster
 			return nil
 		},
 	}
@@ -41,7 +45,9 @@ func TestReconcileRedisSkipsReplicationChangesWhenTopologyIsIncomplete(t *testin
 
 	require.NoError(t, err)
 	assert.Equal(t, ctrl.Result{}, result)
-	assert.False(t, createCalled)
+	assert.True(t, createCalled)
+	assert.ElementsMatch(t, []string{"example-replication-0", "example-replication-1"}, gotPods)
+	assert.Equal(t, "example-replication-0", gotMaster)
 }
 
 func TestReconcileRedisSkipsReplicationChangesWhenMultipleMastersAreObservedButTopologyIsIncomplete(t *testing.T) {
