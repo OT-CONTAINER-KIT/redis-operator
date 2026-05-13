@@ -692,6 +692,37 @@ func getRedisReplicationHostname(redisInfo RedisDetails, cr *rrvb2.RedisReplicat
 	return fmt.Sprintf("%s.%s-headless.%s.svc.%s", redisInfo.PodName, cr.Name, cr.Namespace, envs.GetServiceDNSDomain())
 }
 
+const defaultRedisPodReachAttempts = 3
+
+func getRedisReplicationPodRole(ctx context.Context, cl kubernetes.Interface, cr *rrvb2.RedisReplication, podName string) string {
+	var podRole string
+	attempts := envs.GetRedisPodReachAttempts(defaultRedisPodReachAttempts)
+	err := retry.Do(
+		func() error {
+			redisClient := configureRedisReplicationClient(ctx, cl, cr, podName)
+			defer redisClient.Close()
+
+			role, err := checkRedisServerRole(ctx, redisClient, podName)
+			if err != nil {
+				return err
+			}
+			podRole = role
+			return nil
+		},
+		retry.Attempts(uint(attempts)),
+		retry.Delay(1000*time.Millisecond),
+		retry.DelayType(retry.BackOffDelay),
+		retry.OnRetry(func(n uint, err error) {
+			log.FromContext(ctx).V(1).Info("Retrying reach redis pod", "pod", podName, "attempt", n+1, "error", err)
+		}),
+	)
+	if err != nil {
+		log.FromContext(ctx).Info("Assuming unreachable redis pod is a slave", "pod", podName, "attempts", attempts, "error", err)
+		return "slave"
+	}
+	return podRole
+}
+
 // Get Redis nodes by it's role i.e. master, slave and sentinel
 func GetRedisNodesByRole(ctx context.Context, cl kubernetes.Interface, cr *rrvb2.RedisReplication, redisRole string) ([]string, error) {
 	statefulset, err := GetStatefulSet(ctx, cl, cr.GetNamespace(), cr.GetName())
@@ -705,12 +736,7 @@ func GetRedisNodesByRole(ctx context.Context, cl kubernetes.Interface, cr *rrvb2
 
 	for i := 0; i < int(replicas); i++ {
 		podName := statefulset.Name + "-" + strconv.Itoa(i)
-		redisClient := configureRedisReplicationClient(ctx, cl, cr, podName)
-		defer redisClient.Close()
-		podRole, err := checkRedisServerRole(ctx, redisClient, podName)
-		if err != nil {
-			return nil, err
-		}
+		podRole := getRedisReplicationPodRole(ctx, cl, cr, podName)
 		if podRole == redisRole {
 			pods = append(pods, podName)
 		}
