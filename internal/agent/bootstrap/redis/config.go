@@ -95,6 +95,21 @@ func GenerateConfig() error {
 		}
 	} else {
 		fmt.Println("Setting up redis in standalone mode")
+
+		// For replication mode, set replica-announce-ip to the pod's FQDN so
+		// that sentinels track replicas by hostname rather than ephemeral pod IP.
+		// This is required when running with Istio or other service meshes where
+		// the pod IP seen by Redis (e.g. 127.0.0.6) is not routable externally.
+		announceHostnames := util.CoalesceEnv1("ANNOUNCE_HOSTNAMES", "no")
+		resolveHostnames := util.CoalesceEnv1("RESOLVE_HOSTNAMES", "no")
+		if announceHostnames == "yes" && resolveHostnames == "yes" {
+			if fqdnName, err := fqdn.FqdnHostname(); err != nil {
+				log.Printf("Warning: Failed to get FQDN for replica-announce-ip: %v", err)
+			} else {
+				cfg.Append("replica-announce-ip", fqdnName)
+				cfg.Append("replica-announce-port", redisPort)
+			}
+		}
 	}
 
 	if tlsMode == "true" {

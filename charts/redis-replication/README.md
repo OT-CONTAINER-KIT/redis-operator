@@ -51,6 +51,7 @@ helm delete <my-release> --namespace <namespace>
 | acl.secret.secretName | string | `""` |  |
 | affinity | object | `{}` |  |
 | annotations | object | `{}` |  |
+| announceHostnames | string | `""` |  |
 | env | list | `[]` |  |
 | externalConfig.data | string | `"tcp-keepalive 400\nslowlog-max-len 158\nstream-node-max-bytes 2048\n"` |  |
 | externalConfig.enabled | bool | `false` |  |
@@ -96,6 +97,7 @@ helm delete <my-release> --namespace <namespace>
 | redisReplication.resources | object | `{}` |  |
 | redisReplication.serviceType | string | `"ClusterIP"` |  |
 | redisReplication.tag | string | `"v7.0.15"` |  |
+| resolveHostnames | string | `""` | Set to "yes" to resolve and announce hostnames instead of IPs. Required when running with service mesh (e.g. Istio) where pod IPs may be loopback addresses. When enabled, replica-announce-ip will use the pod's FQDN instead of its IP. |
 | securityContext | object | `{}` |  |
 | sentinel | object | `{"announceHostnames":"no","downAfterMilliseconds":"5000","enabled":false,"failoverTimeout":"10000","ignoreAnnotations":[],"image":"quay.io/opstree/redis-sentinel","imagePullPolicy":"IfNotPresent","minReadySeconds":0,"parallelSyncs":"1","persistentVolumeClaimRetentionPolicy":{},"resolveHostnames":"no","resources":{},"size":3,"tag":"v7.0.15"}` | Sentinel configuration for automatic failover. When enabled, the operator creates a Sentinel StatefulSet alongside the replication pods. The operator queries Sentinel for the current master instead of forcing master-by-ordinal. |
 | sentinel.announceHostnames | string | `"no"` | Whether Sentinel announces hostnames instead of IPs to clients |

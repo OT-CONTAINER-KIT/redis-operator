@@ -8,6 +8,7 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util/maps"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -163,6 +164,17 @@ func generateRedisReplicationContainerParams(cr *rrvb2.RedisReplication) contain
 	}
 	if cr.Spec.EnvVars != nil {
 		containerProp.EnvVars = cr.Spec.EnvVars
+	}
+	if cr.Spec.ResolveHostnames == "yes" || cr.Spec.AnnounceHostnames == "yes" {
+		hostnameEnvVars := []corev1.EnvVar{
+			{Name: "RESOLVE_HOSTNAMES", Value: cr.Spec.ResolveHostnames},
+			{Name: "ANNOUNCE_HOSTNAMES", Value: cr.Spec.AnnounceHostnames},
+		}
+		if containerProp.EnvVars != nil {
+			*containerProp.EnvVars = append(*containerProp.EnvVars, hostnameEnvVars...)
+		} else {
+			containerProp.EnvVars = &hostnameEnvVars
+		}
 	}
 	if cr.Spec.Storage != nil {
 		containerProp.AdditionalVolume = cr.Spec.Storage.VolumeMount.Volume
