@@ -106,8 +106,8 @@ type statefulSetParameters struct {
 	Affinity                             *corev1.Affinity
 	Tolerations                          *[]corev1.Toleration
 	EnableMetrics                        bool
-	PersistentVolumeClaim                corev1.PersistentVolumeClaim
-	NodeConfPersistentVolumeClaim        corev1.PersistentVolumeClaim
+	PersistentVolumeClaim                commonapi.EmbeddedPersistentVolumeClaim
+	NodeConfPersistentVolumeClaim        commonapi.EmbeddedPersistentVolumeClaim
 	ImagePullSecrets                     *[]corev1.LocalObjectReference
 	ExternalConfig                       *string
 	ServiceAccountName                   *string
@@ -418,25 +418,24 @@ func getExternalConfig(configMapName string) []corev1.Volume {
 }
 
 // createPVCTemplate will create the persistent volume claim template
-func createPVCTemplate(volumeName string, stsMeta metav1.ObjectMeta, storageSpec corev1.PersistentVolumeClaim) corev1.PersistentVolumeClaim {
-	pvcTemplate := storageSpec
-	pvcTemplate.CreationTimestamp = metav1.Time{}
+func createPVCTemplate(volumeName string, stsMeta metav1.ObjectMeta, storageSpec commonapi.EmbeddedPersistentVolumeClaim) corev1.PersistentVolumeClaim {
+	pvcTemplate := corev1.PersistentVolumeClaim{}
 	pvcTemplate.Name = volumeName
 	pvcTemplate.Labels = stsMeta.GetLabels()
-	// We want the same annotation as the StatefulSet here
+	// Merge user-provided PVC annotations with the generated StatefulSet annotations
 	pvcTemplate.Annotations = generateStatefulSetsAnots(stsMeta, nil)
+	for k, v := range storageSpec.Metadata.Annotations {
+		pvcTemplate.Annotations[k] = v
+	}
+	pvcTemplate.Spec = *storageSpec.Spec.DeepCopy()
 	if storageSpec.Spec.AccessModes == nil {
 		pvcTemplate.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
-	} else {
-		pvcTemplate.Spec.AccessModes = storageSpec.Spec.AccessModes
 	}
 	pvcVolumeMode := corev1.PersistentVolumeFilesystem
 	if storageSpec.Spec.VolumeMode != nil {
 		pvcVolumeMode = *storageSpec.Spec.VolumeMode
 	}
 	pvcTemplate.Spec.VolumeMode = &pvcVolumeMode
-	pvcTemplate.Spec.Resources = storageSpec.Spec.Resources
-	pvcTemplate.Spec.Selector = storageSpec.Spec.Selector
 	return pvcTemplate
 }
 

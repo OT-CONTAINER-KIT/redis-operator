@@ -7,6 +7,8 @@ metadata:
     app: redis-replication
     redis_setup_type: replication
     role: replication
+  annotations:
+    custom.example.com/purpose: test-pvc-annotation
 status:
   accessModes: [ReadWriteOnce]
   capacity:
@@ -21,6 +23,8 @@ metadata:
     app: redis-replication
     redis_setup_type: replication
     role: replication
+  annotations:
+    custom.example.com/purpose: test-pvc-annotation
 status:
   accessModes: [ReadWriteOnce]
   capacity:
@@ -35,6 +39,8 @@ metadata:
     app: redis-replication
     redis_setup_type: replication
     role: replication
+  annotations:
+    custom.example.com/purpose: test-pvc-annotation
 status:
   accessModes: [ReadWriteOnce]
   capacity:

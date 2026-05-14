@@ -7,6 +7,8 @@ metadata:
     app: redis-standalone-v1beta2
     redis_setup_type: standalone
     role: standalone
+  annotations:
+    custom.example.com/purpose: test-pvc-annotation
 status:
   accessModes: [ReadWriteOnce]
   capacity:
