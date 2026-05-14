@@ -2,6 +2,7 @@ package controllerutil
 
 import (
 	"context"
+	"sync"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -15,6 +16,7 @@ import (
 // a watched object changes. It's designed to only be used for a single type of object.
 // If multiple types should be watched, one ResourceWatcher for each type should be used.
 type ResourceWatcher struct {
+	mu      sync.RWMutex
 	watched map[types.NamespacedName][]types.NamespacedName
 }
 
@@ -28,7 +30,10 @@ func NewResourceWatcher() *ResourceWatcher {
 }
 
 // Watch will add a new object to watch.
-func (w ResourceWatcher) Watch(ctx context.Context, watchedName, dependentName types.NamespacedName) {
+func (w *ResourceWatcher) Watch(ctx context.Context, watchedName, dependentName types.NamespacedName) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	existing, hasExisting := w.watched[watchedName]
 	if !hasExisting {
 		existing = []types.NamespacedName{}
@@ -42,33 +47,38 @@ func (w ResourceWatcher) Watch(ctx context.Context, watchedName, dependentName t
 	w.watched[watchedName] = append(existing, dependentName)
 }
 
-func (w ResourceWatcher) Create(ctx context.Context, event event.CreateEvent, queue workqueue.RateLimitingInterface) {
+func (w *ResourceWatcher) Create(ctx context.Context, event event.CreateEvent, queue workqueue.RateLimitingInterface) {
 	w.handleEvent(event.Object, queue)
 }
 
-func (w ResourceWatcher) Update(ctx context.Context, event event.UpdateEvent, queue workqueue.RateLimitingInterface) {
+func (w *ResourceWatcher) Update(ctx context.Context, event event.UpdateEvent, queue workqueue.RateLimitingInterface) {
 	w.handleEvent(event.ObjectOld, queue)
 }
 
-func (w ResourceWatcher) Delete(ctx context.Context, event event.DeleteEvent, queue workqueue.RateLimitingInterface) {
+func (w *ResourceWatcher) Delete(ctx context.Context, event event.DeleteEvent, queue workqueue.RateLimitingInterface) {
 	w.handleEvent(event.Object, queue)
 }
 
-func (w ResourceWatcher) Generic(ctx context.Context, event event.GenericEvent, queue workqueue.RateLimitingInterface) {
+func (w *ResourceWatcher) Generic(ctx context.Context, event event.GenericEvent, queue workqueue.RateLimitingInterface) {
 	w.handleEvent(event.Object, queue)
 }
 
 // handleEvent is called when an event is received for an object.
 // It will check if the object is being watched and trigger a reconciliation for
 // the dependent object.
-func (w ResourceWatcher) handleEvent(meta metav1.Object, queue workqueue.RateLimitingInterface) {
+func (w *ResourceWatcher) handleEvent(meta metav1.Object, queue workqueue.RateLimitingInterface) {
 	changedObjectName := types.NamespacedName{
 		Name:      meta.GetName(),
 		Namespace: meta.GetNamespace(),
 	}
 
+	w.mu.RLock()
+	deps := make([]types.NamespacedName, len(w.watched[changedObjectName]))
+	copy(deps, w.watched[changedObjectName])
+	w.mu.RUnlock()
+
 	// Enqueue reconciliation for each dependent object.
-	for _, dep := range w.watched[changedObjectName] {
+	for _, dep := range deps {
 		queue.Add(reconcile.Request{
 			NamespacedName: dep,
 		})
