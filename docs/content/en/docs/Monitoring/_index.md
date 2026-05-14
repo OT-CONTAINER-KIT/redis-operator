@@ -15,6 +15,13 @@ The monitoring architecture is illustrated in the diagram:
 
 ![redis_operator_architecture](../../../images/redis-operator-architecture.png)
 
+{{< alert color="info" title="Context" >}}
+This page includes both Helm values (for the ot-helm charts) and CRD manifests (for direct operator usage).
+Each example is labeled.
+{{< /alert >}}
+
+### Helm values (charts)
+
 For the helm chart installation of redis setup, we can simply enable the redis exporter by creating a custom values file for helm chart. The content of the values file will look like this:
 
 ```yaml
@@ -40,9 +47,33 @@ $ helm upgrade redis-cluster ot-helm/redis-cluster -f monitoring-values.yaml \
   --set redisCluster.clusterSize=3 --install --namespace ot-operators
 ```
 
-## ServiceMonitor
+### CRD manifest (operator)
+
+If you apply CRDs directly (no chart), enable the exporter in your Redis or RedisCluster custom resource:
+
+```yaml
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisCluster
+metadata:
+  name: redis-cluster
+spec:
+  clusterSize: 3
+  kubernetesConfig:
+    image: quay.io/opstree/redis:v7.0.5
+    imagePullPolicy: Always
+  redisExporter:
+    enabled: true
+    image: quay.io/opstree/redis-exporter:1.0
+    imagePullPolicy: Always
+```
+
+For standalone Redis, use `kind: Redis` with the same `spec.redisExporter` block.
+
+## ServiceMonitor (Prometheus Operator)
 
 Once the exporter is configured, we may have to update Prometheus to monitor this endpoint. For [Prometheus Operator](https://github.com/prometheus-operator/prometheus-operator), we have to create a CRD based object called ServiceMonitor. We can apply the CRD definition as well using the helm command.
+
+### Helm values (charts)
 
 ```yaml
 serviceMonitor:
@@ -53,6 +84,8 @@ serviceMonitor:
 ```
 
 For kubectl related configuration, we may have to create `ServiceMonitor` definition in a YAML manifest and apply it using `kubectl` command.
+
+### ServiceMonitor CRD
 
 ServiceMonitor for Redis cluster setup:
 
