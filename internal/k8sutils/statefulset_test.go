@@ -111,7 +111,7 @@ func TestGeneratePreStopCommand(t *testing.T) {
 		expectEmpty bool
 	}{
 		{"ClusterRole", "cluster", false},
-		{"ReplicationRole", "replication", true},
+		{"ReplicationRole", "replication", false},
 		{"SentinelRole", "sentinel", true},
 		{"StandaloneRole", "standalone", true},
 		{"UnknownRole", "unknown", true},
