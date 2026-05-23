@@ -692,7 +692,18 @@ func getRedisReplicationHostname(redisInfo RedisDetails, cr *rrvb2.RedisReplicat
 	return fmt.Sprintf("%s.%s-headless.%s.svc.%s", redisInfo.PodName, cr.Name, cr.Namespace, envs.GetServiceDNSDomain())
 }
 
-// Get Redis nodes by it's role i.e. master, slave and sentinel
+// GetRedisNodesByRole returns the pod names of redis pods currently serving the
+// given role (master or slave).
+//
+// Pods that cannot be reached (Pending, restarting, network blip during a
+// rolling restart, sentinel-driven IP churn) are skipped rather than aborting
+// the entire lookup. This lets the reconcile loop converge on the reachable
+// subset — labels and `<name>-master` Service endpoints stay accurate even
+// when one ordinal is temporarily unhealthy.
+//
+// See GH issues #1711 and #1738 for the prior abort-on-first-error behavior
+// that left `<name>-master` Service endpoints stale and `redis-role` labels
+// unsynced after sentinel failover or pod rolling restarts.
 func GetRedisNodesByRole(ctx context.Context, cl kubernetes.Interface, cr *rrvb2.RedisReplication, redisRole string) ([]string, error) {
 	statefulset, err := GetStatefulSet(ctx, cl, cr.GetNamespace(), cr.GetName())
 	if err != nil {
@@ -706,10 +717,12 @@ func GetRedisNodesByRole(ctx context.Context, cl kubernetes.Interface, cr *rrvb2
 	for i := 0; i < int(replicas); i++ {
 		podName := statefulset.Name + "-" + strconv.Itoa(i)
 		redisClient := configureRedisReplicationClient(ctx, cl, cr, podName)
-		defer redisClient.Close()
 		podRole, err := checkRedisServerRole(ctx, redisClient, podName)
+		redisClient.Close()
 		if err != nil {
-			return nil, err
+			log.FromContext(ctx).V(1).Info("Skipping pod whose role cannot be determined; continuing with reachable pods",
+				"pod", podName, "error", err.Error())
+			continue
 		}
 		if podRole == redisRole {
 			pods = append(pods, podName)
