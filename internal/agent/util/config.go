@@ -19,11 +19,29 @@ func NewConfig(path string, defaultConfig ...string) *Config {
 	}
 }
 
+// sanitizeConfigValue strips characters that would let a value escape its
+// directive line (CR/LF) or comment-out trailing tokens (#). Returning the
+// cleaned value rather than erroring keeps the bootstrap path resilient when
+// upstream CRD validation is bypassed (e.g. existing objects, partial RBAC).
+func sanitizeConfigValue(s string) string {
+	r := strings.NewReplacer(
+		"\r", "",
+		"\n", "",
+		"#", "",
+	)
+	return r.Replace(s)
+}
+
 func (c *Config) Append(config ...string) *Config {
 	if len(config) == 0 {
 		return c
 	}
-	c.content = fmt.Sprintf("%s\n%s %s", c.content, config[0], strings.Join(config[1:], " "))
+	directive := sanitizeConfigValue(config[0])
+	args := make([]string, 0, len(config)-1)
+	for _, a := range config[1:] {
+		args = append(args, sanitizeConfigValue(a))
+	}
+	c.content = fmt.Sprintf("%s\n%s %s", c.content, directive, strings.Join(args, " "))
 	return c
 }
 
