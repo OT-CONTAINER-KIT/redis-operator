@@ -786,6 +786,20 @@ func CreateMasterSlaveReplication(ctx context.Context, client kubernetes.Interfa
 		log.FromContext(ctx).V(1).Info("Using IP address for non-TLS master replication", "masterAddr", realMasterAddr)
 	}
 
+	// Ensure the elected master is actually a master. When every pod is a
+	// replica (e.g. the previous master's Pod IP was recycled, leaving the
+	// replicas replicating from a node that is no longer their master), the
+	// elected pod is itself a replica and must be promoted with SLAVEOF NO ONE,
+	// otherwise the replication set never regains a master. Promoting a pod that
+	// is already a master is a no-op, so this is safe for all callers.
+	masterClient := configureRedisReplicationClient(ctx, client, cr, realMasterPod)
+	defer masterClient.Close()
+	log.FromContext(ctx).V(1).Info("Promoting elected master node", "pod", realMasterPod)
+	if err := masterClient.SlaveOf(ctx, "NO", "ONE").Err(); err != nil {
+		log.FromContext(ctx).Error(err, "Failed to promote pod to master", "pod", realMasterPod)
+		return err
+	}
+
 	for i := 0; i < len(masterPods); i++ {
 		if masterPods[i] != realMasterPod {
 			redisClient := configureRedisReplicationClient(ctx, client, cr, masterPods[i])
