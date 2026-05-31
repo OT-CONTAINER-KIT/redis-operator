@@ -347,29 +347,29 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		k8sutils.CheckIfEmptyMasters(ctx, r.K8sClient, instance)
 	}
 
-	// Mark the cluster status as ready if all the leader and follower nodes are ready
-	// and the cluster is not already in Ready state (to avoid unnecessary status updates)
-	if instance.Status.ReadyLeaderReplicas == leaderReplicas && instance.Status.ReadyFollowerReplicas == followerReplicas && instance.Status.State != rcvb2.RedisClusterReady {
+	// Reconcile dynamic config on every cycle so updates after the cluster is Ready are applied (#1757).
+	if instance.Status.ReadyLeaderReplicas == leaderReplicas && instance.Status.ReadyFollowerReplicas == followerReplicas {
 		monitoring.RedisClusterHealthy.WithLabelValues(instance.Namespace, instance.Name).Set(0)
 		if k8sutils.RedisClusterStatusHealth(ctx, r.K8sClient, instance) {
 			monitoring.RedisClusterHealthy.WithLabelValues(instance.Namespace, instance.Name).Set(1)
-			// Apply dynamic config to all Redis instances in the cluster
 			if err = k8sutils.SetRedisClusterDynamicConfig(ctx, r.K8sClient, instance); err != nil {
 				logger.Error(err, "Failed to set dynamic config")
 				return intctrlutil.RequeueE(ctx, err, "failed to set dynamic config")
 			}
 
-			requeue, err := r.updateStatus(ctx, instance, rcvb2.RedisClusterStatus{
-				State:                 rcvb2.RedisClusterReady,
-				Reason:                rcvb2.ReadyClusterReason,
-				ReadyLeaderReplicas:   leaderReplicas,
-				ReadyFollowerReplicas: followerReplicas,
-			})
-			if err != nil {
-				return intctrlutil.RequeueE(ctx, err, "")
-			}
-			if requeue {
-				return intctrlutil.Requeue()
+			if instance.Status.State != rcvb2.RedisClusterReady {
+				requeue, err := r.updateStatus(ctx, instance, rcvb2.RedisClusterStatus{
+					State:                 rcvb2.RedisClusterReady,
+					Reason:                rcvb2.ReadyClusterReason,
+					ReadyLeaderReplicas:   leaderReplicas,
+					ReadyFollowerReplicas: followerReplicas,
+				})
+				if err != nil {
+					return intctrlutil.RequeueE(ctx, err, "")
+				}
+				if requeue {
+					return intctrlutil.Requeue()
+				}
 			}
 		}
 	}
