@@ -50,7 +50,20 @@ func Reconcile(ctx context.Context, k8sClient client.Client, expected appsv1.Sta
 			update(&expected, existed.(*appsv1.StatefulSet))
 		},
 	})
-	return *reconciled.(*appsv1.StatefulSet), err
+	// reconciler.Reconcile can return (nil, err) when the downstream
+	// Create/Update failed; the previous unconditional type assertion
+	// panicked the reconciler with 'interface conversion: client.Object
+	// is nil, not *v1.StatefulSet' and crash-looped the operator. Fall
+	// back to the expected object so the controller receives a valid
+	// StatefulSet alongside the error and schedules a requeue.
+	if err != nil || reconciled == nil {
+		return expected, err
+	}
+	sts, ok := reconciled.(*appsv1.StatefulSet)
+	if !ok || sts == nil {
+		return expected, err
+	}
+	return *sts, err
 }
 
 func needUpdate(expected, existed *appsv1.StatefulSet) bool {
