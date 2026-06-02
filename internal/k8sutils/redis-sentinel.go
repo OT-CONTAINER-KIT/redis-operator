@@ -367,7 +367,23 @@ func getRedisReplicationMasterPod(ctx context.Context, client kubernetes.Interfa
 	}
 
 	if realMasterPod == "" {
-		log.FromContext(ctx).Error(errors.New("no real master pod found"), "")
+		// Cascading fallback when no pod has connected_slaves > 0
+		// Fallback 1: use last-known master from RedisReplication Status.MasterNode
+		if replicationInstance.Status.MasterNode != "" && IsPodRunning(ctx, client, replicationNamespace, replicationInstance.Status.MasterNode) {
+			log.FromContext(ctx).Info("No master with attached slaves found, falling back to RedisReplication Status.MasterNode",
+				"statusMasterNode", replicationInstance.Status.MasterNode)
+			realMasterPod = replicationInstance.Status.MasterNode
+		}
+		// Fallback 2: use first master pod as last resort
+		if realMasterPod == "" && len(masterPods) > 0 {
+			log.FromContext(ctx).Info("No valid Status.MasterNode, falling back to first master pod",
+				"masterPod", masterPods[0])
+			realMasterPod = masterPods[0]
+		}
+	}
+
+	if realMasterPod == "" {
+		log.FromContext(ctx).Error(errors.New("no real master pod found after all fallbacks"), "")
 		return emptyRedisInfo
 	}
 

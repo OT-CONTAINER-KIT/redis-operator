@@ -412,8 +412,26 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 	if len(masterNodes) > 1 {
 		log.FromContext(ctx).Info("Creating redis replication by executing replication creation commands")
 
+		// Cascading fallback when no pod currently has connected_slaves > 0.
+		// Only bootstrap from a complete topology with no slaves so a master is
+		// never elected from a partial view of the pods.
 		if realMaster == "" && len(slaveNodes) == 0 && !incompleteTopology {
-			realMaster = masterNodes[0]
+			// Reuse the last-known master from Status.MasterNode if it is still
+			// running, so a full restart does not arbitrarily move the master.
+			if instance.Status.MasterNode != "" && k8sutils.IsPodRunning(ctx, r.K8sClient, instance.Namespace, instance.Status.MasterNode) {
+				log.FromContext(ctx).Info("No master with attached slaves found, falling back to Status.MasterNode",
+					"statusMasterNode", instance.Status.MasterNode)
+				realMaster = instance.Status.MasterNode
+			}
+			// Last resort: all pods are standalone masters (fresh cluster or full restart).
+			// Arbitrarily pick masterNodes[0] as the new master to bootstrap replication.
+			// This choice is stable within a reconcile cycle and will be corrected by
+			// Status.MasterNode on subsequent cycles once replication is established.
+			if realMaster == "" {
+				log.FromContext(ctx).Info("No real master found via slave count or Status.MasterNode; "+
+					"electing first master node as bootstrap master", "podName", masterNodes[0])
+				realMaster = masterNodes[0]
+			}
 		}
 		if incompleteTopology {
 			log.FromContext(ctx).Info("Skipping replication reconfiguration because the observed topology is incomplete",

@@ -481,6 +481,16 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 		}
 	}
 
+	// Mount the config emptyDir volume for sentinel containers so that
+	// sentinel.conf persists across container restarts. Without this,
+	// sentinel.conf lives on the overlay filesystem and is lost on restart,
+	// causing sentinel to lose all runtime-discovered master topology.
+	// The config volume is already created on all StatefulSets but only
+	// mounted when GenerateConfigInInitContainer is enabled.
+	if sentinelCntr && !features.Enabled(features.GenerateConfigInInitContainer) {
+		containerDefinition[0].VolumeMounts = append(containerDefinition[0].VolumeMounts, generateConfigVolumeMount(common.VolumeNameConfig))
+	}
+
 	if preStopCmd := GeneratePreStopCommand(containerParams.Role, enableAuth, enableTLS); preStopCmd != "" {
 		containerDefinition[0].Lifecycle = &corev1.Lifecycle{
 			PreStop: &corev1.LifecycleHandler{
