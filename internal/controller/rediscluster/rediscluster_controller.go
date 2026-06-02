@@ -312,9 +312,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return intctrlutil.Requeue()
 		}
 
-		logger.Info("healthy leader count does not match desired; attempting to repair disconnected masters")
-		if err = k8sutils.RepairDisconnectedMasters(ctx, r.K8sClient, instance); err != nil {
-			logger.Error(err, "failed to repair disconnected masters")
+		logger.Info("Cluster has unhealthy nodes; attempting to repair disconnected nodes")
+		if err = k8sutils.RepairDisconnectedNodes(ctx, r.K8sClient, instance); err != nil {
+			logger.Error(err, "failed to repair disconnected nodes")
 		}
 
 		err = retry.Do(func() error {
@@ -329,8 +329,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}, retry.Attempts(3), retry.Delay(time.Second*5))
 
 		if err == nil {
-			logger.Info("repairing unhealthy masters successful, no unhealthy masters left")
-			return intctrlutil.RequeueAfter(ctx, time.Second*30, "no unhealthy nodes found after repairing disconnected masters")
+			logger.Info("Repair successful, no unhealthy nodes left")
+			return intctrlutil.RequeueAfter(ctx, time.Second*30, "no unhealthy nodes found after repair")
 		}
 		// recheck if there's still a lot of unhealthy nodes after attempting to repair the masters
 		unhealthyNodeCount, err = k8sutils.UnhealthyNodesInCluster(ctx, r.K8sClient, instance)
@@ -339,6 +339,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		if int(totalReplicas) > 1 && unhealthyNodeCount >= int(totalReplicas)-1 {
 			return intctrlutil.RequeueE(ctx, fmt.Errorf("cluster broken: %d/%d nodes unhealthy, manual intervention required", unhealthyNodeCount, totalReplicas), "")
+		}
+	}
+
+	// Repair followers that are connected in gossip but have broken replication
+	// (stale master IP after pod restart). This catches the case that
+	// RepairDisconnectedNodes misses: the follower isn't "fail"/"disconnected"
+	// but master_link_status is down.
+	if followerReplicas > 0 {
+		repaired, err := k8sutils.RepairStaleReplication(ctx, r.K8sClient, instance)
+		if err != nil {
+			logger.Error(err, "failed to repair stale replication links")
+		}
+		if repaired > 0 {
+			return intctrlutil.RequeueAfter(ctx, time.Second*15, "repaired stale replication, rechecking")
 		}
 	}
 
