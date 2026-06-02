@@ -407,7 +407,8 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 	if err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
-	incompleteTopology := instance.Spec.Size != nil && (len(masterNodes)+len(slaveNodes)) < int(*instance.Spec.Size)
+	observedPods := len(masterNodes) + len(slaveNodes)
+	incompleteTopology := instance.Spec.Size != nil && observedPods < int(*instance.Spec.Size)
 	realMaster, masterPositivelyIdentified := r.observedRedisReplicationMaster(ctx, instance, masterNodes)
 	if len(masterNodes) > 1 {
 		log.FromContext(ctx).Info("Creating redis replication by executing replication creation commands")
@@ -435,7 +436,7 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 		}
 		if incompleteTopology {
 			log.FromContext(ctx).Info("Skipping replication reconfiguration because the observed topology is incomplete",
-				"observedPods", len(masterNodes)+len(slaveNodes),
+				"observedPods", observedPods,
 				"expectedPods", *instance.Spec.Size)
 		} else if realMaster == "" {
 			log.FromContext(ctx).Info("Skipping replication reconfiguration because the current master could not be identified")
@@ -451,7 +452,7 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 
 			if incompleteTopology {
 				log.FromContext(ctx).Info("Skipping master-slave reconfiguration because the observed topology is incomplete",
-					"observedPods", len(masterNodes)+len(slaveNodes),
+					"observedPods", observedPods,
 					"expectedPods", *instance.Spec.Size)
 			} else {
 				allPods := append(masterNodes, slaveNodes...)
@@ -466,17 +467,17 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 	}
 
 	monitoring.RedisReplicationReplicasSizeMismatch.WithLabelValues(instance.Namespace, instance.Name).Set(0)
-	if instance.Spec.Size != nil && int(*instance.Spec.Size) != (len(masterNodes)+len(slaveNodes)) {
+	if instance.Spec.Size != nil && int(*instance.Spec.Size) != observedPods {
 		monitoring.RedisReplicationReplicasSizeMismatch.WithLabelValues(instance.Namespace, instance.Name).Set(1)
 	}
 
-	monitoring.RedisReplicationReplicasSizeCurrent.WithLabelValues(instance.Namespace, instance.Name).Set(float64(len(masterNodes) + len(slaveNodes)))
+	monitoring.RedisReplicationReplicasSizeCurrent.WithLabelValues(instance.Namespace, instance.Name).Set(float64(observedPods))
 	monitoring.RedisReplicationReplicasSizeDesired.WithLabelValues(instance.Namespace, instance.Name).Set(float64(*instance.Spec.Size))
 
 	if instance.EnableSentinel() {
 		if incompleteTopology && !masterPositivelyIdentified {
 			log.FromContext(ctx).Info("Skipping sentinel reconfiguration because topology is incomplete and the master is ambiguous",
-				"observedPods", len(masterNodes)+len(slaveNodes),
+				"observedPods", observedPods,
 				"expectedPods", *instance.Spec.Size)
 		} else if err := r.configureReplicationSentinel(ctx, instance, realMaster); err != nil {
 			log.FromContext(ctx).Error(err, "failed to configure sentinel")

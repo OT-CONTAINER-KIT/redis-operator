@@ -71,15 +71,7 @@ func getRedisServerIP(ctx context.Context, client kubernetes.Interface, redisInf
 }
 
 func getRedisServerAddress(ctx context.Context, client kubernetes.Interface, rd RedisDetails, port int) string {
-	ip := getRedisServerIP(ctx, client, rd)
-	format := "%s:%d"
-
-	// if ip is IPv6, wrap it in brackets
-	if net.ParseIP(ip).To4() == nil {
-		format = "[%s]:%d"
-	}
-
-	return fmt.Sprintf(format, ip, port)
+	return formatRedisAddress(getRedisServerIP(ctx, client, rd), port)
 }
 
 func getEndpoint(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, rd RedisDetails) string {
