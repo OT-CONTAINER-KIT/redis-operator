@@ -2,6 +2,7 @@ package statefulset
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/reconciler"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util/maps"
@@ -50,7 +51,20 @@ func Reconcile(ctx context.Context, k8sClient client.Client, expected appsv1.Sta
 			update(&expected, existed.(*appsv1.StatefulSet))
 		},
 	})
-	return *reconciled.(*appsv1.StatefulSet), err
+	// reconciler.Reconcile returns (nil, err) on several error paths
+	// (SetControllerReference, GVK lookup, Get, Update, Accessor).
+	// Dereferencing a nil interface here used to panic with
+	// "interface conversion: client.Object is nil, not *v1.StatefulSet"
+	// and crash-loop the operator on transient Update conflicts. Treat
+	// nil-result as an error path and return a zero value to the caller.
+	if err != nil || reconciled == nil {
+		return appsv1.StatefulSet{}, err
+	}
+	sts, ok := reconciled.(*appsv1.StatefulSet)
+	if !ok || sts == nil {
+		return appsv1.StatefulSet{}, fmt.Errorf("statefulset reconciler returned unexpected type %T", reconciled)
+	}
+	return *sts, nil
 }
 
 func needUpdate(expected, existed *appsv1.StatefulSet) bool {
