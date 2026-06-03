@@ -48,6 +48,7 @@ func generateReplicationSentinelParams(cr *rrvb2.RedisReplication) statefulSetPa
 		IgnoreAnnotations:                    cr.Spec.Sentinel.IgnoreAnnotations,
 		MinReadySeconds:                      ptr.Deref(cr.Spec.Sentinel.MinReadySeconds, 0),
 		RecreateStatefulSet:                  true,
+		ServiceName:                          cr.SentinelHLService(),
 	}
 	if cr.Spec.Sentinel.ImagePullSecrets != nil {
 		res.ImagePullSecrets = cr.Spec.Sentinel.ImagePullSecrets

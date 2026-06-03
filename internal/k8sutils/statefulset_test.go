@@ -2411,3 +2411,18 @@ func TestStatefulSetSelectorLabels(t *testing.T) {
 		})
 	}
 }
+
+func Test_generateStatefulSetsDef_ServiceNameOverride(t *testing.T) {
+	stsMeta := metav1.ObjectMeta{Name: "redis-replication-s", Namespace: "redis"}
+	owner := metav1.OwnerReference{Kind: "StatefulSet", APIVersion: "apps/v1", Name: "redis-replication-s"}
+
+	t.Run("empty falls back to <name>-headless", func(t *testing.T) {
+		sts := generateStatefulSetsDef(stsMeta, statefulSetParameters{Replicas: ptr.To(int32(1))}, owner, initContainerParameters{}, containerParameters{}, nil)
+		assert.Equal(t, "redis-replication-s-headless", sts.Spec.ServiceName, "empty ServiceName must keep the default derivation for all existing CRDs")
+	})
+
+	t.Run("override is used verbatim", func(t *testing.T) {
+		sts := generateStatefulSetsDef(stsMeta, statefulSetParameters{Replicas: ptr.To(int32(1)), ServiceName: "redis-replication-s-hl"}, owner, initContainerParameters{}, containerParameters{}, nil)
+		assert.Equal(t, "redis-replication-s-hl", sts.Spec.ServiceName, "non-empty ServiceName must be used verbatim so embedded sentinel keeps -s-hl")
+	})
+}
