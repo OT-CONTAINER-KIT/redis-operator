@@ -201,7 +201,9 @@ env: []
 
 pdb:
   enabled: false
+  # Mutually exclusive with `maxUnavailable`
   minAvailable: 1
+  # Mutually exclusive with `minAvailable`
   maxUnavailable: null
 
 # -- Sentinel configuration for automatic failover.
