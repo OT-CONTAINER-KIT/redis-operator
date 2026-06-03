@@ -1,13 +1,13 @@
 {{- $followerReplicas := .Values.redisCluster.follower.replicas | default .Values.redisCluster.clusterSize }}
-{{- if and (gt (int $followerReplicas) 0) (eq .Values.externalService.enabled true) }}
+{{- if and (gt (int $followerReplicas) 0) (eq .Values.followerExternalService.enabled true) }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: {{ .Values.redisCluster.name | default .Release.Name }}-follower-external-service
-{{- if .Values.externalService.annotations }}
+{{- if .Values.followerExternalService.annotations }}
   annotations:
-{{ toYaml .Values.externalService.annotations | indent 4 }}
+{{ toYaml .Values.followerExternalService.annotations | indent 4 }}
 {{- end }}
   labels:
     app.kubernetes.io/name: {{ .Values.redisCluster.name | default .Release.Name }}
@@ -17,14 +17,17 @@ metadata:
     app.kubernetes.io/version: {{ .Chart.AppVersion }}
     app.kubernetes.io/component: middleware
 spec:
-  type: {{ .Values.externalService.serviceType }}
+  type: {{ .Values.followerExternalService.serviceType }}
   selector:
     app: {{ .Values.redisCluster.name | default .Release.Name }}-follower
     redis_setup_type: cluster
     role: follower
   ports:
     - protocol: TCP
-      port: {{ .Values.externalService.port }}
+      port: {{ .Values.followerExternalService.port }}
       targetPort: 6379
       name: client
+      {{- if and (eq .Values.followerExternalService.serviceType "NodePort") (hasKey .Values.followerExternalService "nodePort") }}
+      nodePort: {{ .Values.followerExternalService.nodePort }}
+      {{- end }}
 {{- end }}

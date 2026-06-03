@@ -1,13 +1,13 @@
 {{- $leaderReplicas := .Values.redisCluster.leader.replicas | default .Values.redisCluster.clusterSize }}
-{{- if and (gt (int $leaderReplicas) 0) (eq .Values.externalService.enabled true) }}
+{{- if and (gt (int $leaderReplicas) 0) (eq .Values.leaderExternalService.enabled true) }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: {{ .Values.redisCluster.name | default .Release.Name }}-leader-external-service
-{{- if .Values.externalService.annotations }}
+{{- if .Values.leaderExternalService.annotations }}
   annotations:
-{{ toYaml .Values.externalService.annotations | indent 4 }}
+{{ toYaml .Values.leaderExternalService.annotations | indent 4 }}
 {{- end }}
   labels:
     app.kubernetes.io/name: {{ .Values.redisCluster.name | default .Release.Name }}
@@ -17,14 +17,17 @@ metadata:
     app.kubernetes.io/version: {{ .Chart.AppVersion }}
     app.kubernetes.io/component: middleware
 spec:
-  type: {{ .Values.externalService.serviceType }}
+  type: {{ .Values.leaderExternalService.serviceType }}
   selector:
     app: {{ .Values.redisCluster.name | default .Release.Name }}-leader
     redis_setup_type: cluster
     role: leader
   ports:
     - protocol: TCP
-      port: {{ .Values.externalService.port }}
+      port: {{ .Values.leaderExternalService.port }}
       targetPort: 6379
       name: client
+      {{- if and (eq .Values.leaderExternalService.serviceType "NodePort") (hasKey .Values.leaderExternalService "nodePort") }}
+      nodePort: {{ .Values.leaderExternalService.nodePort }}
+      {{- end }}
 {{- end }}
