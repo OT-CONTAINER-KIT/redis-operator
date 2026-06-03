@@ -19,17 +19,22 @@ func NewConfig(path string, defaultConfig ...string) *Config {
 	}
 }
 
-// sanitizeConfigValue strips characters that would let a value escape its
-// directive line (CR/LF) or comment-out trailing tokens (#). Returning the
-// cleaned value rather than erroring keeps the bootstrap path resilient when
-// upstream CRD validation is bypassed (e.g. existing objects, partial RBAC).
+// configValueSanitizer strips the line-breaking characters (CR/LF) that would
+// let a value escape its directive line. Redis only splits config into
+// directives on '\n' and only treats '#' as a comment at the start of a line,
+// and these values are always written after a fixed directive token, so
+// stripping CR/LF is sufficient to prevent directive injection.
+var configValueSanitizer = strings.NewReplacer(
+	"\r", "",
+	"\n", "",
+)
+
+// sanitizeConfigValue removes characters that would let a value escape its
+// directive line. Cleaning rather than erroring keeps the bootstrap path
+// resilient when upstream CRD validation is bypassed (e.g. existing objects,
+// partial RBAC).
 func sanitizeConfigValue(s string) string {
-	r := strings.NewReplacer(
-		"\r", "",
-		"\n", "",
-		"#", "",
-	)
-	return r.Replace(s)
+	return configValueSanitizer.Replace(s)
 }
 
 func (c *Config) Append(config ...string) *Config {
