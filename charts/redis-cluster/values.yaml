@@ -38,6 +38,12 @@ redisCluster:
   #    otherwise it will only add an annotation to the RedisCluster CR.
   #    Default is false.
   enableMasterSlaveAntiAffinity: false
+  # -- TopologyKey for the leader/follower anti-affinity term injected by the operator's
+  #    mutating webhook. Empty preserves the previous behaviour ("kubernetes.io/hostname",
+  #    i.e. separate nodes). Set to "topology.kubernetes.io/zone" to force each follower into
+  #    a different zone than its corresponding leader. Only effective when
+  #    enableMasterSlaveAntiAffinity is true and the operator's mutating webhook is enabled.
+  masterSlaveAntiAffinityTopologyKey: ""
   leader:
     # -- Number of Redis leader (master) nodes. If not set, uses clusterSize value
     replicas: 3
