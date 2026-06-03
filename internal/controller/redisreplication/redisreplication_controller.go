@@ -474,6 +474,14 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 	monitoring.RedisReplicationReplicasSizeCurrent.WithLabelValues(instance.Namespace, instance.Name).Set(float64(observedPods))
 	monitoring.RedisReplicationReplicasSizeDesired.WithLabelValues(instance.Namespace, instance.Name).Set(float64(*instance.Spec.Size))
 
+	// Re-point any slave whose live master_host differs from the current
+	// master. Covers the graceful master-pod-IP-change case where sentinel
+	// updates its own view but never sends SLAVEOF to slaves (no failover
+	// event). Best-effort. See #1779.
+	if realMaster != "" && len(slaveNodes) > 0 {
+		k8sutils.RepointStaleSlaves(ctx, r.K8sClient, instance, realMaster, slaveNodes)
+	}
+
 	if instance.EnableSentinel() {
 		if incompleteTopology && !masterPositivelyIdentified {
 			log.FromContext(ctx).Info("Skipping sentinel reconfiguration because topology is incomplete and the master is ambiguous",
