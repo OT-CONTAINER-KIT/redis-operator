@@ -243,3 +243,32 @@ sentinel:
   # -- Additional raw sentinel.conf lines
   # additionalSentinelConfig: |
   #   sentinel auth-pass mymaster password123
+  affinity: {}
+    # podAntiAffinity:
+    #   requiredDuringSchedulingIgnoredDuringExecution:
+    #   - labelSelector:
+    #       matchExpressions:
+    #       - key: app
+    #         operator: In
+    #         values:
+    #         - redis-replication
+    #     topologyKey: kubernetes.io/hostname
+  tolerations: []
+    # - key: "key"
+    #   operator: "Equal"
+    #   value: "value"
+    #   effect: "NoSchedule"
+  nodeSelector: {}
+    # memory: medium
+  topologySpreadConstraints: []
+    # - maxSkew: 1
+    #   topologyKey: kubernetes.io/hostname
+    #   whenUnsatisfiable: DoNotSchedule
+    #   labelSelector:
+    #     matchLabels:
+    #       role: sentinel
+  podSecurityContext: {}
+  securityContext: {}
+  priorityClassName: ""
+  terminationGracePeriodSeconds:
+  serviceAccountName: ""
