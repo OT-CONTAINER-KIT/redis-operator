@@ -15,7 +15,7 @@ func (cr *RedisReplication) RedisStatefulSet() string {
 }
 
 func (cr *RedisReplication) SentinelHLService() string {
-	return cr.Name + "-s-hl"
+	return cr.Name + "-s-headless"
 }
 
 func (cr *RedisReplication) MasterService() string {

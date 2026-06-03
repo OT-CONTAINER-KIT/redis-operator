@@ -51,7 +51,6 @@ helm delete <my-release> --namespace <namespace>
 | acl.secret.secretName | string | `""` |  |
 | affinity | object | `{}` |  |
 | annotations | object | `{}` |  |
-| announceHostnames | string | `""` |  |
 | env | list | `[]` |  |
 | externalConfig.data | string | `"tcp-keepalive 400\nslowlog-max-len 158\nstream-node-max-bytes 2048\n"` |  |
 | externalConfig.enabled | bool | `false` |  |
@@ -98,7 +97,6 @@ helm delete <my-release> --namespace <namespace>
 | redisReplication.resources | object | `{}` |  |
 | redisReplication.serviceType | string | `"ClusterIP"` |  |
 | redisReplication.tag | string | `"v7.0.15"` |  |
-| resolveHostnames | string | `""` | Set to "yes" to resolve and announce hostnames instead of IPs. Required when running with service mesh (e.g. Istio) where pod IPs may be loopback addresses. When enabled, replica-announce-ip will use the pod's FQDN instead of its IP. |
 | securityContext | object | `{}` |  |
 | sentinel | object | `{"affinity":{},"announceHostnames":"no","downAfterMilliseconds":"5000","enabled":false,"failoverTimeout":"10000","ignoreAnnotations":[],"image":"quay.io/opstree/redis-sentinel","imagePullPolicy":"IfNotPresent","minReadySeconds":0,"nodeSelector":{},"parallelSyncs":"1","persistentVolumeClaimRetentionPolicy":{},"podSecurityContext":{},"priorityClassName":"","redisSecret":{"secretKey":"","secretName":""},"resolveHostnames":"no","resources":{},"securityContext":{},"serviceAccountName":"","size":3,"tag":"v7.0.15","terminationGracePeriodSeconds":null,"tolerations":[],"topologySpreadConstraints":[]}` | Sentinel configuration for automatic failover. When enabled, the operator creates a Sentinel StatefulSet alongside the replication pods. The operator queries Sentinel for the current master instead of forcing master-by-ordinal. |
 | sentinel.affinity | object | `{}` | Affinity rules for Sentinel pods, e.g. anti-affinity to keep them off the Redis nodes. |
@@ -110,7 +108,7 @@ helm delete <my-release> --namespace <namespace>
 | sentinel.podSecurityContext | object | `{}` | Pod-level security context for Sentinel pods. |
 | sentinel.priorityClassName | string | `""` | PriorityClass name for Sentinel pods. |
 | sentinel.redisSecret | object | `{"secretKey":"","secretName":""}` | Secret holding the password Sentinel uses to authenticate to Redis. Leave empty to fall back to redisReplication.redisSecret. |
-| sentinel.resolveHostnames | string | `"no"` | Use hostnames instead of IPs for Sentinel monitoring. WARNING: the operator does not pass RESOLVE_HOSTNAMES env var to sentinel pods, so setting this to "yes" will cause SENTINEL MONITOR to fail. Keep as "no". |
+| sentinel.resolveHostnames | string | `"no"` | Resolve hostnames instead of IPs for Sentinel monitoring. Set to "yes" (together with announceHostnames) so replicas and sentinel announce their FQDN instead of pod IP — useful behind a service mesh where pod IPs are not routable. Requires the GenerateConfigInInitContainer feature gate on the operator. |
 | sentinel.securityContext | object | `{}` | Container-level security context for the Sentinel container. |
 | sentinel.serviceAccountName | string | `""` | ServiceAccount name for Sentinel pods. |
 | sentinel.terminationGracePeriodSeconds | string | `nil` | Termination grace period (in seconds) for Sentinel pods. |

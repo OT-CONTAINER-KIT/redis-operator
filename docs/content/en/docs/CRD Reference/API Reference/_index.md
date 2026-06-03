@@ -415,8 +415,6 @@ _Appears in:_
 | `env` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#envvar-v1-core)_ |  |  |  |
 | `topologySpreadConstraints` _[TopologySpreadConstraint](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#topologyspreadconstraint-v1-core) array_ |  |  |  |
 | `hostPort` _integer_ |  |  |  |
-| `resolveHostnames` _string_ | ResolveHostnames enables resolving hostnames instead of using IP addresses. Set to "yes" to enable.<br />Required when running with a service mesh (e.g. Istio) where pod IPs may not be routable. | no |  |
-| `announceHostnames` _string_ | AnnounceHostnames enables announcing hostnames (FQDN) instead of IP addresses. Set to "yes" to enable.<br />When enabled, replica-announce-ip and sentinel announce-ip will use the pod's FQDN. | no |  |
 | `sentinel` _[Sentinel](#sentinel)_ |  |  |  |
 | `podManagementPolicy` _string_ | PodManagementPolicy controls how pods are created during initial scale up,<br />when replacing pods on nodes, or when scaling down. This field is immutable<br />on an existing StatefulSet; changing it for a running cluster requires<br />recreating the StatefulSet (e.g. via the<br />redis.opstreelabs.in/recreate-statefulset annotation), otherwise the change<br />is ignored. |  | Enum: [OrderedReady Parallel] <br /> |
 

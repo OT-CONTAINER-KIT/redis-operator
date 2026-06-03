@@ -170,16 +170,16 @@ func generateRedisReplicationContainerParams(cr *rrvb2.RedisReplication) contain
 	if cr.Spec.EnvVars != nil {
 		containerProp.EnvVars = cr.Spec.EnvVars
 	}
-	if cr.Spec.ResolveHostnames == "yes" || cr.Spec.AnnounceHostnames == "yes" {
-		hostnameEnvVars := []corev1.EnvVar{
-			{Name: "RESOLVE_HOSTNAMES", Value: cr.Spec.ResolveHostnames},
-			{Name: "ANNOUNCE_HOSTNAMES", Value: cr.Spec.AnnounceHostnames},
-		}
+	if cr.EnableSentinel() && cr.Spec.Sentinel.ResolveHostnames == "yes" && cr.Spec.Sentinel.AnnounceHostnames == "yes" {
+		merged := []corev1.EnvVar{}
 		if containerProp.EnvVars != nil {
-			*containerProp.EnvVars = append(*containerProp.EnvVars, hostnameEnvVars...)
-		} else {
-			containerProp.EnvVars = &hostnameEnvVars
+			merged = append(merged, *containerProp.EnvVars...)
 		}
+		merged = append(merged,
+			corev1.EnvVar{Name: "RESOLVE_HOSTNAMES", Value: cr.Spec.Sentinel.ResolveHostnames},
+			corev1.EnvVar{Name: "ANNOUNCE_HOSTNAMES", Value: cr.Spec.Sentinel.AnnounceHostnames},
+		)
+		containerProp.EnvVars = &merged
 	}
 	if cr.Spec.Storage != nil {
 		containerProp.AdditionalVolume = cr.Spec.Storage.VolumeMount.Volume
