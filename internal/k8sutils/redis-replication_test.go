@@ -72,7 +72,7 @@ func Test_generateRedisReplicationParams(t *testing.T) {
 				Effect:   corev1.TaintEffectNoExecute,
 			},
 		},
-		PersistentVolumeClaim: corev1.PersistentVolumeClaim{
+		PersistentVolumeClaim: common.EmbeddedPersistentVolumeClaim{
 			Spec: corev1.PersistentVolumeClaimSpec{
 				StorageClassName: ptr.To("standard"),
 				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
