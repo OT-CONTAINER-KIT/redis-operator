@@ -342,6 +342,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 
+	// Heal any stuck/open slots (e.g. from a previous interrupted migration).
+	// This runs `redis-cli --cluster fix` when open slots are detected.
+	if stable, sErr := k8sutils.ClusterStableNoOpenSlots(ctx, r.K8sClient, instance); sErr != nil {
+		logger.Error(sErr, "failed to check cluster slot stability")
+		return ctrl.Result{}, sErr
+	} else if !stable {
+		logger.Info("Cluster has open/stuck slots or unstable nodes, running cluster fix")
+		if fErr := k8sutils.FixRedisCluster(ctx, r.K8sClient, instance); fErr != nil {
+			logger.Error(fErr, "failed to fix redis cluster open slots")
+		}
+		return intctrlutil.RequeueAfter(ctx, time.Second*10, "cluster has open slots, requeuing after fix attempt")
+	}
+
 	// Check If there is No Empty Master Node
 	if k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, "") == totalReplicas {
 		k8sutils.CheckIfEmptyMasters(ctx, r.K8sClient, instance)
