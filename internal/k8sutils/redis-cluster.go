@@ -126,6 +126,7 @@ func generateRedisClusterContainerParams(ctx context.Context, cl kubernetes.Inte
 	}
 	if cr.Spec.RedisConfig != nil {
 		containerProp.MaxMemoryPercentOfLimit = cr.Spec.RedisConfig.MaxMemoryPercentOfLimit
+		containerProp.MemoryPolicy = cr.Spec.RedisConfig.MemoryPolicy
 	}
 	if cr.Spec.EnvVars != nil {
 		containerProp.EnvVars = cr.Spec.EnvVars

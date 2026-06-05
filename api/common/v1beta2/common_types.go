@@ -156,6 +156,7 @@ type RedisConfig struct {
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=100
 	MaxMemoryPercentOfLimit *int     `json:"maxMemoryPercentOfLimit,omitempty"`
+	MemoryPolicy            *string  `json:"memoryPolicy,omitempty"`
 	DynamicConfig           []string `json:"dynamicConfig,omitempty"`
 	AdditionalRedisConfig   *string  `json:"additionalRedisConfig,omitempty"`
 }

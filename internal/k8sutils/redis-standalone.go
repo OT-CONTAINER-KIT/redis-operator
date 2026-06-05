@@ -162,6 +162,7 @@ func generateRedisStandaloneContainerParams(cr *rvb2.Redis) containerParameters 
 	}
 	if cr.Spec.RedisConfig != nil {
 		containerProp.MaxMemoryPercentOfLimit = cr.Spec.RedisConfig.MaxMemoryPercentOfLimit
+		containerProp.MemoryPolicy = cr.Spec.RedisConfig.MemoryPolicy
 	}
 	if cr.Spec.EnvVars != nil {
 		containerProp.EnvVars = cr.Spec.EnvVars

@@ -254,6 +254,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `maxMemoryPercentOfLimit` _integer_ | MaxMemoryPercentOfLimit is the percentage of the Redis container memory limit to be used as maxmemory.<br />When set with a memory limit, the operator also exports the computed value via the REDIS_MAX_MEMORY environment variable. |  | Maximum: 100 <br />Minimum: 1 <br /> |
+| `memoryPolicy` _string_ | Sets the redis maxmemoyr-policy which controls how keys are evicted | | None, if an incorrect value is passed it'll show in redis logs |
 | `dynamicConfig` _string array_ |  |  |  |
 | `additionalRedisConfig` _string_ |  |  |  |
 
