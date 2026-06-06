@@ -219,6 +219,8 @@ func Test_generateRedisClusterContainerParams(t *testing.T) {
 				Add:  []corev1.Capability{"NET_BIND_SERVICE"},
 			},
 		},
+		MaxMemoryPercentOfLimit:      ptr.To(60),
+		MemoryPolicy:                 ptr.To("allkeys-lru"),
 		RedisExporterImage:           "quay.io/opstree/redis-exporter:v1.44.0",
 		RedisExporterImagePullPolicy: corev1.PullPolicy("Always"),
 		RedisExporterResources: &corev1.ResourceRequirements{

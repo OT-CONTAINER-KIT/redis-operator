@@ -84,6 +84,8 @@ spec:
                 - key: node-role.kubernetes.io/infra
                   operator: In
                   values: [redisFollower]
+  maxMemoryPercentOfLimit: 60
+  memoryPolicy: "allkeys-lru"
   redisExporter:
     enabled: true
     image: quay.io/opstree/redis-exporter:v1.44.0

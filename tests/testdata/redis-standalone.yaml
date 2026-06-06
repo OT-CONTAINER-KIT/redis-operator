@@ -39,6 +39,8 @@ spec:
       key: password
     ignoreAnnotations: [opstreelabs.in/ignore]
     minReadySeconds: 5
+  maxMemoryPercentOfLimit: 60
+  memoryPolicy: "allkeys-lru"
   redisExporter:
     enabled: true
     image: quay.io/opstree/redis-exporter:v1.44.0

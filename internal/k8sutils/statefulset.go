@@ -127,6 +127,7 @@ type containerParameters struct {
 	ImagePullPolicy              corev1.PullPolicy
 	Resources                    *corev1.ResourceRequirements
 	MaxMemoryPercentOfLimit      *int
+	MemoryPolicy                 *string
 	SecurityContext              *corev1.SecurityContext
 	RedisExporterImage           string
 	RedisExporterImagePullPolicy corev1.PullPolicy
@@ -464,6 +465,7 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 				clusterVersion,
 				containerParams.Resources,
 				containerParams.MaxMemoryPercentOfLimit,
+				containerParams.MemoryPolicy,
 			),
 			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe, sentinelCntr, enableTLS, enableAuth),
 			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe, sentinelCntr, enableTLS, enableAuth),
@@ -640,6 +642,7 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 				clusterVersion,
 				containerParams.Resources,
 				containerParams.MaxMemoryPercentOfLimit,
+				containerParams.MemoryPolicy,
 			),
 			VolumeMounts: VolumeMounts,
 		}
@@ -891,7 +894,7 @@ func getProbeInfo(probe *corev1.Probe, sentinel, enableTLS, enableAuth bool) *co
 func getEnvironmentVariables(role string, enabledPassword *bool, secretName *string,
 	secretKey *string, persistenceEnabled *bool, tlsConfig *commonapi.TLSConfig,
 	aclConfig *commonapi.ACLConfig, envVar *[]corev1.EnvVar, port *int, clusterVersion *string,
-	resources *corev1.ResourceRequirements, maxMemoryPercentOfLimit *int,
+	resources *corev1.ResourceRequirements, maxMemoryPercentOfLimit *int, memoryPolicy *string,
 ) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{Name: "SERVER_MODE", Value: role},
@@ -913,6 +916,13 @@ func getEnvironmentVariables(role string, enabledPassword *bool, secretName *str
 				Value: strconv.FormatInt(int64(maxMem), 10),
 			})
 		}
+	}
+
+	if memoryPolicy != nil {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  consts.ENV_KEY_REDIS_MEMORY_POLICY,
+			Value: *memoryPolicy,
+		})
 	}
 
 	var redisHost string

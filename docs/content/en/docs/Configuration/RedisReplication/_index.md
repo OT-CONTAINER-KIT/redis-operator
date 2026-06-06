@@ -27,6 +27,7 @@ Redis replication configuration can be customized by [values.yaml](https://githu
 | redisReplication.minReadySeconds | int | `0` | Minimum number of seconds for a pod to be ready before it is considered available |
 | redisReplication.recreateStatefulSetOnUpdateInvalid | bool | `false` | Recreates the StatefulSet when immutable fields need to be updated |
 | redisReplication.maxMemoryPercentOfLimit | int | `0` | Sets Redis maxmemory as a percentage of container memory limit |
+| redisReplication.memoryPolicy | string | `` | Sets the redis maxmemoyr-policy which controls how keys are evicted |
 | externalConfig.enabled | bool | `false` | Enables custom Redis configuration from ConfigMap data |
 | externalConfig.data | string | multiline config | Additional Redis configuration parameters |
 | externalService.enabled | bool | `false` | Enables external access to Redis |

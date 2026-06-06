@@ -161,6 +161,10 @@ func GenerateConfig() error {
 	if maxMemory := util.CoalesceEnv1(consts.ENV_KEY_REDIS_MAX_MEMORY, ""); maxMemory != "" {
 		cfg.Append("maxmemory", maxMemory)
 	}
+	if memoryPolicy := util.CoalesceEnv1(consts.ENV_KEY_REDIS_MEMORY_POLICY, ""); memoryPolicy != "" {
+		cfg.Append("maxmemory-policy", memoryPolicy)
+	}
+
 	// External configuration defined by user at the end
 	if _, err := os.Stat(externalConfigFile); err == nil {
 		cfg.Append("include", externalConfigFile)

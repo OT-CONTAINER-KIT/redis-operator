@@ -156,6 +156,28 @@ func TestGenerateContainerDefAddsMaxMemoryEnv(t *testing.T) {
 	assert.Contains(t, containers[0].Env, corev1.EnvVar{Name: consts.ENV_KEY_REDIS_MAX_MEMORY, Value: expectedValue})
 }
 
+func TestGenerateContainerDefAddsMemoryPolicyEnv(t *testing.T) {
+	memoryPolicy := "allkeys-lfu"
+	containers := generateContainerDef(
+		"redis",
+		containerParameters{
+			Role:         "redis",
+			Image:        "redis:latest",
+			MemoryPolicy: &memoryPolicy,
+		},
+		false,
+		false,
+		false,
+		nil,
+		nil,
+		nil,
+		nil,
+	)
+
+	require.Len(t, containers, 1)
+	assert.Contains(t, containers[0].Env, corev1.EnvVar{Name: consts.ENV_KEY_REDIS_MEMORY_POLICY, Value: memoryPolicy})
+}
+
 func TestGetVolumeMount(t *testing.T) {
 	tests := []struct {
 		name               string
@@ -1720,7 +1742,7 @@ func TestGetEnvironmentVariables(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			actualEnvironment := getEnvironmentVariables(tt.role, tt.enabledPassword, tt.secretName,
-				tt.secretKey, tt.persistenceEnabled, tt.tlsConfig, tt.aclConfig, tt.envVar, tt.port, tt.clusterVersion, nil, nil)
+				tt.secretKey, tt.persistenceEnabled, tt.tlsConfig, tt.aclConfig, tt.envVar, tt.port, tt.clusterVersion, nil, nil, nil)
 
 			assert.ElementsMatch(t, tt.expectedEnvironment, actualEnvironment)
 		})
