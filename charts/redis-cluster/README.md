@@ -99,6 +99,7 @@ helm delete <my-release> --namespace <namespace>
 | redisCluster.leader.serviceType | string | `"ClusterIP"` |  |
 | redisCluster.leader.tolerations | list | `[]` |  |
 | redisCluster.leader.topologySpreadConstraints | list | `[]` |  |
+| redisCluster.masterSlaveAntiAffinityTopologyKey | string | `""` | TopologyKey for the leader/follower anti-affinity term injected by the operator's    mutating webhook. Empty preserves the previous behaviour ("kubernetes.io/hostname",    i.e. separate nodes). Set to "topology.kubernetes.io/zone" to force each follower into    a different zone than its corresponding leader. Only effective when    enableMasterSlaveAntiAffinity is true and the operator's mutating webhook is enabled. |
 | redisCluster.maxMemoryPercentOfLimit | int | `0` | MaxMemoryPercentOfLimit is the percentage of the Redis container memory limit to be used as maxmemory.    When a memory limit exists, the operator also exposes the computed value via the REDIS_MAX_MEMORY env var.    Default is 0 (disabled). |
 | redisCluster.minReadySeconds | int | `0` |  |
 | redisCluster.name | string | `""` |  |
