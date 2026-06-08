@@ -55,9 +55,9 @@ helm delete <my-release> --namespace <namespace>
 | env | list | `[]` |  |
 | externalConfig.data | string | `"tcp-keepalive 400\nslowlog-max-len 158\nstream-node-max-bytes 2048\n"` |  |
 | externalConfig.enabled | bool | `false` |  |
-| externalService.enabled | bool | `false` |  |
-| externalService.port | int | `6379` |  |
-| externalService.serviceType | string | `"LoadBalancer"` |  |
+| followerExternalService.enabled | bool | `false` |  |
+| followerExternalService.port | int | `6379` |  |
+| followerExternalService.serviceType | string | `"LoadBalancer"` |  |
 | initContainer.args | list | `[]` |  |
 | initContainer.command | list | `[]` |  |
 | initContainer.enabled | bool | `false` |  |
@@ -66,6 +66,9 @@ helm delete <my-release> --namespace <namespace>
 | initContainer.imagePullPolicy | string | `"IfNotPresent"` |  |
 | initContainer.resources | object | `{}` |  |
 | labels | object | `{}` |  |
+| leaderExternalService.enabled | bool | `false` |  |
+| leaderExternalService.port | int | `6379` |  |
+| leaderExternalService.serviceType | string | `"LoadBalancer"` |  |
 | podSecurityContext.fsGroup | int | `1000` |  |
 | podSecurityContext.runAsUser | int | `1000` |  |
 | priorityClassName | string | `""` |  |

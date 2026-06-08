@@ -146,12 +146,21 @@ externalConfig:
     slowlog-max-len 158
     stream-node-max-bytes 2048
 
-externalService:
+leaderExternalService:
   enabled: false
   # annotations:
   #   foo: bar
   serviceType: LoadBalancer
   port: 6379
+  #nodePort: 30951
+
+followerExternalService:
+  enabled: false
+  # annotations:
+  #   foo: bar
+  serviceType: LoadBalancer
+  port: 6379
+  #nodePort: 30952
 
 serviceMonitor:
   enabled: false
