@@ -164,6 +164,8 @@ func generateSentinelTLSEnv(tlsConfig *commonapi.TLSConfig) []corev1.EnvVar {
 		tlsCertKey = tlsConfig.KeyFile
 	}
 
+	caPath := path.Join(root, caCert)
+
 	return []corev1.EnvVar{
 		{
 			Name:  "TLS_MODE",
@@ -171,7 +173,12 @@ func generateSentinelTLSEnv(tlsConfig *commonapi.TLSConfig) []corev1.EnvVar {
 		},
 		{
 			Name:  "REDIS_TLS_CA_CERT",
-			Value: path.Join(root, caCert),
+			Value: caPath,
+		},
+		// REDIS_TLS_CA_KEY: the sentinel/redis image entrypoints read this name instead of REDIS_TLS_CA_CERT
+		{
+			Name:  "REDIS_TLS_CA_KEY",
+			Value: caPath,
 		},
 		{
 			Name:  "REDIS_TLS_CERT",
