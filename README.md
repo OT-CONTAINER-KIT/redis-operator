@@ -23,7 +23,7 @@
   </a>
 </p>
 
-A Golang-based Redis operator that will make/oversee Redis standalone and cluster mode setup on top of Kubernetes. It can create a Redis cluster setup with best practices on Cloud as well as the bare metal environment. Also, it provides an in-built monitoring capability using redis-exporter.
+A Golang-based Redis operator that will make/oversee Redis standalone, cluster, replication, and sentinel mode setup on top of Kubernetes. It can create Redis setups with best practices on Cloud as well as the bare metal environment. Also, it provides an in-built monitoring capability using redis-exporter.
 
 For documentation, please refer to <https://redis-operator.opstree.dev/>
 
@@ -45,7 +45,7 @@ There are multiple problems that people face while setting up Redis setup on Kub
 
 Here are the features which are supported by this operator:
 
-- Redis cluster and standalone mode setup
+- Redis standalone, cluster, replication, and sentinel mode setup
 - Redis cluster failover and recovery
 - Inbuilt monitoring with redis exporter
 - Password and password-less setup of Redis
