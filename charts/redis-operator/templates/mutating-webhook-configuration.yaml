@@ -6,7 +6,8 @@
   {{- $secretName := .Values.certificate.secretName }}
   {{- $secret := lookup "v1" "Secret" .Release.Namespace $secretName }}
   {{- $cn := printf "%s.%s.svc" .Values.service.name .Release.Namespace }}
-  {{- $altNames := list $cn (printf "%s.%s.svc.cluster.local" .Values.service.name .Release.Namespace) }}
+  {{- $dnsDomain := default "cluster.local" .Values.redisOperator.serviceDNSDomain }}
+  {{- $altNames := list $cn (printf "%s.%s.svc.%s" .Values.service.name .Release.Namespace $dnsDomain) }}
   {{- if $secret }}
     {{- $caCert = index $secret.data "ca.crt" | b64dec }}
     {{- $tlsCert = index $secret.data "tls.crt" | b64dec }}
