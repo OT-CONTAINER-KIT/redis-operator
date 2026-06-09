@@ -126,14 +126,7 @@ func GenerateConfig() error {
 		cfg.Append("save", "300 10")
 		cfg.Append("save", "60 10000")
 		cfg.Append("Appendonly", "yes")
-		// Use lowercase "appendonly.aof" so the init-container and the
-		// legacy redis-operator controller agree on the AOF file name.
-		// Existing clusters created with the non-init-container path
-		// write appendonly.aof; switching GenerateConfigInInitContainer
-		// from false to true on a running cluster used to point redis at
-		// Appendonly.aof instead, which (on case-sensitive filesystems)
-		// meant redis found no AOF on startup, re-initialized empty, and
-		// silently destroyed the data. See OT-CONTAINER-KIT/redis-operator#1746.
+		// lowercase to match the file written by the non-init-container path (#1746)
 		cfg.Append("Appendfilename", "\"appendonly.aof\"")
 		cfg.Append("dir", dataDir)
 	} else {
