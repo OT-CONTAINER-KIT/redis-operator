@@ -28,8 +28,10 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/redis"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/scheme"
 	rediscontroller "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/redis"
+	redisbackupcontroller "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/redisbackup"
 	redisclustercontroller "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/rediscluster"
 	redisreplicationcontroller "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/redisreplication"
+	redisrestorecontroller "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/redisrestore"
 	redissentinelcontroller "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/redissentinel"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/controllerutil"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/envs"
@@ -40,6 +42,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -130,6 +133,9 @@ func runManager(opts *managerOptions) error {
 	setupLog.Info("setting up v1beta2 scheme")
 	scheme.SetupV1beta2Scheme()
 
+	setupLog.Info("setting up v1alpha1 scheme")
+	scheme.SetupV1alpha1Scheme()
+
 	if err := setupFeatureGates(opts.featureGatesString); err != nil {
 		return err
 	}
@@ -154,7 +160,7 @@ func runManager(opts *managerOptions) error {
 	if err != nil {
 		return err
 	}
-	if err := setupControllers(mgr, k8sClient, opts.maxConcurrentReconciles); err != nil {
+	if err := setupControllers(mgr, k8sClient, cfg, opts.maxConcurrentReconciles); err != nil {
 		return err
 	}
 	if opts.enableWebhooks {
@@ -235,7 +241,7 @@ func createK8sClient(qps float32) (kubernetes.Interface, error) {
 }
 
 // setupControllers sets up all controllers
-func setupControllers(mgr ctrl.Manager, k8sClient kubernetes.Interface, maxConcurrentReconciles int) error {
+func setupControllers(mgr ctrl.Manager, k8sClient kubernetes.Interface, restConfig *rest.Config, maxConcurrentReconciles int) error {
 	// Get max concurrent reconciles from environment
 	maxConcurrentReconciles = envs.GetMaxConcurrentReconciles(maxConcurrentReconciles)
 
@@ -277,6 +283,21 @@ func setupControllers(mgr ctrl.Manager, k8sClient kubernetes.Interface, maxConcu
 		ReplicationWatcher: intctrlutil.NewResourceWatcher(),
 	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RedisSentinel")
+		return err
+	}
+	if err := (&redisbackupcontroller.Reconciler{
+		Client:    mgr.GetClient(),
+		K8sClient: k8sClient,
+	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "RedisBackup")
+		return err
+	}
+	if err := (&redisrestorecontroller.Reconciler{
+		Client:     mgr.GetClient(),
+		K8sClient:  k8sClient,
+		RESTConfig: restConfig,
+	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "RedisRestore")
 		return err
 	}
 
