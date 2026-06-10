@@ -75,6 +75,7 @@ rules:
   - redis.redis.opstreelabs.in
   resources:
   - redis
+  - redisbackups
   - rediscluster
   - redisclusters
   - redisreplication
@@ -94,6 +95,7 @@ rules:
   - redis.redis.opstreelabs.in
   resources:
   - redis/finalizers
+  - redisbackups/finalizers
   - rediscluster/finalizers
   - redisclusters/finalizers
   - redisreplication/finalizers
@@ -106,6 +108,7 @@ rules:
   - redis.redis.opstreelabs.in
   resources:
   - redis/status
+  - redisbackups/status
   - rediscluster/status
   - redisclusters/status
   - redisreplication/status

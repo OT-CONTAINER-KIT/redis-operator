@@ -1,0 +1,31 @@
+apiVersion: redis.redis.opstreelabs.in/v1alpha1
+kind: RedisBackup
+metadata:
+  name: redis-backup-sample
+  namespace: default
+  labels:
+    app.kubernetes.io/name: redisbackup
+    app.kubernetes.io/managed-by: redis-operator
+spec:
+  # Name of the Redis cluster in the same namespace to back up
+  redisClusterName: redis-cluster
+
+  # Storage backend — currently supported: s3
+  storageType: s3
+
+  s3:
+    # Name of the S3 bucket where backups will be stored
+    bucket: my-redis-backups
+
+    # AWS region of the bucket
+    region: ap-south-1
+
+    # Name of the Kubernetes Secret containing:
+    #   AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
+    secretName: aws-s3-credentials
+
+  # How many days to keep backup files in S3 (default: 7)
+  retentionDays: 7
+
+  # Uncomment below to enable scheduled recurring backups (cron format)
+  # schedule: "0 2 * * *"
