@@ -18,6 +18,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -129,22 +130,23 @@ func (r *RedisSentinelReconciler) reconcileSentinel(ctx context.Context, instanc
 	}
 
 	var monitorAddr string
-	if master, err := r.Checker.GetMasterFromReplication(ctx, rr); err != nil {
+	master, err := r.Checker.GetMasterFromReplication(ctx, rr)
+	if err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
+	}
+
+	if instance.Spec.RedisSentinelConfig.ResolveHostnames == "yes" {
+		monitorAddr = fmt.Sprintf("%s.%s.%s.svc.%s", master.Name, common.GetHeadlessServiceNameFromPodName(master.Name), rr.Namespace, envs.GetServiceDNSDomain())
 	} else {
-		if instance.Spec.RedisSentinelConfig.ResolveHostnames == "yes" {
-			monitorAddr = fmt.Sprintf("%s.%s.%s.svc.%s", master.Name, common.GetHeadlessServiceNameFromPodName(master.Name), rr.Namespace, envs.GetServiceDNSDomain())
-		} else {
-			monitorAddr = master.Status.PodIP
-		}
+		monitorAddr = master.Status.PodIP
 	}
 
 	if monitorAddr == "" {
-		err := fmt.Errorf("master pod %s does not have a valid endpoint (IP address/service) yet", master.Name)
+		err := fmt.Errorf("%s does not have a valid endpoint (IP address/service) yet", master.Name)
 		log.FromContext(ctx).Info("Waiting to get a valid master endpoint", master.Name)
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
-	
+
 	if err := r.Healer.SentinelMonitor(ctx, instance, monitorAddr); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
