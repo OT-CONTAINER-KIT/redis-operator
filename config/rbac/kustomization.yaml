@@ -14,13 +14,12 @@ resources:
 - redis_viewer_role.yaml
 - rediscluster_editor_role.yaml
 - rediscluster_viewer_role.yaml
+- redisbackup_admin_role.yaml
+- redisbackup_editor_role.yaml
+- redisbackup_viewer_role.yaml
 - role.yaml
 - role_binding.yaml
 - serviceaccount.yaml
-# For each CRD, "Admin", "Editor" and "Viewer" roles are scaffolded by
-# default, aiding admins in cluster management. Those roles are
-# not used by the {{ .ProjectName }} itself. You can comment the following lines
-# if you do not want those helpers be installed with your Project.
 
 patches:
   - target:
