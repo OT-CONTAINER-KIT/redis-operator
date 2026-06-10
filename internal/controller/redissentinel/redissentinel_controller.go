@@ -138,6 +138,13 @@ func (r *RedisSentinelReconciler) reconcileSentinel(ctx context.Context, instanc
 			monitorAddr = master.Status.PodIP
 		}
 	}
+
+	if monitorAddr == "" {
+		err := fmt.Errorf("master pod %s does not have a valid endpoint (IP address/service) yet", master.Name)
+		log.FromContext(ctx).Info("Waiting to get a valid master endpoint", master.Name)
+		return intctrlutil.RequeueE(ctx, err, "")
+	}
+	
 	if err := r.Healer.SentinelMonitor(ctx, instance, monitorAddr); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
