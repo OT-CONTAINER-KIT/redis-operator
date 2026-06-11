@@ -32,7 +32,7 @@ metadata:
 spec:
   dnsNames:
     - {{ .Values.service.name }}.{{ .Values.service.namespace }}.svc
-    - {{ .Values.service.name }}.{{ .Values.service.namespace }}.svc.cluster.local
+    - {{ .Values.service.name }}.{{ .Values.service.namespace }}.svc.{{ .Values.redisOperator.serviceDNSDomain | default "cluster.local" }}
   issuerRef:
     kind: {{ .Values.issuer.kind }}
     name: {{ .Values.issuer.name }}
