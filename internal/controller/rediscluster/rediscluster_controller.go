@@ -134,11 +134,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				k8sutils.ReshardRedisCluster(ctx, r.K8sClient, instance, shardIdx, shardMoveNodeIdx, true)
 				monitoring.RedisClusterReshardTotal.WithLabelValues(instance.Namespace, instance.Name).Inc()
 			}
-			logger.Info("Redis cluster is downscaled... Rebalancing the cluster")
-			// Step 3 Rebalance the cluster
-			k8sutils.RebalanceRedisCluster(ctx, r.K8sClient, instance)
-			logger.Info("Redis cluster is downscaled... Rebalancing the cluster is done")
-			monitoring.RedisClusterRebalanceTotal.WithLabelValues(instance.Namespace, instance.Name).Inc()
+			// Step 3 Rebalance the cluster. With a single remaining leader there is
+			// nothing to rebalance: all slots were already resharded to leader-0 and
+			// the rebalance command targets leader-1, which is no longer part of the
+			// cluster at this point.
+			if leaderReplicas > 1 {
+				logger.Info("Redis cluster is downscaled... Rebalancing the cluster")
+				k8sutils.RebalanceRedisCluster(ctx, r.K8sClient, instance)
+				logger.Info("Redis cluster is downscaled... Rebalancing the cluster is done")
+				monitoring.RedisClusterRebalanceTotal.WithLabelValues(instance.Namespace, instance.Name).Inc()
+			} else {
+				logger.Info("Redis cluster is downscaled... Skipping rebalance for single-node cluster")
+			}
 			return intctrlutil.RequeueAfter(ctx, time.Second*10, "")
 		} else {
 			logger.Info("masterCount is not equal to leader statefulset replicas,skip downscale", "masterCount", masterCount, "leaderReplicas", leaderReplicas)
@@ -250,11 +257,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		leaderCount := k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, "leader")
 		if leaderCount != leaderReplicas {
 			logger.Info("Not all leader are part of the cluster...", "Leaders.Count", leaderCount, "Instance.Size", leaderReplicas)
-			if leaderCount <= 2 {
-				k8sutils.ExecuteRedisClusterCommand(ctx, r.K8sClient, instance)
-			} else {
-				if leaderCount < leaderReplicas {
+			if leaderCount < leaderReplicas {
+				scaleUp, err := r.shouldScaleUpExistingCluster(ctx, instance, leaderCount)
+				if err != nil {
+					return intctrlutil.RequeueE(ctx, err, "failed to determine whether an existing cluster is being scaled up")
+				}
+				if scaleUp {
 					// Scale up the cluster
+					logger.Info("Scaling up existing cluster", "Current.Leaders", leaderCount, "Desired.Leaders", leaderReplicas)
 					// Step 1 : Fix any open slots from previous interrupted operations
 					if err := k8sutils.FixRedisCluster(ctx, r.K8sClient, instance); err != nil {
 						logger.Error(err, "Failed to fix redis cluster slots, proceeding with scale-up")
@@ -265,6 +275,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 					return intctrlutil.RequeueAfter(ctx, 10*time.Second, "added node, waiting for cluster convergence before rebalancing")
 				}
+				// No functioning cluster exists yet, create one from scratch.
+				logger.Info("Creating cluster", "Current.Leaders", leaderCount, "Desired.Leaders", leaderReplicas)
+				k8sutils.ExecuteRedisClusterCommand(ctx, r.K8sClient, instance)
 			}
 		} else {
 			stable, err := k8sutils.ClusterStableNoOpenSlots(ctx, r.K8sClient, instance)
@@ -382,6 +395,25 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	return intctrlutil.RequeueAfter(ctx, time.Second*10, "")
+}
+
+// shouldScaleUpExistingCluster reports whether the missing leaders should be
+// added to an already-formed cluster (`--cluster add-node`) instead of running
+// the initial cluster creation command. More than two leaders always means the
+// cluster has been formed, since `--cluster create` requires at least three
+// nodes. With one or two leaders the cluster is either a formed single-node
+// cluster being scaled up (issue #1521) or an initial creation that has not
+// completed yet; slot assignment distinguishes the two, because a formed
+// cluster has all 16384 slots assigned and running `--cluster create` against
+// its non-empty nodes would fail.
+func (r *Reconciler) shouldScaleUpExistingCluster(ctx context.Context, instance *rcvb2.RedisCluster, leaderCount int32) (bool, error) {
+	if leaderCount > 2 {
+		return true, nil
+	}
+	if leaderCount == 0 {
+		return false, nil
+	}
+	return r.Checker.CheckClusterSlotsAssigned(ctx, instance)
 }
 
 func (r *Reconciler) updateStatus(ctx context.Context, rc *rcvb2.RedisCluster, status rcvb2.RedisClusterStatus) (requeue bool, err error) {
