@@ -204,6 +204,8 @@ pdb:
   minAvailable: 1
   maxUnavailable: null
 
+podManagementPolicy: OrderedReady
+
 # -- Sentinel configuration for automatic failover.
 # When enabled, the operator creates a Sentinel StatefulSet alongside the replication pods.
 # The operator queries Sentinel for the current master instead of forcing master-by-ordinal.

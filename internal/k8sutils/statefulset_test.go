@@ -2191,6 +2191,95 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 	}
 }
 
+func TestGenerateStatefulSetsDefPodManagementPolicy(t *testing.T) {
+	tests := []struct {
+		name           string
+		policy         *string
+		expectedPolicy appsv1.PodManagementPolicyType
+	}{
+		{
+			name:           "nil policy leaves the field empty so the API server defaults it to OrderedReady",
+			policy:         nil,
+			expectedPolicy: "",
+		},
+		{
+			name:           "OrderedReady policy is set on the statefulset",
+			policy:         ptr.To(string(appsv1.OrderedReadyPodManagement)),
+			expectedPolicy: appsv1.OrderedReadyPodManagement,
+		},
+		{
+			name:           "Parallel policy is set on the statefulset",
+			policy:         ptr.To(string(appsv1.ParallelPodManagement)),
+			expectedPolicy: appsv1.ParallelPodManagement,
+		},
+	}
+
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			stsDef := generateStatefulSetsDef(
+				metav1.ObjectMeta{Name: "test-sts", Namespace: "test-ns"},
+				statefulSetParameters{Replicas: ptr.To(int32(3)), PodManagementPolicy: test.policy},
+				metav1.OwnerReference{},
+				initContainerParameters{},
+				containerParameters{Image: "redis:latest"},
+				nil,
+			)
+			assert.Equal(t, test.expectedPolicy, stsDef.Spec.PodManagementPolicy, "StatefulSet PodManagementPolicy")
+		})
+	}
+}
+
+func TestPodManagementPolicyImmutableOnExistingStatefulSet(t *testing.T) {
+	objMeta := metav1.ObjectMeta{Name: "test-sts", Namespace: "test-ns"}
+	ownerDef := metav1.OwnerReference{
+		Name:       "test-sts",
+		Kind:       "StatefulSet",
+		APIVersion: "apps/v1",
+		UID:        "12345",
+	}
+	initContainerParams := initContainerParameters{Image: "redis-init:latest"}
+	containerParams := containerParameters{Image: "redis:latest"}
+
+	newParams := func(policy string, recreate bool) statefulSetParameters {
+		return statefulSetParameters{
+			Replicas:            ptr.To(int32(3)),
+			PodManagementPolicy: ptr.To(policy),
+			RecreateStatefulSet: recreate,
+		}
+	}
+
+	t.Run("policy change is ignored when recreate is disabled", func(t *testing.T) {
+		client := k8sClientFake.NewSimpleClientset()
+		err := CreateOrUpdateStateFul(context.TODO(), client, objMeta.Namespace, objMeta,
+			newParams(string(appsv1.OrderedReadyPodManagement), false), ownerDef, initContainerParams, containerParams, nil)
+		assert.NoError(t, err)
+
+		err = CreateOrUpdateStateFul(context.TODO(), client, objMeta.Namespace, objMeta,
+			newParams(string(appsv1.ParallelPodManagement), false), ownerDef, initContainerParams, containerParams, nil)
+		assert.NoError(t, err)
+
+		sts, err := client.AppsV1().StatefulSets(objMeta.Namespace).Get(context.TODO(), objMeta.Name, metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Equal(t, appsv1.OrderedReadyPodManagement, sts.Spec.PodManagementPolicy, "PodManagementPolicy must keep the stored value when recreate is disabled")
+	})
+
+	t.Run("policy change is applied when recreate is enabled", func(t *testing.T) {
+		client := k8sClientFake.NewSimpleClientset()
+		err := CreateOrUpdateStateFul(context.TODO(), client, objMeta.Namespace, objMeta,
+			newParams(string(appsv1.OrderedReadyPodManagement), true), ownerDef, initContainerParams, containerParams, nil)
+		assert.NoError(t, err)
+
+		err = CreateOrUpdateStateFul(context.TODO(), client, objMeta.Namespace, objMeta,
+			newParams(string(appsv1.ParallelPodManagement), true), ownerDef, initContainerParams, containerParams, nil)
+		assert.NoError(t, err)
+
+		sts, err := client.AppsV1().StatefulSets(objMeta.Namespace).Get(context.TODO(), objMeta.Name, metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Equal(t, appsv1.ParallelPodManagement, sts.Spec.PodManagementPolicy, "PodManagementPolicy must be propagated when recreate is enabled")
+	})
+}
+
 func TestGetSidecars(t *testing.T) {
 	tests := []struct {
 		name            string

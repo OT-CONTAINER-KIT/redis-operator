@@ -59,6 +59,11 @@ func generateRedisClusterParams(ctx context.Context, cr *rcvb2.RedisCluster, rep
 		HostNetwork:                          cr.Spec.HostNetwork,
 		MinReadySeconds:                      minreadyseconds,
 	}
+
+	if cr.Spec.PodManagementPolicy != nil {
+		res.PodManagementPolicy = cr.Spec.PodManagementPolicy
+	}
+
 	if cr.Spec.RedisExporter != nil {
 		res.EnableMetrics = cr.Spec.RedisExporter.Enabled
 	}

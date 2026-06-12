@@ -119,6 +119,7 @@ type statefulSetParameters struct {
 	IgnoreAnnotations                    []string
 	HostNetwork                          bool
 	MinReadySeconds                      int32
+	PodManagementPolicy                  *string
 }
 
 // containerParameters will define container input params
@@ -210,6 +211,16 @@ func patchStatefulSet(ctx context.Context, storedStateful, newStateful *appsv1.S
 				log.FromContext(ctx).V(1).Info("VolumeClaimTemplate change is being ignored because the field is immutable. Consider enabling recreating the statefulset option.")
 			}
 		}
+	}
+
+	// Since PodManagementPolicy is immutable, revert to the stored value if we
+	// are not recreating the StatefulSet, otherwise the API server would reject
+	// the update.
+	if !recreateStatefulSet && newStateful.Spec.PodManagementPolicy != storedStateful.Spec.PodManagementPolicy {
+		if newStateful.Spec.PodManagementPolicy != "" {
+			log.FromContext(ctx).V(1).Info("PodManagementPolicy change is being ignored because the field is immutable. Consider enabling recreating the statefulset option.")
+		}
+		newStateful.Spec.PodManagementPolicy = storedStateful.Spec.PodManagementPolicy
 	}
 
 	// Calculate the patch between the stored and new objects, ignoring immutable or unnecessary fields.
@@ -324,6 +335,10 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 	}
 
 	statefulset.Spec.Template.Spec.InitContainers = generateInitContainerDef(containerParams.Role, stsMeta.GetName(), initcontainerParams, params.ExternalConfig, initcontainerParams.AdditionalMountPath, containerParams, params.ClusterVersion)
+
+	if params.PodManagementPolicy != nil {
+		statefulset.Spec.PodManagementPolicy = appsv1.PodManagementPolicyType(*params.PodManagementPolicy)
+	}
 
 	if params.Tolerations != nil {
 		statefulset.Spec.Template.Spec.Tolerations = *params.Tolerations
