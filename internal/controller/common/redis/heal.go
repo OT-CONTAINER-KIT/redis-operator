@@ -10,7 +10,8 @@ import (
 	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
-	"github.com/OT-CONTAINER-KIT/redis-operator/internal/env"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/envs"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/service/redis"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util/cryptutil"
 	v1 "k8s.io/api/core/v1"
@@ -59,11 +60,25 @@ func (h *healer) UpdateRedisRoleLabel(ctx context.Context, ns string, labels map
 	if err != nil {
 		return err
 	}
+	patchFunc := func(pod string, patchBs []byte) func() error {
+		return func() error {
+			_, err := h.k8s.
+				CoreV1().
+				Pods(ns).
+				Patch(ctx, pod, types.JSONPatchType, patchBs, metav1.PatchOptions{})
+			return err
+		}
+	}
 	for _, pod := range pods.Items {
+		if !k8sutils.IsRedisPodProbeable(&pod) {
+			continue
+		}
+
 		connInfo := createConnectionInfo(ctx, pod, password, tlsConfig, h.k8s, ns, "6379")
 		isMaster, err := h.redis.Connect(connInfo).IsMaster(ctx)
 		if err != nil {
-			return err
+			log.FromContext(ctx).Error(err, "failed to check redis role, skipping pod", "pod", pod.Name)
+			continue
 		}
 		role := common.RedisRoleLabelSlave
 		if isMaster {
@@ -71,18 +86,15 @@ func (h *healer) UpdateRedisRoleLabel(ctx context.Context, ns string, labels map
 		}
 		if oldRole := pod.Labels[common.RedisRoleLabelKey]; oldRole != role {
 			patch := []byte(fmt.Sprintf(`[{"op": "add", "path": "/metadata/labels/%s", "value": "%s"}]`, common.RedisRoleLabelKey, role))
-			rErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-				_, err = h.k8s.CoreV1().Pods(ns).Patch(ctx, pod.Name, types.JSONPatchType, patch, metav1.PatchOptions{})
-				if err != nil {
-					log.FromContext(ctx).Error(err, "failed to update pod role label", "pod", pod.Name, "oldRole", oldRole, "newRole", role)
-					return err
-				}
-				return nil
-			})
+			rErr := retry.RetryOnConflict(retry.DefaultRetry, patchFunc(pod.Name, patch))
 			if rErr != nil {
 				return fmt.Errorf("failed to update pod role label: %w", rErr)
 			}
-			log.FromContext(ctx).Info("updated pod role label", "pod", pod.Name, "oldRole", oldRole, "newRole", role)
+			log.FromContext(ctx).Info("updated pod role label",
+				"pod", pod.Name,
+				"oldRole", oldRole,
+				"newRole", role,
+			)
 		}
 	}
 	return nil
@@ -255,7 +267,7 @@ func createConnectionInfo(ctx context.Context, pod v1.Pod, password string, tlsC
 	// Configure TLS if enabled
 	if tlsConfig != nil && tlsConfig.Secret.SecretName != "" {
 		serviceName := common.GetHeadlessServiceNameFromPodName(pod.Name)
-		connInfo.Host = fmt.Sprintf("%s.%s.%s.svc.%s", pod.Name, serviceName, namespace, env.GetServiceDNSDomain())
+		connInfo.Host = fmt.Sprintf("%s.%s.%s.svc.%s", pod.Name, serviceName, namespace, envs.GetServiceDNSDomain())
 		// Get TLS configuration
 		tlsCfg := getRedisTLSConfig(ctx, k8sClient, namespace, tlsConfig.Secret.SecretName)
 		connInfo.TLSConfig = tlsCfg

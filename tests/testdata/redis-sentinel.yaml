@@ -91,7 +91,7 @@ spec:
   serviceAccountName: redis-sa
   terminationGracePeriodSeconds: 30
   TLS:
-    ca: ca.key
+    ca: ca.crt
     cert: tls.crt
     key: tls.key
     secret:

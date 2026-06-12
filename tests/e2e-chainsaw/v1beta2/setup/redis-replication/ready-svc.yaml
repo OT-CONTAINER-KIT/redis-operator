@@ -67,6 +67,7 @@ metadata:
     prometheus.io/scrape: 'true'
     redis.opstreelabs.in: 'true'
     redis.opstreelabs.instance: redis-replication
+    opstreelabs.in/additional-annotation: present
   labels:
     app: redis-replication
     redis_setup_type: replication

@@ -5,6 +5,7 @@ metadata:
   name: {{ .Values.redisCluster.name | default .Release.Name }}
   labels: {{- include "common.labels" . | nindent 4 }}
   annotations:
+    {{- include "common.annotations" . | nindent 4 }}
     {{ if .Values.redisCluster.recreateStatefulSetOnUpdateInvalid }}
     redis.opstreelabs.in/recreate-statefulset: "true"
     {{ end }}
@@ -16,21 +17,21 @@ spec:
   persistenceEnabled: {{ .Values.redisCluster.persistenceEnabled }}
   clusterVersion: {{ .Values.redisCluster.clusterVersion }}
   redisLeader: {{- include "redis.role" .Values.redisCluster.leader | nindent 4 }}
-    replicas: {{ .Values.redisCluster.leader.replicas }}
+    replicas: {{ .Values.redisCluster.leader.replicas | default .Values.redisCluster.clusterSize }}
     {{- if .Values.externalConfig.enabled }}
     redisConfig:
       additionalRedisConfig: "{{ .Values.redisCluster.name | default .Release.Name }}-ext-config"
     {{- end }}
   
   redisFollower: {{-  include "redis.role" .Values.redisCluster.follower | nindent 4 }}
-    replicas: {{ .Values.redisCluster.follower.replicas }}
+    replicas: {{ .Values.redisCluster.follower.replicas | default .Values.redisCluster.clusterSize }}
     {{- if .Values.externalConfig.enabled }}
     redisConfig:
       additionalRedisConfig: "{{ .Values.redisCluster.name | default .Release.Name }}-ext-config"
     {{- end }}
   
   {{- if .Values.redisCluster.maxMemoryPercentOfLimit }}
-  {{- if gt .Values.redisCluster.maxMemoryPercentOfLimit 0 }}
+  {{- if gt (int .Values.redisCluster.maxMemoryPercentOfLimit) 0 }}
   redisConfig:
     maxMemoryPercentOfLimit: {{ .Values.redisCluster.maxMemoryPercentOfLimit }}
   {{- end }}
@@ -56,6 +57,10 @@ spec:
     {{- if .Values.redisCluster.imagePullSecrets}}
     imagePullSecrets: {{ toYaml .Values.redisCluster.imagePullSecrets | nindent 4 }}
     {{- end }}
+    {{- if .Values.redisCluster.serviceType }}
+    service:
+      serviceType: {{ include "common.validateServiceType" (dict "serviceType" .Values.redisCluster.serviceType "name" (.Values.redisCluster.name | default .Release.Name)) }}
+    {{- end }}
     {{- if .Values.redisCluster.resources}}
     resources: {{ toYaml .Values.redisCluster.resources | nindent 6 }}
     {{- end }}
@@ -66,6 +71,9 @@ spec:
     {{- end }}
     {{- if .Values.redisCluster.minReadySeconds }}
     minReadySeconds: {{ .Values.redisCluster.minReadySeconds}}
+    {{- end }}
+    {{- if .Values.redisCluster.persistentVolumeClaimRetentionPolicy }}
+    persistentVolumeClaimRetentionPolicy: {{ toYaml .Values.redisCluster.persistentVolumeClaimRetentionPolicy | nindent 6 }}
     {{- end }}
 
   {{- if .Values.storageSpec }}
@@ -85,13 +93,18 @@ spec:
     secret:
       secretName: {{ .Values.TLS.secret.secretName | quote }}
   {{- end }}
-  {{- if and .Values.acl.secret (ne .Values.acl.secret.secretName "") }}
+  {{- if or (and .Values.acl.secret (ne .Values.acl.secret.secretName "")) .Values.acl.persistentVolumeClaim }}
   acl:
+    {{- if and .Values.acl.secret (ne .Values.acl.secret.secretName "") }}
     secret:
       secretName: {{ .Values.acl.secret.secretName | quote }}
+    {{- end }}
+    {{- if .Values.acl.persistentVolumeClaim }}
+    persistentVolumeClaim: {{ .Values.acl.persistentVolumeClaim | quote }}
+    {{- end }}
   {{- end }}
-  {{- if and .Values.sidecars (ne .Values.sidecars.name "") (ne .Values.sidecars.image "") }}
-  sidecars: {{ include "sidecar.properties" . | nindent 4 }}
+  {{- if .Values.sidecars }}
+  sidecars: {{ toYaml .Values.sidecars | nindent 4 }}
   {{- end }}
   {{- if and .Values.initContainer .Values.initContainer.enabled (ne .Values.initContainer.image "") }}
   initContainer: {{ include "initContainer.properties" . | nindent 4 }}

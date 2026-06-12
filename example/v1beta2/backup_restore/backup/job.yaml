@@ -12,7 +12,7 @@ spec:
       serviceAccountName: backup-service-account
       containers:
         - name: redis-operator-backup-container
-          image: "quay.io/opstree/redis-operator-backup:v0.15.1"
+          image: "quay.io/opstree/redis-operator-backup:latest"
           command: ["/bin/bash", "-c", "/backup/backup.bash"]
           imagePullPolicy: Always
           envFrom:

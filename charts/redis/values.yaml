@@ -9,6 +9,7 @@ redisStandalone:
   redisSecret:
     secretName: ""
     secretKey: ""
+  # serviceType must be one of: ClusterIP, NodePort, LoadBalancer
   serviceType: ClusterIP
   resources: {}
     # requests:
@@ -23,13 +24,21 @@ redisStandalone:
   # -- Some fields of statefulset are immutable, such as volumeClaimTemplates.
   # When set to true, the operator will delete the statefulset and recreate it. Default is false.
   recreateStatefulSetOnUpdateInvalid: false
-  # -- MaxMemoryPercentOfLimit is the percentage of redis container memory limit to be used as maxmemory. 
+  # -- MaxMemoryPercentOfLimit is the percentage of the Redis container memory limit to be used as maxmemory.
+  #    When a memory limit exists, the operator also exposes the computed value via the REDIS_MAX_MEMORY env var.
   #    Default is 0 (disabled).
   maxMemoryPercentOfLimit: 0
+  persistentVolumeClaimRetentionPolicy: {}
+    # whenDeleted: Delete
+    # whenScaled: Retain
 
 labels: {}
 #   foo: bar
 #   test: echo
+
+annotations: {}
+#   annotation-key: "annotation-value"
+#   prometheus.io/scrape: "true"
 
 externalConfig:
   enabled: false
@@ -89,20 +98,24 @@ initContainer:
   command: []
   args: []
 
-sidecars:
-  name: ""
-  image: ""
-  imagePullPolicy: "IfNotPresent"
-  resources:
-    limits:
-      cpu: "100m"
-      memory: "128Mi"
-    requests:
-      cpu: "50m"
-      memory: "64Mi"
-  env: []
-    # - name: MY_ENV_VAR
-    #   value: "my-env-var-value"
+sidecars: []
+  # - name: "sidecar-example"
+  #   image: "busybox:latest"
+  #   imagePullPolicy: "IfNotPresent"
+  #   resources:
+  #     limits:
+  #       cpu: "100m"
+  #       memory: "128Mi"
+  #     requests:
+  #       cpu: "50m"
+  #       memory: "64Mi"
+  #   env: []
+  #   # - name: MY_ENV_VAR
+  #   #   value: "my-env-var-value"
+  #   command: []
+  #   # - "/bin/sh"
+  #   # - "-c"
+  #   # - "sleep 3600"
 
 priorityClassName: ""
 
@@ -141,18 +154,30 @@ tolerations: []
   #   value: "value"
   #   effect: "NoSchedule"
 
+topologySpreadConstraints: []
+  # - maxSkew: 1
+  #   topologyKey: kubernetes.io/hostname
+  #   whenUnsatisfiable: DoNotSchedule
+  #   labelSelector:
+  #     matchLabels:
+  #       app: redis
+
 serviceAccountName: ""
 
 TLS:
-  ca: ca.key
+  ca: ca.crt
   cert: tls.crt
   key: tls.key
   secret:
     secretName: ""
 
 acl:
+  # Configure ACL from Kubernetes Secret
   secret:
     secretName: ""
+  # Configure ACL from PersistentVolumeClaim
+  # The PVC must contain a file named "user.acl" at root level
+  # persistentVolumeClaim: "redis-acl-pvc"
 
 env: []
   # - name: VAR_NAME

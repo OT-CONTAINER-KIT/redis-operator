@@ -32,6 +32,7 @@ import (
 	retry "github.com/avast/retry-go"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -68,9 +69,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		return intctrlutil.Reconciled()
 	}
-	monitoring.RedisReplicationSkipReconcile.WithLabelValues(instance.Namespace, instance.Name).Set(0)
-	if common.IsSkipReconcile(ctx, instance) {
-		monitoring.RedisClusterSkipReconcile.WithLabelValues(instance.Namespace, instance.Name).Set(1)
+	if common.ShouldSkipReconcile(ctx, instance) {
 		return intctrlutil.Reconciled()
 	}
 	instance.SetDefault()
@@ -91,6 +90,23 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if masterCount := k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, "leader"); masterCount == leaderCount {
 			r.Recorder.Event(instance, corev1.EventTypeNormal, events.EventReasonRedisClusterDownscale, "Redis cluster is downscaling...")
 			logger.Info("Redis cluster is downscaling...", "Current.LeaderReplicas", leaderCount, "Desired.LeaderReplicas", leaderReplicas)
+
+			// Before resharding, ensure all remaining leader pods (the transfer targets) are masters.
+			// After scale-out, a failover may have converted some leader pods to slaves, which causes
+			// reshard to fail with "The specified node is not known or not a master".
+			// We handle one failover per reconcile cycle and requeue — the loop will converge
+			// over successive reconciliations until all target pods are masters.
+			for i := int32(0); i < leaderReplicas; i++ {
+				if !(k8sutils.VerifyLeaderPod(ctx, r.K8sClient, instance, i)) {
+					logger.Info("Transfer target leader pod is not a master, initiating failover before scale-down", "Pod.Index", i)
+					if err = k8sutils.ClusterFailover(ctx, r.K8sClient, instance, i); err != nil {
+						logger.Error(err, "Failed to initiate cluster failover for transfer target")
+						return intctrlutil.RequeueE(ctx, err, "")
+					}
+					return intctrlutil.RequeueAfter(ctx, time.Second*10, "Waiting for failover to complete before scale-down")
+				}
+			}
+
 			for shardIdx := leaderCount - 1; shardIdx >= leaderReplicas; shardIdx-- {
 				logger.Info("Remove the shard", "Shard.Index", shardIdx)
 				//  Imp if the last index of leader sts is not leader make it then
@@ -132,7 +148,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// Mark the cluster status as initializing if there are no leader or follower nodes
 	if (instance.Status.ReadyLeaderReplicas == 0 && instance.Status.ReadyFollowerReplicas == 0) ||
 		instance.Status.ReadyLeaderReplicas != leaderReplicas {
-		err = r.updateStatus(ctx, instance, rcvb2.RedisClusterStatus{
+		requeue, err := r.updateStatus(ctx, instance, rcvb2.RedisClusterStatus{
 			State:                 rcvb2.RedisClusterInitializing,
 			Reason:                rcvb2.InitializingClusterLeaderReason,
 			ReadyLeaderReplicas:   instance.Status.ReadyLeaderReplicas,
@@ -140,6 +156,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		})
 		if err != nil {
 			return intctrlutil.RequeueE(ctx, err, "")
+		}
+		if requeue {
+			return intctrlutil.Requeue()
 		}
 	}
 
@@ -163,7 +182,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// Mark the cluster status as initializing if there are no follower nodes
 		if (instance.Status.ReadyLeaderReplicas == 0 && instance.Status.ReadyFollowerReplicas == 0) ||
 			instance.Status.ReadyFollowerReplicas != followerReplicas {
-			err = r.updateStatus(ctx, instance, rcvb2.RedisClusterStatus{
+			requeue, err := r.updateStatus(ctx, instance, rcvb2.RedisClusterStatus{
 				State:                 rcvb2.RedisClusterInitializing,
 				Reason:                rcvb2.InitializingClusterFollowerReason,
 				ReadyLeaderReplicas:   leaderReplicas,
@@ -171,6 +190,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			})
 			if err != nil {
 				return intctrlutil.RequeueE(ctx, err, "")
+			}
+			if requeue {
+				return intctrlutil.Requeue()
 			}
 		}
 		// if we have followers create their service.
@@ -196,7 +218,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// Mark the cluster status as bootstrapping if all the leader and follower nodes are ready
 	if instance.Status.ReadyLeaderReplicas != leaderReplicas || instance.Status.ReadyFollowerReplicas != followerReplicas {
-		err = r.updateStatus(ctx, instance, rcvb2.RedisClusterStatus{
+		requeue, err := r.updateStatus(ctx, instance, rcvb2.RedisClusterStatus{
 			State:                 rcvb2.RedisClusterBootstrap,
 			Reason:                rcvb2.BootstrapClusterReason,
 			ReadyLeaderReplicas:   leaderReplicas,
@@ -204,6 +226,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		})
 		if err != nil {
 			return intctrlutil.RequeueE(ctx, err, "")
+		}
+		if requeue {
+			return intctrlutil.Requeue()
 		}
 	}
 
@@ -230,14 +255,34 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			} else {
 				if leaderCount < leaderReplicas {
 					// Scale up the cluster
+					// Step 1 : Fix any open slots from previous interrupted operations
+					if err := k8sutils.FixRedisCluster(ctx, r.K8sClient, instance); err != nil {
+						logger.Error(err, "Failed to fix redis cluster slots, proceeding with scale-up")
+					}
 					// Step 2 : Add Redis Node
 					k8sutils.AddRedisNodeToCluster(ctx, r.K8sClient, instance)
 					monitoring.RedisClusterAddingNodeAttempt.WithLabelValues(instance.Namespace, instance.Name).Inc()
-					// Step 3 Rebalance the cluster using the empty masters
-					k8sutils.RebalanceRedisClusterEmptyMasters(ctx, r.K8sClient, instance)
+
+					return intctrlutil.RequeueAfter(ctx, 10*time.Second, "added node, waiting for cluster convergence before rebalancing")
 				}
 			}
 		} else {
+			stable, err := k8sutils.ClusterStableNoOpenSlots(ctx, r.K8sClient, instance)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			if !stable {
+				return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+			}
+
+			empty, err := k8sutils.ClusterHasEmptyMasters(ctx, r.K8sClient, instance)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			if empty {
+				k8sutils.RebalanceRedisClusterEmptyMasters(ctx, r.K8sClient, instance)
+			}
+
 			if followerReplicas > 0 {
 				logger.Info("All leader are part of the cluster, adding follower/replicas", "Leaders.Count", leaderCount, "Instance.Size", leaderReplicas, "Follower.Replicas", followerReplicas)
 				k8sutils.ExecuteRedisReplicationCommand(ctx, r.K8sClient, instance)
@@ -254,7 +299,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		logger.Error(err, "failed to determine unhealthy node count in cluster")
 	}
 	if int(totalReplicas) > 1 && unhealthyNodeCount > 0 {
-		err = r.updateStatus(ctx, instance, rcvb2.RedisClusterStatus{
+		requeue, err := r.updateStatus(ctx, instance, rcvb2.RedisClusterStatus{
 			State:                 rcvb2.RedisClusterFailed,
 			Reason:                "RedisCluster has unhealthy nodes",
 			ReadyLeaderReplicas:   leaderReplicas,
@@ -262,6 +307,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		})
 		if err != nil {
 			return intctrlutil.RequeueE(ctx, err, "")
+		}
+		if requeue {
+			return intctrlutil.Requeue()
 		}
 
 		logger.Info("healthy leader count does not match desired; attempting to repair disconnected masters")
@@ -300,7 +348,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// Mark the cluster status as ready if all the leader and follower nodes are ready
-	if instance.Status.ReadyLeaderReplicas == leaderReplicas && instance.Status.ReadyFollowerReplicas == followerReplicas {
+	// and the cluster is not already in Ready state (to avoid unnecessary status updates)
+	if instance.Status.ReadyLeaderReplicas == leaderReplicas && instance.Status.ReadyFollowerReplicas == followerReplicas && instance.Status.State != rcvb2.RedisClusterReady {
 		monitoring.RedisClusterHealthy.WithLabelValues(instance.Namespace, instance.Name).Set(0)
 		if k8sutils.RedisClusterStatusHealth(ctx, r.K8sClient, instance) {
 			monitoring.RedisClusterHealthy.WithLabelValues(instance.Namespace, instance.Name).Set(1)
@@ -310,7 +359,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				return intctrlutil.RequeueE(ctx, err, "failed to set dynamic config")
 			}
 
-			err = r.updateStatus(ctx, instance, rcvb2.RedisClusterStatus{
+			requeue, err := r.updateStatus(ctx, instance, rcvb2.RedisClusterStatus{
 				State:                 rcvb2.RedisClusterReady,
 				Reason:                rcvb2.ReadyClusterReason,
 				ReadyLeaderReplicas:   leaderReplicas,
@@ -318,6 +367,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			})
 			if err != nil {
 				return intctrlutil.RequeueE(ctx, err, "")
+			}
+			if requeue {
+				return intctrlutil.Requeue()
 			}
 		}
 	}
@@ -332,14 +384,29 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	return intctrlutil.RequeueAfter(ctx, time.Second*10, "")
 }
 
-func (r *Reconciler) updateStatus(ctx context.Context, rc *rcvb2.RedisCluster, status rcvb2.RedisClusterStatus) error {
+func (r *Reconciler) updateStatus(ctx context.Context, rc *rcvb2.RedisCluster, status rcvb2.RedisClusterStatus) (requeue bool, err error) {
 	if reflect.DeepEqual(rc.Status, status) {
-		return nil
+		return false, nil
 	}
 	copy := rc.DeepCopy()
 	copy.Spec = rcvb2.RedisClusterSpec{}
 	copy.Status = status
-	return common.UpdateStatus(ctx, r.Client, copy)
+	err = common.UpdateStatus(ctx, r.Client, copy)
+	if err != nil && apierrors.IsConflict(err) {
+		log.FromContext(ctx).Info("conflict detected, reloading instance and retrying status update")
+		namespacedName := client.ObjectKey{
+			Namespace: rc.Namespace,
+			Name:      rc.Name,
+		}
+		if err := r.Get(ctx, namespacedName, rc); err != nil {
+			return true, err
+		}
+		copy = rc.DeepCopy()
+		copy.Spec = rcvb2.RedisClusterSpec{}
+		copy.Status = status
+		return true, common.UpdateStatus(ctx, r.Client, copy)
+	}
+	return false, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

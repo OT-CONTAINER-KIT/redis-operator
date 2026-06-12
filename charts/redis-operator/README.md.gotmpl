@@ -43,11 +43,13 @@ Replace `<YourCertSecretName>` and `<YourPrivateKey>` with your specific values.
 helm install <redis-operator> ot-helm/redis-operator --version=0.15.5 --appVersion=0.15.1 --set certificate.secretName=<YourCertSecretName> --set certmanager.enabled=true --set redisOperator.webhook=true --namespace <redis-operator> --create-namespace
 ```
 
-> Note: If `certificate.secretName` is not provided, the operator will generate a self-signed certificate and use it for webhook server.
+> Note: When webhooks are enabled (`webhook=true`), certificate handling is automatic:
+> - If `certmanager.enabled=true`: cert-manager creates and manages the webhook certificate
+> - If `certmanager.enabled=false`: Helm automatically generates a self-signed certificate
 ---
-> Note : If you want to disable the webhook you have to pass the `--set webhook=false` and `--set certmanager.enabled=false`  while installing the redis-operator.
+> Note: If you want to disable the webhook you have to pass the `--set webhook=false` while installing the redis-operator.
 ---
-> Note: If you want to use an existing `ClusterIssuer` to sign the webhook certificate, you can pass `--set issuer.create=false`, `--set issuer.kind=ClusterIssuer` and `--set issuer.name=cluster-issuer-name-here` while installing the operator.
+> Note: If you want to use an existing `ClusterIssuer` to sign the webhook certificate, you can pass `--set certmanager.enabled=true`, `--set issuer.create=false`, `--set issuer.kind=ClusterIssuer` and `--set issuer.name=cluster-issuer-name-here` while installing the operator.
 
 ### 4. Patch the CA Bundle (if using cert-manager)
 
@@ -74,13 +76,15 @@ kubectl get crd redisreplications.redis.redis.opstreelabs.in -o=jsonpath='{.meta
 kubectl get crd redissentinels.redis.redis.opstreelabs.in -o=jsonpath='{.metadata.annotations}'
 ```
 
-### How to generate private key( Optional )
+### How to generate private key (Optional)
+
+> Note: This section is only needed if you want to use your own pre-existing certificate instead of the auto-generated one.
 
 ```bash
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout tls.key -out tls.crt
 kubectl create secret tls <webhook-server-cert> --key tls.key --cert tls.crt -n <redis-operator>
 ```
 
-> Note: This secret will be used for webhook server certificate so generate it before installing the redis-operator.
+> Note: If you create the secret before installing the operator, the Helm chart will use the existing secret instead of generating a new one.
 
 {{ template "chart.valuesSection" . }}

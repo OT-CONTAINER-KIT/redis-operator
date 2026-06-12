@@ -25,7 +25,7 @@ COPY internal/ internal/
 COPY mocks/ mocks/
 
 # Build
-ARG LDFLAGS="-s -w -X github.com/OT-CONTAINER-KIT/redis-operator/internal/image.operatorImage=${IMG}"
+ARG LDFLAGS="-s -w"
 ENV GOOS=$TARGETOS
 ENV GOARCH=$TARGETARCH
 ENV CGO_ENABLED=0

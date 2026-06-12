@@ -58,6 +58,7 @@ jobs:
             config
             client
             config
+            chart
             data
             test
             utils
@@ -68,6 +69,7 @@ jobs:
             replication
             sentinel
             cluster
+            metrics
           ignoreLabels: |
             bot
             ignore-semantic-pull-request

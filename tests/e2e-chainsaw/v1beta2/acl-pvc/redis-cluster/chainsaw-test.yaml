@@ -1,0 +1,161 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: acl-pvc-redis-cluster
+spec:
+  steps:
+    # Step 1: Create PVC for ACL storage
+    - name: Create ACL PVC
+      try:
+        - apply:
+            file: acl-pvc.yaml
+
+    # Step 2: Populate PVC with ACL file using init job
+    - name: Populate ACL file in PVC
+      try:
+        - apply:
+            file: acl-init-job.yaml
+        - assert:
+            resource:
+              apiVersion: batch/v1
+              kind: Job
+              metadata:
+                name: acl-init-job
+              status:
+                succeeded: 1
+
+    # Step 3: Deploy Redis Cluster with ACL from PVC
+    - name: Deploy Redis Cluster with ACL PVC
+      try:
+        - apply:
+            file: cluster.yaml
+        - assert:
+            file: ready-cluster.yaml
+
+    # Step 4: Test ACL authentication with user from PVC
+    - name: Test ACL user authentication
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container redis-cluster-acl-pvc-leader redis-cluster-acl-pvc-leader-0 --
+              redis-cli -c -p 6379 --user pvcuser --pass pvc@secure123 ping 2>&1
+            check:
+              (contains($stdout, 'PONG')): true
+
+    # Step 5: Test write operation with ACL user
+    - name: Test write operation with ACL user
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container redis-cluster-acl-pvc-leader redis-cluster-acl-pvc-leader-0 --
+              redis-cli -c -p 6379 --user pvcuser --pass pvc@secure123 set test-key-pvc "ACL from PVC works" 2>&1
+            check:
+              (contains($stdout, 'OK')): true
+
+    # Step 6: Test read operation with ACL user
+    - name: Test read operation with ACL user
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container redis-cluster-acl-pvc-leader redis-cluster-acl-pvc-leader-0 --
+              redis-cli -c -p 6379 --user pvcuser --pass pvc@secure123 get test-key-pvc 2>&1
+            check:
+              (contains($stdout, 'ACL from PVC works')): true
+
+    # Step 7: Test ACL permissions - readonly user should fail on write
+    - name: Test readonly user cannot write
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container redis-cluster-acl-pvc-leader redis-cluster-acl-pvc-leader-0 --
+              redis-cli -c -p 6379 --user readonly --pass readonly@123 set forbidden-key value 2>&1 || true
+            check:
+              (contains($stdout, 'NOPERM') || contains($stderr, 'NOPERM')): true
+
+    # Step 8: Test readonly user can read
+    - name: Test readonly user can read
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container redis-cluster-acl-pvc-leader redis-cluster-acl-pvc-leader-0 --
+              redis-cli -c -p 6379 --user readonly --pass readonly@123 get test-key-pvc 2>&1
+            check:
+              (contains($stdout, 'ACL from PVC works')): true
+
+    # Step 9: Verify ACL file is mounted correctly
+    - name: Verify ACL file exists in container
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container redis-cluster-acl-pvc-leader redis-cluster-acl-pvc-leader-0 --
+              cat /data/redis/user.acl 2>&1
+            check:
+              (contains($stdout, 'user pvcuser')): true
+              (contains($stdout, 'user readonly')): true
+
+    # Step 10: Test ACL LIST command
+    - name: Verify ACL users loaded
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container redis-cluster-acl-pvc-leader redis-cluster-acl-pvc-leader-0 --
+              redis-cli -c -p 6379 --user pvcuser --pass pvc@secure123 ACL LIST 2>&1
+            check:
+              (contains($stdout, 'pvcuser')): true
+              (contains($stdout, 'readonly')): true
+
+    # Step 11: Test ACL SAVE persists to PVC
+    - name: Verify ACL SAVE writes to PVC
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container redis-cluster-acl-pvc-leader redis-cluster-acl-pvc-leader-0 --
+              redis-cli -c -p 6379 --user admin --pass admin@secure456 ACL SETUSER saveduser on ~* &* +@all >saved@secure789 2>&1
+            check:
+              (contains($stdout, 'OK')): true
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container redis-cluster-acl-pvc-leader redis-cluster-acl-pvc-leader-0 --
+              redis-cli -c -p 6379 --user admin --pass admin@secure456 ACL SAVE 2>&1
+            check:
+              (contains($stdout, 'OK')): true
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container redis-cluster-acl-pvc-leader redis-cluster-acl-pvc-leader-0 --
+              cat /data/redis/user.acl 2>&1
+            check:
+              (contains($stdout, 'user saveduser')): true
+
+    # Step 12: Test cluster operations with ACL
+    - name: Test cluster info with ACL user
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container redis-cluster-acl-pvc-leader redis-cluster-acl-pvc-leader-0 --
+              redis-cli -c -p 6379 --user pvcuser --pass pvc@secure123 cluster info 2>&1
+            check:
+              (contains($stdout, 'cluster_state:ok')): true
+
+    # Step 13: Verify PVC data persistence
+    - name: Verify ACL PVC volume mount
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container redis-cluster-acl-pvc-leader redis-cluster-acl-pvc-leader-0 --
+              cat /proc/mounts | grep '/data/redis' 2>&1
+            check:
+              (contains($stdout, '/data/redis')): true

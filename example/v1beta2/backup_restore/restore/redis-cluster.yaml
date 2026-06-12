@@ -11,7 +11,7 @@ spec:
     runAsUser: 1000
     fsGroup: 1000
   kubernetesConfig:
-    image: quay.io/opstree/redis:v7.0.12
+    image: quay.io/opstree/redis:latest
     imagePullPolicy: IfNotPresent
     resources:
       requests:
@@ -20,11 +20,11 @@ spec:
       limits:
         cpu: 101m
         memory: 128Mi
-        # redisSecret:
-        #   name: redis-secret
-        #   key: password
-        # imagePullSecrets:
-        #   - name: regcred
+    # redisSecret:
+    #   name: redis-secret
+    #   key: password
+    # imagePullSecrets:
+    #   - name: regcred
   initContainer:
     enabled: true
     image: quay.io/opstree/redis-operator-restore:latest

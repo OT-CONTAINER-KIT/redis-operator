@@ -7,6 +7,8 @@ description: >
   Instructions for installation of Redis Operator.
 ---
 
+If you want to see more examples, please go through the [example](https://github.com/OT-CONTAINER-KIT/redis-operator/tree/main/example/v1beta2) folder.
+
 Redis Operator is developed as CRD(Custom Resource Definition) to deploy and manage Redis in standalone/cluster mode. So CRD is an amazing feature of Kubernetes which allows us to create our own resources and APIs in Kubernetes. For further information about CRD, please go through the [official documentation](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/).
 
 There are four different Objects available under `redis.redis.opstreelabs.in/v1beta2`:
@@ -28,7 +30,7 @@ The easiest way to install a redis operator is using Helm chart. The operator he
 
 ```shell
 $ helm repo add ot-helm https://ot-container-kit.github.io/helm-charts/
-$ helm install redis-operator ot-helm/redis-operator --namespace ot-operators
+$ helm install redis-operator ot-helm/redis-operator --namespace ot-operators --set featureGates.GenerateConfigInInitContainer=true
 ...
 Release "redis-operator" does not exist. Installing it now.
 NAME:          redis-operator

@@ -167,7 +167,7 @@ func Test_generateRedisSentinelContainerParams(t *testing.T) {
 		SecretName:      ptr.To("redis-secret"),
 		SecretKey:       ptr.To("password"),
 		TLSConfig: &common.TLSConfig{
-			CaKeyFile:   "ca.key",
+			CaCertFile:  "ca.crt",
 			CertKeyFile: "tls.crt",
 			KeyFile:     "tls.key",
 			Secret: corev1.SecretVolumeSource{
@@ -335,15 +335,17 @@ func Test_getSentinelEnvVariable(t *testing.T) {
 					Spec: rsvb2.RedisSentinelSpec{
 						RedisSentinelConfig: &rsvb2.RedisSentinelConfig{
 							RedisSentinelConfig: common.RedisSentinelConfig{
-								RedisReplicationName:  "redis-replication",
-								MasterGroupName:       "master",
-								RedisPort:             "6379",
-								Quorum:                "2",
-								DownAfterMilliseconds: "30000",
-								ParallelSyncs:         "1",
-								FailoverTimeout:       "180000",
-								ResolveHostnames:      "no",
-								AnnounceHostnames:     "no",
+								RedisReplicationName: "redis-replication",
+								MasterGroupName:      "master",
+								RedisPort:            "6379",
+								SentinelConfig: common.SentinelConfig{
+									Quorum:                "2",
+									DownAfterMilliseconds: "30000",
+									ParallelSyncs:         "1",
+									FailoverTimeout:       "180000",
+									ResolveHostnames:      "no",
+									AnnounceHostnames:     "no",
+								},
 							},
 						},
 					},

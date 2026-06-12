@@ -84,6 +84,17 @@ func (r *RedisCluster) validate(_ *RedisCluster) (admission.Warnings, error) {
 		))
 	}
 
+	// Validate ACL configuration
+	if r.Spec.ACL != nil {
+		if err := r.Spec.ACL.Validate(); err != nil {
+			errors = append(errors, field.Invalid(
+				field.NewPath("spec").Child("acl"),
+				r.Spec.ACL,
+				err.Error(),
+			))
+		}
+	}
+
 	if len(errors) == 0 {
 		return nil, nil
 	}

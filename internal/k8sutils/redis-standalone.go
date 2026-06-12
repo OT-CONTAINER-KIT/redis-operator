@@ -68,6 +68,15 @@ func CreateStandaloneService(ctx context.Context, cr *rvb2.Redis, cl kubernetes.
 			return err
 		}
 	}
+	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
+		exporterPort := *util.Coalesce(cr.Spec.RedisExporter.Port, ptr.To(common.RedisExporterPort))
+		selectorLabels := getRedisStableLabels(cr.Name, string(standalone), "standalone")
+		err = CreateOrUpdateMetricsService(ctx, cr.Namespace, cr.Name+"-metrics", selectorLabels, redisAsOwner(cr), exporterPort, cl)
+		if err != nil {
+			log.FromContext(ctx).Error(err, "Cannot create metrics service for Redis")
+			return err
+		}
+	}
 	return nil
 }
 
@@ -188,7 +197,7 @@ func generateRedisStandaloneContainerParams(cr *rvb2.Redis) containerParameters 
 	if cr.Spec.LivenessProbe != nil {
 		containerProp.LivenessProbe = cr.Spec.LivenessProbe
 	}
-	if cr.Spec.Storage != nil {
+	if storageHasVolumeClaimTemplate(cr.Spec.Storage) {
 		containerProp.PersistenceEnabled = &trueProperty
 	}
 	if cr.Spec.TLS != nil {
@@ -224,7 +233,7 @@ func generateRedisStandaloneInitContainerParams(cr *rvb2.Redis) initContainerPar
 			initcontainerProp.AdditionalVolume = cr.Spec.Storage.VolumeMount.Volume
 			initcontainerProp.AdditionalMountPath = cr.Spec.Storage.VolumeMount.MountPath
 		}
-		if cr.Spec.Storage != nil {
+		if storageHasVolumeClaimTemplate(cr.Spec.Storage) {
 			initcontainerProp.PersistenceEnabled = &trueProperty
 		}
 	}

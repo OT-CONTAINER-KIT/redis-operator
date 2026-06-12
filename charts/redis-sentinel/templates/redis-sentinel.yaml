@@ -5,6 +5,7 @@ metadata:
   name: {{ .Values.redisSentinel.name | default .Release.Name }}
   labels: {{- include "common.labels" . | nindent 4 }}
   annotations:
+    {{- include "common.annotations" . | nindent 4 }}
     {{ if .Values.redisSentinel.recreateStatefulSetOnUpdateInvalid }}
     redis.opstreelabs.in/recreate-statefulset: "true"
     {{ end }}
@@ -37,6 +38,10 @@ spec:
     {{- if .Values.redisSentinel.imagePullSecrets }}
     imagePullSecrets: {{ toYaml .Values.redisSentinel.imagePullSecrets | nindent 4 }}
     {{- end }}
+    {{- if .Values.redisSentinel.serviceType }}
+    service:
+      serviceType: {{ include "common.validateServiceType" (dict "serviceType" .Values.redisSentinel.serviceType "name" (.Values.redisSentinel.name | default .Release.Name)) }}
+    {{- end }}
     {{- if .Values.redisSentinel.resources}}
     resources: {{ toYaml .Values.redisSentinel.resources | nindent 6 }}
     {{- end }}
@@ -50,6 +55,9 @@ spec:
     {{- end }}
     {{- if .Values.redisSentinel.minReadySeconds }}
     minReadySeconds: {{ .Values.redisSentinel.minReadySeconds }}
+    {{- end }}
+    {{- if .Values.redisSentinel.persistentVolumeClaimRetentionPolicy }}
+    persistentVolumeClaimRetentionPolicy: {{ toYaml .Values.redisSentinel.persistentVolumeClaimRetentionPolicy | nindent 6 }}
     {{- end }}
 
   redisExporter:
@@ -84,6 +92,9 @@ spec:
   {{- if .Values.tolerations }}
   tolerations: {{ toYaml .Values.tolerations | nindent 4 }}
   {{- end }}
+  {{- if .Values.topologySpreadConstraints }}
+  topologySpreadConstraints: {{ toYaml .Values.topologySpreadConstraints | nindent 4 }}
+  {{- end }}
   {{- if and .Values.TLS.ca .Values.TLS.cert .Values.TLS.key .Values.TLS.secret.secretName }}
   TLS:
     ca: {{ .Values.TLS.ca | quote }}
@@ -109,8 +120,8 @@ spec:
   {{- if and .Values.initContainer .Values.initContainer.enabled (ne .Values.initContainer.image "") }}
   initContainer: {{ include "initContainer.properties" . | nindent 4 }}
   {{- end }}
-  {{- if and .Values.sidecars (ne .Values.sidecars.name "") (ne .Values.sidecars.image "") }}
-  sidecars: {{ include "sidecar.properties" . | nindent 4 }}
+  {{- if .Values.sidecars }}
+  sidecars: {{ toYaml .Values.sidecars | nindent 4 }}
   {{- end }}
   {{- if and .Values.serviceAccountName (ne .Values.serviceAccountName "") }}
   serviceAccountName: "{{ .Values.serviceAccountName }}"

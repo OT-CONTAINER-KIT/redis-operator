@@ -30,9 +30,22 @@ type RedisReplicationSpec struct {
 	EnvVars                       *[]corev1.EnvVar                  `json:"env,omitempty"`
 	TopologySpreadConstrains      []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
 	HostPort                      *int                              `json:"hostPort,omitempty"`
+	Sentinel                      *Sentinel                         `json:"sentinel,omitempty"`
+	// PodManagementPolicy controls how pods are created during initial scale up,
+	// when replacing pods on nodes, or when scaling down. This field is immutable
+	// on an existing StatefulSet; changing it for a running cluster requires
+	// recreating the StatefulSet (e.g. via the
+	// redis.opstreelabs.in/recreate-statefulset annotation), otherwise the change
+	// is ignored.
 	// +optional
 	// +kubebuilder:validation:Enum=OrderedReady;Parallel
 	PodManagementPolicy *string `json:"podManagementPolicy,omitempty"`
+}
+
+type Sentinel struct {
+	common.KubernetesConfig `json:",inline"`
+	common.SentinelConfig   `json:",inline"`
+	Size                    int32 `json:"size"`
 }
 
 func (cr *RedisReplicationSpec) GetReplicationCounts(t string) int32 {
@@ -40,9 +53,23 @@ func (cr *RedisReplicationSpec) GetReplicationCounts(t string) int32 {
 	return *replica
 }
 
+// ConnectionInfo provides connection details for clients to connect to Redis
+type ConnectionInfo struct {
+	// Host is the service FQDN
+	Host string `json:"host,omitempty"`
+	// Port is the service port
+	Port int `json:"port,omitempty"`
+	// MasterName is the Sentinel master group name, only set when Sentinel mode is enabled
+	// +optional
+	MasterName string `json:"masterName,omitempty"`
+}
+
 // RedisStatus defines the observed state of Redis
 type RedisReplicationStatus struct {
 	MasterNode string `json:"masterNode,omitempty"`
+	// ConnectionInfo provides connection details for clients to connect to Redis
+	// +optional
+	ConnectionInfo *ConnectionInfo `json:"connectionInfo,omitempty"`
 }
 
 // +kubebuilder:object:root=true

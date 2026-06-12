@@ -1,0 +1,60 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: redis-acl-init
+  labels:
+    app: redis-acl-init
+spec:
+  template:
+    metadata:
+      labels:
+        app: redis-acl-init
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: acl-writer
+          image: busybox:latest
+          command:
+            - sh
+            - -c
+            - |
+              echo "Creating ACL file in PVC..."
+
+              # Create the user.acl file with sample users
+              cat > /acl/user.acl << 'EOF'
+              # Default user - full access without password (development only!)
+              user default on nopass ~* &* +@all
+
+              # Admin user - full access with password
+              user admin on >changeme123 ~* &* +@all
+
+              # Read-only user - read operations only
+              user readonly on >readonly123 ~* &* +@read
+
+              # Write-only user - write operations only
+              user writeonly on >writeonly123 ~* &* +@write
+
+              # Limited user - specific commands and key patterns
+              user limited on >limited123 ~keys:* &* +get +set +del
+              EOF
+
+              echo "ACL file created successfully!"
+              echo ""
+              echo "Contents:"
+              cat /acl/user.acl
+              echo ""
+              echo "File permissions:"
+              ls -la /acl/user.acl
+              echo ""
+              echo "ACL file is ready. You can now deploy Redis resources."
+          volumeMounts:
+            - name: acl-volume
+              mountPath: /acl
+      volumes:
+        - name: acl-volume
+          persistentVolumeClaim:
+            claimName: redis-acl-pvc

@@ -13,22 +13,26 @@ import (
 )
 
 // go run main.go gen-resource-yaml
-// go run main.go gen-redis-data --host redis-cluster-0.redis-cluster.default.svc.cluster.local --password 123456 --mode cluster/sentinel --password-sentinel Opstree@1234sentinel
-// go run main.go chk-redis-data --host redis-cluster-0.redis-cluster.default.svc.cluster.local --password 123456 --mode cluster/sentinel --password-sentinel Opstree@1234sentinel
+// go run main.go gen-redis-data --host redis-cluster-0.redis-cluster.default.svc.cluster.local --password 123456 --mode cluster
+// go run main.go gen-redis-data --host sentinel-0.sentinel.default.svc.cluster.local --password 123456 --mode sentinel --password-sentinel Opstree@1234sentinel --master-name mymaster
+// go run main.go chk-redis-data --host redis-cluster-0.redis-cluster.default.svc.cluster.local --password 123456 --mode cluster
+// go run main.go chk-redis-data --host sentinel-0.sentinel.default.svc.cluster.local --password 123456 --mode sentinel --password-sentinel Opstree@1234sentinel --master-name mymaster
 
 const (
 	hostFlag         = "host"
 	passFlag         = "password"
 	sentinelPassFlag = "password-sentinel"
 	modeFlag         = "mode"
+	masterNameFlag   = "master-name"
 	totalKey         = 1000
 )
 
 var (
-	host    string
-	pass    string
-	mode    string
-	tlsFlag bool
+	host       string
+	pass       string
+	mode       string
+	tlsFlag    bool
+	masterName string
 
 	sentinelPass string
 )
@@ -56,6 +60,7 @@ func main() {
 	rootCmd.PersistentFlags().StringVarP(&mode, modeFlag, "M", "", "redis mode")
 	rootCmd.PersistentFlags().BoolVarP(&tlsFlag, "tls", "T", false, "enable tls")
 	rootCmd.PersistentFlags().StringVarP(&sentinelPass, sentinelPassFlag, "S", "", "redis sentinel password")
+	rootCmd.PersistentFlags().StringVar(&masterName, masterNameFlag, "myMaster", "redis sentinel master name")
 	rootCmd.Execute()
 }
 
@@ -77,7 +82,7 @@ func genRedisDataCmd(cmd *cobra.Command, args []string) {
 		hosts[i] = strings.TrimSpace(hosts[i])
 	}
 
-	rdb, err := createRedisClient(mode, hosts, pass, sentinelPass, tlsFlag)
+	rdb, err := createRedisClient(mode, hosts, pass, sentinelPass, masterName, tlsFlag)
 	if err != nil {
 		fmt.Printf("failed to create redis client: %v\n", err)
 		return
@@ -85,7 +90,7 @@ func genRedisDataCmd(cmd *cobra.Command, args []string) {
 	defer rdb.Close()
 
 	// Generate and write data
-	for i := 0; i < totalKey; i++ {
+	for i := range totalKey {
 		key := fmt.Sprintf("key-%d", i)
 		value := fmt.Sprintf("value-%d", i)
 		err := rdb.Set(ctx, key, value, 0).Err()
@@ -128,7 +133,7 @@ func checkRedisData() error {
 		hosts[i] = strings.TrimSpace(hosts[i])
 	}
 
-	rdb, err := createRedisClient(mode, hosts, pass, sentinelPass, tlsFlag)
+	rdb, err := createRedisClient(mode, hosts, pass, sentinelPass, masterName, tlsFlag)
 	if err != nil {
 		return fmt.Errorf("failed to create redis client: %w", err)
 	}
@@ -136,7 +141,7 @@ func checkRedisData() error {
 
 	// Count existing keys
 	actualCount := 0
-	for i := 0; i < totalKey; i++ {
+	for i := range totalKey {
 		key := fmt.Sprintf("key-%d", i)
 		exists, err := rdb.Exists(ctx, key).Result()
 		if err != nil {
@@ -156,7 +161,7 @@ func checkRedisData() error {
 	return nil
 }
 
-func createRedisClient(mode string, hosts []string, pass string, sentinelPass string, tlsFlag bool) (redis.UniversalClient, error) {
+func createRedisClient(mode string, hosts []string, pass string, sentinelPass string, masterName string, tlsFlag bool) (redis.UniversalClient, error) {
 	switch mode {
 	case "cluster":
 		opts := &redis.ClusterOptions{
@@ -169,7 +174,7 @@ func createRedisClient(mode string, hosts []string, pass string, sentinelPass st
 		return redis.NewClusterClient(opts), nil
 	case "sentinel":
 		opts := &redis.FailoverOptions{
-			MasterName:       "myMaster",
+			MasterName:       masterName,
 			SentinelAddrs:    hosts,
 			Password:         pass,
 			SentinelPassword: sentinelPass,

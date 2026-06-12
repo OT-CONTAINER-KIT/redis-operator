@@ -11,9 +11,8 @@ import (
 	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/consts"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
-	internalenv "github.com/OT-CONTAINER-KIT/redis-operator/internal/env"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/envs"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/features"
-	"github.com/OT-CONTAINER-KIT/redis-operator/internal/image"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/pkg/errors"
@@ -22,7 +21,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/utils/env"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -215,6 +213,16 @@ func patchStatefulSet(ctx context.Context, storedStateful, newStateful *appsv1.S
 		}
 	}
 
+	// Since PodManagementPolicy is immutable, revert to the stored value if we
+	// are not recreating the StatefulSet, otherwise the API server would reject
+	// the update.
+	if !recreateStatefulSet && newStateful.Spec.PodManagementPolicy != storedStateful.Spec.PodManagementPolicy {
+		if newStateful.Spec.PodManagementPolicy != "" {
+			log.FromContext(ctx).V(1).Info("PodManagementPolicy change is being ignored because the field is immutable. Consider enabling recreating the statefulset option.")
+		}
+		newStateful.Spec.PodManagementPolicy = storedStateful.Spec.PodManagementPolicy
+	}
+
 	// Calculate the patch between the stored and new objects, ignoring immutable or unnecessary fields.
 	patchResult, err := patch.DefaultPatchMaker.Calculate(storedStateful, newStateful,
 		patch.IgnoreStatusFields(),
@@ -251,6 +259,17 @@ func syncManagedFields(stored, new *appsv1.StatefulSet) {
 	new.ResourceVersion = stored.ResourceVersion
 	new.CreationTimestamp = stored.CreationTimestamp
 	new.ManagedFields = stored.ManagedFields
+}
+
+// storageHasVolumeClaimTemplate checks if the Storage has a meaningful VolumeClaimTemplate defined
+// (i.e., not just the zero value). This distinguishes between storage configured with only
+// volumeMount (e.g. emptyDir) vs. storage that actually requests a PersistentVolumeClaim.
+func storageHasVolumeClaimTemplate(storage *commonapi.Storage) bool {
+	if storage == nil {
+		return false
+	}
+	vct := storage.VolumeClaimTemplate
+	return len(vct.Spec.AccessModes) > 0 || vct.Spec.Resources.Requests != nil || vct.Spec.StorageClassName != nil || vct.Spec.VolumeName != ""
 }
 
 // hasVolumeClaimTemplates checks if the StatefulSet has VolumeClaimTemplates and if their counts match.
@@ -331,7 +350,7 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, createPVCTemplate("node-conf", stsMeta, params.NodeConfPersistentVolumeClaim))
 	}
 	if containerParams.PersistenceEnabled != nil && *containerParams.PersistenceEnabled {
-		pvcTplName := env.GetString(common.EnvOperatorSTSPVCTemplateName, stsMeta.GetName())
+		pvcTplName := util.CoalesceEnv1(common.EnvOperatorSTSPVCTemplateName, stsMeta.GetName())
 		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, createPVCTemplate(pvcTplName, stsMeta, params.PersistentVolumeClaim))
 	}
 	if params.ExternalConfig != nil {
@@ -351,14 +370,26 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 			})
 	}
 
-	if containerParams.ACLConfig != nil && containerParams.ACLConfig.Secret != nil {
-		statefulset.Spec.Template.Spec.Volumes = append(statefulset.Spec.Template.Spec.Volumes,
-			corev1.Volume{
-				Name: "acl-secret",
-				VolumeSource: corev1.VolumeSource{
-					Secret: containerParams.ACLConfig.Secret,
-				},
-			})
+	if containerParams.ACLConfig != nil {
+		if containerParams.ACLConfig.Secret != nil {
+			statefulset.Spec.Template.Spec.Volumes = append(statefulset.Spec.Template.Spec.Volumes,
+				corev1.Volume{
+					Name: "acl-secret",
+					VolumeSource: corev1.VolumeSource{
+						Secret: containerParams.ACLConfig.Secret,
+					},
+				})
+		} else if containerParams.ACLConfig.PersistentVolumeClaim != nil {
+			statefulset.Spec.Template.Spec.Volumes = append(statefulset.Spec.Template.Spec.Volumes,
+				corev1.Volume{
+					Name: "acl-pvc",
+					VolumeSource: corev1.VolumeSource{
+						PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: *containerParams.ACLConfig.PersistentVolumeClaim,
+						},
+					},
+				})
+		}
 	}
 
 	if params.ServiceAccountName != nil {
@@ -446,6 +477,8 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 				containerParams.EnvVars,
 				containerParams.Port,
 				clusterVersion,
+				containerParams.Resources,
+				containerParams.MaxMemoryPercentOfLimit,
 			),
 			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe, sentinelCntr, enableTLS, enableAuth),
 			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe, sentinelCntr, enableTLS, enableAuth),
@@ -461,6 +494,16 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 			containerDefinition[0].Command = []string{"redis-server"}
 			containerDefinition[0].Args = []string{"/etc/redis/redis.conf"}
 		}
+	}
+
+	// Mount the config emptyDir volume for sentinel containers so that
+	// sentinel.conf persists across container restarts. Without this,
+	// sentinel.conf lives on the overlay filesystem and is lost on restart,
+	// causing sentinel to lose all runtime-discovered master topology.
+	// The config volume is already created on all StatefulSets but only
+	// mounted when GenerateConfigInInitContainer is enabled.
+	if sentinelCntr && !features.Enabled(features.GenerateConfigInInitContainer) {
+		containerDefinition[0].VolumeMounts = append(containerDefinition[0].VolumeMounts, generateConfigVolumeMount(common.VolumeNameConfig))
 	}
 
 	if preStopCmd := GeneratePreStopCommand(containerParams.Role, enableAuth, enableTLS); preStopCmd != "" {
@@ -542,7 +585,7 @@ func GenerateAuthAndTLSArgs(enableAuth, enableTLS bool) (string, string) {
 		authArgs = " -a \"${REDIS_PASSWORD}\""
 	}
 	if enableTLS {
-		tlsArgs = " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\" --cacert \"${REDIS_TLS_CA_KEY}\""
+		tlsArgs = " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\" --cacert \"${REDIS_TLS_CA_CERT}\""
 	}
 	return authArgs, tlsArgs
 }
@@ -580,22 +623,11 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 	containers := []corev1.Container{}
 
 	if features.Enabled(features.GenerateConfigInInitContainer) {
-		image, _ := util.CoalesceEnv(internalenv.OperatorImageEnv, image.GetOperatorImage())
 		// give all container env vars to init container
 		envVars := append(
 			ptr.Deref(containerParams.EnvVars, []corev1.EnvVar{}),
 			ptr.Deref(containerParams.AdditionalEnvVariable, []corev1.EnvVar{})...,
 		)
-		if containerParams.Resources != nil && containerParams.MaxMemoryPercentOfLimit != nil {
-			memLimit := containerParams.Resources.Limits.Memory().Value()
-			if memLimit != 0 {
-				maxMem := int(float64(memLimit) * float64(*containerParams.MaxMemoryPercentOfLimit) / 100)
-				envVars = append(envVars, corev1.EnvVar{
-					Name:  consts.ENV_KEY_REDIS_MAX_MEMORY,
-					Value: fmt.Sprintf("%d", maxMem),
-				})
-			}
-		}
 
 		VolumeMounts := []corev1.VolumeMount{
 			generateConfigVolumeMount(common.VolumeNameConfig),
@@ -606,7 +638,7 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 
 		container := corev1.Container{
 			Name:            "init-config",
-			Image:           image,
+			Image:           envs.GetInitContainerImage(),
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         []string{"/operator", "agent"},
 			SecurityContext: initcontainerParams.SecurityContext,
@@ -621,6 +653,8 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 				&envVars,
 				containerParams.Port,
 				clusterVersion,
+				containerParams.Resources,
+				containerParams.MaxMemoryPercentOfLimit,
 			),
 			VolumeMounts: VolumeMounts,
 		}
@@ -661,8 +695,8 @@ func GenerateTLSEnvironmentVariables(tlsconfig *commonapi.TLSConfig) []corev1.En
 	tlsCert := "tls.crt"
 	tlsCertKey := "tls.key"
 
-	if tlsconfig.CaKeyFile != "" {
-		caCert = tlsconfig.CaKeyFile
+	if tlsconfig.CaCertFile != "" {
+		caCert = tlsconfig.CaCertFile
 	}
 	if tlsconfig.CertKeyFile != "" {
 		tlsCert = tlsconfig.CertKeyFile
@@ -676,7 +710,7 @@ func GenerateTLSEnvironmentVariables(tlsconfig *commonapi.TLSConfig) []corev1.En
 		Value: "true",
 	})
 	envVars = append(envVars, corev1.EnvVar{
-		Name:  "REDIS_TLS_CA_KEY",
+		Name:  "REDIS_TLS_CA_CERT",
 		Value: path.Join(root, caCert),
 	})
 	envVars = append(envVars, corev1.EnvVar{
@@ -788,7 +822,7 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nod
 
 	if persistenceEnabled != nil && *persistenceEnabled {
 		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
-			Name:      env.GetString(common.EnvOperatorSTSPVCTemplateName, name),
+			Name:      util.CoalesceEnv1(common.EnvOperatorSTSPVCTemplateName, name),
 			MountPath: "/data",
 		})
 	}
@@ -802,11 +836,18 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nod
 	}
 
 	if aclConfig != nil {
-		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
-			Name:      "acl-secret",
-			MountPath: "/etc/redis/user.acl",
-			SubPath:   "user.acl",
-		})
+		if aclConfig.PersistentVolumeClaim != nil {
+			VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
+				Name:      "acl-pvc",
+				MountPath: "/data/redis",
+			})
+		} else {
+			VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
+				Name:      "acl-secret",
+				MountPath: "/etc/redis/user.acl",
+				SubPath:   "user.acl",
+			})
+		}
 	}
 
 	if externalConfig != nil {
@@ -823,30 +864,38 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nod
 }
 
 // getProbeInfo generate probe for Redis StatefulSet
+// The `ping` command will exit successfully even if the node is loading,
+// so we need to verify that the Redis `ping` command returns "PONG".
 func getProbeInfo(probe *corev1.Probe, sentinel, enableTLS, enableAuth bool) *corev1.Probe {
 	if probe == nil {
 		probe = &corev1.Probe{}
 	}
 	if probe.Exec == nil && probe.HTTPGet == nil && probe.TCPSocket == nil && probe.GRPC == nil {
-		healthChecker := []string{
+		redisHealthCheck := []string{
 			"redis-cli",
 			"-h", "$(hostname)",
 		}
 		if sentinel {
-			healthChecker = append(healthChecker, "-p", "${SENTINEL_PORT}")
+			redisHealthCheck = append(redisHealthCheck, "-p", "${SENTINEL_PORT}")
 		} else {
-			healthChecker = append(healthChecker, "-p", "${REDIS_PORT}")
+			redisHealthCheck = append(redisHealthCheck, "-p", "${REDIS_PORT}")
 		}
 		if enableAuth {
-			healthChecker = append(healthChecker, "-a", "${REDIS_PASSWORD}")
+			redisHealthCheck = append(redisHealthCheck, "-a", "${REDIS_PASSWORD}")
 		}
 		if enableTLS {
-			healthChecker = append(healthChecker, "--tls", "--cert", "${REDIS_TLS_CERT}", "--key", "${REDIS_TLS_CERT_KEY}", "--cacert", "${REDIS_TLS_CA_KEY}")
+			redisHealthCheck = append(redisHealthCheck, "--tls", "--cert", "${REDIS_TLS_CERT}", "--key", "${REDIS_TLS_CERT_KEY}", "--cacert", "${REDIS_TLS_CA_CERT}")
 		}
-		healthChecker = append(healthChecker, "ping")
+		redisHealthCheck = append(redisHealthCheck, "ping")
+
+		redisHealthCheckSubshell := strings.Join(redisHealthCheck, " ")
+
+		healthCheckScript := "RESP=\"$(" + redisHealthCheckSubshell + ")\"\n" + "[ \"$RESP\" = \"PONG\" ]"
+
+		// `-e` causes the shell to exit immediately if a (nontested) command fails
 		probe.ProbeHandler = corev1.ProbeHandler{
 			Exec: &corev1.ExecAction{
-				Command: []string{"sh", "-c", strings.Join(healthChecker, " ")},
+				Command: []string{"sh", "-ec", healthCheckScript},
 			},
 		}
 	}
@@ -857,6 +906,7 @@ func getProbeInfo(probe *corev1.Probe, sentinel, enableTLS, enableAuth bool) *co
 func getEnvironmentVariables(role string, enabledPassword *bool, secretName *string,
 	secretKey *string, persistenceEnabled *bool, tlsConfig *commonapi.TLSConfig,
 	aclConfig *commonapi.ACLConfig, envVar *[]corev1.EnvVar, port *int, clusterVersion *string,
+	resources *corev1.ResourceRequirements, maxMemoryPercentOfLimit *int,
 ) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{Name: "SERVER_MODE", Value: role},
@@ -868,6 +918,16 @@ func getEnvironmentVariables(role string, enabledPassword *bool, secretName *str
 			Name:  "REDIS_MAJOR_VERSION",
 			Value: *clusterVersion,
 		})
+	}
+
+	if resources != nil && resources.Limits != nil && maxMemoryPercentOfLimit != nil && *maxMemoryPercentOfLimit > 0 {
+		if memLimit := resources.Limits.Memory().Value(); memLimit > 0 {
+			maxMem := int(float64(memLimit) * float64(*maxMemoryPercentOfLimit) / 100)
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  consts.ENV_KEY_REDIS_MAX_MEMORY,
+				Value: strconv.FormatInt(int64(maxMem), 10),
+			})
+		}
 	}
 
 	var redisHost string
@@ -895,6 +955,14 @@ func getEnvironmentVariables(role string, enabledPassword *bool, secretName *str
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  "ACL_MODE",
 			Value: "true",
+		})
+		aclFilePath := "/etc/redis/user.acl"
+		if aclConfig.PersistentVolumeClaim != nil {
+			aclFilePath = "/data/redis/user.acl"
+		}
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  "ACL_FILE_PATH",
+			Value: aclFilePath,
 		})
 	}
 

@@ -24,6 +24,9 @@ redisSentinel:
   # -- Some fields of statefulset are immutable, such as volumeClaimTemplates.
   # When set to true, the operator will delete the statefulset and recreate it. Default is false.
   recreateStatefulSetOnUpdateInvalid: false
+  persistentVolumeClaimRetentionPolicy: {}
+    # whenDeleted: Delete
+    # whenScaled: Retain
 
 # Overwite name for resources
 # name: ""
@@ -31,6 +34,10 @@ redisSentinel:
 labels: {}
 #   foo: bar
 #   test: echo
+
+annotations: {}
+#   annotation-key: "annotation-value"
+#   prometheus.io/scrape: "true"
 
 redisSentinelConfig:
   redisReplicationName: "redis-replication"
@@ -104,20 +111,24 @@ initContainer:
   command: []
   args: []
 
-sidecars:
-  name: ""
-  image: ""
-  imagePullPolicy: "IfNotPresent"
-  resources:
-    limits:
-      cpu: "100m"
-      memory: "128Mi"
-    requests:
-      cpu: "50m"
-      memory: "64Mi"
-  env: []
-    # - name: MY_ENV_VAR
-    #   value: "my-env-var-value"
+sidecars: []
+  # - name: "sidecar-example"
+  #   image: "busybox:latest"
+  #   imagePullPolicy: "IfNotPresent"
+  #   resources:
+  #     limits:
+  #       cpu: "100m"
+  #       memory: "128Mi"
+  #     requests:
+  #       cpu: "50m"
+  #       memory: "64Mi"
+  #   env: []
+  #   # - name: MY_ENV_VAR
+  #   #   value: "my-env-var-value"
+  #   command: []
+  #   # - "/bin/sh"
+  #   # - "-c"
+  #   # - "sleep 3600"
 
 priorityClassName: ""
 
@@ -146,10 +157,19 @@ tolerations: []
   #   value: "value"
   #   effect: "NoSchedule"
 
+topologySpreadConstraints: []
+  # - maxSkew: 1
+  #   topologyKey: kubernetes.io/hostname
+  #   whenUnsatisfiable: DoNotSchedule
+  #   labelSelector:
+  #     matchLabels:
+  #       role: sentinel
+  #       app: redis-sentinel
+
 serviceAccountName: ""
 
 TLS:
-  ca: ca.key
+  ca: ca.crt
   cert: tls.crt
   key: tls.key
   secret:

@@ -265,7 +265,7 @@ func Test_generateRedisClusterContainerParams(t *testing.T) {
 		SecretKey:          ptr.To("password"),
 		PersistenceEnabled: ptr.To(true),
 		TLSConfig: &common.TLSConfig{
-			CaKeyFile:   "ca.key",
+			CaCertFile:  "ca.crt",
 			CertKeyFile: "tls.crt",
 			KeyFile:     "tls.key",
 			Secret: corev1.SecretVolumeSource{
@@ -376,7 +376,7 @@ func Test_generateRedisClusterContainerParams(t *testing.T) {
 		SecretKey:          ptr.To("password"),
 		PersistenceEnabled: ptr.To(true),
 		TLSConfig: &common.TLSConfig{
-			CaKeyFile:   "ca.key",
+			CaCertFile:  "ca.crt",
 			CertKeyFile: "tls.crt",
 			KeyFile:     "tls.key",
 			Secret: corev1.SecretVolumeSource{
@@ -523,4 +523,25 @@ func Test_generateRedisClusterInitContainerParams(t *testing.T) {
 
 	actual := generateRedisClusterInitContainerParams(input)
 	assert.EqualValues(t, expected, actual, "Expected %+v, got %+v", expected, actual)
+}
+
+func Test_generateRedisClusterInitContainerParams_PersistenceDisabled(t *testing.T) {
+	enabled := true
+	persistenceEnabled := false
+
+	input := &rcvb2.RedisCluster{
+		Spec: rcvb2.RedisClusterSpec{
+			PersistenceEnabled: &persistenceEnabled,
+			Storage:            &rcvb2.ClusterStorage{},
+			InitContainer: &common.InitContainer{
+				Enabled: &enabled,
+				Image:   "busybox:latest",
+			},
+		},
+	}
+
+	actual := generateRedisClusterInitContainerParams(input)
+	if actual.PersistenceEnabled != nil {
+		t.Fatalf("Expected PersistenceEnabled to be nil when persistence is disabled, got %v", *actual.PersistenceEnabled)
+	}
 }

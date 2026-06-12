@@ -9,11 +9,17 @@ import (
 type K8sConfigProvider = func() (*rest.Config, error)
 
 // GenerateK8sClient create client for kubernetes
-func GenerateK8sClient(configProvider K8sConfigProvider) (kubernetes.Interface, error) {
+func GenerateK8sClient(configProvider K8sConfigProvider, qps float32) (kubernetes.Interface, error) {
 	config, err := configProvider()
 	if err != nil {
 		return nil, err
 	}
+
+	if qps > 0 {
+		config.QPS = qps
+		config.Burst = int(qps * 2)
+	}
+
 	return kubernetes.NewForConfig(config)
 }
 

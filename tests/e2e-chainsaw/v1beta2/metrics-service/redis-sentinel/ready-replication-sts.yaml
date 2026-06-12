@@ -1,0 +1,8 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-replication-sentinel-metrics
+status:
+  replicas: 3
+  readyReplicas: 3

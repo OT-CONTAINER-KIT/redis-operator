@@ -17,3 +17,11 @@ func CoalesceEnv(key, defaultVal string) (string, bool) {
 	}
 	return val, true
 }
+
+func CoalesceEnv1(key, defaultVal string) string {
+	val := os.Getenv(key)
+	if val == "" {
+		return defaultVal
+	}
+	return val
+}

@@ -11,7 +11,7 @@ spec:
     runAsUser: 1000
     fsGroup: 1000
   kubernetesConfig:
-    image: quay.io/opstree/redis:v7.0.12
+    image: quay.io/opstree/redis:latest
     imagePullPolicy: IfNotPresent
     resources:
       requests:
@@ -25,11 +25,11 @@ spec:
       value: "custom_value_1"
     - name: CUSTOM_ENV_VAR_2
       value: "custom_value_2"
-      # redisSecret:
-      #   name: redis-secret
-      #   key: password
-      # imagePullSecrets:
-      #   - name: regcred
+    # redisSecret:
+    #   name: redis-secret
+    #   key: password
+    # imagePullSecrets:
+    #   - name: regcred
   storage:
     volumeClaimTemplate:
       spec:

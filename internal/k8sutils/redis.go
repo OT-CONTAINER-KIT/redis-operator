@@ -15,11 +15,12 @@ import (
 	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	common "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
-	"github.com/OT-CONTAINER-KIT/redis-operator/internal/env"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/envs"
 	retry "github.com/avast/retry-go"
 	redis "github.com/redis/go-redis/v9"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -34,7 +35,7 @@ type RedisDetails struct {
 }
 
 func (rd *RedisDetails) FQDN() string {
-	return fmt.Sprintf("%s.%s.%s.svc.%s", rd.PodName, common.GetHeadlessServiceNameFromPodName(rd.PodName), rd.Namespace, env.GetServiceDNSDomain())
+	return fmt.Sprintf("%s.%s.%s.svc.%s", rd.PodName, common.GetHeadlessServiceNameFromPodName(rd.PodName), rd.Namespace, envs.GetServiceDNSDomain())
 }
 
 func (rd *RedisDetails) String() string {
@@ -70,15 +71,7 @@ func getRedisServerIP(ctx context.Context, client kubernetes.Interface, redisInf
 }
 
 func getRedisServerAddress(ctx context.Context, client kubernetes.Interface, rd RedisDetails, port int) string {
-	ip := getRedisServerIP(ctx, client, rd)
-	format := "%s:%d"
-
-	// if ip is IPv6, wrap it in brackets
-	if net.ParseIP(ip).To4() == nil {
-		format = "[%s]:%d"
-	}
-
-	return fmt.Sprintf(format, ip, port)
+	return formatRedisAddress(getRedisServerIP(ctx, client, rd), port)
 }
 
 func getEndpoint(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, rd RedisDetails) string {
@@ -93,10 +86,6 @@ func getEndpoint(ctx context.Context, client kubernetes.Interface, cr *rcvb2.Red
 		host = getRedisServerIP(ctx, client, rd)
 		if host == "" {
 			return ""
-		}
-		// if ip is IPv6, wrap it in brackets
-		if net.ParseIP(host).To4() == nil {
-			host = "[" + host + "]"
 		}
 	}
 	if cr.Spec.KubernetesConfig.GetServiceType() == "NodePort" {
@@ -661,10 +650,26 @@ func checkRedisNodePresence(ctx context.Context, nodeList []clusterNodesResponse
 
 // configureRedisClient will configure the Redis Client
 func configureRedisReplicationClient(ctx context.Context, client kubernetes.Interface, cr *rrvb2.RedisReplication, podName string) *redis.Client {
-	redisInfo := RedisDetails{
+	pod, err := client.CoreV1().Pods(cr.Namespace).Get(ctx, podName, metav1.GetOptions{})
+	if err == nil {
+		return configureRedisReplicationClientForPod(ctx, client, cr, pod)
+	}
+
+	log.FromContext(ctx).V(1).Info("Falling back to redis replication pod lookup during client configuration", "pod", podName, "error", err)
+	return configureRedisReplicationClientForAddress(ctx, client, cr, RedisDetails{
 		PodName:   podName,
 		Namespace: cr.Namespace,
-	}
+	}, "")
+}
+
+func configureRedisReplicationClientForPod(ctx context.Context, client kubernetes.Interface, cr *rrvb2.RedisReplication, pod *corev1.Pod) *redis.Client {
+	return configureRedisReplicationClientForAddress(ctx, client, cr, RedisDetails{
+		PodName:   pod.Name,
+		Namespace: cr.Namespace,
+	}, pod.Status.PodIP)
+}
+
+func configureRedisReplicationClientForAddress(ctx context.Context, client kubernetes.Interface, cr *rrvb2.RedisReplication, redisInfo RedisDetails, podIP string) *redis.Client {
 	var err error
 	var pass string
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
@@ -678,8 +683,10 @@ func configureRedisReplicationClient(ctx context.Context, client kubernetes.Inte
 		// Use DNS name for TLS connections
 		addr = fmt.Sprintf("%s:%d", getRedisReplicationHostname(redisInfo, cr), 6379)
 	} else {
-		// Use IP address for non-TLS connections
-		addr = getRedisServerAddress(ctx, client, redisInfo, 6379)
+		if podIP == "" {
+			podIP = getRedisServerIP(ctx, client, redisInfo)
+		}
+		addr = formatRedisAddress(podIP, 6379)
 	}
 	opts := &redis.Options{
 		Addr:     addr,
@@ -687,17 +694,37 @@ func configureRedisReplicationClient(ctx context.Context, client kubernetes.Inte
 		DB:       0,
 	}
 	if cr.Spec.TLS != nil {
-		opts.TLSConfig = getRedisTLSConfig(ctx, client, cr.Namespace, cr.Spec.TLS.Secret.SecretName, podName)
+		opts.TLSConfig = getRedisTLSConfig(ctx, client, cr.Namespace, cr.Spec.TLS.Secret.SecretName, redisInfo.PodName)
 	}
 	return redis.NewClient(opts)
 }
 
+func formatRedisAddress(ip string, port int) string {
+	if ip == "" {
+		return fmt.Sprintf("%s:%d", ip, port)
+	}
+	format := "%s:%d"
+	if net.ParseIP(ip).To4() == nil {
+		format = "[%s]:%d"
+	}
+	return fmt.Sprintf(format, ip, port)
+}
+
 func getRedisReplicationHostname(redisInfo RedisDetails, cr *rrvb2.RedisReplication) string {
-	return fmt.Sprintf("%s.%s-headless.%s.svc.%s", redisInfo.PodName, cr.Name, cr.Namespace, env.GetServiceDNSDomain())
+	return fmt.Sprintf("%s.%s-headless.%s.svc.%s", redisInfo.PodName, cr.Name, cr.Namespace, envs.GetServiceDNSDomain())
 }
 
 // Get Redis nodes by it's role i.e. master, slave and sentinel
 func GetRedisNodesByRole(ctx context.Context, cl kubernetes.Interface, cr *rrvb2.RedisReplication, redisRole string) ([]string, error) {
+	return getRedisNodesByRole(ctx, cl, cr, redisRole, func(ctx context.Context, pod *corev1.Pod) (string, error) {
+		redisClient := configureRedisReplicationClientForPod(ctx, cl, cr, pod)
+		defer redisClient.Close()
+
+		return checkRedisServerRole(ctx, redisClient, pod.Name)
+	})
+}
+
+func getRedisNodesByRole(ctx context.Context, cl kubernetes.Interface, cr *rrvb2.RedisReplication, redisRole string, probeRole func(context.Context, *corev1.Pod) (string, error)) ([]string, error) {
 	statefulset, err := GetStatefulSet(ctx, cl, cr.GetNamespace(), cr.GetName())
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Failed to Get the Statefulset of the", "custom resource", cr.Name, "in namespace", cr.Namespace)
@@ -709,9 +736,19 @@ func GetRedisNodesByRole(ctx context.Context, cl kubernetes.Interface, cr *rrvb2
 
 	for i := 0; i < int(replicas); i++ {
 		podName := statefulset.Name + "-" + strconv.Itoa(i)
-		redisClient := configureRedisReplicationClient(ctx, cl, cr, podName)
-		defer redisClient.Close()
-		podRole, err := checkRedisServerRole(ctx, redisClient, podName)
+		pod, err := cl.CoreV1().Pods(cr.Namespace).Get(ctx, podName, metav1.GetOptions{})
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				continue
+			}
+			return nil, err
+		}
+
+		if !IsRedisPodProbeable(pod) {
+			continue
+		}
+
+		podRole, err := probeRole(ctx, pod)
 		if err != nil {
 			return nil, err
 		}
@@ -721,6 +758,18 @@ func GetRedisNodesByRole(ctx context.Context, cl kubernetes.Interface, cr *rrvb2
 	}
 
 	return pods, nil
+}
+
+func IsRedisPodProbeable(pod *corev1.Pod) bool {
+	if pod == nil || pod.Status.Phase != corev1.PodRunning || pod.Status.PodIP == "" {
+		return false
+	}
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type == corev1.PodReady && condition.Status == corev1.ConditionTrue {
+			return true
+		}
+	}
+	return false
 }
 
 // Check the Redis Server Role i.e. master, slave and sentinel

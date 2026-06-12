@@ -2,9 +2,10 @@ package k8sutils
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
-	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util/maps"
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -13,8 +14,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
-
-var serviceType corev1.ServiceType
 
 // exporterPortProvider return the exporter port if bool is true
 type exporterPortProvider func() (port int, enable bool)
@@ -37,7 +36,7 @@ func generateServiceDef(serviceMeta metav1.ObjectMeta, epp exporterPortProvider,
 		Spec: corev1.ServiceSpec{
 			Type:      generateServiceType(serviceType),
 			ClusterIP: "",
-			Selector:  util.CopyMap(serviceMeta.GetLabels()),
+			Selector:  maps.Copy(serviceMeta.GetLabels()),
 			Ports: []corev1.ServicePort{
 				{
 					Name:       PortName,
@@ -75,6 +74,7 @@ func enableMetricsPort(port int) *corev1.ServicePort {
 
 // generateServiceType generates service type
 func generateServiceType(k8sServiceType string) corev1.ServiceType {
+	var serviceType corev1.ServiceType
 	switch k8sServiceType {
 	case "LoadBalancer":
 		serviceType = corev1.ServiceTypeLoadBalancer
@@ -164,7 +164,7 @@ func patchService(ctx context.Context, storedService *corev1.Service, newService
 	if !patchResult.IsEmpty() {
 		log.FromContext(ctx).V(1).Info("Changes in service Detected, Updating...", "patch", string(patchResult.Patch))
 
-		util.MergePreservingExistingKeys(newService.Annotations, storedService.Annotations)
+		maps.MergePreservingExistingKeys(newService.Annotations, storedService.Annotations)
 		// util.MergePreservingExistingKeys(newService.Labels, storedService.Labels)
 		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(newService); err != nil {
 			log.FromContext(ctx).Error(err, "Unable to patch redis service with comparison object")
@@ -175,4 +175,42 @@ func patchService(ctx context.Context, storedService *corev1.Service, newService
 	}
 	log.FromContext(ctx).V(1).Info("Redis service is already in-sync")
 	return nil
+}
+
+// CreateOrUpdateMetricsService creates a dedicated ClusterIP service exposing only the
+// redis-exporter port. This prevents monitoring tools from accidentally scraping the
+// Redis data port and triggering false "security attack" logs.
+func CreateOrUpdateMetricsService(ctx context.Context, namespace string, serviceName string, selectorLabels map[string]string, ownerDef metav1.OwnerReference, exporterPort int, cl kubernetes.Interface) error {
+	serviceLabels := maps.Copy(selectorLabels)
+	serviceLabels["app.kubernetes.io/component"] = "metrics"
+
+	annotations := map[string]string{
+		"prometheus.io/scrape": "true",
+		"prometheus.io/port":   strconv.Itoa(exporterPort),
+	}
+	objectMeta := generateObjectMetaInformation(serviceName, namespace, serviceLabels, annotations)
+
+	metricsPort := enableMetricsPort(exporterPort)
+	service := &corev1.Service{
+		TypeMeta:   generateMetaInformation("Service", "v1"),
+		ObjectMeta: objectMeta,
+		Spec: corev1.ServiceSpec{
+			Type:     corev1.ServiceTypeClusterIP,
+			Selector: selectorLabels,
+			Ports:    []corev1.ServicePort{*metricsPort},
+		},
+	}
+	AddOwnerRefToObject(service, ownerDef)
+
+	storedService, err := getService(ctx, cl, namespace, serviceName)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(service); err != nil { //nolint:gocritic
+				log.FromContext(ctx).Error(err, "Unable to patch metrics service with compare annotations")
+			}
+			return createService(ctx, cl, namespace, service)
+		}
+		return err
+	}
+	return patchService(ctx, storedService, service, namespace, cl)
 }

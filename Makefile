@@ -3,7 +3,7 @@
 # ===========================
 
 # Current Operator version
-VERSION ?= 0.22.2
+VERSION ?= 0.24.0
 
 # Default bundle image tag
 BUNDLE_IMG ?= controller-bundle:$(VERSION)
@@ -21,7 +21,7 @@ CONTAINER_ENGINE ?= docker
 PLATFORMS = "linux/arm64,linux/amd64"
 
 # LDFLAGS for setting the operator image during build
-LDFLAGS ?= "-s -w -X github.com/OT-CONTAINER-KIT/redis-operator/internal/image.operatorImage=$(IMG)"
+LDFLAGS ?= "-s -w"
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -291,3 +291,4 @@ GOBIN=$(LOCALBIN) go install $${package} ;\
 mv "$$(echo "$(1)" | sed "s/-$(3)$$//")" $(1) ;\
 }
 endef
+
