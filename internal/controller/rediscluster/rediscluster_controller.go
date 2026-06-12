@@ -379,7 +379,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// Repair followers that are connected in gossip but have broken replication
 	// (stale master IP after pod restart). This catches the case that
 	// RepairDisconnectedNodes misses: the follower isn't "fail"/"disconnected"
-	// but master_link_status is down.
+	// but master_link_status is down. Because the broken link is invisible to
+	// gossip, this check cannot be gated on the unhealthy-node count above; it
+	// runs every reconcile and costs one CLUSTER NODES call on leader-0 plus
+	// one INFO replication call per connected follower (in line with the other
+	// per-reconcile checks in this loop, e.g. CheckRedisNodeCount).
 	if followerReplicas > 0 {
 		repaired, err := k8sutils.RepairStaleReplication(ctx, r.K8sClient, instance)
 		if err != nil {

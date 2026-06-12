@@ -175,10 +175,12 @@ func executeSingleLeaderAddSlots(ctx context.Context, client kubernetes.Interfac
 func RepairDisconnectedNodes(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) error {
 	redisClient := configureRedisClient(ctx, client, cr, cr.Name+"-leader-0")
 	defer redisClient.Close()
-	return repairDisconnectedNodes(ctx, client, cr, redisClient)
+	return repairDisconnectedNodes(ctx, client, cr, redisClient, func(podName string) *redis.Client {
+		return configureRedisClient(ctx, client, cr, podName)
+	})
 }
 
-func repairDisconnectedNodes(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, redisClient *redis.Client) error {
+func repairDisconnectedNodes(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, redisClient *redis.Client, makeClient func(podName string) *redis.Client) error {
 	nodes, err := clusterNodes(ctx, redisClient)
 	if err != nil {
 		return err
@@ -211,7 +213,7 @@ func repairDisconnectedNodes(ctx context.Context, client kubernetes.Interface, c
 		}
 		if nodeIsOfType(node, "slave") {
 			masterNodeID := node[3]
-			followerClient := configureRedisClient(ctx, client, cr, podName)
+			followerClient := makeClient(podName)
 			if err = followerClient.ClusterReplicate(ctx, masterNodeID).Err(); err != nil {
 				lastError = err
 				log.FromContext(ctx).V(1).Error(err, "Failed to execute CLUSTER REPLICATE on follower.", "Follower", podName, "MasterNodeID", masterNodeID)
@@ -228,6 +230,12 @@ func repairDisconnectedNodes(ctx context.Context, client kubernetes.Interface, c
 // This handles the scenario where a master pod restarts with a new IP:
 // gossip propagates the update, but follower replication remains
 // pointed at the stale address until explicitly refreshed.
+//
+// A broken replication link is invisible to gossip-based health checks
+// (the follower still reports as "connected" in CLUSTER NODES), so this
+// cannot be gated behind UnhealthyNodesInCluster. Detection requires
+// asking each follower directly: one CLUSTER NODES call on leader-0 plus
+// one INFO replication call per connected follower, per invocation.
 // Returns the number of followers that were repaired and any error.
 func RepairStaleReplication(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) (int, error) {
 	redisClient := configureRedisClient(ctx, client, cr, cr.Name+"-leader-0")

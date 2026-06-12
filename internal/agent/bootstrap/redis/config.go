@@ -60,12 +60,9 @@ func GenerateConfig() error {
 	if clusterMode == "cluster" {
 		nodeConfPath := filepath.Join(nodeConfDir, "nodes.conf")
 
-		// Cluster-mode tuning (see also tcp-keepalive above):
-		//  - cluster-node-timeout raised from 5000ms to 15000ms (configurable
-		//    via CLUSTER_NODE_TIMEOUT) to give gossip time to converge after
-		//    pod restarts before marking nodes as failed.
-		//  - cluster-allow-reads-when-down (and pubsubshard variant on v7)
-		//    keeps clients unblocked while the operator repairs nodes.
+		// cluster-node-timeout is raised from 5000ms to 15000ms (configurable
+		// via CLUSTER_NODE_TIMEOUT) to give gossip time to converge after
+		// pod restarts before marking nodes as failed.
 		clusterNodeTimeout := util.CoalesceEnv1("CLUSTER_NODE_TIMEOUT", "15000")
 
 		cfg.Append("cluster-enabled", "yes")
@@ -73,10 +70,6 @@ func GenerateConfig() error {
 		cfg.Append("cluster-require-full-coverage", "no")
 		cfg.Append("cluster-migration-barrier", "1")
 		cfg.Append("cluster-config-file", nodeConfPath)
-		cfg.Append("cluster-allow-reads-when-down", "yes")
-		if redisMajorVersion == "v7" {
-			cfg.Append("cluster-allow-pubsubshard-when-down", "yes")
-		}
 
 		if ip, err := util.GetLocalIP(); err != nil {
 			log.Printf("Warning: Failed to get local IP: %v", err)
