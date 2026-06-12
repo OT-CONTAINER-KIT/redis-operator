@@ -219,8 +219,29 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 
-	if !r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-leader") || !r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-follower") {
-		return intctrlutil.Reconciled()
+	leaderSTSReady := r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-leader")
+	followerSTSReady := r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-follower")
+	if !leaderSTSReady || !followerSTSReady {
+		// Sync the actual ready replica counts from the StatefulSets so the status
+		// leaves Ready (and the reported counts drop) when pods go down after the
+		// cluster became Ready.
+		notReadyStatus := rcvb2.RedisClusterStatus{
+			State:                 rcvb2.RedisClusterInitializing,
+			Reason:                rcvb2.InitializingClusterFollowerReason,
+			ReadyLeaderReplicas:   r.getStatefulSetReadyReplicas(ctx, instance.Namespace, instance.Name+"-leader"),
+			ReadyFollowerReplicas: r.getStatefulSetReadyReplicas(ctx, instance.Namespace, instance.Name+"-follower"),
+		}
+		if !leaderSTSReady {
+			notReadyStatus.Reason = rcvb2.InitializingClusterLeaderReason
+		}
+		requeue, err := r.updateStatus(ctx, instance, notReadyStatus)
+		if err != nil {
+			return intctrlutil.RequeueE(ctx, err, "")
+		}
+		if requeue {
+			return intctrlutil.Requeue()
+		}
+		return intctrlutil.RequeueAfter(ctx, time.Second*10, "StatefulSet is not ready yet")
 	}
 
 	// Mark the cluster status as bootstrapping if all the leader and follower nodes are ready
@@ -439,6 +460,19 @@ func (r *Reconciler) updateStatus(ctx context.Context, rc *rcvb2.RedisCluster, s
 		return true, common.UpdateStatus(ctx, r.Client, copy)
 	}
 	return false, nil
+}
+
+// getStatefulSetReadyReplicas returns the number of ready replicas reported by
+// the StatefulSet status, or 0 if the StatefulSet does not exist yet.
+func (r *Reconciler) getStatefulSetReadyReplicas(ctx context.Context, namespace, name string) int32 {
+	sts := &appsv1.StatefulSet{}
+	if err := r.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, sts); err != nil {
+		if !apierrors.IsNotFound(err) {
+			log.FromContext(ctx).Error(err, "failed to get statefulset", "statefulset", name)
+		}
+		return 0
+	}
+	return sts.Status.ReadyReplicas
 }
 
 // SetupWithManager sets up the controller with the Manager.
