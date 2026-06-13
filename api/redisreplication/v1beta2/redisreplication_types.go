@@ -43,8 +43,8 @@ type RedisReplicationSpec struct {
 }
 
 type Sentinel struct {
-	common.KubernetesConfig `json:",inline"`
-	common.SentinelConfig   `json:",inline"`
+	common.KubernetesConfig       `json:",inline"`
+	common.SentinelConfig         `json:",inline"`
 	Size                          int32                             `json:"size"`
 	Affinity                      *corev1.Affinity                  `json:"affinity,omitempty"`
 	Tolerations                   *[]corev1.Toleration              `json:"tolerations,omitempty"`
@@ -55,7 +55,6 @@ type Sentinel struct {
 	PriorityClassName             string                            `json:"priorityClassName,omitempty"`
 	TerminationGracePeriodSeconds *int64                            `json:"terminationGracePeriodSeconds,omitempty"`
 	ServiceAccountName            *string                           `json:"serviceAccountName,omitempty"`
-	ExistingPasswordSecret        *common.ExistingPasswordSecret    `json:"existingPasswordSecret,omitempty"`
 }
 
 func (cr *RedisReplicationSpec) GetReplicationCounts(t string) int32 {

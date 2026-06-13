@@ -3720,15 +3720,6 @@ spec:
                   downAfterMilliseconds:
                     default: "5000"
                     type: string
-                  existingPasswordSecret:
-                    description: ExistingPasswordSecret is the struct to access the
-                      existing secret
-                    properties:
-                      key:
-                        type: string
-                      name:
-                        type: string
-                    type: object
                   failoverTimeout:
                     default: "10000"
                     type: string

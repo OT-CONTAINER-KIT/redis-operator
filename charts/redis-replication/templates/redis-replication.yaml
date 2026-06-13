@@ -139,6 +139,11 @@ spec:
     {{- if .Values.sentinel.resources }}
     resources: {{ toYaml .Values.sentinel.resources | nindent 6 }}
     {{- end }}
+    {{- if and .Values.sentinel.redisSecret.secretName .Values.sentinel.redisSecret.secretKey }}
+    redisSecret:
+      name: {{ .Values.sentinel.redisSecret.secretName | quote }}
+      key: {{ .Values.sentinel.redisSecret.secretKey | quote }}
+    {{- end }}
     {{- if .Values.sentinel.ignoreAnnotations }}
     ignoreAnnotations: {{ toYaml .Values.sentinel.ignoreAnnotations | nindent 6 }}
     {{- end }}
