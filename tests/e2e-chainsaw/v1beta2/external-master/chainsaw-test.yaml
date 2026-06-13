@@ -1,0 +1,91 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: external-master-replication
+spec:
+  template: true
+  steps:
+    - name: Deploy primary replication with a local master
+      try:
+        - apply:
+            file: secret.yaml
+        - apply:
+            file: primary.yaml
+        - assert:
+            file: ready-primary.yaml
+
+    - name: Deploy secondary replication in slave-only external-master mode
+      try:
+        - apply:
+            file: secondary.yaml
+        - assert:
+            file: ready-secondary-sts.yaml
+        - assert:
+            file: secondary-status.yaml
+
+    - name: Master-role service must not be created for slave-only deployment
+      try:
+        - error:
+            file: no-secondary-master-svc.yaml
+
+    - name: All secondary pods must be slaves of the external master
+      try:
+        - script:
+            timeout: 90s
+            content: |
+              #!/bin/bash
+              set -e
+              for pod in redis-ext-secondary-0 redis-ext-secondary-1; do
+                INFO=$(kubectl exec -n ${NAMESPACE} ${pod} -c redis-ext-secondary -- \
+                  redis-cli --no-auth-warning -a Opstree1234 info replication)
+                echo "==== ${pod} ===="
+                echo "${INFO}"
+                echo "${INFO}" | grep -q "role:slave" \
+                  || { echo "${pod} is not a slave"; exit 1; }
+                echo "${INFO}" | grep -q "master_host:redis-ext-primary-master" \
+                  || { echo "${pod} is not replicating from the external master"; exit 1; }
+              done
+              echo "ALL_SECONDARY_PODS_ARE_SLAVES"
+            check:
+              (contains($stdout, 'ALL_SECONDARY_PODS_ARE_SLAVES')): true
+
+    - name: Data written to the primary master is replicated to the secondary
+      try:
+        - script:
+            timeout: 150s
+            content: |
+              #!/bin/bash
+              set -e
+              # Write to the primary master through its master Service (routes to the master).
+              kubectl exec -n ${NAMESPACE} redis-ext-primary-0 -c redis-ext-primary -- \
+                redis-cli --no-auth-warning -a Opstree1234 -h redis-ext-primary-master \
+                set ext-master-key ext-master-value
+              # Read it back from a secondary (slave-only) pod, retrying until it propagates.
+              for i in $(seq 1 24); do
+                VAL=$(kubectl exec -n ${NAMESPACE} redis-ext-secondary-0 -c redis-ext-secondary -- \
+                  redis-cli --no-auth-warning -a Opstree1234 get ext-master-key 2>/dev/null || true)
+                if [ "${VAL}" = "ext-master-value" ]; then
+                  echo "REPLICATION_OK"
+                  exit 0
+                fi
+                sleep 5
+              done
+              echo "value not replicated from external master, last value='${VAL}'"
+              exit 1
+            check:
+              (contains($stdout, 'REPLICATION_OK')): true
+
+    - name: Uninstall
+      try:
+        - delete:
+            ref:
+              name: redis-ext-secondary
+              kind: RedisReplication
+              apiVersion: redis.redis.opstreelabs.in/v1beta2
+        - delete:
+            ref:
+              name: redis-ext-primary
+              kind: RedisReplication
+              apiVersion: redis.redis.opstreelabs.in/v1beta2

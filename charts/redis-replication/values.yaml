@@ -243,3 +243,15 @@ sentinel:
   # -- Additional raw sentinel.conf lines
   # additionalSentinelConfig: |
   #   sentinel auth-pass mymaster password123
+
+# -- External master configuration for slave-only (cross-cluster) deployments.
+# When enabled, all pods become read-replicas of the specified external Redis master.
+# Cannot be combined with sentinel.
+externalMaster:
+  # -- Enable slave-only mode. All pods become read-replicas of host:port.
+  # Cannot be combined with sentinel.
+  enabled: false
+  # -- DNS name or IP address of the external Redis master.
+  host: ""
+  # -- Port of the external Redis master. Defaults to 6379.
+  port: 6379

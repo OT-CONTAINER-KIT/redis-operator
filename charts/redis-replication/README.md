@@ -54,6 +54,10 @@ helm delete <my-release> --namespace <namespace>
 | env | list | `[]` |  |
 | externalConfig.data | string | `"tcp-keepalive 400\nslowlog-max-len 158\nstream-node-max-bytes 2048\n"` |  |
 | externalConfig.enabled | bool | `false` |  |
+| externalMaster | object | `{"enabled":false,"host":"","port":6379}` | External master configuration for slave-only (cross-cluster) deployments. When enabled, all pods become read-replicas of the specified external Redis master. Cannot be combined with sentinel. |
+| externalMaster.enabled | bool | `false` | Enable slave-only mode. All pods become read-replicas of host:port. Cannot be combined with sentinel. |
+| externalMaster.host | string | `""` | DNS name or IP address of the external Redis master. |
+| externalMaster.port | int | `6379` | Port of the external Redis master. Defaults to 6379. |
 | externalService.enabled | bool | `false` |  |
 | externalService.port | int | `6379` |  |
 | externalService.serviceType | string | `"NodePort"` |  |

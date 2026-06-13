@@ -1002,6 +1002,124 @@ func GetRedisReplicationRealMaster(ctx context.Context, client kubernetes.Interf
 	return ""
 }
 
+// ConfigureExternalMasterReplication configures every pod in the replication StatefulSet
+// as a read-replica (slave) of an external Redis master. It is used exclusively in
+// slave-only mode (ExternalMaster set).
+//
+// For each pod the function:
+//  1. Checks the current INFO replication output; if the pod is already a slave of the
+//     correct external master it is skipped to avoid unnecessary resync disruption.
+//  2. Issues CONFIG SET masterauth before REPLICAOF so authentication to the external
+//     master succeeds on the first attempt.
+//  3. When spec.TLS is set, issues CONFIG SET tls-replication yes so the replica speaks
+//     TLS on the replication link to the (TLS-enabled) external master.
+//  4. Issues REPLICAOF <host> <port>.
+//  5. Issues CONFIG REWRITE so masterauth/tls-replication/replicaof are persisted into
+//     redis.conf and survive a pod restart (best-effort, see below).
+//
+// All operations are idempotent and safe to call on every reconcile loop.
+func ConfigureExternalMasterReplication(ctx context.Context, client kubernetes.Interface, cr *rrvb2.RedisReplication) error {
+	logger := log.FromContext(ctx)
+
+	externalHost := cr.Spec.ExternalMaster.Host
+	externalPort := cr.GetExternalMasterPort()
+	externalPortStr := strconv.Itoa(int(externalPort))
+
+	var pass string
+	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
+		var err error
+		pass, err = getRedisPassword(
+			ctx, client, cr.Namespace,
+			*cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name,
+			*cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key,
+		)
+		if err != nil {
+			logger.Error(err, "Failed to get Redis password for external master replication")
+			return err
+		}
+	}
+
+	// When TLS is enabled, the local replicas must speak TLS on the replication link
+	// to the external master; otherwise the handshake to a TLS-only master fails.
+	// tls-replication is runtime-settable via CONFIG SET.
+	tlsReplication := cr.Spec.TLS != nil
+
+	replicas := cr.Spec.GetReplicationCounts("replication")
+	for i := 0; i < int(replicas); i++ {
+		podName := cr.Name + "-" + strconv.Itoa(i)
+		redisClient := configureRedisReplicationClient(ctx, client, cr, podName)
+		defer redisClient.Close()
+
+		// Check current replication state; skip pod if already correctly configured
+		// to avoid unnecessary resync disruption every reconcile loop.
+		info, err := redisClient.Info(ctx, "Replication").Result()
+		if err != nil {
+			logger.Error(err, "Failed to get replication info, skipping pod", "pod", podName)
+			continue
+		}
+		if isAlreadySlaveOf(info, externalHost, externalPortStr) {
+			logger.V(1).Info("Pod already replicating from correct external master, skipping",
+				"pod", podName, "host", externalHost, "port", externalPort)
+			continue
+		}
+
+		// Set masterauth BEFORE issuing REPLICAOF so the first handshake authenticates.
+		if pass != "" {
+			if err := redisClient.ConfigSet(ctx, "masterauth", pass).Err(); err != nil {
+				logger.Error(err, "Failed to set masterauth on pod", "pod", podName)
+				return err
+			}
+		}
+
+		// Enable TLS on the replication link BEFORE REPLICAOF so the first handshake to
+		// a TLS-enabled external master is performed over TLS.
+		if tlsReplication {
+			if err := redisClient.ConfigSet(ctx, "tls-replication", "yes").Err(); err != nil {
+				logger.Error(err, "Failed to enable tls-replication on pod", "pod", podName)
+				return err
+			}
+		}
+
+		logger.V(1).Info("Configuring pod as slave of external master",
+			"pod", podName, "host", externalHost, "port", externalPort)
+		if err := redisClient.SlaveOf(ctx, externalHost, externalPortStr).Err(); err != nil {
+			logger.Error(err, "Failed to issue REPLICAOF to external master", "pod", podName)
+			return err
+		}
+
+		// Persist masterauth / tls-replication / replicaof into the pod's redis.conf so a
+		// pod restart resumes replicating from the external master immediately, instead of
+		// booting as a standalone master until the next slave-only reconcile re-applies
+		// REPLICAOF. CONFIG REWRITE is best-effort: replication is already active from the
+		// runtime commands above, so a rewrite failure (e.g. the server was started without
+		// a config file) is logged but does not fail the reconcile.
+		if err := redisClient.ConfigRewrite(ctx).Err(); err != nil {
+			logger.Error(err, "Failed to persist replication config via CONFIG REWRITE; "+
+				"replication is active but will not survive a pod restart until the next reconcile",
+				"pod", podName)
+		}
+	}
+
+	return nil
+}
+
+// isAlreadySlaveOf reports whether an INFO replication output indicates the instance
+// is already a slave of the given host:port. Both host and port must match exactly.
+func isAlreadySlaveOf(info, host, port string) bool {
+	var isSlave, correctHost, correctPort bool
+	for _, line := range strings.Split(info, "\r\n") {
+		switch {
+		case strings.HasPrefix(line, "role:"):
+			isSlave = strings.TrimPrefix(line, "role:") == "slave"
+		case strings.HasPrefix(line, "master_host:"):
+			correctHost = strings.TrimPrefix(line, "master_host:") == host
+		case strings.HasPrefix(line, "master_port:"):
+			correctPort = strings.TrimPrefix(line, "master_port:") == port
+		}
+	}
+	return isSlave && correctHost && correctPort
+}
+
 // SetRedisClusterDynamicConfig applies dynamic configuration to each Redis instance in the cluster
 func SetRedisClusterDynamicConfig(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) error {
 	// Get dynamic configuration

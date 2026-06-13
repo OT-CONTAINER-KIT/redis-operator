@@ -29,6 +29,40 @@ func TestRedisReplicationWebhook(t *testing.T) {
 			},
 			Check: webhook.ValidationWebhookFailed("only one of 'secret' or 'persistentVolumeClaim' can be specified"),
 		},
+		{
+			Name:      "failed-create-v1beta2-redisreplication-external-master-with-sentinel",
+			Operation: admissionv1beta1.Create,
+			Object: func(t *testing.T, uid string) []byte {
+				t.Helper()
+				replication := mkRedisReplication(uid)
+				replication.Spec.ExternalMaster = &v1beta2.ExternalMaster{Host: "redis-master.primary.example.com"}
+				replication.Spec.Sentinel = &v1beta2.Sentinel{Size: 3}
+				return marshal(t, replication)
+			},
+			Check: webhook.ValidationWebhookFailed("externalMaster cannot be combined with sentinel"),
+		},
+		{
+			Name:      "failed-create-v1beta2-redisreplication-external-master-missing-host",
+			Operation: admissionv1beta1.Create,
+			Object: func(t *testing.T, uid string) []byte {
+				t.Helper()
+				replication := mkRedisReplication(uid)
+				replication.Spec.ExternalMaster = &v1beta2.ExternalMaster{Host: ""}
+				return marshal(t, replication)
+			},
+			Check: webhook.ValidationWebhookFailed("host must be set when externalMaster is configured"),
+		},
+		{
+			Name:      "success-create-v1beta2-redisreplication-external-master",
+			Operation: admissionv1beta1.Create,
+			Object: func(t *testing.T, uid string) []byte {
+				t.Helper()
+				replication := mkRedisReplication(uid)
+				replication.Spec.ExternalMaster = &v1beta2.ExternalMaster{Host: "redis-master.primary.example.com"}
+				return marshal(t, replication)
+			},
+			Check: webhook.ValidationWebhookSucceeded,
+		},
 	}
 
 	gvk := metav1.GroupVersionKind{

@@ -1,0 +1,7 @@
+---
+# The master-role Service must NOT be created for a slave-only deployment.
+# Used with an `error` step, which passes only when no matching object exists.
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-ext-secondary-master

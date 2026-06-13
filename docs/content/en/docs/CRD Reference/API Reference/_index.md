@@ -105,6 +105,28 @@ _Appears in:_
 | `key` _string_ |  |  |  |
 
 
+#### ExternalMaster
+
+
+
+ExternalMaster defines an external Redis master endpoint for slave-only deployments.
+When set (non-nil), all pods in this deployment become read-replicas of the specified
+external master instead of having a local master elected within the cluster.
+This is useful for cross-cluster replication where the primary cluster runs a full
+RedisReplication deployment and secondary clusters run slave-only deployments.
+Cannot be combined with Sentinel.
+
+
+
+_Appears in:_
+- [RedisReplicationSpec](#redisreplicationspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `host` _string_ | Host is the DNS name or IP address of the external Redis master. |  | MinLength: 1 <br /> |
+| `port` _integer_ | Port is the port of the external Redis master.<br />Defaults to 6379 when omitted. | 6379 | Maximum: 65535 <br />Minimum: 1 <br /> |
+
+
 #### InitContainer
 
 
@@ -417,6 +439,7 @@ _Appears in:_
 | `hostPort` _integer_ |  |  |  |
 | `sentinel` _[Sentinel](#sentinel)_ |  |  |  |
 | `podManagementPolicy` _string_ | PodManagementPolicy controls how pods are created during initial scale up,<br />when replacing pods on nodes, or when scaling down. This field is immutable<br />on an existing StatefulSet; changing it for a running cluster requires<br />recreating the StatefulSet (e.g. via the<br />redis.opstreelabs.in/recreate-statefulset annotation), otherwise the change<br />is ignored. |  | Enum: [OrderedReady Parallel] <br /> |
+| `externalMaster` _[ExternalMaster](#externalmaster)_ | ExternalMaster configures slave-only mode where all pods replicate from an<br />external Redis master residing in another cluster. When enabled, no local<br />master is elected, the master-role service is not created, and all<br />leader-election / failover logic is skipped.<br />Cannot be combined with Sentinel. |  |  |
 
 
 #### RedisSentinel

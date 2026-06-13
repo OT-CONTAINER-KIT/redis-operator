@@ -1,0 +1,38 @@
+---
+# Secondary RedisReplication: slave-only deployment that replicates from the
+# primary's external master endpoint. No sentinel (mutually exclusive), and the
+# operator must skip local master election / failover and not create a
+# master-role Service. externalMaster.host is templated to the primary master
+# Service FQDN of the test namespace.
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisReplication
+metadata:
+  name: redis-ext-secondary
+spec:
+  clusterSize: 2
+  externalMaster:
+    host: (join('.', ['redis-ext-primary-master', $namespace, 'svc', 'cluster', 'local']))
+    port: 6379
+  podSecurityContext:
+    runAsUser: 1000
+    fsGroup: 1000
+  kubernetesConfig:
+    image: quay.io/opstree/redis:latest
+    imagePullPolicy: Always
+    resources:
+      requests:
+        cpu: 101m
+        memory: 128Mi
+      limits:
+        cpu: 101m
+        memory: 128Mi
+    redisSecret:
+      name: redis-secret
+      key: password
+  storage:
+    volumeClaimTemplate:
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 1Gi

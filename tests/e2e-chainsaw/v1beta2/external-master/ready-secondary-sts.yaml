@@ -1,0 +1,8 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-ext-secondary
+status:
+  readyReplicas: 2
+  replicas: 2

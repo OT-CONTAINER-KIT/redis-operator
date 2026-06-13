@@ -1,0 +1,35 @@
+---
+# Primary RedisReplication: a normal deployment that elects a local master and
+# exposes it through the <name>-master Service. In a real cross-cluster setup
+# this master would be reachable from other clusters via an LB/NodePort; here we
+# reach it in-cluster via its Service FQDN, which exercises the same operator
+# code path as a genuinely external endpoint.
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisReplication
+metadata:
+  name: redis-ext-primary
+spec:
+  clusterSize: 3
+  podSecurityContext:
+    runAsUser: 1000
+    fsGroup: 1000
+  kubernetesConfig:
+    image: quay.io/opstree/redis:latest
+    imagePullPolicy: Always
+    resources:
+      requests:
+        cpu: 101m
+        memory: 128Mi
+      limits:
+        cpu: 101m
+        memory: 128Mi
+    redisSecret:
+      name: redis-secret
+      key: password
+  storage:
+    volumeClaimTemplate:
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 1Gi

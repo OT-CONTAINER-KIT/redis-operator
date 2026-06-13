@@ -1,0 +1,12 @@
+---
+# In slave-only mode the operator sets status.masterNode to the external
+# "host:port" endpoint and connectionInfo to the external master (no masterName).
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisReplication
+metadata:
+  name: redis-ext-secondary
+status:
+  masterNode: (join(':', [join('.', ['redis-ext-primary-master', $namespace, 'svc', 'cluster', 'local']), '6379']))
+  connectionInfo:
+    host: (join('.', ['redis-ext-primary-master', $namespace, 'svc', 'cluster', 'local']))
+    port: 6379
