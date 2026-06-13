@@ -172,20 +172,32 @@ func (r *RedisSentinelReconciler) reconcileService(ctx context.Context, instance
 // reconcileStatus updates the RedisSentinel status based on StatefulSet readiness.
 func (r *RedisSentinelReconciler) reconcileStatus(ctx context.Context, instance *rsvb2.RedisSentinel) (ctrl.Result, error) {
 	stsName := instance.GetStatefulSetName()
-	readyReplicas := r.GetStatefulSetReplicas(ctx, instance.Namespace, stsName)
-	desiredReplicas := *instance.Spec.Size
+	// readyReplicas must reflect the actual number of ready pods
+	// (sts.Status.ReadyReplicas), not the desired count, otherwise the state
+	// would jump to Ready as soon as the StatefulSet object exists.
+	readyReplicas := r.GetStatefulSetReadyReplicas(ctx, instance.Namespace, stsName)
+
+	// Spec.Size may be nil (the webhook tolerates it and returns early), so fall
+	// back to the desired replica count recorded on the StatefulSet to avoid a
+	// nil pointer dereference.
+	var desiredReplicas int32
+	if instance.Spec.Size != nil {
+		desiredReplicas = *instance.Spec.Size
+	} else {
+		desiredReplicas = r.GetStatefulSetReplicas(ctx, instance.Namespace, stsName)
+	}
 
 	var state rsvb2.RedisSentinelState
 	var reason string
 	switch {
-	case readyReplicas == desiredReplicas:
-		// All desired sentinel pods are ready.
-		state = rsvb2.RedisSentinelReady
-		reason = rsvb2.ReadySentinelReason
 	case readyReplicas == 0:
 		// No pods ready yet — still bootstrapping.
 		state = rsvb2.RedisSentinelInitializing
 		reason = rsvb2.InitializingSentinelReason
+	case readyReplicas >= desiredReplicas:
+		// All desired sentinel pods are ready.
+		state = rsvb2.RedisSentinelReady
+		reason = rsvb2.ReadySentinelReason
 	default:
 		// Some pods ready but not all — cluster is degraded / partially available.
 		state = rsvb2.RedisSentinelFailed

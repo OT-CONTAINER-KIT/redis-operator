@@ -28,6 +28,7 @@ import (
 type StatefulSet interface {
 	IsStatefulSetReady(ctx context.Context, namespace, name string) bool
 	GetStatefulSetReplicas(ctx context.Context, namespace, name string) int32
+	GetStatefulSetReadyReplicas(ctx context.Context, namespace, name string) int32
 }
 
 type StatefulSetService struct {
@@ -87,6 +88,18 @@ func (s *StatefulSetService) GetStatefulSetReplicas(ctx context.Context, namespa
 		return 0
 	}
 	return *sts.Spec.Replicas
+}
+
+// GetStatefulSetReadyReplicas returns the number of pods that are currently
+// ready (sts.Status.ReadyReplicas), i.e. the actual observed readiness rather
+// than the desired replica count. It returns 0 if the StatefulSet cannot be
+// fetched (e.g. it has not been created yet).
+func (s *StatefulSetService) GetStatefulSetReadyReplicas(ctx context.Context, namespace, name string) int32 {
+	sts, err := s.kubeClient.AppsV1().StatefulSets(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return 0
+	}
+	return sts.Status.ReadyReplicas
 }
 
 const (

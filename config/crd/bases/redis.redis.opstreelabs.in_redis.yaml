@@ -14,7 +14,15 @@ spec:
     singular: redis
   scope: Namespaced
   versions:
-  - name: v1beta2
+  - additionalPrinterColumns:
+    - description: The current state of the Redis instance
+      jsonPath: .status.state
+      name: State
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1beta2
     schema:
       openAPIV3Schema:
         description: Redis is the Schema for the redis API
@@ -5390,6 +5398,14 @@ spec:
             type: object
           status:
             description: RedisStatus defines the observed state of Redis
+            properties:
+              reason:
+                description: Reason provides a human-readable explanation of the current
+                  state.
+                type: string
+              state:
+                description: State is the current lifecycle state of the Redis resource.
+                type: string
             type: object
         required:
         - spec

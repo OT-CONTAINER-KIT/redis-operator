@@ -92,6 +92,8 @@ func (r *Reconciler) UpdateRedisReplicationMaster(ctx context.Context, instance 
 
 	connectionInfo := instance.GetConnectionInfo(envs.GetServiceDNSDomain())
 
+	// Spec.Size (clusterSize) has no default and may be nil; guard the deref the
+	// same way the rest of this controller does (e.g. incompleteTopology checks).
 	var state rrvb2.RedisReplicationState
 	var reason string
 	switch {
@@ -101,7 +103,7 @@ func (r *Reconciler) UpdateRedisReplicationMaster(ctx context.Context, instance 
 	case masterNode == "":
 		state = rrvb2.RedisReplicationFailed
 		reason = rrvb2.FailedReplicationReason
-	case readyReplicas < *instance.Spec.Size:
+	case instance.Spec.Size != nil && readyReplicas < *instance.Spec.Size:
 		state = rrvb2.RedisReplicationInitializing
 		reason = rrvb2.InitializingReplicationReason
 	default:
