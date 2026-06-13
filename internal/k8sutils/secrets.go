@@ -67,11 +67,12 @@ func getRedisTLSConfig(ctx context.Context, client kubernetes.Interface, namespa
 
 	if !caExists {
 		logf.FromContext(ctx).V(1).Info("CA certificate not found in TLS secret, using system trust store", "secretName", tlsSecretName)
-		return &tls.Config{
-			Certificates: []tls.Certificate{cert},
-			MinVersion:   tls.VersionTLS12,
-			// RootCAs: nil instructs Go to use the system trust store
+		systemCertPool, err := x509.SystemCertPool()
+		if err != nil {
+			logf.FromContext(ctx).Error(err, "Failed to load system certificate pool", "secretName", tlsSecretName)
+			return nil
 		}
+		return newTLSConfigVerifyingChainWithoutHostname(cert, systemCertPool)
 	}
 
 	tlsCaCertificates := x509.NewCertPool()
@@ -81,14 +82,24 @@ func getRedisTLSConfig(ctx context.Context, client kubernetes.Interface, namespa
 		return nil
 	}
 
+	return newTLSConfigVerifyingChainWithoutHostname(cert, tlsCaCertificates)
+}
+
+// newTLSConfigVerifyingChainWithoutHostname builds a client *tls.Config that
+// trusts the supplied root pool and verifies the peer certificate chain WITHOUT
+// checking the server name. The operator dials Redis pods by IP / pod DNS that
+// does not match the server certificate SNI, so Go's default hostname
+// verification is disabled (InsecureSkipVerify) and the chain is instead
+// validated by VerifyPeerCertificate against the provided roots.
+func newTLSConfigVerifyingChainWithoutHostname(cert tls.Certificate, rootCAs *x509.CertPool) *tls.Config {
 	return &tls.Config{
 		Certificates:       []tls.Certificate{cert},
-		RootCAs:            tlsCaCertificates,
+		RootCAs:            rootCAs,
 		MinVersion:         tls.VersionTLS12,
 		ClientAuth:         tls.NoClientCert,
-		InsecureSkipVerify: true,
+		InsecureSkipVerify: true, // skips default verification; chain re-verified without hostname below
 		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-			_, _, err := cryptutil.VerifyCertificateExceptServerName(rawCerts, &tls.Config{RootCAs: tlsCaCertificates})
+			_, _, err := cryptutil.VerifyCertificateExceptServerName(rawCerts, &tls.Config{RootCAs: rootCAs})
 			return err
 		},
 	}

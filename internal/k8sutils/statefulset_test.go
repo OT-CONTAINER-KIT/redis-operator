@@ -1929,7 +1929,6 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 											Value: "1.0",
 										},
 										{
-
 											Name:  "REDIS_TLS_CERT",
 											Value: path.Join("/tls/", "tls.crt"),
 										},

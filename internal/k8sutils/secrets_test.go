@@ -13,7 +13,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sClientFake "k8s.io/client-go/kubernetes/fake"
-	"k8s.io/utils/ptr"
 )
 
 func Test_getRedisPassword(t *testing.T) {
@@ -105,7 +104,6 @@ func Test_getRedisTLSConfig(t *testing.T) {
 		redisCluster *rcvb2.RedisCluster
 		redisInfo    RedisDetails
 		expectTLS    bool
-		expectRootCA *bool
 	}{
 		{
 			name: "TLS enabled and successful configuration",
@@ -144,8 +142,7 @@ func Test_getRedisTLSConfig(t *testing.T) {
 				PodName:   "redis-pod",
 				Namespace: "default",
 			},
-			expectTLS:    true,
-			expectRootCA: ptr.To(true),
+			expectTLS: true,
 		},
 		{
 			name: "TLS enabled with no CA key and implicit CA config",
@@ -182,8 +179,7 @@ func Test_getRedisTLSConfig(t *testing.T) {
 				PodName:   "redis-pod",
 				Namespace: "default",
 			},
-			expectTLS:    true,
-			expectRootCA: ptr.To(false),
+			expectTLS: true,
 		},
 		{
 			name: "TLS enabled but secret not found",
@@ -288,8 +284,7 @@ func Test_getRedisTLSConfig(t *testing.T) {
 				PodName:   "redis-pod",
 				Namespace: "default",
 			},
-			expectTLS:    true,
-			expectRootCA: ptr.To(false), // nil RootCAs = system trust store
+			expectTLS: true, // no explicit CA → system trust store fallback
 		},
 		{
 			name: "TLS enabled but incomplete secret",
@@ -340,12 +335,15 @@ func Test_getRedisTLSConfig(t *testing.T) {
 			if tt.expectTLS {
 				require.NotNil(t, tlsConfig, "Expected TLS configuration but got nil")
 				require.NotEmpty(t, tlsConfig.Certificates, "TLS Certificates should not be empty")
-				if tt.expectRootCA != nil && *tt.expectRootCA {
-					require.NotNil(t, tlsConfig.RootCAs, "Root CAs should not be nil")
-				}
-				if tt.expectRootCA != nil && !*tt.expectRootCA {
-					require.Nil(t, tlsConfig.RootCAs, "Root CAs should be nil to use system trust store")
-				}
+				// Whether the CA comes from the secret or from the system trust
+				// store fallback, the operator dials pods by IP/pod DNS that do
+				// not match the server certificate SNI. The config must therefore
+				// skip Go's default hostname verification and verify the chain
+				// itself, otherwise the connection would fail. This is the
+				// connection semantics the fallback path must preserve.
+				require.NotNil(t, tlsConfig.RootCAs, "Root CAs should not be nil")
+				require.True(t, tlsConfig.InsecureSkipVerify, "InsecureSkipVerify should be true so the default hostname check is skipped")
+				require.NotNil(t, tlsConfig.VerifyPeerCertificate, "VerifyPeerCertificate must be set to verify the chain without hostname checks")
 			} else {
 				assert.Nil(t, tlsConfig, "Expected no TLS configuration but got one")
 			}

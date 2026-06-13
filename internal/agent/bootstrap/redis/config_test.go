@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -9,102 +10,60 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_TLSCAFallback_EnvLogic(t *testing.T) {
-	// Tests the CA cert selection logic used in GenerateConfig TLS block:
-	// - REDIS_TLS_CA_CERT set   → use that path
-	// - REDIS_TLS_CA_CERT unset → fall back to system trust store
+func Test_GenerateConfig_TLS_CACertFile(t *testing.T) {
 	tests := []struct {
-		name        string
-		caCertEnv   string
-		expectedCA  string
+		name           string
+		caCertEnv      string
+		setCACertEnv   bool
+		expectCALine   bool
+		expectedCAPath string
 	}{
 		{
-			name:       "explicit CA cert env set - uses provided path",
-			caCertEnv:  "/tls/ca.crt",
-			expectedCA: "/tls/ca.crt",
+			name:           "explicit CA cert env set - writes provided path",
+			caCertEnv:      "/tls/ca.crt",
+			setCACertEnv:   true,
+			expectCALine:   true,
+			expectedCAPath: "/tls/ca.crt",
 		},
 		{
-			name:       "CA cert env not set - falls back to system trust store",
-			caCertEnv:  "",
-			expectedCA: "/etc/ssl/certs/ca-certificates.crt",
+			name:         "CA cert env not set - omits tls-ca-cert-file",
+			setCACertEnv: false,
+			expectCALine: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.caCertEnv != "" {
+			confPath := filepath.Join(t.TempDir(), "redis.conf")
+
+			t.Setenv("REDIS_CONFIG_FILE", confPath)
+			t.Setenv("TLS_MODE", "true")
+			t.Setenv("REDIS_TLS_CERT", "/tls/tls.crt")
+			t.Setenv("REDIS_TLS_CERT_KEY", "/tls/tls.key")
+			// Keep the run in standalone mode so GenerateConfig does not try to
+			// reach the network / read nodes.conf for cluster bootstrapping.
+			t.Setenv("SETUP_MODE", "standalone")
+			if tt.setCACertEnv {
 				t.Setenv("REDIS_TLS_CA_CERT", tt.caCertEnv)
 			} else {
 				os.Unsetenv("REDIS_TLS_CA_CERT")
 			}
 
-			// Mirror the logic from GenerateConfig TLS block
-			caCert := os.Getenv("REDIS_TLS_CA_CERT")
-			var resolvedCA string
-			if caCert != "" {
-				resolvedCA = caCert
+			require.NoError(t, GenerateConfig())
+
+			raw, err := os.ReadFile(confPath)
+			require.NoError(t, err)
+			conf := string(raw)
+
+			// TLS should always be configured when TLS_MODE is true.
+			assert.Contains(t, conf, "tls-cert-file /tls/tls.crt")
+			assert.Contains(t, conf, "tls-key-file /tls/tls.key")
+
+			if tt.expectCALine {
+				assert.Contains(t, conf, "tls-ca-cert-file "+tt.expectedCAPath)
 			} else {
-				resolvedCA = "/etc/ssl/certs/ca-certificates.crt"
+				assert.NotContains(t, conf, "tls-ca-cert-file")
 			}
-
-			assert.Equal(t, tt.expectedCA, resolvedCA)
-		})
-	}
-}
-
-func Test_GenerateConfig_TLS_WritesCorrectCALine(t *testing.T) {
-	tmpDir := t.TempDir()
-	confPath := tmpDir + "/redis.conf"
-
-	tests := []struct {
-		name        string
-		envVars     map[string]string
-		expectInConf string
-	}{
-		{
-			name: "with explicit CA - writes explicit CA path",
-			envVars: map[string]string{
-				"TLS_MODE":           "true",
-				"REDIS_TLS_CERT":     "/tls/tls.crt",
-				"REDIS_TLS_CERT_KEY": "/tls/tls.key",
-				"REDIS_TLS_CA_CERT":  "/tls/ca.crt",
-				"REDIS_CONFIG_FILE":  confPath,
-			},
-			expectInConf: "tls-ca-cert-file /tls/ca.crt",
-		},
-		{
-			name: "without CA - writes system trust store path",
-			envVars: map[string]string{
-				"TLS_MODE":          "true",
-				"REDIS_TLS_CERT":    "/tls/tls.crt",
-				"REDIS_TLS_CERT_KEY": "/tls/tls.key",
-				"REDIS_CONFIG_FILE": confPath,
-			},
-			expectInConf: "tls-ca-cert-file /etc/ssl/certs/ca-certificates.crt",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			for k, v := range tt.envVars {
-				t.Setenv(k, v)
-			}
-			// Unset CA cert if not in test case
-			if _, ok := tt.envVars["REDIS_TLS_CA_CERT"]; !ok {
-				os.Unsetenv("REDIS_TLS_CA_CERT")
-			}
-
-			// Mirror the CA resolution logic
-			caCert := os.Getenv("REDIS_TLS_CA_CERT")
-			var caLine string
-			if caCert != "" {
-				caLine = "tls-ca-cert-file " + caCert
-			} else {
-				caLine = "tls-ca-cert-file /etc/ssl/certs/ca-certificates.crt"
-			}
-
-			require.Equal(t, tt.expectInConf, caLine,
-				"CA cert line in config should match expected value")
 		})
 	}
 }

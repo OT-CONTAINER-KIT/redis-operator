@@ -459,7 +459,10 @@ func TestExecuteSingleLeaderAddSlots(t *testing.T) {
 			}
 		}
 		if withTLS {
-			cr.Spec.TLS = &common.TLSConfig{}
+			// CaCertFile is set explicitly so getRedisTLSArgs emits --cacert;
+			// without an explicit CA the operator now relies on --insecure and
+			// the system trust store instead of passing a CA file.
+			cr.Spec.TLS = &common.TLSConfig{CaCertFile: "ca.crt"}
 		}
 		return cr
 	}
