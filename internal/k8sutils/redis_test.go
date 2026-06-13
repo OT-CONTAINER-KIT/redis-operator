@@ -459,7 +459,10 @@ func TestExecuteSingleLeaderAddSlots(t *testing.T) {
 			}
 		}
 		if withTLS {
-			cr.Spec.TLS = &common.TLSConfig{}
+			// CaCertFile is set explicitly so getRedisTLSArgs emits --cacert;
+			// without an explicit CA the operator now relies on --insecure and
+			// the system trust store instead of passing a CA file.
+			cr.Spec.TLS = &common.TLSConfig{CaCertFile: "ca.crt"}
 		}
 		return cr
 	}
@@ -627,7 +630,15 @@ func TestGetRedisTLSArgs(t *testing.T) {
 			name:       "with TLS configuration",
 			tlsConfig:  &common.TLSConfig{},
 			clientHost: "redis-host",
-			expected:   []string{"--tls", "--cacert", "/tls/ca.crt", "--insecure"},
+			expected:   []string{"--tls", "--insecure"},
+		},
+		{
+			name: "with TLS and explicit CA configuration",
+			tlsConfig: &common.TLSConfig{
+				CaCertFile: "custom-ca.crt",
+			},
+			clientHost: "redis-host",
+			expected:   []string{"--tls", "--cacert", "/tls/custom-ca.crt", "--insecure"},
 		},
 		{
 			name:       "without TLS configuration",
