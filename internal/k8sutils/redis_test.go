@@ -17,6 +17,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 	k8sClientFake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/utils/ptr"
 )
@@ -302,20 +303,101 @@ func TestGetRedisServerAddress(t *testing.T) {
 	}
 }
 
-func TestCreateSingleLeaderRedisCommand(t *testing.T) {
-	cr := &rcvb2.RedisCluster{}
-	invocation := CreateSingleLeaderRedisCommand(context.TODO(), cr)
-	cmd := invocation.Args()
+func TestExecuteSingleLeaderAddSlots(t *testing.T) {
+	type recordedExec struct {
+		cmd     []string
+		podName string
+	}
 
-	assert.Equal(t, "redis-cli", cmd[0])
-	assert.Equal(t, "CLUSTER", cmd[1])
-	assert.Equal(t, "ADDSLOTS", cmd[2])
+	newCluster := func(version *string, withAuth, withTLS bool) *rcvb2.RedisCluster {
+		cr := &rcvb2.RedisCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "redis-cluster",
+				Namespace: "default",
+			},
+			Spec: rcvb2.RedisClusterSpec{
+				ClusterSize:    ptr.To(int32(1)),
+				ClusterVersion: version,
+				Port:           ptr.To(6379),
+			},
+		}
+		if withAuth {
+			cr.Spec.KubernetesConfig.ExistingPasswordSecret = &common.ExistingPasswordSecret{
+				Name: ptr.To("redis-password-secret"),
+				Key:  ptr.To("password"),
+			}
+		}
+		if withTLS {
+			cr.Spec.TLS = &common.TLSConfig{}
+		}
+		return cr
+	}
 
-	expectedLength := 16384 + 3
+	tests := []struct {
+		name          string
+		redisCluster  *rcvb2.RedisCluster
+		expectedFlags []string
+		rangeCommand  bool
+	}{
+		{
+			name:         "redis v7 uses a single ADDSLOTSRANGE command",
+			redisCluster: newCluster(ptr.To("v7"), false, false),
+			rangeCommand: true,
+		},
+		{
+			name:          "redis v7 with auth includes password flag",
+			redisCluster:  newCluster(ptr.To("v7"), true, false),
+			expectedFlags: []string{"-a", "password"},
+			rangeCommand:  true,
+		},
+		{
+			name:         "redis v6 falls back to batched ADDSLOTS",
+			redisCluster: newCluster(nil, false, false),
+		},
+		{
+			name:          "redis v6 with TLS includes TLS flags in every batch",
+			redisCluster:  newCluster(nil, false, true),
+			expectedFlags: []string{"--tls", "--cacert", "/tls/ca.crt", "--insecure"},
+		},
+	}
 
-	assert.Equal(t, expectedLength, len(cmd))
-	assert.Equal(t, "0", cmd[3])
-	assert.Equal(t, "16383", cmd[expectedLength-1])
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var objects []runtime.Object
+			if tt.redisCluster.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
+				objects = mock_utils.CreateFakeObjectWithSecret("redis-password-secret", "default", "password")
+			}
+			client := k8sClientFake.NewSimpleClientset(objects...)
+
+			var execs []recordedExec
+			executeSingleLeaderAddSlots(context.TODO(), client, tt.redisCluster, func(_ context.Context, _ kubernetes.Interface, _ *rcvb2.RedisCluster, cmd []string, podName string) {
+				execs = append(execs, recordedExec{cmd: cmd, podName: podName})
+			})
+
+			expectedPrefix := append([]string{"redis-cli"}, tt.expectedFlags...)
+			if tt.rangeCommand {
+				assert.Len(t, execs, 1, "v7 should issue exactly one command")
+				assert.Equal(t, append(expectedPrefix, "CLUSTER", "ADDSLOTSRANGE", "0", "16383"), execs[0].cmd)
+				assert.Equal(t, "redis-cluster-leader-0", execs[0].podName)
+				return
+			}
+
+			assert.Len(t, execs, 17, "16384 slots in batches of 1000 should issue 17 commands")
+			slot := 0
+			for _, exec := range execs {
+				assert.Equal(t, "redis-cluster-leader-0", exec.podName)
+				expectedCmd := append(append([]string{}, expectedPrefix...), "CLUSTER", "ADDSLOTS")
+				assert.Equal(t, expectedCmd, exec.cmd[:len(expectedCmd)])
+				slots := exec.cmd[len(expectedCmd):]
+				assert.LessOrEqual(t, len(slots), 1000, "batch exceeds max size")
+				for _, s := range slots {
+					assert.Equal(t, strconv.Itoa(slot), s, "slots must be contiguous with no gaps or duplicates")
+					slot++
+				}
+			}
+			assert.Equal(t, 16384, slot, "all 16384 slots must be assigned")
+		})
+	}
 }
 
 func TestCreateMultipleLeaderRedisCommand(t *testing.T) {
