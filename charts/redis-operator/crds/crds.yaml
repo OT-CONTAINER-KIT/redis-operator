@@ -14475,6 +14475,31 @@ spec:
                   - name
                   type: object
                 type: array
+              externalMaster:
+                description: |-
+                  ExternalMaster configures slave-only mode where all pods replicate from an
+                  external Redis master residing in another cluster. When enabled, no local
+                  master is elected, the master-role service is not created, and all
+                  leader-election / failover logic is skipped.
+                  Cannot be combined with Sentinel.
+                properties:
+                  host:
+                    description: Host is the DNS name or IP address of the external
+                      Redis master.
+                    minLength: 1
+                    type: string
+                  port:
+                    default: 6379
+                    description: |-
+                      Port is the port of the external Redis master.
+                      Defaults to 6379 when omitted.
+                    format: int32
+                    maximum: 65535
+                    minimum: 1
+                    type: integer
+                required:
+                - host
+                type: object
               hostPort:
                 type: integer
               initContainer:
