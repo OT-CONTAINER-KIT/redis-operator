@@ -55,7 +55,7 @@ func TestCheckRedisNodePresence(t *testing.T) {
 	}
 }
 
-func TestRepairDisconnectedMasters(t *testing.T) {
+func TestRepairDisconnectedNodes(t *testing.T) {
 	ctx := context.Background()
 	redisClient, mock := redismock.NewClientMock()
 	mock.ExpectClusterNodes().SetVal(`
@@ -66,30 +66,79 @@ e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@31001,redis-cluster-lea
 `)
 
 	namespace := "default"
-	newPodIP := "0.0.0.0"
-	k8sClient := k8sClientFake.NewSimpleClientset(&corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "redis-cluster-leader-0",
-			Namespace: namespace,
+	leaderPodIP := "10.0.0.1"
+	followerPodIP := "10.0.0.2"
+	k8sClient := k8sClientFake.NewSimpleClientset(
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "redis-cluster-leader-0",
+				Namespace: namespace,
+			},
+			Status: corev1.PodStatus{
+				PodIP: leaderPodIP,
+			},
 		},
-		Status: corev1.PodStatus{
-			PodIP: newPodIP,
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "redis-cluster-follower-1",
+				Namespace: namespace,
+			},
+			Status: corev1.PodStatus{
+				PodIP: followerPodIP,
+			},
 		},
-	})
-	mock.ExpectClusterMeet(newPodIP, "6379").SetVal("OK")
+	)
+	mock.ExpectClusterMeet(leaderPodIP, "6379").SetVal("OK")
+	mock.ExpectClusterMeet(followerPodIP, "6379").SetVal("OK")
+
+	followerClient, followerMock := redismock.NewClientMock()
+	followerMock.ExpectClusterReplicate("292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f").SetVal("OK")
+
 	port := 6379
-	err := repairDisconnectedMasters(ctx, k8sClient, &rcvb2.RedisCluster{
+	err := repairDisconnectedNodes(ctx, k8sClient, &rcvb2.RedisCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
 		},
 		Spec: rcvb2.RedisClusterSpec{
 			Port: &port,
 		},
-	}, redisClient)
+	}, redisClient, func(podName string) *redis.Client {
+		assert.Equal(t, "redis-cluster-follower-1", podName)
+		return followerClient
+	})
 	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet(), "expected CLUSTER MEET for both failed nodes")
+	assert.NoError(t, followerMock.ExpectationsWereMet(), "expected CLUSTER REPLICATE on the failed follower")
 }
 
-func TestRepairDisconnectedMastersAttemptedOnAllFailedMasters(t *testing.T) {
+func TestRepairDisconnectedNodesSkipsNodeWithEmptyIP(t *testing.T) {
+	ctx := context.Background()
+	redisClient, mock := redismock.NewClientMock()
+	mock.ExpectClusterNodes().SetVal(`
+67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1 127.0.0.1:30002@31002,redis-cluster-leader-0 master - 0 1426238316232 2 disconnected 5461-10922
+e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@31001,redis-cluster-leader-1 myself,master - 0 0 1 connected 0-5460
+`)
+
+	// no pod registered for redis-cluster-leader-0, so IP resolution returns ""
+	k8sClient := k8sClientFake.NewSimpleClientset()
+	port := 6379
+	err := repairDisconnectedNodes(ctx, k8sClient, &rcvb2.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+		},
+		Spec: rcvb2.RedisClusterSpec{
+			Port: &port,
+		},
+	}, redisClient, func(podName string) *redis.Client {
+		t.Errorf("unexpected follower client requested for pod %s", podName)
+		return nil
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get IP for pod redis-cluster-leader-0")
+	assert.NoError(t, mock.ExpectationsWereMet(), "no CLUSTER MEET should be issued for a node without an IP")
+}
+
+func TestRepairDisconnectedNodesAttemptedOnAllFailedMasters(t *testing.T) {
 	ctx := context.Background()
 	redisClient, mock := redismock.NewClientMock()
 	mock.ExpectClusterNodes().SetVal(`
@@ -130,16 +179,98 @@ bffda5dec210cd73576a3993156dc134b5c63a4f :6379@16379,redis-cluster-leader-9 mast
 	k8sClient := k8sClientFake.NewSimpleClientset(k8sObjects...)
 
 	port := 6379
-	err := repairDisconnectedMasters(ctx, k8sClient, &rcvb2.RedisCluster{
+	err := repairDisconnectedNodes(ctx, k8sClient, &rcvb2.RedisCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
 		},
 		Spec: rcvb2.RedisClusterSpec{
 			Port: &port,
 		},
-	}, redisClient)
+	}, redisClient, func(podName string) *redis.Client {
+		t.Errorf("unexpected follower client requested for pod %s", podName)
+		return nil
+	})
 	assert.Error(t, err)
 	assert.Equal(t, expectedErr, err, "Expected error to match the one set in the mock")
+}
+
+func TestReplicationLinkUp(t *testing.T) {
+	tests := []struct {
+		name     string
+		info     string
+		expected bool
+	}{
+		{
+			name:     "replication up",
+			info:     "# Replication\r\nrole:slave\r\nmaster_host:10.0.0.1\r\nmaster_port:6379\r\nmaster_link_status:up\r\nmaster_last_io_seconds_ago:1\r\n",
+			expected: true,
+		},
+		{
+			name:     "replication down",
+			info:     "# Replication\r\nrole:slave\r\nmaster_host:10.0.0.1\r\nmaster_port:6379\r\nmaster_link_status:down\r\nmaster_last_io_seconds_ago:-1\r\n",
+			expected: false,
+		},
+		{
+			name:     "master node - no master_link_status field",
+			info:     "# Replication\r\nrole:master\r\nconnected_slaves:2\r\n",
+			expected: true,
+		},
+		{
+			name:     "empty info",
+			info:     "",
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, replicationLinkUp(tt.info))
+		})
+	}
+}
+
+func TestRepairStaleReplication_replicationDown(t *testing.T) {
+	ctx := context.Background()
+	redisClient, mock := redismock.NewClientMock()
+
+	mock.ExpectClusterNodes().SetVal(`
+e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@31001,redis-cluster-leader-0 myself,master - 0 0 1 connected 0-16383
+07c37dfeb235213a872192d90877d0cd55635b91 127.0.0.1:30002@31002,redis-cluster-follower-0 slave e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 0 1426238317239 1 connected
+`)
+
+	followerClient, followerMock := redismock.NewClientMock()
+	followerMock.ExpectInfo("replication").SetVal(
+		"# Replication\r\nrole:slave\r\nmaster_host:10.130.24.167\r\nmaster_port:6379\r\nmaster_link_status:down\r\nmaster_last_io_seconds_ago:-1\r\n",
+	)
+	followerMock.ExpectClusterReplicate("e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca").SetVal("OK")
+
+	repaired, lastError := repairStaleReplication(ctx, redisClient, func(_ string) *redis.Client {
+		return followerClient
+	})
+	assert.NoError(t, lastError)
+	assert.Equal(t, 1, repaired)
+	assert.NoError(t, followerMock.ExpectationsWereMet(), "expected CLUSTER REPLICATE on the stale follower")
+}
+
+func TestRepairStaleReplication_replicationUp(t *testing.T) {
+	ctx := context.Background()
+	redisClient, mock := redismock.NewClientMock()
+
+	mock.ExpectClusterNodes().SetVal(`
+e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@31001,redis-cluster-leader-0 myself,master - 0 0 1 connected 0-16383
+07c37dfeb235213a872192d90877d0cd55635b91 127.0.0.1:30002@31002,redis-cluster-follower-0 slave e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 0 1426238317239 1 connected
+`)
+
+	followerClient, followerMock := redismock.NewClientMock()
+	followerMock.ExpectInfo("replication").SetVal(
+		"# Replication\r\nrole:slave\r\nmaster_host:10.0.0.1\r\nmaster_port:6379\r\nmaster_link_status:up\r\nmaster_last_io_seconds_ago:0\r\n",
+	)
+
+	repaired, lastError := repairStaleReplication(ctx, redisClient, func(_ string) *redis.Client {
+		return followerClient
+	})
+	assert.NoError(t, lastError)
+	assert.Equal(t, 0, repaired)
 }
 
 func TestGetRedisServerIP(t *testing.T) {
