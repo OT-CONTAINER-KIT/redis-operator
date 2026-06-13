@@ -32,7 +32,8 @@ pidfile /var/run/redis.pid
 
 // GenerateConfig generates Redis configuration file
 func GenerateConfig() error {
-	cfg := agentutil.NewConfig("/etc/redis/redis.conf", defaultRedisConfig)
+	confPath := util.CoalesceEnv1("REDIS_CONFIG_FILE", "/etc/redis/redis.conf")
+	cfg := agentutil.NewConfig(confPath, defaultRedisConfig)
 
 	var (
 		persistenceEnabled = util.CoalesceEnv1("PERSISTENCE_ENABLED", "false")
@@ -108,7 +109,9 @@ func GenerateConfig() error {
 	if tlsMode == "true" {
 		cfg.Append("tls-cert-file", util.CoalesceEnv1("REDIS_TLS_CERT", ""))
 		cfg.Append("tls-key-file", util.CoalesceEnv1("REDIS_TLS_CERT_KEY", ""))
-		cfg.Append("tls-ca-cert-file", util.CoalesceEnv1("REDIS_TLS_CA_CERT", ""))
+		if caCert := util.CoalesceEnv1("REDIS_TLS_CA_CERT", ""); caCert != "" {
+			cfg.Append("tls-ca-cert-file", caCert)
+		}
 		cfg.Append("tls-auth-clients", "optional")
 		cfg.Append("tls-replication", "yes")
 
