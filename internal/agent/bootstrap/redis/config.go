@@ -17,11 +17,14 @@ import (
 )
 
 // defaultRedisConfig from https://github.com/OT-CONTAINER-KIT/redis/blob/master/redis.conf
+// tcp-keepalive is lowered from the Redis default (300s) to 60s so that dead
+// peer connections are detected faster, which helps the cluster gossip layer
+// converge sooner after pod restarts with new IPs.
 const defaultRedisConfig = `
 bind 0.0.0.0 ::
 tcp-backlog 511
 timeout 0
-tcp-keepalive 300
+tcp-keepalive 60
 daemonize no
 supervised no
 pidfile /var/run/redis.pid
@@ -57,8 +60,13 @@ func GenerateConfig() error {
 	if clusterMode == "cluster" {
 		nodeConfPath := filepath.Join(nodeConfDir, "nodes.conf")
 
+		// cluster-node-timeout is raised from 5000ms to 15000ms (configurable
+		// via CLUSTER_NODE_TIMEOUT) to give gossip time to converge after
+		// pod restarts before marking nodes as failed.
+		clusterNodeTimeout := util.CoalesceEnv1("CLUSTER_NODE_TIMEOUT", "15000")
+
 		cfg.Append("cluster-enabled", "yes")
-		cfg.Append("cluster-node-timeout", "5000")
+		cfg.Append("cluster-node-timeout", clusterNodeTimeout)
 		cfg.Append("cluster-require-full-coverage", "no")
 		cfg.Append("cluster-migration-barrier", "1")
 		cfg.Append("cluster-config-file", nodeConfPath)
