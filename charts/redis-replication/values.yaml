@@ -239,9 +239,10 @@ sentinel:
   failoverTimeout: "10000"
   # -- Time in milliseconds before master is considered down
   downAfterMilliseconds: "5000"
-  # -- Use hostnames instead of IPs for Sentinel monitoring.
-  # WARNING: the operator does not pass RESOLVE_HOSTNAMES env var to sentinel pods,
-  # so setting this to "yes" will cause SENTINEL MONITOR to fail. Keep as "no".
+  # -- Resolve hostnames instead of IPs for Sentinel monitoring. Set to "yes"
+  # (together with announceHostnames) so replicas and sentinel announce their FQDN
+  # instead of pod IP — useful behind a service mesh where pod IPs are not routable.
+  # Requires the GenerateConfigInInitContainer feature gate on the operator.
   resolveHostnames: "no"
   # -- Whether Sentinel announces hostnames instead of IPs to clients
   announceHostnames: "no"

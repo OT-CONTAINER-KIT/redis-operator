@@ -119,6 +119,7 @@ type statefulSetParameters struct {
 	IgnoreAnnotations                    []string
 	HostNetwork                          bool
 	MinReadySeconds                      int32
+	ServiceName                          string
 	PodManagementPolicy                  *string
 }
 
@@ -294,12 +295,17 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 	// Generate stable selector labels (only core labels that won't change)
 	selectorLabels := extractStatefulSetSelectorLabels(stsMeta.GetLabels())
 
+	serviceName := params.ServiceName
+	if serviceName == "" {
+		serviceName = fmt.Sprintf("%s-headless", stsMeta.Name)
+	}
+
 	statefulset := &appsv1.StatefulSet{
 		TypeMeta:   generateMetaInformation("StatefulSet", "apps/v1"),
 		ObjectMeta: stsMeta,
 		Spec: appsv1.StatefulSetSpec{
 			Selector:                             LabelSelectors(selectorLabels),
-			ServiceName:                          fmt.Sprintf("%s-headless", stsMeta.Name),
+			ServiceName:                          serviceName,
 			Replicas:                             params.Replicas,
 			UpdateStrategy:                       params.UpdateStrategy,
 			PersistentVolumeClaimRetentionPolicy: params.PersistentVolumeClaimRetentionPolicy,

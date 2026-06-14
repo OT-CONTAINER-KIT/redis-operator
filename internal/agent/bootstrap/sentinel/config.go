@@ -6,7 +6,12 @@ import (
 
 	agentutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/agent/util"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
+	"github.com/Showmax/go-fqdn"
 )
+
+// fqdnHostname resolves the sentinel pod's fully-qualified domain name. It is a
+// package variable so tests can stub the resolver deterministically.
+var fqdnHostname = fqdn.FqdnHostname
 
 // defaultSentinelConfig from https://github.com/OT-CONTAINER-KIT/redis/blob/master/sentinel.conf
 const defaultSentinelConfig = `
@@ -75,9 +80,17 @@ func GenerateConfig() error {
 			cfg.Append("sentinel myid", sentinelID)
 		}
 
-		// If resolveHostnames is set to yes, then we need to announce the hostnames
+		// If resolveHostnames and announceHostnames are both enabled, announce
+		// this sentinel's own FQDN hostname so that peer sentinels and clients
+		// can reach it by DNS name rather than an ephemeral pod IP.
+		// The `ip` variable holds the *master's* address, NOT the sentinel's own
+		// address, so we must resolve the sentinel pod's FQDN independently.
 		if announceHostnames == "yes" && resolveHostnames == "yes" {
-			cfg.Append("sentinel announce-ip", ip)
+			if sentinelFQDN, err := fqdnHostname(); err != nil {
+				fmt.Printf("Warning: Failed to get FQDN for sentinel announce-ip: %v\n", err)
+			} else {
+				cfg.Append("sentinel announce-ip", sentinelFQDN)
+			}
 		}
 	}
 

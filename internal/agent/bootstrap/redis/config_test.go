@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,6 +10,85 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// Test_GenerateConfig_ReplicaAnnounceIP covers the fix where a replication pod
+// announces its own FQDN via replica-announce-ip/replica-announce-port, so that
+// Sentinel tracks replicas by stable DNS name instead of an ephemeral pod IP
+// (e.g. behind a service mesh). The directives must only be emitted in the
+// non-cluster (replication) path when both announce and resolve hostnames are
+// enabled and the FQDN resolves.
+func Test_GenerateConfig_ReplicaAnnounceIP(t *testing.T) {
+	const fakeFQDN = "redis-replication-0.redis-replication-headless.redis.svc.cluster.local"
+	const redisPort = "6380"
+
+	tests := []struct {
+		name              string
+		announceHostnames string
+		resolveHostnames  string
+		fqdn              func() (string, error)
+		expectAnnounce    bool
+	}{
+		{
+			name:              "announce and resolve enabled emits replica-announce-ip/port",
+			announceHostnames: "yes",
+			resolveHostnames:  "yes",
+			fqdn:              func() (string, error) { return fakeFQDN, nil },
+			expectAnnounce:    true,
+		},
+		{
+			name:              "announce disabled omits replica-announce-ip",
+			announceHostnames: "no",
+			resolveHostnames:  "yes",
+			fqdn:              func() (string, error) { return fakeFQDN, nil },
+			expectAnnounce:    false,
+		},
+		{
+			name:              "resolve disabled omits replica-announce-ip",
+			announceHostnames: "yes",
+			resolveHostnames:  "no",
+			fqdn:              func() (string, error) { return fakeFQDN, nil },
+			expectAnnounce:    false,
+		},
+		{
+			name:              "fqdn resolution failure omits replica-announce-ip",
+			announceHostnames: "yes",
+			resolveHostnames:  "yes",
+			fqdn:              func() (string, error) { return "", errors.New("no fqdn") },
+			expectAnnounce:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			orig := fqdnHostname
+			fqdnHostname = tt.fqdn
+			defer func() { fqdnHostname = orig }()
+
+			confPath := filepath.Join(t.TempDir(), "redis.conf")
+			t.Setenv("REDIS_CONFIG_FILE", confPath)
+			// Non-cluster mode keeps GenerateConfig on the replication path and
+			// off the network / nodes.conf cluster bootstrap.
+			t.Setenv("SETUP_MODE", "replication")
+			t.Setenv("REDIS_PORT", redisPort)
+			t.Setenv("ANNOUNCE_HOSTNAMES", tt.announceHostnames)
+			t.Setenv("RESOLVE_HOSTNAMES", tt.resolveHostnames)
+
+			require.NoError(t, GenerateConfig())
+
+			raw, err := os.ReadFile(confPath)
+			require.NoError(t, err)
+			conf := string(raw)
+
+			if tt.expectAnnounce {
+				assert.Contains(t, conf, "replica-announce-ip "+fakeFQDN)
+				assert.Contains(t, conf, "replica-announce-port "+redisPort)
+			} else {
+				assert.NotContains(t, conf, "replica-announce-ip")
+				assert.NotContains(t, conf, "replica-announce-port")
+			}
+		})
+	}
+}
 
 func Test_GenerateConfig_TLS_CACertFile(t *testing.T) {
 	tests := []struct {

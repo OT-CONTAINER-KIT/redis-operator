@@ -8,6 +8,7 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util/maps"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -168,6 +169,17 @@ func generateRedisReplicationContainerParams(cr *rrvb2.RedisReplication) contain
 	}
 	if cr.Spec.EnvVars != nil {
 		containerProp.EnvVars = cr.Spec.EnvVars
+	}
+	if cr.EnableSentinel() && cr.Spec.Sentinel.ResolveHostnames == "yes" && cr.Spec.Sentinel.AnnounceHostnames == "yes" {
+		merged := []corev1.EnvVar{}
+		if containerProp.EnvVars != nil {
+			merged = append(merged, *containerProp.EnvVars...)
+		}
+		merged = append(merged,
+			corev1.EnvVar{Name: "RESOLVE_HOSTNAMES", Value: cr.Spec.Sentinel.ResolveHostnames},
+			corev1.EnvVar{Name: "ANNOUNCE_HOSTNAMES", Value: cr.Spec.Sentinel.AnnounceHostnames},
+		)
+		containerProp.EnvVars = &merged
 	}
 	if cr.Spec.Storage != nil {
 		containerProp.AdditionalVolume = cr.Spec.Storage.VolumeMount.Volume

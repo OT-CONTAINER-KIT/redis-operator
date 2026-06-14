@@ -108,7 +108,7 @@ helm delete <my-release> --namespace <namespace>
 | sentinel.podSecurityContext | object | `{}` | Pod-level security context for Sentinel pods. |
 | sentinel.priorityClassName | string | `""` | PriorityClass name for Sentinel pods. |
 | sentinel.redisSecret | object | `{"secretKey":"","secretName":""}` | Secret holding the password Sentinel uses to authenticate to Redis. Leave empty to fall back to redisReplication.redisSecret. |
-| sentinel.resolveHostnames | string | `"no"` | Use hostnames instead of IPs for Sentinel monitoring. WARNING: the operator does not pass RESOLVE_HOSTNAMES env var to sentinel pods, so setting this to "yes" will cause SENTINEL MONITOR to fail. Keep as "no". |
+| sentinel.resolveHostnames | string | `"no"` | Resolve hostnames instead of IPs for Sentinel monitoring. Set to "yes" (together with announceHostnames) so replicas and sentinel announce their FQDN instead of pod IP — useful behind a service mesh where pod IPs are not routable. Requires the GenerateConfigInInitContainer feature gate on the operator. |
 | sentinel.securityContext | object | `{}` | Container-level security context for the Sentinel container. |
 | sentinel.serviceAccountName | string | `""` | ServiceAccount name for Sentinel pods. |
 | sentinel.terminationGracePeriodSeconds | string | `nil` | Termination grace period (in seconds) for Sentinel pods. |

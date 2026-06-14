@@ -234,6 +234,111 @@ func Test_generateRedisReplicationContainerParams(t *testing.T) {
 	assert.EqualValues(t, expected, actual, "Expected %+v, got %+v", expected, actual)
 }
 
+func Test_generateRedisReplicationContainerParams_hostnameEnvVars(t *testing.T) {
+	tests := []struct {
+		name              string
+		sentinelEnabled   bool
+		resolveHostnames  string
+		announceHostnames string
+		expectEnvVars     bool
+	}{
+		{
+			name:              "sentinel hostname mode on - env vars injected",
+			sentinelEnabled:   true,
+			resolveHostnames:  "yes",
+			announceHostnames: "yes",
+			expectEnvVars:     true,
+		},
+		{
+			name:              "sentinel enabled but hostnames off - no env vars",
+			sentinelEnabled:   true,
+			resolveHostnames:  "no",
+			announceHostnames: "no",
+			expectEnvVars:     false,
+		},
+		{
+			name:              "sentinel enabled but only announce - no env vars",
+			sentinelEnabled:   true,
+			resolveHostnames:  "no",
+			announceHostnames: "yes",
+			expectEnvVars:     false,
+		},
+		{
+			name:              "sentinel disabled - no env vars",
+			sentinelEnabled:   false,
+			resolveHostnames:  "yes",
+			announceHostnames: "yes",
+			expectEnvVars:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cr := &rrvb2.RedisReplication{
+				Spec: rrvb2.RedisReplicationSpec{
+					Size: ptr.To(int32(3)),
+					KubernetesConfig: common.KubernetesConfig{
+						Image: "quay.io/opstree/redis:v7.0.12",
+					},
+				},
+			}
+			if tt.sentinelEnabled {
+				cr.Spec.Sentinel = &rrvb2.Sentinel{
+					Size: 3,
+					SentinelConfig: common.SentinelConfig{
+						ResolveHostnames:  tt.resolveHostnames,
+						AnnounceHostnames: tt.announceHostnames,
+					},
+				}
+			}
+
+			actual := generateRedisReplicationContainerParams(cr)
+
+			if tt.expectEnvVars {
+				assert.NotNil(t, actual.EnvVars, "EnvVars should not be nil")
+				found := map[string]string{}
+				for _, e := range *actual.EnvVars {
+					found[e.Name] = e.Value
+				}
+				assert.Equal(t, "yes", found["RESOLVE_HOSTNAMES"])
+				assert.Equal(t, "yes", found["ANNOUNCE_HOSTNAMES"])
+			} else {
+				assert.Nil(t, actual.EnvVars, "EnvVars should be nil when sentinel hostname mode is off")
+			}
+		})
+	}
+}
+
+func Test_generateRedisReplicationContainerParams_hostnameEnvVarsDoNotMutateSpec(t *testing.T) {
+	existingEnvVars := []corev1.EnvVar{
+		{Name: "EXISTING_VAR", Value: "existing_value"},
+	}
+	cr := &rrvb2.RedisReplication{
+		Spec: rrvb2.RedisReplicationSpec{
+			Size: ptr.To(int32(3)),
+			KubernetesConfig: common.KubernetesConfig{
+				Image: "quay.io/opstree/redis:v7.0.12",
+			},
+			EnvVars: &existingEnvVars,
+			Sentinel: &rrvb2.Sentinel{
+				Size: 3,
+				SentinelConfig: common.SentinelConfig{
+					ResolveHostnames:  "yes",
+					AnnounceHostnames: "yes",
+				},
+			},
+		},
+	}
+
+	actual := generateRedisReplicationContainerParams(cr)
+
+	assert.NotNil(t, actual.EnvVars)
+	assert.Len(t, *actual.EnvVars, 3, "container should have existing + 2 hostname env vars")
+
+	assert.Len(t, existingEnvVars, 1, "cr.Spec.EnvVars backing slice must not be mutated")
+	assert.Len(t, *cr.Spec.EnvVars, 1, "cr.Spec.EnvVars must not be mutated")
+}
+
 func Test_generateRedisReplicationInitContainerParams(t *testing.T) {
 	path := filepath.Join("..", "..", "tests", "testdata", "redis-replication.yaml")
 	expected := initContainerParameters{

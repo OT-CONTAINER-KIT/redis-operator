@@ -10,7 +10,6 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	redishealer "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/redis"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/service"
-	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/statefulset"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/controllerutil"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/envs"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
@@ -187,13 +186,10 @@ func (r *Reconciler) reconcileResources(ctx context.Context, instance *rrvb2.Red
 	}
 	if instance.EnableSentinel() {
 		svc := newSentinelService(instance)
-		_, err := service.Reconcile(ctx, r.Client, svc, instance)
-		if err != nil {
+		if _, err := service.Reconcile(ctx, r.Client, svc, instance); err != nil {
 			return intctrlutil.RequeueE(ctx, err, "")
 		}
-		sts := newSentinelStatefulSet(instance, svc.Name)
-		_, err = statefulset.Reconcile(ctx, r.Client, sts, instance)
-		if err != nil {
+		if err := k8sutils.CreateReplicationSentinel(ctx, instance, r.K8sClient); err != nil {
 			return intctrlutil.RequeueE(ctx, err, "")
 		}
 	}
