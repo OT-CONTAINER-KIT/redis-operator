@@ -9,6 +9,10 @@ import (
 	"github.com/Showmax/go-fqdn"
 )
 
+// fqdnHostname resolves the sentinel pod's fully-qualified domain name. It is a
+// package variable so tests can stub the resolver deterministically.
+var fqdnHostname = fqdn.FqdnHostname
+
 // defaultSentinelConfig from https://github.com/OT-CONTAINER-KIT/redis/blob/master/sentinel.conf
 const defaultSentinelConfig = `
 daemonize no
@@ -82,7 +86,7 @@ func GenerateConfig() error {
 		// The `ip` variable holds the *master's* address, NOT the sentinel's own
 		// address, so we must resolve the sentinel pod's FQDN independently.
 		if announceHostnames == "yes" && resolveHostnames == "yes" {
-			if sentinelFQDN, err := fqdn.FqdnHostname(); err != nil {
+			if sentinelFQDN, err := fqdnHostname(); err != nil {
 				fmt.Printf("Warning: Failed to get FQDN for sentinel announce-ip: %v\n", err)
 			} else {
 				cfg.Append("sentinel announce-ip", sentinelFQDN)

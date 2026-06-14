@@ -16,6 +16,10 @@ import (
 	"github.com/Showmax/go-fqdn"
 )
 
+// fqdnHostname resolves the pod's fully-qualified domain name. It is a package
+// variable so tests can stub the resolver deterministically.
+var fqdnHostname = fqdn.FqdnHostname
+
 // defaultRedisConfig from https://github.com/OT-CONTAINER-KIT/redis/blob/master/redis.conf
 // tcp-keepalive is lowered from the Redis default (300s) to 60s so that dead
 // peer connections are detected faster, which helps the cluster gossip layer
@@ -95,7 +99,7 @@ func GenerateConfig() error {
 			cfg.Append("cluster-announce-ip", clusterAnnounceIP)
 		}
 		if redisMajorVersion == "v7" {
-			fqdnName, err := fqdn.FqdnHostname()
+			fqdnName, err := fqdnHostname()
 			if err != nil {
 				log.Printf("Warning: Failed to get FQDN: %v", err)
 			} else {
@@ -112,7 +116,7 @@ func GenerateConfig() error {
 		announceHostnames := util.CoalesceEnv1("ANNOUNCE_HOSTNAMES", "no")
 		resolveHostnames := util.CoalesceEnv1("RESOLVE_HOSTNAMES", "no")
 		if announceHostnames == "yes" && resolveHostnames == "yes" {
-			if fqdnName, err := fqdn.FqdnHostname(); err != nil {
+			if fqdnName, err := fqdnHostname(); err != nil {
 				log.Printf("Warning: Failed to get FQDN for replica-announce-ip: %v", err)
 			} else {
 				cfg.Append("replica-announce-ip", fqdnName)

@@ -56,6 +56,32 @@ func generateReplicationSentinelParams(cr *rrvb2.RedisReplication) statefulSetPa
 	if cr.Spec.Sentinel.AdditionalSentinelConfig != nil {
 		res.ExternalConfig = cr.Spec.Sentinel.AdditionalSentinelConfig
 	}
+	// Pod placement settings for the Sentinel StatefulSet. A Sentinel-specific
+	// ServiceAccountName takes precedence over the replication-level one.
+	if cr.Spec.Sentinel.ServiceAccountName != nil {
+		res.ServiceAccountName = cr.Spec.Sentinel.ServiceAccountName
+	}
+	if cr.Spec.Sentinel.Affinity != nil {
+		res.Affinity = cr.Spec.Sentinel.Affinity
+	}
+	if cr.Spec.Sentinel.Tolerations != nil {
+		res.Tolerations = cr.Spec.Sentinel.Tolerations
+	}
+	if cr.Spec.Sentinel.NodeSelector != nil {
+		res.NodeSelector = cr.Spec.Sentinel.NodeSelector
+	}
+	if len(cr.Spec.Sentinel.TopologySpreadConstraints) > 0 {
+		res.TopologySpreadConstraints = cr.Spec.Sentinel.TopologySpreadConstraints
+	}
+	if cr.Spec.Sentinel.PodSecurityContext != nil {
+		res.PodSecurityContext = cr.Spec.Sentinel.PodSecurityContext
+	}
+	if cr.Spec.Sentinel.PriorityClassName != "" {
+		res.PriorityClassName = cr.Spec.Sentinel.PriorityClassName
+	}
+	if cr.Spec.Sentinel.TerminationGracePeriodSeconds != nil {
+		res.TerminationGracePeriodSeconds = cr.Spec.Sentinel.TerminationGracePeriodSeconds
+	}
 	return res
 }
 
@@ -88,6 +114,9 @@ func generateReplicationSentinelContainerParams(cr *rrvb2.RedisReplication) cont
 		Port:                  ptr.To(common.SentinelPort),
 		AdditionalEnvVariable: getReplicationSentinelEnvVariable(cr),
 	}
+	if cr.Spec.Sentinel.SecurityContext != nil {
+		containerProp.SecurityContext = cr.Spec.Sentinel.SecurityContext
+	}
 	if cr.Spec.Sentinel.ExistingPasswordSecret != nil {
 		containerProp.EnabledPassword = &trueProperty
 		containerProp.SecretName = cr.Spec.Sentinel.ExistingPasswordSecret.Name
@@ -111,15 +140,22 @@ func getReplicationSentinelEnvVariable(cr *rrvb2.RedisReplication) *[]corev1.Env
 		{Name: "RESOLVE_HOSTNAMES", Value: cr.Spec.Sentinel.ResolveHostnames},
 		{Name: "ANNOUNCE_HOSTNAMES", Value: cr.Spec.Sentinel.AnnounceHostnames},
 	}
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
+	// MASTER_PASSWORD lets Sentinel authenticate to the monitored master. A
+	// Sentinel-specific redisSecret takes precedence over the replication-level
+	// one, falling back to the latter when unset.
+	passwordSecret := cr.Spec.KubernetesConfig.ExistingPasswordSecret
+	if cr.Spec.Sentinel.ExistingPasswordSecret != nil {
+		passwordSecret = cr.Spec.Sentinel.ExistingPasswordSecret
+	}
+	if passwordSecret != nil {
 		*envVar = append(*envVar, corev1.EnvVar{
 			Name: "MASTER_PASSWORD",
 			ValueFrom: &corev1.EnvVarSource{
 				SecretKeyRef: &corev1.SecretKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name,
+						Name: *passwordSecret.Name,
 					},
-					Key: *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key,
+					Key: *passwordSecret.Key,
 				},
 			},
 		})

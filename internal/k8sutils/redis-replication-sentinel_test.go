@@ -108,3 +108,155 @@ func Test_generateReplicationSentinelParams_mapsSentinelKubernetesConfig(t *test
 		assert.Equal(t, "sentinel resolve-hostnames yes", *p.ExternalConfig)
 	}
 }
+
+func Test_generateReplicationSentinelParams_podPlacement(t *testing.T) {
+	affinity := &corev1.Affinity{
+		PodAntiAffinity: &corev1.PodAntiAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+				{TopologyKey: "kubernetes.io/hostname"},
+			},
+		},
+	}
+	tolerations := []corev1.Toleration{{Key: "dedicated", Operator: corev1.TolerationOpExists}}
+	nodeSelector := map[string]string{"disktype": "ssd"}
+	topology := []corev1.TopologySpreadConstraint{{
+		MaxSkew:           1,
+		TopologyKey:       "kubernetes.io/hostname",
+		WhenUnsatisfiable: corev1.DoNotSchedule,
+	}}
+	podSecurityContext := &corev1.PodSecurityContext{FSGroup: ptr.To(int64(1000))}
+	grace := int64(42)
+
+	cr := &rrvb2.RedisReplication{
+		Spec: rrvb2.RedisReplicationSpec{
+			Sentinel: &rrvb2.Sentinel{
+				Size:                          3,
+				Affinity:                      affinity,
+				Tolerations:                   &tolerations,
+				NodeSelector:                  nodeSelector,
+				TopologySpreadConstraints:     topology,
+				PodSecurityContext:            podSecurityContext,
+				PriorityClassName:             "high-priority",
+				TerminationGracePeriodSeconds: ptr.To(grace),
+				ServiceAccountName:            ptr.To("sentinel-sa"),
+			},
+		},
+	}
+
+	p := generateReplicationSentinelParams(cr)
+
+	assert.Same(t, affinity, p.Affinity)
+	assert.Equal(t, &tolerations, p.Tolerations)
+	assert.Equal(t, nodeSelector, p.NodeSelector)
+	assert.Equal(t, topology, p.TopologySpreadConstraints)
+	assert.Same(t, podSecurityContext, p.PodSecurityContext)
+	assert.Equal(t, "high-priority", p.PriorityClassName)
+	if assert.NotNil(t, p.TerminationGracePeriodSeconds) {
+		assert.Equal(t, grace, *p.TerminationGracePeriodSeconds)
+	}
+	if assert.NotNil(t, p.ServiceAccountName, "Sentinel-specific serviceAccountName must win") {
+		assert.Equal(t, "sentinel-sa", *p.ServiceAccountName)
+	}
+}
+
+func Test_generateReplicationSentinelParams_omitsUnsetPlacement(t *testing.T) {
+	cr := &rrvb2.RedisReplication{
+		Spec: rrvb2.RedisReplicationSpec{
+			Sentinel: &rrvb2.Sentinel{Size: 3},
+		},
+	}
+
+	p := generateReplicationSentinelParams(cr)
+
+	assert.Nil(t, p.Affinity)
+	assert.Nil(t, p.Tolerations)
+	assert.Nil(t, p.NodeSelector)
+	assert.Nil(t, p.TopologySpreadConstraints)
+	assert.Nil(t, p.PodSecurityContext)
+	assert.Empty(t, p.PriorityClassName)
+	assert.Nil(t, p.TerminationGracePeriodSeconds)
+	// With no Sentinel-specific serviceAccountName, it falls back to the
+	// replication-level one (nil in this minimal CR).
+	assert.Nil(t, p.ServiceAccountName)
+}
+
+func Test_generateReplicationSentinelParams_serviceAccountNameFallsBack(t *testing.T) {
+	cr := &rrvb2.RedisReplication{
+		Spec: rrvb2.RedisReplicationSpec{
+			ServiceAccountName: ptr.To("replication-sa"),
+			Sentinel:           &rrvb2.Sentinel{Size: 3},
+		},
+	}
+
+	p := generateReplicationSentinelParams(cr)
+
+	if assert.NotNil(t, p.ServiceAccountName) {
+		assert.Equal(t, "replication-sa", *p.ServiceAccountName)
+	}
+}
+
+func Test_generateReplicationSentinelContainerParams_securityContext(t *testing.T) {
+	sc := &corev1.SecurityContext{RunAsNonRoot: ptr.To(true)}
+	cr := &rrvb2.RedisReplication{
+		Spec: rrvb2.RedisReplicationSpec{
+			Sentinel: &rrvb2.Sentinel{
+				Size:            3,
+				SecurityContext: sc,
+			},
+		},
+	}
+
+	p := generateReplicationSentinelContainerParams(cr)
+
+	assert.Same(t, sc, p.SecurityContext)
+}
+
+func Test_getReplicationSentinelEnvVariable_masterPassword(t *testing.T) {
+	redisSecret := &common.ExistingPasswordSecret{Name: ptr.To("redis-secret"), Key: ptr.To("redis-password")}
+	sentinelSecret := &common.ExistingPasswordSecret{Name: ptr.To("sentinel-secret"), Key: ptr.To("sentinel-password")}
+
+	newCR := func(top, sentinel *common.ExistingPasswordSecret) *rrvb2.RedisReplication {
+		cr := &rrvb2.RedisReplication{
+			Spec: rrvb2.RedisReplicationSpec{Sentinel: &rrvb2.Sentinel{Size: 3}},
+		}
+		cr.Spec.KubernetesConfig.ExistingPasswordSecret = top
+		cr.Spec.Sentinel.ExistingPasswordSecret = sentinel
+		return cr
+	}
+
+	masterPassword := func(cr *rrvb2.RedisReplication) *corev1.EnvVar {
+		for i, e := range *getReplicationSentinelEnvVariable(cr) {
+			if e.Name == "MASTER_PASSWORD" {
+				return &(*getReplicationSentinelEnvVariable(cr))[i]
+			}
+		}
+		return nil
+	}
+
+	t.Run("no secret omits MASTER_PASSWORD", func(t *testing.T) {
+		assert.Nil(t, masterPassword(newCR(nil, nil)))
+	})
+
+	t.Run("falls back to replication-level redisSecret", func(t *testing.T) {
+		e := masterPassword(newCR(redisSecret, nil))
+		require.NotNil(t, e)
+		require.NotNil(t, e.ValueFrom)
+		require.NotNil(t, e.ValueFrom.SecretKeyRef)
+		assert.Equal(t, "redis-secret", e.ValueFrom.SecretKeyRef.Name)
+		assert.Equal(t, "redis-password", e.ValueFrom.SecretKeyRef.Key)
+	})
+
+	t.Run("Sentinel redisSecret overrides replication-level", func(t *testing.T) {
+		e := masterPassword(newCR(redisSecret, sentinelSecret))
+		require.NotNil(t, e)
+		assert.Equal(t, "sentinel-secret", e.ValueFrom.SecretKeyRef.Name)
+		assert.Equal(t, "sentinel-password", e.ValueFrom.SecretKeyRef.Key)
+	})
+
+	t.Run("Sentinel-only redisSecret is honoured", func(t *testing.T) {
+		e := masterPassword(newCR(nil, sentinelSecret))
+		require.NotNil(t, e)
+		assert.Equal(t, "sentinel-secret", e.ValueFrom.SecretKeyRef.Name)
+		assert.Equal(t, "sentinel-password", e.ValueFrom.SecretKeyRef.Key)
+	})
+}
