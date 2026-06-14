@@ -1,0 +1,29 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: sentinel-pod-placement
+spec:
+  steps:
+    - name: Deploy RedisReplication with sentinel pod placement
+      description: >
+        The operator must propagate affinity, tolerations, nodeSelector,
+        topologySpreadConstraints, podSecurityContext and
+        terminationGracePeriodSeconds into the sentinel StatefulSet pod template.
+      try:
+        - apply:
+            file: replication.yaml
+        - assert:
+            file: ready-sentinel-sts.yaml
+
+    - name: Uninstall
+      description: Deleting the RedisReplication tears down the sentinel StatefulSet.
+      try:
+        - delete:
+            ref:
+              apiVersion: redis.redis.opstreelabs.in/v1beta2
+              kind: RedisReplication
+              name: redis-replication-placement
+        - error:
+            file: ready-sentinel-sts.yaml

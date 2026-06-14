@@ -1,0 +1,46 @@
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisReplication
+metadata:
+  name: redis-replication-placement
+spec:
+  clusterSize: 3
+  kubernetesConfig:
+    image: quay.io/opstree/redis:latest
+    imagePullPolicy: Always
+  sentinel:
+    size: 3
+    image: quay.io/opstree/redis-sentinel:latest
+    imagePullPolicy: Always
+    # Pod placement controls under test: these must be wired verbatim into the
+    # sentinel StatefulSet pod template so Sentinel pods can be kept off the
+    # Redis nodes (HA/quorum preservation).
+    nodeSelector:
+      kubernetes.io/os: linux
+    tolerations:
+      - key: sentinel-dedicated
+        operator: Equal
+        value: "true"
+        effect: NoSchedule
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        # ScheduleAnyway keeps the test schedulable on a single-node kind cluster
+        # while still asserting the constraint is propagated.
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            role: sentinel
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  role: replication
+    podSecurityContext:
+      runAsUser: 1000
+      fsGroup: 1000
+    terminationGracePeriodSeconds: 42
