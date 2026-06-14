@@ -30,6 +30,10 @@ jobs:
         run: |
           sudo snap install yq
 
+      - name: Assert redis-operator RBAC scope templating
+        run: |
+          ./tests/helm/rbac-scope-test.sh
+
       - name: Install and test Redis Related Helm charts
         run: |
           kubectl cluster-info --context kind-kind
