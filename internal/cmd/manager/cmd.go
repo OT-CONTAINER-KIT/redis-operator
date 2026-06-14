@@ -28,6 +28,7 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/redis"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/scheme"
 	rediscontroller "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/redis"
+	redisbackupcontroller "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/redisbackup"
 	redisclustercontroller "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/rediscluster"
 	redisreplicationcontroller "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/redisreplication"
 	redissentinelcontroller "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/redissentinel"
@@ -126,6 +127,9 @@ func runManager(opts *managerOptions) error {
 
 	setupLog.Info("setting up v1beta2 scheme")
 	scheme.SetupV1beta2Scheme()
+
+	setupLog.Info("setting up v1alpha1 scheme")
+	scheme.SetupV1alpha1Scheme()
 
 	if err := setupFeatureGates(opts.featureGatesString); err != nil {
 		return err
@@ -267,6 +271,13 @@ func setupControllers(mgr ctrl.Manager, k8sClient kubernetes.Interface, maxConcu
 		ReplicationWatcher: intctrlutil.NewResourceWatcher(),
 	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RedisSentinel")
+		return err
+	}
+	if err := (&redisbackupcontroller.Reconciler{
+		Client:    mgr.GetClient(),
+		K8sClient: k8sClient,
+	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "RedisBackup")
 		return err
 	}
 

@@ -19,9 +19,10 @@ package main
 import (
 	"os"
 
+	"github.com/spf13/cobra"
+
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/cmd/agent"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/cmd/manager"
-	"github.com/spf13/cobra"
 )
 
 func main() {
