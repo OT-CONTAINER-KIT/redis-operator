@@ -621,7 +621,7 @@ func Test_getRedisClusterSlots(t *testing.T) {
 			}
 
 			result, err := getRedisClusterSlots(ctx, client, tt.nodeID)
-			assert.ErrorIs(t, err, tt.clusterSlotsErr)
+			assert.ErrorIs(t, err, tt.clusterSlotsErr, "Test case: "+tt.name)
 
 			assert.Equal(t, tt.expectedResult, result, "Test case: "+tt.name)
 
