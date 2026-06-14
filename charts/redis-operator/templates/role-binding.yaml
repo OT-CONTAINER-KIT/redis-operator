@@ -1,14 +1,15 @@
 {{- if .Values.rbac.enabled }}
+{{- $scope := include "redis-operator.rbacScope" . }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-{{- if or (not .Values.rbac.scope) (eq .Values.rbac.scope "cluster") }}
+{{- if eq $scope "cluster" }}
 kind: ClusterRoleBinding
 {{- else }}
 kind: RoleBinding
 {{- end }}
 metadata:
   name: {{ .Values.redisOperator.name }}
-{{- if eq .Values.rbac.scope "namespace" }}
+{{- if eq $scope "namespace" }}
   namespace: {{ .Release.Namespace }}
 {{- end }}
   labels:
@@ -24,7 +25,7 @@ subjects:
   name: {{ .Values.serviceAccountName }}
   namespace: {{ .Release.Namespace }}
 roleRef:
-{{- if or (not .Values.rbac.scope) (eq .Values.rbac.scope "cluster") }}
+{{- if eq $scope "cluster" }}
   kind: ClusterRole
 {{- else }}
   kind: Role

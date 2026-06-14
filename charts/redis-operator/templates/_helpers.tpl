@@ -41,3 +41,15 @@ Validate webhook and cert-manager configuration
 {{- fail "certmanager.enabled should not be true when webhook is disabled" -}}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Validate and normalize the RBAC scope.
+Returns "cluster" (the default when unset) or "namespace".
+*/}}
+{{- define "redis-operator.rbacScope" -}}
+{{- $scope := .Values.rbac.scope | default "cluster" -}}
+{{- if and (ne $scope "cluster") (ne $scope "namespace") -}}
+{{- fail (printf "rbac.scope must be either \"cluster\" or \"namespace\", got %q" $scope) -}}
+{{- end -}}
+{{- $scope -}}
+{{- end -}}
