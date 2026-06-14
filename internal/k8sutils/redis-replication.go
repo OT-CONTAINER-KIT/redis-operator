@@ -208,6 +208,16 @@ func generateRedisReplicationContainerParams(cr *rrvb2.RedisReplication) contain
 	if cr.Spec.ACL != nil {
 		containerProp.ACLConfig = cr.Spec.ACL
 	}
+	// Only wire up the Sentinel failover preStop hook when an embedded Sentinel
+	// is actually managing this replication. The service name and master group
+	// are sourced from the CR so they match the deployed Sentinel topology, and
+	// the demotion wait is bounded by the grace period so it cannot run past it.
+	if cr.EnableSentinel() {
+		containerProp.SentinelService = cr.SentinelHLService()
+		containerProp.SentinelMasterName = cr.SentinelMasterName()
+		containerProp.SentinelPort = 26379
+		containerProp.PreStopWaitSeconds = replicationPreStopWaitSeconds(cr.Spec.TerminationGracePeriodSeconds)
+	}
 	return containerProp
 }
 
