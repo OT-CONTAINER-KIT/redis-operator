@@ -18,6 +18,14 @@ func (cr *RedisReplication) SentinelHLService() string {
 	return cr.Name + "-s-hl"
 }
 
+// SentinelMasterName returns the master group name monitored by the embedded
+// Sentinel. The embedded Sentinel always monitors a single group named
+// "mymaster" (see internal/agent/bootstrap/sentinel/config.go, which falls back
+// to "mymaster" because the embedded Sentinel env never sets MASTER_GROUP_NAME).
+func (cr *RedisReplication) SentinelMasterName() string {
+	return "mymaster"
+}
+
 func (cr *RedisReplication) MasterService() string {
 	return cr.Name + "-master"
 }
@@ -29,7 +37,7 @@ func (cr *RedisReplication) GetConnectionInfo(dnsDomain string) *ConnectionInfo 
 		return &ConnectionInfo{
 			Host:       fmt.Sprintf("%s.%s.svc.%s", cr.SentinelHLService(), cr.Namespace, dnsDomain),
 			Port:       26379,
-			MasterName: "mymaster",
+			MasterName: cr.SentinelMasterName(),
 		}
 	}
 	return &ConnectionInfo{
