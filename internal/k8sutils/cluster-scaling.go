@@ -347,18 +347,16 @@ func FixRedisCluster(ctx context.Context, client kubernetes.Interface, cr *rcvb2
 	}
 	cmd := []string{"redis-cli", "--cluster", "fix"}
 	cmd = append(cmd, getEndpoint(ctx, client, cr, pod))
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
-		if err != nil {
-			log.FromContext(ctx).Error(err, "Error in getting redis password")
-		}
-		cmd = append(cmd, "-a")
-		cmd = append(cmd, pass)
+	authArgs, err := getRedisClusterAuthArgs(ctx, client, cr, cr.Name+"-leader-0")
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Failed to get password authentication arguments")
+		return err
 	}
+	cmd = append(cmd, authArgs...)
 	cmd = append(cmd, "--cluster-yes")
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, cr.Name+"-leader-0")...)
 
-	_, err := executeCommand1(ctx, client, cr, cmd, cr.Name+"-leader-0")
+	_, err = executeCommand1(ctx, client, cr, cmd, cr.Name+"-leader-0")
 	return err
 }
 
