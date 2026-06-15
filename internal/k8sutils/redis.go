@@ -187,18 +187,18 @@ func getRedisClusterAuthArgs(ctx context.Context, client kubernetes.Interface, c
 func executeSingleLeaderAddSlots(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, execute podExecFunc) {
 	logger := log.FromContext(ctx)
 
-	var flags []string
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
-		if err != nil {
-			logger.Error(err, "Error in getting redis password")
-		} else {
-			flags = append(flags, "-a", pass)
-		}
-	}
-	flags = append(flags, getRedisTLSArgs(cr.Spec.TLS, cr.Name+"-leader-0")...)
-
 	podName := cr.Name + "-leader-0"
+
+	authArgs, err := getRedisClusterAuthArgs(ctx, client, cr, podName)
+	if err != nil {
+		// Bail out instead of assigning slots unauthenticated: doing so would
+		// either fail outright or, worse, corrupt the new cluster's topology.
+		logger.Error(err, "Failed to get password authentication arguments")
+		return
+	}
+	var flags []string
+	flags = append(flags, authArgs...)
+	flags = append(flags, getRedisTLSArgs(cr.Spec.TLS, cr.Name+"-leader-0")...)
 
 	// Redis 7+ supports ADDSLOTSRANGE which takes a start-end pair instead
 	// of listing every slot number individually — avoids the URL length issue entirely.
@@ -431,7 +431,10 @@ func ExecuteRedisClusterCommand(ctx context.Context, client kubernetes.Interface
 		cmd := CreateMultipleLeaderRedisCommand(ctx, client, cr)
 		authArgs, err := getRedisClusterAuthArgs(ctx, client, cr, cr.Name+"-leader-0")
 		if err != nil {
+			// Bail out instead of creating the cluster unauthenticated: that
+			// would either fail or build a cluster the operator cannot manage.
 			log.FromContext(ctx).Error(err, "Failed to get password authentication arguments")
+			return
 		}
 		for _, arg := range authArgs {
 			cmd.AddFlag(arg)

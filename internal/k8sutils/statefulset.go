@@ -466,7 +466,6 @@ func createPVCTemplate(volumeName string, stsMeta metav1.ObjectMeta, storageSpec
 func generateContainerDef(name string, containerParams containerParameters, clusterMode, nodeConfVolume, enableMetrics bool, externalConfig, clusterVersion *string, mountpath []corev1.VolumeMount, sidecars []commonapi.Sidecar) []corev1.Container {
 	sentinelCntr := containerParams.Role == "sentinel"
 	enableTLS := containerParams.TLSConfig != nil
-	enableAuth := containerParams.EnabledPassword != nil && *containerParams.EnabledPassword
 	containerDefinition := []corev1.Container{
 		{
 			Name:            name,
@@ -487,8 +486,8 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 				containerParams.Resources,
 				containerParams.MaxMemoryPercentOfLimit,
 			),
-			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe, sentinelCntr, enableTLS, enableAuth),
-			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe, sentinelCntr, enableTLS, enableAuth),
+			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe, sentinelCntr, enableTLS),
+			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe, sentinelCntr, enableTLS),
 			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, clusterMode, nodeConfVolume, externalConfig, mountpath, containerParams.TLSConfig, containerParams.ACLConfig),
 		},
 	}
@@ -948,7 +947,7 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nod
 // getProbeInfo generate probe for Redis StatefulSet
 // The `ping` command will exit successfully even if the node is loading,
 // so we need to verify that the Redis `ping` command returns "PONG".
-func getProbeInfo(probe *corev1.Probe, sentinel, enableTLS, enableAuth bool) *corev1.Probe {
+func getProbeInfo(probe *corev1.Probe, sentinel, enableTLS bool) *corev1.Probe {
 	if probe == nil {
 		probe = &corev1.Probe{}
 	}
