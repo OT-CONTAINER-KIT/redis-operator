@@ -17,9 +17,33 @@ Feature gates can be configured in the Helm chart values:
 featureGates:
   # Enable generating Redis configuration using an init container instead of a regular container
   GenerateConfigInInitContainer: false
+  # Never execute redis-cli -a <password>, even if authentication cannot succeed without it
+  AvoidCommandLinePassword: false
 ```
 
 ## Available Feature Gates
+
+### AvoidCommandLinePassword
+
+When enabled, Redis Operator will never execute `redis-cli -a <password>`, which can leak passwords. The Operator sets the
+`REDISCLI_AUTH` variable on all Redis pods, so the password does not need to be provided on the command line and it is normally
+safe to turn this on unless you are simultaneously upgrading the operator. This is an alpha feature and may change in future releases.
+
+However, if you upgrade from a version that does not add `REDISCLI_AUTH` to the pods (a behavior introduced in the same version that
+added `AvoidCommandLinePassword`), simultaneously enabling `AvoidCommandLinePassword` will make Redis Operator unable to manage
+your current pods, since `-a <password>` is still needed on them. Hence, to guarantee that the Redis password will never be included
+on a command line, you must either risk an operator downtime or upgrade in two steps:
+
+1. Upgrade to a version that adds `REDISCLI_AUTH` to the pods (which was introduced at the same time as `AvoidCommandLinePassword`).
+2. Turn on `AvoidCommandLinePassword`.
+
+**Default**: `false`
+
+**Usage**:
+```yaml
+featureGates:
+  AvoidCommandLinePassword: true
+```
 
 ### GenerateConfigInInitContainer
 

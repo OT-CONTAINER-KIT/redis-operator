@@ -466,7 +466,6 @@ func createPVCTemplate(volumeName string, stsMeta metav1.ObjectMeta, storageSpec
 func generateContainerDef(name string, containerParams containerParameters, clusterMode, nodeConfVolume, enableMetrics bool, externalConfig, clusterVersion *string, mountpath []corev1.VolumeMount, sidecars []commonapi.Sidecar) []corev1.Container {
 	sentinelCntr := containerParams.Role == "sentinel"
 	enableTLS := containerParams.TLSConfig != nil
-	enableAuth := containerParams.EnabledPassword != nil && *containerParams.EnabledPassword
 	containerDefinition := []corev1.Container{
 		{
 			Name:            name,
@@ -487,8 +486,8 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 				containerParams.Resources,
 				containerParams.MaxMemoryPercentOfLimit,
 			),
-			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe, sentinelCntr, enableTLS, enableAuth),
-			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe, sentinelCntr, enableTLS, enableAuth),
+			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe, sentinelCntr, enableTLS),
+			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe, sentinelCntr, enableTLS),
 			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, clusterMode, nodeConfVolume, externalConfig, mountpath, containerParams.TLSConfig, containerParams.ACLConfig),
 		},
 	}
@@ -515,7 +514,6 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 
 	preStopCfg := PreStopConfig{
 		Role:               containerParams.Role,
-		EnableAuth:         enableAuth,
 		EnableTLS:          enableTLS,
 		SentinelService:    containerParams.SentinelService,
 		SentinelMasterName: containerParams.SentinelMasterName,
@@ -581,9 +579,8 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 
 // PreStopConfig holds the inputs needed to render a container preStop hook.
 type PreStopConfig struct {
-	Role       string
-	EnableAuth bool
-	EnableTLS  bool
+	Role      string
+	EnableTLS bool
 	// SentinelService, SentinelMasterName and SentinelPort describe the
 	// Sentinel that manages failover for the "replication" role. They must be
 	// sourced from the actual (embedded) Sentinel config rather than derived in
@@ -603,12 +600,15 @@ type PreStopConfig struct {
 // "cluster" triggers a CLUSTER FAILOVER to the best slave; "replication"
 // triggers a Sentinel failover, but only when a Sentinel service is configured.
 // All other roles (and Sentinel-less replication) return an empty string.
+//
+// Authentication is taken from the REDISCLI_AUTH environment variable that the
+// operator sets on the pod, so the password is never passed on the command line.
 func GeneratePreStopCommand(cfg PreStopConfig) string {
-	authArgs, tlsArgs := GenerateAuthAndTLSArgs(cfg.EnableAuth, cfg.EnableTLS)
+	tlsArgs := GenerateTLSArgs(cfg.EnableTLS)
 
 	switch cfg.Role {
 	case "cluster":
-		return generateClusterPreStop(authArgs, tlsArgs)
+		return generateClusterPreStop(tlsArgs)
 	case "replication":
 		// Without a Sentinel managing failover there is nothing to fail over
 		// to; installing the hook would make every master termination block on
@@ -616,7 +616,7 @@ func GeneratePreStopCommand(cfg PreStopConfig) string {
 		if cfg.SentinelService == "" {
 			return ""
 		}
-		return generateReplicationPreStop(authArgs, tlsArgs, cfg)
+		return generateReplicationPreStop(tlsArgs, cfg)
 	default:
 		return ""
 	}
@@ -638,28 +638,25 @@ func replicationPreStopWaitSeconds(gracePeriodSeconds *int64) int {
 	return int(max(grace-headroomSeconds, 1))
 }
 
-// GenerateAuthAndTLSArgs constructs authentication and TLS arguments for redis-cli.
-func GenerateAuthAndTLSArgs(enableAuth, enableTLS bool) (string, string) {
-	authArgs := ""
+// GenerateTLSArgs constructs TLS arguments for redis-cli. Authentication is
+// supplied via the REDISCLI_AUTH environment variable, never on the command line.
+func GenerateTLSArgs(enableTLS bool) string {
 	tlsArgs := ""
 
-	if enableAuth {
-		authArgs = " -a \"${REDIS_PASSWORD}\""
-	}
 	if enableTLS {
 		tlsArgs = " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\"${REDIS_TLS_CA_CERT:+ --cacert \"${REDIS_TLS_CA_CERT}\"}"
 	}
-	return authArgs, tlsArgs
+	return tlsArgs
 }
 
 // generateClusterPreStop generates the preStop script for Redis cluster mode.
 // It identifies the master node and triggers a failover to the best available slave before shutdown.
-func generateClusterPreStop(authArgs, tlsArgs string) string {
+func generateClusterPreStop(tlsArgs string) string {
 	return fmt.Sprintf(`#!/bin/sh
-ROLE=$(redis-cli -h $(hostname) -p ${REDIS_PORT} %s %s info replication | awk -F: '/role:master/ {print "master"}')
+ROLE=$(redis-cli -h $(hostname) -p ${REDIS_PORT} %s info replication | awk -F: '/role:master/ {print "master"}')
 
 if [ "$ROLE" = "master" ]; then
-    BEST_SLAVE=$(redis-cli -h $(hostname) -p ${REDIS_PORT} %s %s info replication | awk -F: '
+    BEST_SLAVE=$(redis-cli -h $(hostname) -p ${REDIS_PORT} %s info replication | awk -F: '
         BEGIN { maxOffset = -1; bestSlave = "" }
         /slave[0-9]+:ip/ {
             split($2, a, ",");
@@ -676,9 +673,9 @@ if [ "$ROLE" = "master" ]; then
     ')
 
     if [ -n "$BEST_SLAVE" ]; then
-        redis-cli -h "$BEST_SLAVE" -p ${REDIS_PORT} %s %s cluster failover
+        redis-cli -h "$BEST_SLAVE" -p ${REDIS_PORT} %s cluster failover
     fi
-fi`, authArgs, tlsArgs, authArgs, tlsArgs, authArgs, tlsArgs)
+fi`, tlsArgs, tlsArgs, tlsArgs)
 }
 
 // generateReplicationPreStop generates the preStop script for Redis replication mode.
@@ -689,26 +686,26 @@ fi`, authArgs, tlsArgs, authArgs, tlsArgs, authArgs, tlsArgs)
 // (embedded) Sentinel configuration rather than derived in shell, so they stay
 // correct regardless of the resource name or topology. The demotion wait is
 // bounded by cfg.WaitSeconds so the hook returns before the grace period expires.
-func generateReplicationPreStop(authArgs, tlsArgs string, cfg PreStopConfig) string {
+func generateReplicationPreStop(tlsArgs string, cfg PreStopConfig) string {
 	sentinelPort := cfg.SentinelPort
 	if sentinelPort == 0 {
 		sentinelPort = 26379
 	}
 	waitSeconds := max(cfg.WaitSeconds, 1)
 	return fmt.Sprintf(`#!/bin/sh
-ROLE=$(redis-cli -h $(hostname) -p ${REDIS_PORT} %s %s info replication | awk -F: '/role:master/ {print "master"}')
+ROLE=$(redis-cli -h $(hostname) -p ${REDIS_PORT} %s info replication | awk -F: '/role:master/ {print "master"}')
 
 if [ "$ROLE" = "master" ]; then
     redis-cli -h "%s" -p %d SENTINEL FAILOVER %s
 
     for i in $(seq 1 %d); do
-        NEW_ROLE=$(redis-cli -h $(hostname) -p ${REDIS_PORT} %s %s info replication | awk -F: '/role:slave/ {print "slave"}')
+        NEW_ROLE=$(redis-cli -h $(hostname) -p ${REDIS_PORT} %s info replication | awk -F: '/role:slave/ {print "slave"}')
         if [ "$NEW_ROLE" = "slave" ]; then
             break
         fi
         sleep 1
     done
-fi`, authArgs, tlsArgs, cfg.SentinelService, sentinelPort, cfg.SentinelMasterName, waitSeconds, authArgs, tlsArgs)
+fi`, tlsArgs, cfg.SentinelService, sentinelPort, cfg.SentinelMasterName, waitSeconds, tlsArgs)
 }
 
 func generateInitContainerDef(role, name string, initcontainerParams initContainerParameters, externalConfig *string, mountpath []corev1.VolumeMount, containerParams containerParameters, clusterVersion *string) []corev1.Container {
@@ -950,7 +947,7 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nod
 // getProbeInfo generate probe for Redis StatefulSet
 // The `ping` command will exit successfully even if the node is loading,
 // so we need to verify that the Redis `ping` command returns "PONG".
-func getProbeInfo(probe *corev1.Probe, sentinel, enableTLS, enableAuth bool) *corev1.Probe {
+func getProbeInfo(probe *corev1.Probe, sentinel, enableTLS bool) *corev1.Probe {
 	if probe == nil {
 		probe = &corev1.Probe{}
 	}
@@ -963,9 +960,6 @@ func getProbeInfo(probe *corev1.Probe, sentinel, enableTLS, enableAuth bool) *co
 			redisHealthCheck = append(redisHealthCheck, "-p", "${SENTINEL_PORT}")
 		} else {
 			redisHealthCheck = append(redisHealthCheck, "-p", "${REDIS_PORT}")
-		}
-		if enableAuth {
-			redisHealthCheck = append(redisHealthCheck, "-a", "${REDIS_PASSWORD}")
 		}
 		if enableTLS {
 			redisHealthCheck = append(redisHealthCheck, "--tls", "--cert", "${REDIS_TLS_CERT}", "--key", "${REDIS_TLS_CERT_KEY}", "${REDIS_TLS_CA_CERT:+--cacert}", "${REDIS_TLS_CA_CERT}")
@@ -1058,6 +1052,16 @@ func getEnvironmentVariables(role string, enabledPassword *bool, secretName *str
 	if enabledPassword != nil && *enabledPassword {
 		envVars = append(envVars, corev1.EnvVar{
 			Name: "REDIS_PASSWORD",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: *secretName,
+					},
+					Key: *secretKey,
+				},
+			},
+		}, corev1.EnvVar{
+			Name: "REDISCLI_AUTH",
 			ValueFrom: &corev1.EnvVarSource{
 				SecretKeyRef: &corev1.SecretKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
