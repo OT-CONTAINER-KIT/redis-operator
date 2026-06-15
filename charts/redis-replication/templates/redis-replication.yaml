@@ -128,6 +128,9 @@ spec:
     minAvailable: {{ .Values.pdb.minAvailable }}
     maxUnavailable: {{ .Values.pdb.maxUnavailable }}
   {{- end }}
+  {{- if and .Values.podManagementPolicy (ne .Values.podManagementPolicy "") }}
+  podManagementPolicy: "{{ .Values.podManagementPolicy }}"
+  {{- end }}
   {{- if .Values.sentinel.enabled }}
   sentinel:
     image: "{{ .Values.sentinel.image }}:{{ .Values.sentinel.tag }}"
@@ -135,6 +138,11 @@ spec:
     size: {{ .Values.sentinel.size }}
     {{- if .Values.sentinel.resources }}
     resources: {{ toYaml .Values.sentinel.resources | nindent 6 }}
+    {{- end }}
+    {{- if and .Values.sentinel.redisSecret.secretName .Values.sentinel.redisSecret.secretKey }}
+    redisSecret:
+      name: {{ .Values.sentinel.redisSecret.secretName | quote }}
+      key: {{ .Values.sentinel.redisSecret.secretKey | quote }}
     {{- end }}
     {{- if .Values.sentinel.ignoreAnnotations }}
     ignoreAnnotations: {{ toYaml .Values.sentinel.ignoreAnnotations | nindent 6 }}
@@ -162,5 +170,32 @@ spec:
     {{- end }}
     {{- if .Values.sentinel.additionalSentinelConfig }}
     additionalSentinelConfig: {{ .Values.sentinel.additionalSentinelConfig | quote }}
+    {{- end }}
+    {{- if .Values.sentinel.affinity }}
+    affinity: {{ toYaml .Values.sentinel.affinity | nindent 6 }}
+    {{- end }}
+    {{- if .Values.sentinel.tolerations }}
+    tolerations: {{ toYaml .Values.sentinel.tolerations | nindent 6 }}
+    {{- end }}
+    {{- if .Values.sentinel.nodeSelector }}
+    nodeSelector: {{ toYaml .Values.sentinel.nodeSelector | nindent 6 }}
+    {{- end }}
+    {{- if .Values.sentinel.topologySpreadConstraints }}
+    topologySpreadConstraints: {{ toYaml .Values.sentinel.topologySpreadConstraints | nindent 6 }}
+    {{- end }}
+    {{- if .Values.sentinel.podSecurityContext }}
+    podSecurityContext: {{ toYaml .Values.sentinel.podSecurityContext | nindent 6 }}
+    {{- end }}
+    {{- if .Values.sentinel.securityContext }}
+    securityContext: {{ toYaml .Values.sentinel.securityContext | nindent 6 }}
+    {{- end }}
+    {{- if and .Values.sentinel.priorityClassName (ne .Values.sentinel.priorityClassName "") }}
+    priorityClassName: {{ .Values.sentinel.priorityClassName | quote }}
+    {{- end }}
+    {{- if .Values.sentinel.terminationGracePeriodSeconds }}
+    terminationGracePeriodSeconds: {{ .Values.sentinel.terminationGracePeriodSeconds }}
+    {{- end }}
+    {{- if and .Values.sentinel.serviceAccountName (ne .Values.sentinel.serviceAccountName "") }}
+    serviceAccountName: {{ .Values.sentinel.serviceAccountName | quote }}
     {{- end }}
   {{- end }}

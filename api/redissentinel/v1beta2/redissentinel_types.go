@@ -31,6 +31,15 @@ type RedisSentinelSpec struct {
 	VolumeMount                   *common.AdditionalVolume          `json:"volumeMount,omitempty"`
 	TopologySpreadConstrains      []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
 	HostPort                      *int                              `json:"hostPort,omitempty"`
+	// PodManagementPolicy controls how pods are created during initial scale up,
+	// when replacing pods on nodes, or when scaling down. This field is immutable
+	// on an existing StatefulSet; changing it for a running cluster requires
+	// recreating the StatefulSet (e.g. via the
+	// redis.opstreelabs.in/recreate-statefulset annotation), otherwise the change
+	// is ignored.
+	// +optional
+	// +kubebuilder:validation:Enum=OrderedReady;Parallel
+	PodManagementPolicy *string `json:"podManagementPolicy,omitempty"`
 }
 
 func (cr *RedisSentinelSpec) GetSentinelCounts(t string) int32 {

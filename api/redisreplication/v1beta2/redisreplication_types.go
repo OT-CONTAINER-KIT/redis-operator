@@ -31,12 +31,30 @@ type RedisReplicationSpec struct {
 	TopologySpreadConstrains      []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
 	HostPort                      *int                              `json:"hostPort,omitempty"`
 	Sentinel                      *Sentinel                         `json:"sentinel,omitempty"`
+	// PodManagementPolicy controls how pods are created during initial scale up,
+	// when replacing pods on nodes, or when scaling down. This field is immutable
+	// on an existing StatefulSet; changing it for a running cluster requires
+	// recreating the StatefulSet (e.g. via the
+	// redis.opstreelabs.in/recreate-statefulset annotation), otherwise the change
+	// is ignored.
+	// +optional
+	// +kubebuilder:validation:Enum=OrderedReady;Parallel
+	PodManagementPolicy *string `json:"podManagementPolicy,omitempty"`
 }
 
 type Sentinel struct {
-	common.KubernetesConfig `json:",inline"`
-	common.SentinelConfig   `json:",inline"`
-	Size                    int32 `json:"size"`
+	common.KubernetesConfig       `json:",inline"`
+	common.SentinelConfig         `json:",inline"`
+	Size                          int32                             `json:"size"`
+	Affinity                      *corev1.Affinity                  `json:"affinity,omitempty"`
+	Tolerations                   *[]corev1.Toleration              `json:"tolerations,omitempty"`
+	NodeSelector                  map[string]string                 `json:"nodeSelector,omitempty"`
+	TopologySpreadConstraints     []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
+	PodSecurityContext            *corev1.PodSecurityContext        `json:"podSecurityContext,omitempty"`
+	SecurityContext               *corev1.SecurityContext           `json:"securityContext,omitempty"`
+	PriorityClassName             string                            `json:"priorityClassName,omitempty"`
+	TerminationGracePeriodSeconds *int64                            `json:"terminationGracePeriodSeconds,omitempty"`
+	ServiceAccountName            *string                           `json:"serviceAccountName,omitempty"`
 }
 
 func (cr *RedisReplicationSpec) GetReplicationCounts(t string) int32 {

@@ -1861,6 +1861,18 @@ spec:
                     format: int32
                     type: integer
                 type: object
+              podManagementPolicy:
+                description: |-
+                  PodManagementPolicy controls how pods are created during initial scale up,
+                  when replacing pods on nodes, or when scaling down. This field is immutable
+                  on an existing StatefulSet; changing it for a running cluster requires
+                  recreating the StatefulSet (e.g. via the
+                  redis.opstreelabs.in/recreate-statefulset annotation), otherwise the change
+                  is ignored.
+                enum:
+                - OrderedReady
+                - Parallel
+                type: string
               podSecurityContext:
                 description: |-
                   PodSecurityContext holds pod-level security attributes and common container settings.

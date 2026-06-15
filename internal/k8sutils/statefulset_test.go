@@ -31,8 +31,8 @@ func TestGenerateAuthAndTLSArgs(t *testing.T) {
 	}{
 		{"NoAuthNoTLS", false, false, "", ""},
 		{"AuthOnly", true, false, " -a \"${REDIS_PASSWORD}\"", ""},
-		{"TLSOnly", false, true, "", " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\" --cacert \"${REDIS_TLS_CA_CERT}\""},
-		{"AuthAndTLS", true, true, " -a \"${REDIS_PASSWORD}\"", " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\" --cacert \"${REDIS_TLS_CA_CERT}\""},
+		{"TLSOnly", false, true, "", " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\"${REDIS_TLS_CA_CERT:+ --cacert \"${REDIS_TLS_CA_CERT}\"}"},
+		{"AuthAndTLS", true, true, " -a \"${REDIS_PASSWORD}\"", " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\"${REDIS_TLS_CA_CERT:+ --cacert \"${REDIS_TLS_CA_CERT}\"}"},
 	}
 
 	for _, tt := range tests {
@@ -1538,6 +1538,31 @@ func TestGenerateTLSEnvironmentVariables(t *testing.T) {
 	assert.ElementsMatch(t, envVars, expectedEnvVars, "EnvVars generated for TLS config are not as expected")
 }
 
+func TestGenerateTLSEnvironmentVariables_NoExplicitCA(t *testing.T) {
+	tlsConfig := &common.TLSConfig{
+		CertKeyFile: "test_tls.crt",
+		KeyFile:     "test_tls.key",
+	}
+
+	envVars := GenerateTLSEnvironmentVariables(tlsConfig)
+
+	expectedEnvVars := []corev1.EnvVar{
+		{
+			Name:  "TLS_MODE",
+			Value: "true",
+		},
+		{
+			Name:  "REDIS_TLS_CERT",
+			Value: path.Join("/tls/", "test_tls.crt"),
+		},
+		{
+			Name:  "REDIS_TLS_CERT_KEY",
+			Value: path.Join("/tls/", "test_tls.key"),
+		},
+	}
+	assert.ElementsMatch(t, envVars, expectedEnvVars, "EnvVars generated for TLS config without explicit CA are not as expected")
+}
+
 func TestGetEnvironmentVariables(t *testing.T) {
 	tests := []struct {
 		name                string
@@ -1751,11 +1776,28 @@ func Test_getExporterEnvironmentVariables(t *testing.T) {
 				},
 			},
 			expectedEnvironment: []corev1.EnvVar{
-				{Name: "REDIS_EXPORTER_TLS_CLIENT_KEY_FILE", Value: "/tls/tls.key"},
-				{Name: "REDIS_EXPORTER_TLS_CLIENT_CERT_FILE", Value: "/tls/tls.crt"},
-				{Name: "REDIS_EXPORTER_TLS_CA_CERT_FILE", Value: "/tls/ca.crt"},
+				{Name: "REDIS_EXPORTER_TLS_CLIENT_KEY_FILE", Value: "/tls/test_tls.key"},
+				{Name: "REDIS_EXPORTER_TLS_CLIENT_CERT_FILE", Value: "/tls/test_tls.crt"},
+				{Name: "REDIS_EXPORTER_TLS_CA_CERT_FILE", Value: "/tls/test_ca.crt"},
 				{Name: "REDIS_EXPORTER_SKIP_TLS_VERIFICATION", Value: "true"},
 				{Name: "TEST_ENV", Value: "test-value"},
+			},
+		},
+		{
+			name: "Test with tls enabled and no explicit CA",
+			params: containerParameters{
+				TLSConfig: &common.TLSConfig{
+					CertKeyFile: "test_tls.crt",
+					KeyFile:     "test_tls.key",
+					Secret: corev1.SecretVolumeSource{
+						SecretName: "tls-secret",
+					},
+				},
+			},
+			expectedEnvironment: []corev1.EnvVar{
+				{Name: "REDIS_EXPORTER_TLS_CLIENT_KEY_FILE", Value: "/tls/test_tls.key"},
+				{Name: "REDIS_EXPORTER_TLS_CLIENT_CERT_FILE", Value: "/tls/test_tls.crt"},
+				{Name: "REDIS_EXPORTER_SKIP_TLS_VERIFICATION", Value: "true"},
 			},
 		},
 	}
@@ -1779,7 +1821,7 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 	probeWithTLS := &corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
 			Exec: &corev1.ExecAction{
-				Command: []string{"sh", "-ec", "RESP=\"$(redis-cli -h $(hostname) -p ${REDIS_PORT} --tls --cert ${REDIS_TLS_CERT} --key ${REDIS_TLS_CERT_KEY} --cacert ${REDIS_TLS_CA_CERT} ping)\"\n[ \"$RESP\" = \"PONG\" ]"},
+				Command: []string{"sh", "-ec", "RESP=\"$(redis-cli -h $(hostname) -p ${REDIS_PORT} --tls --cert ${REDIS_TLS_CERT} --key ${REDIS_TLS_CERT_KEY} ${REDIS_TLS_CA_CERT:+--cacert} ${REDIS_TLS_CA_CERT} ping)\"\n[ \"$RESP\" = \"PONG\" ]"},
 			},
 		},
 	}
@@ -1885,10 +1927,6 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 										{
 											Name:  "REDIS_MAJOR_VERSION",
 											Value: "1.0",
-										},
-										{
-											Name:  "REDIS_TLS_CA_CERT",
-											Value: path.Join("/tls/", "ca.crt"),
 										},
 										{
 											Name:  "REDIS_TLS_CERT",
@@ -2189,6 +2227,95 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 			assert.Equal(t, stsDef, test.expectedStsDef, "StatefulSet Configuration")
 		})
 	}
+}
+
+func TestGenerateStatefulSetsDefPodManagementPolicy(t *testing.T) {
+	tests := []struct {
+		name           string
+		policy         *string
+		expectedPolicy appsv1.PodManagementPolicyType
+	}{
+		{
+			name:           "nil policy leaves the field empty so the API server defaults it to OrderedReady",
+			policy:         nil,
+			expectedPolicy: "",
+		},
+		{
+			name:           "OrderedReady policy is set on the statefulset",
+			policy:         ptr.To(string(appsv1.OrderedReadyPodManagement)),
+			expectedPolicy: appsv1.OrderedReadyPodManagement,
+		},
+		{
+			name:           "Parallel policy is set on the statefulset",
+			policy:         ptr.To(string(appsv1.ParallelPodManagement)),
+			expectedPolicy: appsv1.ParallelPodManagement,
+		},
+	}
+
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			stsDef := generateStatefulSetsDef(
+				metav1.ObjectMeta{Name: "test-sts", Namespace: "test-ns"},
+				statefulSetParameters{Replicas: ptr.To(int32(3)), PodManagementPolicy: test.policy},
+				metav1.OwnerReference{},
+				initContainerParameters{},
+				containerParameters{Image: "redis:latest"},
+				nil,
+			)
+			assert.Equal(t, test.expectedPolicy, stsDef.Spec.PodManagementPolicy, "StatefulSet PodManagementPolicy")
+		})
+	}
+}
+
+func TestPodManagementPolicyImmutableOnExistingStatefulSet(t *testing.T) {
+	objMeta := metav1.ObjectMeta{Name: "test-sts", Namespace: "test-ns"}
+	ownerDef := metav1.OwnerReference{
+		Name:       "test-sts",
+		Kind:       "StatefulSet",
+		APIVersion: "apps/v1",
+		UID:        "12345",
+	}
+	initContainerParams := initContainerParameters{Image: "redis-init:latest"}
+	containerParams := containerParameters{Image: "redis:latest"}
+
+	newParams := func(policy string, recreate bool) statefulSetParameters {
+		return statefulSetParameters{
+			Replicas:            ptr.To(int32(3)),
+			PodManagementPolicy: ptr.To(policy),
+			RecreateStatefulSet: recreate,
+		}
+	}
+
+	t.Run("policy change is ignored when recreate is disabled", func(t *testing.T) {
+		client := k8sClientFake.NewSimpleClientset()
+		err := CreateOrUpdateStateFul(context.TODO(), client, objMeta.Namespace, objMeta,
+			newParams(string(appsv1.OrderedReadyPodManagement), false), ownerDef, initContainerParams, containerParams, nil)
+		assert.NoError(t, err)
+
+		err = CreateOrUpdateStateFul(context.TODO(), client, objMeta.Namespace, objMeta,
+			newParams(string(appsv1.ParallelPodManagement), false), ownerDef, initContainerParams, containerParams, nil)
+		assert.NoError(t, err)
+
+		sts, err := client.AppsV1().StatefulSets(objMeta.Namespace).Get(context.TODO(), objMeta.Name, metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Equal(t, appsv1.OrderedReadyPodManagement, sts.Spec.PodManagementPolicy, "PodManagementPolicy must keep the stored value when recreate is disabled")
+	})
+
+	t.Run("policy change is applied when recreate is enabled", func(t *testing.T) {
+		client := k8sClientFake.NewSimpleClientset()
+		err := CreateOrUpdateStateFul(context.TODO(), client, objMeta.Namespace, objMeta,
+			newParams(string(appsv1.OrderedReadyPodManagement), true), ownerDef, initContainerParams, containerParams, nil)
+		assert.NoError(t, err)
+
+		err = CreateOrUpdateStateFul(context.TODO(), client, objMeta.Namespace, objMeta,
+			newParams(string(appsv1.ParallelPodManagement), true), ownerDef, initContainerParams, containerParams, nil)
+		assert.NoError(t, err)
+
+		sts, err := client.AppsV1().StatefulSets(objMeta.Namespace).Get(context.TODO(), objMeta.Name, metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Equal(t, appsv1.ParallelPodManagement, sts.Spec.PodManagementPolicy, "PodManagementPolicy must be propagated when recreate is enabled")
+	})
 }
 
 func TestGetSidecars(t *testing.T) {

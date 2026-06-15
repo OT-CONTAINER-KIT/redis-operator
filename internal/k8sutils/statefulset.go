@@ -119,6 +119,7 @@ type statefulSetParameters struct {
 	IgnoreAnnotations                    []string
 	HostNetwork                          bool
 	MinReadySeconds                      int32
+	PodManagementPolicy                  *string
 }
 
 // containerParameters will define container input params
@@ -210,6 +211,16 @@ func patchStatefulSet(ctx context.Context, storedStateful, newStateful *appsv1.S
 				log.FromContext(ctx).V(1).Info("VolumeClaimTemplate change is being ignored because the field is immutable. Consider enabling recreating the statefulset option.")
 			}
 		}
+	}
+
+	// Since PodManagementPolicy is immutable, revert to the stored value if we
+	// are not recreating the StatefulSet, otherwise the API server would reject
+	// the update.
+	if !recreateStatefulSet && newStateful.Spec.PodManagementPolicy != storedStateful.Spec.PodManagementPolicy {
+		if newStateful.Spec.PodManagementPolicy != "" {
+			log.FromContext(ctx).V(1).Info("PodManagementPolicy change is being ignored because the field is immutable. Consider enabling recreating the statefulset option.")
+		}
+		newStateful.Spec.PodManagementPolicy = storedStateful.Spec.PodManagementPolicy
 	}
 
 	// Calculate the patch between the stored and new objects, ignoring immutable or unnecessary fields.
@@ -324,6 +335,10 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 	}
 
 	statefulset.Spec.Template.Spec.InitContainers = generateInitContainerDef(containerParams.Role, stsMeta.GetName(), initcontainerParams, params.ExternalConfig, initcontainerParams.AdditionalMountPath, containerParams, params.ClusterVersion)
+
+	if params.PodManagementPolicy != nil {
+		statefulset.Spec.PodManagementPolicy = appsv1.PodManagementPolicyType(*params.PodManagementPolicy)
+	}
 
 	if params.Tolerations != nil {
 		statefulset.Spec.Template.Spec.Tolerations = *params.Tolerations
@@ -570,7 +585,7 @@ func GenerateAuthAndTLSArgs(enableAuth, enableTLS bool) (string, string) {
 		authArgs = " -a \"${REDIS_PASSWORD}\""
 	}
 	if enableTLS {
-		tlsArgs = " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\" --cacert \"${REDIS_TLS_CA_CERT}\""
+		tlsArgs = " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\"${REDIS_TLS_CA_CERT:+ --cacert \"${REDIS_TLS_CA_CERT}\"}"
 	}
 	return authArgs, tlsArgs
 }
@@ -674,30 +689,19 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 func GenerateTLSEnvironmentVariables(tlsconfig *commonapi.TLSConfig) []corev1.EnvVar {
 	var envVars []corev1.EnvVar
 	root := "/tls/"
-
-	// get and set Defaults
-	caCert := "ca.crt"
-	tlsCert := "tls.crt"
-	tlsCertKey := "tls.key"
-
-	if tlsconfig.CaCertFile != "" {
-		caCert = tlsconfig.CaCertFile
-	}
-	if tlsconfig.CertKeyFile != "" {
-		tlsCert = tlsconfig.CertKeyFile
-	}
-	if tlsconfig.KeyFile != "" {
-		tlsCertKey = tlsconfig.KeyFile
-	}
+	caCert, tlsCert, tlsCertKey := getTLSSecretKeys(tlsconfig)
+	hasExplicitCA := tlsconfig != nil && tlsconfig.CaCertFile != ""
 
 	envVars = append(envVars, corev1.EnvVar{
 		Name:  "TLS_MODE",
 		Value: "true",
 	})
-	envVars = append(envVars, corev1.EnvVar{
-		Name:  "REDIS_TLS_CA_CERT",
-		Value: path.Join(root, caCert),
-	})
+	if hasExplicitCA {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  "REDIS_TLS_CA_CERT",
+			Value: path.Join(root, caCert),
+		})
+	}
 	envVars = append(envVars, corev1.EnvVar{
 		Name:  "REDIS_TLS_CERT",
 		Value: path.Join(root, tlsCert),
@@ -736,18 +740,21 @@ func getExporterEnvironmentVariables(params containerParameters) []corev1.EnvVar
 	var envVars []corev1.EnvVar
 	redisHost := "redis://localhost:"
 	if params.TLSConfig != nil {
+		caCert, tlsCert, tlsKey := getTLSSecretKeys(params.TLSConfig)
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  "REDIS_EXPORTER_TLS_CLIENT_KEY_FILE",
-			Value: "/tls/tls.key",
+			Value: path.Join("/tls/", tlsKey),
 		})
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  "REDIS_EXPORTER_TLS_CLIENT_CERT_FILE",
-			Value: "/tls/tls.crt",
+			Value: path.Join("/tls/", tlsCert),
 		})
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  "REDIS_EXPORTER_TLS_CA_CERT_FILE",
-			Value: "/tls/ca.crt",
-		})
+		if params.TLSConfig.CaCertFile != "" {
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  "REDIS_EXPORTER_TLS_CA_CERT_FILE",
+				Value: path.Join("/tls/", caCert),
+			})
+		}
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  "REDIS_EXPORTER_SKIP_TLS_VERIFICATION",
 			Value: "true",
@@ -869,7 +876,7 @@ func getProbeInfo(probe *corev1.Probe, sentinel, enableTLS, enableAuth bool) *co
 			redisHealthCheck = append(redisHealthCheck, "-a", "${REDIS_PASSWORD}")
 		}
 		if enableTLS {
-			redisHealthCheck = append(redisHealthCheck, "--tls", "--cert", "${REDIS_TLS_CERT}", "--key", "${REDIS_TLS_CERT_KEY}", "--cacert", "${REDIS_TLS_CA_CERT}")
+			redisHealthCheck = append(redisHealthCheck, "--tls", "--cert", "${REDIS_TLS_CERT}", "--key", "${REDIS_TLS_CERT_KEY}", "${REDIS_TLS_CA_CERT:+--cacert}", "${REDIS_TLS_CA_CERT}")
 		}
 		redisHealthCheck = append(redisHealthCheck, "ping")
 

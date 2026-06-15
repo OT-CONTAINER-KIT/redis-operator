@@ -1,0 +1,52 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-replication-placement-s
+  ownerReferences:
+    - apiVersion: redis.redis.opstreelabs.in/v1beta2
+      controller: true
+      kind: RedisReplication
+      name: redis-replication-placement
+spec:
+  # The sentinel StatefulSet is built via statefulset.New, which derives the
+  # selector/pod-template labels (not metadata.labels) from the sentinel labels.
+  selector:
+    matchLabels:
+      app: redis-replication-placement-s
+      redis_setup_type: sentinel
+      role: sentinel
+  template:
+    metadata:
+      labels:
+        app: redis-replication-placement-s
+        redis_setup_type: sentinel
+        role: sentinel
+    spec:
+      nodeSelector:
+        kubernetes.io/os: linux
+      tolerations:
+        - key: sentinel-dedicated
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              role: sentinel
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    role: replication
+      securityContext:
+        runAsUser: 1000
+        fsGroup: 1000
+      terminationGracePeriodSeconds: 42
