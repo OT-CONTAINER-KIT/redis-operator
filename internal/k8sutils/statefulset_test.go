@@ -105,21 +105,34 @@ func TestStorageHasVolumeClaimTemplate(t *testing.T) {
 }
 
 func TestGeneratePreStopCommand(t *testing.T) {
+	sentinelCfg := PreStopConfig{
+		Role:               "replication",
+		EnableAuth:         true,
+		EnableTLS:          true,
+		SentinelService:    "my-replication-s-hl",
+		SentinelMasterName: "mymaster",
+		SentinelPort:       26379,
+		WaitSeconds:        20,
+	}
+
 	tests := []struct {
 		name        string
-		role        string
+		cfg         PreStopConfig
 		expectEmpty bool
 	}{
-		{"ClusterRole", "cluster", false},
-		{"ReplicationRole", "replication", true},
-		{"SentinelRole", "sentinel", true},
-		{"StandaloneRole", "standalone", true},
-		{"UnknownRole", "unknown", true},
+		{"ClusterRole", PreStopConfig{Role: "cluster", EnableAuth: true, EnableTLS: true}, false},
+		{"ReplicationWithSentinel", sentinelCfg, false},
+		// Embedded Sentinel disabled => no service => no hook, so master
+		// terminations of non-Sentinel replication never block on a missing svc.
+		{"ReplicationWithoutSentinel", PreStopConfig{Role: "replication", EnableAuth: true, EnableTLS: true}, true},
+		{"SentinelRole", PreStopConfig{Role: "sentinel"}, true},
+		{"StandaloneRole", PreStopConfig{Role: "standalone"}, true},
+		{"UnknownRole", PreStopConfig{Role: "unknown"}, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := GeneratePreStopCommand(tt.role, true, true)
+			result := GeneratePreStopCommand(tt.cfg)
 			if (result == "") != tt.expectEmpty {
 				t.Errorf("expected empty: %v, got: %q", tt.expectEmpty, result)
 			}
@@ -154,6 +167,52 @@ func TestGenerateContainerDefAddsMaxMemoryEnv(t *testing.T) {
 	require.Len(t, containers, 1)
 	expectedValue := strconv.FormatInt(memLimit.Value()*int64(percent)/100, 10)
 	assert.Contains(t, containers[0].Env, corev1.EnvVar{Name: consts.ENV_KEY_REDIS_MAX_MEMORY, Value: expectedValue})
+}
+
+func TestGenerateReplicationPreStopContent(t *testing.T) {
+	cfg := PreStopConfig{
+		Role:               "replication",
+		EnableAuth:         true,
+		EnableTLS:          false,
+		SentinelService:    "my-replication-s-hl",
+		SentinelMasterName: "customMaster",
+		SentinelPort:       26379,
+		WaitSeconds:        20,
+	}
+
+	script := GeneratePreStopCommand(cfg)
+	require.NotEmpty(t, script)
+
+	// Failover targets the injected service, port and master group rather than
+	// values derived in shell, so they stay correct across names/topologies.
+	assert.Contains(t, script, `redis-cli -h "my-replication-s-hl" -p 26379 SENTINEL FAILOVER customMaster`)
+	// The demotion wait is bounded by WaitSeconds, not a hardcoded 30.
+	assert.Contains(t, script, "seq 1 20")
+
+	// No shell-side derivation of the service name or master group remains.
+	assert.NotContains(t, script, "CR_NAME")
+	assert.NotContains(t, script, "${CR_NAME}-s-hl")
+	assert.NotContains(t, script, "FAILOVER mymaster")
+	// Aligned with the cluster hook, which does not pass --no-auth-warning.
+	assert.NotContains(t, script, "--no-auth-warning")
+}
+
+func TestReplicationPreStopWaitSeconds(t *testing.T) {
+	tests := []struct {
+		name  string
+		grace *int64
+		want  int
+	}{
+		{"NilGraceUsesDefault", nil, 20},
+		{"ZeroGraceUsesDefault", ptr.To(int64(0)), 20},
+		{"LargerGraceGetsMoreHeadroom", ptr.To(int64(60)), 50},
+		{"SmallGraceClampedToOne", ptr.To(int64(5)), 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, replicationPreStopWaitSeconds(tt.grace))
+		})
+	}
 }
 
 func TestGetVolumeMount(t *testing.T) {
