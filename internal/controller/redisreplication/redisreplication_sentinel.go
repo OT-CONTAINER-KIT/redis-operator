@@ -126,7 +126,39 @@ func buildSentinelContainer(rr *rrvb2.RedisReplication) corev1.Container {
 
 func buildSentinelEnv(rr *rrvb2.RedisReplication) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
+		{Name: "MASTER_GROUP_NAME", Value: masterGroupName},
+		{Name: "PORT", Value: "6379"},
 		{Name: "QUORUM", Value: fmt.Sprintf("%d", rr.Spec.Sentinel.Size/2+1)},
+	}
+	if rr.Spec.Sentinel.DownAfterMilliseconds != "" {
+		envs = append(envs, corev1.EnvVar{
+			Name:  "DOWN_AFTER_MILLISECONDS",
+			Value: rr.Spec.Sentinel.DownAfterMilliseconds,
+		})
+	}
+	if rr.Spec.Sentinel.ParallelSyncs != "" {
+		envs = append(envs, corev1.EnvVar{
+			Name:  "PARALLEL_SYNCS",
+			Value: rr.Spec.Sentinel.ParallelSyncs,
+		})
+	}
+	if rr.Spec.Sentinel.FailoverTimeout != "" {
+		envs = append(envs, corev1.EnvVar{
+			Name:  "FAILOVER_TIMEOUT",
+			Value: rr.Spec.Sentinel.FailoverTimeout,
+		})
+	}
+	if rr.Spec.Sentinel.ResolveHostnames != "" {
+		envs = append(envs, corev1.EnvVar{
+			Name:  "RESOLVE_HOSTNAMES",
+			Value: rr.Spec.Sentinel.ResolveHostnames,
+		})
+	}
+	if rr.Spec.Sentinel.AnnounceHostnames != "" {
+		envs = append(envs, corev1.EnvVar{
+			Name:  "ANNOUNCE_HOSTNAMES",
+			Value: rr.Spec.Sentinel.AnnounceHostnames,
+		})
 	}
 	passwordSecret := rr.Spec.KubernetesConfig.ExistingPasswordSecret
 	if rr.Spec.Sentinel.ExistingPasswordSecret != nil {

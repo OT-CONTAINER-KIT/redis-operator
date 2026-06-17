@@ -46,7 +46,7 @@ func GenerateConfig() error {
 	// sentinel_mode_setup
 	{
 		masterGroupName, _ := util.CoalesceEnv("MASTER_GROUP_NAME", "mymaster")
-		ip, _ := util.CoalesceEnv("IP", "0.0.0.0")
+		ip, _ := util.CoalesceEnv("IP", "")
 		port, _ := util.CoalesceEnv("PORT", "6379")
 		quorum, _ := util.CoalesceEnv("QUORUM", "2")
 		downAfterMilliseconds, _ := util.CoalesceEnv("DOWN_AFTER_MILLISECONDS", "30000")
@@ -55,7 +55,11 @@ func GenerateConfig() error {
 		resolveHostnames, _ := util.CoalesceEnv("RESOLVE_HOSTNAMES", "no")
 		announceHostnames, _ := util.CoalesceEnv("ANNOUNCE_HOSTNAMES", "no")
 
-		cfg.Append("sentinel monitor", masterGroupName, ip, port, quorum)
+		if ip != "" && ip != "0.0.0.0" {
+			cfg.Append("sentinel monitor", masterGroupName, ip, port, quorum)
+		} else {
+			fmt.Println("Skipping sentinel monitor bootstrap because IP is unset")
+		}
 		cfg.Append("sentinel down-after-milliseconds", masterGroupName, downAfterMilliseconds)
 		cfg.Append("sentinel parallel-syncs", masterGroupName, parallelSyncs)
 		cfg.Append("sentinel failover-timeout", masterGroupName, failoverTimeout)
@@ -76,7 +80,7 @@ func GenerateConfig() error {
 		}
 
 		// If resolveHostnames is set to yes, then we need to announce the hostnames
-		if announceHostnames == "yes" && resolveHostnames == "yes" {
+		if announceHostnames == "yes" && resolveHostnames == "yes" && ip != "" && ip != "0.0.0.0" {
 			cfg.Append("sentinel announce-ip", ip)
 		}
 	}
