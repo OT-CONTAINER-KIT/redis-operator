@@ -59,13 +59,16 @@ spec:
     securityContext: {{ toYaml .Values.redisExporter.securityContext | nindent 6 }}
     {{- end }}
   
-  {{- if or .Values.externalConfig.enabled (and .Values.redisReplication.maxMemoryPercentOfLimit (gt (int .Values.redisReplication.maxMemoryPercentOfLimit) 0)) }}
+  {{- if or .Values.externalConfig.enabled (and .Values.redisReplication.maxMemoryPercentOfLimit (gt (int .Values.redisReplication.maxMemoryPercentOfLimit) 0)) (.Values.redisReplication.dynamicConfig) }}
   redisConfig:
     {{- if .Values.externalConfig.enabled }}
     additionalRedisConfig: "{{ .Values.redisReplication.name | default .Release.Name }}-ext-config"
     {{- end }}
     {{- if and .Values.redisReplication.maxMemoryPercentOfLimit (gt (int .Values.redisReplication.maxMemoryPercentOfLimit) 0) }}
     maxMemoryPercentOfLimit: {{ .Values.redisReplication.maxMemoryPercentOfLimit }}
+    {{- end }}
+    {{- if .Values.redisReplication.dynamicConfig }}
+    dynamicConfig: {{ toYaml .Values.redisReplication.dynamicConfig | nindent 6 }}
     {{- end }}
   {{- end }}
   {{- if .Values.storageSpec }}

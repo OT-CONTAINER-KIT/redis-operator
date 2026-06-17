@@ -31,3 +31,30 @@ spec:
                 exit 1
               fi
               exit 0
+
+    - name: Assert dynamic config
+      description: dynamicConfig is applied at runtime via CONFIG SET without a restart
+      try:
+        - script:
+            timeout: 90s
+            content: |
+              #!/bin/bash
+              set -e
+              CMD="kubectl exec -n ${NAMESPACE} redis-standalone-v1beta2-0 -c redis-standalone-v1beta2 -- redis-cli --no-auth-warning"
+
+              # The operator applies dynamicConfig on a reconcile after the pod is
+              # ready, so poll until the CONFIG SET values appear.
+              for i in $(seq 1 30); do
+                POLICY=$(${CMD} config get maxmemory-policy | grep -A1 "maxmemory-policy" | tail -n1)
+                SLOWLOG=$(${CMD} config get slowlog-log-slower-than | grep -A1 "slowlog-log-slower-than" | tail -n1)
+                if [ "$POLICY" == "allkeys-lru" ] && [ "$SLOWLOG" == "5000" ]; then
+                  echo "standalone has correct dynamic configuration"
+                  exit 0
+                fi
+                echo "attempt ${i}: maxmemory-policy=${POLICY} slowlog-log-slower-than=${SLOWLOG}, waiting..."
+                sleep 3
+              done
+              echo "timed out waiting for dynamic configuration to be applied"
+              exit 1
+            check:
+              (contains($stdout, 'has correct dynamic configuration')): true
