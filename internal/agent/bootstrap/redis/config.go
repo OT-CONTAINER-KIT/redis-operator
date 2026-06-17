@@ -94,7 +94,7 @@ func GenerateConfig() error {
 		if clusterAnnounceIP != "" {
 			cfg.Append("cluster-announce-ip", clusterAnnounceIP)
 		}
-		if redisMajorVersion == "v7" {
+		if util.IsRedisVersion7OrNewer(redisMajorVersion) {
 			fqdnName, err := fqdn.FqdnHostname()
 			if err != nil {
 				log.Printf("Warning: Failed to get FQDN: %v", err)
@@ -117,7 +117,7 @@ func GenerateConfig() error {
 
 		if clusterMode == "cluster" {
 			cfg.Append("tls-cluster", "yes")
-			if redisMajorVersion == "v7" && nodeport == "false" {
+			if util.IsRedisVersion7OrNewer(redisMajorVersion) && nodeport == "false" {
 				cfg.Append("cluster-preferred-endpoint-type", "hostname")
 			}
 		}
