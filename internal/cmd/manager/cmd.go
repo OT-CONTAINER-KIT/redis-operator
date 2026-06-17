@@ -45,6 +45,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsfilters "sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -55,6 +56,7 @@ var setupLog = ctrl.Log.WithName("setup")
 // managerOptions contains all options needed for the manager
 type managerOptions struct {
 	metricsAddr             string
+	secureMetrics           bool
 	probeAddr               string
 	pprofAddr               string
 	enableLeaderElection    bool
@@ -92,6 +94,7 @@ func CMD() *cobra.Command {
 // addFlags adds command line flags
 func addFlags(cmd *cobra.Command, opts *managerOptions) {
 	cmd.Flags().StringVar(&opts.metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+	cmd.Flags().BoolVar(&opts.secureMetrics, "metrics-secure", false, "If set, the metrics endpoint is served securely over HTTPS with authentication and authorization. Defaults to false (plain HTTP).")
 	cmd.Flags().StringVar(&opts.probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	cmd.Flags().StringVar(&opts.pprofAddr, "pprof-bind-address", "", "The address the pprof endpoint binds to. If empty, pprof is disabled. Example: ':6060'")
 	cmd.Flags().BoolVar(&opts.enableLeaderElection, "leader-elect", false, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
@@ -183,10 +186,16 @@ func setupFeatureGates(featureGatesString string) error {
 
 // createControllerOptions creates configuration options for the manager
 func createControllerOptions(opts *managerOptions) ctrl.Options {
+	metricsOptions := metricsserver.Options{
+		BindAddress: opts.metricsAddr,
+	}
+	if opts.secureMetrics {
+		metricsOptions.SecureServing = true
+		metricsOptions.FilterProvider = metricsfilters.WithAuthenticationAndAuthorization
+	}
+
 	options := ctrl.Options{
-		Metrics: metricsserver.Options{
-			BindAddress: opts.metricsAddr,
-		},
+		Metrics: metricsOptions,
 		WebhookServer: &webhook.DefaultServer{
 			Options: webhook.Options{
 				Port: 9443,
