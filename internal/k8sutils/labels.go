@@ -3,11 +3,13 @@ package k8sutils
 import (
 	"strconv"
 
+	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	rvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redis/v1beta2"
 	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util/maps"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -23,6 +25,24 @@ const (
 // getRedisLabels wraps common.GetRedisLabels with setupType conversion
 func getRedisLabels(name string, st setupType, role string, labels map[string]string) map[string]string {
 	return common.GetRedisLabels(name, common.SetupType(st), role, labels)
+}
+
+func getRedisLabelsWithAdditional(name string, st setupType, role string, labels, additionalLabels map[string]string) map[string]string {
+	return common.GetRedisLabelsWithAdditional(name, common.SetupType(st), role, labels, additionalLabels)
+}
+
+func getRedisClusterAdditionalLabels(kubernetesConfig commonapi.KubernetesConfig, labels map[string]string, extra map[string]string) map[string]string {
+	return maps.Merge(labels, kubernetesConfig.AdditionalLabels, extra)
+}
+
+func getNonProtectedAdditionalLabels(kubernetesConfig commonapi.KubernetesConfig, labels map[string]string) map[string]string {
+	res := maps.Merge(labels, kubernetesConfig.AdditionalLabels)
+	for key := range getRedisStableLabels("", "", "") {
+		delete(res, key)
+	}
+	delete(res, common.RedisRoleLabelKey)
+	delete(res, "cluster")
+	return res
 }
 
 // getRedisStableLabels is a wrapper for internal use in this package
