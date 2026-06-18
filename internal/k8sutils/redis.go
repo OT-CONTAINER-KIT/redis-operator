@@ -687,9 +687,12 @@ func configureRedisClient(ctx context.Context, client kubernetes.Interface, cr *
 		}
 	}
 	opts := &redis.Options{
-		Addr:     getRedisServerAddress(ctx, client, redisInfo, *cr.Spec.Port),
-		Password: pass,
-		DB:       0,
+		Addr:         getRedisServerAddress(ctx, client, redisInfo, *cr.Spec.Port),
+		Password:     pass,
+		DB:           0,
+		DialTimeout:  defaultRedisClientTimeout,
+		ReadTimeout:  defaultRedisClientTimeout,
+		WriteTimeout: defaultRedisClientTimeout,
 	}
 	if cr.Spec.TLS != nil {
 		opts.TLSConfig = getRedisTLSConfig(ctx, client, cr.Namespace, cr.Spec.TLS)
@@ -731,6 +734,15 @@ func executeCommand(ctx context.Context, client kubernetes.Interface, cr *rcvb2.
 	log.FromContext(ctx).V(1).Info("Successfully executed the command", "Command", cmd, "Output", execOut)
 }
 
+// defaultExecCommandTimeout bounds a single exec stream against a redis pod. It is generous
+// enough for a legitimate slow `redis-cli --cluster create` while still guaranteeing the stream
+// (and therefore the reconcile worker) cannot block forever. Override with EXEC_COMMAND_TIMEOUT.
+const defaultExecCommandTimeout = 5 * time.Minute
+
+// defaultRedisClientTimeout bounds dial/read/write operations of the go-redis clients the
+// reconciler opens against redis pods, so an unreachable pod cannot stall a reconcile.
+const defaultRedisClientTimeout = 5 * time.Second
+
 func executeCommand1(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, cmd []string, podName string) (stdout string, stderr error) {
 	var (
 		execOut bytes.Buffer
@@ -760,7 +772,13 @@ func executeCommand1(ctx context.Context, client kubernetes.Interface, cr *rcvb2
 		return "", err
 	}
 
-	err = exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
+	// Bound the exec stream with the reconcile ctx and a timeout so a blocked command (e.g. a
+	// `redis-cli --cluster create` against pods that cannot yet form a cluster) returns an error
+	// and requeues instead of pinning the reconcile worker forever, which would starve every
+	// other Redis resource across all namespaces.
+	execCtx, cancel := context.WithTimeout(ctx, envs.GetExecCommandTimeout(defaultExecCommandTimeout))
+	defer cancel()
+	err = exec.StreamWithContext(execCtx, remotecommand.StreamOptions{
 		Stdout: &execOut,
 		Stderr: &execErr,
 		Tty:    false,
@@ -773,7 +791,7 @@ func executeCommand1(ctx context.Context, client kubernetes.Interface, cr *rcvb2
 
 // getContainerID will return the id of container from pod
 func getContainerID(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, podName string) (int, *corev1.Pod) {
-	pod, err := client.CoreV1().Pods(cr.Namespace).Get(context.TODO(), podName, metav1.GetOptions{})
+	pod, err := client.CoreV1().Pods(cr.Namespace).Get(ctx, podName, metav1.GetOptions{})
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Could not get pod info", "Pod Name", podName, "Namespace", cr.Namespace)
 		return -1, nil
@@ -852,9 +870,12 @@ func configureRedisReplicationClientForAddress(ctx context.Context, client kuber
 		addr = formatRedisAddress(podIP, 6379)
 	}
 	opts := &redis.Options{
-		Addr:     addr,
-		Password: pass,
-		DB:       0,
+		Addr:         addr,
+		Password:     pass,
+		DB:           0,
+		DialTimeout:  defaultRedisClientTimeout,
+		ReadTimeout:  defaultRedisClientTimeout,
+		WriteTimeout: defaultRedisClientTimeout,
 	}
 	if cr.Spec.TLS != nil {
 		opts.TLSConfig = getRedisTLSConfig(ctx, client, cr.Namespace, cr.Spec.TLS)
