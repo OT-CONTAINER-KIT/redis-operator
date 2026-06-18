@@ -34,6 +34,8 @@ spec:
             value: "false"
         args:
         - --leader-elect
+        - --metrics-bind-address=:8443
+        - --metrics-secure
         - --zap-log-level=debug
         - --enable-webhooks=false
         image: controller

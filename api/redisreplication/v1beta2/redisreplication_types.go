@@ -62,6 +62,13 @@ func (cr *RedisReplicationSpec) GetReplicationCounts(t string) int32 {
 	return *replica
 }
 
+func (cr *RedisReplicationSpec) GetRedisDynamicConfig() []string {
+	if cr.RedisConfig != nil && len(cr.RedisConfig.DynamicConfig) > 0 {
+		return cr.RedisConfig.DynamicConfig
+	}
+	return []string{}
+}
+
 // ConnectionInfo provides connection details for clients to connect to Redis
 type ConnectionInfo struct {
 	// Host is the service FQDN
