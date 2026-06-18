@@ -2,6 +2,9 @@ package k8sutils
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"path"
 	"sort"
@@ -110,6 +113,7 @@ type statefulSetParameters struct {
 	NodeConfPersistentVolumeClaim        corev1.PersistentVolumeClaim
 	ImagePullSecrets                     *[]corev1.LocalObjectReference
 	ExternalConfig                       *string
+	ConfigChecksums                      map[string]string
 	ServiceAccountName                   *string
 	UpdateStrategy                       appsv1.StatefulSetUpdateStrategy
 	PersistentVolumeClaimRetentionPolicy *appsv1.StatefulSetPersistentVolumeClaimRetentionPolicy
@@ -177,6 +181,18 @@ type initContainerParameters struct {
 // CreateOrUpdateStateFul method will create or update Redis service
 func CreateOrUpdateStateFul(ctx context.Context, cl kubernetes.Interface, namespace string, stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, initcontainerParams initContainerParameters, containerParams containerParameters, sidecars *[]commonapi.Sidecar) error {
 	storedStateful, err := GetStatefulSet(ctx, cl, namespace, stsMeta.Name)
+	// Encode the content of the referenced config/secret sources into the pod
+	// template so that editing any of them rolls the StatefulSet. Kubernetes does
+	// not restart pods when a mounted ConfigMap/Secret (or a secretKeyRef) changes,
+	// so without this the spec would be byte-identical and no rollout would happen.
+	// storedStateful (nil when the STS does not exist yet) lets us preserve the
+	// previous checksum on a transient lookup failure instead of rolling pods.
+	// checksumErr is non-nil when a source lookup failed transiently (not NotFound);
+	// we still apply the StatefulSet with the preserved checksum, then surface the
+	// error so the reconcile is retried and converges even on controllers that have
+	// no periodic requeue (e.g. standalone Redis).
+	checksums, checksumErr := computeReferencedChecksums(ctx, cl, namespace, params, containerParams, storedStateful)
+	params.ConfigChecksums = checksums
 	statefulSetDef := generateStatefulSetsDef(stsMeta, params, ownerDef, initcontainerParams, containerParams, getSidecars(sidecars))
 	if err != nil {
 		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(statefulSetDef); err != nil { //nolint:gocritic
@@ -184,11 +200,17 @@ func CreateOrUpdateStateFul(ctx context.Context, cl kubernetes.Interface, namesp
 			return err
 		}
 		if apierrors.IsNotFound(err) {
-			return createStatefulSet(ctx, cl, namespace, statefulSetDef)
+			if err := createStatefulSet(ctx, cl, namespace, statefulSetDef); err != nil {
+				return err
+			}
+			return checksumErr
 		}
 		return err
 	}
-	return patchStatefulSet(ctx, storedStateful, statefulSetDef, namespace, params.RecreateStatefulSet, params.RecreateStatefulsetStrategy, cl)
+	if err := patchStatefulSet(ctx, storedStateful, statefulSetDef, namespace, params.RecreateStatefulSet, params.RecreateStatefulsetStrategy, cl); err != nil {
+		return err
+	}
+	return checksumErr
 }
 
 // patchStatefulSet patches the Redis StatefulSet by applying changes while maintaining atomicity.
@@ -301,6 +323,18 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 	// Generate stable selector labels (only core labels that won't change)
 	selectorLabels := extractStatefulSetSelectorLabels(stsMeta.GetLabels())
 
+	// Build the pod template annotations and stamp the checksums of any referenced
+	// config/secret sources so a change to their content alters the pod template
+	// and triggers a rolling update via the existing patch path. An absent key
+	// (e.g. a deleted source) is intentionally not stamped; an empty map leaves the
+	// template untouched. The checksums are layered on after generateStatefulSetsAnots
+	// (which applies IgnoreAnnotations), so they intentionally bypass IgnoreAnnotations
+	// — suppressing them would defeat the config-rollout behaviour.
+	podAnnotations := generateStatefulSetsAnots(stsMeta, params.IgnoreAnnotations)
+	for key, checksum := range params.ConfigChecksums {
+		podAnnotations[key] = checksum
+	}
+
 	statefulset := &appsv1.StatefulSet{
 		TypeMeta:   generateMetaInformation("StatefulSet", "apps/v1"),
 		ObjectMeta: stsMeta,
@@ -314,7 +348,7 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      stsMeta.GetLabels(),
-					Annotations: generateStatefulSetsAnots(stsMeta, params.IgnoreAnnotations),
+					Annotations: podAnnotations,
 				},
 				Spec: corev1.PodSpec{
 					Containers: generateContainerDef(
@@ -437,6 +471,143 @@ func getExternalConfig(configMapName string) []corev1.Volume {
 			},
 		},
 	}
+}
+
+// computeReferencedChecksums returns the pod-template checksum annotations for the
+// user-provided config/secret sources this StatefulSet mounts or references
+// (external config ConfigMap, TLS Secret, ACL Secret and the password Secret).
+//
+// Each source is keyed by its annotation. The semantics of a lookup are:
+//   - success           -> stamp the content checksum
+//   - NotFound          -> leave the annotation unset, so a genuine deletion still
+//     rolls the StatefulSet
+//   - transient failure -> preserve the previously stored checksum (when the STS
+//     already exists) so a recoverable apiserver hiccup does not un-stamp the
+//     annotation and trigger a needless rolling restart
+//
+// The returned error is non-nil when at least one source hit a transient failure,
+// so the caller can requeue and converge once the source is reachable again.
+func computeReferencedChecksums(ctx context.Context, cl kubernetes.Interface, namespace string, params statefulSetParameters, containerParams containerParameters, stored *appsv1.StatefulSet) (map[string]string, error) {
+	checksums := map[string]string{}
+	var transientErr error
+
+	add := func(annotationKey, name string, fetch func() (string, error)) {
+		if name == "" {
+			return
+		}
+		sum, err := fetch()
+		if err != nil {
+			// Transient lookup error: keep the previously stored checksum (if any)
+			// rather than dropping the annotation and rolling pods for no reason, and
+			// remember the error so the caller can retry and pick up the real change.
+			transientErr = err
+			if stored != nil {
+				if prev, ok := stored.Spec.Template.Annotations[annotationKey]; ok {
+					checksums[annotationKey] = prev
+				}
+			}
+			return
+		}
+		// An empty sum means the source was definitively absent (NotFound); leave the
+		// annotation unset so a real deletion is reflected as a spec change.
+		if sum != "" {
+			checksums[annotationKey] = sum
+		}
+	}
+
+	if params.ExternalConfig != nil {
+		add(common.AnnotationKeyExternalConfigChecksum, *params.ExternalConfig, func() (string, error) {
+			return configMapChecksum(ctx, cl, namespace, *params.ExternalConfig)
+		})
+	}
+	if containerParams.TLSConfig != nil {
+		add(common.AnnotationKeyTLSSecretChecksum, containerParams.TLSConfig.Secret.SecretName, func() (string, error) {
+			return secretChecksum(ctx, cl, namespace, containerParams.TLSConfig.Secret.SecretName)
+		})
+	}
+	if containerParams.ACLConfig != nil && containerParams.ACLConfig.Secret != nil {
+		add(common.AnnotationKeyACLSecretChecksum, containerParams.ACLConfig.Secret.SecretName, func() (string, error) {
+			return secretChecksum(ctx, cl, namespace, containerParams.ACLConfig.Secret.SecretName)
+		})
+	}
+	if containerParams.EnabledPassword != nil && *containerParams.EnabledPassword && containerParams.SecretName != nil {
+		add(common.AnnotationKeyPasswordSecretChecksum, *containerParams.SecretName, func() (string, error) {
+			return secretChecksum(ctx, cl, namespace, *containerParams.SecretName)
+		})
+	}
+	return checksums, transientErr
+}
+
+// configMapChecksum fetches a ConfigMap and returns a checksum of its content.
+// A NotFound error yields ("", nil) so the caller drops the annotation; any other
+// error is returned so the caller can preserve the previously stored checksum.
+func configMapChecksum(ctx context.Context, cl kubernetes.Interface, namespace, name string) (string, error) {
+	cm, err := cl.CoreV1().ConfigMaps(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			log.FromContext(ctx).V(1).Info("external config ConfigMap not found; checksum annotation will not be set", "configMap", name, "namespace", namespace)
+			return "", nil
+		}
+		log.FromContext(ctx).Error(err, "failed to get external config ConfigMap for checksum", "configMap", name, "namespace", namespace)
+		return "", err
+	}
+	return computeConfigMapChecksum(cm), nil
+}
+
+// secretChecksum fetches a Secret and returns a checksum of its Data. NotFound and
+// transient errors follow the same convention as configMapChecksum.
+func secretChecksum(ctx context.Context, cl kubernetes.Interface, namespace, name string) (string, error) {
+	secret, err := cl.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			log.FromContext(ctx).V(1).Info("referenced Secret not found; checksum annotation will not be set", "secret", name, "namespace", namespace)
+			return "", nil
+		}
+		log.FromContext(ctx).Error(err, "failed to get referenced Secret for checksum", "secret", name, "namespace", namespace)
+		return "", err
+	}
+	return computeSecretChecksum(secret), nil
+}
+
+// computeConfigMapChecksum returns a deterministic sha256 hex digest over the
+// ConfigMap's Data and BinaryData. json.Marshal emits map keys in sorted order,
+// so the digest is stable across reconciles for identical content regardless of
+// map iteration order.
+func computeConfigMapChecksum(cm *corev1.ConfigMap) string {
+	if cm == nil {
+		return ""
+	}
+	payload, err := json.Marshal(struct {
+		Data       map[string]string `json:"data,omitempty"`
+		BinaryData map[string][]byte `json:"binaryData,omitempty"`
+	}{
+		Data:       cm.Data,
+		BinaryData: cm.BinaryData,
+	})
+	if err != nil {
+		return ""
+	}
+	sum := sha256.Sum256(payload)
+	return hex.EncodeToString(sum[:])
+}
+
+// computeSecretChecksum returns a deterministic sha256 hex digest over the Secret's
+// Data (StringData is merged into Data by the apiserver on read, so it need not be
+// hashed separately).
+func computeSecretChecksum(secret *corev1.Secret) string {
+	if secret == nil {
+		return ""
+	}
+	payload, err := json.Marshal(struct {
+		Data map[string][]byte `json:"data,omitempty"`
+	}{
+		Data: secret.Data,
+	})
+	if err != nil {
+		return ""
+	}
+	sum := sha256.Sum256(payload)
+	return hex.EncodeToString(sum[:])
 }
 
 // createPVCTemplate will create the persistent volume claim template
