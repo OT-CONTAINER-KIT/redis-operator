@@ -136,3 +136,7 @@ manager:
     kubeClientTimeout: 60s
     # -- If value > 0, it will override the default value in the operator
     kubeClientQPS: 0.0
+    # Set to 0 to use the operator's built-in default.
+    maxConcurrentReconciles: 3
+    # Accepts a Go duration (e.g. "30s", "5m"). Empty uses the operator's built-in default.
+    execCommandTimeout: ""

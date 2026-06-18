@@ -65,6 +65,9 @@ spec:
         {{- if and .Values.manager.config.kubeClientQPS (gt (.Values.manager.config.kubeClientQPS | float64) 0.0) }}
         - --kube-client-qps={{ .Values.manager.config.kubeClientQPS }}
         {{- end }}
+        {{- if and .Values.manager.config.maxConcurrentReconciles (gt (int .Values.manager.config.maxConcurrentReconciles) 0) }}
+        - --max-concurrent-reconciles={{ .Values.manager.config.maxConcurrentReconciles }}
+        {{- end }}
         {{- range $arg := .Values.redisOperator.extraArgs }}
         - {{ $arg }}
         {{- end }}
@@ -103,6 +106,10 @@ spec:
         {{- if .Values.redisOperator.serviceDNSDomain }}
         - name: SERVICE_DNS_DOMAIN
           value: {{ .Values.redisOperator.serviceDNSDomain | quote }}
+        {{- end }}
+        {{- if .Values.manager.config.execCommandTimeout }}
+        - name: EXEC_COMMAND_TIMEOUT
+          value: {{ .Values.manager.config.execCommandTimeout | quote }}
         {{- end }}
         {{- range $env := .Values.redisOperator.env }}
         - name: {{ $env.name }}
