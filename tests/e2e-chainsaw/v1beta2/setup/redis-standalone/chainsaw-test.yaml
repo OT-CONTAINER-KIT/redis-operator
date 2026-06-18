@@ -26,7 +26,7 @@ spec:
               set -e
               # maxmemory should not equal to 0
               MAXMEMORY=$(kubectl exec -n ${NAMESPACE} redis-standalone-v1beta2-0 -c redis-standalone-v1beta2 -- redis-cli --no-auth-warning config get maxmemory | grep -A1 "maxmemory" | tail -n1)
-              if [ "$MAXMEMORY" == "0" ]; then
+              if [ "$MAXMEMORY" = "0" ]; then
                 echo "maxmemory value is $MAXMEMORY, expected not 0"
                 exit 1
               fi
@@ -47,7 +47,7 @@ spec:
               for i in $(seq 1 30); do
                 POLICY=$(${CMD} config get maxmemory-policy | grep -A1 "maxmemory-policy" | tail -n1)
                 SLOWLOG=$(${CMD} config get slowlog-log-slower-than | grep -A1 "slowlog-log-slower-than" | tail -n1)
-                if [ "$POLICY" == "allkeys-lru" ] && [ "$SLOWLOG" == "5000" ]; then
+                if [ "$POLICY" = "allkeys-lru" ] && [ "$SLOWLOG" = "5000" ]; then
                   echo "standalone has correct dynamic configuration"
                   exit 0
                 fi

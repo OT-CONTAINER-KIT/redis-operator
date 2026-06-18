@@ -57,49 +57,35 @@ spec:
     - name: Assert config
       try:
         - script:
-            timeout: 30s
+            timeout: 90s
             content: |
               #!/bin/bash
               set -e
 
-              # Randomly select one leader and one follower
-              LEADER_INDEX=$((RANDOM % 3))
-              FOLLOWER_INDEX=$((RANDOM % 3))
+              # Check every leader and follower reflects the applied configuration.
+              # NB: this content runs under /bin/sh (dash) via `sh -c`, so it must
+              # stay POSIX-compatible (no bash-only constructs such as $RANDOM).
+              for ROLE in leader follower; do
+                for INDEX in 0 1 2; do
+                  POD="redis-cluster-v1beta2-${ROLE}-${INDEX}"
+                  CMD="kubectl exec -n ${NAMESPACE} ${POD} -c redis-cluster-v1beta2-${ROLE} -- redis-cli --no-auth-warning -a Opstree1234 --tls --cacert /tls/ca.crt"
+                  SLOWLOG_VALUE=$(${CMD} config get slowlog-log-slower-than | grep -A1 "slowlog-log-slower-than" | tail -n1)
+                  TCP_KEEPALIVE_VALUE=$(${CMD} config get tcp-keepalive | grep -A1 "tcp-keepalive" | tail -n1)
+                  if [ "$SLOWLOG_VALUE" != "5000" ]; then
+                    echo "${POD} slowlog-log-slower-than value is $SLOWLOG_VALUE, expected 5000"
+                    exit 1
+                  fi
+                  if [ "$TCP_KEEPALIVE_VALUE" != "400" ]; then
+                    echo "${POD} tcp-keepalive value is $TCP_KEEPALIVE_VALUE, expected 400"
+                    exit 1
+                  fi
+                done
+              done
 
-              echo "Checking leader-${LEADER_INDEX} and follower-${FOLLOWER_INDEX}"
-
-              # Check leader configuration
-              LEADER_CMD="kubectl exec -n ${NAMESPACE} redis-cluster-v1beta2-leader-${LEADER_INDEX}"
-              LEADER_CMD="${LEADER_CMD} -c redis-cluster-v1beta2-leader -- redis-cli --no-auth-warning -a Opstree1234 --tls --cacert /tls/ca.crt"
-              SLOWLOG_VALUE=$(${LEADER_CMD} config get slowlog-log-slower-than | grep -A1 "slowlog-log-slower-than" | tail -n1)
-              TCP_KEEPALIVE_VALUE=$(${LEADER_CMD} config get tcp-keepalive | grep -A1 "tcp-keepalive" | tail -n1)
-              if [ "$SLOWLOG_VALUE" != "5000" ]; then
-                echo "leader-${LEADER_INDEX} slowlog-log-slower-than value is $SLOWLOG_VALUE, expected 5000"
-                exit 1
-              fi
-              if [ "$TCP_KEEPALIVE_VALUE" != "400" ]; then
-                echo "leader-${LEADER_INDEX} tcp-keepalive value is $TCP_KEEPALIVE_VALUE, expected 400"
-                exit 1
-              fi
-
-              # Check follower configuration
-              FOLLOWER_CMD="kubectl exec -n ${NAMESPACE} redis-cluster-v1beta2-follower-${FOLLOWER_INDEX}"
-              FOLLOWER_CMD="${FOLLOWER_CMD} -c redis-cluster-v1beta2-follower -- redis-cli --no-auth-warning -a Opstree1234 --tls --cacert /tls/ca.crt"
-              SLOWLOG_VALUE=$(${FOLLOWER_CMD} config get slowlog-log-slower-than | grep -A1 "slowlog-log-slower-than" | tail -n1)
-              TCP_KEEPALIVE_VALUE=$(${FOLLOWER_CMD} config get tcp-keepalive | grep -A1 "tcp-keepalive" | tail -n1)
-              if [ "$SLOWLOG_VALUE" != "5000" ]; then
-                echo "follower-${FOLLOWER_INDEX} slowlog-log-slower-than value is $SLOWLOG_VALUE, expected 5000"
-                exit 1
-              fi
-              if [ "$TCP_KEEPALIVE_VALUE" != "400" ]; then
-                echo "follower-${LEADER_INDEX} tcp-keepalive value is $TCP_KEEPALIVE_VALUE, expected 400"
-                exit 1
-              fi
-
-              echo "Redis instances leader-${LEADER_INDEX} and follower-${FOLLOWER_INDEX} have correct slowlog-log-slower-than configuration"
+              echo "All Redis leaders and followers have correct slowlog-log-slower-than and tcp-keepalive configuration"
               exit 0
             check:
-              (contains($stdout, 'have correct slowlog-log-slower-than configuration')): true
+              (contains($stdout, 'All Redis leaders and followers have correct')): true
 
     - name: Check maxmemory
       try:
@@ -112,7 +98,7 @@ spec:
               # maxmemory should not equal to 0
               MAXMEMORY=$(kubectl exec -n ${NAMESPACE} redis-cluster-v1beta2-leader-0 -c redis-cluster-v1beta2-leader -- \
               redis-cli --no-auth-warning --tls --cacert /tls/ca.crt -a Opstree1234 config get maxmemory | grep -A1 "maxmemory" | tail -n1)
-              if [ "$MAXMEMORY" == "0" ]; then
+              if [ "$MAXMEMORY" = "0" ]; then
                 echo "maxmemory value is $MAXMEMORY, expected not 0"
                 exit 1
               fi

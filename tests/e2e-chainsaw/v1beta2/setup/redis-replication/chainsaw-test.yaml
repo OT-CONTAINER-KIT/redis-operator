@@ -35,7 +35,7 @@ spec:
 
               # maxmemory should not equal to 0
               MAXMEMORY=$(kubectl exec -n ${NAMESPACE} redis-replication-0 -c redis-replication -- redis-cli --no-auth-warning -a Opstree1234 config get maxmemory | grep -A1 "maxmemory" | tail -n1)
-              if [ "$MAXMEMORY" == "0" ]; then
+              if [ "$MAXMEMORY" = "0" ]; then
                 echo "maxmemory value is $MAXMEMORY, expected not 0"
                 exit 1
               fi
@@ -64,7 +64,7 @@ spec:
                     break
                   fi
                 done
-                if [ "$ALL_OK" == "true" ]; then
+                if [ "$ALL_OK" = "true" ]; then
                   echo "all replicas have correct dynamic configuration"
                   exit 0
                 fi
