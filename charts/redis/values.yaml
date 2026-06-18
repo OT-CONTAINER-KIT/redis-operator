@@ -11,6 +11,13 @@ redisStandalone:
     secretKey: ""
   # serviceType must be one of: ClusterIP, NodePort, LoadBalancer
   serviceType: ClusterIP
+  # -- Annotations for the Redis CR services, mirroring the CRD `spec.kubernetesConfig.service` field; only emitted when set.
+  serviceConfig:
+    # -- Annotations added to the Redis service.
+    annotations: {}
+    headless:
+      # -- Annotations added to the headless Redis service.
+      additionalAnnotations: {}
   resources: {}
     # requests:
     #   cpu: 100m
