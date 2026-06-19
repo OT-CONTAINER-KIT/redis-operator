@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 )
@@ -32,6 +33,9 @@ const (
 
 	// MaxConcurrentReconcilesEnv defines the maximum number of concurrent reconciles
 	MaxConcurrentReconcilesEnv = "MAX_CONCURRENT_RECONCILES"
+
+	// ExecCommandTimeoutEnv defines the timeout for commands executed inside redis pods via the Kubernetes exec API
+	ExecCommandTimeoutEnv = "EXEC_COMMAND_TIMEOUT"
 
 	// EnableWebhooksEnv defines whether webhooks are enabled
 	EnableWebhooksEnv = "ENABLE_WEBHOOKS"
@@ -85,6 +89,17 @@ func GetWatchNamespaces() []string {
 func GetMaxConcurrentReconciles(defaultValue int) int {
 	if valueStr := os.Getenv(MaxConcurrentReconcilesEnv); valueStr != "" {
 		if value, err := strconv.Atoi(valueStr); err == nil {
+			return value
+		}
+	}
+	return defaultValue
+}
+
+// GetExecCommandTimeout returns the timeout applied to commands executed inside redis pods
+// via the Kubernetes exec API.
+func GetExecCommandTimeout(defaultValue time.Duration) time.Duration {
+	if valueStr := os.Getenv(ExecCommandTimeoutEnv); valueStr != "" {
+		if value, err := time.ParseDuration(valueStr); err == nil && value > 0 {
 			return value
 		}
 	}

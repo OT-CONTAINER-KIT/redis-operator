@@ -1,9 +1,17 @@
 {{- if .Values.rbac.enabled }}
+{{- $scope := include "redis-operator.rbacScope" . }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+{{- if eq $scope "cluster" }}
 kind: ClusterRole
+{{- else }}
+kind: Role
+{{- end }}
 metadata:
   name: {{ .Values.redisOperator.name }}
+{{- if eq $scope "namespace" }}
+  namespace: {{ .Release.Namespace }}
+{{- end }}
   labels:
     app.kubernetes.io/name : {{ .Values.redisOperator.name }}
     helm.sh/chart : {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
@@ -12,7 +20,9 @@ metadata:
     app.kubernetes.io/version : {{ .Chart.AppVersion }}
     app.kubernetes.io/component: role
     app.kubernetes.io/part-of : {{ .Release.Name }}
+{{- if eq $scope "cluster" }}
     rbac.authorization.k8s.io/aggregate-to-admin: "true"
+{{- end }}
 rules:
 - apiGroups:
   - redis.redis.opstreelabs.in
@@ -33,18 +43,21 @@ rules:
   - patch
   - update
   - watch
+{{- if eq $scope "cluster" }}
+# nonResourceURLs and cluster-scoped resources (CRDs) are only valid on a ClusterRole.
 - nonResourceURLs:
   - '*'
   verbs:
   - get
-- apiGroups: 
+- apiGroups:
   - "apiextensions.k8s.io"
-  resources: 
+  resources:
   - "customresourcedefinitions"
-  verbs: 
+  verbs:
   - "get"
-  - "list" 
+  - "list"
   - "watch"
+{{- end }}
 - apiGroups:
   - redis.redis.opstreelabs.in
   resources:
@@ -81,7 +94,10 @@ rules:
   - configmaps
   - events
   - persistentvolumeclaims
+{{- if eq $scope "cluster" }}
+  # namespaces is a cluster-scoped resource; only grant it on a ClusterRole.
   - namespaces
+{{- end }}
   verbs:
   - create
   - delete

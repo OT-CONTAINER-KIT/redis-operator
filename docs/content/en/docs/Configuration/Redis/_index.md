@@ -72,3 +72,49 @@ Redis standalone configuration can be customized by [values.yaml](https://github
 | storageSpec.volumeClaimTemplate.spec.accessModes[0]             | string | `"ReadWriteOnce"`                                                        |                                                                                                                                                                       |
 | storageSpec.volumeClaimTemplate.spec.resources.requests.storage | string | `"1Gi"`                                                                  |                                                                                                                                                                       |
 | tolerations                                                     | list   | `[]`                                                                     |                                                                                                                                                                       |
+
+## Redis Standalone Instance Configuration
+
+### Dynamic Configuration
+
+Redis Operator supports dynamic configuration for the standalone Redis instance through the top-level `redisConfig` field. You can set Redis configuration parameters that can be modified at runtime without requiring a restart.
+
+#### Example Configuration
+
+```yaml
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: Redis
+metadata:
+  name: redis-standalone
+spec:
+  redisConfig:
+    dynamicConfig:
+      - "maxmemory-policy allkeys-lru"
+      - "slowlog-log-slower-than 5000"
+```
+
+#### Configuration Application
+
+- Dynamic configurations are applied to the standalone Redis instance via `CONFIG SET`
+- Configuration is applied only after the instance's StatefulSet is in a ready state
+- If the instance is not ready or accessible, it will be skipped and retried in the next reconciliation
+
+#### Important Notes
+
+1. **Configuration Validation**
+   - Ensure the configuration parameters are supported by your Redis version
+   - Use proper format: "parameter value" (e.g., "maxmemory-policy allkeys-lru")
+   - Invalid configurations will be logged and skipped
+
+2. **Monitoring**
+   - Configuration changes are logged at the pod level
+   - Check pod logs for configuration status and any errors
+   - Use `kubectl exec` to verify configurations:
+
+   ```bash
+   kubectl exec -it <pod-name> -- redis-cli CONFIG GET <parameter>
+   ```
+
+3. **Limitations**
+   - Only supports parameters that can be modified at runtime
+   - `CONFIG SET` is not persisted to disk, so values supplied through `dynamicConfig` are **not retained across pod restarts** unless they are also provided through `externalConfig` (`additionalRedisConfig`). `dynamicConfig` is applied at runtime only and intentionally does not rewrite the ConfigMap, so that runtime-tunable parameters do not trigger a StatefulSet rolling restart.

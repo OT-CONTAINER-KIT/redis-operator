@@ -1,0 +1,17 @@
+---
+# After all leader pods are restarted simultaneously the cluster briefly leaves
+# the Ready state while the operator reconciles. The exact transient state is
+# racy and environment dependent: the path is Ready -> Initializing -> Bootstrap
+# -> Failed -> Ready, and the Failed window is only ~10-20s (and starts ~30s in).
+# Pinning the assertion to "Failed" is flaky because the operator may be observed
+# in Initializing/Bootstrap instead (these intermediate states were added to this
+# path by #1360, which syncs ready replica counts when StatefulSets degrade).
+# Asserting only that the cluster reacted to the disruption by leaving Ready is
+# both meaningful (it guards the subsequent recovery assertion against a stale
+# Ready false-pass) and reliable (the non-Ready window is ~30-45s).
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisCluster
+metadata:
+  name: redis-cluster-v1beta2
+status:
+  (state != 'Ready'): true
