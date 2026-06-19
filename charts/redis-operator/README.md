@@ -89,60 +89,60 @@ kubectl create secret tls <webhook-server-cert> --key tls.key --cert tls.crt -n 
 
 ## Values
 
-| Key | Type | Default                                            | Description |
-|-----|------|----------------------------------------------------|-------------|
-| affinity | object | `{}`                                               |  |
-| certificate.name | string | `"serving-cert"`                                   |  |
-| certificate.secretName | string | `"webhook-server-cert"`                            |  |
-| certmanager.apiVersion | string | `"cert-manager.io/v1"`                             |  |
-| certmanager.enabled | bool | `false`                                            |  |
-| featureGates.GenerateConfigInInitContainer | bool | `false`                                            |  |
-| issuer.create | bool | `true`                                             |  |
-| issuer.email | string | `"shubham.gupta@opstree.com"`                      |  |
-| issuer.kind | string | `"Issuer"`                                         |  |
-| issuer.name | string | `"redis-operator-issuer"`                          |  |
-| issuer.privateKeySecretName | string | `"letsencrypt-prod"`                               |  |
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| affinity | object | `{}` |  |
+| certificate.name | string | `"serving-cert"` |  |
+| certificate.secretName | string | `"webhook-server-cert"` |  |
+| certmanager.apiVersion | string | `"cert-manager.io/v1"` |  |
+| certmanager.enabled | bool | `false` |  |
+| featureGates.GenerateConfigInInitContainer | bool | `false` |  |
+| issuer.create | bool | `true` |  |
+| issuer.email | string | `"shubham.gupta@opstree.com"` |  |
+| issuer.kind | string | `"Issuer"` |  |
+| issuer.name | string | `"redis-operator-issuer"` |  |
+| issuer.privateKeySecretName | string | `"letsencrypt-prod"` |  |
 | issuer.server | string | `"https://acme-v02.api.letsencrypt.org/directory"` |  |
-| issuer.solver.enabled | bool | `true`                                             |  |
-| issuer.solver.ingressClass | string | `"nginx"`                                          |  |
-| issuer.type | string | `"selfSigned"`                                     |  |
-| manager.config.execCommandTimeout | string | `""`                                               |  |
-| manager.config.kubeClientQPS | float | `0`                                                | If value > 0, it will override the default value in the operator |
-| manager.config.kubeClientTimeout | string | `"60s"`                                            |  |
-| manager.config.maxConcurrentReconciles | int | `3`                                                |  |
-| nodeSelector | object | `{}`                                               |  |
-| podSecurityContext | object | `{}`                                               |  |
-| priorityClassName | string | `""`                                               |  |
-| rbac.enabled | bool | `true`                                             | Enable RBAC resources creation |
-| rbac.scope | string | `"cluster"`                                        | RBAC scope: "cluster" for ClusterRole/ClusterRoleBinding or "namespace" for Role/RoleBinding. "cluster" lets the operator manage Redis resources across all namespaces (default behavior). "namespace" restricts the operator to its own release namespace; set redisOperator.watchNamespace accordingly and ensure the CRDs are installed separately (CRDs are cluster-scoped). |
-| redisOperator.automountServiceAccountToken | bool | `true`                                             |  |
-| redisOperator.env | list | `[]`                                               |  |
-| redisOperator.extraArgs | list | `[]`                                               |  |
-| redisOperator.imageName | string | `"quay.io/opstree/redis-operator"`                 |  |
-| redisOperator.imagePullPolicy | string | `"Always"`                                         |  |
-| redisOperator.imagePullSecrets | list | `[]`                                               |  |
-| redisOperator.imageTag | string | `""`                                               |  |
-| redisOperator.initContainerImageTag | string | `"v0.25.0"`                                        | initContainerImageTag is the init-config init container image tag. If not specified, defaults to imageTag, then falls back to chart appVersion. Typically only needs to be set when using a different version for the init container. |
-| redisOperator.metrics.bindAddress | string | `":8080"`                                          |  |
-| redisOperator.metrics.enabled | bool | `true`                                             |  |
-| redisOperator.name | string | `"redis-operator"`                                 |  |
-| redisOperator.podAnnotations | object | `{}`                                               |  |
-| redisOperator.podLabels | object | `{}`                                               |  |
-| redisOperator.pprof.bindAddress | string | `":6060"`                                          |  |
-| redisOperator.pprof.enabled | bool | `false`                                            |  |
-| redisOperator.serviceDNSDomain | string | `"cluster.local"`                                  | The DNS domain suffix used for Kubernetes service discovery. Default is "cluster.local". Change this if your cluster uses a custom DNS domain. |
-| redisOperator.strategy | object | `{}`                                               |  |
-| redisOperator.watchNamespace | string | `""`                                               |  |
-| redisOperator.webhook | bool | `false`                                            |  |
-| replicas | int | `1`                                                |  |
-| resources.limits.cpu | string | `"500m"`                                           |  |
-| resources.limits.memory | string | `"500Mi"`                                          |  |
-| resources.requests.cpu | string | `"500m"`                                           |  |
-| resources.requests.memory | string | `"500Mi"`                                          |  |
-| securityContext | object | `{}`                                               |  |
-| service.name | string | `"webhook-service"`                                |  |
-| service.namespace | string | `"redis-operator"`                                 |  |
-| serviceAccount.automountServiceAccountToken | bool | `true`                                             |  |
-| serviceAccountName | string | `"redis-operator"`                                 |  |
-| tolerateAllTaints | bool | `false`                                            |  |
-| tolerations | list | `[]`                                               |  |
+| issuer.solver.enabled | bool | `true` |  |
+| issuer.solver.ingressClass | string | `"nginx"` |  |
+| issuer.type | string | `"selfSigned"` |  |
+| manager.config.execCommandTimeout | string | `""` |  |
+| manager.config.kubeClientQPS | float | `0` | If value > 0, it will override the default value in the operator |
+| manager.config.kubeClientTimeout | string | `"60s"` |  |
+| manager.config.maxConcurrentReconciles | int | `3` |  |
+| nodeSelector | object | `{}` |  |
+| podSecurityContext | object | `{}` |  |
+| priorityClassName | string | `""` |  |
+| rbac.enabled | bool | `true` | Enable RBAC resources creation |
+| rbac.scope | string | `"cluster"` | RBAC scope: "cluster" for ClusterRole/ClusterRoleBinding or "namespace" for Role/RoleBinding. "cluster" lets the operator manage Redis resources across all namespaces (default behavior). "namespace" restricts the operator to its own release namespace; set redisOperator.watchNamespace accordingly and ensure the CRDs are installed separately (CRDs are cluster-scoped). |
+| redisOperator.automountServiceAccountToken | bool | `true` |  |
+| redisOperator.env | list | `[]` |  |
+| redisOperator.extraArgs | list | `[]` |  |
+| redisOperator.imageName | string | `"quay.io/opstree/redis-operator"` |  |
+| redisOperator.imagePullPolicy | string | `"Always"` |  |
+| redisOperator.imagePullSecrets | list | `[]` |  |
+| redisOperator.imageTag | string | `""` |  |
+| redisOperator.initContainerImageTag | string | `"v0.25.0"` | initContainerImageTag is the init-config init container image tag. If not specified, defaults to imageTag, then falls back to chart appVersion. Typically only needs to be set when using a different version for the init container. |
+| redisOperator.metrics.bindAddress | string | `":8080"` |  |
+| redisOperator.metrics.enabled | bool | `true` |  |
+| redisOperator.name | string | `"redis-operator"` |  |
+| redisOperator.podAnnotations | object | `{}` |  |
+| redisOperator.podLabels | object | `{}` |  |
+| redisOperator.pprof.bindAddress | string | `":6060"` |  |
+| redisOperator.pprof.enabled | bool | `false` |  |
+| redisOperator.serviceDNSDomain | string | `"cluster.local"` | The DNS domain suffix used for Kubernetes service discovery. Default is "cluster.local". Change this if your cluster uses a custom DNS domain. |
+| redisOperator.strategy | object | `{}` |  |
+| redisOperator.watchNamespace | string | `""` |  |
+| redisOperator.webhook | bool | `false` |  |
+| replicas | int | `1` |  |
+| resources.limits.cpu | string | `"500m"` |  |
+| resources.limits.memory | string | `"500Mi"` |  |
+| resources.requests.cpu | string | `"500m"` |  |
+| resources.requests.memory | string | `"500Mi"` |  |
+| securityContext | object | `{}` |  |
+| service.name | string | `"webhook-service"` |  |
+| service.namespace | string | `"redis-operator"` |  |
+| serviceAccount.automountServiceAccountToken | bool | `true` |  |
+| serviceAccountName | string | `"redis-operator"` |  |
+| tolerateAllTaints | bool | `false` |  |
+| tolerations | list | `[]` |  |
