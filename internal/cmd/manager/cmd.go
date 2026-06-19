@@ -99,7 +99,7 @@ func addFlags(cmd *cobra.Command, opts *managerOptions) {
 	cmd.Flags().StringVar(&opts.pprofAddr, "pprof-bind-address", "", "The address the pprof endpoint binds to. If empty, pprof is disabled. Example: ':6060'")
 	cmd.Flags().BoolVar(&opts.enableLeaderElection, "leader-elect", false, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	cmd.Flags().BoolVar(&opts.enableWebhooks, "enable-webhooks", envs.IsWebhookEnabled(), "Enable webhooks")
-	cmd.Flags().IntVar(&opts.maxConcurrentReconciles, "max-concurrent-reconciles", 1, "Max concurrent reconciles")
+	cmd.Flags().IntVar(&opts.maxConcurrentReconciles, "max-concurrent-reconciles", 3, "Maximum number of concurrent reconciles per controller. Reconciles for distinct objects run in parallel (controller-runtime still serializes per object), so a single slow or stuck reconcile cannot starve other Redis resources across namespaces.")
 	cmd.Flags().StringVar(&opts.featureGatesString, "feature-gates", envs.GetFeatureGates(), "A set of key=value pairs that describe feature gates for alpha/experimental features. "+
 		"Options are:\n  GenerateConfigInInitContainer=true|false: enables using init container for config generation")
 	cmd.Flags().Duration(
@@ -242,8 +242,9 @@ func setupControllers(mgr ctrl.Manager, k8sClient kubernetes.Interface, maxConcu
 	healer := redis.NewHealer(k8sClient)
 
 	if err := (&rediscontroller.Reconciler{
-		Client:    mgr.GetClient(),
-		K8sClient: k8sClient,
+		Client:      mgr.GetClient(),
+		K8sClient:   k8sClient,
+		StatefulSet: k8sutils.NewStatefulSetService(k8sClient),
 	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Redis")
 		return err
