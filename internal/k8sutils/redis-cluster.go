@@ -407,7 +407,7 @@ func (service RedisClusterService) CreateRedisClusterService(ctx context.Context
 		log.FromContext(ctx).Error(err, "Cannot create master service for Redis", "Setup.Type", service.RedisServiceRole)
 		return err
 	}
-	
+
 	return nil
 }
 
