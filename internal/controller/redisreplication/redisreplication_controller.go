@@ -398,6 +398,12 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 		}
 	}
 
+	if len(instance.Spec.GetRedisDynamicConfig()) > 0 && r.IsStatefulSetReady(ctx, instance.Namespace, instance.RedisStatefulSet()) {
+		if err := k8sutils.SetRedisReplicationDynamicConfig(ctx, r.K8sClient, instance); err != nil {
+			return intctrlutil.RequeueE(ctx, err, "failed to set dynamic config")
+		}
+	}
+
 	var realMaster string
 	masterNodes, err := r.redisNodesByRole(ctx, instance, "master")
 	if err != nil {
