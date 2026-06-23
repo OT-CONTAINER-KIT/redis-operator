@@ -8,6 +8,7 @@ import (
 	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util/maps"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
@@ -290,7 +291,7 @@ func (service RedisClusterSTS) getReplicaCount(cr *rcvb2.RedisCluster) int32 {
 // CreateRedisClusterSetup will create Redis Setup for leader and follower
 func (service RedisClusterSTS) CreateRedisClusterSetup(ctx context.Context, cr *rcvb2.RedisCluster, cl kubernetes.Interface) error {
 	stateFulName := cr.Name + "-" + service.RedisStateFulType
-	labels := getRedisLabels(stateFulName, cluster, service.RedisStateFulType, cr.Labels)
+	labels := getRedisLabelsWithAdditional(stateFulName, cluster, service.RedisStateFulType, cr.Labels, cr.Spec.KubernetesConfig.AdditionalLabels)
 	// add an common label for all pods in the cluster
 	labels["cluster"] = cr.Name
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
@@ -316,7 +317,7 @@ func (service RedisClusterSTS) CreateRedisClusterSetup(ctx context.Context, cr *
 // CreateRedisClusterService method will create service for Redis
 func (service RedisClusterService) CreateRedisClusterService(ctx context.Context, cr *rcvb2.RedisCluster, cl kubernetes.Interface) error {
 	serviceName := cr.Name + "-" + service.RedisServiceRole
-	labels := getRedisLabels(serviceName, cluster, service.RedisServiceRole, cr.Labels)
+	labels := getRedisLabelsWithAdditional(serviceName, cluster, service.RedisServiceRole, cr.Labels, cr.Spec.KubernetesConfig.AdditionalLabels)
 	var epp exporterPortProvider
 	if cr.Spec.RedisExporter != nil {
 		epp = func() (port int, enable bool) {
@@ -395,11 +396,11 @@ func (service RedisClusterService) CreateRedisClusterService(ctx context.Context
 	masterObjectMetaInfo := generateObjectMetaInformation(
 		cr.Name+"-master",
 		cr.Namespace,
-		map[string]string{
+		maps.Merge(getNonProtectedAdditionalLabels(cr.Spec.KubernetesConfig, cr.Labels), map[string]string{
 			"cluster":                cr.Name,
 			common.RedisRoleLabelKey: common.RedisRoleLabelMaster,
 			"redis_setup_type":       "cluster",
-		},
+		}),
 		generateServiceAnots(cr.ObjectMeta, nil, epp),
 	)
 	err = CreateOrUpdateService(ctx, cr.Namespace, masterObjectMetaInfo, redisClusterAsOwner(cr), disableMetrics, false, "ClusterIP", *cr.Spec.Port, cl)
@@ -426,9 +427,9 @@ func (service RedisClusterService) createOrUpdateClusterNodePortService(ctx cont
 
 	for i := 0; i < int(replicas); i++ {
 		serviceName := cr.Name + "-" + service.RedisServiceRole + "-" + strconv.Itoa(i)
-		labels := getRedisLabels(cr.Name+"-"+service.RedisServiceRole, cluster, service.RedisServiceRole, map[string]string{
+		labels := getRedisLabelsWithAdditional(cr.Name+"-"+service.RedisServiceRole, cluster, service.RedisServiceRole, getRedisClusterAdditionalLabels(cr.Spec.KubernetesConfig, cr.Labels, map[string]string{
 			"statefulset.kubernetes.io/pod-name": serviceName,
-		})
+		}), nil)
 		annotations := generateServiceAnots(cr.ObjectMeta, nil, disableMetrics)
 		objectMetaInfo := generateObjectMetaInformation(serviceName, cr.Namespace, labels, annotations)
 		busPort := corev1.ServicePort{

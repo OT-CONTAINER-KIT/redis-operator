@@ -20,6 +20,7 @@ type KubernetesConfig struct {
 	Service                              *ServiceConfig                                          `json:"service,omitempty"`
 	IgnoreAnnotations                    []string                                                `json:"ignoreAnnotations,omitempty"`
 	MinReadySeconds                      *int32                                                  `json:"minReadySeconds,omitempty"`
+	AdditionalLabels                     map[string]string                                       `json:"additionalLabels,omitempty"`
 }
 
 func (in *KubernetesConfig) GetServiceType() string {

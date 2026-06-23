@@ -6,6 +6,7 @@ import (
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/statefulset"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util/maps"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,11 +14,12 @@ import (
 )
 
 func newSentinelService(rr *rrvb2.RedisReplication) corev1.Service {
-	labels := common.GetRedisLabels(
+	labels := common.GetRedisLabelsWithAdditional(
 		rr.SentinelStatefulSet(),
 		common.SetupTypeSentinel,
 		"sentinel",
 		rr.GetLabels(),
+		embeddedSentinelAdditionalLabels(rr),
 	)
 
 	return corev1.Service{
@@ -42,11 +44,12 @@ func newSentinelService(rr *rrvb2.RedisReplication) corev1.Service {
 }
 
 func newSentinelStatefulSet(rr *rrvb2.RedisReplication, svcName string) appsv1.StatefulSet {
-	labels := common.GetRedisLabels(
+	labels := common.GetRedisLabelsWithAdditional(
 		rr.SentinelStatefulSet(),
 		common.SetupTypeSentinel,
 		"sentinel",
 		rr.GetLabels(),
+		embeddedSentinelAdditionalLabels(rr),
 	)
 	return statefulset.New(statefulset.Params{
 		Name:            rr.SentinelStatefulSet(),
@@ -55,6 +58,14 @@ func newSentinelStatefulSet(rr *rrvb2.RedisReplication, svcName string) appsv1.S
 		ServiceName:     svcName,
 		PodTemplateSpec: buildSentinelPodTemplate(rr, labels),
 	})
+}
+
+func embeddedSentinelAdditionalLabels(rr *rrvb2.RedisReplication) map[string]string {
+	labels := maps.Copy(rr.Spec.KubernetesConfig.AdditionalLabels)
+	if rr.Spec.Sentinel != nil {
+		labels = maps.Merge(labels, rr.Spec.Sentinel.AdditionalLabels)
+	}
+	return labels
 }
 
 func buildSentinelPodTemplate(rr *rrvb2.RedisReplication, labels map[string]string) corev1.PodTemplateSpec {
