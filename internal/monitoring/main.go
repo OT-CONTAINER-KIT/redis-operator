@@ -32,5 +32,6 @@ func RegisterRedisClusterMetrics() {
 		RedisClusterRebalanceTotal,
 		RedisClusterRemoveFollowerAttempt,
 		RedisClusterReshardTotal,
+		RedisClusterForgetStaleNodeTotal,
 	)
 }

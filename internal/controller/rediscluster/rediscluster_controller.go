@@ -274,6 +274,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if nc := k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, ""); nc != totalReplicas {
+		// A pod that was deleted and rejoined under a new node ID leaves a stale
+		// entry behind. CLUSTER NODES (and therefore CheckRedisNodeCount) still
+		// counts it, inflating the node count above the desired total and
+		// wedging the reconcile in this branch indefinitely. CLUSTER MEET cannot
+		// reclaim such an orphan, so prune it via CLUSTER FORGET before deciding
+		// to create/scale, then requeue to re-evaluate against the true count.
+		if nc > totalReplicas {
+			if forgotten, ferr := k8sutils.ForgetStaleNodes(ctx, r.K8sClient, instance); ferr != nil {
+				logger.Error(ferr, "failed to forget stale nodes")
+			} else if forgotten > 0 {
+				logger.Info("Forgot stale nodes from cluster", "Count", forgotten)
+				monitoring.RedisClusterForgetStaleNodeTotal.WithLabelValues(instance.Namespace, instance.Name).Add(float64(forgotten))
+				return intctrlutil.RequeueAfter(ctx, time.Second*10, "forgot stale nodes, rechecking node count")
+			}
+		}
 		logger.Info("Creating redis cluster by executing cluster creation commands")
 		leaderCount := k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, "leader")
 		if leaderCount != leaderReplicas {

@@ -48,6 +48,12 @@ var RedisClusterDescription = map[string]MetricDescription{
 		Type:   "Counter",
 		labels: []string{"namespace", "instance"},
 	},
+	"RedisClusterForgetStaleNodeTotal": {
+		Name:   "rediscluster_forget_stale_node_total",
+		Help:   "Total number of stale cluster nodes removed via CLUSTER FORGET.",
+		Type:   "Counter",
+		labels: []string{"namespace", "instance"},
+	},
 }
 
 var (
@@ -113,6 +119,14 @@ var (
 			Help: RedisClusterDescription["RedisClusterAddingNodeAttempt"].Help,
 		},
 		RedisClusterDescription["RedisClusterAddingNodeAttempt"].labels,
+	)
+
+	RedisClusterForgetStaleNodeTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: RedisClusterDescription["RedisClusterForgetStaleNodeTotal"].Name,
+			Help: RedisClusterDescription["RedisClusterForgetStaleNodeTotal"].Help,
+		},
+		RedisClusterDescription["RedisClusterForgetStaleNodeTotal"].labels,
 	)
 )
 

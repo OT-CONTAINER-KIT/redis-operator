@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -309,6 +310,131 @@ func replicationLinkUp(info string) bool {
 		}
 	}
 	return true
+}
+
+// ForgetStaleNodes removes orphaned node entries from the cluster's gossip
+// table. When a pod is deleted and its replacement rejoins under a new node ID
+// (because nodes.conf was not preserved — e.g. an ephemeral node-conf volume,
+// PVC deletion, or a reschedule onto a node where the node-local PV cannot
+// follow), the old node ID lingers forever as a fail?/noaddr/disconnected
+// entry. CLUSTER MEET cannot reclaim it (its hostname now resolves to the new
+// pod), so it keeps UnhealthyNodesInCluster > 0 and pins the cluster in the
+// Failed state. This issues CLUSTER FORGET for each stale ID on every live node.
+//
+// Returns the number of stale node IDs detected.
+func ForgetStaleNodes(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) (int, error) {
+	redisClient := configureRedisClient(ctx, client, cr, cr.Name+"-leader-0")
+	defer redisClient.Close()
+	nodes, err := clusterNodes(ctx, redisClient)
+	if err != nil {
+		return 0, err
+	}
+	return doForgetStaleNodes(ctx, nodes, func(podName string) *redis.Client {
+		return configureRedisClient(ctx, client, cr, podName)
+	})
+}
+
+func doForgetStaleNodes(ctx context.Context, nodes []clusterNodesResponse, makeClient func(podName string) *redis.Client) (int, error) {
+	stale := staleNodeIDs(nodes)
+	if len(stale) == 0 {
+		return 0, nil
+	}
+	logger := log.FromContext(ctx)
+	logger.Info("Forgetting stale cluster nodes", "StaleNodeIDs", stale)
+
+	// CLUSTER FORGET is a per-node operation; gossip does not propagate it, so
+	// it must be issued from every live node individually.
+	var lastErr error
+	for _, node := range nodes {
+		if len(node) < 8 || nodeFailedDisconnectedOrNoAddr(node) {
+			continue
+		}
+		host, err := getHostFromClusterNode(node)
+		if err != nil {
+			continue
+		}
+		podName := podNameFromHost(host)
+		liveClient := makeClient(podName)
+		for _, id := range stale {
+			if id == node[0] {
+				// A node cannot forget itself.
+				continue
+			}
+			if err := liveClient.ClusterForget(ctx, id).Err(); err != nil {
+				// Best-effort: a live replica may still reference the stale node
+				// as its master ("Can't forget my master"), or another node may
+				// have already forgotten it. Log and continue.
+				lastErr = err
+				logger.V(1).Error(err, "Failed to CLUSTER FORGET stale node", "Pod", podName, "StaleNodeID", id)
+			}
+		}
+		liveClient.Close()
+	}
+	return len(stale), lastErr
+}
+
+// staleNodeIDs returns node IDs that are safe to CLUSTER FORGET: failed,
+// disconnected or noaddr entries that serve no slots and whose pod hostname is
+// already served by a healthy node (i.e. the deleted pod's replacement has
+// rejoined under a new node ID). Slot-owning failed masters are excluded so we
+// never orphan slots — those must be recovered via failover/slot repair first.
+// Entries whose hostname cannot be determined are left untouched, since without
+// a confirmed healthy replacement we cannot distinguish an orphan from a node
+// that is merely down and will return with the same ID.
+func staleNodeIDs(nodes []clusterNodesResponse) []string {
+	healthyHosts := make(map[string]bool)
+	for _, node := range nodes {
+		if len(node) < 8 || nodeFailedDisconnectedOrNoAddr(node) {
+			continue
+		}
+		host, err := getHostFromClusterNode(node)
+		if err != nil {
+			continue
+		}
+		healthyHosts[podNameFromHost(host)] = true
+	}
+
+	var stale []string
+	for _, node := range nodes {
+		if len(node) < 8 {
+			continue
+		}
+		if nodeIsOfType(node, "myself") {
+			continue
+		}
+		if !nodeFailedDisconnectedOrNoAddr(node) {
+			continue
+		}
+		if nodeServesSlots(node) {
+			continue
+		}
+		host, err := getHostFromClusterNode(node)
+		if err != nil {
+			continue
+		}
+		if healthyHosts[podNameFromHost(host)] {
+			stale = append(stale, node[0])
+		}
+	}
+	return stale
+}
+
+// nodeFailedDisconnectedOrNoAddr reports whether a node is in a state that makes
+// it a candidate for removal: flagged fail/fail?/noaddr or link-state disconnected.
+func nodeFailedDisconnectedOrNoAddr(node clusterNodesResponse) bool {
+	return nodeFailedOrDisconnected(node) || strings.Contains(node[2], "noaddr")
+}
+
+// nodeServesSlots reports whether a CLUSTER NODES entry currently owns any
+// hash slots (including migrating/importing markers).
+func nodeServesSlots(node clusterNodesResponse) bool {
+	return slices.ContainsFunc(node[8:], looksLikeSlotToken)
+}
+
+// podNameFromHost extracts the pod name from a cluster node's announced
+// hostname (e.g. "redis-cluster-leader-4.redis-cluster-leader-headless...").
+func podNameFromHost(host string) string {
+	return strings.Split(host, ".")[0]
 }
 
 func getHostFromClusterNode(node clusterNodesResponse) (string, error) {
