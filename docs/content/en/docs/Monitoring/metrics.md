@@ -32,6 +32,9 @@ Whether or not to skip the reconcile of RedisReplication. Type: Gauge.
 ### rediscluster_adding_node_attempt
 Number of times to add a node to the cluster. Type: Counter.
 
+### rediscluster_forget_stale_node_total
+Total number of stale cluster nodes removed via CLUSTER FORGET. Type: Counter.
+
 ### rediscluster_healthy
 Whether or not to check Redis Cluster Health status. Type: Gauge.
 
