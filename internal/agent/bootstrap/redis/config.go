@@ -137,7 +137,8 @@ func GenerateConfig() error {
 		cfg.Append("save", "300 10")
 		cfg.Append("save", "60 10000")
 		cfg.Append("Appendonly", "yes")
-		cfg.Append("Appendfilename", "\"Appendonly.aof\"")
+		// lowercase to match the file written by the non-init-container path (#1746)
+		cfg.Append("Appendfilename", "\"appendonly.aof\"")
 		cfg.Append("dir", dataDir)
 	} else {
 		fmt.Println("Running without persistence mode")
