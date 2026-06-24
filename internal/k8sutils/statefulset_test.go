@@ -16,8 +16,11 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	apimachinerytypes "k8s.io/apimachinery/pkg/types"
 	k8sClientFake "k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/utils/ptr"
 )
 
@@ -2469,4 +2472,270 @@ func TestStatefulSetSelectorLabels(t *testing.T) {
 			assert.Equal(t, tt.expectedSelectorLabels, selectorLabels, "StatefulSet selector labels should be filtered correctly")
 		})
 	}
+}
+
+func TestComputeConfigMapChecksum(t *testing.T) {
+	// nil ConfigMap yields an empty checksum.
+	assert.Empty(t, computeConfigMapChecksum(nil))
+
+	base := &corev1.ConfigMap{Data: map[string]string{"redis.conf": "maxmemory 100mb", "extra.conf": "appendonly yes"}}
+	// Reordered keys must produce an identical checksum (map iteration order
+	// must not affect the digest).
+	reordered := &corev1.ConfigMap{Data: map[string]string{"extra.conf": "appendonly yes", "redis.conf": "maxmemory 100mb"}}
+	assert.Equal(t, computeConfigMapChecksum(base), computeConfigMapChecksum(reordered))
+	assert.NotEmpty(t, computeConfigMapChecksum(base))
+
+	// Changing a value changes the checksum.
+	changed := &corev1.ConfigMap{Data: map[string]string{"redis.conf": "maxmemory 200mb", "extra.conf": "appendonly yes"}}
+	assert.NotEqual(t, computeConfigMapChecksum(base), computeConfigMapChecksum(changed))
+
+	// BinaryData is included in the checksum.
+	withBinary := &corev1.ConfigMap{
+		Data:       map[string]string{"redis.conf": "maxmemory 100mb", "extra.conf": "appendonly yes"},
+		BinaryData: map[string][]byte{"blob": []byte("payload")},
+	}
+	assert.NotEqual(t, computeConfigMapChecksum(base), computeConfigMapChecksum(withBinary))
+}
+
+func TestComputeSecretChecksum(t *testing.T) {
+	assert.Empty(t, computeSecretChecksum(nil))
+
+	base := &corev1.Secret{Data: map[string][]byte{"password": []byte("s3cr3t")}}
+	reordered := &corev1.Secret{Data: map[string][]byte{"password": []byte("s3cr3t")}}
+	assert.Equal(t, computeSecretChecksum(base), computeSecretChecksum(reordered))
+	assert.NotEmpty(t, computeSecretChecksum(base))
+
+	changed := &corev1.Secret{Data: map[string][]byte{"password": []byte("rotated")}}
+	assert.NotEqual(t, computeSecretChecksum(base), computeSecretChecksum(changed))
+}
+
+func TestConfigMapChecksum(t *testing.T) {
+	t.Run("missing ConfigMap returns empty checksum and no error", func(t *testing.T) {
+		client := k8sClientFake.NewSimpleClientset()
+		sum, err := configMapChecksum(context.TODO(), client, "test-ns", "does-not-exist")
+		require.NoError(t, err)
+		assert.Empty(t, sum)
+	})
+
+	t.Run("present ConfigMap returns content checksum", func(t *testing.T) {
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Name: "redis-external-config", Namespace: "test-ns"},
+			Data:       map[string]string{"redis.conf": "maxmemory 100mb"},
+		}
+		client := k8sClientFake.NewSimpleClientset(cm)
+		sum, err := configMapChecksum(context.TODO(), client, "test-ns", "redis-external-config")
+		require.NoError(t, err)
+		assert.Equal(t, computeConfigMapChecksum(cm), sum)
+	})
+}
+
+func TestSecretChecksum(t *testing.T) {
+	t.Run("missing Secret returns empty checksum and no error", func(t *testing.T) {
+		client := k8sClientFake.NewSimpleClientset()
+		sum, err := secretChecksum(context.TODO(), client, "test-ns", "does-not-exist")
+		require.NoError(t, err)
+		assert.Empty(t, sum)
+	})
+
+	t.Run("present Secret returns content checksum", func(t *testing.T) {
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: "redis-password", Namespace: "test-ns"},
+			Data:       map[string][]byte{"password": []byte("s3cr3t")},
+		}
+		client := k8sClientFake.NewSimpleClientset(secret)
+		sum, err := secretChecksum(context.TODO(), client, "test-ns", "redis-password")
+		require.NoError(t, err)
+		assert.Equal(t, computeSecretChecksum(secret), sum)
+	})
+}
+
+// TestComputeReferencedChecksumsPreservesOnTransientError verifies that a transient
+// (non-NotFound) lookup failure keeps the previously stored checksum rather than
+// dropping the annotation, which would otherwise roll the pods needlessly.
+func TestComputeReferencedChecksumsPreservesOnTransientError(t *testing.T) {
+	ns := "test-ns"
+	client := k8sClientFake.NewSimpleClientset()
+	// Force every ConfigMap GET to fail with a transient (non-NotFound) error.
+	client.PrependReactor("get", "configmaps", func(k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, kerrors.NewServiceUnavailable("apiserver is having a moment")
+	})
+
+	stored := &appsv1.StatefulSet{
+		Spec: appsv1.StatefulSetSpec{
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{externalConfigChecksumAnnotation: "previously-stored-checksum"},
+				},
+			},
+		},
+	}
+	params := statefulSetParameters{ExternalConfig: ptr.To("redis-external-config")}
+
+	got, err := computeReferencedChecksums(context.TODO(), client, ns, params, containerParameters{}, stored)
+	require.Error(t, err, "a transient lookup error must be surfaced so the caller can requeue")
+	assert.Equal(t, "previously-stored-checksum", got[externalConfigChecksumAnnotation],
+		"transient error must preserve the previously stored checksum")
+
+	// With no stored StatefulSet, a transient error simply omits the annotation
+	// (it will be stamped on the next successful reconcile) but is still surfaced.
+	gotNoStored, err := computeReferencedChecksums(context.TODO(), client, ns, params, containerParameters{}, nil)
+	require.Error(t, err)
+	_, ok := gotNoStored[externalConfigChecksumAnnotation]
+	assert.False(t, ok, "transient error with no stored STS should omit the annotation")
+}
+
+// externalConfigChecksumAnnotation mirrors common.AnnotationKeyExternalConfigChecksum.
+// It is duplicated as a literal here on purpose so the test fails if the wire value
+// of the annotation key ever changes unintentionally.
+const externalConfigChecksumAnnotation = "redis.opstreelabs.in/external-config-checksum"
+
+func TestCreateOrUpdateStateFulExternalConfigChecksum(t *testing.T) {
+	ns := "test-ns"
+	cmName := "redis-external-config"
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: cmName, Namespace: ns},
+		Data:       map[string]string{"redis.conf": "maxmemory 100mb"},
+	}
+	client := k8sClientFake.NewSimpleClientset(cm)
+
+	stsMeta := metav1.ObjectMeta{Name: "test-sts", Namespace: ns}
+	params := statefulSetParameters{
+		Replicas:       ptr.To(int32(1)),
+		ExternalConfig: ptr.To(cmName),
+	}
+	ownerDef := metav1.OwnerReference{Name: "test-sts", UID: "test-uid"}
+	containerParams := containerParameters{Image: "redis:latest"}
+
+	// First reconcile creates the StatefulSet with a checksum annotation on the pod template.
+	require.NoError(t, CreateOrUpdateStateFul(context.TODO(), client, ns, stsMeta, params, ownerDef, initContainerParameters{}, containerParams, nil))
+
+	sts, err := client.AppsV1().StatefulSets(ns).Get(context.TODO(), "test-sts", metav1.GetOptions{})
+	require.NoError(t, err)
+	firstChecksum := sts.Spec.Template.Annotations[externalConfigChecksumAnnotation]
+	assert.NotEmpty(t, firstChecksum, "expected external config checksum annotation on pod template")
+
+	// Editing the ConfigMap must change the checksum and roll the StatefulSet.
+	cm.Data["redis.conf"] = "maxmemory 200mb"
+	_, err = client.CoreV1().ConfigMaps(ns).Update(context.TODO(), cm, metav1.UpdateOptions{})
+	require.NoError(t, err)
+
+	require.NoError(t, CreateOrUpdateStateFul(context.TODO(), client, ns, stsMeta, params, ownerDef, initContainerParameters{}, containerParams, nil))
+
+	sts, err = client.AppsV1().StatefulSets(ns).Get(context.TODO(), "test-sts", metav1.GetOptions{})
+	require.NoError(t, err)
+	secondChecksum := sts.Spec.Template.Annotations[externalConfigChecksumAnnotation]
+	assert.NotEmpty(t, secondChecksum)
+	assert.NotEqual(t, firstChecksum, secondChecksum, "checksum annotation must change when the ConfigMap content changes")
+}
+
+func TestCreateOrUpdateStateFulNoExternalConfigChecksum(t *testing.T) {
+	ns := "test-ns"
+	client := k8sClientFake.NewSimpleClientset()
+
+	stsMeta := metav1.ObjectMeta{Name: "test-sts", Namespace: ns}
+	params := statefulSetParameters{Replicas: ptr.To(int32(1))} // ExternalConfig nil
+	containerParams := containerParameters{Image: "redis:latest"}
+
+	require.NoError(t, CreateOrUpdateStateFul(context.TODO(), client, ns, stsMeta, params, metav1.OwnerReference{Name: "test-sts"}, initContainerParameters{}, containerParams, nil))
+
+	sts, err := client.AppsV1().StatefulSets(ns).Get(context.TODO(), "test-sts", metav1.GetOptions{})
+	require.NoError(t, err)
+	_, ok := sts.Spec.Template.Annotations[externalConfigChecksumAnnotation]
+	assert.False(t, ok, "no checksum annotation should be set when ExternalConfig is nil")
+}
+
+// TestCreateOrUpdateStateFulClusterPerStatefulSetChecksum mirrors the cluster path,
+// where leader and follower are generated as separate StatefulSets each with their
+// own external config ConfigMap, and asserts they get independent checksums.
+func TestCreateOrUpdateStateFulClusterPerStatefulSetChecksum(t *testing.T) {
+	ns := "test-ns"
+	leaderCM := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: "leader-config", Namespace: ns},
+		Data:       map[string]string{"redis.conf": "maxmemory 100mb"},
+	}
+	followerCM := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: "follower-config", Namespace: ns},
+		Data:       map[string]string{"redis.conf": "maxmemory 200mb"},
+	}
+	client := k8sClientFake.NewSimpleClientset(leaderCM, followerCM)
+	containerParams := containerParameters{Image: "redis:latest"}
+
+	create := func(name, cmName string) *appsv1.StatefulSet {
+		meta := metav1.ObjectMeta{Name: name, Namespace: ns}
+		params := statefulSetParameters{Replicas: ptr.To(int32(1)), ExternalConfig: ptr.To(cmName)}
+		require.NoError(t, CreateOrUpdateStateFul(context.TODO(), client, ns, meta, params, metav1.OwnerReference{Name: name, UID: apimachinerytypes.UID("uid-" + name)}, initContainerParameters{}, containerParams, nil))
+		sts, err := client.AppsV1().StatefulSets(ns).Get(context.TODO(), name, metav1.GetOptions{})
+		require.NoError(t, err)
+		return sts
+	}
+
+	leaderSts := create("test-leader", "leader-config")
+	followerSts := create("test-follower", "follower-config")
+
+	leaderChecksum := leaderSts.Spec.Template.Annotations[externalConfigChecksumAnnotation]
+	followerChecksum := followerSts.Spec.Template.Annotations[externalConfigChecksumAnnotation]
+	assert.NotEmpty(t, leaderChecksum)
+	assert.NotEmpty(t, followerChecksum)
+	assert.NotEqual(t, leaderChecksum, followerChecksum, "leader and follower reference different ConfigMaps and must get different checksums")
+}
+
+// TestCreateOrUpdateStateFulSecretChecksums verifies that referenced TLS/ACL/password
+// Secrets are stamped as their own pod-template checksum annotations.
+func TestCreateOrUpdateStateFulSecretChecksums(t *testing.T) {
+	const (
+		tlsSecretChecksumAnnotation      = "redis.opstreelabs.in/tls-secret-checksum"
+		passwordSecretChecksumAnnotation = "redis.opstreelabs.in/password-secret-checksum"
+	)
+	ns := "test-ns"
+	tlsSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "redis-tls", Namespace: ns},
+		Data:       map[string][]byte{"tls.crt": []byte("cert"), "tls.key": []byte("key")},
+	}
+	passwordSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "redis-password", Namespace: ns},
+		Data:       map[string][]byte{"password": []byte("s3cr3t")},
+	}
+	client := k8sClientFake.NewSimpleClientset(tlsSecret, passwordSecret)
+
+	meta := metav1.ObjectMeta{Name: "test-sts", Namespace: ns}
+	params := statefulSetParameters{Replicas: ptr.To(int32(1))}
+	containerParams := containerParameters{
+		Image:           "redis:latest",
+		TLSConfig:       &common.TLSConfig{Secret: corev1.SecretVolumeSource{SecretName: "redis-tls"}},
+		EnabledPassword: ptr.To(true),
+		SecretName:      ptr.To("redis-password"),
+		SecretKey:       ptr.To("password"),
+	}
+
+	require.NoError(t, CreateOrUpdateStateFul(context.TODO(), client, ns, meta, params, metav1.OwnerReference{Name: "test-sts", UID: "test-uid"}, initContainerParameters{}, containerParams, nil))
+
+	sts, err := client.AppsV1().StatefulSets(ns).Get(context.TODO(), "test-sts", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, computeSecretChecksum(tlsSecret), sts.Spec.Template.Annotations[tlsSecretChecksumAnnotation])
+	assert.Equal(t, computeSecretChecksum(passwordSecret), sts.Spec.Template.Annotations[passwordSecretChecksumAnnotation])
+}
+
+// TestCreateOrUpdateStateFulRequeuesOnTransientChecksumError verifies that a transient
+// source-lookup failure still applies the StatefulSet but surfaces an error, so the
+// controller requeues and converges (important for the standalone controller, which
+// has no periodic requeue).
+func TestCreateOrUpdateStateFulRequeuesOnTransientChecksumError(t *testing.T) {
+	ns := "test-ns"
+	client := k8sClientFake.NewSimpleClientset()
+	client.PrependReactor("get", "configmaps", func(k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, kerrors.NewServiceUnavailable("apiserver is having a moment")
+	})
+
+	meta := metav1.ObjectMeta{Name: "test-sts", Namespace: ns}
+	params := statefulSetParameters{Replicas: ptr.To(int32(1)), ExternalConfig: ptr.To("redis-external-config")}
+	containerParams := containerParameters{Image: "redis:latest"}
+
+	err := CreateOrUpdateStateFul(context.TODO(), client, ns, meta, params, metav1.OwnerReference{Name: "test-sts", UID: "test-uid"}, initContainerParameters{}, containerParams, nil)
+	require.Error(t, err, "a transient checksum lookup error must be surfaced so the reconcile requeues")
+
+	// The StatefulSet is still applied (without the checksum, which will be stamped on retry).
+	sts, getErr := client.AppsV1().StatefulSets(ns).Get(context.TODO(), "test-sts", metav1.GetOptions{})
+	require.NoError(t, getErr)
+	_, ok := sts.Spec.Template.Annotations[externalConfigChecksumAnnotation]
+	assert.False(t, ok, "no checksum should be stamped when the source could not be read")
 }
