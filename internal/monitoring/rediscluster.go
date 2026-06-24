@@ -48,6 +48,12 @@ var RedisClusterDescription = map[string]MetricDescription{
 		Type:   "Counter",
 		labels: []string{"namespace", "instance"},
 	},
+	"RedisClusterRejoinIsolatedAttempt": {
+		Name:   "rediscluster_rejoin_isolated_attempt",
+		Help:   "Number of isolated nodes rejoined to the cluster via CLUSTER MEET.",
+		Type:   "Counter",
+		labels: []string{"namespace", "instance"},
+	},
 }
 
 var (
@@ -113,6 +119,14 @@ var (
 			Help: RedisClusterDescription["RedisClusterAddingNodeAttempt"].Help,
 		},
 		RedisClusterDescription["RedisClusterAddingNodeAttempt"].labels,
+	)
+
+	RedisClusterRejoinIsolatedAttempt = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: RedisClusterDescription["RedisClusterRejoinIsolatedAttempt"].Name,
+			Help: RedisClusterDescription["RedisClusterRejoinIsolatedAttempt"].Help,
+		},
+		RedisClusterDescription["RedisClusterRejoinIsolatedAttempt"].labels,
 	)
 )
 

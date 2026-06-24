@@ -38,6 +38,9 @@ Whether or not to check Redis Cluster Health status. Type: Gauge.
 ### rediscluster_rebalance_total
 Total number of rediscluster rebalance operations. Type: Counter.
 
+### rediscluster_rejoin_isolated_attempt
+Number of isolated nodes rejoined to the cluster via CLUSTER MEET. Type: Counter.
+
 ### rediscluster_remove_follower_attempt
 Number of times to remove follower attempts. Type: Counter.
 

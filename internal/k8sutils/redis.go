@@ -299,6 +299,146 @@ func repairStaleReplication(ctx context.Context, redisClient *redis.Client, make
 	return repaired, lastError
 }
 
+// RejoinIsolatedNodes detects pods that have fallen out of the cluster and can
+// see only themselves (CLUSTER INFO reports cluster_known_nodes <= 1) and
+// rejoins them automatically. After a pod is deleted and recreated it can come
+// back isolated — typically when it restarts before its peers are reachable or
+// its nodes.conf was lost — and never rejoins on its own, which previously
+// required an operator to run CLUSTER MEET by hand.
+//
+// This is complementary to RepairDisconnectedNodes: that repair works from
+// leader-0's gossip view and so cannot see (or MEET) a live pod that has been
+// dropped from, or never re-learned by, leader-0's node table — it MEETs a
+// stale address that no longer reaches the live pod. RejoinIsolatedNodes
+// instead probes each expected pod directly and, for any isolated one, issues
+// CLUSTER MEET from that pod toward leader-0 so the isolated node initiates the
+// handshake and re-learns the full topology through gossip. Follower pods are
+// then reattached to their expected master with CLUSTER REPLICATE so they do
+// not linger as empty masters. Returns the number of pods rejoined and any error.
+func RejoinIsolatedNodes(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) (int, error) {
+	seedPod := cr.Name + "-leader-0"
+	seedClient := configureRedisClient(ctx, client, cr, seedPod)
+	defer seedClient.Close()
+	seedIP := getRedisServerIP(ctx, client, RedisDetails{PodName: seedPod, Namespace: cr.Namespace})
+	return rejoinIsolatedNodes(ctx, cr, seedClient, seedIP, func(podName string) *redis.Client {
+		return configureRedisClient(ctx, client, cr, podName)
+	})
+}
+
+func rejoinIsolatedNodes(ctx context.Context, cr *rcvb2.RedisCluster, seedClient *redis.Client, seedIP string, makeClient func(podName string) *redis.Client) (int, error) {
+	logger := log.FromContext(ctx)
+	if seedIP == "" {
+		return 0, fmt.Errorf("failed to resolve IP for seed node %s-leader-0", cr.Name)
+	}
+	seedPod := cr.Name + "-leader-0"
+	port := strconv.Itoa(*cr.Spec.Port)
+	leaderCount := cr.Spec.GetReplicaCounts("leader")
+	followerCount := cr.Spec.GetReplicaCounts("follower")
+
+	// Map expected master pod name -> master node ID from the seed's gossip view
+	// so rejoined followers can be reattached to the right master.
+	nodes, err := clusterNodes(ctx, seedClient)
+	if err != nil {
+		return 0, err
+	}
+	masterIDByPod := masterNodeIDsByPod(nodes)
+
+	rejoined := 0
+	var lastErr error
+
+	// rejoin probes a single pod and, if isolated, MEETs it back to the seed.
+	// masterPod is the expected master pod name for a follower, or "" for a leader.
+	rejoin := func(podName string, masterPod string) {
+		// The seed is the reference point every other pod is rejoined against; it
+		// cannot MEET itself. If the seed itself is isolated the whole cluster
+		// query layer is broken and other reconcile steps that rely on leader-0
+		// surface that separately.
+		if podName == seedPod {
+			return
+		}
+		podClient := makeClient(podName)
+		defer podClient.Close()
+
+		info, err := podClient.ClusterInfo(ctx).Result()
+		if err != nil {
+			lastErr = err
+			logger.V(1).Error(err, "Failed to get CLUSTER INFO from pod", "Pod", podName)
+			return
+		}
+		if known := clusterKnownNodes(info); known < 0 || known > 1 {
+			return
+		}
+
+		logger.Info("Pod is isolated from the cluster, rejoining via CLUSTER MEET", "Pod", podName)
+		if err := podClient.ClusterMeet(ctx, seedIP, port).Err(); err != nil {
+			lastErr = err
+			logger.Error(err, "Failed to CLUSTER MEET seed from isolated pod", "Pod", podName)
+			return
+		}
+		rejoined++
+
+		if masterPod == "" {
+			return
+		}
+		masterID := masterIDByPod[masterPod]
+		if masterID == "" {
+			lastErr = fmt.Errorf("no known master node ID for %s, cannot reattach follower %s", masterPod, podName)
+			logger.Error(lastErr, "Skipping CLUSTER REPLICATE for rejoined follower")
+			return
+		}
+		// CLUSTER MEET only starts the gossip handshake; the follower may not yet
+		// know the master's node ID, so retry REPLICATE until the handshake
+		// completes. Without this the follower lingers as an empty master.
+		if err := retry.Do(func() error {
+			return podClient.ClusterReplicate(ctx, masterID).Err()
+		}, retry.Attempts(5), retry.Delay(time.Second*2)); err != nil {
+			lastErr = err
+			logger.Error(err, "Failed to reattach rejoined follower to master", "Follower", podName, "MasterNodeID", masterID)
+		}
+	}
+
+	for i := int32(0); i < leaderCount; i++ {
+		rejoin(fmt.Sprintf("%s-leader-%d", cr.Name, i), "")
+	}
+	for i := int32(0); leaderCount > 0 && i < followerCount; i++ {
+		masterPod := fmt.Sprintf("%s-leader-%d", cr.Name, i%leaderCount)
+		rejoin(fmt.Sprintf("%s-follower-%d", cr.Name, i), masterPod)
+	}
+	return rejoined, lastErr
+}
+
+// masterNodeIDsByPod maps pod name -> node ID for healthy master nodes in the
+// gossip view, used to reattach rejoined followers to their expected master.
+func masterNodeIDsByPod(nodes []clusterNodesResponse) map[string]string {
+	m := make(map[string]string)
+	for _, node := range nodes {
+		if !nodeIsOfType(node, "master") || nodeFailedOrDisconnected(node) {
+			continue
+		}
+		host, err := getHostFromClusterNode(node)
+		if err != nil {
+			continue
+		}
+		m[strings.Split(host, ".")[0]] = node[0]
+	}
+	return m
+}
+
+// clusterKnownNodes returns the cluster_known_nodes value from CLUSTER INFO
+// output, or -1 if the field is absent or cannot be parsed.
+func clusterKnownNodes(info string) int {
+	for _, line := range strings.Split(info, "\r\n") {
+		if strings.HasPrefix(line, "cluster_known_nodes:") {
+			n, err := strconv.Atoi(strings.TrimSpace(strings.TrimPrefix(line, "cluster_known_nodes:")))
+			if err != nil {
+				return -1
+			}
+			return n
+		}
+	}
+	return -1
+}
+
 // replicationLinkUp returns true when the INFO Replication output
 // contains master_link_status:up, indicating healthy replication.
 // Returns true for master nodes (no master_link_status field).

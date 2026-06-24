@@ -394,6 +394,25 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 
+	// Rejoin pods that have become isolated from the cluster (CLUSTER INFO
+	// reports cluster_known_nodes <= 1). After a pod is deleted and recreated it
+	// can come back seeing only itself — typically when it restarts before its
+	// peers are reachable or its nodes.conf was lost — and never rejoins on its
+	// own, which previously required a manual CLUSTER MEET. This is invisible to
+	// the gossip-based RepairDisconnectedNodes check when the live pod has been
+	// dropped from leader-0's view, so it probes each pod directly. Skipped for
+	// single-node clusters, where cluster_known_nodes == 1 is the normal state.
+	if totalReplicas > 1 {
+		rejoined, err := k8sutils.RejoinIsolatedNodes(ctx, r.K8sClient, instance)
+		if err != nil {
+			logger.Error(err, "failed to rejoin isolated nodes")
+		}
+		if rejoined > 0 {
+			monitoring.RedisClusterRejoinIsolatedAttempt.WithLabelValues(instance.Namespace, instance.Name).Add(float64(rejoined))
+			return intctrlutil.RequeueAfter(ctx, time.Second*15, "rejoined isolated nodes, rechecking")
+		}
+	}
+
 	// Check If there is No Empty Master Node
 	if k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, "") == totalReplicas {
 		k8sutils.CheckIfEmptyMasters(ctx, r.K8sClient, instance)
