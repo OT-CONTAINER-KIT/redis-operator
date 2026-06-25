@@ -413,6 +413,26 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 
+	// Reattach pods that are sitting as empty (slot-less) masters back into
+	// replicas of their shard's current slot owner. This catches the cases
+	// RejoinIsolatedNodes leaves behind: a follower whose re-replication
+	// handshake didn't complete (lingering empty master) and an ex-leader that
+	// returned as an empty master after a failover (split shard). It runs before
+	// the empty-master rebalance below so a misplaced empty master is demoted to
+	// a replica instead of being rebalanced into a standalone slot owner; a
+	// genuinely new/empty shard (real scale-up, no live slot owner) is skipped
+	// and still falls through to the rebalance.
+	if totalReplicas > 1 {
+		reattached, err := k8sutils.ReattachMisplacedReplicas(ctx, r.K8sClient, instance)
+		if err != nil {
+			logger.Error(err, "failed to reattach misplaced replicas")
+		}
+		if reattached > 0 {
+			monitoring.RedisClusterReattachReplicaAttempt.WithLabelValues(instance.Namespace, instance.Name).Add(float64(reattached))
+			return intctrlutil.RequeueAfter(ctx, time.Second*15, "reattached misplaced replicas, rechecking")
+		}
+	}
+
 	// Check If there is No Empty Master Node
 	if k8sutils.CheckRedisNodeCount(ctx, r.K8sClient, instance, "") == totalReplicas {
 		k8sutils.CheckIfEmptyMasters(ctx, r.K8sClient, instance)

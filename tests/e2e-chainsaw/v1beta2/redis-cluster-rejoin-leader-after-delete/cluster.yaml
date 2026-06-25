@@ -1,0 +1,35 @@
+---
+# Pure-cache cluster (persistence disabled, no nodeConfVolume): a deleted pod
+# returns with an EMPTY nodes.conf under a NEW node id. For a deleted *leader*
+# this is the discriminating case: the leader's follower is promoted and takes
+# over the slots, while the ex-leader pod returns isolated and (once MET back)
+# lingers as an EMPTY master — leaving the shard split. ReattachMisplacedReplicas
+# demotes that empty ex-leader into a replica of the shard's current slot owner
+# (the promoted follower). Matches the real prod-cache topology.
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisCluster
+metadata:
+  name: redis-cluster-v1beta2
+spec:
+  clusterSize: 3
+  clusterVersion: v7
+  persistenceEnabled: false
+  podSecurityContext:
+    runAsUser: 1000
+    fsGroup: 1000
+  redisFollower:
+    replicas: 3
+  kubernetesConfig:
+    image: quay.io/opstree/redis:latest
+    imagePullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 101m
+        memory: 128Mi
+      limits:
+        cpu: 101m
+        memory: 128Mi
+  redisExporter:
+    enabled: false
+    image: quay.io/opstree/redis-exporter:v1.44.0
+    imagePullPolicy: IfNotPresent

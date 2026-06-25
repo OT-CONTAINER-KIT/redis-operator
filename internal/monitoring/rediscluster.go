@@ -54,6 +54,12 @@ var RedisClusterDescription = map[string]MetricDescription{
 		Type:   "Counter",
 		labels: []string{"namespace", "instance"},
 	},
+	"RedisClusterReattachReplicaAttempt": {
+		Name:   "rediscluster_reattach_replica_attempt",
+		Help:   "Number of misplaced empty masters reattached as replicas of their shard's slot owner via CLUSTER REPLICATE.",
+		Type:   "Counter",
+		labels: []string{"namespace", "instance"},
+	},
 }
 
 var (
@@ -127,6 +133,14 @@ var (
 			Help: RedisClusterDescription["RedisClusterRejoinIsolatedAttempt"].Help,
 		},
 		RedisClusterDescription["RedisClusterRejoinIsolatedAttempt"].labels,
+	)
+
+	RedisClusterReattachReplicaAttempt = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: RedisClusterDescription["RedisClusterReattachReplicaAttempt"].Name,
+			Help: RedisClusterDescription["RedisClusterReattachReplicaAttempt"].Help,
+		},
+		RedisClusterDescription["RedisClusterReattachReplicaAttempt"].labels,
 	)
 )
 

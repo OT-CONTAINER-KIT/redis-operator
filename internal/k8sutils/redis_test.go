@@ -377,6 +377,133 @@ bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222 127.0.0.1:30003@31003,redis-cluster-lea
 	assert.NoError(t, healthyMock.ExpectationsWereMet(), "healthy leader should only be probed")
 }
 
+func TestReattachMisplacedReplicas_followerEmptyMaster(t *testing.T) {
+	ctx := context.Background()
+	port := 6379
+
+	// follower-0 came back as an empty (slot-less) master; leader-0 owns the
+	// shard's slots. follower-0 should be REPLICATEd onto leader-0.
+	seedClient, seedMock := redismock.NewClientMock()
+	seedMock.ExpectClusterNodes().SetVal(`
+aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111 127.0.0.1:30001@31001,redis-cluster-leader-0 myself,master - 0 0 1 connected 0-16383
+bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222 127.0.0.1:30002@31002,redis-cluster-follower-0 master - 0 0 2 connected
+`)
+
+	followerClient, followerMock := redismock.NewClientMock()
+	followerMock.ExpectClusterReplicate("aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111").SetVal("OK")
+
+	cr := &rcvb2.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "redis-cluster", Namespace: "default"},
+		Spec: rcvb2.RedisClusterSpec{
+			Port:          &port,
+			ClusterSize:   ptr.To(int32(1)),
+			RedisFollower: rcvb2.RedisFollower{RedisFollower: common.RedisFollower{Replicas: ptr.To(int32(1))}},
+		},
+	}
+
+	reattached, err := reattachMisplacedReplicas(ctx, cr, seedClient, func(podName string) *redis.Client {
+		assert.Equal(t, "redis-cluster-follower-0", podName)
+		return followerClient
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 1, reattached)
+	assert.NoError(t, followerMock.ExpectationsWereMet(), "expected CLUSTER REPLICATE of the slot owner on the empty follower")
+}
+
+func TestReattachMisplacedReplicas_exLeaderEmptyMaster(t *testing.T) {
+	ctx := context.Background()
+	port := 6379
+
+	// Failover role-swap: leader-0 returned as an empty master while the
+	// promoted follower-0 now owns the slots. The ex-leader should REPLICATE
+	// the promoted member rather than linger as a split empty master.
+	seedClient, seedMock := redismock.NewClientMock()
+	seedMock.ExpectClusterNodes().SetVal(`
+aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111 127.0.0.1:30001@31001,redis-cluster-leader-0 myself,master - 0 0 1 connected
+bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222 127.0.0.1:30002@31002,redis-cluster-follower-0 master - 0 0 2 connected 0-16383
+`)
+
+	leaderClient, leaderMock := redismock.NewClientMock()
+	leaderMock.ExpectClusterReplicate("bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222").SetVal("OK")
+
+	cr := &rcvb2.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "redis-cluster", Namespace: "default"},
+		Spec: rcvb2.RedisClusterSpec{
+			Port:          &port,
+			ClusterSize:   ptr.To(int32(1)),
+			RedisFollower: rcvb2.RedisFollower{RedisFollower: common.RedisFollower{Replicas: ptr.To(int32(1))}},
+		},
+	}
+
+	reattached, err := reattachMisplacedReplicas(ctx, cr, seedClient, func(podName string) *redis.Client {
+		assert.Equal(t, "redis-cluster-leader-0", podName)
+		return leaderClient
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 1, reattached)
+	assert.NoError(t, leaderMock.ExpectationsWereMet(), "expected CLUSTER REPLICATE of the promoted member on the ex-leader")
+}
+
+func TestReattachMisplacedReplicas_noLiveOwnerSkips(t *testing.T) {
+	ctx := context.Background()
+	port := 6379
+
+	// Missed-promotion (Outcome B): the shard's slots are owned only by a dead
+	// fail orphan and no live member serves slots. Reattach must skip the shard
+	// entirely (this needs a forced failover, not a reattach).
+	seedClient, seedMock := redismock.NewClientMock()
+	seedMock.ExpectClusterNodes().SetVal(`
+aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111 127.0.0.1:30001@31001,redis-cluster-leader-0 myself,master - 0 0 5 connected
+dddd4444dddd4444dddd4444dddd4444dddd4444 :0@0,redis-cluster-leader-0 master,fail - 0 0 1 disconnected 0-16383
+bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222 127.0.0.1:30002@31002,redis-cluster-follower-0 slave dddd4444dddd4444dddd4444dddd4444dddd4444 0 0 1 connected
+`)
+
+	cr := &rcvb2.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "redis-cluster", Namespace: "default"},
+		Spec: rcvb2.RedisClusterSpec{
+			Port:          &port,
+			ClusterSize:   ptr.To(int32(1)),
+			RedisFollower: rcvb2.RedisFollower{RedisFollower: common.RedisFollower{Replicas: ptr.To(int32(1))}},
+		},
+	}
+
+	reattached, err := reattachMisplacedReplicas(ctx, cr, seedClient, func(podName string) *redis.Client {
+		t.Fatalf("no pod client should be created when the shard has no live slot owner, got %s", podName)
+		return nil
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 0, reattached)
+}
+
+func TestReattachMisplacedReplicas_idempotent(t *testing.T) {
+	ctx := context.Background()
+	port := 6379
+
+	// follower-0 is already a healthy replica (role=slave) of leader-0, so it is
+	// not a misplaced empty master and must not be touched.
+	seedClient, seedMock := redismock.NewClientMock()
+	seedMock.ExpectClusterNodes().SetVal(`
+aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111 127.0.0.1:30001@31001,redis-cluster-leader-0 myself,master - 0 0 1 connected 0-16383
+bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222 127.0.0.1:30002@31002,redis-cluster-follower-0 slave aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111 0 0 1 connected
+`)
+
+	cr := &rcvb2.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "redis-cluster", Namespace: "default"},
+		Spec: rcvb2.RedisClusterSpec{
+			Port:          &port,
+			ClusterSize:   ptr.To(int32(1)),
+			RedisFollower: rcvb2.RedisFollower{RedisFollower: common.RedisFollower{Replicas: ptr.To(int32(1))}},
+		},
+	}
+
+	reattached, err := reattachMisplacedReplicas(ctx, cr, seedClient, func(podName string) *redis.Client {
+		t.Fatalf("no pod client should be created when all replicas are correctly attached, got %s", podName)
+		return nil
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 0, reattached)
+}
+
 func TestClusterKnownNodes(t *testing.T) {
 	tests := []struct {
 		name     string

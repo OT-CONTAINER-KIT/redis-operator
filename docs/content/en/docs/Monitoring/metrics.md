@@ -35,6 +35,9 @@ Number of times to add a node to the cluster. Type: Counter.
 ### rediscluster_healthy
 Whether or not to check Redis Cluster Health status. Type: Gauge.
 
+### rediscluster_reattach_replica_attempt
+Number of misplaced empty masters reattached as replicas of their shard's slot owner via CLUSTER REPLICATE. Type: Counter.
+
 ### rediscluster_rebalance_total
 Total number of rediscluster rebalance operations. Type: Counter.
 
