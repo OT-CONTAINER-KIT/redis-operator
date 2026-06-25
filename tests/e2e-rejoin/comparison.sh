@@ -87,7 +87,10 @@ classify() { # victims... -> echoes "OUTCOME lag l0known bad"
       if [[ "$v" == *-follower-* ]]; then
         [[ "$vk" == "$EXPECTED_NODES" && "$vr" == "slave" && "$vl" == "up" ]] || ok=0
       else
-        [[ "$vk" == "$EXPECTED_NODES" && "$vr" == "master" ]] || ok=0
+        # After delete+failover the correct recovery is a working replica of the
+        # promoted shard member (role=slave, link up) — not an empty master.
+        # Split-shard arms leave the ex-leader as master and must not pass here.
+        [[ "$vk" == "$EXPECTED_NODES" && "$vr" == "slave" && "$vl" == "up" ]] || ok=0
       fi
     done
     if (( ok==1 )); then rejoined=1; lag=$t; break; fi
