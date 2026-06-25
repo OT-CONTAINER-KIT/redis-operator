@@ -5,23 +5,26 @@ kind: Test
 metadata:
   name: redis-cluster-rejoin-after-delete
 spec:
-  # Discriminating companion to redis-cluster-rejoin-isolated-node.
+  # Reproduces the REAL "isolated after delete" failure and asserts the operator
+  # rejoins the node as a WORKING REPLICA.
   #
-  # That test injects isolation with CLUSTER RESET SOFT, which both stock
-  # v0.22.2 and upstream recover from (gossip / count-based re-MEET) — so it
-  # does not prove the fix. This test reproduces the REAL prod failure: on a
-  # pure-cache cluster (persistence off, no nodeConfVolume) a deleted follower
-  # pod returns with an EMPTY nodes.conf under a NEW node id, while its OLD id
-  # lingers as a stale fail/noaddr entry that keeps leader-0's node count at the
-  # desired total. Because the count still looks correct, the operator's
-  # cluster-creation path never re-MEETs, and the stale slave entry is invisible
-  # to RepairDisconnectedMasters — so the live pod stays isolated forever under
-  # both baselines. Only RejoinIsolatedNodes (per-pod CLUSTER INFO probe) brings
-  # it back, and brings it back CLEAN (leader-0 known_nodes==6, no stale entry).
+  # A naive injection (e.g. CLUSTER RESET SOFT) is not enough: it keeps the
+  # node's id/address so plain gossip re-discovers it, and stock v0.22.2 also
+  # "passes" — proving nothing. Instead, on a pure-cache cluster (persistence
+  # off, no nodeConfVolume) a deleted follower pod returns with an EMPTY
+  # nodes.conf under a NEW node id, while its OLD id lingers as a stale
+  # fail/noaddr entry that keeps leader-0's node count at the desired total.
+  # Because the count still looks correct, the operator's cluster-creation path
+  # never re-MEETs, and the stale slave entry is invisible to
+  # RepairDisconnectedMasters — so the live pod stays isolated indefinitely under
+  # stock/upstream. Only RejoinIsolatedNodes (per-pod CLUSTER INFO probe) MEETs
+  # it back and re-replicates it.
   #
-  # Expected: PASS on the patched operator; on stock v0.22.2 the victim never
-  # rejoins (times out); on upstream the victim rejoins but leader-0 is left at
-  # known_nodes==7 with a stale entry (the cleanliness assertion fails).
+  # Expected: PASS on the patched operator (victim returns as role=slave,
+  # master_link_status=up, cluster_state=ok). On stock v0.22.2 the victim never
+  # rejoins; on upstream/forget-stale it returns as an empty master — both fail
+  # this assertion. NOTE: a stale old-id may remain in gossip (pruning it is
+  # fix/forget-stale-nodes' job), so this test does NOT require full cleanliness.
   steps:
     - name: Create a cluster
       try:
