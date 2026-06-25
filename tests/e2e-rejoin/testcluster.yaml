@@ -1,0 +1,38 @@
+---
+# Pure-cache 6-pod RedisCluster (3 leaders + 3 followers) for the rejoin matrix.
+# persistenceEnabled:false and no nodeConfVolume => a deleted pod returns with an
+# empty nodes.conf and a new IP, which is exactly what INJ-3/INJ-4 rely on to
+# produce a durable "isolated after delete" node. Matches the prod-cache topology
+# where this failure mode is seen.
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisCluster
+metadata:
+  name: rejoin-test
+  namespace: ashwinr
+  annotations:
+    # Make the shared ArgoCD-managed v0.22.2 operator ignore this cluster; the
+    # dedicated redis-operator-test (a *-noskip build) reconciles it instead.
+    rediscluster.opstreelabs.in/skip-reconcile: "true"
+spec:
+  clusterSize: 3
+  clusterVersion: v7
+  persistenceEnabled: false
+  podSecurityContext:
+    runAsUser: 1000
+    fsGroup: 1000
+  redisFollower:
+    replicas: 3
+  kubernetesConfig:
+    image: docker-virtual.artifactory.local.twitter.com/opstree/redis:v7.2.11
+    imagePullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 101m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+  redisExporter:
+    enabled: false
+    image: docker-virtual.artifactory.local.twitter.com/opstree/redis-exporter:v1.44.0
+    imagePullPolicy: IfNotPresent

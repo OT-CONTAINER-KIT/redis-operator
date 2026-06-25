@@ -1,0 +1,10 @@
+ts,image,injection,victims,outcome,lag_s,leader0_known,bad_entries,victim_role,victim_known
+2026-06-25T16:45:43Z,upstream-main,INJ-1,rejoin-test-follower-2,ISOLATED,240,6,0,master,1
+2026-06-25T16:51:50Z,upstream-main,INJ-2,rejoin-test-follower-2,EMPTYMASTER,240,7,1,master,7
+2026-06-25T16:57:35Z,upstream-main,INJ-4,rejoin-test-follower-2,EMPTYMASTER,240,7,1,master,6
+2026-06-25T17:03:21Z,forget-stale,INJ-1,rejoin-test-follower-2,ISOLATED,240,6,0,master,1
+2026-06-25T17:09:05Z,forget-stale,INJ-2,rejoin-test-follower-2,EMPTYMASTER,240,6,0,master,6
+2026-06-25T17:14:57Z,forget-stale,INJ-4,rejoin-test-follower-2,EMPTYMASTER,240,6,0,master,6
+2026-06-25T17:17:15Z,fix-rejoin,INJ-1,rejoin-test-follower-2,REJOINED_CLEAN,60,6,0,slave,6
+2026-06-25T17:22:58Z,fix-rejoin,INJ-2,rejoin-test-follower-2,REJOINED_DIRTY,240,7,1,slave,7
+2026-06-25T17:28:48Z,fix-rejoin,INJ-4,rejoin-test-follower-2,EMPTYMASTER,240,7,1,master,6

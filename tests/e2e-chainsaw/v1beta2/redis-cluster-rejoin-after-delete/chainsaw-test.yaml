@@ -1,0 +1,94 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: redis-cluster-rejoin-after-delete
+spec:
+  # Discriminating companion to redis-cluster-rejoin-isolated-node.
+  #
+  # That test injects isolation with CLUSTER RESET SOFT, which both stock
+  # v0.22.2 and upstream recover from (gossip / count-based re-MEET) — so it
+  # does not prove the fix. This test reproduces the REAL prod failure: on a
+  # pure-cache cluster (persistence off, no nodeConfVolume) a deleted follower
+  # pod returns with an EMPTY nodes.conf under a NEW node id, while its OLD id
+  # lingers as a stale fail/noaddr entry that keeps leader-0's node count at the
+  # desired total. Because the count still looks correct, the operator's
+  # cluster-creation path never re-MEETs, and the stale slave entry is invisible
+  # to RepairDisconnectedMasters — so the live pod stays isolated forever under
+  # both baselines. Only RejoinIsolatedNodes (per-pod CLUSTER INFO probe) brings
+  # it back, and brings it back CLEAN (leader-0 known_nodes==6, no stale entry).
+  #
+  # Expected: PASS on the patched operator; on stock v0.22.2 the victim never
+  # rejoins (times out); on upstream the victim rejoins but leader-0 is left at
+  # known_nodes==7 with a stale entry (the cleanliness assertion fails).
+  steps:
+    - name: Create a cluster
+      try:
+        - apply:
+            file: cluster.yaml
+        - assert:
+            file: ready-cluster.yaml
+
+    - name: Delete a follower and assert the operator cleanly rejoins it
+      try:
+        - script:
+            timeout: 600s
+            content: |
+              set -eu
+              NS="${NAMESPACE}"
+              NAME="redis-cluster-v1beta2"
+              SEED="${NAME}-leader-0"
+              VICTIM="${NAME}-follower-2"
+              EXPECTED_NODES=6
+
+              redis() { kubectl exec -n "${NS}" "$1" -c "$2" -- redis-cli "${@:3}"; }
+              fcon="${NAME}-follower"; lcon="${NAME}-leader"
+              vknown() { redis "${VICTIM}" "${fcon}" cluster info 2>/dev/null | tr -d '\r' | awk -F: '/cluster_known_nodes:/{print $2}'; }
+
+              BEFORE="$(vknown)"
+              echo "victim ${VICTIM} known_nodes before=${BEFORE}"
+              [ "${BEFORE}" = "${EXPECTED_NODES}" ] || { echo "precondition: victim not fully joined"; exit 1; }
+
+              # Inject: delete the follower. Pure-cache => returns isolated under a
+              # new id; the old id lingers as a stale entry on leader-0.
+              kubectl delete pod -n "${NS}" "${VICTIM}" --wait=true --timeout=120s
+              kubectl wait -n "${NS}" --for=condition=Ready "pod/${VICTIM}" --timeout=180s
+              ISO="$(vknown || true)"
+              echo "victim known_nodes after delete=${ISO}"
+              [ "${ISO}" = "1" ] || echo "note: victim known_nodes=${ISO} (expected 1 isolated)"
+
+              # The operator must rejoin the isolated pod as a WORKING REPLICA
+              # (role=slave, master_link_status=up, cluster_state=ok). We do NOT
+              # assert full gossip cleanliness here: on a new-node-id rejoin the
+              # old id lingers as a stale entry (leader0_known can be 7) — pruning
+              # that is fix/forget-stale-nodes' job, not this fix's. Stock v0.22.2
+              # and upstream leave the victim ISOLATED or an EMPTY MASTER here, so
+              # this assertion is what discriminates this fix. leader0_known/bad
+              # are logged for visibility.
+              for i in $(seq 1 36); do
+                CI="$(redis "${VICTIM}" "${fcon}" cluster info 2>/dev/null | tr -d '\r' || true)"
+                STATE="$(printf '%s\n' "${CI}" | awk -F: '/cluster_state:/{print $2}')"
+                RI="$(redis "${VICTIM}" "${fcon}" info replication 2>/dev/null | tr -d '\r' || true)"
+                ROLE="$(printf '%s\n' "${RI}" | awk -F: '/^role:/{print $2}')"
+                LINK="$(printf '%s\n' "${RI}" | awk -F: '/master_link_status:/{print $2}')"
+                L0KNOWN="$(redis "${SEED}" "${lcon}" cluster info 2>/dev/null | tr -d '\r' | awk -F: '/cluster_known_nodes:/{print $2}')"
+                BAD="$(redis "${SEED}" "${lcon}" cluster nodes 2>/dev/null | tr -d '\r' | grep -cE 'fail|noaddr|handshake' || true)"
+                echo "attempt=${i} state=${STATE} role=${ROLE} link=${LINK} leader0_known=${L0KNOWN} bad=${BAD}"
+                if [ "${STATE}" = "ok" ] && [ "${ROLE}" = "slave" ] && [ "${LINK}" = "up" ]; then
+                  echo "ISOLATED_NODE_REJOINED_AS_REPLICA"
+                  exit 0
+                fi
+                sleep 15
+              done
+
+              echo "victim ${VICTIM} was not cleanly rejoined within timeout"
+              redis "${SEED}" "${lcon}" cluster nodes || true
+              exit 1
+            check:
+              (contains($stdout, 'ISOLATED_NODE_REJOINED_AS_REPLICA')): true
+
+    - name: Assert cluster is healthy again
+      try:
+        - assert:
+            file: ready-cluster.yaml

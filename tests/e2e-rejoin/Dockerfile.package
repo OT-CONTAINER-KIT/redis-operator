@@ -1,0 +1,10 @@
+# Packaging-only Dockerfile for the rejoin-isolated-nodes e2e matrix.
+# The operator binary is cross-compiled on the host (GOOS=linux GOARCH=amd64,
+# CGO_ENABLED=0) and dropped into the build context as ./operator. This avoids
+# running the Go toolchain under qemu emulation when building amd64 images from
+# an arm64 workstation — the image build is a trivial COPY into distroless.
+FROM gcr.io/distroless/static:nonroot
+WORKDIR /
+COPY operator /operator
+USER 65532:65532
+ENTRYPOINT ["/operator", "manager"]

@@ -1,0 +1,45 @@
+---
+# Dedicated, NON-ArgoCD-managed operator used to run an image-under-test against
+# the rejoin-test cluster. The shared ArgoCD-managed `redis-operator` (v0.22.2)
+# is left untouched; the test cluster is annotated
+# rediscluster.opstreelabs.in/skip-reconcile=true so that the shared operator
+# ignores it, while this operator runs a *-noskip image (which ignores that
+# annotation) and so is the ONLY operator acting on the test cluster. Leader
+# election is disabled so it is always active; webhooks are disabled so it needs
+# no cert. Image is set per-arm by the harness (placeholder below).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-operator-test
+  namespace: redis-operator
+  labels:
+    name: redis-operator-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: redis-operator-test
+  template:
+    metadata:
+      labels:
+        name: redis-operator-test
+    spec:
+      serviceAccountName: redis-operator
+      containers:
+        - name: redis-operator-test
+          image: IMAGE_PLACEHOLDER
+          command: ["/operator", "manager"]
+          args: ["--metrics-bind-address=:8080", "--kube-client-timeout=60s"]
+          env:
+            # Scope to the test namespace ONLY, so this operator never touches
+            # the shared clusters in other namespaces (which the global operator
+            # owns). Without this, a noskip build fights the global operator.
+            - name: WATCH_NAMESPACE
+              value: "ashwinr"
+            - name: ENABLE_WEBHOOKS
+              value: "false"
+            - name: FEATURE_GATES
+              value: "GenerateConfigInInitContainer=false"
+          resources:
+            requests: {cpu: 200m, memory: 256Mi}
+            limits: {cpu: "1", memory: 512Mi}
