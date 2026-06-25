@@ -430,6 +430,17 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 					"statusMasterNode", instance.Status.MasterNode)
 				realMaster = instance.Status.MasterNode
 			}
+
+			// Elect a new master based on redis offset. This is a best-effort attempt to pick the most up-to-date master.
+			if realMaster == "" {
+				bestMaster := k8sutils.GetRedisReplicationBestMaster(ctx, r.K8sClient, instance, masterNodes)
+				if bestMaster != "" {
+					log.FromContext(ctx).Info("No master with attached slaves found, falling back to best master based on Redis offset",
+						"bestMaster", bestMaster)
+					realMaster = bestMaster
+				}
+			}
+
 			// Last resort: all pods are standalone masters (fresh cluster or full restart).
 			// Arbitrarily pick masterNodes[0] as the new master to bootstrap replication.
 			// This choice is stable within a reconcile cycle and will be corrected by
