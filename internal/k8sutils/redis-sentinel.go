@@ -378,7 +378,16 @@ func getRedisReplicationMasterPod(ctx context.Context, client kubernetes.Interfa
 				"statusMasterNode", replicationInstance.Status.MasterNode)
 			realMasterPod = replicationInstance.Status.MasterNode
 		}
-		// Fallback 2: use first master pod as last resort
+		// Fallback 2: use master based on Redis offset (best-effort)
+		if realMasterPod == "" {
+			bestMaster := GetRedisReplicationBestMaster(ctx, client, &replicationInstance, masterPods)
+			if bestMaster != "" {
+				log.FromContext(ctx).Info("No valid Status.MasterNode, falling back to best master based on Redis offset",
+					"bestMaster", bestMaster)
+				realMasterPod = bestMaster
+			}
+		}
+		// Fallback 3: use first master pod as last resort
 		if realMasterPod == "" && len(masterPods) > 0 {
 			log.FromContext(ctx).Info("No valid Status.MasterNode, falling back to first master pod",
 				"masterPod", masterPods[0])
