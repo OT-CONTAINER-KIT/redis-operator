@@ -18,6 +18,17 @@ spec:
     {{- end }}
     service:
       serviceType: {{ include "common.validateServiceType" (dict "serviceType" .Values.redisStandalone.serviceType "name" (.Values.redisStandalone.name | default .Release.Name)) }}
+      {{- with .Values.redisStandalone.serviceConfig }}
+      {{- with .annotations }}
+      annotations: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .headless }}
+      {{- with .additionalAnnotations }}
+      headless:
+        additionalAnnotations: {{ toYaml . | nindent 10 }}
+      {{- end }}
+      {{- end }}
+      {{- end }}
     {{- if .Values.redisStandalone.resources}}
     resources: {{ toYaml .Values.redisStandalone.resources | nindent 6 }}
     {{- end }}
