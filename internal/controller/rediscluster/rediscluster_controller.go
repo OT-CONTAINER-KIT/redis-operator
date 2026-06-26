@@ -324,6 +324,32 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				logger.Info("no follower/replicas configured, skipping replication configuration", "Leaders.Count", leaderCount, "Leader.Size", leaderReplicas, "Follower.Replicas", followerReplicas)
 			}
 		}
+		// Excess gossip nodes (typically fail/noaddr orphans left by a pod that
+		// returned under a new node id) inflate CheckRedisNodeCount above the
+		// desired total and would otherwise strand reconcile in this branch
+		// forever — never reaching RejoinIsolatedNodes / ReattachMisplacedReplicas
+		// below. After a MEET, the live ex-leader sits as an empty master while
+		// the old id still counts; run the same isolated-node repairs here so
+		// reattach can demote it. Missing nodes (nc < desired) stay on the
+		// create/scale path above and are not treated as repair.
+		if nc > totalReplicas && totalReplicas > 1 {
+			rejoined, err := k8sutils.RejoinIsolatedNodes(ctx, r.K8sClient, instance)
+			if err != nil {
+				logger.Error(err, "failed to rejoin isolated nodes (over-count path)")
+			}
+			if rejoined > 0 {
+				monitoring.RedisClusterRejoinIsolatedAttempt.WithLabelValues(instance.Namespace, instance.Name).Add(float64(rejoined))
+				return intctrlutil.RequeueAfter(ctx, time.Second*15, "rejoined isolated nodes with excess gossip entries, rechecking")
+			}
+			reattached, err := k8sutils.ReattachMisplacedReplicas(ctx, r.K8sClient, instance)
+			if err != nil {
+				logger.Error(err, "failed to reattach misplaced replicas (over-count path)")
+			}
+			if reattached > 0 {
+				monitoring.RedisClusterReattachReplicaAttempt.WithLabelValues(instance.Namespace, instance.Name).Add(float64(reattached))
+				return intctrlutil.RequeueAfter(ctx, time.Second*15, "reattached misplaced replicas with excess gossip entries, rechecking")
+			}
+		}
 		return intctrlutil.RequeueAfter(ctx, time.Second*60, "Redis cluster count is not desired", "Current.Count", nc, "Desired.Count", totalReplicas)
 	}
 

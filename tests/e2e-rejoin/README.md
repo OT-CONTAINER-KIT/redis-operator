@@ -1,10 +1,11 @@
-# `tests/e2e-rejoin` — physical multi-operator comparison for isolated-node auto-rejoin
+# `tests/e2e-rejoin` — physical multi-operator comparison for isolated-node recovery
 
-This harness physically compares how **four** RedisCluster operator builds behave
+This harness physically compares how **five** RedisCluster operator builds behave
 when a node is isolated, on a real cluster. It exists because a single-operator
-"does it rejoin?" test is not enough to justify the `RejoinIsolatedNodes` change:
-older operators pass naive tests too. The goal is a **discriminating** test that
-shows *which* operator recovers *which* failure, and why.
+"does it rejoin?" test is not enough to justify the `RejoinIsolatedNodes` /
+`ReattachMisplacedReplicas` changes: older operators pass naive tests too. The
+goal is a **discriminating** test that shows *which* operator recovers *which*
+failure, and why.
 
 It also doubles as a worked example of how to design a rigorous operator test.
 The methodology below is deliberately general so it can be reused for other
@@ -35,6 +36,10 @@ to prove a controller change, follow them in order:
      **keeps the count at target**. The creation path never fires; the stale
      slave entry is invisible to `RepairDisconnectedMasters` → the live pod stays
      isolated forever.
+   - After MEET, that stale entry often **inflates** the count above target
+     (`nc > desired`), which would strand reconcile in the creation branch and
+     never reach later repair steps — so rejoin/reattach also run on that
+     over-count path.
 
 3. **Prove the injection is durable (a control arm).** An injection only tests
    the operator if the cluster does *not* self-heal without it. Run it against
@@ -55,7 +60,9 @@ to prove a controller change, follow them in order:
    known-nodes, and `fail/noaddr` count, and classify into
    `REJOINED_CLEAN / REJOINED_DIRTY / EMPTYMASTER / ISOLATED`. The difference
    between "rejoined as a replica" and "rejoined as an empty master" is the whole
-   point and a binary oracle hides it.
+   point and a binary oracle hides it. For **deleted leaders**, success is
+   `role=slave` + `master_link_status=up` (replica of the promoted shard member),
+   not staying an empty master.
 
 6. **Reset to a *verified-clean* state between cells.** We recreate the cluster
    and wait for `known=6, state:ok, 16384/16384, no stale` before every cell. A
@@ -67,9 +74,13 @@ to prove a controller change, follow them in order:
      injecting the same cluster + writing the same CSV → corruption. The harness
      now refuses to start if another instance is running.
    - **Cross-arch builds:** workstation is `arm64`, cluster is `amd64`; we
-     cross-compile the Go binary on the host and package it (no qemu).
+     cross-compile the Go binary on the host and package it (no qemu). Preserve
+     `Dockerfile.package` from the start branch — older tags lack
+     `tests/e2e-rejoin/`.
    - **Admission webhooks:** confirm no `failurePolicy: Fail` webhook depends on
      the operator you are about to disable.
+   - **Image layer cache:** after a code fix, force a non-cached push of the
+     `*-noskip` image so the cluster does not keep running a prior binary.
 
 8. **Test every role — leaders behave differently from followers.** A deleted
    leader triggers a failover (its follower is promoted, slots preserved); the
@@ -123,17 +134,19 @@ redis-operator-test (NOT ArgoCD-managed, leader-election off,  ─────�
 ## Reproduce
 
 ```bash
-# build + push the four *-noskip images (v0.22.2, upstream-main, forget-stale, fix-rejoin)
+# build + push the five *-noskip images
+# (v0.22.2, upstream-main, forget-stale, fix-rejoin, fix-reattach)
 tests/e2e-rejoin/build-noskip.sh
 
 kubectl apply -f tests/e2e-rejoin/testcluster.yaml
 
 CSV=tests/e2e-rejoin/results-followers.csv \
-  IMAGES="v0.22.2 upstream-main forget-stale fix-rejoin" \
+  IMAGES="v0.22.2 upstream-main forget-stale fix-rejoin fix-reattach" \
   INJECTIONS="INJ-1 INJ-2 INJ-4" WINDOW=240 \
   tests/e2e-rejoin/comparison.sh
 
 CSV=tests/e2e-rejoin/results-leader.csv \
+  IMAGES="v0.22.2 upstream-main forget-stale fix-rejoin fix-reattach" \
   INJECTIONS="INJ-5" WINDOW=240 \
   tests/e2e-rejoin/comparison.sh
 ```
@@ -141,42 +154,54 @@ CSV=tests/e2e-rejoin/results-leader.csv \
 Env knobs: `CTX` (kube context, default `atla-prod-storage`), `NS` (`ashwinr`),
 `NAME` (`rejoin-test`), `REG`, `WINDOW`, `IMAGES`, `INJECTIONS`.
 
+Serialize runs (one `comparison.sh` at a time). After `build-noskip.sh`, confirm
+`git status` is clean and you are back on the branch you started on.
+
 ## Results (240s window, victim = `follower-2`, or `leader-1` for INJ-5)
 
 Followers:
 
-| injection | v0.22.2 | upstream main | forget-stale | **fix-rejoin** |
+| injection | v0.22.2 | upstream main | forget-stale | fix-rejoin | **fix-reattach** |
+|---|---|---|---|---|---|
+| INJ-1 reset-soft | ISOLATED | ISOLATED | ISOLATED | **REJOINED_CLEAN** (slave, known=6) | **REJOINED_CLEAN** (slave, known=6) |
+| INJ-2 delete | ISOLATED +stale | EMPTYMASTER known=7 +stale | EMPTYMASTER known=6 clean | **REJOINED_DIRTY** (slave) known=7 +stale | **REJOINED_DIRTY** (slave) known=7 +stale |
+| INJ-4 reset-hard | ISOLATED +stale | EMPTYMASTER known=7 +stale | EMPTYMASTER known=6 clean | EMPTYMASTER known=7 +stale | **REJOINED_DIRTY** (slave) known=6 +stale on leader-0 |
+
+Leader (INJ-5, delete `leader-1`; failover preserves slots, `cluster_state:ok`).
+Oracle: recovered = `role=slave` + link up (replica of promoted follower).
+
+| v0.22.2 | upstream main | forget-stale | fix-rejoin | **fix-reattach** |
 |---|---|---|---|---|
-| INJ-1 reset-soft | ISOLATED | ISOLATED | ISOLATED | **REJOINED_CLEAN** (slave, known=6) |
-| INJ-2 delete | ISOLATED +stale | EMPTYMASTER known=7 +stale | EMPTYMASTER known=6 clean | **REJOINED** (slave) known=7 +stale |
-| INJ-4 reset-hard | ISOLATED +stale | EMPTYMASTER known=7 +stale | EMPTYMASTER known=6 clean | EMPTYMASTER known=7 +stale* |
+| EMPTYMASTER (split) +stale | EMPTYMASTER (split) +stale | EMPTYMASTER (split), stale pruned | EMPTYMASTER (split) +stale | **REJOINED_DIRTY** (slave) +stale lag≈12s |
 
-Leader (INJ-5, delete `leader-1`; failover preserves slots, `cluster_state:ok`):
-
-| v0.22.2 | upstream main | forget-stale | fix-rejoin |
-|---|---|---|---|
-| split shard +stale | split shard +stale | split shard, stale pruned | split shard +stale |
+Mechanism evidence for discriminating cells (fix-reattach INJ-4 / INJ-5): operator
+log `Reattaching misplaced empty master as replica of shard slot owner` and/or
+`rediscluster_reattach_replica_attempt > 0` on `redis-operator-test`.
 
 ## Conclusions
 
-- **`fix/rejoin-isolated-nodes` is required.** It is the only operator that
-  rejoins an isolated node back as a *working replica*, and the only one that
-  recovers the reset-soft case at all.
-- **`fix/forget-stale-nodes` alone is not sufficient.** It has no MEET/rejoin
-  path; it only prunes stale gossip entries, leaving the victim an empty master.
-- **They are complementary.** On new-id (delete) rejoins, `rejoin-isolated`
-  brings the follower back as a slave but leaves a stale old-id (`known=7`);
-  `forget-stale` is what prunes it. Cleanest end-state (`slave` + `known=6`)
-  needs both.
+- **`fix/rejoin-isolated-nodes` is required** for MEET of isolated pods and is
+  the only baseline that recovers INJ-1 / INJ-2 as a working follower replica.
+- **`fix/reattach-misplaced-replicas` is required** to close the gaps rejoin
+  leaves: INJ-4 stranded empty-master followers (one-shot REPLICATE race) and
+  INJ-5 ex-leaders MET but never REPLICATEd (split shard). Only fix-reattach
+  flips `victim_role` to **slave** on those cells; fix-rejoin keeps **master**.
+- **`fix/forget-stale-nodes` alone is not sufficient** for recovery; it prunes
+  orphans but leaves victims as empty masters. Stacked with rejoin+reattach it
+  yields the cleanest end-state (`slave` + `known=6`).
+- **Over-count gate:** after MEET, stale entries often make
+  `CheckRedisNodeCount > desired`, which previously stranded reconcile before
+  reattach. fix-reattach also runs rejoin/reattach on that path.
 
-### Limitations surfaced (tracked, not blockers)
+### Limitations
 
-- *(\*)* **Re-replication is race-prone for new-id rejoins.** INJ-2 ended as a
-  proper slave but INJ-4 as an empty master: `CLUSTER REPLICATE` is best-effort
-  in one reconcile and is not retried once the node is no longer isolated
-  (`known>1`). Consider retrying REPLICATE across reconciles for joined-but-
-  role-incorrect nodes.
-- **Leaders are not fully recovered.** The ex-leader after a failover should
-  become a replica of the promoted node, but `leader-N` pods are intentionally
-  not REPLICATEd, so the shard is left split. Orthogonal to isolated-follower
-  rejoin, but worth a follow-up.
+- ~~**Re-replication race for new-id rejoins (INJ-4).**~~ **RESOLVED** by
+  `ReattachMisplacedReplicas` (retried REPLICATE onto the shard slot owner).
+- ~~**Leaders not fully recovered after failover (INJ-5).**~~ **RESOLVED** by
+  reattach demoting the empty ex-leader onto the promoted member (plus over-count
+  repair so that path is reachable while stale ids inflate the node count).
+- **Remaining: Outcome B (missed promotion).** If slots are owned only by a dead
+  fail/noaddr orphan and no live member serves them, reattach **deliberately
+  skips** the shard (forcing REPLICATE would not recover data). Needs a forced
+  `CLUSTER FAILOVER`, out of scope. Forget-stale also refuses to prune a
+  slot-owning orphan by design.
