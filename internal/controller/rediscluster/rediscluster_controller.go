@@ -349,6 +349,37 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				monitoring.RedisClusterReattachReplicaAttempt.WithLabelValues(instance.Namespace, instance.Name).Add(float64(reattached))
 				return intctrlutil.RequeueAfter(ctx, time.Second*15, "reattached misplaced replicas with excess gossip entries, rechecking")
 			}
+
+			// Orphan cleanup for a pod deleted and rejoined under a NEW node ID. The dead
+			// old ID lingers in CLUSTER NODES, so CheckRedisNodeCount reads above the
+			// desired total (nc > totalReplicas) and reconcile would otherwise loop in the
+			// outer create/scale branch forever, never reaching the steady-state repairs.
+			// Two artifacts must be handled, in order:
+			//   1. RejoinIsolatedNodes MEETs the live replacement back (it returns as an
+			//      empty master, since CLUSTER MEET cannot reclaim the dead old ID).
+			//   2. ReattachMisplacedReplicas demotes that empty master onto its shard's
+			//      current slot owner.
+			//   3. ForgetStaleNodes prunes the dead old ID — last, so reattach has already
+			//      moved the returning ex-master off it. Any follower that still pointed at
+			//      the old master was re-replicated onto the promoted master by failover
+			//      itself; in the brief gossip-lag window before that propagates, forget may
+			//      see "can't forget my master" for some pod that actually did switch to the new
+			//      master after failover, and it must treat it as skip-this-cycle, not a
+			//      failure (the next pass forgets the now-unreferenced orphan).
+			//
+			// If the pod never returns (orphan, no replacement), it fills the missing pod's
+			// slot in the count rather than inflating it: nc == totalReplicas, so this block
+			// is skipped. staleNodeIDs then refuses to forget it (no healthy hostname twin),
+			// and it correctly surfaces as an unhealthy node until the pod returns or an
+			// administrator intervenes — e.g. forcing a failover if the shard cannot promote
+			// on its own.
+			if forgotten, ferr := k8sutils.ForgetStaleNodes(ctx, r.K8sClient, instance); ferr != nil {
+				logger.Error(ferr, "failed to forget stale nodes")
+			} else if forgotten > 0 {
+				logger.Info("Forgot stale nodes from cluster", "Count", forgotten)
+				monitoring.RedisClusterForgetStaleNodeTotal.WithLabelValues(instance.Namespace, instance.Name).Add(float64(forgotten))
+				return intctrlutil.RequeueAfter(ctx, time.Second*10, "forgot stale nodes, rechecking node count")
+			}
 		}
 		return intctrlutil.RequeueAfter(ctx, time.Second*60, "Redis cluster count is not desired", "Current.Count", nc, "Desired.Count", totalReplicas)
 	}

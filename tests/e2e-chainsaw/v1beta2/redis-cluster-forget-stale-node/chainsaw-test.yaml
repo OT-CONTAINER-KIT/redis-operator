@@ -1,0 +1,76 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: redis-cluster-forget-stale-node
+spec:
+  steps:
+    - name: Create a pure-cache cluster
+      try:
+        - apply:
+            file: cluster.yaml
+        - assert:
+            file: ready-cluster.yaml
+
+    # Delete a follower pod. Because nodes.conf is ephemeral (pure-cache
+    # cluster), the replacement rejoins under a NEW node ID and the old ID
+    # lingers in CLUSTER NODES as a fail?/noaddr entry. The operator must
+    # CLUSTER FORGET that orphan; otherwise the node count stays inflated and
+    # the cluster never reconverges. On an operator WITHOUT the fix this step
+    # times out (the stale entry is never removed); WITH the fix it passes.
+    - name: Delete a follower and assert its stale node ID is forgotten
+      try:
+        - script:
+            timeout: 480s
+            content: |
+              set -eu
+              NS="${NAMESPACE}"
+              SEED="redis-cluster-v1beta2-leader-0"
+              VICTIM="redis-cluster-v1beta2-follower-2"
+              EXPECTED_NODES=6
+
+              redis() { kubectl exec -n "${NS}" "$1" -- redis-cli "${@:2}"; }
+
+              OLD_ID="$(redis "${VICTIM}" cluster myid | tr -d '\r')"
+              echo "victim ${VICTIM} old node id: ${OLD_ID}"
+              redis "${SEED}" cluster nodes | grep -q "${OLD_ID}" \
+                && echo "confirmed old id present before delete" \
+                || { echo "old id not found before delete"; exit 1; }
+
+              kubectl delete pod -n "${NS}" "${VICTIM}"
+              kubectl wait --for=condition=Ready pod/"${VICTIM}" -n "${NS}" --timeout=120s
+
+              NEW_ID="$(redis "${VICTIM}" cluster myid | tr -d '\r')"
+              echo "replacement ${VICTIM} new node id: ${NEW_ID}"
+              if [ "${OLD_ID}" = "${NEW_ID}" ]; then
+                echo "node id unchanged - test precondition not met (nodes.conf persisted)"
+                exit 1
+              fi
+
+              # Poll until the cluster has forgotten the stale id and reconverged:
+              # the old id is gone, exactly EXPECTED_NODES are known, and no node
+              # is in a fail/noaddr state.
+              for i in $(seq 1 28); do
+                NODES="$(redis "${SEED}" cluster nodes 2>/dev/null || true)"
+                KNOWN="$(printf '%s\n' "${NODES}" | grep -c . || true)"
+                BAD="$(printf '%s\n' "${NODES}" | grep -cE 'fail|noaddr' || true)"
+                STALE="$(printf '%s\n' "${NODES}" | grep -c "${OLD_ID}" || true)"
+                echo "attempt=${i} known_nodes=${KNOWN} fail_or_noaddr=${BAD} stale_present=${STALE}"
+                if [ "${STALE}" = "0" ] && [ "${KNOWN}" = "${EXPECTED_NODES}" ] && [ "${BAD}" = "0" ]; then
+                  echo "STALE_NODE_FORGOTTEN_OK"
+                  exit 0
+                fi
+                sleep 15
+              done
+
+              echo "stale node ${OLD_ID} was not forgotten within timeout"
+              redis "${SEED}" cluster nodes || true
+              exit 1
+            check:
+              (contains($stdout, 'STALE_NODE_FORGOTTEN_OK')): true
+
+    - name: Assert cluster is healthy again
+      try:
+        - assert:
+            file: ready-cluster.yaml

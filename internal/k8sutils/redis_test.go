@@ -1411,3 +1411,139 @@ e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@31001,hostname1 myself,
 		})
 	}
 }
+
+// parseClusterNodesString parses raw CLUSTER NODES output into the internal
+// representation used by the stale-node helpers.
+func parseClusterNodesString(t *testing.T, output string) []clusterNodesResponse {
+	t.Helper()
+	r := csv.NewReader(strings.NewReader(strings.TrimSpace(output)))
+	r.Comma = ' '
+	r.FieldsPerRecord = -1
+	records, err := r.ReadAll()
+	assert.NoError(t, err)
+	nodes := make([]clusterNodesResponse, 0, len(records))
+	for _, rec := range records {
+		nodes = append(nodes, rec)
+	}
+	return nodes
+}
+
+func TestStaleNodeIDs(t *testing.T) {
+	tests := []struct {
+		name   string
+		output string
+		want   []string
+	}{
+		{
+			name: "stale leader replaced by new id, slots failed over to replica",
+			// old leader-1 id is fail?/no slots, a healthy leader-1 (new id) exists
+			output: `
+aaaa000000000000000000000000000000000001 10.0.0.10:6379@16379,redis-cluster-leader-0 myself,master - 0 0 1 connected 0-8191
+bbbb000000000000000000000000000000000002 10.0.0.11:6379@16379,redis-cluster-leader-1 master - 0 0 9 connected 8192-16383
+cccc000000000000000000000000000000000003 :6379@16379,redis-cluster-leader-1 master,fail? - 1751370819096 1751370819096 2 disconnected
+`,
+			want: []string{"cccc000000000000000000000000000000000003"},
+		},
+		{
+			name: "stale follower replaced by new id",
+			output: `
+aaaa000000000000000000000000000000000001 10.0.0.10:6379@16379,redis-cluster-leader-0 myself,master - 0 0 1 connected 0-16383
+dddd000000000000000000000000000000000004 10.0.0.20:6379@16379,redis-cluster-follower-0 slave aaaa000000000000000000000000000000000001 0 0 1 connected
+eeee000000000000000000000000000000000005 :6379@16379,redis-cluster-follower-0 slave aaaa000000000000000000000000000000000001 0 0 1 disconnected
+`,
+			want: []string{"eeee000000000000000000000000000000000005"},
+		},
+		{
+			name: "no replacement yet - down node will return with same id, do not forget",
+			output: `
+aaaa000000000000000000000000000000000001 10.0.0.10:6379@16379,redis-cluster-leader-0 myself,master - 0 0 1 connected 0-8191
+ffff000000000000000000000000000000000006 :6379@16379,redis-cluster-leader-1 master,fail? - 1751370819096 1751370819096 2 disconnected
+`,
+			want: nil,
+		},
+		{
+			name: "failed master still owns slots - excluded to avoid orphaning slots",
+			output: `
+aaaa000000000000000000000000000000000001 10.0.0.10:6379@16379,redis-cluster-leader-0 myself,master - 0 0 1 connected 0-8191
+1111000000000000000000000000000000000011 10.0.0.11:6379@16379,redis-cluster-leader-1 master - 0 0 9 connected
+2222000000000000000000000000000000000012 :6379@16379,redis-cluster-leader-1 master,fail? - 1751370819096 1751370819096 2 disconnected 8192-16383
+`,
+			want: nil,
+		},
+		{
+			name: "healthy cluster - nothing stale",
+			output: `
+aaaa000000000000000000000000000000000001 10.0.0.10:6379@16379,redis-cluster-leader-0 myself,master - 0 0 1 connected 0-8191
+bbbb000000000000000000000000000000000002 10.0.0.11:6379@16379,redis-cluster-leader-1 master - 0 0 2 connected 8192-16383
+`,
+			want: nil,
+		},
+		{
+			name: "noaddr entry with healthy replacement is stale",
+			output: `
+aaaa000000000000000000000000000000000001 10.0.0.10:6379@16379,redis-cluster-leader-0 myself,master - 0 0 1 connected 0-16383
+3333000000000000000000000000000000000013 10.0.0.21:6379@16379,redis-cluster-follower-0 slave aaaa000000000000000000000000000000000001 0 0 1 connected
+4444000000000000000000000000000000000014 :6379@16379,redis-cluster-follower-0 slave,noaddr aaaa000000000000000000000000000000000001 0 0 1 connected
+`,
+			want: []string{"4444000000000000000000000000000000000014"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nodes := parseClusterNodesString(t, tt.output)
+			assert.ElementsMatch(t, tt.want, staleNodeIDs(nodes))
+		})
+	}
+}
+
+func TestForgetStaleNodes(t *testing.T) {
+	ctx := context.Background()
+	redisClient, mock := redismock.NewClientMock()
+	// leader-0 (myself) and leader-1 (new id) are healthy; the old leader-1 id
+	// lingers as fail?/no-slots and must be forgotten on every live node.
+	mock.ExpectClusterNodes().SetVal(`
+aaaa000000000000000000000000000000000001 10.0.0.10:6379@16379,redis-cluster-leader-0 myself,master - 0 0 1 connected 0-8191
+bbbb000000000000000000000000000000000002 10.0.0.11:6379@16379,redis-cluster-leader-1 master - 0 0 9 connected 8192-16383
+cccc000000000000000000000000000000000003 :6379@16379,redis-cluster-leader-1 master,fail? - 1751370819096 1751370819096 2 disconnected
+`)
+
+	staleID := "cccc000000000000000000000000000000000003"
+
+	leader0Client, leader0Mock := redismock.NewClientMock()
+	leader0Mock.ExpectClusterForget(staleID).SetVal("OK")
+	leader1Client, leader1Mock := redismock.NewClientMock()
+	leader1Mock.ExpectClusterForget(staleID).SetVal("OK")
+
+	clients := map[string]*redis.Client{
+		"redis-cluster-leader-0": leader0Client,
+		"redis-cluster-leader-1": leader1Client,
+	}
+
+	nodes, err := clusterNodes(ctx, redisClient)
+	assert.NoError(t, err)
+
+	forgotten, err := forgetStaleNodes(ctx, nodes, func(podName string) *redis.Client {
+		c, ok := clients[podName]
+		assert.True(t, ok, "unexpected client requested for pod %s", podName)
+		return c
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 1, forgotten)
+	assert.NoError(t, leader0Mock.ExpectationsWereMet(), "expected CLUSTER FORGET on leader-0")
+	assert.NoError(t, leader1Mock.ExpectationsWereMet(), "expected CLUSTER FORGET on leader-1")
+}
+
+func TestForgetStaleNodes_noStaleNodes(t *testing.T) {
+	ctx := context.Background()
+	nodes := parseClusterNodesString(t, `
+aaaa000000000000000000000000000000000001 10.0.0.10:6379@16379,redis-cluster-leader-0 myself,master - 0 0 1 connected 0-8191
+bbbb000000000000000000000000000000000002 10.0.0.11:6379@16379,redis-cluster-leader-1 master - 0 0 2 connected 8192-16383
+`)
+	forgotten, err := forgetStaleNodes(ctx, nodes, func(podName string) *redis.Client {
+		t.Errorf("unexpected client requested for pod %s", podName)
+		return nil
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 0, forgotten)
+}
