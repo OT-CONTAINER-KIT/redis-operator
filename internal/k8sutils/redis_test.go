@@ -1273,7 +1273,7 @@ cccc000000000000000000000000000000000003 :6379@16379,redis-cluster-leader-1 mast
 	nodes, err := clusterNodes(ctx, redisClient)
 	assert.NoError(t, err)
 
-	forgotten, err := doForgetStaleNodes(ctx, nodes, func(podName string) *redis.Client {
+	forgotten, err := forgetStaleNodes(ctx, nodes, func(podName string) *redis.Client {
 		c, ok := clients[podName]
 		assert.True(t, ok, "unexpected client requested for pod %s", podName)
 		return c
@@ -1290,7 +1290,7 @@ func TestForgetStaleNodes_noStaleNodes(t *testing.T) {
 aaaa000000000000000000000000000000000001 10.0.0.10:6379@16379,redis-cluster-leader-0 myself,master - 0 0 1 connected 0-8191
 bbbb000000000000000000000000000000000002 10.0.0.11:6379@16379,redis-cluster-leader-1 master - 0 0 2 connected 8192-16383
 `)
-	forgotten, err := doForgetStaleNodes(ctx, nodes, func(podName string) *redis.Client {
+	forgotten, err := forgetStaleNodes(ctx, nodes, func(podName string) *redis.Client {
 		t.Errorf("unexpected client requested for pod %s", podName)
 		return nil
 	})

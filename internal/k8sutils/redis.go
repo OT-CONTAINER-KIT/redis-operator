@@ -329,12 +329,12 @@ func ForgetStaleNodes(ctx context.Context, client kubernetes.Interface, cr *rcvb
 	if err != nil {
 		return 0, err
 	}
-	return doForgetStaleNodes(ctx, nodes, func(podName string) *redis.Client {
+	return forgetStaleNodes(ctx, nodes, func(podName string) *redis.Client {
 		return configureRedisClient(ctx, client, cr, podName)
 	})
 }
 
-func doForgetStaleNodes(ctx context.Context, nodes []clusterNodesResponse, makeClient func(podName string) *redis.Client) (int, error) {
+func forgetStaleNodes(ctx context.Context, nodes []clusterNodesResponse, makeClient func(podName string) *redis.Client) (int, error) {
 	stale := staleNodeIDs(nodes)
 	if len(stale) == 0 {
 		return 0, nil
