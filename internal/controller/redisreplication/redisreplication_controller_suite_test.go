@@ -100,6 +100,7 @@ var _ = BeforeSuite(func() {
 	err = (&Reconciler{
 		Client:      k8sManager.GetClient(),
 		K8sClient:   k8sClient,
+		Recorder:    k8sManager.GetEventRecorderFor("redisreplication-controller"),
 		Healer:      healer,
 		StatefulSet: k8sutils.NewStatefulSetService(k8sClient),
 	}).SetupWithManager(k8sManager, controller.Options{})

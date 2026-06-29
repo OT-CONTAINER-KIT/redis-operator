@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -23,6 +24,7 @@ func TestReconcileRedisSkipsReplicationChangesWhenTopologyIsIncomplete(t *testin
 	createCalled := false
 	r := &Reconciler{
 		K8sClient: fake.NewSimpleClientset(),
+		Recorder:  record.NewFakeRecorder(10),
 		RedisNodesByRole: func(_ context.Context, _ kubernetes.Interface, _ *rrvb2.RedisReplication, role string) ([]string, error) {
 			if role == "master" {
 				return []string{"example-replication-0"}, nil
@@ -48,6 +50,7 @@ func TestReconcileRedisSkipsReplicationChangesWhenMultipleMastersAreObservedButT
 	createCalled := false
 	r := &Reconciler{
 		K8sClient: fake.NewSimpleClientset(),
+		Recorder:  record.NewFakeRecorder(10),
 		RedisNodesByRole: func(_ context.Context, _ kubernetes.Interface, _ *rrvb2.RedisReplication, role string) ([]string, error) {
 			if role == "master" {
 				return []string{"example-replication-0", "example-replication-1"}, nil
@@ -76,6 +79,7 @@ func TestReconcileRedisKeepsHealthyBehaviorWhenTopologyIsComplete(t *testing.T) 
 	var gotMaster string
 	r := &Reconciler{
 		K8sClient: fake.NewSimpleClientset(),
+		Recorder:  record.NewFakeRecorder(10),
 		RedisNodesByRole: func(_ context.Context, _ kubernetes.Interface, _ *rrvb2.RedisReplication, role string) ([]string, error) {
 			if role == "master" {
 				return []string{"example-replication-0", "example-replication-1"}, nil
@@ -119,6 +123,7 @@ func TestReconcileStatusStillRunsWhenOnePodIsUnobserved(t *testing.T) {
 	r := &Reconciler{
 		Client:    ctrlClient,
 		K8sClient: fake.NewSimpleClientset(),
+		Recorder:  record.NewFakeRecorder(10),
 		Healer:    healer,
 		RedisNodesByRole: func(_ context.Context, _ kubernetes.Interface, _ *rrvb2.RedisReplication, role string) ([]string, error) {
 			if role == "master" {
@@ -148,6 +153,7 @@ func TestReconcileRedisSkipsSentinelReconfigurationWhenTopologyIsIncompleteAndMa
 	r := &Reconciler{
 		StatefulSet: &fakeStatefulSetService{},
 		K8sClient:   fake.NewSimpleClientset(),
+		Recorder:    record.NewFakeRecorder(10),
 		RedisNodesByRole: func(_ context.Context, _ kubernetes.Interface, _ *rrvb2.RedisReplication, role string) ([]string, error) {
 			if role == "master" {
 				return []string{"example-replication-0", "example-replication-1"}, nil
@@ -181,6 +187,7 @@ func TestReconcileRedisConfiguresSentinelForSingleObservedMaster(t *testing.T) {
 	r := &Reconciler{
 		StatefulSet: &fakeStatefulSetService{},
 		K8sClient:   fake.NewSimpleClientset(),
+		Recorder:    record.NewFakeRecorder(10),
 		RedisNodesByRole: func(_ context.Context, _ kubernetes.Interface, _ *rrvb2.RedisReplication, role string) ([]string, error) {
 			if role == "master" {
 				return []string{"example-replication-1"}, nil
