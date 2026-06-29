@@ -119,3 +119,26 @@ The yaml manifest can easily get applied by using `kubectl`.
 ```shell
 $ kubectl apply -f cluster.yaml
 ```
+
+## Cluster version
+
+The `clusterVersion` field selects the cluster discovery behaviour for the
+Redis major version you are running. It defaults to `v7` and accepts **`v7` or
+any newer major** (`v7`, `v8`, ...). Any value of `v7` or newer enables the
+modern, hostname-based cluster discovery: the operator advertises
+`cluster-announce-hostname`, uses FQDN endpoints for the cluster nodes, and
+sets `cluster-preferred-endpoint-type hostname` (when TLS is enabled). Setting
+`v6` keeps the legacy Redis 6 IP-based behaviour.
+
+To run Redis 8, set `clusterVersion: v8` and point the image at a Redis 8 tag,
+for example:
+
+```yaml
+spec:
+  clusterVersion: v8
+  kubernetesConfig:
+    image: quay.io/opstree/redis:v8.2.1
+```
+
+> **Note:** the chart and CRD defaults still ship `v7`/`v7.0.15`; opt into Redis
+> 8 by setting both `clusterVersion` and the image tag as shown above.

@@ -485,6 +485,11 @@ func TestExecuteSingleLeaderAddSlots(t *testing.T) {
 			rangeCommand:  true,
 		},
 		{
+			name:         "redis v8 also uses a single ADDSLOTSRANGE command",
+			redisCluster: newCluster(ptr.To("v8"), false, false),
+			rangeCommand: true,
+		},
+		{
 			name:         "redis v6 falls back to batched ADDSLOTS",
 			redisCluster: newCluster(nil, false, false),
 		},
@@ -510,7 +515,7 @@ func TestExecuteSingleLeaderAddSlots(t *testing.T) {
 
 			expectedPrefix := append([]string{"redis-cli"}, tt.expectedFlags...)
 			if tt.rangeCommand {
-				assert.Len(t, execs, 1, "v7 should issue exactly one command")
+				assert.Len(t, execs, 1, "v7 or newer should issue exactly one command")
 				assert.Equal(t, append(expectedPrefix, "CLUSTER", "ADDSLOTSRANGE", "0", "16383"), execs[0].cmd)
 				assert.Equal(t, "redis-cluster-leader-0", execs[0].podName)
 				return
@@ -550,6 +555,27 @@ func TestCreateMultipleLeaderRedisCommand(t *testing.T) {
 				Spec: rcvb2.RedisClusterSpec{
 					ClusterSize:    ptr.To(int32(3)),
 					ClusterVersion: ptr.To("v7"),
+					Port:           ptr.To(6379),
+				},
+			},
+			expectedCommands: []string{
+				"redis-cli", "--cluster", "create",
+				"mycluster-leader-0.mycluster-leader-headless.default.svc.cluster.local:6379",
+				"mycluster-leader-1.mycluster-leader-headless.default.svc.cluster.local:6379",
+				"mycluster-leader-2.mycluster-leader-headless.default.svc.cluster.local:6379",
+				"--cluster-yes",
+			},
+		},
+		{
+			name: "Multiple leaders cluster version v8 uses FQDN endpoints",
+			redisCluster: &rcvb2.RedisCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "mycluster",
+					Namespace: "default",
+				},
+				Spec: rcvb2.RedisClusterSpec{
+					ClusterSize:    ptr.To(int32(3)),
+					ClusterVersion: ptr.To("v8"),
 					Port:           ptr.To(6379),
 				},
 			},
