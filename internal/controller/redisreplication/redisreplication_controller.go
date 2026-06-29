@@ -19,6 +19,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -40,6 +41,7 @@ type Reconciler struct {
 	RedisReplicationRealMaster func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string
 	CreateRedisReplicationLink func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string, string) error
 	ConfigureSentinel          func(context.Context, *rrvb2.RedisReplication, string) error
+	Recorder                   record.EventRecorder
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -100,6 +102,7 @@ func (r *Reconciler) UpdateRedisReplicationMaster(ctx context.Context, instance 
 		logger.Info("Updating master node",
 			"previous", instance.Status.MasterNode,
 			"new", masterNode)
+		r.Recorder.Event(instance, corev1.EventTypeNormal, "MasterNodeUpdated", fmt.Sprintf("Master node updated from %s to %s", instance.Status.MasterNode, masterNode))
 	}
 	return r.updateStatus(ctx, instance, rrvb2.RedisReplicationStatus{
 		MasterNode:     masterNode,
@@ -383,6 +386,8 @@ func (r *Reconciler) sentinelResetIfNeed(ctx context.Context, inst *rrvb2.RedisR
 		if err := redisService.SentinelReset(ctx, masterGroupName); err != nil {
 			return fmt.Errorf("reset sentinel: %w", err)
 		}
+		logger.Info("Sentinel reset completed")
+		r.Recorder.Event(inst, corev1.EventTypeNormal, "SentinelReset", "Triggered Sentinel reset due to slave/sentinel count mismatch")
 	}
 
 	return nil
@@ -429,6 +434,7 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 				log.FromContext(ctx).Info("No master with attached slaves found, falling back to Status.MasterNode",
 					"statusMasterNode", instance.Status.MasterNode)
 				realMaster = instance.Status.MasterNode
+				r.Recorder.Event(instance, corev1.EventTypeNormal, "MasterElected from: Status.MasterNode", fmt.Sprintf("Elected master: %s", realMaster))
 			}
 
 			// Elect a new master based on redis offset. This is a best-effort attempt to pick the most up-to-date master.
@@ -438,6 +444,7 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 					log.FromContext(ctx).Info("No master with attached slaves found, falling back to best master based on Redis offset",
 						"bestMaster", bestMaster)
 					realMaster = bestMaster
+					r.Recorder.Event(instance, corev1.EventTypeNormal, "MasterElected from: offset", fmt.Sprintf("Elected master: %s", realMaster))
 				}
 			}
 
@@ -449,14 +456,17 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 				log.FromContext(ctx).Info("No real master found via slave count or Status.MasterNode; "+
 					"electing first master node as bootstrap master", "podName", masterNodes[0])
 				realMaster = masterNodes[0]
+				r.Recorder.Event(instance, corev1.EventTypeNormal, "MasterElected from: bootstrap", fmt.Sprintf("Elected master: %s", realMaster))
 			}
 		}
 		if incompleteTopology {
 			log.FromContext(ctx).Info("Skipping replication reconfiguration because the observed topology is incomplete",
 				"observedPods", observedPods,
 				"expectedPods", *instance.Spec.Size)
+			r.Recorder.Event(instance, corev1.EventTypeWarning, "IncompleteTopology", fmt.Sprintf("Observed topology is incomplete: %d/%d pods observed", observedPods, *instance.Spec.Size))
 		} else if realMaster == "" {
 			log.FromContext(ctx).Info("Skipping replication reconfiguration because the current master could not be identified")
+			r.Recorder.Event(instance, corev1.EventTypeWarning, "MasterNotFound", "Could not identify a real master to configure replication")
 		} else if err := r.createRedisReplicationLink(ctx, instance, masterNodes, realMaster); err != nil {
 			return intctrlutil.RequeueAfter(ctx, time.Second*60, "")
 		}
