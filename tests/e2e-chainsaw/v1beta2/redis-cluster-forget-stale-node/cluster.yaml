@@ -1,0 +1,33 @@
+---
+# Pure-cache cluster: persistence disabled and no nodeConfVolume, so nodes.conf
+# lives on ephemeral container storage. A deleted pod therefore rejoins the
+# cluster under a brand-new node ID, leaving its old ID behind in the gossip
+# table as a fail?/noaddr entry. This is the exact condition the
+# ForgetStaleNodes fix must clean up.
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisCluster
+metadata:
+  name: redis-cluster-v1beta2
+spec:
+  clusterSize: 3
+  clusterVersion: v7
+  persistenceEnabled: false
+  podSecurityContext:
+    runAsUser: 1000
+    fsGroup: 1000
+  redisFollower:
+    replicas: 3
+  kubernetesConfig:
+    image: quay.io/opstree/redis:latest
+    imagePullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 101m
+        memory: 128Mi
+      limits:
+        cpu: 101m
+        memory: 128Mi
+  redisExporter:
+    enabled: false
+    image: quay.io/opstree/redis-exporter:v1.44.0
+    imagePullPolicy: IfNotPresent

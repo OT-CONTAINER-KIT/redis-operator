@@ -273,6 +273,256 @@ e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@31001,redis-cluster-lea
 	assert.Equal(t, 0, repaired)
 }
 
+func TestRejoinIsolatedNodes_isolatedFollower(t *testing.T) {
+	ctx := context.Background()
+	port := 6379
+
+	seedClient, seedMock := redismock.NewClientMock()
+	seedMock.ExpectClusterNodes().SetVal(`
+e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@31001,redis-cluster-leader-0 myself,master - 0 0 1 connected 0-16383
+07c37dfeb235213a872192d90877d0cd55635b91 127.0.0.1:30002@31002,redis-cluster-follower-0 slave e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 0 1426238317239 1 connected
+`)
+
+	followerClient, followerMock := redismock.NewClientMock()
+	followerMock.ExpectClusterInfo().SetVal("cluster_state:ok\r\ncluster_known_nodes:1\r\n")
+	followerMock.ExpectClusterMeet("10.0.0.1", "6379").SetVal("OK")
+	followerMock.ExpectClusterReplicate("e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca").SetVal("OK")
+
+	cr := &rcvb2.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "redis-cluster", Namespace: "default"},
+		Spec: rcvb2.RedisClusterSpec{
+			Port:        &port,
+			ClusterSize: ptr.To(int32(1)),
+		},
+	}
+
+	rejoined, err := rejoinIsolatedNodes(ctx, cr, seedClient, "10.0.0.1", func(podName string) *redis.Client {
+		assert.Equal(t, "redis-cluster-follower-0", podName)
+		return followerClient
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 1, rejoined)
+	assert.NoError(t, followerMock.ExpectationsWereMet(), "expected CLUSTER MEET + CLUSTER REPLICATE on the isolated follower")
+}
+
+func TestRejoinIsolatedNodes_healthyNoop(t *testing.T) {
+	ctx := context.Background()
+	port := 6379
+
+	seedClient, seedMock := redismock.NewClientMock()
+	seedMock.ExpectClusterNodes().SetVal(`
+e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@31001,redis-cluster-leader-0 myself,master - 0 0 1 connected 0-16383
+07c37dfeb235213a872192d90877d0cd55635b91 127.0.0.1:30002@31002,redis-cluster-follower-0 slave e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 0 1426238317239 1 connected
+`)
+
+	followerClient, followerMock := redismock.NewClientMock()
+	// Pod sees the whole cluster: not isolated, so no MEET/REPLICATE should run.
+	followerMock.ExpectClusterInfo().SetVal("cluster_state:ok\r\ncluster_known_nodes:2\r\n")
+
+	cr := &rcvb2.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "redis-cluster", Namespace: "default"},
+		Spec: rcvb2.RedisClusterSpec{
+			Port:        &port,
+			ClusterSize: ptr.To(int32(1)),
+		},
+	}
+
+	rejoined, err := rejoinIsolatedNodes(ctx, cr, seedClient, "10.0.0.1", func(_ string) *redis.Client {
+		return followerClient
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 0, rejoined)
+	assert.NoError(t, followerMock.ExpectationsWereMet(), "a healthy pod should only be probed, not modified")
+}
+
+func TestRejoinIsolatedNodes_isolatedLeaderNoReplicate(t *testing.T) {
+	ctx := context.Background()
+	port := 6379
+
+	seedClient, seedMock := redismock.NewClientMock()
+	seedMock.ExpectClusterNodes().SetVal(`
+aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111 127.0.0.1:30001@31001,redis-cluster-leader-0 myself,master - 0 0 1 connected 0-5460
+bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222 127.0.0.1:30003@31003,redis-cluster-leader-2 master - 0 0 3 connected 10923-16383
+`)
+
+	isolatedLeader, isolatedMock := redismock.NewClientMock()
+	isolatedMock.ExpectClusterInfo().SetVal("cluster_state:fail\r\ncluster_known_nodes:1\r\n")
+	isolatedMock.ExpectClusterMeet("10.0.0.1", "6379").SetVal("OK")
+
+	healthyLeader, healthyMock := redismock.NewClientMock()
+	healthyMock.ExpectClusterInfo().SetVal("cluster_state:ok\r\ncluster_known_nodes:3\r\n")
+
+	cr := &rcvb2.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "redis-cluster", Namespace: "default"},
+		Spec: rcvb2.RedisClusterSpec{
+			Port:          &port,
+			ClusterSize:   ptr.To(int32(3)),
+			RedisFollower: rcvb2.RedisFollower{RedisFollower: common.RedisFollower{Replicas: ptr.To(int32(0))}},
+		},
+	}
+
+	clients := map[string]*redis.Client{
+		"redis-cluster-leader-1": isolatedLeader,
+		"redis-cluster-leader-2": healthyLeader,
+	}
+	rejoined, err := rejoinIsolatedNodes(ctx, cr, seedClient, "10.0.0.1", func(podName string) *redis.Client {
+		c, ok := clients[podName]
+		assert.True(t, ok, "unexpected client requested for pod %s", podName)
+		return c
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 1, rejoined)
+	// An isolated leader is MET but never REPLICATEd; the reconcile loop rebalances empty masters.
+	assert.NoError(t, isolatedMock.ExpectationsWereMet(), "expected CLUSTER MEET (no REPLICATE) on the isolated leader")
+	assert.NoError(t, healthyMock.ExpectationsWereMet(), "healthy leader should only be probed")
+}
+
+func TestReattachMisplacedReplicas_followerEmptyMaster(t *testing.T) {
+	ctx := context.Background()
+	port := 6379
+
+	// follower-0 came back as an empty (slot-less) master; leader-0 owns the
+	// shard's slots. follower-0 should be REPLICATEd onto leader-0.
+	seedClient, seedMock := redismock.NewClientMock()
+	seedMock.ExpectClusterNodes().SetVal(`
+aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111 127.0.0.1:30001@31001,redis-cluster-leader-0 myself,master - 0 0 1 connected 0-16383
+bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222 127.0.0.1:30002@31002,redis-cluster-follower-0 master - 0 0 2 connected
+`)
+
+	followerClient, followerMock := redismock.NewClientMock()
+	followerMock.ExpectClusterReplicate("aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111").SetVal("OK")
+
+	cr := &rcvb2.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "redis-cluster", Namespace: "default"},
+		Spec: rcvb2.RedisClusterSpec{
+			Port:          &port,
+			ClusterSize:   ptr.To(int32(1)),
+			RedisFollower: rcvb2.RedisFollower{RedisFollower: common.RedisFollower{Replicas: ptr.To(int32(1))}},
+		},
+	}
+
+	reattached, err := reattachMisplacedReplicas(ctx, cr, seedClient, func(podName string) *redis.Client {
+		assert.Equal(t, "redis-cluster-follower-0", podName)
+		return followerClient
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 1, reattached)
+	assert.NoError(t, followerMock.ExpectationsWereMet(), "expected CLUSTER REPLICATE of the slot owner on the empty follower")
+}
+
+func TestReattachMisplacedReplicas_exLeaderEmptyMaster(t *testing.T) {
+	ctx := context.Background()
+	port := 6379
+
+	// Failover role-swap: leader-0 returned as an empty master while the
+	// promoted follower-0 now owns the slots. The ex-leader should REPLICATE
+	// the promoted member rather than linger as a split empty master.
+	seedClient, seedMock := redismock.NewClientMock()
+	seedMock.ExpectClusterNodes().SetVal(`
+aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111 127.0.0.1:30001@31001,redis-cluster-leader-0 myself,master - 0 0 1 connected
+bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222 127.0.0.1:30002@31002,redis-cluster-follower-0 master - 0 0 2 connected 0-16383
+`)
+
+	leaderClient, leaderMock := redismock.NewClientMock()
+	leaderMock.ExpectClusterReplicate("bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222").SetVal("OK")
+
+	cr := &rcvb2.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "redis-cluster", Namespace: "default"},
+		Spec: rcvb2.RedisClusterSpec{
+			Port:          &port,
+			ClusterSize:   ptr.To(int32(1)),
+			RedisFollower: rcvb2.RedisFollower{RedisFollower: common.RedisFollower{Replicas: ptr.To(int32(1))}},
+		},
+	}
+
+	reattached, err := reattachMisplacedReplicas(ctx, cr, seedClient, func(podName string) *redis.Client {
+		assert.Equal(t, "redis-cluster-leader-0", podName)
+		return leaderClient
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 1, reattached)
+	assert.NoError(t, leaderMock.ExpectationsWereMet(), "expected CLUSTER REPLICATE of the promoted member on the ex-leader")
+}
+
+func TestReattachMisplacedReplicas_noLiveOwnerSkips(t *testing.T) {
+	ctx := context.Background()
+	port := 6379
+
+	// Missed-promotion (Outcome B): the shard's slots are owned only by a dead
+	// fail orphan and no live member serves slots. Reattach must skip the shard
+	// entirely (this needs a forced failover, not a reattach).
+	seedClient, seedMock := redismock.NewClientMock()
+	seedMock.ExpectClusterNodes().SetVal(`
+aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111 127.0.0.1:30001@31001,redis-cluster-leader-0 myself,master - 0 0 5 connected
+dddd4444dddd4444dddd4444dddd4444dddd4444 :0@0,redis-cluster-leader-0 master,fail - 0 0 1 disconnected 0-16383
+bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222 127.0.0.1:30002@31002,redis-cluster-follower-0 slave dddd4444dddd4444dddd4444dddd4444dddd4444 0 0 1 connected
+`)
+
+	cr := &rcvb2.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "redis-cluster", Namespace: "default"},
+		Spec: rcvb2.RedisClusterSpec{
+			Port:          &port,
+			ClusterSize:   ptr.To(int32(1)),
+			RedisFollower: rcvb2.RedisFollower{RedisFollower: common.RedisFollower{Replicas: ptr.To(int32(1))}},
+		},
+	}
+
+	reattached, err := reattachMisplacedReplicas(ctx, cr, seedClient, func(podName string) *redis.Client {
+		t.Fatalf("no pod client should be created when the shard has no live slot owner, got %s", podName)
+		return nil
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 0, reattached)
+}
+
+func TestReattachMisplacedReplicas_idempotent(t *testing.T) {
+	ctx := context.Background()
+	port := 6379
+
+	// follower-0 is already a healthy replica (role=slave) of leader-0, so it is
+	// not a misplaced empty master and must not be touched.
+	seedClient, seedMock := redismock.NewClientMock()
+	seedMock.ExpectClusterNodes().SetVal(`
+aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111 127.0.0.1:30001@31001,redis-cluster-leader-0 myself,master - 0 0 1 connected 0-16383
+bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222 127.0.0.1:30002@31002,redis-cluster-follower-0 slave aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111 0 0 1 connected
+`)
+
+	cr := &rcvb2.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "redis-cluster", Namespace: "default"},
+		Spec: rcvb2.RedisClusterSpec{
+			Port:          &port,
+			ClusterSize:   ptr.To(int32(1)),
+			RedisFollower: rcvb2.RedisFollower{RedisFollower: common.RedisFollower{Replicas: ptr.To(int32(1))}},
+		},
+	}
+
+	reattached, err := reattachMisplacedReplicas(ctx, cr, seedClient, func(podName string) *redis.Client {
+		t.Fatalf("no pod client should be created when all replicas are correctly attached, got %s", podName)
+		return nil
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 0, reattached)
+}
+
+func TestClusterKnownNodes(t *testing.T) {
+	tests := []struct {
+		name     string
+		info     string
+		expected int
+	}{
+		{"isolated", "cluster_state:fail\r\ncluster_known_nodes:1\r\n", 1},
+		{"healthy", "cluster_state:ok\r\ncluster_known_nodes:6\r\n", 6},
+		{"missing field", "cluster_state:ok\r\ncluster_size:3\r\n", -1},
+		{"unparsable", "cluster_known_nodes:notanumber\r\n", -1},
+		{"empty", "", -1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, clusterKnownNodes(tt.info))
+		})
+	}
+}
+
 func TestGetRedisServerIP(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -1209,4 +1459,140 @@ e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@31001,hostname1 myself,
 			}
 		})
 	}
+}
+
+// parseClusterNodesString parses raw CLUSTER NODES output into the internal
+// representation used by the stale-node helpers.
+func parseClusterNodesString(t *testing.T, output string) []clusterNodesResponse {
+	t.Helper()
+	r := csv.NewReader(strings.NewReader(strings.TrimSpace(output)))
+	r.Comma = ' '
+	r.FieldsPerRecord = -1
+	records, err := r.ReadAll()
+	assert.NoError(t, err)
+	nodes := make([]clusterNodesResponse, 0, len(records))
+	for _, rec := range records {
+		nodes = append(nodes, rec)
+	}
+	return nodes
+}
+
+func TestStaleNodeIDs(t *testing.T) {
+	tests := []struct {
+		name   string
+		output string
+		want   []string
+	}{
+		{
+			name: "stale leader replaced by new id, slots failed over to replica",
+			// old leader-1 id is fail?/no slots, a healthy leader-1 (new id) exists
+			output: `
+aaaa000000000000000000000000000000000001 10.0.0.10:6379@16379,redis-cluster-leader-0 myself,master - 0 0 1 connected 0-8191
+bbbb000000000000000000000000000000000002 10.0.0.11:6379@16379,redis-cluster-leader-1 master - 0 0 9 connected 8192-16383
+cccc000000000000000000000000000000000003 :6379@16379,redis-cluster-leader-1 master,fail? - 1751370819096 1751370819096 2 disconnected
+`,
+			want: []string{"cccc000000000000000000000000000000000003"},
+		},
+		{
+			name: "stale follower replaced by new id",
+			output: `
+aaaa000000000000000000000000000000000001 10.0.0.10:6379@16379,redis-cluster-leader-0 myself,master - 0 0 1 connected 0-16383
+dddd000000000000000000000000000000000004 10.0.0.20:6379@16379,redis-cluster-follower-0 slave aaaa000000000000000000000000000000000001 0 0 1 connected
+eeee000000000000000000000000000000000005 :6379@16379,redis-cluster-follower-0 slave aaaa000000000000000000000000000000000001 0 0 1 disconnected
+`,
+			want: []string{"eeee000000000000000000000000000000000005"},
+		},
+		{
+			name: "no replacement yet - down node will return with same id, do not forget",
+			output: `
+aaaa000000000000000000000000000000000001 10.0.0.10:6379@16379,redis-cluster-leader-0 myself,master - 0 0 1 connected 0-8191
+ffff000000000000000000000000000000000006 :6379@16379,redis-cluster-leader-1 master,fail? - 1751370819096 1751370819096 2 disconnected
+`,
+			want: nil,
+		},
+		{
+			name: "failed master still owns slots - excluded to avoid orphaning slots",
+			output: `
+aaaa000000000000000000000000000000000001 10.0.0.10:6379@16379,redis-cluster-leader-0 myself,master - 0 0 1 connected 0-8191
+1111000000000000000000000000000000000011 10.0.0.11:6379@16379,redis-cluster-leader-1 master - 0 0 9 connected
+2222000000000000000000000000000000000012 :6379@16379,redis-cluster-leader-1 master,fail? - 1751370819096 1751370819096 2 disconnected 8192-16383
+`,
+			want: nil,
+		},
+		{
+			name: "healthy cluster - nothing stale",
+			output: `
+aaaa000000000000000000000000000000000001 10.0.0.10:6379@16379,redis-cluster-leader-0 myself,master - 0 0 1 connected 0-8191
+bbbb000000000000000000000000000000000002 10.0.0.11:6379@16379,redis-cluster-leader-1 master - 0 0 2 connected 8192-16383
+`,
+			want: nil,
+		},
+		{
+			name: "noaddr entry with healthy replacement is stale",
+			output: `
+aaaa000000000000000000000000000000000001 10.0.0.10:6379@16379,redis-cluster-leader-0 myself,master - 0 0 1 connected 0-16383
+3333000000000000000000000000000000000013 10.0.0.21:6379@16379,redis-cluster-follower-0 slave aaaa000000000000000000000000000000000001 0 0 1 connected
+4444000000000000000000000000000000000014 :6379@16379,redis-cluster-follower-0 slave,noaddr aaaa000000000000000000000000000000000001 0 0 1 connected
+`,
+			want: []string{"4444000000000000000000000000000000000014"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nodes := parseClusterNodesString(t, tt.output)
+			assert.ElementsMatch(t, tt.want, staleNodeIDs(nodes))
+		})
+	}
+}
+
+func TestForgetStaleNodes(t *testing.T) {
+	ctx := context.Background()
+	redisClient, mock := redismock.NewClientMock()
+	// leader-0 (myself) and leader-1 (new id) are healthy; the old leader-1 id
+	// lingers as fail?/no-slots and must be forgotten on every live node.
+	mock.ExpectClusterNodes().SetVal(`
+aaaa000000000000000000000000000000000001 10.0.0.10:6379@16379,redis-cluster-leader-0 myself,master - 0 0 1 connected 0-8191
+bbbb000000000000000000000000000000000002 10.0.0.11:6379@16379,redis-cluster-leader-1 master - 0 0 9 connected 8192-16383
+cccc000000000000000000000000000000000003 :6379@16379,redis-cluster-leader-1 master,fail? - 1751370819096 1751370819096 2 disconnected
+`)
+
+	staleID := "cccc000000000000000000000000000000000003"
+
+	leader0Client, leader0Mock := redismock.NewClientMock()
+	leader0Mock.ExpectClusterForget(staleID).SetVal("OK")
+	leader1Client, leader1Mock := redismock.NewClientMock()
+	leader1Mock.ExpectClusterForget(staleID).SetVal("OK")
+
+	clients := map[string]*redis.Client{
+		"redis-cluster-leader-0": leader0Client,
+		"redis-cluster-leader-1": leader1Client,
+	}
+
+	nodes, err := clusterNodes(ctx, redisClient)
+	assert.NoError(t, err)
+
+	forgotten, err := forgetStaleNodes(ctx, nodes, func(podName string) *redis.Client {
+		c, ok := clients[podName]
+		assert.True(t, ok, "unexpected client requested for pod %s", podName)
+		return c
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 1, forgotten)
+	assert.NoError(t, leader0Mock.ExpectationsWereMet(), "expected CLUSTER FORGET on leader-0")
+	assert.NoError(t, leader1Mock.ExpectationsWereMet(), "expected CLUSTER FORGET on leader-1")
+}
+
+func TestForgetStaleNodes_noStaleNodes(t *testing.T) {
+	ctx := context.Background()
+	nodes := parseClusterNodesString(t, `
+aaaa000000000000000000000000000000000001 10.0.0.10:6379@16379,redis-cluster-leader-0 myself,master - 0 0 1 connected 0-8191
+bbbb000000000000000000000000000000000002 10.0.0.11:6379@16379,redis-cluster-leader-1 master - 0 0 2 connected 8192-16383
+`)
+	forgotten, err := forgetStaleNodes(ctx, nodes, func(podName string) *redis.Client {
+		t.Errorf("unexpected client requested for pod %s", podName)
+		return nil
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 0, forgotten)
 }

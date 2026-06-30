@@ -48,6 +48,24 @@ var RedisClusterDescription = map[string]MetricDescription{
 		Type:   "Counter",
 		labels: []string{"namespace", "instance"},
 	},
+	"RedisClusterForgetStaleNodeTotal": {
+		Name:   "rediscluster_forget_stale_node_total",
+		Help:   "Total number of stale cluster nodes removed via CLUSTER FORGET.",
+		Type:   "Counter",
+		labels: []string{"namespace", "instance"},
+	},
+	"RedisClusterRejoinIsolatedAttempt": {
+		Name:   "rediscluster_rejoin_isolated_attempt",
+		Help:   "Number of isolated nodes rejoined to the cluster via CLUSTER MEET.",
+		Type:   "Counter",
+		labels: []string{"namespace", "instance"},
+	},
+	"RedisClusterReattachReplicaAttempt": {
+		Name:   "rediscluster_reattach_replica_attempt",
+		Help:   "Number of misplaced empty masters reattached as replicas of their shard's slot owner via CLUSTER REPLICATE.",
+		Type:   "Counter",
+		labels: []string{"namespace", "instance"},
+	},
 }
 
 var (
@@ -113,6 +131,30 @@ var (
 			Help: RedisClusterDescription["RedisClusterAddingNodeAttempt"].Help,
 		},
 		RedisClusterDescription["RedisClusterAddingNodeAttempt"].labels,
+	)
+
+	RedisClusterForgetStaleNodeTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: RedisClusterDescription["RedisClusterForgetStaleNodeTotal"].Name,
+			Help: RedisClusterDescription["RedisClusterForgetStaleNodeTotal"].Help,
+		},
+		RedisClusterDescription["RedisClusterForgetStaleNodeTotal"].labels,
+	)
+
+	RedisClusterRejoinIsolatedAttempt = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: RedisClusterDescription["RedisClusterRejoinIsolatedAttempt"].Name,
+			Help: RedisClusterDescription["RedisClusterRejoinIsolatedAttempt"].Help,
+		},
+		RedisClusterDescription["RedisClusterRejoinIsolatedAttempt"].labels,
+	)
+
+	RedisClusterReattachReplicaAttempt = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: RedisClusterDescription["RedisClusterReattachReplicaAttempt"].Name,
+			Help: RedisClusterDescription["RedisClusterReattachReplicaAttempt"].Help,
+		},
+		RedisClusterDescription["RedisClusterReattachReplicaAttempt"].labels,
 	)
 )
 

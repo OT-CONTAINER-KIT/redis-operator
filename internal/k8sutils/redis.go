@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -299,6 +300,298 @@ func repairStaleReplication(ctx context.Context, redisClient *redis.Client, make
 	return repaired, lastError
 }
 
+// RejoinIsolatedNodes detects pods that have fallen out of the cluster and can
+// see only themselves (CLUSTER INFO reports cluster_known_nodes <= 1) and
+// rejoins them automatically. After a pod is deleted and recreated it can come
+// back isolated — typically when it restarts before its peers are reachable or
+// its nodes.conf was lost — and never rejoins on its own, which previously
+// required an operator to run CLUSTER MEET by hand.
+//
+// This is complementary to RepairDisconnectedNodes: that repair works from
+// leader-0's gossip view and so cannot see (or MEET) a live pod that has been
+// dropped from, or never re-learned by, leader-0's node table — it MEETs a
+// stale address that no longer reaches the live pod. RejoinIsolatedNodes
+// instead probes each expected pod directly and, for any isolated one, issues
+// CLUSTER MEET from that pod toward leader-0 so the isolated node initiates the
+// handshake and re-learns the full topology through gossip. Follower pods are
+// then reattached to their expected master with CLUSTER REPLICATE so they do
+// not linger as empty masters. Returns the number of pods rejoined and any error.
+func RejoinIsolatedNodes(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) (int, error) {
+	seedPod := cr.Name + "-leader-0"
+	seedClient := configureRedisClient(ctx, client, cr, seedPod)
+	defer seedClient.Close()
+	seedIP := getRedisServerIP(ctx, client, RedisDetails{PodName: seedPod, Namespace: cr.Namespace})
+	return rejoinIsolatedNodes(ctx, cr, seedClient, seedIP, func(podName string) *redis.Client {
+		return configureRedisClient(ctx, client, cr, podName)
+	})
+}
+
+func rejoinIsolatedNodes(ctx context.Context, cr *rcvb2.RedisCluster, seedClient *redis.Client, seedIP string, makeClient func(podName string) *redis.Client) (int, error) {
+	logger := log.FromContext(ctx)
+	if seedIP == "" {
+		return 0, fmt.Errorf("failed to resolve IP for seed node %s-leader-0", cr.Name)
+	}
+	seedPod := cr.Name + "-leader-0"
+	port := strconv.Itoa(*cr.Spec.Port)
+	leaderCount := cr.Spec.GetReplicaCounts("leader")
+	followerCount := cr.Spec.GetReplicaCounts("follower")
+
+	// Map expected master pod name -> master node ID from the seed's gossip view
+	// so rejoined followers can be reattached to the right master.
+	nodes, err := clusterNodes(ctx, seedClient)
+	if err != nil {
+		return 0, err
+	}
+	masterIDByPod := masterNodeIDsByPod(nodes)
+
+	rejoined := 0
+	var lastErr error
+
+	// rejoin probes a single pod and, if isolated, MEETs it back to the seed.
+	// masterPod is the expected master pod name for a follower, or "" for a leader.
+	rejoin := func(podName string, masterPod string) {
+		// The seed is the reference point every other pod is rejoined against; it
+		// cannot MEET itself. If the seed itself is isolated the whole cluster
+		// query layer is broken and other reconcile steps that rely on leader-0
+		// surface that separately.
+		if podName == seedPod {
+			return
+		}
+		podClient := makeClient(podName)
+		defer podClient.Close()
+
+		info, err := podClient.ClusterInfo(ctx).Result()
+		if err != nil {
+			lastErr = err
+			logger.V(1).Error(err, "Failed to get CLUSTER INFO from pod", "Pod", podName)
+			return
+		}
+		if known := clusterKnownNodes(info); known < 0 || known > 1 {
+			return
+		}
+
+		logger.Info("Pod is isolated from the cluster, rejoining via CLUSTER MEET", "Pod", podName)
+		if err := podClient.ClusterMeet(ctx, seedIP, port).Err(); err != nil {
+			lastErr = err
+			logger.Error(err, "Failed to CLUSTER MEET seed from isolated pod", "Pod", podName)
+			return
+		}
+		rejoined++
+
+		if masterPod == "" {
+			return
+		}
+		masterID := masterIDByPod[masterPod]
+		if masterID == "" {
+			lastErr = fmt.Errorf("no known master node ID for %s, cannot reattach follower %s", masterPod, podName)
+			logger.Error(lastErr, "Skipping CLUSTER REPLICATE for rejoined follower")
+			return
+		}
+		// CLUSTER MEET only starts the gossip handshake; the follower may not yet
+		// know the master's node ID, so retry REPLICATE until the handshake
+		// completes. Without this the follower lingers as an empty master.
+		if err := retry.Do(func() error {
+			return podClient.ClusterReplicate(ctx, masterID).Err()
+		}, retry.Attempts(5), retry.Delay(time.Second*2)); err != nil {
+			lastErr = err
+			logger.Error(err, "Failed to reattach rejoined follower to master", "Follower", podName, "MasterNodeID", masterID)
+		}
+	}
+
+	for i := int32(0); i < leaderCount; i++ {
+		rejoin(fmt.Sprintf("%s-leader-%d", cr.Name, i), "")
+	}
+	for i := int32(0); leaderCount > 0 && i < followerCount; i++ {
+		masterPod := fmt.Sprintf("%s-leader-%d", cr.Name, i%leaderCount)
+		rejoin(fmt.Sprintf("%s-follower-%d", cr.Name, i), masterPod)
+	}
+	return rejoined, lastErr
+}
+
+// masterNodeIDsByPod maps pod name -> node ID for healthy master nodes in the
+// gossip view, used to reattach rejoined followers to their expected master.
+func masterNodeIDsByPod(nodes []clusterNodesResponse) map[string]string {
+	m := make(map[string]string)
+	for _, node := range nodes {
+		if !nodeIsOfType(node, "master") || nodeFailedOrDisconnected(node) {
+			continue
+		}
+		host, err := getHostFromClusterNode(node)
+		if err != nil {
+			continue
+		}
+		m[strings.Split(host, ".")[0]] = node[0]
+	}
+	return m
+}
+
+// ReattachMisplacedReplicas demotes pods that are sitting as empty (slot-less)
+// masters back into replicas of their shard's current slot-owning master. This
+// covers two cases RejoinIsolatedNodes leaves behind:
+//
+//  1. A rejoined follower whose CLUSTER REPLICATE handshake did not complete in
+//     the rejoin's single reconcile, so it lingers as an empty master.
+//  2. An ex-leader that returned (e.g. after a delete + failover, possibly under
+//     a new node ID) as an empty master while a promoted follower in the same
+//     shard now owns the slots — leaving the shard split.
+//
+// Both are the same defect: a member of a shard is an empty master when it
+// should be a replica of whichever member currently owns the slots. The repair
+// is always data-safe because it only ever issues CLUSTER REPLICATE on a
+// confirmed empty (0-slot) node, pointing it at the live slot owner — the empty
+// node syncs from the data holder, never the reverse. A shard whose slots are
+// owned only by a dead fail/noaddr orphan (no live owner) is skipped: that is
+// the missed-promotion case which needs a forced failover, not a reattach.
+// Returns the number of pods reattached and any error.
+func ReattachMisplacedReplicas(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) (int, error) {
+	seedClient := configureRedisClient(ctx, client, cr, cr.Name+"-leader-0")
+	defer seedClient.Close()
+	return reattachMisplacedReplicas(ctx, cr, seedClient, func(podName string) *redis.Client {
+		return configureRedisClient(ctx, client, cr, podName)
+	})
+}
+
+// liveMasterEntry is a pod's live (non-fail/disconnected/noaddr) master entry in
+// the seed's gossip view: its node ID and whether it currently owns slots.
+type liveMasterEntry struct {
+	id     string
+	serves bool
+}
+
+func reattachMisplacedReplicas(ctx context.Context, cr *rcvb2.RedisCluster, seedClient *redis.Client, makeClient func(podName string) *redis.Client) (int, error) {
+	logger := log.FromContext(ctx)
+	leaderCount := cr.Spec.GetReplicaCounts("leader")
+	followerCount := cr.Spec.GetReplicaCounts("follower")
+	if leaderCount == 0 {
+		return 0, nil
+	}
+
+	nodes, err := clusterNodes(ctx, seedClient)
+	if err != nil {
+		return 0, err
+	}
+
+	// Index each pod's live master entry from the seed's gossip view. Dead
+	// fail/noaddr/disconnected entries (e.g. a replaced pod's old node ID) are
+	// ignored here — they are handled by ForgetStaleNodes/RejoinIsolatedNodes —
+	// so a pod that appears both as a dead orphan and a live empty master is
+	// classified by its live entry only.
+	liveMasterByPod := make(map[string]liveMasterEntry)
+	for _, node := range nodes {
+		if len(node) < 8 || !nodeIsOfType(node, "master") || nodeFailedDisconnectedOrNoAddr(node) {
+			continue
+		}
+		host, err := getHostFromClusterNode(node)
+		if err != nil {
+			continue
+		}
+		liveMasterByPod[podNameFromHost(host)] = liveMasterEntry{id: node[0], serves: nodeServesSlots(node)}
+	}
+
+	reattached := 0
+	var lastErr error
+	for n := int32(0); n < leaderCount; n++ {
+		members := shardMemberPods(cr.Name, n, leaderCount, followerCount)
+
+		// The shard's current slot owner is the live member that serves slots.
+		ownerID, ownerPod := "", ""
+		for _, pod := range members {
+			if e, ok := liveMasterByPod[pod]; ok && e.serves {
+				ownerID, ownerPod = e.id, pod
+				break
+			}
+		}
+		// No live slot-owning member: either a genuinely new/empty shard (real
+		// scale-up, left for the empty-master rebalance) or the missed-promotion
+		// case (slots owned only by a dead orphan). Either way, do not reattach.
+		if ownerID == "" {
+			continue
+		}
+
+		// Any other member that is a live empty (0-slot) master is misplaced;
+		// make it replicate the shard's slot owner.
+		for _, pod := range members {
+			if pod == ownerPod {
+				continue
+			}
+			e, ok := liveMasterByPod[pod]
+			if !ok || e.serves {
+				continue
+			}
+			logger.Info("Reattaching misplaced empty master as replica of shard slot owner",
+				"Pod", pod, "ShardOwnerPod", ownerPod, "ShardOwnerNodeID", ownerID)
+			podClient := makeClient(pod)
+			// CLUSTER REPLICATE needs the follower to have learned the owner's
+			// node ID through gossip; retry to ride out an incomplete handshake.
+			if err := retry.Do(func() error {
+				return podClient.ClusterReplicate(ctx, ownerID).Err()
+			}, retry.Attempts(5), retry.Delay(time.Second*2)); err != nil {
+				lastErr = err
+				logger.Error(err, "Failed to reattach misplaced empty master",
+					"Pod", pod, "ShardOwnerNodeID", ownerID)
+			} else {
+				reattached++
+			}
+			podClient.Close()
+		}
+	}
+	return reattached, lastErr
+}
+
+// shardMemberPods returns the pod names belonging to shard n under the operator's
+// pod-name model: leader-n plus every follower-i with i % leaderCount == n.
+func shardMemberPods(crName string, n, leaderCount, followerCount int32) []string {
+	members := []string{fmt.Sprintf("%s-leader-%d", crName, n)}
+	for i := int32(0); i < followerCount; i++ {
+		if i%leaderCount == n {
+			members = append(members, fmt.Sprintf("%s-follower-%d", crName, i))
+		}
+	}
+	return members
+}
+
+// nodeServesSlots reports whether a CLUSTER NODES entry currently owns any hash
+// slots (including migrating/importing markers).
+func nodeServesSlots(node clusterNodesResponse) bool {
+	if len(node) < 9 {
+		return false
+	}
+	for _, tok := range node[8:] {
+		if looksLikeSlotToken(tok) {
+			return true
+		}
+	}
+	return false
+}
+
+// nodeFailedDisconnectedOrNoAddr reports whether a node is in a state that makes
+// it unusable as a live cluster member: flagged fail/fail?/noaddr or link-state
+// disconnected.
+func nodeFailedDisconnectedOrNoAddr(node clusterNodesResponse) bool {
+	return nodeFailedOrDisconnected(node) || strings.Contains(node[2], "noaddr")
+}
+
+// podNameFromHost extracts the pod name from a cluster node's announced hostname
+// (e.g. "redis-cluster-leader-4.redis-cluster-leader-headless...").
+func podNameFromHost(host string) string {
+	return strings.Split(host, ".")[0]
+}
+
+// clusterKnownNodes returns the cluster_known_nodes value from CLUSTER INFO
+// output, or -1 if the field is absent or cannot be parsed.
+func clusterKnownNodes(info string) int {
+	for _, line := range strings.Split(info, "\r\n") {
+		if strings.HasPrefix(line, "cluster_known_nodes:") {
+			n, err := strconv.Atoi(strings.TrimSpace(strings.TrimPrefix(line, "cluster_known_nodes:")))
+			if err != nil {
+				return -1
+			}
+			return n
+		}
+	}
+	return -1
+}
+
 // replicationLinkUp returns true when the INFO Replication output
 // contains master_link_status:up, indicating healthy replication.
 // Returns true for master nodes (no master_link_status field).
@@ -309,6 +602,131 @@ func replicationLinkUp(info string) bool {
 		}
 	}
 	return true
+}
+
+// ForgetStaleNodes removes orphaned node entries from the cluster's gossip
+// table. When a pod is deleted and its replacement rejoins under a new node ID
+// (because nodes.conf was not preserved — e.g. an ephemeral node-conf volume,
+// PVC deletion, or a reschedule onto a node where the node-local PV cannot
+// follow), the old node ID lingers forever as a fail?/noaddr/disconnected
+// entry. CLUSTER MEET cannot reclaim it (its hostname now resolves to the new
+// pod), so it keeps UnhealthyNodesInCluster > 0 and pins the cluster in the
+// Failed state. This issues CLUSTER FORGET for each stale ID on every live node.
+//
+// Returns the number of stale node IDs detected.
+func ForgetStaleNodes(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) (int, error) {
+	redisClient := configureRedisClient(ctx, client, cr, cr.Name+"-leader-0")
+	defer redisClient.Close()
+	nodes, err := clusterNodes(ctx, redisClient)
+	if err != nil {
+		return 0, err
+	}
+	return forgetStaleNodes(ctx, nodes, func(podName string) *redis.Client {
+		return configureRedisClient(ctx, client, cr, podName)
+	})
+}
+
+func forgetStaleNodes(ctx context.Context, nodes []clusterNodesResponse, makeClient func(podName string) *redis.Client) (int, error) {
+	stale := staleNodeIDs(nodes)
+	if len(stale) == 0 {
+		return 0, nil
+	}
+	logger := log.FromContext(ctx)
+	logger.Info("Forgetting stale cluster nodes", "StaleNodeIDs", stale)
+
+	// CLUSTER FORGET is a per-node operation; gossip does not propagate it, so
+	// it must be issued from every live node individually.
+	var lastErr error
+	for _, node := range nodes {
+		if len(node) < 8 || nodeFailedDisconnectedOrNoAddr(node) {
+			continue
+		}
+		host, err := getHostFromClusterNode(node)
+		if err != nil {
+			continue
+		}
+		podName := podNameFromHost(host)
+		liveClient := makeClient(podName)
+		for _, id := range stale {
+			if id == node[0] {
+				// A node cannot forget itself.
+				continue
+			}
+			if err := liveClient.ClusterForget(ctx, id).Err(); err != nil {
+				// Best-effort: a live replica may still reference the stale node
+				// as its master ("Can't forget my master"), or another node may
+				// have already forgotten it. Log and continue.
+				lastErr = err
+				logger.V(1).Error(err, "Failed to CLUSTER FORGET stale node", "Pod", podName, "StaleNodeID", id)
+			}
+		}
+		liveClient.Close()
+	}
+	return len(stale), lastErr
+}
+
+// staleNodeIDs returns node IDs that are safe to CLUSTER FORGET: failed,
+// disconnected or noaddr entries that serve no slots and whose pod hostname is
+// already served by a healthy node (i.e. the deleted pod's replacement has
+// rejoined under a new node ID). Slot-owning failed masters are excluded so we
+// never orphan slots — those must be recovered via failover/slot repair first.
+// Entries whose hostname cannot be determined are left untouched, since without
+// a confirmed healthy replacement we cannot distinguish an orphan from a node
+// that is merely down and will return with the same ID.
+func staleNodeIDs(nodes []clusterNodesResponse) []string {
+	healthyHosts := make(map[string]bool)
+	for _, node := range nodes {
+		if len(node) < 8 || nodeFailedDisconnectedOrNoAddr(node) {
+			continue
+		}
+		host, err := getHostFromClusterNode(node)
+		if err != nil {
+			continue
+		}
+		healthyHosts[podNameFromHost(host)] = true
+	}
+
+	var stale []string
+	for _, node := range nodes {
+		if len(node) < 8 {
+			continue
+		}
+		if nodeIsOfType(node, "myself") {
+			continue
+		}
+		if !nodeFailedDisconnectedOrNoAddr(node) {
+			continue
+		}
+		if nodeServesSlots(node) {
+			continue
+		}
+		host, err := getHostFromClusterNode(node)
+		if err != nil {
+			continue
+		}
+		if healthyHosts[podNameFromHost(host)] {
+			stale = append(stale, node[0])
+		}
+	}
+	return stale
+}
+
+// nodeFailedDisconnectedOrNoAddr reports whether a node is in a state that makes
+// it a candidate for removal: flagged fail/fail?/noaddr or link-state disconnected.
+func nodeFailedDisconnectedOrNoAddr(node clusterNodesResponse) bool {
+	return nodeFailedOrDisconnected(node) || strings.Contains(node[2], "noaddr")
+}
+
+// nodeServesSlots reports whether a CLUSTER NODES entry currently owns any
+// hash slots (including migrating/importing markers).
+func nodeServesSlots(node clusterNodesResponse) bool {
+	return slices.ContainsFunc(node[8:], looksLikeSlotToken)
+}
+
+// podNameFromHost extracts the pod name from a cluster node's announced
+// hostname (e.g. "redis-cluster-leader-4.redis-cluster-leader-headless...").
+func podNameFromHost(host string) string {
+	return strings.Split(host, ".")[0]
 }
 
 func getHostFromClusterNode(node clusterNodesResponse) (string, error) {

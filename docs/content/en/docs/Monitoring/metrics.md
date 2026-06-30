@@ -32,11 +32,20 @@ Whether or not to skip the reconcile of RedisReplication. Type: Gauge.
 ### rediscluster_adding_node_attempt
 Number of times to add a node to the cluster. Type: Counter.
 
+### rediscluster_forget_stale_node_total
+Total number of stale cluster nodes removed via CLUSTER FORGET. Type: Counter.
+
 ### rediscluster_healthy
 Whether or not to check Redis Cluster Health status. Type: Gauge.
 
+### rediscluster_reattach_replica_attempt
+Number of misplaced empty masters reattached as replicas of their shard's slot owner via CLUSTER REPLICATE. Type: Counter.
+
 ### rediscluster_rebalance_total
 Total number of rediscluster rebalance operations. Type: Counter.
+
+### rediscluster_rejoin_isolated_attempt
+Number of isolated nodes rejoined to the cluster via CLUSTER MEET. Type: Counter.
 
 ### rediscluster_remove_follower_attempt
 Number of times to remove follower attempts. Type: Counter.

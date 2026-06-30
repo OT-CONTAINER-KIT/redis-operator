@@ -1,0 +1,96 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: redis-cluster-rejoin-leader-after-delete
+spec:
+  # Reproduces the "ex-leader returns as a split empty master" failure and
+  # asserts the operator reattaches it as a WORKING REPLICA of the shard's
+  # current slot owner.
+  #
+  # On a pure-cache cluster, deleting a non-seed leader triggers a failover: the
+  # leader's follower is promoted and takes over the shard's slots, preserving
+  # cluster_state:ok. The deleted leader pod returns under a NEW node id with an
+  # empty nodes.conf (isolated). RejoinIsolatedNodes MEETs it back, but a leader
+  # pod is never CLUSTER REPLICATEd, so it lingers as an EMPTY master and the
+  # shard stays split (two "masters" for one slot range, one of them empty).
+  # ReattachMisplacedReplicas detects that empty master and, because a live
+  # member of its shard (the promoted follower) owns the slots, issues
+  # CLUSTER REPLICATE on the ex-leader toward that owner — demoting it to a
+  # replica. This is data-safe: the empty node syncs from the data holder.
+  #
+  # Expected: PASS on the patched operator (ex-leader returns role=slave,
+  # master_link_status=up, cluster_state=ok). On stock v0.22.2 / upstream /
+  # rejoin-only the ex-leader stays an empty master (split shard) and this
+  # assertion fails. NOTE: a stale old-id may remain in gossip (pruning it is
+  # fix/forget-stale-nodes' job), so this test does NOT require full cleanliness.
+  steps:
+    - name: Create a cluster
+      try:
+        - apply:
+            file: cluster.yaml
+        - assert:
+            file: ready-cluster.yaml
+
+    - name: Delete a non-seed leader and assert the operator reattaches it as a replica
+      try:
+        - script:
+            timeout: 600s
+            content: |
+              set -eu
+              NS="${NAMESPACE}"
+              NAME="redis-cluster-v1beta2"
+              SEED="${NAME}-leader-0"
+              VICTIM="${NAME}-leader-1"
+              EXPECTED_NODES=6
+
+              redis() { kubectl exec -n "${NS}" "$1" -c "$2" -- redis-cli "${@:3}"; }
+              lcon="${NAME}-leader"
+              vknown() { redis "${VICTIM}" "${lcon}" cluster info 2>/dev/null | tr -d '\r' | awk -F: '/cluster_known_nodes:/{print $2}'; }
+
+              BEFORE="$(vknown)"
+              echo "victim ${VICTIM} known_nodes before=${BEFORE}"
+              [ "${BEFORE}" = "${EXPECTED_NODES}" ] || { echo "precondition: victim not fully joined"; exit 1; }
+
+              # Inject: delete the leader. Its follower is promoted (failover keeps
+              # the slots); the leader returns isolated under a new id and, once
+              # MET back, sits as an empty master unless reattached as a replica.
+              kubectl delete pod -n "${NS}" "${VICTIM}" --wait=true --timeout=120s
+              kubectl wait -n "${NS}" --for=condition=Ready "pod/${VICTIM}" --timeout=180s
+              ISO="$(vknown || true)"
+              echo "victim known_nodes after delete=${ISO}"
+
+              # The operator must reattach the ex-leader as a WORKING REPLICA
+              # (role=slave, master_link_status=up, cluster_state=ok). We do NOT
+              # assert full gossip cleanliness: on a new-node-id rejoin the old id
+              # lingers as a stale entry (leader0_known can be 7) — pruning that is
+              # fix/forget-stale-nodes' job. Stock v0.22.2 / upstream / rejoin-only
+              # leave the ex-leader an EMPTY MASTER (split shard) here, so this
+              # assertion is what discriminates this fix.
+              for i in $(seq 1 36); do
+                CI="$(redis "${VICTIM}" "${lcon}" cluster info 2>/dev/null | tr -d '\r' || true)"
+                STATE="$(printf '%s\n' "${CI}" | awk -F: '/cluster_state:/{print $2}')"
+                RI="$(redis "${VICTIM}" "${lcon}" info replication 2>/dev/null | tr -d '\r' || true)"
+                ROLE="$(printf '%s\n' "${RI}" | awk -F: '/^role:/{print $2}')"
+                LINK="$(printf '%s\n' "${RI}" | awk -F: '/master_link_status:/{print $2}')"
+                L0KNOWN="$(redis "${SEED}" "${lcon}" cluster info 2>/dev/null | tr -d '\r' | awk -F: '/cluster_known_nodes:/{print $2}')"
+                BAD="$(redis "${SEED}" "${lcon}" cluster nodes 2>/dev/null | tr -d '\r' | grep -cE 'fail|noaddr|handshake' || true)"
+                echo "attempt=${i} state=${STATE} role=${ROLE} link=${LINK} leader0_known=${L0KNOWN} bad=${BAD}"
+                if [ "${STATE}" = "ok" ] && [ "${ROLE}" = "slave" ] && [ "${LINK}" = "up" ]; then
+                  echo "EX_LEADER_REATTACHED_AS_REPLICA"
+                  exit 0
+                fi
+                sleep 15
+              done
+
+              echo "victim ${VICTIM} was not reattached as a replica within timeout"
+              redis "${SEED}" "${lcon}" cluster nodes || true
+              exit 1
+            check:
+              (contains($stdout, 'EX_LEADER_REATTACHED_AS_REPLICA')): true
+
+    - name: Assert cluster is healthy again
+      try:
+        - assert:
+            file: ready-cluster.yaml
