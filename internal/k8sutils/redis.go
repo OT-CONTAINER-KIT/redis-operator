@@ -1393,6 +1393,29 @@ func checkRedisServerRole(ctx context.Context, redisClient *redis.Client, podNam
 	return "", err
 }
 
+func checkRedisOffset(ctx context.Context, redisClient *redis.Client, podName string) (int64, error) {
+	info, err := redisClient.Info(ctx, "Replication").Result()
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Failed to Get the role Info of the", "redis pod", podName)
+		return 0, err
+	}
+	lines := strings.Split(info, "\r\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, "master_repl_offset:") {
+			offsetStr := strings.TrimPrefix(line, "master_repl_offset:")
+			offset, err := strconv.ParseInt(offsetStr, 10, 64)
+			if err != nil {
+				log.FromContext(ctx).Error(err, "Failed to convert master_repl_offset to int64 for", "redis pod", podName)
+				return 0, err
+			}
+			log.FromContext(ctx).V(1).Info("Master replication offset of the Redis Pod", "pod", podName, "offset", offset)
+			return offset, nil
+		}
+	}
+	log.FromContext(ctx).Error(err, "Failed to find master_repl_offset from Info # Replication in", "redis pod", podName)
+	return 0, errors.New("master_repl_offset not found")
+}
+
 // checkAttachedSlave would return redis pod name which has slave
 func checkAttachedSlave(ctx context.Context, redisClient *redis.Client, podName string) int {
 	info, err := redisClient.Info(ctx, "Replication").Result()
@@ -1467,6 +1490,29 @@ func GetRedisReplicationRealMaster(ctx context.Context, client kubernetes.Interf
 		}
 	}
 	return ""
+}
+
+func GetRedisReplicationBestMaster(ctx context.Context, client kubernetes.Interface, cr *rrvb2.RedisReplication, masterPods []string) string {
+	var bestMasterPod string
+	var bestOffset int64 = -1
+
+	for _, podName := range masterPods {
+		redisClient := configureRedisReplicationClient(ctx, client, cr, podName)
+		defer redisClient.Close()
+
+		offset, err := checkRedisOffset(ctx, redisClient, podName)
+		if err != nil {
+			log.FromContext(ctx).Error(err, "Failed to get replication offset for", "pod", podName)
+			continue
+		}
+
+		if offset > bestOffset {
+			bestOffset = offset
+			bestMasterPod = podName
+		}
+	}
+
+	return bestMasterPod
 }
 
 func applyDynamicConfig(ctx context.Context, redisClient *redis.Client, podName string, dynamicConfig []string) (bool, error) {

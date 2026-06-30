@@ -1258,6 +1258,55 @@ func Test_checkAttachedSlave(t *testing.T) {
 	}
 }
 
+func Test_checkRedisOffset(t *testing.T) {
+	tests := []struct {
+		name           string
+		podName        string
+		infoReturn     string
+		infoErr        error
+		expectedOffset int64
+	}{
+		{
+			name:    "valid offset",
+			podName: "pod1",
+			infoReturn: "# Replication\r\n" +
+				"role:master\r\n" +
+				"connected_slaves:0\r\n" +
+				"master_repl_offset:12345\r\n",
+			expectedOffset: 12345,
+		},
+		{
+			name:           "error fetching offset info",
+			podName:        "pod2",
+			infoErr:        redis.ErrClosed,
+			expectedOffset: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.TODO()
+			client, mock := redismock.NewClientMock()
+
+			if tt.infoErr != nil {
+				mock.ExpectInfo("Replication").SetErr(tt.infoErr)
+			} else {
+				mock.ExpectInfo("Replication").SetVal(tt.infoReturn)
+			}
+
+			offset, err := checkRedisOffset(ctx, client, tt.podName)
+			if err != nil {
+				assert.Error(t, err)
+			}
+
+			assert.Equal(t, tt.expectedOffset, offset, "Test case: "+tt.name)
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Errorf("there were unmet expectations: %s", err)
+			}
+		})
+	}
+}
+
 func Test_checkRedisServerRole(t *testing.T) {
 	tests := []struct {
 		name           string
