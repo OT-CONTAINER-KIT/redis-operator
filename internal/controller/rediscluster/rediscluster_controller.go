@@ -354,25 +354,30 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			// old ID lingers in CLUSTER NODES, so CheckRedisNodeCount reads above the
 			// desired total (nc > totalReplicas) and reconcile would otherwise loop in the
 			// outer create/scale branch forever, never reaching the steady-state repairs.
-			// Two artifacts must be handled, in order:
-			//   1. RejoinIsolatedNodes MEETs the live replacement back (it returns as an
-			//      empty master, since CLUSTER MEET cannot reclaim the dead old ID).
-			//   2. ReattachMisplacedReplicas demotes that empty master onto its shard's
-			//      current slot owner.
-			//   3. ForgetStaleNodes prunes the dead old ID — last, so reattach has already
-			//      moved the returning ex-master off it. Any follower that still pointed at
-			//      the old master was re-replicated onto the promoted master by failover
-			//      itself; in the brief gossip-lag window before that propagates, forget may
-			//      see "can't forget my master" for some pod that actually did switch to the new
-			//      master after failover, and it must treat it as skip-this-cycle, not a
-			//      failure (the next pass forgets the now-unreferenced orphan).
+			// Pipeline (rejoin is a prerequisite for the other two):
+			//   1. RejoinIsolatedNodes MEETs the live replacement (returns as an empty
+			//      master; CLUSTER MEET cannot reclaim the dead old ID). Without MEET the
+			//      replacement is not a healthy gossip member, so reattach has no live
+			//      empty master to demote and forget has no healthy hostname twin.
+			//   2–3. ReattachMisplacedReplicas and ForgetStaleNodes are independent of
+			//      each other and act on different rows: reattach demotes the *live*
+			//      empty master onto the shard's *live* slot owner; forget prunes the
+			//      *dead* old ID (slot-less fail/noaddr with a healthy twin only — never
+			//      a slot-owning fail master). Both become useful once failover
+			//      (Outcome A) has moved slots onto a live member; if slots remain only
+			//      on the dead orphan (Outcome B / missed promotion), both skip.
+			// Reattach-before-forget here is preference (fix roles, then prune), not a
+			// hard unlock — forget-before-reattach is equally safe and sometimes reaches
+			// nc==desired sooner. Forget is best-effort if a node still says "can't
+			// forget my master" (gossip lag); that resolves on a later pass, independent
+			// of reattach order.
 			//
-			// If the pod never returns (orphan, no replacement), it fills the missing pod's
-			// slot in the count rather than inflating it: nc == totalReplicas, so this block
-			// is skipped. staleNodeIDs then refuses to forget it (no healthy hostname twin),
-			// and it correctly surfaces as an unhealthy node until the pod returns or an
-			// administrator intervenes — e.g. forcing a failover if the shard cannot promote
-			// on its own.
+			// If the pod never returns (orphan, no replacement), the dead ID fills the
+			// missing pod's slot in the count rather than inflating it: nc == totalReplicas,
+			// so this block is skipped. staleNodeIDs then refuses to forget it (no healthy
+			// hostname twin), and it correctly surfaces as unhealthy until the pod returns
+			// or an administrator intervenes (e.g. forced failover if the shard cannot
+			// promote on its own).
 			if forgotten, ferr := k8sutils.ForgetStaleNodes(ctx, r.K8sClient, instance); ferr != nil {
 				logger.Error(ferr, "failed to forget stale nodes")
 			} else if forgotten > 0 {
