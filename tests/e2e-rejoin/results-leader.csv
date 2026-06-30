@@ -1,6 +1,0 @@
-ts,image,injection,victims,outcome,lag_s,leader0_known,bad_entries,victim_role,victim_known
-2026-06-25T23:44:01Z,v0.22.2,INJ-5,rejoin-test-leader-1,EMPTYMASTER,240,7,1,master,6
-2026-06-25T23:49:52Z,upstream-main,INJ-5,rejoin-test-leader-1,EMPTYMASTER,240,7,1,master,6
-2026-06-25T23:56:09Z,forget-stale,INJ-5,rejoin-test-leader-1,EMPTYMASTER,240,6,0,master,6
-2026-06-26T00:02:02Z,fix-rejoin,INJ-5,rejoin-test-leader-1,EMPTYMASTER,240,7,1,master,6
-2026-06-26T00:26:45Z,fix-reattach,INJ-5,rejoin-test-leader-1,REJOINED_DIRTY,12,7,1,slave,6
