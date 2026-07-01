@@ -13,7 +13,15 @@ spec:
     singular: redis
   scope: Namespaced
   versions:
-  - name: v1beta2
+  - additionalPrinterColumns:
+    - description: The current state of the Redis instance
+      jsonPath: .status.state
+      name: State
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1beta2
     schema:
       openAPIV3Schema:
         description: Redis is the Schema for the redis API
@@ -5389,6 +5397,14 @@ spec:
             type: object
           status:
             description: RedisStatus defines the observed state of Redis
+            properties:
+              reason:
+                description: Reason provides a human-readable explanation of the current
+                  state.
+                type: string
+              state:
+                description: State is the current lifecycle state of the Redis resource.
+                type: string
             type: object
         required:
         - spec
@@ -13298,6 +13314,14 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
+    - description: The current state of the RedisReplication
+      jsonPath: .status.state
+      name: State
+      type: string
+    - description: Number of ready replicas
+      jsonPath: .status.readyReplicas
+      name: ReadyReplicas
+      type: integer
     - jsonPath: .status.masterNode
       name: Master
       type: string
@@ -20588,11 +20612,11 @@ spec:
             - kubernetesConfig
             type: object
           status:
-            description: RedisStatus defines the observed state of Redis
+            description: RedisReplicationStatus defines the observed state of RedisReplication
             properties:
               connectionInfo:
                 description: ConnectionInfo provides connection details for clients
-                  to connect to Redis
+                  to connect to Redis.
                 properties:
                   host:
                     description: Host is the service FQDN
@@ -20606,6 +20630,20 @@ spec:
                     type: integer
                 type: object
               masterNode:
+                description: MasterNode is the pod name of the current Redis master.
+                type: string
+              readyReplicas:
+                description: ReadyReplicas is the number of pods that are currently
+                  ready.
+                format: int32
+                type: integer
+              reason:
+                description: Reason provides a human-readable explanation of the current
+                  state.
+                type: string
+              state:
+                description: State is the current lifecycle state of the RedisReplication
+                  resource.
                 type: string
             type: object
         required:
@@ -20631,10 +20669,22 @@ spec:
     singular: redissentinel
   scope: Namespaced
   versions:
-  - name: v1beta2
+  - additionalPrinterColumns:
+    - description: The current state of the RedisSentinel
+      jsonPath: .status.state
+      name: State
+      type: string
+    - description: Number of ready sentinel replicas
+      jsonPath: .status.readyReplicas
+      name: ReadyReplicas
+      type: integer
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1beta2
     schema:
       openAPIV3Schema:
-        description: Redis is the Schema for the redis API
+        description: RedisSentinel is the Schema for the redis sentinel API
         properties:
           apiVersion:
             description: |-
@@ -25820,6 +25870,21 @@ spec:
             - kubernetesConfig
             type: object
           status:
+            description: RedisSentinelStatus defines the observed state of RedisSentinel
+            properties:
+              readyReplicas:
+                description: ReadyReplicas is the number of sentinel pods that are
+                  currently ready.
+                format: int32
+                type: integer
+              reason:
+                description: Reason provides a human-readable explanation of the current
+                  state.
+                type: string
+              state:
+                description: State is the current lifecycle state of the RedisSentinel
+                  resource.
+                type: string
             type: object
         required:
         - spec
