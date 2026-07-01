@@ -177,12 +177,12 @@ func (r *RedisSentinelReconciler) reconcileStatus(ctx context.Context, instance 
 
 	var state rsvb2.RedisSentinelState
 	var reason string
-	switch {
-	case readyReplicas == desiredReplicas:
+	switch readyReplicas {
+	case desiredReplicas:
 		// All desired sentinel pods are ready.
 		state = rsvb2.RedisSentinelReady
 		reason = rsvb2.ReadySentinelReason
-	case readyReplicas == 0:
+	case 0:
 		// No pods ready yet — still bootstrapping.
 		state = rsvb2.RedisSentinelInitializing
 		reason = rsvb2.InitializingSentinelReason
