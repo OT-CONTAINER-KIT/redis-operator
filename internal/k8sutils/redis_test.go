@@ -668,6 +668,7 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 		secret
 		leaderPod       RedisDetails
 		followerPod     RedisDetails
+		masterNodeID    string
 		expectedCommand []string
 	}{
 		{
@@ -702,11 +703,13 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 				PodName:   "redis-cluster-follower-0",
 				Namespace: "default",
 			},
+			masterNodeID: "test-leader-node-id",
 			expectedCommand: []string{
 				"redis-cli", "--cluster", "add-node",
 				"redis-cluster-follower-0.redis-cluster-follower-headless.default.svc.cluster.local:6379",
 				"redis-cluster-leader-0.redis-cluster-leader-headless.default.svc.cluster.local:6379",
 				"--cluster-slave",
+				"--cluster-master-id", "test-leader-node-id",
 				"-a", "password",
 			},
 		},
@@ -742,11 +745,13 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 				PodName:   "redis-cluster-follower-0",
 				Namespace: "default",
 			},
+			masterNodeID: "test-leader-node-id",
 			expectedCommand: []string{
 				"redis-cli", "--cluster", "add-node",
 				"redis-cluster-follower-0.redis-cluster-follower-headless.default.svc.cluster.local:6379",
 				"redis-cluster-leader-0.redis-cluster-leader-headless.default.svc.cluster.local:6379",
 				"--cluster-slave",
+				"--cluster-master-id", "test-leader-node-id",
 			},
 		},
 		{
@@ -769,11 +774,13 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 				PodName:   "redis-cluster-follower-0",
 				Namespace: "default",
 			},
+			masterNodeID: "test-leader-node-id",
 			expectedCommand: []string{
 				"redis-cli", "--cluster", "add-node",
 				"192.168.2.1:6379",
 				"192.168.1.1:6379",
 				"--cluster-slave",
+				"--cluster-master-id", "test-leader-node-id",
 			},
 		},
 		{
@@ -796,11 +803,13 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 				PodName:   "redis-cluster-follower-0",
 				Namespace: "default",
 			},
+			masterNodeID: "test-leader-node-id",
 			expectedCommand: []string{
 				"redis-cli", "--cluster", "add-node",
 				"2001:db8:42:2::200:6379",
 				"2001:db8:42:1::100:6379",
 				"--cluster-slave",
+				"--cluster-master-id", "test-leader-node-id",
 			},
 		},
 	}
@@ -823,7 +832,7 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 			objects = append(objects, secret...)
 
 			client := k8sClientFake.NewSimpleClientset(objects...)
-			cmd := createRedisReplicationCommand(context.TODO(), client, tt.redisCluster, tt.leaderPod, tt.followerPod)
+			cmd := createRedisReplicationCommand(context.TODO(), client, tt.redisCluster, tt.leaderPod, tt.followerPod, tt.masterNodeID)
 
 			// Assert the command is as expected using testify
 			assert.Equal(t, tt.expectedCommand, cmd)

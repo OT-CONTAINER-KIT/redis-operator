@@ -397,7 +397,7 @@ func RebalanceRedisClusterEmptyMasters(ctx context.Context, client kubernetes.In
 }
 
 func CheckIfEmptyMasters(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) {
-	totalRedisLeaderNodes := CheckRedisNodeCount(ctx, client, cr, "leader")
+	totalRedisLeaderNodes := cr.Spec.GetReplicaCounts("leader")
 	redisClient := configureRedisClient(ctx, client, cr, cr.Name+"-leader-0")
 	defer redisClient.Close()
 
