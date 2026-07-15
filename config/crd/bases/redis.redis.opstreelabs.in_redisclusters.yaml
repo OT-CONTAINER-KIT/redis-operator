@@ -2716,9 +2716,18 @@ spec:
                         type: integer
                     type: object
                   replicas:
-                    description: Replicas overrides clusterSize for follower nodes
-                      count. If not set, uses clusterSize value
+                    description: |-
+                      Replicas overrides clusterSize for follower nodes count. If not set, uses clusterSize value.
+                      Mutually exclusive with ReplicasPerShard.
                     format: int32
+                    type: integer
+                  replicasPerShard:
+                    description: |-
+                      ReplicasPerShard sets the number of follower replicas per leader shard.
+                      Total follower pods = ReplicasPerShard × leader count.
+                      Mutually exclusive with Replicas.
+                    format: int32
+                    minimum: 1
                     type: integer
                   resources:
                     description: ResourceRequirements describes the compute resource
