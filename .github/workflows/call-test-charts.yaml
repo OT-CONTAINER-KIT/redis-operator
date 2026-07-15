@@ -22,7 +22,7 @@ jobs:
           cluster_name: kind
 
       - name: Install Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@v5
         with:
           version: v3.5.4
 
