@@ -1062,6 +1062,63 @@ func CreateMasterSlaveReplication(ctx context.Context, client kubernetes.Interfa
 	return nil
 }
 
+// RepointStaleSlaves issues SLAVEOF to any slave pod whose live master_host
+// differs from the operator-known current master. Best-effort: failures are
+// logged and skipped, never fail the reconcile. Addresses #1779 — silent
+// SPOF when master pod IP changes (graceful pod recreation, not a sentinel
+// failover) and slaves keep replicating from the dead old IP.
+func RepointStaleSlaves(ctx context.Context, client kubernetes.Interface, cr *rrvb2.RedisReplication, currentMasterPod string, slavePods []string) {
+	if currentMasterPod == "" || len(slavePods) == 0 {
+		return
+	}
+
+	currentMasterInfo := RedisDetails{
+		PodName:   currentMasterPod,
+		Namespace: cr.Namespace,
+	}
+
+	var currentMasterAddr string
+	if cr.Spec.TLS != nil {
+		currentMasterAddr = getRedisReplicationHostname(currentMasterInfo, cr)
+	} else {
+		currentMasterAddr = getRedisServerIP(ctx, client, currentMasterInfo)
+		if currentMasterAddr == "" {
+			log.FromContext(ctx).V(1).Info("RepointStaleSlaves: empty current master IP, skipping", "master", currentMasterPod)
+			return
+		}
+	}
+
+	for _, podName := range slavePods {
+		redisClient := configureRedisReplicationClient(ctx, client, cr, podName)
+		info, err := redisClient.Info(ctx, "Replication").Result()
+		if err != nil {
+			log.FromContext(ctx).Error(err, "RepointStaleSlaves: INFO replication failed", "pod", podName)
+			redisClient.Close()
+			continue
+		}
+
+		var currentHost string
+		for _, line := range strings.Split(info, "\r\n") {
+			if v, ok := strings.CutPrefix(line, "master_host:"); ok {
+				currentHost = strings.TrimSpace(v)
+				break
+			}
+		}
+
+		if currentHost == "" || currentHost == currentMasterAddr {
+			redisClient.Close()
+			continue
+		}
+
+		log.FromContext(ctx).Info("Stale master_host on slave, issuing SLAVEOF to current master",
+			"pod", podName, "stale", currentHost, "current", currentMasterAddr)
+		if err := redisClient.SlaveOf(ctx, currentMasterAddr, "6379").Err(); err != nil {
+			log.FromContext(ctx).Error(err, "RepointStaleSlaves: SLAVEOF failed", "pod", podName, "master", currentMasterAddr)
+		}
+		redisClient.Close()
+	}
+}
+
 func GetRedisReplicationRealMaster(ctx context.Context, client kubernetes.Interface, cr *rrvb2.RedisReplication, masterPods []string) string {
 	for _, podName := range masterPods {
 		redisClient := configureRedisReplicationClient(ctx, client, cr, podName)
