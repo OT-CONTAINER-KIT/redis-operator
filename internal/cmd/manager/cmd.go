@@ -242,29 +242,35 @@ func setupControllers(mgr ctrl.Manager, k8sClient kubernetes.Interface, maxConcu
 	healer := redis.NewHealer(k8sClient)
 
 	if err := (&rediscontroller.Reconciler{
-		Client:      mgr.GetClient(),
-		K8sClient:   k8sClient,
-		StatefulSet: k8sutils.NewStatefulSetService(k8sClient),
+		Client:           mgr.GetClient(),
+		K8sClient:        k8sClient,
+		StatefulSet:      k8sutils.NewStatefulSetService(k8sClient),
+		ConfigMapWatcher: intctrlutil.NewResourceWatcher(),
+		SecretWatcher:    intctrlutil.NewResourceWatcher(),
 	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Redis")
 		return err
 	}
 	if err := (&redisclustercontroller.Reconciler{
-		Client:      mgr.GetClient(),
-		K8sClient:   k8sClient,
-		Healer:      healer,
-		Checker:     redis.NewChecker(k8sClient),
-		Recorder:    mgr.GetEventRecorderFor("rediscluster-controller"),
-		StatefulSet: k8sutils.NewStatefulSetService(k8sClient),
+		Client:           mgr.GetClient(),
+		K8sClient:        k8sClient,
+		Healer:           healer,
+		Checker:          redis.NewChecker(k8sClient),
+		Recorder:         mgr.GetEventRecorderFor("rediscluster-controller"),
+		StatefulSet:      k8sutils.NewStatefulSetService(k8sClient),
+		ConfigMapWatcher: intctrlutil.NewResourceWatcher(),
+		SecretWatcher:    intctrlutil.NewResourceWatcher(),
 	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RedisCluster")
 		return err
 	}
 	if err := (&redisreplicationcontroller.Reconciler{
-		Client:      mgr.GetClient(),
-		K8sClient:   k8sClient,
-		Healer:      healer,
-		StatefulSet: k8sutils.NewStatefulSetService(k8sClient),
+		Client:           mgr.GetClient(),
+		K8sClient:        k8sClient,
+		Healer:           healer,
+		StatefulSet:      k8sutils.NewStatefulSetService(k8sClient),
+		ConfigMapWatcher: intctrlutil.NewResourceWatcher(),
+		SecretWatcher:    intctrlutil.NewResourceWatcher(),
 	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RedisReplication")
 		return err
@@ -275,6 +281,8 @@ func setupControllers(mgr ctrl.Manager, k8sClient kubernetes.Interface, maxConcu
 		Healer:             healer,
 		K8sClient:          k8sClient,
 		ReplicationWatcher: intctrlutil.NewResourceWatcher(),
+		ConfigMapWatcher:   intctrlutil.NewResourceWatcher(),
+		SecretWatcher:      intctrlutil.NewResourceWatcher(),
 	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RedisSentinel")
 		return err

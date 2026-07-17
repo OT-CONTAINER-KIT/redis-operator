@@ -13,6 +13,7 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/envs"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -31,6 +32,12 @@ type RedisSentinelReconciler struct {
 	Healer             redis.Healer
 	K8sClient          kubernetes.Interface
 	ReplicationWatcher *intctrlutil.ResourceWatcher
+	// ConfigMapWatcher and SecretWatcher enqueue this RedisSentinel when its
+	// referenced external (additional) Sentinel config ConfigMap or mounted/
+	// referenced Secret (TLS, password) changes, so an edit triggers a prompt
+	// rollout of the Sentinel StatefulSet.
+	ConfigMapWatcher *intctrlutil.ResourceWatcher
+	SecretWatcher    *intctrlutil.ResourceWatcher
 }
 
 func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -51,6 +58,10 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	if common.ShouldSkipReconcile(ctx, instance) {
 		return intctrlutil.Reconciled()
 	}
+
+	// Register the source watches up front so they are wired regardless of whether
+	// later reconcile steps short-circuit (e.g. replication not yet ready).
+	r.registerSourceWatches(ctx, instance)
 
 	reconcilers := []reconciler{
 		{typ: "finalizer", rec: r.reconcileFinalizer},
@@ -164,12 +175,34 @@ func (r *RedisSentinelReconciler) reconcileService(ctx context.Context, instance
 	return intctrlutil.Reconciled()
 }
 
+// registerSourceWatches registers the external (additional) Sentinel config
+// ConfigMap and the referenced Secrets (TLS, password) so a change to any of them
+// enqueues this RedisSentinel and rolls the Sentinel StatefulSet via the checksum
+// annotation. Sentinel has no ACL configuration.
+func (r *RedisSentinelReconciler) registerSourceWatches(ctx context.Context, instance *rsvb2.RedisSentinel) {
+	dependent := types.NamespacedName{Namespace: instance.Namespace, Name: instance.Name}
+	if r.ConfigMapWatcher != nil && instance.Spec.RedisSentinelConfig != nil && instance.Spec.RedisSentinelConfig.AdditionalSentinelConfig != nil {
+		r.ConfigMapWatcher.WatchMany(ctx, dependent, *instance.Spec.RedisSentinelConfig.AdditionalSentinelConfig)
+	}
+	if r.SecretWatcher != nil {
+		r.SecretWatcher.WatchMany(ctx, dependent, common.ReferencedSecretNames(instance.Spec.TLS, nil, instance.Spec.KubernetesConfig.ExistingPasswordSecret)...)
+	}
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *RedisSentinelReconciler) SetupWithManager(mgr ctrl.Manager, opts controller.Options) error {
+	if r.ConfigMapWatcher == nil {
+		r.ConfigMapWatcher = intctrlutil.NewResourceWatcher()
+	}
+	if r.SecretWatcher == nil {
+		r.SecretWatcher = intctrlutil.NewResourceWatcher()
+	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&rsvb2.RedisSentinel{}).
 		Owns(&appsv1.StatefulSet{}).
 		WithOptions(opts).
 		Watches(&rrvb2.RedisReplication{}, r.ReplicationWatcher).
+		Watches(&corev1.ConfigMap{}, r.ConfigMapWatcher).
+		Watches(&corev1.Secret{}, r.SecretWatcher).
 		Complete(r)
 }

@@ -53,6 +53,18 @@ func (w *ResourceWatcher) Watch(ctx context.Context, watchedName, dependentName 
 	w.watched[watchedName] = append(existing, dependentName)
 }
 
+// WatchMany registers dependent to be reconciled whenever any of the named
+// objects in dependent's namespace changes. Empty names are ignored, so callers
+// can pass optional references directly without pre-filtering.
+func (w *ResourceWatcher) WatchMany(ctx context.Context, dependent types.NamespacedName, names ...string) {
+	for _, name := range names {
+		if name == "" {
+			continue
+		}
+		w.Watch(ctx, types.NamespacedName{Namespace: dependent.Namespace, Name: name}, dependent)
+	}
+}
+
 func (w *ResourceWatcher) Create(ctx context.Context, event event.CreateEvent, queue workqueue.RateLimitingInterface) {
 	w.handleEvent(event.Object, queue)
 }
