@@ -464,22 +464,21 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 		currentRealMaster := r.redisReplicationRealMaster(ctx, instance, masterNodes)
 
 		if currentRealMaster == "" && !instance.EnableSentinel() {
+			// A single identified master is enough to safely attach the slaves we
+			// already observed. Skipping on incompleteTopology delayed SlaveOf for
+			// pods classified as slaves (including assume-unreachable-as-slave) until
+			// every replica was Ready, which left the data path unreplicated.
 			log.FromContext(ctx).Info("Detected disconnected slaves, reconfiguring replication",
-				"master", realMaster, "slaves", slaveNodes)
+				"master", realMaster, "slaves", slaveNodes,
+				"observedPods", observedPods, "expectedPods", *instance.Spec.Size)
 
-			if incompleteTopology {
-				log.FromContext(ctx).Info("Skipping master-slave reconfiguration because the observed topology is incomplete",
-					"observedPods", observedPods,
-					"expectedPods", *instance.Spec.Size)
-			} else {
-				allPods := append(masterNodes, slaveNodes...)
-				if err := r.createRedisReplicationLink(ctx, instance, allPods, realMaster); err != nil {
-					log.FromContext(ctx).Error(err, "Failed to reconfigure master-slave replication",
-						"master", realMaster, "slaves", slaveNodes)
-					return intctrlutil.RequeueAfter(ctx, time.Second*60, "")
-				}
-				log.FromContext(ctx).Info("Successfully reconfigured slave replication")
+			allPods := append(masterNodes, slaveNodes...)
+			if err := r.createRedisReplicationLink(ctx, instance, allPods, realMaster); err != nil {
+				log.FromContext(ctx).Error(err, "Failed to reconfigure master-slave replication",
+					"master", realMaster, "slaves", slaveNodes)
+				return intctrlutil.RequeueAfter(ctx, time.Second*60, "")
 			}
+			log.FromContext(ctx).Info("Successfully reconfigured slave replication")
 		}
 	}
 

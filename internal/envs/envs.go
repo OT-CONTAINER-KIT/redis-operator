@@ -48,6 +48,9 @@ const (
 
 	// ServiceDNSDomain defines the DNS domain suffix for Kubernetes services
 	ServiceDNSDomain = "SERVICE_DNS_DOMAIN"
+
+	// RedisPodReachAttemptsEnv defines the number of attempts to reach a Redis pod during replication reconciliation
+	RedisPodReachAttemptsEnv = "REDIS_POD_REACH_ATTEMPTS"
 )
 
 var (
@@ -100,6 +103,16 @@ func GetMaxConcurrentReconciles(defaultValue int) int {
 func GetExecCommandTimeout(defaultValue time.Duration) time.Duration {
 	if valueStr := os.Getenv(ExecCommandTimeoutEnv); valueStr != "" {
 		if value, err := time.ParseDuration(valueStr); err == nil && value > 0 {
+			return value
+		}
+	}
+	return defaultValue
+}
+
+// GetRedisPodReachAttempts returns the number of attempts to reach a Redis pod during replication reconciliation.
+func GetRedisPodReachAttempts(defaultValue int) int {
+	if valueStr := strings.TrimSpace(os.Getenv(RedisPodReachAttemptsEnv)); valueStr != "" {
+		if value, err := strconv.Atoi(valueStr); err == nil && value > 0 {
 			return value
 		}
 	}

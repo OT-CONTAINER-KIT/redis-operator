@@ -898,13 +898,41 @@ func getRedisReplicationHostname(redisInfo RedisDetails, cr *rrvb2.RedisReplicat
 	return fmt.Sprintf("%s.%s-headless.%s.svc.%s", redisInfo.PodName, cr.Name, cr.Namespace, envs.GetServiceDNSDomain())
 }
 
+const defaultRedisPodReachAttempts = 3
+
+func getRedisReplicationPodRole(ctx context.Context, cl kubernetes.Interface, cr *rrvb2.RedisReplication, pod *corev1.Pod) string {
+	var podRole string
+	attempts := envs.GetRedisPodReachAttempts(defaultRedisPodReachAttempts)
+	err := retry.Do(
+		func() error {
+			redisClient := configureRedisReplicationClientForPod(ctx, cl, cr, pod)
+			defer redisClient.Close()
+
+			role, err := checkRedisServerRole(ctx, redisClient, pod.Name)
+			if err != nil {
+				return err
+			}
+			podRole = role
+			return nil
+		},
+		retry.Attempts(uint(attempts)),
+		retry.Delay(1000*time.Millisecond),
+		retry.DelayType(retry.BackOffDelay),
+		retry.OnRetry(func(n uint, err error) {
+			log.FromContext(ctx).V(1).Info("Retrying reach redis pod", "pod", pod.Name, "attempt", n+1, "error", err)
+		}),
+	)
+	if err != nil {
+		log.FromContext(ctx).Info("Assuming unreachable redis pod is a slave", "pod", pod.Name, "attempts", attempts, "error", err)
+		return "slave"
+	}
+	return podRole
+}
+
 // Get Redis nodes by it's role i.e. master, slave and sentinel
 func GetRedisNodesByRole(ctx context.Context, cl kubernetes.Interface, cr *rrvb2.RedisReplication, redisRole string) ([]string, error) {
 	return getRedisNodesByRole(ctx, cl, cr, redisRole, func(ctx context.Context, pod *corev1.Pod) (string, error) {
-		redisClient := configureRedisReplicationClientForPod(ctx, cl, cr, pod)
-		defer redisClient.Close()
-
-		return checkRedisServerRole(ctx, redisClient, pod.Name)
+		return getRedisReplicationPodRole(ctx, cl, cr, pod), nil
 	})
 }
 

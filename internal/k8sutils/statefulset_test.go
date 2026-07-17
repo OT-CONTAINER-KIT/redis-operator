@@ -21,6 +21,83 @@ import (
 	"k8s.io/utils/ptr"
 )
 
+func TestIsStatefulSetReadyZeroReplicas(t *testing.T) {
+	tests := []struct {
+		name   string
+		sts    *appsv1.StatefulSet
+		want   bool
+	}{
+		{
+			name: "zero replicas with mismatched revisions is ready once observed",
+			sts: &appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "example-follower",
+					Namespace:  "default",
+					Generation: 2,
+				},
+				Spec: appsv1.StatefulSetSpec{
+					Replicas: ptr.To(int32(0)),
+				},
+				Status: appsv1.StatefulSetStatus{
+					ObservedGeneration: 2,
+					CurrentRevision:    "example-follower-old",
+					UpdateRevision:     "example-follower-new",
+					ReadyReplicas:      0,
+					UpdatedReplicas:    0,
+				},
+			},
+			want: true,
+		},
+		{
+			name: "zero replicas not ready until generation is observed",
+			sts: &appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "example-follower",
+					Namespace:  "default",
+					Generation: 2,
+				},
+				Spec: appsv1.StatefulSetSpec{
+					Replicas: ptr.To(int32(0)),
+				},
+				Status: appsv1.StatefulSetStatus{
+					ObservedGeneration: 1,
+					CurrentRevision:    "example-follower-new",
+					UpdateRevision:     "example-follower-new",
+				},
+			},
+			want: false,
+		},
+		{
+			name: "non-zero replicas still require matching revisions",
+			sts: &appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "example-leader",
+					Namespace:  "default",
+					Generation: 1,
+				},
+				Spec: appsv1.StatefulSetSpec{
+					Replicas: ptr.To(int32(3)),
+				},
+				Status: appsv1.StatefulSetStatus{
+					ObservedGeneration: 1,
+					CurrentRevision:    "example-leader-old",
+					UpdateRevision:     "example-leader-new",
+					ReadyReplicas:      3,
+					UpdatedReplicas:    3,
+				},
+			},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := NewStatefulSetService(k8sClientFake.NewSimpleClientset(tt.sts))
+			assert.Equal(t, tt.want, svc.IsStatefulSetReady(context.Background(), tt.sts.Namespace, tt.sts.Name))
+		})
+	}
+}
+
 func TestGenerateAuthAndTLSArgs(t *testing.T) {
 	tests := []struct {
 		name         string
