@@ -167,9 +167,9 @@ func TestBuildSentinelEnv(t *testing.T) {
 
 	t.Run("no password secret only sets quorum", func(t *testing.T) {
 		envs := buildSentinelEnv(newRR(nil, nil))
-		require.Len(t, envs, 1)
-		assert.Equal(t, "QUORUM", envs[0].Name)
-		assert.Equal(t, "2", envs[0].Value) // size 3 -> 3/2+1
+		assertEnvValue(t, envs, "MASTER_GROUP_NAME", masterGroupName)
+		assertEnvValue(t, envs, "PORT", "6379")
+		assertEnvValue(t, envs, "QUORUM", "2") // size 3 -> 3/2+1
 	})
 
 	t.Run("falls back to top-level redis secret", func(t *testing.T) {
@@ -186,6 +186,22 @@ func TestBuildSentinelEnv(t *testing.T) {
 		envs := buildSentinelEnv(newRR(nil, sentinelSecret))
 		assertMasterPassword(t, envs, "sentinel-secret", "sentinel-password")
 	})
+
+	t.Run("passes sentinel tuning env to bootstrap", func(t *testing.T) {
+		rr := newRR(nil, nil)
+		rr.Spec.Sentinel.DownAfterMilliseconds = "5000"
+		rr.Spec.Sentinel.ParallelSyncs = "1"
+		rr.Spec.Sentinel.FailoverTimeout = "10000"
+		rr.Spec.Sentinel.ResolveHostnames = "yes"
+		rr.Spec.Sentinel.AnnounceHostnames = "yes"
+
+		envs := buildSentinelEnv(rr)
+		assertEnvValue(t, envs, "DOWN_AFTER_MILLISECONDS", "5000")
+		assertEnvValue(t, envs, "PARALLEL_SYNCS", "1")
+		assertEnvValue(t, envs, "FAILOVER_TIMEOUT", "10000")
+		assertEnvValue(t, envs, "RESOLVE_HOSTNAMES", "yes")
+		assertEnvValue(t, envs, "ANNOUNCE_HOSTNAMES", "yes")
+	})
 }
 
 func assertMasterPassword(t *testing.T, envs []corev1.EnvVar, wantName, wantKey string) {
@@ -201,6 +217,17 @@ func assertMasterPassword(t *testing.T, envs []corev1.EnvVar, wantName, wantKey 
 		return
 	}
 	t.Fatalf("MASTER_PASSWORD env var not found in %+v", envs)
+}
+
+func assertEnvValue(t *testing.T, envs []corev1.EnvVar, name, want string) {
+	t.Helper()
+	for _, e := range envs {
+		if e.Name == name {
+			assert.Equal(t, want, e.Value)
+			return
+		}
+	}
+	t.Fatalf("%s env var not found in %+v", name, envs)
 }
 
 // TestConfigureSentinelPodUsesSentinelRedisSecret exercises the controller path

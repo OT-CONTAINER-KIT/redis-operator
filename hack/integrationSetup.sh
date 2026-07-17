@@ -3,6 +3,7 @@ set -euo pipefail
 
 K8S_VERSION="${K8S_VERSION:="1.28.x"}"
 KUBEBUILDER_ASSETS="/usr/local/kubebuilder/bin"
+ENVTEST_USE_DEPRECATED_GCS="${ENVTEST_USE_DEPRECATED_GCS:=false}"
 
 main() {
     tools
@@ -33,7 +34,7 @@ kubebuilder() {
     sudo mkdir -p ${KUBEBUILDER_ASSETS}
     sudo chown "${USER}" ${KUBEBUILDER_ASSETS}
     arch=$(go env GOARCH)
-    ln -sf $(setup-envtest use -p path "${K8S_VERSION}" --arch="${arch}" --bin-dir="${KUBEBUILDER_ASSETS}")/* ${KUBEBUILDER_ASSETS}
+    ln -sf $(setup-envtest use -p path "${K8S_VERSION}" --arch="${arch}" --bin-dir="${KUBEBUILDER_ASSETS}" --use-deprecated-gcs="${ENVTEST_USE_DEPRECATED_GCS}")/* ${KUBEBUILDER_ASSETS}
     find $KUBEBUILDER_ASSETS
 }
 
