@@ -271,6 +271,7 @@ func setupControllers(mgr ctrl.Manager, k8sClient kubernetes.Interface, maxConcu
 	}
 	if err := (&redissentinelcontroller.RedisSentinelReconciler{
 		Client:             mgr.GetClient(),
+		StatefulSet:        k8sutils.NewStatefulSetService(k8sClient),
 		Checker:            redis.NewChecker(k8sClient),
 		Healer:             healer,
 		K8sClient:          k8sClient,

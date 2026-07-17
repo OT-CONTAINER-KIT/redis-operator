@@ -15,6 +15,14 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
+    - description: The current state of the RedisReplication
+      jsonPath: .status.state
+      name: State
+      type: string
+    - description: Number of ready replicas
+      jsonPath: .status.readyReplicas
+      name: ReadyReplicas
+      type: integer
     - jsonPath: .status.masterNode
       name: Master
       type: string
@@ -7305,11 +7313,11 @@ spec:
             - kubernetesConfig
             type: object
           status:
-            description: RedisStatus defines the observed state of Redis
+            description: RedisReplicationStatus defines the observed state of RedisReplication
             properties:
               connectionInfo:
                 description: ConnectionInfo provides connection details for clients
-                  to connect to Redis
+                  to connect to Redis.
                 properties:
                   host:
                     description: Host is the service FQDN
@@ -7323,6 +7331,20 @@ spec:
                     type: integer
                 type: object
               masterNode:
+                description: MasterNode is the pod name of the current Redis master.
+                type: string
+              readyReplicas:
+                description: ReadyReplicas is the number of pods that are currently
+                  ready.
+                format: int32
+                type: integer
+              reason:
+                description: Reason provides a human-readable explanation of the current
+                  state.
+                type: string
+              state:
+                description: State is the current lifecycle state of the RedisReplication
+                  resource.
                 type: string
             type: object
         required:

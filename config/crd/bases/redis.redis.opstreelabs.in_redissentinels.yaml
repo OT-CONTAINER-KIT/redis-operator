@@ -14,10 +14,22 @@ spec:
     singular: redissentinel
   scope: Namespaced
   versions:
-  - name: v1beta2
+  - additionalPrinterColumns:
+    - description: The current state of the RedisSentinel
+      jsonPath: .status.state
+      name: State
+      type: string
+    - description: Number of ready sentinel replicas
+      jsonPath: .status.readyReplicas
+      name: ReadyReplicas
+      type: integer
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1beta2
     schema:
       openAPIV3Schema:
-        description: Redis is the Schema for the redis API
+        description: RedisSentinel is the Schema for the redis sentinel API
         properties:
           apiVersion:
             description: |-
@@ -5203,6 +5215,21 @@ spec:
             - kubernetesConfig
             type: object
           status:
+            description: RedisSentinelStatus defines the observed state of RedisSentinel
+            properties:
+              readyReplicas:
+                description: ReadyReplicas is the number of sentinel pods that are
+                  currently ready.
+                format: int32
+                type: integer
+              reason:
+                description: Reason provides a human-readable explanation of the current
+                  state.
+                type: string
+              state:
+                description: State is the current lifecycle state of the RedisSentinel
+                  resource.
+                type: string
             type: object
         required:
         - spec

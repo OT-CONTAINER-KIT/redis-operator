@@ -18,6 +18,7 @@ package redis
 
 import (
 	"context"
+	"reflect"
 	"time"
 
 	rvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redis/v1beta2"
@@ -26,10 +27,12 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -62,6 +65,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if err = k8sutils.AddFinalizer(ctx, instance, RedisFinalizer, r.Client); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "failed to add finalizer")
 	}
+
 	err = k8sutils.CreateStandaloneRedis(ctx, instance, r.K8sClient)
 	if err != nil {
 		return intctrlutil.RequeueE(ctx, err, "failed to create redis")
@@ -83,7 +87,39 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return intctrlutil.RequeueAfter(ctx, time.Second*10, "waiting for redis to become reachable to apply dynamic config")
 		}
 	}
+
+	// Update status based on StatefulSet readiness. The StatefulSet owns this
+	// reconcile loop (via Owns), so we will be re-triggered when it becomes ready.
+	var newStatus rvb2.RedisStatus
+	if r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name) {
+		newStatus = rvb2.RedisStatus{State: rvb2.RedisReady, Reason: rvb2.ReadyRedisReason}
+	} else {
+		newStatus = rvb2.RedisStatus{State: rvb2.RedisInitializing, Reason: rvb2.InitializingRedisReason}
+	}
+	if err = r.updateStatus(ctx, instance, newStatus); err != nil {
+		return intctrlutil.RequeueE(ctx, err, "failed to update redis status")
+	}
+
 	return intctrlutil.Reconciled()
+}
+
+func (r *Reconciler) updateStatus(ctx context.Context, redis *rvb2.Redis, status rvb2.RedisStatus) error {
+	if reflect.DeepEqual(redis.Status, status) {
+		return nil
+	}
+	copy := redis.DeepCopy()
+	copy.Status = status
+	err := common.UpdateStatus(ctx, r.Client, copy)
+	if err != nil && apierrors.IsConflict(err) {
+		log.FromContext(ctx).Info("conflict detected, reloading instance and retrying status update")
+		if err := r.Get(ctx, client.ObjectKey{Namespace: redis.Namespace, Name: redis.Name}, redis); err != nil {
+			return err
+		}
+		copy = redis.DeepCopy()
+		copy.Status = status
+		return common.UpdateStatus(ctx, r.Client, copy)
+	}
+	return err
 }
 
 // SetupWithManager sets up the controller with the Manager.
