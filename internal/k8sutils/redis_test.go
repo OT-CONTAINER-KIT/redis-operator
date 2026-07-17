@@ -55,6 +55,33 @@ func TestCheckRedisNodePresence(t *testing.T) {
 	}
 }
 
+func Test_clusterNodes(t *testing.T) {
+	t.Run("parses valid CLUSTER NODES output", func(t *testing.T) {
+		redisClient, mock := redismock.NewClientMock()
+		mock.ExpectClusterNodes().SetVal(`07c37dfeb235213a872192d90877d0cd55635b91 127.0.0.1:30004@31004,redis-cluster-follower-0 slave e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 0 1426238317239 4 connected
+e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@31001,redis-cluster-leader-1 myself,master - 0 0 1 connected 0-5460
+`)
+		nodes, err := clusterNodes(context.TODO(), redisClient)
+		assert.NoError(t, err)
+		assert.Len(t, nodes, 2)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("returns an error for a malformed short record", func(t *testing.T) {
+		redisClient, mock := redismock.NewClientMock()
+		// The second line has only 4 fields (<8), which is invalid CLUSTER NODES
+		// output; clusterNodes must surface this rather than returning a partial
+		// topology that downstream slot parsing (fields[8:]) would panic on.
+		mock.ExpectClusterNodes().SetVal(`e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@31001,redis-cluster-leader-1 myself,master - 0 0 1 connected 0-5460
+deadbeef 127.0.0.1:30002@31002 master -
+`)
+		nodes, err := clusterNodes(context.TODO(), redisClient)
+		assert.Error(t, err)
+		assert.Nil(t, nodes)
+		assert.Contains(t, err.Error(), "expected at least 8 fields")
+	})
+}
+
 func TestRepairDisconnectedNodes(t *testing.T) {
 	ctx := context.Background()
 	redisClient, mock := redismock.NewClientMock()

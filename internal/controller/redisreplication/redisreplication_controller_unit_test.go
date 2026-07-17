@@ -233,8 +233,8 @@ func (f *fakeStatefulSetService) IsStatefulSetReady(context.Context, string, str
 	return true
 }
 
-func (f *fakeStatefulSetService) GetStatefulSetReplicas(context.Context, string, string) int32 {
-	return 0
+func (f *fakeStatefulSetService) GetStatefulSetReplicas(context.Context, string, string) (int32, error) {
+	return 0, nil
 }
 
 type fakeHealer struct {
