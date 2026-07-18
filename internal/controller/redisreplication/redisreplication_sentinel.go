@@ -2,7 +2,9 @@ package redisreplication
 
 import (
 	"fmt"
+	"path"
 
+	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/statefulset"
@@ -64,6 +66,18 @@ func buildSentinelPodTemplate(rr *rrvb2.RedisReplication, labels map[string]stri
 		},
 	}
 
+	// Add TLS certificate volume if TLS is enabled
+	if rr.Spec.TLS != nil {
+		spec.Volumes = []corev1.Volume{
+			{
+				Name: "tls-certs",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &rr.Spec.TLS.Secret,
+				},
+			},
+		}
+	}
+
 	sentinel := rr.Spec.Sentinel
 	if sentinel.Affinity != nil {
 		spec.Affinity = sentinel.Affinity
@@ -115,6 +129,18 @@ func buildSentinelContainer(rr *rrvb2.RedisReplication) corev1.Container {
 		},
 		Env: buildSentinelEnv(rr),
 	}
+
+	// Add TLS volume mount if TLS is enabled
+	if rr.Spec.TLS != nil {
+		container.VolumeMounts = []corev1.VolumeMount{
+			{
+				Name:      "tls-certs",
+				ReadOnly:  true,
+				MountPath: "/tls",
+			},
+		}
+	}
+
 	if rr.Spec.Sentinel.Resources != nil {
 		container.Resources = *rr.Spec.Sentinel.Resources
 	}
@@ -128,6 +154,12 @@ func buildSentinelEnv(rr *rrvb2.RedisReplication) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{Name: "QUORUM", Value: fmt.Sprintf("%d", rr.Spec.Sentinel.Size/2+1)},
 	}
+
+	// Add TLS environment variables if TLS is enabled
+	if rr.Spec.TLS != nil {
+		envs = append(envs, generateSentinelTLSEnv(rr.Spec.TLS)...)
+	}
+
 	passwordSecret := rr.Spec.KubernetesConfig.ExistingPasswordSecret
 	if rr.Spec.Sentinel.ExistingPasswordSecret != nil {
 		passwordSecret = rr.Spec.Sentinel.ExistingPasswordSecret
@@ -147,4 +179,50 @@ func buildSentinelEnv(rr *rrvb2.RedisReplication) []corev1.EnvVar {
 	}
 
 	return envs
+}
+
+// generateSentinelTLSEnv creates TLS-related environment variables for Sentinel
+func generateSentinelTLSEnv(tlsConfig *commonapi.TLSConfig) []corev1.EnvVar {
+	root := "/tls/"
+
+	// Get and set defaults
+	caCert := "ca.crt"
+	tlsCert := "tls.crt"
+	tlsCertKey := "tls.key"
+
+	if tlsConfig.CaCertFile != "" {
+		caCert = tlsConfig.CaCertFile
+	}
+	if tlsConfig.CertKeyFile != "" {
+		tlsCert = tlsConfig.CertKeyFile
+	}
+	if tlsConfig.KeyFile != "" {
+		tlsCertKey = tlsConfig.KeyFile
+	}
+
+	caPath := path.Join(root, caCert)
+
+	return []corev1.EnvVar{
+		{
+			Name:  "TLS_MODE",
+			Value: "true",
+		},
+		{
+			Name:  "REDIS_TLS_CA_CERT",
+			Value: caPath,
+		},
+		// REDIS_TLS_CA_KEY: the sentinel/redis image entrypoints read this name instead of REDIS_TLS_CA_CERT
+		{
+			Name:  "REDIS_TLS_CA_KEY",
+			Value: caPath,
+		},
+		{
+			Name:  "REDIS_TLS_CERT",
+			Value: path.Join(root, tlsCert),
+		},
+		{
+			Name:  "REDIS_TLS_CERT_KEY",
+			Value: path.Join(root, tlsCertKey),
+		},
+	}
 }

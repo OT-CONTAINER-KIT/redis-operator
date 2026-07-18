@@ -1,0 +1,44 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-replication-sentinel-tls-s
+  ownerReferences:
+    - apiVersion: redis.redis.opstreelabs.in/v1beta2
+      controller: true
+      kind: RedisReplication
+      name: redis-replication-sentinel-tls
+spec:
+  selector:
+    matchLabels:
+      app: redis-replication-sentinel-tls-s
+      redis_setup_type: sentinel
+      role: sentinel
+  template:
+    metadata:
+      labels:
+        app: redis-replication-sentinel-tls-s
+        redis_setup_type: sentinel
+        role: sentinel
+    spec:
+      volumes:
+        - name: tls-certs
+          secret:
+            secretName: redis-tls-cert
+      containers:
+        - name: sentinel
+          volumeMounts:
+            - name: tls-certs
+              readOnly: true
+              mountPath: /tls
+          env:
+            - name: TLS_MODE
+              value: "true"
+            - name: REDIS_TLS_CA_CERT
+              value: /tls/ca.crt
+            - name: REDIS_TLS_CA_KEY
+              value: /tls/ca.crt
+            - name: REDIS_TLS_CERT
+              value: /tls/tls.crt
+            - name: REDIS_TLS_CERT_KEY
+              value: /tls/tls.key
