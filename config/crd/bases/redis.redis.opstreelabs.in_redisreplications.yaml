@@ -1554,6 +1554,10 @@ spec:
                 description: KubernetesConfig will be the JSON struct for Basic Redis
                   Config
                 properties:
+                  additionalLabels:
+                    additionalProperties:
+                      type: string
+                    type: object
                   ignoreAnnotations:
                     items:
                       type: string
@@ -2819,6 +2823,10 @@ spec:
                 type: object
               sentinel:
                 properties:
+                  additionalLabels:
+                    additionalProperties:
+                      type: string
+                    type: object
                   additionalSentinelConfig:
                     type: string
                   affinity:

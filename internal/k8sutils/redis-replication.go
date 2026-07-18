@@ -16,7 +16,7 @@ import (
 
 // CreateReplicationService method will create replication service for Redis
 func CreateReplicationService(ctx context.Context, cr *rrvb2.RedisReplication, cl kubernetes.Interface) error {
-	labels := getRedisLabels(cr.Name, replication, "replication", cr.Labels)
+	labels := getRedisLabelsWithAdditional(cr.Name, replication, "replication", cr.Labels, cr.Spec.KubernetesConfig.AdditionalLabels)
 
 	epp := disableMetrics
 	if cr.Spec.RedisExporter != nil {
@@ -79,7 +79,7 @@ func CreateReplicationService(ctx context.Context, cr *rrvb2.RedisReplication, c
 // CreateReplicationRedis will create a replication redis setup
 func CreateReplicationRedis(ctx context.Context, cr *rrvb2.RedisReplication, cl kubernetes.Interface) error {
 	stateFulName := cr.Name
-	labels := getRedisLabels(cr.Name, replication, "replication", cr.Labels)
+	labels := getRedisLabelsWithAdditional(cr.Name, replication, "replication", cr.Labels, cr.Spec.KubernetesConfig.AdditionalLabels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, annotations)
 

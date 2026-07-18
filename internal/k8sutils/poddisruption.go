@@ -21,7 +21,7 @@ import (
 func ReconcileRedisPodDisruptionBudget(ctx context.Context, cr *rcvb2.RedisCluster, role string, pdbParams *common.RedisPodDisruptionBudget, cl kubernetes.Interface) error {
 	pdbName := cr.Name + "-" + role
 	if pdbParams != nil && pdbParams.Enabled {
-		labels := getRedisLabels(cr.Name, cluster, role, cr.GetLabels())
+		labels := getRedisLabelsWithAdditional(cr.Name, cluster, role, cr.GetLabels(), cr.Spec.KubernetesConfig.AdditionalLabels)
 		annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 		pdbMeta := generateObjectMetaInformation(pdbName, cr.Namespace, labels, annotations)
 		pdbDef := generatePodDisruptionBudgetDef(ctx, cr, role, pdbMeta, pdbParams)
@@ -43,7 +43,7 @@ func ReconcileRedisPodDisruptionBudget(ctx context.Context, cr *rcvb2.RedisClust
 func ReconcileSentinelPodDisruptionBudget(ctx context.Context, cr *rsvb2.RedisSentinel, pdbParams *common.RedisPodDisruptionBudget, cl kubernetes.Interface) error {
 	pdbName := cr.Name + "-sentinel"
 	if pdbParams != nil && pdbParams.Enabled {
-		labels := getRedisLabels(cr.Name, sentinel, "sentinel", cr.GetLabels())
+		labels := getRedisLabelsWithAdditional(cr.Name, sentinel, "sentinel", cr.GetLabels(), cr.Spec.KubernetesConfig.AdditionalLabels)
 		annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 		pdbMeta := generateObjectMetaInformation(pdbName, cr.Namespace, labels, annotations)
 		pdbDef := generateSentinelPodDisruptionBudgetDef(ctx, cr, "sentinel", pdbMeta, pdbParams)
@@ -65,7 +65,7 @@ func ReconcileSentinelPodDisruptionBudget(ctx context.Context, cr *rsvb2.RedisSe
 func ReconcileReplicationPodDisruptionBudget(ctx context.Context, cr *rrvb2.RedisReplication, pdbParams *common.RedisPodDisruptionBudget, cl kubernetes.Interface) error {
 	pdbName := cr.Name + "-replication"
 	if pdbParams != nil && pdbParams.Enabled {
-		labels := getRedisLabels(cr.Name, replication, "replication", cr.GetObjectMeta().GetLabels())
+		labels := getRedisLabelsWithAdditional(cr.Name, replication, "replication", cr.GetObjectMeta().GetLabels(), cr.Spec.KubernetesConfig.AdditionalLabels)
 		annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 		pdbMeta := generateObjectMetaInformation(pdbName, cr.Namespace, labels, annotations)
 		pdbDef := generateReplicationPodDisruptionBudgetDef(ctx, cr, "replication", pdbMeta, pdbParams)
