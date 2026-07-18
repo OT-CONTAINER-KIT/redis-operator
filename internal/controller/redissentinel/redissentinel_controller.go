@@ -12,6 +12,7 @@ import (
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/controllerutil"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/envs"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/monitoring"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -63,13 +64,16 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	for _, reconciler := range reconcilers {
 		result, err := reconciler.rec(ctx, instance)
 		if err != nil {
+			monitoring.RedisSentinelHealthy.WithLabelValues(instance.Namespace, instance.Name).Set(0)
 			return intctrlutil.RequeueE(ctx, err, "")
 		}
 		if result.Requeue {
+			monitoring.RedisSentinelHealthy.WithLabelValues(instance.Namespace, instance.Name).Set(0)
 			return result, nil
 		}
 	}
 
+	monitoring.RedisSentinelHealthy.WithLabelValues(instance.Namespace, instance.Name).Set(1)
 	return intctrlutil.Reconciled()
 }
 
@@ -141,12 +145,18 @@ func (r *RedisSentinelReconciler) reconcileSentinel(ctx context.Context, instanc
 	if err := r.Healer.SentinelMonitor(ctx, instance, monitorAddr); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
+	monitoring.RedisSentinelMonitorTotal.WithLabelValues(instance.Namespace, instance.Name).Inc()
+
 	if err := r.Healer.SentinelSet(ctx, instance, monitorAddr); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
+	monitoring.RedisSentinelSetTotal.WithLabelValues(instance.Namespace, instance.Name).Inc()
+
 	if err := r.Healer.SentinelReset(ctx, instance); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
+	monitoring.RedisSentinelResetTotal.WithLabelValues(instance.Namespace, instance.Name).Inc()
+
 	return intctrlutil.Reconciled()
 }
 

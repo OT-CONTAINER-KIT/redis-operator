@@ -126,6 +126,7 @@ func runManager(opts *managerOptions) error {
 
 	monitoring.RegisterRedisReplicationMetrics()
 	monitoring.RegisterRedisClusterMetrics()
+	monitoring.RegisterRedisSentinelMetrics()
 
 	setupLog.Info("setting up v1beta2 scheme")
 	scheme.SetupV1beta2Scheme()
