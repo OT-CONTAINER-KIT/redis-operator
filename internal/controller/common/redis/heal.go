@@ -78,6 +78,16 @@ func (h *healer) UpdateRedisRoleLabel(ctx context.Context, ns string, labels map
 		isMaster, err := h.redis.Connect(connInfo).IsMaster(ctx)
 		if err != nil {
 			log.FromContext(ctx).Error(err, "failed to check redis role, skipping pod", "pod", pod.Name)
+			if oldRole := pod.Labels[common.RedisRoleLabelKey]; oldRole != "" {
+				patch := []byte(fmt.Sprintf(`[{"op": "remove", "path": "/metadata/labels/%s"}]`, common.RedisRoleLabelKey))
+				if rErr := retry.RetryOnConflict(retry.DefaultRetry, patchFunc(pod.Name, patch)); rErr != nil {
+					return fmt.Errorf("failed to remove stale pod role label: %w", rErr)
+				}
+				log.FromContext(ctx).Info("removed stale pod role label after probe failure",
+					"pod", pod.Name,
+					"oldRole", oldRole,
+				)
+			}
 			continue
 		}
 		role := common.RedisRoleLabelSlave
