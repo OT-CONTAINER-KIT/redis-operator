@@ -934,7 +934,8 @@ func getRedisNodesByRole(ctx context.Context, cl kubernetes.Interface, cr *rrvb2
 
 		podRole, err := probeRole(ctx, pod)
 		if err != nil {
-			return nil, err
+			log.FromContext(ctx).Error(err, "Failed to probe Redis role, skipping pod", "pod", podName)
+			continue
 		}
 		if podRole == redisRole {
 			pods = append(pods, podName)

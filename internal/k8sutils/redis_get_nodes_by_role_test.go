@@ -106,7 +106,7 @@ func TestGetRedisNodesByRoleSkipsUnprobeablePods(t *testing.T) {
 	}
 }
 
-func TestGetRedisNodesByRoleFailsWhenReadyPodProbeFails(t *testing.T) {
+func TestGetRedisNodesByRoleSkipsWhenReadyPodProbeFails(t *testing.T) {
 	client := k8sClientFake.NewSimpleClientset(
 		newRedisReplicationStatefulSet(),
 		newReadyRedisPod("example-replication-0", "10.0.0.10"),
@@ -114,14 +114,18 @@ func TestGetRedisNodesByRoleFailsWhenReadyPodProbeFails(t *testing.T) {
 		newReadyRedisPod("example-replication-2", "10.0.0.12"),
 	)
 
-	_, err := getRedisNodesByRole(context.Background(), client, newRedisReplication(), "master", func(_ context.Context, pod *corev1.Pod) (string, error) {
+	nodes, err := getRedisNodesByRole(context.Background(), client, newRedisReplication(), "master", func(_ context.Context, pod *corev1.Pod) (string, error) {
+		if pod.Name == "example-replication-0" {
+			return "master", nil
+		}
 		if pod.Name == "example-replication-1" {
 			return "", errors.New("probe failed")
 		}
 		return "slave", nil
 	})
 
-	assert.ErrorContains(t, err, "probe failed")
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"example-replication-0"}, nodes)
 }
 
 func TestGetRedisNodesByRoleCompleteTopology(t *testing.T) {

@@ -2,6 +2,7 @@ package redis
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
@@ -47,9 +48,43 @@ func TestUpdateRedisRoleLabelSkipsUnprobeablePods(t *testing.T) {
 	}
 }
 
+func TestUpdateRedisRoleLabelRemovesStaleLabelOnUnreachablePod(t *testing.T) {
+	labels := map[string]string{"app": "redis"}
+	staleMaster := newLabeledRedisPod("redis-0", labels, "10.0.0.10", corev1.PodRunning, true)
+	staleMaster.Labels[common.RedisRoleLabelKey] = common.RedisRoleLabelMaster
+	healthySlave := newLabeledRedisPod("redis-1", labels, "10.0.0.11", corev1.PodRunning, true)
+
+	clientset := k8sfake.NewSimpleClientset(staleMaster, healthySlave)
+	redisClient := &fakeRedisClient{
+		isMasterByHost: map[string]bool{
+			"10.0.0.11": false,
+		},
+		errByHost: map[string]error{
+			"10.0.0.10": errors.New("connection refused"),
+		},
+	}
+	h := &healer{
+		k8s:   clientset,
+		redis: redisClient,
+	}
+
+	err := h.UpdateRedisRoleLabel(context.Background(), "default", labels, nil, nil)
+
+	require.NoError(t, err)
+
+	unreachablePod, err := clientset.CoreV1().Pods("default").Get(context.Background(), "redis-0", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Empty(t, unreachablePod.Labels[common.RedisRoleLabelKey])
+
+	healthyPod, err := clientset.CoreV1().Pods("default").Get(context.Background(), "redis-1", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, common.RedisRoleLabelSlave, healthyPod.Labels[common.RedisRoleLabelKey])
+}
+
 type fakeRedisClient struct {
 	connectHosts   []string
 	isMasterByHost map[string]bool
+	errByHost      map[string]error
 }
 
 func (f *fakeRedisClient) Connect(info *redisservice.ConnectionInfo) redisservice.Service {
@@ -57,15 +92,20 @@ func (f *fakeRedisClient) Connect(info *redisservice.ConnectionInfo) redisservic
 	return &fakeRedisService{
 		host:           info.Host,
 		isMasterByHost: f.isMasterByHost,
+		errByHost:      f.errByHost,
 	}
 }
 
 type fakeRedisService struct {
 	host           string
 	isMasterByHost map[string]bool
+	errByHost      map[string]error
 }
 
 func (f *fakeRedisService) IsMaster(context.Context) (bool, error) {
+	if err := f.errByHost[f.host]; err != nil {
+		return false, err
+	}
 	return f.isMasterByHost[f.host], nil
 }
 
