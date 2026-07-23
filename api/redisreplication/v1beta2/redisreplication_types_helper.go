@@ -23,6 +23,9 @@ func (cr *RedisReplication) SentinelHLService() string {
 // "mymaster" (see internal/agent/bootstrap/sentinel/config.go, which falls back
 // to "mymaster" because the embedded Sentinel env never sets MASTER_GROUP_NAME).
 func (cr *RedisReplication) SentinelMasterName() string {
+	if cr.Spec.Sentinel.MasterGroupName != "" {
+		return cr.Spec.Sentinel.MasterGroupName
+	}
 	return "mymaster"
 }
 

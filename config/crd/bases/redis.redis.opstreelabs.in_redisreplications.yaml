@@ -3747,6 +3747,8 @@ spec:
                       type: object
                       x-kubernetes-map-type: atomic
                     type: array
+                  masterGroupName:
+                    type: string
                   minReadySeconds:
                     format: int32
                     type: integer

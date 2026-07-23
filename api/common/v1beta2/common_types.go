@@ -251,6 +251,7 @@ type RedisSentinelConfig struct {
 // +k8s:deepcopy-gen=true
 type SentinelConfig struct {
 	AdditionalSentinelConfig *string `json:"additionalSentinelConfig,omitempty"`
+	MasterGroupName          string  `json:"masterGroupName,omitempty"`
 	// +kubebuilder:default:="2"
 	Quorum string `json:"quorum,omitempty"`
 	// +kubebuilder:default:="1"
