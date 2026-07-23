@@ -10,7 +10,93 @@ description: >
 # API Reference
 
 ## Packages
+- [redis.redis.opstreelabs.in/v1alpha1](#redisredisopstreelabsinv1alpha1)
 - [redis.redis.opstreelabs.in/v1beta2](#redisredisopstreelabsinv1beta2)
+
+
+## redis.redis.opstreelabs.in/v1alpha1
+
+Package v1alpha1 contains API Schema definitions for the redis v1alpha1 API group.
+
+### Resource Types
+- [RedisBackup](#redisbackup)
+
+
+
+
+
+#### RedisBackup
+
+
+
+RedisBackup defines a backup operation for a Redis cluster.
+When created, the operator will snapshot the target Redis cluster
+and upload the backup file to the configured storage backend.
+
+
+
+
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `redis.redis.opstreelabs.in/v1alpha1` | | |
+| `kind` _string_ | `RedisBackup` | | |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `spec` _[RedisBackupSpec](#redisbackupspec)_ |  |  |  |
+
+
+#### RedisBackupSpec
+
+
+
+RedisBackupSpec defines what the user wants — the desired state
+
+
+
+_Appears in:_
+- [RedisBackup](#redisbackup)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `redisClusterName` _string_ | RedisClusterName is the name of the Redis resource in the same namespace<br />that this backup targets. Must match an existing Redis/RedisCluster resource. |  | MinLength: 1 <br />Required: \{\} <br /> |
+| `storageType` _[StorageType](#storagetype)_ | StorageType is the backend storage provider. Currently supported: s3 |  | Enum: [s3] <br />Required: \{\} <br /> |
+| `s3` _[S3StorageConfig](#s3storageconfig)_ | S3 holds configuration specific to AWS S3 storage.<br />Required when storageType is "s3". |  |  |
+| `schedule` _string_ | Schedule is an optional cron expression for recurring backups.<br />Example: "0 2 * * *" means every day at 2 AM UTC.<br />Leave empty to trigger a one-time backup immediately on creation. |  |  |
+| `retentionDays` _integer_ | RetentionDays defines how many days backup files are kept in storage.<br />Defaults to 7 days if not specified. Minimum value is 1. | 7 | Minimum: 1 <br /> |
+
+
+#### S3StorageConfig
+
+
+
+S3StorageConfig holds all configuration needed to upload a backup to AWS S3
+
+
+
+_Appears in:_
+- [RedisBackupSpec](#redisbackupspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `bucket` _string_ | Bucket is the name of the S3 bucket where backups will be stored |  | MinLength: 3 <br />Required: \{\} <br /> |
+| `region` _string_ | Region is the AWS region where the S3 bucket lives (e.g. ap-south-1) |  | Required: \{\} <br /> |
+| `endpoint` _string_ | Endpoint is an optional custom S3-compatible endpoint URL (e.g. for MinIO) |  |  |
+| `secretName` _string_ | SecretName is the name of the Kubernetes Secret in the same namespace<br />that contains AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY keys |  | Required: \{\} <br /> |
+
+
+#### StorageType
+
+_Underlying type:_ _string_
+
+StorageType defines the backend storage provider for backups
+
+_Validation:_
+- Enum: [s3]
+
+_Appears in:_
+- [RedisBackupSpec](#redisbackupspec)
+
+
 
 
 ## redis.redis.opstreelabs.in/v1beta2
