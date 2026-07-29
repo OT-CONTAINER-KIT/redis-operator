@@ -6,6 +6,7 @@ import (
 
 	agentutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/agent/util"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
+	"github.com/Showmax/go-fqdn"
 )
 
 // defaultSentinelConfig from https://github.com/OT-CONTAINER-KIT/redis/blob/master/sentinel.conf
@@ -77,7 +78,9 @@ func GenerateConfig() error {
 
 		// If resolveHostnames is set to yes, then we need to announce the hostnames
 		if announceHostnames == "yes" && resolveHostnames == "yes" {
-			cfg.Append("sentinel announce-ip", ip)
+			if fqdnName, err := fqdn.FqdnHostname(); err == nil {
+				cfg.Append("sentinel announce-ip", fqdnName)
+			}
 		}
 	}
 

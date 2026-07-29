@@ -104,6 +104,11 @@ func GenerateConfig() error {
 		}
 	} else {
 		fmt.Println("Setting up redis in standalone mode")
+		if clusterMode == "replication" {
+			if fqdnName, err := fqdn.FqdnHostname(); err == nil {
+				cfg.Append("replica-announce-ip", fqdnName)
+			}
+		}
 	}
 
 	if tlsMode == "true" {

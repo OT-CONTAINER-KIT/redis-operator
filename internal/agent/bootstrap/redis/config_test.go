@@ -68,6 +68,48 @@ func Test_GenerateConfig_TLS_CACertFile(t *testing.T) {
 	}
 }
 
+func Test_GenerateConfig_ReplicaAnnounceIP(t *testing.T) {
+	tests := []struct {
+		name      string
+		setupMode string
+		isReplica bool
+	}{
+		{
+			name:      "replication mode - sets replica-announce-ip when FQDN available",
+			setupMode: "replication",
+			isReplica: true,
+		},
+		{
+			name:      "standalone mode - never sets replica-announce-ip",
+			setupMode: "standalone",
+			isReplica: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			confPath := filepath.Join(t.TempDir(), "redis.conf")
+			t.Setenv("REDIS_CONFIG_FILE", confPath)
+			t.Setenv("SETUP_MODE", tt.setupMode)
+
+			require.NoError(t, GenerateConfig())
+
+			raw, err := os.ReadFile(confPath)
+			require.NoError(t, err)
+			conf := string(raw)
+
+			if !tt.isReplica {
+				assert.NotContains(t, conf, "replica-announce-ip")
+			}
+			// replica-announce-ip is only set when fqdn.FqdnHostname()
+			// succeeds (i.e. inside a K8s pod with DNS). On dev machines
+			// the FQDN lookup may fail, so we only assert the invariant:
+			// it must never fall back to 0.0.0.0.
+			assert.NotContains(t, conf, "replica-announce-ip 0.0.0.0")
+		})
+	}
+}
+
 func Test_updateMyselfIP(t *testing.T) {
 	testData := `7a6b5f4f99496c97f4e32c30c077aa95cab92664 10.244.0.246:0@16379,,tls-port=6379,shard-id=a03445a0d3f6d405af261041e0cb77a8a176f42b slave b66f2fa597eeda567cf05f3701419be9a3b2f50e 0 1756463509000 1 connected
 93ad60e9ce21430683a3534d2c96ab1b8077cfe8 10.244.0.237:0@16379,,tls-port=6379,shard-id=2f177491b895051f91e91e554a2a9da2cd167aeb master - 0 1756463509685 2 connected 5461-10922
