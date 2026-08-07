@@ -216,7 +216,7 @@ func generateRedisReplicationContainerParams(cr *rrvb2.RedisReplication) contain
 		containerProp.SentinelService = cr.SentinelHLService()
 		containerProp.SentinelMasterName = cr.SentinelMasterName()
 		containerProp.SentinelPort = 26379
-		containerProp.PreStopWaitSeconds = replicationPreStopWaitSeconds(cr.Spec.TerminationGracePeriodSeconds)
+		containerProp.PreStopWaitSeconds = preStopWaitSeconds(cr.Spec.TerminationGracePeriodSeconds)
 	}
 	return containerProp
 }
