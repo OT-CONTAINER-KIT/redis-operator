@@ -115,7 +115,7 @@ func TestGeneratePreStopCommand(t *testing.T) {
 		cfg         PreStopConfig
 		expectEmpty bool
 	}{
-		{"ClusterRole", PreStopConfig{Role: "cluster", EnableTLS: true}, false},
+		{"ClusterRole", PreStopConfig{Role: "cluster", EnableTLS: true, WaitSeconds: 20}, false},
 		{"ReplicationWithSentinel", sentinelCfg, false},
 		// Embedded Sentinel disabled => no service => no hook, so master
 		// terminations of non-Sentinel replication never block on a missing svc.
@@ -197,7 +197,25 @@ func TestGenerateReplicationPreStopContent(t *testing.T) {
 	assert.NotContains(t, script, "--no-auth-warning")
 }
 
-func TestReplicationPreStopWaitSeconds(t *testing.T) {
+func TestGenerateClusterPreStopContent(t *testing.T) {
+	cfg := PreStopConfig{
+		Role:        "cluster",
+		EnableTLS:   false,
+		WaitSeconds: 25,
+	}
+
+	script := GeneratePreStopCommand(cfg)
+	require.NotEmpty(t, script)
+
+	// The hook still triggers a failover to the best slave...
+	assert.Contains(t, script, "cluster failover")
+	// ...then waits for the local node to be demoted so the kubelet does not
+	// SIGKILL the old master mid-failover. The wait is bounded by WaitSeconds.
+	assert.Contains(t, script, "seq 1 25")
+	assert.Contains(t, script, `awk -F: '/role:slave/ {print "slave"}'`)
+}
+
+func TestPreStopWaitSeconds(t *testing.T) {
 	tests := []struct {
 		name  string
 		grace *int64
@@ -210,7 +228,7 @@ func TestReplicationPreStopWaitSeconds(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, replicationPreStopWaitSeconds(tt.grace))
+			assert.Equal(t, tt.want, preStopWaitSeconds(tt.grace))
 		})
 	}
 }
