@@ -59,7 +59,7 @@ func CreateRedisSentinelService(ctx context.Context, cr *rsvb2.RedisSentinel, cl
 // Create Redis Sentinel Cluster Setup
 func (service RedisSentinelSTS) CreateRedisSentinelSetup(ctx context.Context, client kubernetes.Interface, cr *rsvb2.RedisSentinel, cl kubernetes.Interface, ctrlClient client.Client) error {
 	stateFulName := cr.Name + "-" + service.RedisStateFulType
-	labels := getRedisLabels(stateFulName, sentinel, service.RedisStateFulType, cr.Labels)
+	labels := getRedisLabelsWithAdditional(stateFulName, sentinel, service.RedisStateFulType, cr.Labels, cr.Spec.KubernetesConfig.AdditionalLabels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, annotations)
 	containerParams, err := generateRedisSentinelContainerParams(ctx, client, cr, service.ReadinessProbe, service.LivenessProbe, ctrlClient)
@@ -217,7 +217,7 @@ func (service RedisSentinelSTS) getSentinelCount(cr *rsvb2.RedisSentinel) int32 
 // Create the Service for redis sentinel
 func (service RedisSentinelService) CreateRedisSentinelService(ctx context.Context, cr *rsvb2.RedisSentinel, cl kubernetes.Interface) error {
 	serviceName := cr.Name + "-" + service.RedisServiceRole
-	labels := getRedisLabels(serviceName, sentinel, service.RedisServiceRole, cr.Labels)
+	labels := getRedisLabelsWithAdditional(serviceName, sentinel, service.RedisServiceRole, cr.Labels, cr.Spec.KubernetesConfig.AdditionalLabels)
 	var epp exporterPortProvider
 	if cr.Spec.RedisExporter != nil {
 		epp = func() (port int, enable bool) {

@@ -13,7 +13,7 @@ import (
 
 // CreateStandaloneService method will create standalone service for Redis
 func CreateStandaloneService(ctx context.Context, cr *rvb2.Redis, cl kubernetes.Interface) error {
-	labels := getRedisLabels(cr.Name, standalone, "standalone", cr.Labels)
+	labels := getRedisLabelsWithAdditional(cr.Name, standalone, "standalone", cr.Labels, cr.Spec.KubernetesConfig.AdditionalLabels)
 	var epp exporterPortProvider
 	if cr.Spec.RedisExporter != nil {
 		epp = func() (port int, enable bool) {
@@ -82,7 +82,7 @@ func CreateStandaloneService(ctx context.Context, cr *rvb2.Redis, cl kubernetes.
 
 // CreateStandaloneRedis will create a standalone redis setup
 func CreateStandaloneRedis(ctx context.Context, cr *rvb2.Redis, cl kubernetes.Interface) error {
-	labels := getRedisLabels(cr.Name, standalone, "standalone", cr.Labels)
+	labels := getRedisLabelsWithAdditional(cr.Name, standalone, "standalone", cr.Labels, cr.Spec.KubernetesConfig.AdditionalLabels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 	objectMetaInfo := generateObjectMetaInformation(cr.Name, cr.Namespace, labels, annotations)
 	err := CreateOrUpdateStateFul(
