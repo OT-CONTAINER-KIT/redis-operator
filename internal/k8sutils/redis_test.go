@@ -595,9 +595,9 @@ func TestCreateMultipleLeaderRedisCommand(t *testing.T) {
 			},
 			expectedCommands: []string{
 				"redis-cli", "--cluster", "create",
-				"2001:db8:42:1::100:6379",
-				"2001:db8:42:1::101:6379",
-				"2001:db8:42:1::102:6379",
+				"[2001:db8:42:1::100]:6379",
+				"[2001:db8:42:1::101]:6379",
+				"[2001:db8:42:1::102]:6379",
 				"--cluster-yes",
 			},
 		},
