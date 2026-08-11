@@ -798,8 +798,8 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 			},
 			expectedCommand: []string{
 				"redis-cli", "--cluster", "add-node",
-				"2001:db8:42:2::200:6379",
-				"2001:db8:42:1::100:6379",
+				"[2001:db8:42:2::200]:6379",
+				"[2001:db8:42:1::100]:6379",
 				"--cluster-slave",
 			},
 		},
