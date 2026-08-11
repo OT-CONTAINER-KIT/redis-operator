@@ -295,7 +295,7 @@ func (f *fakeSentinelRedisService) SentinelReset(context.Context, string) error 
 func (f *fakeSentinelRedisService) GetInfoSentinel(context.Context) (*redis.InfoSentinelResult, error) {
 	return &redis.InfoSentinelResult{
 		Masters: []redis.SentinelMasterInfo{
-			{Name: masterGroupName, Slaves: f.slaves, Sentinels: f.sentinels},
+			{Name: defaultMasterGroupName, Slaves: f.slaves, Sentinels: f.sentinels},
 		},
 	}, nil
 }

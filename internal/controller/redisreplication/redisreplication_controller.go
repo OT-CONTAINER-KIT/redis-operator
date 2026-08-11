@@ -27,7 +27,7 @@ import (
 
 const (
 	RedisReplicationFinalizer = "redisReplicationFinalizer"
-	masterGroupName           = "mymaster"
+	defaultMasterGroupName    = "mymaster"
 )
 
 // Reconciler reconciles a RedisReplication object
@@ -284,6 +284,10 @@ func (r *Reconciler) configureSentinelPod(
 	masterAddr string,
 	masterPassword string,
 ) error {
+	masterGroupName := defaultMasterGroupName
+	if inst.Spec.Sentinel.MasterGroupName != "nil" {
+		masterGroupName = inst.Spec.Sentinel.MasterGroupName
+	}
 	var sentinelPassword string
 	if inst.Spec.Sentinel.ExistingPasswordSecret != nil {
 		secret, err := r.K8sClient.CoreV1().Secrets(inst.Namespace).Get(
@@ -349,6 +353,7 @@ func (r *Reconciler) sentinelResetIfNeed(ctx context.Context, inst *rrvb2.RedisR
 		return fmt.Errorf("get sentinel info: %w", err)
 	}
 
+	masterGroupName := defaultMasterGroupName
 	var masterInfo *redis.SentinelMasterInfo
 	for i := range sentinelInfo.Masters {
 		if sentinelInfo.Masters[i].Name == masterGroupName {
@@ -418,6 +423,8 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 	realMaster, masterPositivelyIdentified := r.observedRedisReplicationMaster(ctx, instance, masterNodes)
 	if len(masterNodes) > 1 {
 		log.FromContext(ctx).Info("Creating redis replication by executing replication creation commands")
+
+		//TODO: detect and remove slave that pointing to a non-existing master (e.g. after a full cluster restart)
 
 		// Cascading fallback when no pod currently has connected_slaves > 0.
 		// Only bootstrap from a complete topology with no slaves so a master is
