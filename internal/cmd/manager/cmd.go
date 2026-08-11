@@ -264,6 +264,7 @@ func setupControllers(mgr ctrl.Manager, k8sClient kubernetes.Interface, maxConcu
 		Client:      mgr.GetClient(),
 		K8sClient:   k8sClient,
 		Healer:      healer,
+		Recorder:    mgr.GetEventRecorderFor("redisreplication-controller"),
 		StatefulSet: k8sutils.NewStatefulSetService(k8sClient),
 	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RedisReplication")
