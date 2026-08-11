@@ -397,11 +397,12 @@ func getRedisTLSArgs(tlsConfig *commonapi.TLSConfig, clientHost string) []string
 }
 
 // createRedisReplicationCommand will create redis replication creation command
-func createRedisReplicationCommand(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, leaderPod RedisDetails, followerPod RedisDetails) []string {
+func createRedisReplicationCommand(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, leaderPod RedisDetails, followerPod RedisDetails, masterNodeID string) []string {
 	cmd := []string{"redis-cli", "--cluster", "add-node"}
 	cmd = append(cmd, getEndpoint(ctx, client, cr, followerPod))
 	cmd = append(cmd, getEndpoint(ctx, client, cr, leaderPod))
 	cmd = append(cmd, "--cluster-slave")
+	cmd = append(cmd, "--cluster-master-id", masterNodeID)
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
 		pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
 		if err != nil {
@@ -428,20 +429,34 @@ func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Inter
 	if err != nil {
 		log.FromContext(ctx).Error(err, "failed to get cluster nodes")
 	}
+
+	leaderNodeIDs := make(map[int]string, int(leaderCounts))
+
 	for followerIdx := 0; followerIdx <= int(followerCounts)-1; {
 		for i := 0; i < int(followerPerLeader) && followerIdx <= int(followerCounts)-1; i++ {
 			followerPod := RedisDetails{
 				PodName:   cr.Name + "-follower-" + strconv.Itoa(followerIdx),
 				Namespace: cr.Namespace,
 			}
+			leaderIdx := followerIdx % int(leaderCounts)
 			leaderPod := RedisDetails{
-				PodName:   cr.Name + "-leader-" + strconv.Itoa((followerIdx)%int(leaderCounts)),
+				PodName:   cr.Name + "-leader-" + strconv.Itoa(leaderIdx),
 				Namespace: cr.Namespace,
 			}
 			podIP = getRedisServerIP(ctx, client, followerPod)
 			if !checkRedisNodePresence(ctx, nodes, podIP) {
+				if _, ok := leaderNodeIDs[leaderIdx]; !ok {
+					leaderNodeIDs[leaderIdx] = getRedisNodeID(ctx, client, cr, leaderPod)
+				}
+				masterNodeID := leaderNodeIDs[leaderIdx]
+				if masterNodeID == "" {
+					log.FromContext(ctx).Error(fmt.Errorf("empty node ID"), "Skipping follower, cannot resolve leader node ID",
+						"Follower", followerPod.PodName, "Leader", leaderPod.PodName)
+					followerIdx++
+					continue
+				}
 				log.FromContext(ctx).V(1).Info("Adding node to cluster.", "Node.IP", podIP, "Follower.Pod", followerPod)
-				cmd := createRedisReplicationCommand(ctx, client, cr, leaderPod, followerPod)
+				cmd := createRedisReplicationCommand(ctx, client, cr, leaderPod, followerPod, masterNodeID)
 				redisClient := configureRedisClient(ctx, client, cr, followerPod.PodName)
 				pong, err := redisClient.Ping(ctx).Result()
 				redisClient.Close()

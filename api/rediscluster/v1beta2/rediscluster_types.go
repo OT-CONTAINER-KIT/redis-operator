@@ -68,13 +68,20 @@ type ClusterStorage struct {
 }
 
 func (cr *RedisClusterSpec) GetReplicaCounts(t string) int32 {
-	replica := cr.ClusterSize
-	if t == "leader" && cr.RedisLeader.Replicas != nil {
-		replica = cr.RedisLeader.Replicas
-	} else if t == "follower" && cr.RedisFollower.Replicas != nil {
-		replica = cr.RedisFollower.Replicas
+	if t == "leader" {
+		if cr.RedisLeader.Replicas != nil {
+			return *cr.RedisLeader.Replicas
+		}
+		return *cr.ClusterSize
 	}
-	return *replica
+	// follower
+	if cr.RedisFollower.Replicas != nil {
+		return *cr.RedisFollower.Replicas
+	}
+	if cr.RedisFollower.ReplicasPerShard != nil {
+		return *cr.RedisFollower.ReplicasPerShard * cr.GetReplicaCounts("leader")
+	}
+	return *cr.ClusterSize
 }
 
 // GetRedisLeaderResources returns the resources for the redis leader, if not set, it will return the default resources

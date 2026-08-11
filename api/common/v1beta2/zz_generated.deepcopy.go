@@ -289,6 +289,11 @@ func (in *RedisFollower) DeepCopyInto(out *RedisFollower) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.ReplicasPerShard != nil {
+		in, out := &in.ReplicasPerShard, &out.ReplicasPerShard
+		*out = new(int32)
+		**out = **in
+	}
 	if in.RedisConfig != nil {
 		in, out := &in.RedisConfig, &out.RedisConfig
 		*out = new(RedisConfig)

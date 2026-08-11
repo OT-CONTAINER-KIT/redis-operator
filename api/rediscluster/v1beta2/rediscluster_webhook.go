@@ -17,6 +17,8 @@ limitations under the License.
 package v1beta2
 
 import (
+	"fmt"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -91,6 +93,32 @@ func (r *RedisCluster) validate(_ *RedisCluster) (admission.Warnings, error) {
 				field.NewPath("spec").Child("acl"),
 				r.Spec.ACL,
 				err.Error(),
+			))
+		}
+	}
+
+	// redisFollower.replicas and replicasPerShard are mutually exclusive
+	if r.Spec.RedisFollower.Replicas != nil && r.Spec.RedisFollower.ReplicasPerShard != nil {
+		errors = append(errors, field.Invalid(
+			field.NewPath("spec").Child("redisFollower"),
+			r.Spec.RedisFollower,
+			"replicas and replicasPerShard are mutually exclusive; set only one",
+		))
+	}
+	if r.Spec.RedisFollower.ReplicasPerShard != nil && *r.Spec.RedisFollower.ReplicasPerShard < 1 {
+		errors = append(errors, field.Invalid(
+			field.NewPath("spec").Child("redisFollower").Child("replicasPerShard"),
+			*r.Spec.RedisFollower.ReplicasPerShard,
+			"replicasPerShard must be at least 1",
+		))
+	}
+	if r.Spec.RedisFollower.Replicas != nil && r.Spec.ClusterSize != nil {
+		leaderCount := r.Spec.GetReplicaCounts("leader")
+		if leaderCount > 0 && *r.Spec.RedisFollower.Replicas%leaderCount != 0 {
+			errors = append(errors, field.Invalid(
+				field.NewPath("spec").Child("redisFollower").Child("replicas"),
+				*r.Spec.RedisFollower.Replicas,
+				fmt.Sprintf("replicas (%d) must be divisible by leader count (%d); use replicasPerShard for per-shard control", *r.Spec.RedisFollower.Replicas, leaderCount),
 			))
 		}
 	}
