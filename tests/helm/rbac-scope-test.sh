@@ -15,9 +15,12 @@ default_out="$(helm template ro "$CHART_DIR" --namespace redis-operator \
 
 echo "$default_out" | grep -q '^kind: ClusterRole$'        || fail "default scope should render a ClusterRole"
 echo "$default_out" | grep -q '^kind: ClusterRoleBinding$' || fail "default scope should render a ClusterRoleBinding"
-echo "$default_out" | grep -q 'nonResourceURLs'            || fail "default ClusterRole should keep the nonResourceURLs rule"
 echo "$default_out" | grep -q 'customresourcedefinitions'  || fail "default ClusterRole should keep the CRD rule"
 echo "$default_out" | grep -q 'aggregate-to-'              && fail "operator ClusterRole must not carry any aggregate-to-* label" || true
+# nonResourceURLs break namespaced Role copies of aggregated admin (#1858).
+if echo "$default_out" | grep -qE '^[[:space:]]*-?[[:space:]]*nonResourceURLs:'; then
+  fail "operator ClusterRole must not contain nonResourceURLs"
+fi
 pass "default scope renders ClusterRole/ClusterRoleBinding"
 
 # --- aggregation roles: default cluster scope aggregates into view, edit and admin ---
