@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Renders the redis-operator Helm chart and asserts that the rbac.scope value
 # produces valid RBAC resources for both the default/cluster scope and the
-# namespace scope. Requires only `helm` (no cluster needed).
+# namespace scope. Requires `helm` and either `kubectl` or `kustomize`
+# (no cluster needed).
 set -euo pipefail
 
-CHART_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../charts/redis-operator" && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+CHART_DIR="$ROOT_DIR/charts/redis-operator"
 
 fail() { echo "FAIL: $1" >&2; exit 1; }
 pass() { echo "PASS: $1"; }
@@ -15,12 +17,32 @@ default_out="$(helm template ro "$CHART_DIR" --namespace redis-operator \
 
 echo "$default_out" | grep -q '^kind: ClusterRole$'        || fail "default scope should render a ClusterRole"
 echo "$default_out" | grep -q '^kind: ClusterRoleBinding$' || fail "default scope should render a ClusterRoleBinding"
-echo "$default_out" | grep -q 'aggregate-to-admin'         || fail "default ClusterRole should keep the aggregate-to-admin label"
+echo "$default_out" | grep -qE '^[[:space:]]*rbac\.authorization\.k8s\.io/aggregate-to-admin:[[:space:]]*"true"$' \
+  || fail "default ClusterRole should keep the aggregate-to-admin label"
 echo "$default_out" | grep -q 'customresourcedefinitions'  || fail "default ClusterRole should keep the CRD rule"
 # aggregated admin ClusterRole cannot carry nonResourceURLs: namespaced Role copies fail apiserver validation (#1858)
-if echo "$default_out" | grep -q 'aggregate-to-admin' && echo "$default_out" | grep -qE '^[[:space:]]*-?[[:space:]]*nonResourceURLs:'; then
+if echo "$default_out" | grep -qE '^[[:space:]]*-?[[:space:]]*nonResourceURLs:'; then
   fail "ClusterRole with aggregate-to-admin must not contain nonResourceURLs"
 fi
+if grep -q 'nonResourceURLs' "$ROOT_DIR/config/rbac/role.yaml"; then
+  fail "generated manager-role must not contain nonResourceURLs"
+fi
+if grep -q 'kubebuilder:rbac:urls=' "$ROOT_DIR/api/rbac.go"; then
+  fail "RBAC markers must not regenerate nonResourceURLs"
+fi
+
+if command -v kubectl >/dev/null 2>&1; then
+  kustomize_out="$(kubectl kustomize "$ROOT_DIR/config/rbac")"
+elif command -v kustomize >/dev/null 2>&1; then
+  kustomize_out="$(kustomize build "$ROOT_DIR/config/rbac")"
+else
+  fail "kubectl or kustomize is required to validate generated RBAC"
+fi
+manager_role="$(echo "$kustomize_out" | awk 'BEGIN { RS = "---" } /kind: ClusterRole/ && /name: manager-role/ { print }')"
+echo "$manager_role" | grep -qE '^[[:space:]]*rbac\.authorization\.k8s\.io/aggregate-to-admin:[[:space:]]*"true"$' \
+  || fail "Kustomize manager-role should keep the aggregate-to-admin label"
+echo "$manager_role" | grep -q 'nonResourceURLs' \
+  && fail "Kustomize manager-role must not contain nonResourceURLs" || true
 pass "default scope renders ClusterRole/ClusterRoleBinding"
 
 # --- explicit cluster scope behaves like the default ---
