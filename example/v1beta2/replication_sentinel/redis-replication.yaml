@@ -1,0 +1,93 @@
+---
+# RedisReplication with an embedded Sentinel deployment.
+#
+# Setting spec.sentinel provisions a Sentinel StatefulSet alongside the
+# replication pods; the operator then tracks the current master via Sentinel
+# instead of pinning master-by-ordinal.
+#
+# The spec.sentinel.* pod-placement fields below keep Sentinel pods OFF the
+# Redis nodes, so losing a single node cannot take out a Redis replica and a
+# Sentinel at the same time (preserving HA / quorum).
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisReplication
+metadata:
+  name: redis-replication
+spec:
+  clusterSize: 3
+  podSecurityContext:
+    runAsUser: 1000
+    fsGroup: 1000
+  kubernetesConfig:
+    image: quay.io/opstree/redis:latest
+    imagePullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 101m
+        memory: 128Mi
+      limits:
+        cpu: 101m
+        memory: 128Mi
+    # redisSecret:
+    #   name: redis-secret
+    #   key: password
+  storage:
+    volumeClaimTemplate:
+      spec:
+        # storageClassName: standard
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+  sentinel:
+    size: 3
+    image: quay.io/opstree/redis-sentinel:latest
+    imagePullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+    # Sentinel-specific Redis auth secret. If omitted, the operator falls back
+    # to spec.kubernetesConfig.redisSecret.
+    # redisSecret:
+    #   name: redis-secret
+    #   key: password
+
+    # Pod placement: keep Sentinel pods away from the Redis replication pods so
+    # a single node failure cannot remove a Redis member and a Sentinel at once.
+    affinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                    - redis-replication
+            topologyKey: kubernetes.io/hostname
+    # Spread the Sentinels across nodes.
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            role: sentinel
+    # Optional: pin Sentinels to dedicated nodes and tolerate their taint.
+    # nodeSelector:
+    #   node-role.kubernetes.io/redis-sentinel: "true"
+    # tolerations:
+    #   - key: dedicated
+    #     operator: Equal
+    #     value: redis-sentinel
+    #     effect: NoSchedule
+    # serviceAccountName: redis-sentinel
+    # priorityClassName: high-priority
+    # terminationGracePeriodSeconds: 30
+    # podSecurityContext:
+    #   runAsUser: 1000
+    #   fsGroup: 1000
+    # securityContext:
+    #   allowPrivilegeEscalation: false

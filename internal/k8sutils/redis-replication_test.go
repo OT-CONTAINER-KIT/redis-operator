@@ -234,6 +234,46 @@ func Test_generateRedisReplicationContainerParams(t *testing.T) {
 	assert.EqualValues(t, expected, actual, "Expected %+v, got %+v", expected, actual)
 }
 
+func Test_generateRedisReplicationContainerParams_SentinelPreStop(t *testing.T) {
+	base := func() *rrvb2.RedisReplication {
+		return &rrvb2.RedisReplication{
+			ObjectMeta: metav1.ObjectMeta{Name: "my-replication"},
+			Spec: rrvb2.RedisReplicationSpec{
+				Size: ptr.To(int32(3)),
+			},
+		}
+	}
+
+	t.Run("sentinel disabled leaves preStop fields empty", func(t *testing.T) {
+		got := generateRedisReplicationContainerParams(base())
+		assert.Empty(t, got.SentinelService)
+		assert.Empty(t, got.SentinelMasterName)
+		assert.Zero(t, got.SentinelPort)
+		assert.Zero(t, got.PreStopWaitSeconds)
+	})
+
+	t.Run("embedded sentinel wires preStop from CR config", func(t *testing.T) {
+		cr := base()
+		cr.Spec.Sentinel = &rrvb2.Sentinel{Size: 3}
+		cr.Spec.TerminationGracePeriodSeconds = ptr.To(int64(60))
+
+		got := generateRedisReplicationContainerParams(cr)
+		assert.Equal(t, "my-replication-s-hl", got.SentinelService)
+		assert.Equal(t, "mymaster", got.SentinelMasterName)
+		assert.Equal(t, 26379, got.SentinelPort)
+		// grace(60) - headroom(10) => 50s wait, leaving headroom before SIGKILL.
+		assert.Equal(t, 50, got.PreStopWaitSeconds)
+	})
+
+	t.Run("embedded sentinel with size 0 stays disabled", func(t *testing.T) {
+		cr := base()
+		cr.Spec.Sentinel = &rrvb2.Sentinel{Size: 0}
+
+		got := generateRedisReplicationContainerParams(cr)
+		assert.Empty(t, got.SentinelService)
+	})
+}
+
 func Test_generateRedisReplicationInitContainerParams(t *testing.T) {
 	path := filepath.Join("..", "..", "tests", "testdata", "redis-replication.yaml")
 	expected := initContainerParameters{

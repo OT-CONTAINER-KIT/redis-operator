@@ -7,7 +7,7 @@ redisOperator:
   # -- initContainerImageTag is the init-config init container image tag.
   # If not specified, defaults to imageTag, then falls back to chart appVersion.
   # Typically only needs to be set when using a different version for the init container.
-  initContainerImageTag: "v0.24.0"
+  initContainerImageTag: "v0.25.0"
   imagePullPolicy: Always
   imagePullSecrets: []
 
@@ -64,7 +64,13 @@ resources:
 replicas: 1
 
 rbac:
+  # -- Enable RBAC resources creation
   enabled: true
+  # -- RBAC scope: "cluster" for ClusterRole/ClusterRoleBinding or "namespace" for Role/RoleBinding.
+  # "cluster" lets the operator manage Redis resources across all namespaces (default behavior).
+  # "namespace" restricts the operator to its own release namespace; set redisOperator.watchNamespace
+  # accordingly and ensure the CRDs are installed separately (CRDs are cluster-scoped).
+  scope: "cluster"
 serviceAccountName: redis-operator
 
 serviceAccount:
@@ -130,3 +136,7 @@ manager:
     kubeClientTimeout: 60s
     # -- If value > 0, it will override the default value in the operator
     kubeClientQPS: 0.0
+    # Set to 0 to use the operator's built-in default.
+    maxConcurrentReconciles: 3
+    # Accepts a Go duration (e.g. "30s", "5m"). Empty uses the operator's built-in default.
+    execCommandTimeout: ""

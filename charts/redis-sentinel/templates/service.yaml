@@ -18,7 +18,7 @@ metadata:
 spec:
   type: {{ .Values.externalService.serviceType }}
   selector:
-    app: {{ .Values.redisSentinel.name | default .Release.Name }}
+    app: {{ .Values.redisSentinel.name | default .Release.Name }}-sentinel
     redis_setup_type: sentinel
     role: sentinel
   ports:

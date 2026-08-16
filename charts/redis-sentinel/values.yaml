@@ -197,3 +197,5 @@ readinessProbe:
 env: []
   # - name: VAR_NAME
   #   value: "value1"
+
+podManagementPolicy: OrderedReady

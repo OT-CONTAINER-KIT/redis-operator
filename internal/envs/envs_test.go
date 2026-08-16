@@ -4,6 +4,7 @@ import (
 	"os"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestGetWatchNamespaces(t *testing.T) {
@@ -98,6 +99,57 @@ func TestGetMaxConcurrentReconciles(t *testing.T) {
 			// Compare results
 			if actualValue != tt.expectedValue {
 				t.Errorf("GetMaxConcurrentReconciles() = %v, want %v", actualValue, tt.expectedValue)
+			}
+		})
+	}
+}
+
+func TestGetExecCommandTimeout(t *testing.T) {
+	tests := []struct {
+		name          string
+		envValue      string
+		defaultValue  time.Duration
+		expectedValue time.Duration
+	}{
+		{
+			name:          "empty value with default",
+			envValue:      "",
+			defaultValue:  5 * time.Minute,
+			expectedValue: 5 * time.Minute,
+		},
+		{
+			name:          "valid duration",
+			envValue:      "30s",
+			defaultValue:  5 * time.Minute,
+			expectedValue: 30 * time.Second,
+		},
+		{
+			name:          "invalid value with default",
+			envValue:      "not-a-duration",
+			defaultValue:  2 * time.Minute,
+			expectedValue: 2 * time.Minute,
+		},
+		{
+			name:          "non-positive value with default",
+			envValue:      "0s",
+			defaultValue:  3 * time.Minute,
+			expectedValue: 3 * time.Minute,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.envValue != "" {
+				os.Setenv(ExecCommandTimeoutEnv, tt.envValue)
+				defer os.Unsetenv(ExecCommandTimeoutEnv)
+			} else {
+				os.Unsetenv(ExecCommandTimeoutEnv)
+			}
+
+			actualValue := GetExecCommandTimeout(tt.defaultValue)
+
+			if actualValue != tt.expectedValue {
+				t.Errorf("GetExecCommandTimeout() = %v, want %v", actualValue, tt.expectedValue)
 			}
 		})
 	}

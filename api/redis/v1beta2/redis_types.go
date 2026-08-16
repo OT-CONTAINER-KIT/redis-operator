@@ -49,6 +49,13 @@ type RedisSpec struct {
 	HostPort                      *int                       `json:"hostPort,omitempty"`
 }
 
+func (cr *RedisSpec) GetRedisDynamicConfig() []string {
+	if cr.RedisConfig != nil && len(cr.RedisConfig.DynamicConfig) > 0 {
+		return cr.RedisConfig.DynamicConfig
+	}
+	return []string{}
+}
+
 // RedisStatus defines the observed state of Redis
 type RedisStatus struct{}
 

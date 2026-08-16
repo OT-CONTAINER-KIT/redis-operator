@@ -45,6 +45,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsfilters "sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -55,6 +56,7 @@ var setupLog = ctrl.Log.WithName("setup")
 // managerOptions contains all options needed for the manager
 type managerOptions struct {
 	metricsAddr             string
+	secureMetrics           bool
 	probeAddr               string
 	pprofAddr               string
 	enableLeaderElection    bool
@@ -92,11 +94,12 @@ func CMD() *cobra.Command {
 // addFlags adds command line flags
 func addFlags(cmd *cobra.Command, opts *managerOptions) {
 	cmd.Flags().StringVar(&opts.metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+	cmd.Flags().BoolVar(&opts.secureMetrics, "metrics-secure", false, "If set, the metrics endpoint is served securely over HTTPS with authentication and authorization. Defaults to false (plain HTTP).")
 	cmd.Flags().StringVar(&opts.probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	cmd.Flags().StringVar(&opts.pprofAddr, "pprof-bind-address", "", "The address the pprof endpoint binds to. If empty, pprof is disabled. Example: ':6060'")
 	cmd.Flags().BoolVar(&opts.enableLeaderElection, "leader-elect", false, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	cmd.Flags().BoolVar(&opts.enableWebhooks, "enable-webhooks", envs.IsWebhookEnabled(), "Enable webhooks")
-	cmd.Flags().IntVar(&opts.maxConcurrentReconciles, "max-concurrent-reconciles", 1, "Max concurrent reconciles")
+	cmd.Flags().IntVar(&opts.maxConcurrentReconciles, "max-concurrent-reconciles", 3, "Maximum number of concurrent reconciles per controller. Reconciles for distinct objects run in parallel (controller-runtime still serializes per object), so a single slow or stuck reconcile cannot starve other Redis resources across namespaces.")
 	cmd.Flags().StringVar(&opts.featureGatesString, "feature-gates", envs.GetFeatureGates(), "A set of key=value pairs that describe feature gates for alpha/experimental features. "+
 		"Options are:\n  GenerateConfigInInitContainer=true|false: enables using init container for config generation")
 	cmd.Flags().Duration(
@@ -183,10 +186,16 @@ func setupFeatureGates(featureGatesString string) error {
 
 // createControllerOptions creates configuration options for the manager
 func createControllerOptions(opts *managerOptions) ctrl.Options {
+	metricsOptions := metricsserver.Options{
+		BindAddress: opts.metricsAddr,
+	}
+	if opts.secureMetrics {
+		metricsOptions.SecureServing = true
+		metricsOptions.FilterProvider = metricsfilters.WithAuthenticationAndAuthorization
+	}
+
 	options := ctrl.Options{
-		Metrics: metricsserver.Options{
-			BindAddress: opts.metricsAddr,
-		},
+		Metrics: metricsOptions,
 		WebhookServer: &webhook.DefaultServer{
 			Options: webhook.Options{
 				Port: 9443,
@@ -233,8 +242,9 @@ func setupControllers(mgr ctrl.Manager, k8sClient kubernetes.Interface, maxConcu
 	healer := redis.NewHealer(k8sClient)
 
 	if err := (&rediscontroller.Reconciler{
-		Client:    mgr.GetClient(),
-		K8sClient: k8sClient,
+		Client:      mgr.GetClient(),
+		K8sClient:   k8sClient,
+		StatefulSet: k8sutils.NewStatefulSetService(k8sClient),
 	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Redis")
 		return err

@@ -50,13 +50,16 @@ spec:
     securityContext: {{ toYaml .Values.redisExporter.securityContext | nindent 6 }}
     {{- end }}
   
-  {{- if or .Values.externalConfig.enabled (and .Values.redisStandalone.maxMemoryPercentOfLimit (gt (int .Values.redisStandalone.maxMemoryPercentOfLimit) 0)) }}
+  {{- if or .Values.externalConfig.enabled (and .Values.redisStandalone.maxMemoryPercentOfLimit (gt (int .Values.redisStandalone.maxMemoryPercentOfLimit) 0)) (.Values.redisStandalone.dynamicConfig) }}
   redisConfig:
     {{- if .Values.externalConfig.enabled }}
     additionalRedisConfig: "{{ .Values.redisStandalone.name | default .Release.Name }}-ext-config"
     {{- end }}
     {{- if and .Values.redisStandalone.maxMemoryPercentOfLimit (gt (int .Values.redisStandalone.maxMemoryPercentOfLimit) 0) }}
     maxMemoryPercentOfLimit: {{ .Values.redisStandalone.maxMemoryPercentOfLimit }}
+    {{- end }}
+    {{- if .Values.redisStandalone.dynamicConfig }}
+    dynamicConfig: {{ toYaml .Values.redisStandalone.dynamicConfig | nindent 6 }}
     {{- end }}
   {{- end }}
   {{- if .Values.storageSpec }}
