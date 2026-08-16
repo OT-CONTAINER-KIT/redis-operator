@@ -18,6 +18,7 @@ package redis
 
 import (
 	"context"
+	"time"
 
 	rvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redis/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
@@ -38,6 +39,7 @@ const (
 // Reconciler reconciles a Redis object
 type Reconciler struct {
 	client.Client
+	k8sutils.StatefulSet
 	K8sClient kubernetes.Interface
 }
 
@@ -67,6 +69,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	err = k8sutils.CreateStandaloneService(ctx, instance, r.K8sClient)
 	if err != nil {
 		return intctrlutil.RequeueE(ctx, err, "failed to create service")
+	}
+
+	if len(instance.Spec.GetRedisDynamicConfig()) > 0 {
+		if !r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name) {
+			return intctrlutil.RequeueAfter(ctx, time.Second*10, "waiting for redis statefulset to be ready before applying dynamic config")
+		}
+		applied, err := k8sutils.SetRedisStandaloneDynamicConfig(ctx, r.K8sClient, instance)
+		if err != nil {
+			return intctrlutil.RequeueE(ctx, err, "failed to set dynamic config")
+		}
+		if !applied {
+			return intctrlutil.RequeueAfter(ctx, time.Second*10, "waiting for redis to become reachable to apply dynamic config")
+		}
 	}
 	return intctrlutil.Reconciled()
 }

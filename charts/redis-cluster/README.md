@@ -66,11 +66,13 @@ helm delete <my-release> --namespace <namespace>
 | initContainer.imagePullPolicy | string | `"IfNotPresent"` |  |
 | initContainer.resources | object | `{}` |  |
 | labels | object | `{}` |  |
+| podManagementPolicy | string | `"OrderedReady"` |  |
 | podSecurityContext.fsGroup | int | `1000` |  |
 | podSecurityContext.runAsUser | int | `1000` |  |
 | priorityClassName | string | `""` |  |
 | redisCluster.clusterSize | int | `3` | Default number of replicas for both leader and follower when not explicitly set |
 | redisCluster.clusterVersion | string | `"v7"` |  |
+| redisCluster.dynamicConfig | list | `[]` | DynamicConfig is a list of "key value" Redis parameters applied at runtime    via CONFIG SET (without triggering a rolling restart). Note: CONFIG SET is    not persisted to disk, so values are not retained across pod restarts unless    they are also provided through externalConfig.    Example:    dynamicConfig:      - "maxmemory-policy allkeys-lru"      - "slowlog-log-slower-than 5000" |
 | redisCluster.enableMasterSlaveAntiAffinity | bool | `false` | Enable pod anti-affinity between leader and follower pods by adding the appropriate label.    Notice that this requires the operator to have its mutating webhook enabled,    otherwise it will only add an annotation to the RedisCluster CR.    Default is false. |
 | redisCluster.follower.affinity | string | `nil` |  |
 | redisCluster.follower.livenessProbe | object | `{}` |  |

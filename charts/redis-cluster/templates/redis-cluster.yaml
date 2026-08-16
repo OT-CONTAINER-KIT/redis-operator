@@ -30,11 +30,14 @@ spec:
       additionalRedisConfig: "{{ .Values.redisCluster.name | default .Release.Name }}-ext-config"
     {{- end }}
   
-  {{- if .Values.redisCluster.maxMemoryPercentOfLimit }}
-  {{- if gt (int .Values.redisCluster.maxMemoryPercentOfLimit) 0 }}
+  {{- if or (and .Values.redisCluster.maxMemoryPercentOfLimit (gt (int .Values.redisCluster.maxMemoryPercentOfLimit) 0)) (.Values.redisCluster.dynamicConfig) }}
   redisConfig:
+    {{- if and .Values.redisCluster.maxMemoryPercentOfLimit (gt (int .Values.redisCluster.maxMemoryPercentOfLimit) 0) }}
     maxMemoryPercentOfLimit: {{ .Values.redisCluster.maxMemoryPercentOfLimit }}
-  {{- end }}
+    {{- end }}
+    {{- if .Values.redisCluster.dynamicConfig }}
+    dynamicConfig: {{ toYaml .Values.redisCluster.dynamicConfig | nindent 6 }}
+    {{- end }}
   {{- end }}
 
   redisExporter:
@@ -114,4 +117,7 @@ spec:
   {{- end }}
   {{- if and .Values.serviceAccountName (ne .Values.serviceAccountName "") }}
   serviceAccountName: "{{ .Values.serviceAccountName }}"
+  {{- end }}
+  {{- if and .Values.podManagementPolicy (ne .Values.podManagementPolicy "") }}
+  podManagementPolicy: "{{ .Values.podManagementPolicy }}"
   {{- end }}

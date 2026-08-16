@@ -17,11 +17,14 @@ import (
 )
 
 // defaultRedisConfig from https://github.com/OT-CONTAINER-KIT/redis/blob/master/redis.conf
+// tcp-keepalive is lowered from the Redis default (300s) to 60s so that dead
+// peer connections are detected faster, which helps the cluster gossip layer
+// converge sooner after pod restarts with new IPs.
 const defaultRedisConfig = `
 bind 0.0.0.0 ::
 tcp-backlog 511
 timeout 0
-tcp-keepalive 300
+tcp-keepalive 60
 daemonize no
 supervised no
 pidfile /var/run/redis.pid
@@ -29,7 +32,8 @@ pidfile /var/run/redis.pid
 
 // GenerateConfig generates Redis configuration file
 func GenerateConfig() error {
-	cfg := agentutil.NewConfig("/etc/redis/redis.conf", defaultRedisConfig)
+	confPath := util.CoalesceEnv1("REDIS_CONFIG_FILE", "/etc/redis/redis.conf")
+	cfg := agentutil.NewConfig(confPath, defaultRedisConfig)
 
 	var (
 		persistenceEnabled = util.CoalesceEnv1("PERSISTENCE_ENABLED", "false")
@@ -57,8 +61,13 @@ func GenerateConfig() error {
 	if clusterMode == "cluster" {
 		nodeConfPath := filepath.Join(nodeConfDir, "nodes.conf")
 
+		// cluster-node-timeout is raised from 5000ms to 15000ms (configurable
+		// via CLUSTER_NODE_TIMEOUT) to give gossip time to converge after
+		// pod restarts before marking nodes as failed.
+		clusterNodeTimeout := util.CoalesceEnv1("CLUSTER_NODE_TIMEOUT", "15000")
+
 		cfg.Append("cluster-enabled", "yes")
-		cfg.Append("cluster-node-timeout", "5000")
+		cfg.Append("cluster-node-timeout", clusterNodeTimeout)
 		cfg.Append("cluster-require-full-coverage", "no")
 		cfg.Append("cluster-migration-barrier", "1")
 		cfg.Append("cluster-config-file", nodeConfPath)
@@ -100,7 +109,9 @@ func GenerateConfig() error {
 	if tlsMode == "true" {
 		cfg.Append("tls-cert-file", util.CoalesceEnv1("REDIS_TLS_CERT", ""))
 		cfg.Append("tls-key-file", util.CoalesceEnv1("REDIS_TLS_CERT_KEY", ""))
-		cfg.Append("tls-ca-cert-file", util.CoalesceEnv1("REDIS_TLS_CA_CERT", ""))
+		if caCert := util.CoalesceEnv1("REDIS_TLS_CA_CERT", ""); caCert != "" {
+			cfg.Append("tls-ca-cert-file", caCert)
+		}
 		cfg.Append("tls-auth-clients", "optional")
 		cfg.Append("tls-replication", "yes")
 

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"strings"
 
+	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util/cryptutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -30,19 +31,25 @@ func getRedisPassword(ctx context.Context, client kubernetes.Interface, namespac
 	return "", nil
 }
 
-func getRedisTLSConfig(ctx context.Context, client kubernetes.Interface, namespace, tlsSecretName, podName string) *tls.Config {
+func getRedisTLSConfig(ctx context.Context, client kubernetes.Interface, namespace string, tlsConfig *commonapi.TLSConfig) *tls.Config {
+	if tlsConfig == nil || tlsConfig.Secret.SecretName == "" {
+		return nil
+	}
+
+	tlsSecretName := tlsConfig.Secret.SecretName
 	secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), tlsSecretName, metav1.GetOptions{})
 	if err != nil {
 		logf.FromContext(ctx).Error(err, "Failed in getting TLS secret", "secretName", tlsSecretName, "namespace", namespace)
 		return nil
 	}
 
-	tlsClientCert, certExists := secret.Data["tls.crt"]
-	tlsClientKey, keyExists := secret.Data["tls.key"]
-	tlsCaCertificate, caExists := secret.Data["ca.crt"]
+	caFile, certFile, keyFile := getTLSSecretKeys(tlsConfig)
+	tlsClientCert, certExists := secret.Data[certFile]
+	tlsClientKey, keyExists := secret.Data[keyFile]
+	tlsCaCertificate, caExists := secret.Data[caFile]
 
-	if !certExists || !keyExists || !caExists {
-		logf.FromContext(ctx).Error(errors.New("required TLS keys are missing in the secret"), "Missing TLS keys in the secret")
+	if !certExists || !keyExists {
+		logf.FromContext(ctx).Error(errors.New("required TLS cert or key is missing in the secret"), "Missing TLS cert/key in the secret")
 		return nil
 	}
 
@@ -52,21 +59,47 @@ func getRedisTLSConfig(ctx context.Context, client kubernetes.Interface, namespa
 		return nil
 	}
 
-	tlsCaCertificates := x509.NewCertPool()
-	ok := tlsCaCertificates.AppendCertsFromPEM(tlsCaCertificate)
-	if !ok {
-		logf.FromContext(ctx).Error(err, "Invalid CA Certificates", "secretName", tlsSecretName, "namespace", namespace)
+	// If user explicitly set CA key and it is missing, treat this as misconfiguration.
+	if !caExists && tlsConfig.CaCertFile != "" {
+		logf.FromContext(ctx).Error(errors.New("configured TLS CA key file is missing in the secret"), "Missing configured TLS CA in the secret", "caKeyFile", tlsConfig.CaCertFile)
 		return nil
 	}
 
+	if !caExists {
+		logf.FromContext(ctx).V(1).Info("CA certificate not found in TLS secret, using system trust store", "secretName", tlsSecretName)
+		systemCertPool, err := x509.SystemCertPool()
+		if err != nil {
+			logf.FromContext(ctx).Error(err, "Failed to load system certificate pool", "secretName", tlsSecretName)
+			return nil
+		}
+		return newTLSConfigVerifyingChainWithoutHostname(cert, systemCertPool)
+	}
+
+	tlsCaCertificates := x509.NewCertPool()
+	ok := tlsCaCertificates.AppendCertsFromPEM(tlsCaCertificate)
+	if !ok {
+		logf.FromContext(ctx).Error(errors.New("invalid CA certificate"), "Invalid CA Certificates", "secretName", tlsSecretName, "namespace", namespace)
+		return nil
+	}
+
+	return newTLSConfigVerifyingChainWithoutHostname(cert, tlsCaCertificates)
+}
+
+// newTLSConfigVerifyingChainWithoutHostname builds a client *tls.Config that
+// trusts the supplied root pool and verifies the peer certificate chain WITHOUT
+// checking the server name. The operator dials Redis pods by IP / pod DNS that
+// does not match the server certificate SNI, so Go's default hostname
+// verification is disabled (InsecureSkipVerify) and the chain is instead
+// validated by VerifyPeerCertificate against the provided roots.
+func newTLSConfigVerifyingChainWithoutHostname(cert tls.Certificate, rootCAs *x509.CertPool) *tls.Config {
 	return &tls.Config{
 		Certificates:       []tls.Certificate{cert},
-		RootCAs:            tlsCaCertificates,
+		RootCAs:            rootCAs,
 		MinVersion:         tls.VersionTLS12,
 		ClientAuth:         tls.NoClientCert,
-		InsecureSkipVerify: true,
+		InsecureSkipVerify: true, // skips default verification; chain re-verified without hostname below
 		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-			_, _, err := cryptutil.VerifyCertificateExceptServerName(rawCerts, &tls.Config{RootCAs: tlsCaCertificates})
+			_, _, err := cryptutil.VerifyCertificateExceptServerName(rawCerts, &tls.Config{RootCAs: rootCAs})
 			return err
 		},
 	}

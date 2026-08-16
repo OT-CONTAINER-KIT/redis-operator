@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"time"
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
@@ -147,6 +148,117 @@ var _ = Describe("Redis Cluster Controller", func() {
 				Timeout:           timeout,
 				Interval:          interval,
 			})
+		})
+	})
+
+	Context("When pods become not ready after the cluster has been Ready", func() {
+		const degradedName = "redis-cluster-degraded-test"
+
+		// setStatefulSetReadyReplicas simulates pod readiness changes by updating the
+		// StatefulSet status, since no StatefulSet controller runs in envtest.
+		setStatefulSetReadyReplicas := func(name string, readyReplicas int32) {
+			Eventually(func() error {
+				sts := &appsv1.StatefulSet{}
+				if err := k8sClient.Get(context.Background(), types.NamespacedName{Name: name, Namespace: ns}, sts); err != nil {
+					return err
+				}
+				sts.Status.Replicas = *sts.Spec.Replicas
+				sts.Status.ReadyReplicas = readyReplicas
+				sts.Status.AvailableReplicas = readyReplicas
+				sts.Status.CurrentReplicas = *sts.Spec.Replicas
+				sts.Status.UpdatedReplicas = *sts.Spec.Replicas
+				sts.Status.ObservedGeneration = sts.Generation
+				return k8sClient.Status().Update(context.Background(), sts)
+			}, timeout, interval).Should(Succeed())
+		}
+
+		getClusterStatus := func() (rcvb2.RedisClusterStatus, error) {
+			rc := &rcvb2.RedisCluster{}
+			err := k8sClient.Get(context.Background(), types.NamespacedName{Name: degradedName, Namespace: ns}, rc)
+			return rc.Status, err
+		}
+
+		It("should leave the Ready state and decrease the ready replica counts", func() {
+			redisCluster := &rcvb2.RedisCluster{
+				ObjectMeta: testutil.CreateTestObject(degradedName, ns, nil),
+				Spec: rcvb2.RedisClusterSpec{
+					ClusterSize: ptr.To(int32(3)),
+					KubernetesConfig: common.KubernetesConfig{
+						Image: testutil.DefaultRedisImage,
+					},
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), redisCluster)).Should(Succeed())
+			DeferCleanup(func() {
+				Expect(k8sClient.Delete(context.Background(), redisCluster)).Should(Succeed())
+			})
+
+			By("marking the leader and follower StatefulSets as ready")
+			setStatefulSetReadyReplicas(degradedName+"-leader", 3)
+			setStatefulSetReadyReplicas(degradedName+"-follower", 3)
+
+			By("waiting for the operator to report all replicas as ready")
+			Eventually(getClusterStatus, timeout, interval).Should(Equal(rcvb2.RedisClusterStatus{
+				State:                 rcvb2.RedisClusterBootstrap,
+				Reason:                rcvb2.BootstrapClusterReason,
+				ReadyLeaderReplicas:   3,
+				ReadyFollowerReplicas: 3,
+			}))
+
+			By("simulating a cluster that has reached the Ready state")
+			Eventually(func() error {
+				rc := &rcvb2.RedisCluster{}
+				if err := k8sClient.Get(context.Background(), types.NamespacedName{Name: degradedName, Namespace: ns}, rc); err != nil {
+					return err
+				}
+				rc.Status = rcvb2.RedisClusterStatus{
+					State:                 rcvb2.RedisClusterReady,
+					Reason:                rcvb2.ReadyClusterReason,
+					ReadyLeaderReplicas:   3,
+					ReadyFollowerReplicas: 3,
+				}
+				return k8sClient.Status().Update(context.Background(), rc)
+			}, timeout, interval).Should(Succeed())
+
+			By("verifying the status stays Ready while all pods are ready")
+			Consistently(func() (rcvb2.RedisClusterState, error) {
+				status, err := getClusterStatus()
+				return status.State, err
+			}, time.Second*2, interval).Should(Equal(rcvb2.RedisClusterReady))
+
+			By("dropping one follower pod from ready")
+			setStatefulSetReadyReplicas(degradedName+"-follower", 2)
+
+			By("verifying the status leaves Ready and the follower count drops")
+			Eventually(getClusterStatus, timeout, interval).Should(Equal(rcvb2.RedisClusterStatus{
+				State:                 rcvb2.RedisClusterInitializing,
+				Reason:                rcvb2.InitializingClusterFollowerReason,
+				ReadyLeaderReplicas:   3,
+				ReadyFollowerReplicas: 2,
+			}))
+
+			By("dropping one leader pod from ready")
+			setStatefulSetReadyReplicas(degradedName+"-leader", 2)
+
+			By("verifying the leader count drops as well")
+			Eventually(getClusterStatus, timeout, interval).Should(Equal(rcvb2.RedisClusterStatus{
+				State:                 rcvb2.RedisClusterInitializing,
+				Reason:                rcvb2.InitializingClusterLeaderReason,
+				ReadyLeaderReplicas:   2,
+				ReadyFollowerReplicas: 2,
+			}))
+
+			By("recovering all pods")
+			setStatefulSetReadyReplicas(degradedName+"-leader", 3)
+			setStatefulSetReadyReplicas(degradedName+"-follower", 3)
+
+			By("verifying the status reports all replicas as ready again")
+			Eventually(getClusterStatus, timeout, interval).Should(Equal(rcvb2.RedisClusterStatus{
+				State:                 rcvb2.RedisClusterBootstrap,
+				Reason:                rcvb2.BootstrapClusterReason,
+				ReadyLeaderReplicas:   3,
+				ReadyFollowerReplicas: 3,
+			}))
 		})
 	})
 })

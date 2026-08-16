@@ -1,0 +1,132 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: single-node-scaling-redis-cluster
+spec:
+  steps:
+    - name: Install single-node cluster
+      try:
+        - apply:
+            file: cluster.yaml
+        - assert:
+            file: ready-cluster-single.yaml
+
+    - name: Verify single-node cluster is formed
+      try:
+        - script:
+            timeout: 5m
+            content: |
+              #!/bin/bash
+              CMD="kubectl exec --namespace ${NAMESPACE} redis-cluster-v1beta2-leader-0 -c redis-cluster-v1beta2-leader -- redis-cli"
+              for i in $(seq 1 30); do
+                INFO=$(${CMD} cluster info 2>/dev/null)
+                if echo "$INFO" | grep -q "cluster_state:ok" && echo "$INFO" | grep -q "cluster_slots_assigned:16384"; then
+                  echo "single-node cluster is formed"
+                  exit 0
+                fi
+                sleep 10
+              done
+              echo "single-node cluster did not form: $INFO"
+              exit 1
+            check:
+              (contains($stdout, 'single-node cluster is formed')): true
+
+    - name: Put data
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} redis-cluster-v1beta2-leader-0 -c redis-cluster-v1beta2-leader --
+              redis-cli -c set single-node-scaling-key persisted
+            check:
+              (contains($stdout, 'OK')): true
+
+    - name: Scale up to three nodes
+      try:
+        - apply:
+            file: cluster-scale-up.yaml
+        - assert:
+            file: ready-cluster-scaled.yaml
+
+    - name: Verify scaled-up cluster
+      try:
+        - script:
+            timeout: 10m
+            content: |
+              #!/bin/bash
+              CMD="kubectl exec --namespace ${NAMESPACE} redis-cluster-v1beta2-leader-0 -c redis-cluster-v1beta2-leader -- redis-cli"
+              for i in $(seq 1 60); do
+                INFO=$(${CMD} cluster info 2>/dev/null)
+                if echo "$INFO" | grep -q "cluster_state:ok" &&
+                   echo "$INFO" | grep -q "cluster_slots_assigned:16384" &&
+                   echo "$INFO" | grep -q "cluster_known_nodes:6"; then
+                  echo "cluster scaled up to three nodes"
+                  exit 0
+                fi
+                sleep 10
+              done
+              echo "cluster did not scale up: $INFO"
+              exit 1
+            check:
+              (contains($stdout, 'cluster scaled up to three nodes')): true
+
+    - name: Assert data after scale-up
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} redis-cluster-v1beta2-leader-0 -c redis-cluster-v1beta2-leader --
+              redis-cli -c get single-node-scaling-key
+            check:
+              (contains($stdout, 'persisted')): true
+
+    - name: Scale back down to single node
+      try:
+        - apply:
+            file: cluster.yaml
+        - assert:
+            file: ready-cluster-single.yaml
+
+    - name: Verify scaled-down cluster
+      try:
+        - script:
+            timeout: 10m
+            content: |
+              #!/bin/bash
+              CMD="kubectl exec --namespace ${NAMESPACE} redis-cluster-v1beta2-leader-0 -c redis-cluster-v1beta2-leader -- redis-cli"
+              for i in $(seq 1 60); do
+                INFO=$(${CMD} cluster info 2>/dev/null)
+                if echo "$INFO" | grep -q "cluster_state:ok" &&
+                   echo "$INFO" | grep -q "cluster_slots_assigned:16384" &&
+                   echo "$INFO" | grep -q "cluster_known_nodes:2"; then
+                  echo "cluster scaled down to single node"
+                  exit 0
+                fi
+                sleep 10
+              done
+              echo "cluster did not scale down: $INFO"
+              exit 1
+            check:
+              (contains($stdout, 'cluster scaled down to single node')): true
+
+    - name: Assert data after scale-down
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} redis-cluster-v1beta2-leader-0 -c redis-cluster-v1beta2-leader --
+              redis-cli -c get single-node-scaling-key
+            check:
+              (contains($stdout, 'persisted')): true
+
+    - name: Uninstall
+      try:
+        - delete:
+            ref:
+              name: redis-cluster-v1beta2
+              kind: RedisCluster
+              apiVersion: redis.redis.opstreelabs.in/v1beta2
+        - error:
+            file: ready-cluster-single.yaml

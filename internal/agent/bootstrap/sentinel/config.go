@@ -28,7 +28,8 @@ sentinel deny-scripts-reconfig yes
 `
 
 func GenerateConfig() error {
-	cfg := agentutil.NewConfig("/etc/redis/sentinel.conf", defaultSentinelConfig)
+	confPath, _ := util.CoalesceEnv("SENTINEL_CONFIG_FILE", "/etc/redis/sentinel.conf")
+	cfg := agentutil.NewConfig(confPath, defaultSentinelConfig)
 
 	// set_sentinel_password
 	{
@@ -109,7 +110,9 @@ func GenerateConfig() error {
 			cfg.Append("tls-port", "26379")
 			cfg.Append("tls-cert-file", redisTLSCert)
 			cfg.Append("tls-key-file", redisTLSCertKey)
-			cfg.Append("tls-ca-cert-file", redisTLSCACert)
+			if redisTLSCACert != "" {
+				cfg.Append("tls-ca-cert-file", redisTLSCACert)
+			}
 			cfg.Append("tls-auth-clients", "optional")
 			// Sentinel should use tls for replication connection.
 			cfg.Append("tls-replication", "yes")

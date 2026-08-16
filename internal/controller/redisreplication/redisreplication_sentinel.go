@@ -58,15 +58,46 @@ func newSentinelStatefulSet(rr *rrvb2.RedisReplication, svcName string) appsv1.S
 }
 
 func buildSentinelPodTemplate(rr *rrvb2.RedisReplication, labels map[string]string) corev1.PodTemplateSpec {
+	spec := corev1.PodSpec{
+		Containers: []corev1.Container{
+			buildSentinelContainer(rr),
+		},
+	}
+
+	sentinel := rr.Spec.Sentinel
+	if sentinel.Affinity != nil {
+		spec.Affinity = sentinel.Affinity
+	}
+	if sentinel.Tolerations != nil {
+		spec.Tolerations = *sentinel.Tolerations
+	}
+	if sentinel.NodeSelector != nil {
+		spec.NodeSelector = sentinel.NodeSelector
+	}
+	if len(sentinel.TopologySpreadConstraints) > 0 {
+		spec.TopologySpreadConstraints = sentinel.TopologySpreadConstraints
+	}
+	if sentinel.PodSecurityContext != nil {
+		spec.SecurityContext = sentinel.PodSecurityContext
+	}
+	if sentinel.PriorityClassName != "" {
+		spec.PriorityClassName = sentinel.PriorityClassName
+	}
+	if sentinel.TerminationGracePeriodSeconds != nil {
+		spec.TerminationGracePeriodSeconds = sentinel.TerminationGracePeriodSeconds
+	}
+	if sentinel.ImagePullSecrets != nil {
+		spec.ImagePullSecrets = *sentinel.ImagePullSecrets
+	}
+	if sentinel.ServiceAccountName != nil {
+		spec.ServiceAccountName = *sentinel.ServiceAccountName
+	}
+
 	return corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: labels,
 		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				buildSentinelContainer(rr),
-			},
-		},
+		Spec: spec,
 	}
 }
 
@@ -87,6 +118,9 @@ func buildSentinelContainer(rr *rrvb2.RedisReplication) corev1.Container {
 	if rr.Spec.Sentinel.Resources != nil {
 		container.Resources = *rr.Spec.Sentinel.Resources
 	}
+	if rr.Spec.Sentinel.SecurityContext != nil {
+		container.SecurityContext = rr.Spec.Sentinel.SecurityContext
+	}
 	return container
 }
 
@@ -94,15 +128,19 @@ func buildSentinelEnv(rr *rrvb2.RedisReplication) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{Name: "QUORUM", Value: fmt.Sprintf("%d", rr.Spec.Sentinel.Size/2+1)},
 	}
-	if rr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
+	passwordSecret := rr.Spec.KubernetesConfig.ExistingPasswordSecret
+	if rr.Spec.Sentinel.ExistingPasswordSecret != nil {
+		passwordSecret = rr.Spec.Sentinel.ExistingPasswordSecret
+	}
+	if passwordSecret != nil {
 		envs = append(envs, corev1.EnvVar{
 			Name: "MASTER_PASSWORD",
 			ValueFrom: &corev1.EnvVarSource{
 				SecretKeyRef: &corev1.SecretKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: *rr.Spec.KubernetesConfig.ExistingPasswordSecret.Name,
+						Name: *passwordSecret.Name,
 					},
-					Key: *rr.Spec.KubernetesConfig.ExistingPasswordSecret.Key,
+					Key: *passwordSecret.Key,
 				},
 			},
 		})

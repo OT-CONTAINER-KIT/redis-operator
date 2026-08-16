@@ -31,10 +31,10 @@ spec:
             content: >
               kubectl delete pod --namespace ${NAMESPACE} -l app=redis-cluster-v1beta2-leader
 
-    - name: Wait cluster to be failed
+    - name: Wait for cluster to react to restart
       try:
         - assert:
-            file: failed-cluster.yaml
+            file: disrupted-cluster.yaml
 
     - name: Wait cluster to be ready
       try:

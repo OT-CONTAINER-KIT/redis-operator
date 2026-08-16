@@ -45,7 +45,7 @@ spec:
                 exit 1
               fi
               # Annotation should either be empty/unset or reflect actual capacity, not the shrink target
-              if [ "${ANNOTATION}" == "536870912" ]; then
+              if [ "${ANNOTATION}" = "536870912" ]; then
                 echo "FAIL: annotation was incorrectly updated to shrink target (512Mi = 536870912)"
                 exit 1
               fi
