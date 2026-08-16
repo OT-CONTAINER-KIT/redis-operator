@@ -54,6 +54,24 @@ annotations:
   redisSentinel.opstreelabs.in/skip-reconcile: "true"
 ```
 
+## Preserving existing PVC names
+
+The name of the volume claim template in the generated StatefulSet defaults to the StatefulSet name, which gives PVCs such as `redis-redis-0` for a standalone `Redis` named `redis`, and `redis-cluster-leader-redis-cluster-leader-0` for a `RedisCluster`. If an older operator version created your PVCs under a different template name, a new StatefulSet will not adopt them and Redis starts on an empty volume.
+
+Set `OPERATOR_STS_PVC_TEMPLATE_NAME` on the operator deployment to keep the previous template name:
+
+```yaml
+    spec:
+      containers:
+        - command:
+            - /manager
+          env:
+            - name: OPERATOR_STS_PVC_TEMPLATE_NAME
+              value: "<existing template name>"
+```
+
+The variable is global to the operator, so every managed setup uses the same template name. Leave it unset unless you are carrying PVCs over from an older layout.
+
 ### Upgrading with Helm
 
 Helm features capabilities for upgrading to newer versions without having to uninstall Redis Operator completely.
