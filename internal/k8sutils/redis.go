@@ -801,11 +801,24 @@ const defaultExecCommandTimeout = 5 * time.Minute
 // reconciler opens against redis pods, so an unreachable pod cannot stall a reconcile.
 const defaultRedisClientTimeout = 5 * time.Second
 
+// wrapRedisCLIAuthSanitize wraps a redis-cli argv in a shell shim that strips
+// CR/LF from the container's REDISCLI_AUTH before redis-cli reads it (see
+// redisCLIAuthSanitizer for why). The original argv is forwarded via "$@" so
+// no re-quoting is needed and the password still never appears on the command
+// line. Non-redis-cli commands are passed through untouched.
+func wrapRedisCLIAuthSanitize(cmd []string) []string {
+	if len(cmd) == 0 || cmd[0] != "redis-cli" {
+		return cmd
+	}
+	return append([]string{"sh", "-c", redisCLIAuthSanitizer + `; exec "$@"`, "sh"}, cmd...)
+}
+
 func executeCommand1(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, cmd []string, podName string) (stdout string, stderr error) {
 	var (
 		execOut bytes.Buffer
 		execErr bytes.Buffer
 	)
+	cmd = wrapRedisCLIAuthSanitize(cmd)
 	config, err := GenerateK8sConfig()()
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Could not find pod to execute")

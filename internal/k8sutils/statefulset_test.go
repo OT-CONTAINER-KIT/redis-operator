@@ -4,6 +4,7 @@ import (
 	"context"
 	"path"
 	"strconv"
+	"strings"
 	"testing"
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
@@ -129,6 +130,12 @@ func TestGeneratePreStopCommand(t *testing.T) {
 			result := GeneratePreStopCommand(tt.cfg)
 			if (result == "") != tt.expectEmpty {
 				t.Errorf("expected empty: %v, got: %q", tt.expectEmpty, result)
+			}
+			// Every generated hook must sanitize REDISCLI_AUTH before the
+			// first redis-cli call: secrets commonly carry a trailing newline
+			// that the server-side password never has (see redisCLIAuthSanitizer).
+			if result != "" && !strings.Contains(result, redisCLIAuthSanitizer) {
+				t.Errorf("preStop script missing REDISCLI_AUTH sanitizer:\n%s", result)
 			}
 		})
 	}
@@ -976,7 +983,7 @@ func TestGenerateContainerDef(t *testing.T) {
 	probe := corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
 			Exec: &corev1.ExecAction{
-				Command: []string{"sh", "-ec", "RESP=\"$(redis-cli -h $(hostname) -p ${REDIS_PORT} ping)\"\n[ \"$RESP\" = \"PONG\" ]"},
+				Command: []string{"sh", "-ec", redisCLIAuthSanitizer + "\nRESP=\"$(redis-cli -h $(hostname) -p ${REDIS_PORT} ping)\"\n[ \"$RESP\" = \"PONG\" ]"},
 			},
 		},
 	}
@@ -1890,14 +1897,14 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 	probe := &corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
 			Exec: &corev1.ExecAction{
-				Command: []string{"sh", "-ec", "RESP=\"$(redis-cli -h $(hostname) -p ${REDIS_PORT} ping)\"\n[ \"$RESP\" = \"PONG\" ]"},
+				Command: []string{"sh", "-ec", redisCLIAuthSanitizer + "\nRESP=\"$(redis-cli -h $(hostname) -p ${REDIS_PORT} ping)\"\n[ \"$RESP\" = \"PONG\" ]"},
 			},
 		},
 	}
 	probeWithTLS := &corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
 			Exec: &corev1.ExecAction{
-				Command: []string{"sh", "-ec", "RESP=\"$(redis-cli -h $(hostname) -p ${REDIS_PORT} --tls --cert ${REDIS_TLS_CERT} --key ${REDIS_TLS_CERT_KEY} ${REDIS_TLS_CA_CERT:+--cacert} ${REDIS_TLS_CA_CERT} ping)\"\n[ \"$RESP\" = \"PONG\" ]"},
+				Command: []string{"sh", "-ec", redisCLIAuthSanitizer + "\nRESP=\"$(redis-cli -h $(hostname) -p ${REDIS_PORT} --tls --cert ${REDIS_TLS_CERT} --key ${REDIS_TLS_CERT_KEY} ${REDIS_TLS_CA_CERT:+--cacert} ${REDIS_TLS_CA_CERT} ping)\"\n[ \"$RESP\" = \"PONG\" ]"},
 			},
 		},
 	}

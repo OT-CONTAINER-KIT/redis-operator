@@ -148,3 +148,33 @@ func TestCheckRedisCLIAuthInEnv(t *testing.T) {
 		assert.False(t, ok)
 	})
 }
+
+func TestWrapRedisCLIAuthSanitize(t *testing.T) {
+	t.Run("redis-cli argv is wrapped and forwarded via $@", func(t *testing.T) {
+		in := []string{"redis-cli", "--cluster", "check", "127.0.0.1:6379"}
+		out := wrapRedisCLIAuthSanitize(in)
+		// sh -c '<sanitize>; exec "$@"' sh redis-cli --cluster check 127.0.0.1:6379
+		require.Len(t, out, 4+len(in))
+		assert.Equal(t, []string{"sh", "-c"}, out[:2])
+		assert.Contains(t, out[2], `tr -d '\r\n'`)
+		assert.Contains(t, out[2], `exec "$@"`)
+		assert.Equal(t, "sh", out[3])
+		assert.Equal(t, in, out[4:])
+	})
+
+	t.Run("sanitizer leaves REDISCLI_AUTH unset when absent", func(t *testing.T) {
+		// The guard must not export an empty REDISCLI_AUTH: redis-cli would
+		// then send AUTH with an empty password on password-less deployments.
+		out := wrapRedisCLIAuthSanitize([]string{"redis-cli", "ping"})
+		assert.Contains(t, out[2], `if [ -n "${REDISCLI_AUTH:-}" ]`)
+	})
+
+	t.Run("non-redis-cli argv passes through untouched", func(t *testing.T) {
+		in := []string{"cat", "/etc/redis/redis.conf"}
+		assert.Equal(t, in, wrapRedisCLIAuthSanitize(in))
+	})
+
+	t.Run("empty argv passes through", func(t *testing.T) {
+		assert.Empty(t, wrapRedisCLIAuthSanitize(nil))
+	})
+}

@@ -577,6 +577,17 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 	return containerDefinition
 }
 
+// redisCLIAuthSanitizer strips CR/LF from REDISCLI_AUTH before redis-cli reads
+// it. Password secrets frequently carry a trailing newline (echo | base64,
+// kubectl create secret --from-file), and every other consumer of the password
+// sees it trimmed: getRedisPassword applies strings.TrimSpace and requirepass
+// is read from a line-based config file. REDISCLI_AUTH is sourced raw from the
+// secretKeyRef, so without this the server holds the trimmed password while
+// redis-cli sends the untrimmed one and every AUTH fails with WRONGPASS.
+// The -n guard keeps the variable unset on password-less deployments, where
+// exporting an empty value would make redis-cli send AUTH with an empty password.
+const redisCLIAuthSanitizer = `if [ -n "${REDISCLI_AUTH:-}" ]; then REDISCLI_AUTH="$(printf %s "$REDISCLI_AUTH" | tr -d '\r\n')"; export REDISCLI_AUTH; fi`
+
 // PreStopConfig holds the inputs needed to render a container preStop hook.
 type PreStopConfig struct {
 	Role      string
@@ -653,6 +664,7 @@ func GenerateTLSArgs(enableTLS bool) string {
 // It identifies the master node and triggers a failover to the best available slave before shutdown.
 func generateClusterPreStop(tlsArgs string) string {
 	return fmt.Sprintf(`#!/bin/sh
+%s
 ROLE=$(redis-cli -h $(hostname) -p ${REDIS_PORT} %s info replication | awk -F: '/role:master/ {print "master"}')
 
 if [ "$ROLE" = "master" ]; then
@@ -675,7 +687,7 @@ if [ "$ROLE" = "master" ]; then
     if [ -n "$BEST_SLAVE" ]; then
         redis-cli -h "$BEST_SLAVE" -p ${REDIS_PORT} %s cluster failover
     fi
-fi`, tlsArgs, tlsArgs, tlsArgs)
+fi`, redisCLIAuthSanitizer, tlsArgs, tlsArgs, tlsArgs)
 }
 
 // generateReplicationPreStop generates the preStop script for Redis replication mode.
@@ -693,6 +705,7 @@ func generateReplicationPreStop(tlsArgs string, cfg PreStopConfig) string {
 	}
 	waitSeconds := max(cfg.WaitSeconds, 1)
 	return fmt.Sprintf(`#!/bin/sh
+%s
 ROLE=$(redis-cli -h $(hostname) -p ${REDIS_PORT} %s info replication | awk -F: '/role:master/ {print "master"}')
 
 if [ "$ROLE" = "master" ]; then
@@ -705,7 +718,7 @@ if [ "$ROLE" = "master" ]; then
         fi
         sleep 1
     done
-fi`, tlsArgs, cfg.SentinelService, sentinelPort, cfg.SentinelMasterName, waitSeconds, tlsArgs)
+fi`, redisCLIAuthSanitizer, tlsArgs, cfg.SentinelService, sentinelPort, cfg.SentinelMasterName, waitSeconds, tlsArgs)
 }
 
 func generateInitContainerDef(role, name string, initcontainerParams initContainerParameters, externalConfig *string, mountpath []corev1.VolumeMount, containerParams containerParameters, clusterVersion *string) []corev1.Container {
@@ -968,7 +981,7 @@ func getProbeInfo(probe *corev1.Probe, sentinel, enableTLS bool) *corev1.Probe {
 
 		redisHealthCheckSubshell := strings.Join(redisHealthCheck, " ")
 
-		healthCheckScript := "RESP=\"$(" + redisHealthCheckSubshell + ")\"\n" + "[ \"$RESP\" = \"PONG\" ]"
+		healthCheckScript := redisCLIAuthSanitizer + "\n" + "RESP=\"$(" + redisHealthCheckSubshell + ")\"\n" + "[ \"$RESP\" = \"PONG\" ]"
 
 		// `-e` causes the shell to exit immediately if a (nontested) command fails
 		probe.ProbeHandler = corev1.ProbeHandler{
