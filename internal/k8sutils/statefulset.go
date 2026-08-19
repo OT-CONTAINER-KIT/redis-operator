@@ -608,7 +608,7 @@ func GeneratePreStopCommand(cfg PreStopConfig) string {
 
 	switch cfg.Role {
 	case "cluster":
-		return generateClusterPreStop(authArgs, tlsArgs)
+		return generateClusterPreStop(authArgs, tlsArgs, cfg)
 	case "replication":
 		// Without a Sentinel managing failover there is nothing to fail over
 		// to; installing the hook would make every master termination block on
@@ -622,11 +622,11 @@ func GeneratePreStopCommand(cfg PreStopConfig) string {
 	}
 }
 
-// replicationPreStopWaitSeconds bounds the demotion wait so the preStop hook
-// returns with headroom before terminationGracePeriodSeconds elapses, leaving
-// the kubelet time to deliver SIGTERM and let Redis shut down cleanly instead
-// of being SIGKILLed mid-failover.
-func replicationPreStopWaitSeconds(gracePeriodSeconds *int64) int {
+// preStopWaitSeconds bounds the demotion wait so the preStop hook returns with
+// headroom before terminationGracePeriodSeconds elapses, leaving the kubelet
+// time to deliver SIGTERM and let Redis shut down cleanly instead of being
+// SIGKILLed mid-failover.
+func preStopWaitSeconds(gracePeriodSeconds *int64) int {
 	const (
 		defaultGracePeriodSeconds = 30
 		headroomSeconds           = 10
@@ -653,8 +653,17 @@ func GenerateAuthAndTLSArgs(enableAuth, enableTLS bool) (string, string) {
 }
 
 // generateClusterPreStop generates the preStop script for Redis cluster mode.
-// It identifies the master node and triggers a failover to the best available slave before shutdown.
-func generateClusterPreStop(authArgs, tlsArgs string) string {
+// It identifies the master node and triggers a failover to the best available
+// slave before shutdown.
+//
+// CLUSTER FAILOVER only starts the handoff and returns before it completes, so
+// the hook then polls the local node until it has been demoted to a slave. This
+// keeps the kubelet from SIGKILLing the old master mid-failover, which would
+// abort the coordinated handoff and fall back to slower failure detection. The
+// wait is bounded by cfg.WaitSeconds so the hook still returns before the grace
+// period expires.
+func generateClusterPreStop(authArgs, tlsArgs string, cfg PreStopConfig) string {
+	waitSeconds := max(cfg.WaitSeconds, 1)
 	return fmt.Sprintf(`#!/bin/sh
 ROLE=$(redis-cli -h $(hostname) -p ${REDIS_PORT} %s %s info replication | awk -F: '/role:master/ {print "master"}')
 
@@ -677,8 +686,16 @@ if [ "$ROLE" = "master" ]; then
 
     if [ -n "$BEST_SLAVE" ]; then
         redis-cli -h "$BEST_SLAVE" -p ${REDIS_PORT} %s %s cluster failover
+
+        for i in $(seq 1 %d); do
+            NEW_ROLE=$(redis-cli -h $(hostname) -p ${REDIS_PORT} %s %s info replication | awk -F: '/role:slave/ {print "slave"}')
+            if [ "$NEW_ROLE" = "slave" ]; then
+                break
+            fi
+            sleep 1
+        done
     fi
-fi`, authArgs, tlsArgs, authArgs, tlsArgs, authArgs, tlsArgs)
+fi`, authArgs, tlsArgs, authArgs, tlsArgs, authArgs, tlsArgs, waitSeconds, authArgs, tlsArgs)
 }
 
 // generateReplicationPreStop generates the preStop script for Redis replication mode.
