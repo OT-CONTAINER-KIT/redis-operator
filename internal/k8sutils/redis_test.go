@@ -491,7 +491,7 @@ func TestExecuteSingleLeaderAddSlots(t *testing.T) {
 		{
 			name:          "redis v6 with TLS includes TLS flags in every batch",
 			redisCluster:  newCluster(nil, false, true),
-			expectedFlags: []string{"--tls", "--cacert", "/tls/ca.crt", "--insecure"},
+			expectedFlags: []string{"--tls", "--cacert", "/tls/ca.crt", "--cert", "/tls/tls.crt", "--key", "/tls/tls.key", "--insecure"},
 		},
 	}
 
@@ -640,7 +640,7 @@ func TestGetRedisTLSArgs(t *testing.T) {
 			name:       "with TLS configuration",
 			tlsConfig:  &common.TLSConfig{},
 			clientHost: "redis-host",
-			expected:   []string{"--tls", "--insecure"},
+			expected:   []string{"--tls", "--cert", "/tls/tls.crt", "--key", "/tls/tls.key", "--insecure"},
 		},
 		{
 			name: "with TLS and explicit CA configuration",
@@ -648,7 +648,17 @@ func TestGetRedisTLSArgs(t *testing.T) {
 				CaCertFile: "custom-ca.crt",
 			},
 			clientHost: "redis-host",
-			expected:   []string{"--tls", "--cacert", "/tls/custom-ca.crt", "--insecure"},
+			expected:   []string{"--tls", "--cacert", "/tls/custom-ca.crt", "--cert", "/tls/tls.crt", "--key", "/tls/tls.key", "--insecure"},
+		},
+		{
+			name: "with custom client certificate and key keys",
+			tlsConfig: &common.TLSConfig{
+				CaCertFile:  "custom-ca.crt",
+				CertKeyFile: "custom-tls.crt",
+				KeyFile:     "custom-tls.key",
+			},
+			clientHost: "redis-host",
+			expected:   []string{"--tls", "--cacert", "/tls/custom-ca.crt", "--cert", "/tls/custom-tls.crt", "--key", "/tls/custom-tls.key", "--insecure"},
 		},
 		{
 			name:       "without TLS configuration",

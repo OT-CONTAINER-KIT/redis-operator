@@ -445,15 +445,24 @@ func ExecuteRedisClusterCommand(ctx context.Context, client kubernetes.Interface
 	}
 }
 
+// getRedisTLSArgs returns the TLS flags for the redis-cli commands the operator
+// executes inside the Redis pods. The client certificate is always sent: Redis
+// defaults to `tls-auth-clients yes`, so a server requiring client certificates
+// rejects the TLS handshake when redis-cli presents none. This matches the flags
+// the generated liveness and readiness probes already use.
 func getRedisTLSArgs(tlsConfig *commonapi.TLSConfig, clientHost string) []string {
 	cmd := []string{}
 	if tlsConfig != nil {
+		caFile, certFile, keyFile := getTLSSecretKeys(tlsConfig)
 		cmd = append(cmd, "--tls")
 		if tlsConfig.CaCertFile != "" {
-			caFile, _, _ := getTLSSecretKeys(tlsConfig)
 			cmd = append(cmd, "--cacert")
 			cmd = append(cmd, "/tls/"+caFile)
 		}
+		cmd = append(cmd, "--cert")
+		cmd = append(cmd, "/tls/"+certFile)
+		cmd = append(cmd, "--key")
+		cmd = append(cmd, "/tls/"+keyFile)
 		cmd = append(cmd, "--insecure")
 	}
 	return cmd
