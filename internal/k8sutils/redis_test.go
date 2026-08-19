@@ -500,6 +500,16 @@ func TestExecuteSingleLeaderAddSlots(t *testing.T) {
 			var objects []runtime.Object
 			if tt.redisCluster.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
 				objects = mock_utils.CreateFakeObjectWithSecret("redis-password-secret", "default", "password")
+				// The leader pod must exist so the operator can check whether
+				// REDISCLI_AUTH is already set before deciding to pass -a on the
+				// command line. This pod has no REDISCLI_AUTH, so the -a fallback
+				// applies and the password flag is still emitted.
+				objects = append(objects, &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{Name: "redis-cluster-leader-0", Namespace: "default"},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{Name: "redis-cluster-leader"}},
+					},
+				})
 			}
 			client := k8sClientFake.NewSimpleClientset(objects...)
 
