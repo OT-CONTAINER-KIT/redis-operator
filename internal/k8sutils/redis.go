@@ -670,16 +670,40 @@ func RedisClusterStatusHealth(ctx context.Context, client kubernetes.Interface, 
 }
 
 // checkClusterHealth performs a single cluster health check against a specific pod
+// clusterCheckConnectTimeoutSeconds bounds how long redis-cli waits when dialing
+// a cluster peer during the health check.
+//
+// redis-cli has no default connect timeout, so `--cluster check` blocks
+// indefinitely on any node whose recorded address is stale -- which is exactly
+// the state left behind when pods come back on new IPs (a StatefulSet recreate,
+// an eviction, a node drain). Because the health check runs 3 attempts against
+// each leader, a stuck dial can pin a single reconcile for far longer than the
+// exec timeout budget, so the reconcile never reaches RepairDisconnectedNodes,
+// which is what would issue the CLUSTER MEET that corrects those addresses. The
+// cluster then stays out of Ready indefinitely instead of self-healing.
+//
+// Bounding the dial makes the probe fail in seconds and report the cluster as
+// unhealthy, letting the repair path run on the next reconcile.
+const clusterCheckConnectTimeoutSeconds = 5
+
+// clusterCheckCommand builds the `redis-cli --cluster check` argv, bounding the
+// peer dial with clusterCheckConnectTimeoutSeconds so an unreachable node cannot
+// block the reconcile.
+func clusterCheckCommand(port int, authArgs, tlsArgs []string) []string {
+	cmd := []string{"redis-cli", "-t", strconv.Itoa(clusterCheckConnectTimeoutSeconds), "--cluster", "check", fmt.Sprintf("127.0.0.1:%d", port)}
+	cmd = append(cmd, authArgs...)
+	cmd = append(cmd, tlsArgs...)
+	return cmd
+}
+
 func checkClusterHealth(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, podName string) error {
 	logger := log.FromContext(ctx)
 
-	cmd := []string{"redis-cli", "--cluster", "check", fmt.Sprintf("127.0.0.1:%d", *cr.Spec.Port)}
 	authArgs, err := getRedisClusterAuthArgs(ctx, client, cr, podName)
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Failed to get password authentication arguments")
 	}
-	cmd = append(cmd, authArgs...)
-	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, podName)...)
+	cmd := clusterCheckCommand(*cr.Spec.Port, authArgs, getRedisTLSArgs(cr.Spec.TLS, podName))
 
 	out, err := executeCommand1(ctx, client, cr, cmd, podName)
 	if err != nil {

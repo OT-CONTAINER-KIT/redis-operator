@@ -149,6 +149,27 @@ func TestCheckRedisCLIAuthInEnv(t *testing.T) {
 	})
 }
 
+func TestClusterCheckCommand(t *testing.T) {
+	t.Run("bounds the peer dial with a connect timeout", func(t *testing.T) {
+		cmd := clusterCheckCommand(6379, nil, nil)
+		// redis-cli has no default connect timeout, so without -t the check
+		// blocks forever on nodes whose recorded IP is stale and the reconcile
+		// never reaches the repair path. The flag must precede --cluster.
+		require.Equal(t, []string{
+			"redis-cli", "-t", "5", "--cluster", "check", "127.0.0.1:6379",
+		}, cmd)
+		assert.Positive(t, clusterCheckConnectTimeoutSeconds)
+	})
+
+	t.Run("auth and tls args are appended after the check target", func(t *testing.T) {
+		cmd := clusterCheckCommand(6380, []string{"-a", "sekret"}, []string{"--tls", "--insecure"})
+		require.Equal(t, []string{
+			"redis-cli", "-t", "5", "--cluster", "check", "127.0.0.1:6380",
+			"-a", "sekret", "--tls", "--insecure",
+		}, cmd)
+	})
+}
+
 func TestWrapRedisCLIAuthSanitize(t *testing.T) {
 	t.Run("redis-cli argv is wrapped and forwarded via $@", func(t *testing.T) {
 		in := []string{"redis-cli", "--cluster", "check", "127.0.0.1:6379"}
