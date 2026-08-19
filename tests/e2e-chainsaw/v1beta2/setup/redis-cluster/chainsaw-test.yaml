@@ -54,6 +54,44 @@ spec:
         - assert:
             file: secret.yaml
 
+    - name: Assert command-line-password-free authentication
+      try:
+        - script:
+            timeout: 30s
+            content: |
+              #!/bin/bash
+              set -e
+
+              # The AvoidCommandLinePassword work makes the operator inject
+              # REDISCLI_AUTH into the redis containers and stop passing
+              # -a <password> on redis-cli command lines. Verify both halves
+              # against a password-protected (and TLS-enabled) cluster.
+
+              # 1. REDISCLI_AUTH must be present on the leader and follower pods.
+              #    containers[0] is the redis container; the exporter is separate.
+              for role in leader follower; do
+                STS="redis-cluster-v1beta2-${role}"
+                NAMES=$(kubectl get statefulset "${STS}" -n ${NAMESPACE} \
+                  -o jsonpath='{.spec.template.spec.containers[0].env[*].name}')
+                echo "${STS} env names: ${NAMES}"
+                echo "${NAMES}" | tr ' ' '\n' | grep -qx REDISCLI_AUTH \
+                  || { echo "REDISCLI_AUTH missing on ${STS}"; exit 1; }
+              done
+
+              # 2. redis-cli must authenticate via REDISCLI_AUTH alone: a PING
+              #    with no -a <password> must still succeed. It would return a
+              #    NOAUTH error if the env var were not being honoured. TLS flags
+              #    are transport-only and do not provide authentication.
+              PONG=$(kubectl exec -n ${NAMESPACE} redis-cluster-v1beta2-leader-0 \
+                -c redis-cluster-v1beta2-leader -- \
+                redis-cli --tls --cacert /tls/ca.crt ping)
+              echo "bare PING -> ${PONG}"
+              [ "${PONG}" = "PONG" ] || { echo "expected PONG without -a"; exit 1; }
+
+              echo "command-line-password-free authentication verified"
+            check:
+              (contains($stdout, 'command-line-password-free authentication verified')): true
+
     - name: Assert config
       try:
         - script:
