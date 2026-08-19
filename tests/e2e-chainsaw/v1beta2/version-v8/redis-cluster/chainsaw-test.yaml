@@ -1,0 +1,65 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: redis-cluster-v8
+spec:
+  steps:
+    - name: Deploy a v8 Redis cluster
+      try:
+        - apply:
+            file: secret.yaml
+        - apply:
+            file: cluster.yaml
+        - assert:
+            file: ready-cluster.yaml
+        - assert:
+            file: ready-sts.yaml
+
+    - name: Assert hostname-based cluster discovery is enabled on v8
+      try:
+        - script:
+            timeout: 60s
+            content: |
+              #!/bin/bash
+              set -euo pipefail
+
+              EXEC="kubectl exec -n ${NAMESPACE} redis-cluster-v8-leader-0 -c redis-cluster-v8-leader -- redis-cli --no-auth-warning -a Opstree1234"
+
+              # cluster-announce-hostname is only emitted for Redis v7 or newer.
+              # Before the fix the operator compared clusterVersion == "v7"
+              # exactly, so "v8" silently dropped this directive and fell back to
+              # legacy IP-based discovery.
+              ANNOUNCE=$(${EXEC} config get cluster-announce-hostname)
+              echo "cluster-announce-hostname => ${ANNOUNCE}"
+              if [[ "${ANNOUNCE}" != *"redis-cluster-v8-leader-headless"* ]]; then
+                echo "expected cluster-announce-hostname to contain the leader headless FQDN"
+                exit 1
+              fi
+
+              # CLUSTER NODES must advertise the FQDN hostnames rather than bare
+              # IPs, proving getEndpoint used FQDN endpoints when forming the v8
+              # cluster.
+              NODES=$(${EXEC} cluster nodes)
+              echo "${NODES}"
+              if [[ "${NODES}" != *"redis-cluster-v8-leader-headless"* ]]; then
+                echo "expected CLUSTER NODES to advertise leader headless FQDNs"
+                exit 1
+              fi
+
+              echo "v8 hostname-based cluster discovery verified"
+            check:
+              (contains($stdout, 'v8 hostname-based cluster discovery verified')): true
+
+    - name: redis-cluster-v8-uninstall
+      try:
+        - delete:
+            ref:
+              name: redis-cluster-v8
+              kind: RedisCluster
+              apiVersion: redis.redis.opstreelabs.in/v1beta2
+        - error:
+            file: ready-cluster.yaml
+        - error:
+            file: ready-sts.yaml

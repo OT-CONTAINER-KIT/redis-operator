@@ -1,0 +1,45 @@
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisCluster
+metadata:
+  name: redis-cluster-v8
+spec:
+  # clusterVersion v8 must enable the same hostname-based discovery as v7.
+  # Before the fix the operator compared clusterVersion == "v7" exactly, so a
+  # v8 cluster silently regressed to the legacy Redis 6 IP-based behaviour.
+  clusterSize: 3
+  clusterVersion: v8
+  persistenceEnabled: true
+  podSecurityContext:
+    runAsUser: 1000
+    fsGroup: 1000
+  kubernetesConfig:
+    # ClusterIP (the default) is used deliberately: the NodePort service type
+    # makes getEndpoint take the HostIP branch and bypass FQDN endpoints, which
+    # would not exercise the v8 hostname code path under test here.
+    image: quay.io/opstree/redis:v8.2.1
+    imagePullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 101m
+        memory: 128Mi
+      limits:
+        cpu: 101m
+        memory: 128Mi
+    redisSecret:
+      name: redis-secret
+      key: password
+  storage:
+    volumeClaimTemplate:
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 1Gi
+    nodeConfVolume: true
+    nodeConfVolumeClaimTemplate:
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 1Gi
