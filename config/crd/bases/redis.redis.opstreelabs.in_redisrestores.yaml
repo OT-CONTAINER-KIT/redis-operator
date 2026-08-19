@@ -1,0 +1,190 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.17.2
+  name: redisrestores.redis.redis.opstreelabs.in
+spec:
+  group: redis.redis.opstreelabs.in
+  names:
+    kind: RedisRestore
+    listKind: RedisRestoreList
+    plural: redisrestores
+    shortNames:
+    - rr
+    - redisrestore
+    singular: redisrestore
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: Target Redis cluster name
+      jsonPath: .spec.redisClusterName
+      name: Cluster
+      type: string
+    - description: Current restore phase
+      jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          RedisRestore defines a restore operation for a Redis cluster from a backup.
+          When created, the operator downloads the backup from storage, scales down the
+          target Redis, restores dump.rdb and node.conf, and scales it back up.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: RedisRestoreSpec defines the desired state of a Redis restore
+              operation
+            properties:
+              backupLocation:
+                description: |-
+                  BackupLocation is the full path to the backup directory in storage
+                  Example: s3://my-bucket/backups/redis-cluster/2026-06-01T02-00-00Z
+                type: string
+              redisClusterName:
+                description: RedisClusterName is the name of the target Redis resource
+                  to restore to
+                minLength: 1
+                type: string
+              s3:
+                description: S3 holds configuration specific to AWS S3 storage
+                properties:
+                  bucket:
+                    description: Bucket is the name of the S3 bucket where backups
+                      will be stored
+                    minLength: 3
+                    type: string
+                  endpoint:
+                    description: Endpoint is an optional custom S3-compatible endpoint
+                      URL (e.g. for MinIO)
+                    type: string
+                  region:
+                    description: Region is the AWS region where the S3 bucket lives
+                      (e.g. ap-south-1)
+                    type: string
+                  secretName:
+                    description: |-
+                      SecretName is the name of the Kubernetes Secret in the same namespace
+                      that contains AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY keys
+                    type: string
+                required:
+                - bucket
+                - region
+                - secretName
+                type: object
+              storageType:
+                description: StorageType is the backend storage provider where the
+                  backup is stored
+                enum:
+                - s3
+                type: string
+            required:
+            - backupLocation
+            - redisClusterName
+            - storageType
+            type: object
+          status:
+            description: RedisRestoreStatus reflects the observed state of a Redis
+              restore
+            properties:
+              conditions:
+                description: Conditions is a standard Kubernetes condition list
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              message:
+                description: Message is a human-readable explanation of the current
+                  phase
+                type: string
+              phase:
+                description: 'Phase is the current stage: Pending, Running, Completed,
+                  or Failed'
+                type: string
+              restoreCompletedTime:
+                description: RestoreCompletedTime is the timestamp when the restore
+                  finished
+                format: date-time
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
