@@ -92,6 +92,14 @@ func buildSentinelPodTemplate(rr *rrvb2.RedisReplication, labels map[string]stri
 	if sentinel.ServiceAccountName != nil {
 		spec.ServiceAccountName = *sentinel.ServiceAccountName
 	}
+	spec.Volumes = []corev1.Volume{
+		{
+			Name: common.VolumeNameConfig,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+	}
 
 	return corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
@@ -114,6 +122,12 @@ func buildSentinelContainer(rr *rrvb2.RedisReplication) corev1.Container {
 			},
 		},
 		Env: buildSentinelEnv(rr),
+		VolumeMounts: []corev1.VolumeMount{
+			{
+				Name:      common.VolumeNameConfig,
+				MountPath: "/etc/redis",
+			},
+		},
 	}
 	if rr.Spec.Sentinel.Resources != nil {
 		container.Resources = *rr.Spec.Sentinel.Resources
