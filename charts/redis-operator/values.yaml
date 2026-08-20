@@ -125,12 +125,14 @@ securityContext: {}
 #  runAsNonRoot: true
 #  runAsUser: 1000
 
-# Feature gates for alpha/experimental features
-featureGates:
+# Feature gates for alpha/experimental features.
+# Only set gates that are supported by the deployed operator image; passing an
+# unknown gate makes the operator exit at startup.
+featureGates: {}
   # Never execute redis-cli -a <password>, even if authentication cannot succeed without it
-  AvoidCommandLinePassword: false
+  # AvoidCommandLinePassword: false
   # Enable generating Redis configuration using an init container instead of a regular container
-  GenerateConfigInInitContainer: false
+  # GenerateConfigInInitContainer: false
 
 manager:
   # config values for the operator manager
