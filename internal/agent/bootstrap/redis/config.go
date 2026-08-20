@@ -47,6 +47,7 @@ func GenerateConfig() error {
 		clusterMode        = util.CoalesceEnv1("SETUP_MODE", "standalone")
 		aclMode            = util.CoalesceEnv1("ACL_MODE", "")
 		aclFilePath        = util.CoalesceEnv1("ACL_FILE_PATH", "/etc/redis/user.acl")
+		expandExternal     = util.CoalesceEnv1(consts.ENV_KEY_EXPAND_EXTERNAL_CONFIG, "false")
 	)
 
 	if val, ok := util.CoalesceEnv("REDIS_PASSWORD", ""); ok && val != "" {
@@ -172,11 +173,52 @@ func GenerateConfig() error {
 	if maxMemory := util.CoalesceEnv1(consts.ENV_KEY_REDIS_MAX_MEMORY, ""); maxMemory != "" {
 		cfg.Append("maxmemory", maxMemory)
 	}
-	// External configuration defined by user at the end
+	// External configuration defined by user at the end. The file is mounted
+	// read-only from a ConfigMap and may contain ${VAR} placeholders (e.g.
+	// `requirepass ${REDIS_PASSWORD}`); Redis does not expand env vars in its
+	// config, so when EXPAND_EXTERNAL_CONFIG=true we expand them here against
+	// the container env and include the expanded copy. Without this the literal
+	// `${REDIS_PASSWORD}` would be loaded verbatim and, since the include is
+	// processed last, would override the operator-managed requirepass/masterauth
+	// set above. Gated off by default to preserve historical behaviour.
 	if _, err := os.Stat(externalConfigFile); err == nil {
-		cfg.Append("include", externalConfigFile)
+		includePath := externalConfigFile
+		if expandExternal == "true" {
+			expandedPath, err := expandExternalConfig(externalConfigFile, confPath)
+			if err != nil {
+				log.Printf("Warning: Failed to expand external config %s, including verbatim: %v", externalConfigFile, err)
+			} else {
+				includePath = expandedPath
+			}
+		}
+		cfg.Append("include", includePath)
 	}
 	return cfg.Commit()
+}
+
+// expandExternalConfig reads the user-provided external config, expands ${VAR}
+// / $VAR references against the container environment, and writes the result
+// next to the generated redis.conf. It returns the path to include.
+//
+// The expanded file is written to the redis.conf directory (an emptyDir shared
+// by the init and main containers), NOT next to the source: the source is a
+// read-only ConfigMap mount, and DATA_DIR is not guaranteed to be mounted in
+// the bootstrap init container. The redis.conf dir is always writable and
+// mounted in both containers, so the include path resolves at Redis startup.
+func expandExternalConfig(externalConfigFile, confPath string) (string, error) {
+	raw, err := os.ReadFile(externalConfigFile)
+	if err != nil {
+		return "", err
+	}
+	expanded := os.Expand(string(raw), func(key string) string {
+		return util.CoalesceEnv1(key, "")
+	})
+
+	expandedPath := filepath.Join(filepath.Dir(confPath), "redis-additional.expanded.conf")
+	if err := os.WriteFile(expandedPath, []byte(expanded), 0o644); err != nil {
+		return "", fmt.Errorf("write expanded config to %s: %v", expandedPath, err)
+	}
+	return expandedPath, nil
 }
 
 func updateMyselfIP(nodesConfPath, newIP string) (updated []byte, err error) {
