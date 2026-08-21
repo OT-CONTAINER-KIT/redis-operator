@@ -2,17 +2,23 @@ package k8sutils
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/utils/ptr"
 )
 
@@ -544,4 +550,102 @@ func Test_generateRedisClusterInitContainerParams_PersistenceDisabled(t *testing
 	if actual.PersistenceEnabled != nil {
 		t.Fatalf("Expected PersistenceEnabled to be nil when persistence is disabled, got %v", *actual.PersistenceEnabled)
 	}
+}
+
+func TestEnsureRedisClusterNodePortServices(t *testing.T) {
+	newRedisCluster := func(serviceType string, replicas int32) *rcvb2.RedisCluster {
+		cluster := &rcvb2.RedisCluster{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "redis.redis.opstreelabs.in/v1beta2",
+				Kind:       "RedisCluster",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "redis-cluster",
+				Namespace: "redis",
+			},
+			Spec: rcvb2.RedisClusterSpec{
+				ClusterSize: ptr.To(replicas),
+				KubernetesConfig: common.KubernetesConfig{
+					Service: &common.ServiceConfig{ServiceType: serviceType},
+				},
+			},
+		}
+		cluster.SetDefault()
+		return cluster
+	}
+
+	t.Run("does nothing for a non-NodePort cluster", func(t *testing.T) {
+		client := fake.NewSimpleClientset()
+		err := EnsureRedisClusterNodePortServices(t.Context(), newRedisCluster("ClusterIP", 3), "leader", client)
+
+		require.NoError(t, err)
+		assert.Empty(t, client.Actions())
+	})
+
+	t.Run("creates every missing per-pod service", func(t *testing.T) {
+		client := fake.NewSimpleClientset()
+		err := EnsureRedisClusterNodePortServices(t.Context(), newRedisCluster("NodePort", 3), "follower", client)
+
+		require.NoError(t, err)
+		services, err := client.CoreV1().Services("redis").List(t.Context(), metav1.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, services.Items, 3)
+		for i := range services.Items {
+			service := services.Items[i]
+			assert.Equal(t, "redis-cluster-follower-"+strconv.Itoa(i), service.Name)
+			assert.Equal(t, corev1.ServiceTypeNodePort, service.Spec.Type)
+			assert.Len(t, service.Spec.Ports, 2)
+			assert.Equal(t, service.Name, service.Spec.Selector["statefulset.kubernetes.io/pod-name"])
+		}
+	})
+
+	t.Run("creates only the service added by scale-up", func(t *testing.T) {
+		existingServices := make([]runtime.Object, 0, 3)
+		for i := 0; i < 3; i++ {
+			existingServices = append(existingServices, &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "redis-cluster-leader-" + strconv.Itoa(i),
+					Namespace:   "redis",
+					Annotations: map[string]string{"preserve": "true"},
+				},
+				Spec: corev1.ServiceSpec{Selector: map[string]string{"preserve": "true"}},
+			})
+		}
+		client := fake.NewSimpleClientset(existingServices...)
+
+		err := EnsureRedisClusterNodePortServices(t.Context(), newRedisCluster("NodePort", 4), "leader", client)
+
+		require.NoError(t, err)
+		services, err := client.CoreV1().Services("redis").List(t.Context(), metav1.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, services.Items, 4)
+		for i := 0; i < 3; i++ {
+			service, err := client.CoreV1().Services("redis").Get(t.Context(), "redis-cluster-leader-"+strconv.Itoa(i), metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.Equal(t, "true", service.Annotations["preserve"])
+			assert.Equal(t, "true", service.Spec.Selector["preserve"])
+		}
+		var createActions, updateActions int
+		for _, action := range client.Actions() {
+			switch action.GetVerb() {
+			case "create":
+				createActions++
+			case "update":
+				updateActions++
+			}
+		}
+		assert.Equal(t, 1, createActions)
+		assert.Zero(t, updateActions)
+	})
+
+	t.Run("returns a service lookup error", func(t *testing.T) {
+		client := fake.NewSimpleClientset()
+		client.PrependReactor("get", "services", func(k8stesting.Action) (bool, runtime.Object, error) {
+			return true, nil, errors.New("service lookup failed")
+		})
+
+		err := EnsureRedisClusterNodePortServices(t.Context(), newRedisCluster("NodePort", 3), "leader", client)
+
+		require.EqualError(t, err, "service lookup failed")
+	})
 }
