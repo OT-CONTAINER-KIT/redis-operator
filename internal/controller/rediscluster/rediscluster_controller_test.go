@@ -2,8 +2,11 @@ package rediscluster
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
@@ -259,6 +262,125 @@ var _ = Describe("Redis Cluster Controller", func() {
 				ReadyLeaderReplicas:   3,
 				ReadyFollowerReplicas: 3,
 			}))
+		})
+	})
+	Context("When deploying a NodePort Redis Cluster", func() {
+		var redisCluster *rcvb2.RedisCluster
+
+		// announceEnv collects the cluster announce variables of the pod template.
+		announceEnv := func(sts *appsv1.StatefulSet) map[string]string {
+			env := map[string]string{}
+			for _, container := range sts.Spec.Template.Spec.Containers {
+				for _, e := range container.Env {
+					if strings.HasPrefix(e.Name, "announce_port_") || strings.HasPrefix(e.Name, "announce_bus_port_") {
+						env[e.Name] = e.Value
+					}
+				}
+			}
+			return env
+		}
+
+		// expectAnnounceEnvMatchesServices asserts that every announce variable of the
+		// pod template carries the node port Kubernetes actually allocated to the
+		// matching per-pod Service.
+		expectAnnounceEnvMatchesServices := func(sts *appsv1.StatefulSet, role string) {
+			env := announceEnv(sts)
+			ExpectWithOffset(1, env).To(HaveLen(6), "every ordinal must contribute a client and a bus announce variable")
+			for i := 0; i < 3; i++ {
+				serviceName := fmt.Sprintf("%s-%s-%d", redisCluster.Name, role, i)
+				svc := &corev1.Service{}
+				ExpectWithOffset(1, k8sClient.Get(context.Background(), types.NamespacedName{Name: serviceName, Namespace: ns}, svc)).To(Succeed())
+
+				ports := map[string]int32{}
+				for _, port := range svc.Spec.Ports {
+					ports[port.Name] = port.NodePort
+				}
+				ExpectWithOffset(1, ports["redis-client"]).NotTo(BeZero(), "Kubernetes must have allocated a client node port")
+				ExpectWithOffset(1, ports["redis-bus"]).NotTo(BeZero(), "Kubernetes must have allocated a bus node port")
+
+				prefix := strings.ReplaceAll(serviceName, "-", "_")
+				ExpectWithOffset(1, env["announce_port_"+prefix]).To(Equal(strconv.Itoa(int(ports["redis-client"]))))
+				ExpectWithOffset(1, env["announce_bus_port_"+prefix]).To(Equal(strconv.Itoa(int(ports["redis-bus"]))))
+			}
+		}
+
+		getStatefulSet := func(name string) (*appsv1.StatefulSet, error) {
+			sts := &appsv1.StatefulSet{}
+			err := k8sClient.Get(context.Background(), types.NamespacedName{Name: name, Namespace: ns}, sts)
+			return sts, err
+		}
+
+		BeforeEach(func() {
+			redisCluster = &rcvb2.RedisCluster{}
+			yamlFile, err := os.ReadFile(filepath.Join("testdata", "nodeport.yaml"))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(yaml.Unmarshal(yamlFile, redisCluster)).To(Succeed())
+			redisCluster.Namespace = ns
+
+			Expect(k8sClient.Create(context.Background(), redisCluster)).Should(Succeed())
+		})
+
+		AfterEach(func() {
+			Expect(k8sClient.Delete(context.Background(), redisCluster)).Should(Succeed())
+		})
+
+		It("should announce the allocated node ports from the first StatefulSet revision", func() {
+			leaderName := redisCluster.Name + "-leader"
+			followerName := redisCluster.Name + "-follower"
+
+			By("waiting for the leader StatefulSet")
+			var leaderSts *appsv1.StatefulSet
+			Eventually(func() error {
+				var err error
+				leaderSts, err = getStatefulSet(leaderName)
+				return err
+			}, timeout, interval).Should(Succeed())
+
+			By("verifying the leader announce variables match the node ports Kubernetes allocated")
+			expectAnnounceEnvMatchesServices(leaderSts, "leader")
+
+			By("verifying the leader pod template was not corrected by a later reconciliation")
+			// The generation only stays at 1 if the first rendered spec already carried
+			// the announce variables. When the per-pod Services were created after the
+			// StatefulSet, the first revision was missing them and a second update
+			// bumped the generation.
+			Expect(leaderSts.Generation).To(BeEquivalentTo(1))
+			Consistently(func() (int64, error) {
+				sts, err := getStatefulSet(leaderName)
+				return sts.Generation, err
+			}, time.Second*2, interval).Should(BeEquivalentTo(1))
+
+			By("marking the leader StatefulSet ready so the follower is reconciled")
+			Eventually(func() error {
+				sts, err := getStatefulSet(leaderName)
+				if err != nil {
+					return err
+				}
+				sts.Status.Replicas = *sts.Spec.Replicas
+				sts.Status.ReadyReplicas = *sts.Spec.Replicas
+				sts.Status.AvailableReplicas = *sts.Spec.Replicas
+				sts.Status.CurrentReplicas = *sts.Spec.Replicas
+				sts.Status.UpdatedReplicas = *sts.Spec.Replicas
+				sts.Status.ObservedGeneration = sts.Generation
+				return k8sClient.Status().Update(context.Background(), sts)
+			}, timeout, interval).Should(Succeed())
+
+			By("waiting for the follower StatefulSet")
+			var followerSts *appsv1.StatefulSet
+			Eventually(func() error {
+				var err error
+				followerSts, err = getStatefulSet(followerName)
+				return err
+			}, timeout, interval).Should(Succeed())
+
+			By("verifying the follower announces its own node ports from its first revision")
+			expectAnnounceEnvMatchesServices(followerSts, "follower")
+			Expect(followerSts.Generation).To(BeEquivalentTo(1))
+
+			By("verifying the leader announce variables did not leak into the follower template")
+			for name := range announceEnv(followerSts) {
+				Expect(name).NotTo(ContainSubstring("_leader_"))
+			}
 		})
 	})
 })
