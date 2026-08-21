@@ -2,14 +2,17 @@ package k8sutils
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 
 	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
+	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
@@ -117,8 +120,11 @@ func generateRedisClusterInitContainerParams(cr *rcvb2.RedisCluster) initContain
 	return initcontainerProp
 }
 
-// generateRedisClusterContainerParams generates Redis container information
-func generateRedisClusterContainerParams(ctx context.Context, cl kubernetes.Interface, cr *rcvb2.RedisCluster, securityContext *corev1.SecurityContext, readinessProbeDef *corev1.Probe, livenessProbeDef *corev1.Probe, role string, resources *corev1.ResourceRequirements) containerParameters {
+// generateRedisClusterContainerParams generates Redis container information. It
+// returns an error when the per-pod NodePort Services required to build the
+// cluster announce variables cannot be read, so that an incomplete pod template
+// is never handed to the StatefulSet reconciler.
+func generateRedisClusterContainerParams(ctx context.Context, cl kubernetes.Interface, cr *rcvb2.RedisCluster, securityContext *corev1.SecurityContext, readinessProbeDef *corev1.Probe, livenessProbeDef *corev1.Probe, role string, resources *corev1.ResourceRequirements) (containerParameters, error) {
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{
@@ -137,7 +143,13 @@ func generateRedisClusterContainerParams(ctx context.Context, cl kubernetes.Inte
 		containerProp.EnvVars = cr.Spec.EnvVars
 	}
 	if cr.Spec.KubernetesConfig.GetServiceType() == "NodePort" {
-		envVars := util.Coalesce(containerProp.EnvVars, &[]corev1.EnvVar{})
+		// Start from a copy: containerProp.EnvVars may alias cr.Spec.EnvVars, which is
+		// shared between the leader and the follower render of the same reconciliation.
+		// Appending in place would leak one role's announce variables into the other.
+		envVars := &[]corev1.EnvVar{}
+		if containerProp.EnvVars != nil {
+			*envVars = append(*envVars, *containerProp.EnvVars...)
+		}
 		*envVars = append(*envVars, corev1.EnvVar{
 			Name:  "NODEPORT",
 			Value: "true",
@@ -151,31 +163,28 @@ func generateRedisClusterContainerParams(ctx context.Context, cl kubernetes.Inte
 			},
 		})
 
-		type ports struct {
-			announcePort    int
-			announceBusPort int
-		}
-		nps := map[string]ports{} // pod name to ports
 		replicas := cr.Spec.GetReplicaCounts(role)
 		for i := 0; i < int(replicas); i++ {
-			svc, err := getService(ctx, cl, cr.Namespace, cr.Name+"-"+role+"-"+strconv.Itoa(i))
+			serviceName := cr.Name + "-" + role + "-" + strconv.Itoa(i)
+			svc, err := getService(ctx, cl, cr.Namespace, serviceName)
 			if err != nil {
-				log.FromContext(ctx).Error(err, "Cannot get service for Redis", "Setup.Type", role)
-			} else {
-				nps[svc.Name] = ports{
-					announcePort:    int(svc.Spec.Ports[0].NodePort),
-					announceBusPort: int(svc.Spec.Ports[1].NodePort),
-				}
+				// Rendering the StatefulSet without the announce variables makes Redis
+				// announce an address nothing listens on, so fail instead of shipping a
+				// pod template that is known to be incomplete.
+				return containerParameters{}, fmt.Errorf("cannot get nodeport service %s/%s: %w", cr.Namespace, serviceName, err)
 			}
-		}
-		for name, np := range nps {
+			announcePort, announceBusPort, err := clusterAnnounceNodePorts(svc)
+			if err != nil {
+				return containerParameters{}, err
+			}
+			envSuffix := strings.ReplaceAll(svc.Name, "-", "_")
 			*envVars = append(*envVars, corev1.EnvVar{
-				Name:  "announce_port_" + strings.ReplaceAll(name, "-", "_"),
-				Value: strconv.Itoa(np.announcePort),
+				Name:  "announce_port_" + envSuffix,
+				Value: strconv.Itoa(int(announcePort)),
 			})
 			*envVars = append(*envVars, corev1.EnvVar{
-				Name:  "announce_bus_port_" + strings.ReplaceAll(name, "-", "_"),
-				Value: strconv.Itoa(np.announceBusPort),
+				Name:  "announce_bus_port_" + envSuffix,
+				Value: strconv.Itoa(int(announceBusPort)),
 			})
 		}
 		containerProp.EnvVars = envVars
@@ -224,7 +233,27 @@ func generateRedisClusterContainerParams(ctx context.Context, cl kubernetes.Inte
 		containerProp.ACLConfig = cr.Spec.ACL
 	}
 
-	return containerProp
+	return containerProp, nil
+}
+
+// clusterAnnounceNodePorts returns the allocated client and cluster-bus node ports
+// of a per-pod NodePort Service. Ports are matched by name because the order of
+// the port list is not part of the API contract, and a zero node port means
+// Kubernetes has not allocated one yet.
+func clusterAnnounceNodePorts(svc *corev1.Service) (int32, int32, error) {
+	var announcePort, announceBusPort int32
+	for _, port := range svc.Spec.Ports {
+		switch port.Name {
+		case redisClientPortName:
+			announcePort = port.NodePort
+		case redisBusPortName:
+			announceBusPort = port.NodePort
+		}
+	}
+	if announcePort == 0 || announceBusPort == 0 {
+		return 0, 0, fmt.Errorf("service %s/%s has no allocated %q and %q node port", svc.Namespace, svc.Name, redisClientPortName, redisBusPortName)
+	}
+	return announcePort, announceBusPort, nil
 }
 
 // CreateRedisLeader will create a leader redis setup
@@ -296,7 +325,12 @@ func (service RedisClusterSTS) CreateRedisClusterSetup(ctx context.Context, cr *
 	labels["cluster"] = cr.Name
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, annotations)
-	err := CreateOrUpdateStateFul(
+	containerParams, err := generateRedisClusterContainerParams(ctx, cl, cr, service.SecurityContext, service.ReadinessProbe, service.LivenessProbe, service.RedisStateFulType, service.Resources)
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Cannot generate container parameters for Redis", "Setup.Type", service.RedisStateFulType)
+		return err
+	}
+	err = CreateOrUpdateStateFul(
 		ctx,
 		cl,
 		cr.GetNamespace(),
@@ -304,7 +338,7 @@ func (service RedisClusterSTS) CreateRedisClusterSetup(ctx context.Context, cr *
 		generateRedisClusterParams(ctx, cr, service.getReplicaCount(cr), service.ExternalConfig, service),
 		redisClusterAsOwner(cr),
 		generateRedisClusterInitContainerParams(cr),
-		generateRedisClusterContainerParams(ctx, cl, cr, service.SecurityContext, service.ReadinessProbe, service.LivenessProbe, service.RedisStateFulType, service.Resources),
+		containerParams,
 		cr.Spec.Sidecars,
 	)
 	if err != nil {
@@ -329,7 +363,7 @@ func (service RedisClusterService) CreateRedisClusterService(ctx context.Context
 	}
 
 	busPort := corev1.ServicePort{
-		Name:     "redis-bus",
+		Name:     redisBusPortName,
 		Port:     int32(*cr.Spec.Port + 10000),
 		Protocol: corev1.ProtocolTCP,
 		TargetPort: intstr.IntOrString{
@@ -434,15 +468,16 @@ func (service RedisClusterService) createOrUpdateClusterNodePortService(ctx cont
 	return nil
 }
 
-func (service RedisClusterService) createOrUpdateClusterNodePortServiceForReplica(ctx context.Context, cr *rcvb2.RedisCluster, cl kubernetes.Interface, replica int) error {
+// clusterNodePortServiceParams returns the object metadata and the cluster-bus
+// port of the per-pod NodePort Service of a single replica.
+func (service RedisClusterService) clusterNodePortServiceParams(cr *rcvb2.RedisCluster, replica int) (metav1.ObjectMeta, corev1.ServicePort) {
 	serviceName := cr.Name + "-" + service.RedisServiceRole + "-" + strconv.Itoa(replica)
 	labels := getRedisLabels(cr.Name+"-"+service.RedisServiceRole, cluster, service.RedisServiceRole, map[string]string{
 		"statefulset.kubernetes.io/pod-name": serviceName,
 	})
 	annotations := generateServiceAnots(cr.ObjectMeta, nil, disableMetrics)
-	objectMetaInfo := generateObjectMetaInformation(serviceName, cr.Namespace, labels, annotations)
 	busPort := corev1.ServicePort{
-		Name:     "redis-bus",
+		Name:     redisBusPortName,
 		Port:     int32(*cr.Spec.Port + 10000),
 		Protocol: corev1.ProtocolTCP,
 		TargetPort: intstr.IntOrString{
@@ -450,12 +485,24 @@ func (service RedisClusterService) createOrUpdateClusterNodePortServiceForReplic
 			IntVal: int32(*cr.Spec.Port + 10000),
 		},
 	}
+	return generateObjectMetaInformation(serviceName, cr.Namespace, labels, annotations), busPort
+}
+
+func (service RedisClusterService) createOrUpdateClusterNodePortServiceForReplica(ctx context.Context, cr *rcvb2.RedisCluster, cl kubernetes.Interface, replica int) error {
+	objectMetaInfo, busPort := service.clusterNodePortServiceParams(cr, replica)
 	return CreateOrUpdateService(ctx, cr.Namespace, objectMetaInfo, redisClusterAsOwner(cr), disableMetrics, false, "NodePort", *cr.Spec.Port, cl, busPort)
 }
 
 // EnsureRedisClusterNodePortServices creates missing per-pod NodePort Services
-// before the StatefulSet is rendered. Existing Services are left untouched so
-// their selectors cannot get ahead of a StatefulSet update that later fails.
+// before the StatefulSet is rendered, so that Kubernetes has allocated the node
+// ports that the pod template announces.
+//
+// Missing Services are created, never updated: an update would move the selector
+// of a Service that is already backing a running pod ahead of a StatefulSet update
+// that may still fail on an immutable field, which is the regression fixed by
+// upstream #1347/#1348. Creating directly rather than going through
+// CreateOrUpdateService keeps that guarantee even if the Service appears between
+// the lookup and the write.
 func EnsureRedisClusterNodePortServices(ctx context.Context, cr *rcvb2.RedisCluster, role string, cl kubernetes.Interface) error {
 	if cr.Spec.KubernetesConfig.GetServiceType() != "NodePort" {
 		return nil
@@ -471,7 +518,14 @@ func EnsureRedisClusterNodePortServices(ctx context.Context, cr *rcvb2.RedisClus
 			return err
 		}
 
-		if err := service.createOrUpdateClusterNodePortServiceForReplica(ctx, cr, cl, i); err != nil {
+		objectMetaInfo, busPort := service.clusterNodePortServiceParams(cr, i)
+		serviceDef := generateServiceDef(objectMetaInfo, disableMetrics, redisClusterAsOwner(cr), false, "NodePort", *cr.Spec.Port, busPort)
+		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(serviceDef); err != nil {
+			return err
+		}
+		// A concurrent creation is not a failure: the Service exists, which is all
+		// the StatefulSet render needs.
+		if err := createService(ctx, cl, cr.Namespace, serviceDef); err != nil && !apierrors.IsAlreadyExists(err) {
 			return err
 		}
 	}
