@@ -9,6 +9,7 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
@@ -425,26 +426,55 @@ func (service RedisClusterService) createOrUpdateClusterNodePortService(ctx cont
 	replicas := cr.Spec.GetReplicaCounts(service.RedisServiceRole)
 
 	for i := 0; i < int(replicas); i++ {
-		serviceName := cr.Name + "-" + service.RedisServiceRole + "-" + strconv.Itoa(i)
-		labels := getRedisLabels(cr.Name+"-"+service.RedisServiceRole, cluster, service.RedisServiceRole, map[string]string{
-			"statefulset.kubernetes.io/pod-name": serviceName,
-		})
-		annotations := generateServiceAnots(cr.ObjectMeta, nil, disableMetrics)
-		objectMetaInfo := generateObjectMetaInformation(serviceName, cr.Namespace, labels, annotations)
-		busPort := corev1.ServicePort{
-			Name:     "redis-bus",
-			Port:     int32(*cr.Spec.Port + 10000),
-			Protocol: corev1.ProtocolTCP,
-			TargetPort: intstr.IntOrString{
-				Type:   intstr.Int,
-				IntVal: int32(*cr.Spec.Port + 10000),
-			},
-		}
-		err := CreateOrUpdateService(ctx, cr.Namespace, objectMetaInfo, redisClusterAsOwner(cr), disableMetrics, false, "NodePort", *cr.Spec.Port, cl, busPort)
-		if err != nil {
+		if err := service.createOrUpdateClusterNodePortServiceForReplica(ctx, cr, cl, i); err != nil {
 			log.FromContext(ctx).Error(err, "Cannot create nodeport service for Redis", "Setup.Type", service.RedisServiceRole)
 			return err
 		}
 	}
+	return nil
+}
+
+func (service RedisClusterService) createOrUpdateClusterNodePortServiceForReplica(ctx context.Context, cr *rcvb2.RedisCluster, cl kubernetes.Interface, replica int) error {
+	serviceName := cr.Name + "-" + service.RedisServiceRole + "-" + strconv.Itoa(replica)
+	labels := getRedisLabels(cr.Name+"-"+service.RedisServiceRole, cluster, service.RedisServiceRole, map[string]string{
+		"statefulset.kubernetes.io/pod-name": serviceName,
+	})
+	annotations := generateServiceAnots(cr.ObjectMeta, nil, disableMetrics)
+	objectMetaInfo := generateObjectMetaInformation(serviceName, cr.Namespace, labels, annotations)
+	busPort := corev1.ServicePort{
+		Name:     "redis-bus",
+		Port:     int32(*cr.Spec.Port + 10000),
+		Protocol: corev1.ProtocolTCP,
+		TargetPort: intstr.IntOrString{
+			Type:   intstr.Int,
+			IntVal: int32(*cr.Spec.Port + 10000),
+		},
+	}
+	return CreateOrUpdateService(ctx, cr.Namespace, objectMetaInfo, redisClusterAsOwner(cr), disableMetrics, false, "NodePort", *cr.Spec.Port, cl, busPort)
+}
+
+// EnsureRedisClusterNodePortServices creates missing per-pod NodePort Services
+// before the StatefulSet is rendered. Existing Services are left untouched so
+// their selectors cannot get ahead of a StatefulSet update that later fails.
+func EnsureRedisClusterNodePortServices(ctx context.Context, cr *rcvb2.RedisCluster, role string, cl kubernetes.Interface) error {
+	if cr.Spec.KubernetesConfig.GetServiceType() != "NodePort" {
+		return nil
+	}
+
+	service := RedisClusterService{RedisServiceRole: role}
+	replicas := cr.Spec.GetReplicaCounts(role)
+	for i := 0; i < int(replicas); i++ {
+		serviceName := cr.Name + "-" + role + "-" + strconv.Itoa(i)
+		if _, err := getService(ctx, cl, cr.Namespace, serviceName); err == nil {
+			continue
+		} else if !apierrors.IsNotFound(err) {
+			return err
+		}
+
+		if err := service.createOrUpdateClusterNodePortServiceForReplica(ctx, cr, cl, i); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
