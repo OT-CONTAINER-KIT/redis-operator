@@ -679,33 +679,37 @@ func RedisClusterStatusHealth(ctx context.Context, client kubernetes.Interface, 
 	return false
 }
 
-// checkClusterHealth performs a single cluster health check against a specific pod
-// clusterCheckConnectTimeoutSeconds bounds how long redis-cli waits when dialing
-// a cluster peer during the health check.
+// clusterCheckExecTimeout bounds a single `redis-cli --cluster check` exec.
 //
-// redis-cli has no default connect timeout, so `--cluster check` blocks
-// indefinitely on any node whose recorded address is stale -- which is exactly
-// the state left behind when pods come back on new IPs (a StatefulSet recreate,
-// an eviction, a node drain). Because the health check runs 3 attempts against
-// each leader, a stuck dial can pin a single reconcile for far longer than the
-// exec timeout budget, so the reconcile never reaches RepairDisconnectedNodes,
-// which is what would issue the CLUSTER MEET that corrects those addresses. The
-// cluster then stays out of Ready indefinitely instead of self-healing.
+// `--cluster check` dials every node recorded in the cluster config and
+// redis-cli applies no connect timeout of its own, so it blocks indefinitely on
+// any node whose recorded address is stale -- which is exactly the state left
+// behind when pods come back on new IPs (a StatefulSet recreate, an eviction, a
+// node drain). Because the health check runs 3 attempts against each leader, a
+// stuck dial can pin a single reconcile for far longer than
+// defaultExecCommandTimeout, so the reconcile never reaches
+// RepairDisconnectedNodes, which is what would issue the CLUSTER MEET that
+// corrects those addresses. The cluster then stays out of Ready indefinitely
+// instead of self-healing.
 //
-// Bounding the dial makes the probe fail in seconds and report the cluster as
-// unhealthy, letting the repair path run on the next reconcile.
-const clusterCheckConnectTimeoutSeconds = 5
+// The bound is applied to the exec context rather than through redis-cli's `-t`
+// flag because `-t` only exists in redis-cli 7.4 and later. Passing it to any
+// older redis-cli aborts the command with "Unrecognized option or bad number of
+// args for: '-t'", which breaks the health check outright on Redis 6.x and
+// 7.0-7.2 clusters. Bounding it operator-side keeps the anti-hang guarantee for
+// every supported Redis version.
+const clusterCheckExecTimeout = 15 * time.Second
 
-// clusterCheckCommand builds the `redis-cli --cluster check` argv, bounding the
-// peer dial with clusterCheckConnectTimeoutSeconds so an unreachable node cannot
-// block the reconcile.
+// clusterCheckCommand builds the `redis-cli --cluster check` argv. It carries no
+// timeout flag on purpose; see clusterCheckExecTimeout.
 func clusterCheckCommand(port int, authArgs, tlsArgs []string) []string {
-	cmd := []string{"redis-cli", "-t", strconv.Itoa(clusterCheckConnectTimeoutSeconds), "--cluster", "check", fmt.Sprintf("127.0.0.1:%d", port)}
+	cmd := []string{"redis-cli", "--cluster", "check", fmt.Sprintf("127.0.0.1:%d", port)}
 	cmd = append(cmd, authArgs...)
 	cmd = append(cmd, tlsArgs...)
 	return cmd
 }
 
+// checkClusterHealth performs a single cluster health check against a specific pod.
 func checkClusterHealth(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, podName string) error {
 	logger := log.FromContext(ctx)
 
@@ -715,7 +719,10 @@ func checkClusterHealth(ctx context.Context, client kubernetes.Interface, cr *rc
 	}
 	cmd := clusterCheckCommand(*cr.Spec.Port, authArgs, getRedisTLSArgs(cr.Spec.TLS, podName))
 
-	out, err := executeCommand1(ctx, client, cr, cmd, podName)
+	execCtx, cancel := context.WithTimeout(ctx, clusterCheckExecTimeout)
+	defer cancel()
+
+	out, err := executeCommand1(execCtx, client, cr, cmd, podName)
 	if err != nil {
 		return fmt.Errorf("failed to execute cluster check command: %w", err)
 	}
