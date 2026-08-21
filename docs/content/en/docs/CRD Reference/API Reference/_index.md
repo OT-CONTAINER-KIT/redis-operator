@@ -213,7 +213,7 @@ _Appears in:_
 | `kubernetesConfig` _[KubernetesConfig](#kubernetesconfig)_ |  |  |  |
 | `hostNetwork` _boolean_ |  |  |  |
 | `port` _integer_ |  | 6379 |  |
-| `clusterVersion` _string_ |  | v7 |  |
+| `clusterVersion` _string_ | ClusterVersion is the major version of the Redis image in use, written as<br />`v6`, `v7`, `v8` and so on. It must match the major version of the image<br />configured for the cluster: Redis 7+ features such as hostname based<br />cluster announcements and CLUSTER ADDSLOTSRANGE are enabled for `v7` and<br />every later major version, and disabled for `v6` and older. | v7 |  |
 | `redisConfig` _[RedisConfig](#redisconfig)_ |  |  |  |
 | `redisLeader` _[RedisLeader](#redisleader)_ |  |  |  |
 | `redisFollower` _[RedisFollower](#redisfollower)_ |  |  |  |

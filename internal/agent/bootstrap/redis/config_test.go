@@ -104,3 +104,48 @@ vars currentEpoch 3 lastVoteEpoch 0
 
 	t.Logf("Successfully updated nodes.conf with new IP %s", newIP)
 }
+
+func Test_GenerateConfig_RedisMajorVersionGates(t *testing.T) {
+	tests := []struct {
+		name              string
+		redisMajorVersion string
+		expectV7Features  bool
+	}{
+		{name: "v6 keeps the pre-7 configuration", redisMajorVersion: "v6", expectV7Features: false},
+		{name: "v7 enables hostname based clustering", redisMajorVersion: "v7", expectV7Features: true},
+		{name: "v8 also enables hostname based clustering", redisMajorVersion: "v8", expectV7Features: true},
+		{name: "v10 is not compared lexically", redisMajorVersion: "v10", expectV7Features: true},
+		{name: "unparseable version falls back to the v7 default", redisMajorVersion: "latest", expectV7Features: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmp := t.TempDir()
+			confPath := filepath.Join(tmp, "redis.conf")
+
+			t.Setenv("REDIS_CONFIG_FILE", confPath)
+			t.Setenv("SETUP_MODE", "cluster")
+			t.Setenv("NODE_CONF_DIR", tmp)
+			t.Setenv("NODEPORT", "false")
+			t.Setenv("TLS_MODE", "true")
+			t.Setenv("REDIS_TLS_CERT", "/tls/tls.crt")
+			t.Setenv("REDIS_TLS_CERT_KEY", "/tls/tls.key")
+			t.Setenv("REDIS_MAJOR_VERSION", tt.redisMajorVersion)
+
+			require.NoError(t, GenerateConfig())
+
+			raw, err := os.ReadFile(confPath)
+			require.NoError(t, err)
+			conf := string(raw)
+
+			if tt.expectV7Features {
+				assert.Contains(t, conf, "cluster-preferred-endpoint-type hostname")
+				// cluster-announce-hostname is only written when the FQDN lookup
+				// succeeds, which is environment dependent, so it is not asserted here.
+			} else {
+				assert.NotContains(t, conf, "cluster-preferred-endpoint-type")
+				assert.NotContains(t, conf, "cluster-announce-hostname")
+			}
+		})
+	}
+}

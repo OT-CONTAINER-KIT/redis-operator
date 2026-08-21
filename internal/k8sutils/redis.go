@@ -18,6 +18,7 @@ import (
 	common "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/envs"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/features"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 	retry "github.com/avast/retry-go"
 	redis "github.com/redis/go-redis/v9"
 	"github.com/samber/lo"
@@ -82,7 +83,7 @@ func getEndpoint(ctx context.Context, client kubernetes.Interface, cr *rcvb2.Red
 		port int
 	)
 	port = *cr.Spec.Port
-	if cr.Spec.ClusterVersion != nil && *cr.Spec.ClusterVersion == "v7" {
+	if cr.Spec.ClusterVersion != nil && util.IsRedisVersionAtLeastV7(*cr.Spec.ClusterVersion) {
 		host = rd.FQDN()
 	} else {
 		host = getRedisServerIP(ctx, client, rd)
@@ -203,7 +204,7 @@ func executeSingleLeaderAddSlots(ctx context.Context, client kubernetes.Interfac
 
 	// Redis 7+ supports ADDSLOTSRANGE which takes a start-end pair instead
 	// of listing every slot number individually — avoids the URL length issue entirely.
-	if cr.Spec.ClusterVersion != nil && *cr.Spec.ClusterVersion == "v7" {
+	if cr.Spec.ClusterVersion != nil && util.IsRedisVersionAtLeastV7(*cr.Spec.ClusterVersion) {
 		cmd := []string{"redis-cli"}
 		cmd = append(cmd, flags...)
 		cmd = append(cmd, "CLUSTER", "ADDSLOTSRANGE", "0", "16383")
