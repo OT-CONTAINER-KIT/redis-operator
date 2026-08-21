@@ -125,7 +125,7 @@ securityContext: {}
 #  runAsNonRoot: true
 #  runAsUser: 1000
 
-# Feature gates for alpha/experimental features.
+# -- Feature gates for alpha/experimental features.
 # Only set gates that are supported by the deployed operator image; passing an
 # unknown gate makes the operator exit at startup.
 featureGates: {}
