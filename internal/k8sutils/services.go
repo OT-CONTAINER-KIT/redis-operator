@@ -15,6 +15,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+const (
+	// redisClientPortName and redisBusPortName are the port names used on every
+	// Redis service. They are matched by name when reading back allocated node
+	// ports, because the order of ServicePort entries is not part of the API
+	// contract.
+	redisClientPortName    = "redis-client"
+	redisBusPortName       = "redis-bus"
+	sentinelClientPortName = "sentinel-client"
+)
+
 // exporterPortProvider return the exporter port if bool is true
 type exporterPortProvider func() (port int, enable bool)
 
@@ -26,9 +36,9 @@ var disableMetrics exporterPortProvider = func() (int, bool) {
 func generateServiceDef(serviceMeta metav1.ObjectMeta, epp exporterPortProvider, ownerDef metav1.OwnerReference, headless bool, serviceType string, port int, extra ...corev1.ServicePort) *corev1.Service {
 	var PortName string
 	if serviceMeta.Labels["role"] == "sentinel" {
-		PortName = "sentinel-client"
+		PortName = sentinelClientPortName
 	} else {
-		PortName = "redis-client"
+		PortName = redisClientPortName
 	}
 	service := &corev1.Service{
 		TypeMeta:   generateMetaInformation("Service", "v1"),

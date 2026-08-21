@@ -102,7 +102,7 @@ func getEndpoint(ctx context.Context, client kubernetes.Interface, cr *rcvb2.Red
 			return ""
 		}
 		svcPort, ok := lo.Find(svc.Spec.Ports, func(item corev1.ServicePort) bool {
-			return item.Name == "redis-client"
+			return item.Name == redisClientPortName
 		})
 		if ok {
 			port = int(svcPort.NodePort)
