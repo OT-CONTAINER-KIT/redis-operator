@@ -101,7 +101,7 @@ spec:
     cert: {{ .Values.TLS.cert | quote }}
     key: {{ .Values.TLS.key | quote }}
     secret:
-      secretName: {{ .Values.TLS.secret.secretName | quote }}
+      {{- toYaml .Values.TLS.secret | nindent 6 }}
   {{- end }}
   {{- if .Values.pdb.enabled }}
   pdb:
