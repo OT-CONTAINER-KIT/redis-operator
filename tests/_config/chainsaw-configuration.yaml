@@ -7,7 +7,12 @@ metadata:
 spec:
   execution:
     failFast: true
-    parallel: 2
+    # 3, not 4. With the suite at 2915s across 23 cases, sum/3 = 972s still sits
+    # above the 871s critical path (setup-redis-cluster), so there is slack for
+    # contention to eat. sum/4 = 729s puts the wall clock exactly on the
+    # critical path, where any slowdown in that one case shows up one-for-one.
+    # 4 is the ceiling worth trying -- 5 buys nothing.
+    parallel: 3
     forceTerminationGracePeriod: 5s
   # No cleanup block: both settings it used to carry are back at their defaults.
   #
@@ -21,6 +26,11 @@ spec:
   # 3763s. Two full runs finished with no cleanup timeouts, so the settling
   # time it bought is not needed.
   timeouts:
+    # Namespace teardown has to wait out the CRD finalizers, and chainsaw's
+    # 30s default is not enough: sentinel-pod-placement hit "context deadline
+    # exceeded" on it. Chainsaw counts that as a failed test in its go-test
+    # output but not in its summary or exit code, so CI went green over it.
+    cleanup: 2m
     apply: 5m
     delete: 5m
     assert: 20m
