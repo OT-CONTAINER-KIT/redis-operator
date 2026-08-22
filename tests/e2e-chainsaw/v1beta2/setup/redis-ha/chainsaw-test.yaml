@@ -67,15 +67,29 @@ spec:
 
     - name: Test Master IP consistency
       try:
-        - sleep:
-            duration: 90s
         - script:
-            timeout: 10s
+            timeout: 240s
             content: |
-              export MASTER_POD_FROM_STATUS=$(kubectl -n ${NAMESPACE} get redisreplication redis-replication -o jsonpath='{.status.masterNode}');
-              export FROM_SENTINEL=$(kubectl -n ${NAMESPACE} exec redis-sentinel-sentinel-0 -c redis-sentinel-sentinel -- redis-cli --no-auth-warning --tls --cacert /tls/ca.crt -a Opstree@1234sentinel -p 26379 sentinel get-master-addr-by-name myMaster | head -n 1 | cut -d'.' -f1);
-              export MASTER_POD_FROM_LABEL=$(kubectl -n ${NAMESPACE} get pod -l app=redis-replication,redis-role=master,redis_setup_type=replication -o jsonpath='{.items[0].metadata.name}');
-              if [ "$FROM_SENTINEL" = "$MASTER_POD_FROM_LABEL" ] && [ "$FROM_SENTINEL" = "$MASTER_POD_FROM_STATUS" ]; then echo "OK"; else echo "FAIL"; fi
+              # Runs under /bin/sh via `sh -c`, so keep this POSIX-compatible.
+              # Polls instead of sleeping 90s and hoping the failover landed.
+              # The master must also be Ready, so that the three sources
+              # agreeing on a pod that has just been deleted does not count.
+              i=0
+              while [ $i -lt 60 ]; do
+                FROM_STATUS=$(kubectl -n ${NAMESPACE} get redisreplication redis-replication -o jsonpath='{.status.masterNode}' 2>/dev/null);
+                FROM_SENTINEL=$(kubectl -n ${NAMESPACE} exec redis-sentinel-sentinel-0 -c redis-sentinel-sentinel -- redis-cli --no-auth-warning --tls --cacert /tls/ca.crt -a Opstree@1234sentinel -p 26379 sentinel get-master-addr-by-name myMaster 2>/dev/null | head -n 1 | cut -d'.' -f1);
+                FROM_LABEL=$(kubectl -n ${NAMESPACE} get pod -l app=redis-replication,redis-role=master,redis_setup_type=replication -o jsonpath='{.items[0].metadata.name}' 2>/dev/null);
+                READY=$(kubectl -n ${NAMESPACE} get pod "$FROM_STATUS" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null);
+                if [ -n "$FROM_STATUS" ] && [ "$FROM_SENTINEL" = "$FROM_LABEL" ] &&
+                   [ "$FROM_SENTINEL" = "$FROM_STATUS" ] && [ "$READY" = "True" ]; then
+                  echo "OK: master is $FROM_STATUS by status, label and sentinel"
+                  exit 0
+                fi
+                i=$((i + 1))
+                sleep 3
+              done
+              echo "timed out; status=$FROM_STATUS sentinel=$FROM_SENTINEL label=$FROM_LABEL ready=$READY"
+              exit 1
             check:
               (contains($stdout, 'OK')): true
 
@@ -103,15 +117,29 @@ spec:
 
     - name: Test Master IP consistency
       try:
-        - sleep:
-            duration: 90s
         - script:
-            timeout: 10s
+            timeout: 240s
             content: |
-              export MASTER_POD_FROM_STATUS=$(kubectl -n ${NAMESPACE} get redisreplication redis-replication -o jsonpath='{.status.masterNode}');
-              export FROM_SENTINEL=$(kubectl -n ${NAMESPACE} exec redis-sentinel-sentinel-0 -c redis-sentinel-sentinel -- redis-cli --no-auth-warning --tls --cacert /tls/ca.crt -a Opstree@1234sentinel -p 26379 sentinel get-master-addr-by-name myMaster | head -n 1 | cut -d'.' -f1);
-              export MASTER_POD_FROM_LABEL=$(kubectl -n ${NAMESPACE} get pod -l app=redis-replication,redis-role=master,redis_setup_type=replication -o jsonpath='{.items[0].metadata.name}');
-              if [ "$FROM_SENTINEL" = "$MASTER_POD_FROM_LABEL" ] && [ "$FROM_SENTINEL" = "$MASTER_POD_FROM_STATUS" ]; then echo "OK"; else echo "FAIL"; fi
+              # Runs under /bin/sh via `sh -c`, so keep this POSIX-compatible.
+              # Polls instead of sleeping 90s and hoping the failover landed.
+              # The master must also be Ready, so that the three sources
+              # agreeing on a pod that has just been deleted does not count.
+              i=0
+              while [ $i -lt 60 ]; do
+                FROM_STATUS=$(kubectl -n ${NAMESPACE} get redisreplication redis-replication -o jsonpath='{.status.masterNode}' 2>/dev/null);
+                FROM_SENTINEL=$(kubectl -n ${NAMESPACE} exec redis-sentinel-sentinel-0 -c redis-sentinel-sentinel -- redis-cli --no-auth-warning --tls --cacert /tls/ca.crt -a Opstree@1234sentinel -p 26379 sentinel get-master-addr-by-name myMaster 2>/dev/null | head -n 1 | cut -d'.' -f1);
+                FROM_LABEL=$(kubectl -n ${NAMESPACE} get pod -l app=redis-replication,redis-role=master,redis_setup_type=replication -o jsonpath='{.items[0].metadata.name}' 2>/dev/null);
+                READY=$(kubectl -n ${NAMESPACE} get pod "$FROM_STATUS" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null);
+                if [ -n "$FROM_STATUS" ] && [ "$FROM_SENTINEL" = "$FROM_LABEL" ] &&
+                   [ "$FROM_SENTINEL" = "$FROM_STATUS" ] && [ "$READY" = "True" ]; then
+                  echo "OK: master is $FROM_STATUS by status, label and sentinel"
+                  exit 0
+                fi
+                i=$((i + 1))
+                sleep 3
+              done
+              echo "timed out; status=$FROM_STATUS sentinel=$FROM_SENTINEL label=$FROM_LABEL ready=$READY"
+              exit 1
             check:
               (contains($stdout, 'OK')): true
 

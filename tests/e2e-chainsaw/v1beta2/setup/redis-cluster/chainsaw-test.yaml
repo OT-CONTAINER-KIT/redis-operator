@@ -164,14 +164,25 @@ spec:
 
     - name: Check follower-0 label updated
       try:
-        - sleep:
-            duration: 1m
         - script:
-            timeout: 30s
-            content: >
-              kubectl get pod -n ${NAMESPACE} redis-cluster-v1beta2-follower-0 -o jsonpath='{.metadata.labels.redis-role}'
+            timeout: 120s
+            content: |
+              # Runs under /bin/sh via `sh -c`, so keep this POSIX-compatible.
+              i=0
+              while [ $i -lt 40 ]; do
+                ROLE=$(kubectl get pod -n ${NAMESPACE} redis-cluster-v1beta2-follower-0 \
+                  -o jsonpath='{.metadata.labels.redis-role}' 2>/dev/null)
+                if [ "$ROLE" = "master" ]; then
+                  echo "follower-0 is labelled master"
+                  exit 0
+                fi
+                i=$((i + 1))
+                sleep 3
+              done
+              echo "timed out; follower-0 redis-role is '$ROLE'"
+              exit 1
             check:
-              (contains($stdout, 'master')): true
+              (contains($stdout, 'follower-0 is labelled master')): true
 
     - name: Failover the follower-0 to slave
       try:
@@ -182,8 +193,26 @@ spec:
               bash -c  "redis-cli -a Opstree1234 --tls --cacert /tls/ca.crt cluster failover"
             check:
               (contains($stdout, 'OK')): true
-        - sleep:
-            duration: 1m
+        - script:
+            timeout: 120s
+            content: |
+              # Wait for the role to swing back before scaling out, rather than
+              # assuming a minute was enough.
+              i=0
+              while [ $i -lt 40 ]; do
+                ROLE=$(kubectl get pod -n ${NAMESPACE} redis-cluster-v1beta2-follower-0 \
+                  -o jsonpath='{.metadata.labels.redis-role}' 2>/dev/null)
+                if [ "$ROLE" = "slave" ]; then
+                  echo "follower-0 is labelled slave again"
+                  exit 0
+                fi
+                i=$((i + 1))
+                sleep 3
+              done
+              echo "timed out; follower-0 redis-role is '$ROLE'"
+              exit 1
+            check:
+              (contains($stdout, 'follower-0 is labelled slave again')): true
 
     - name: Scale Out Redis Cluster
       try:

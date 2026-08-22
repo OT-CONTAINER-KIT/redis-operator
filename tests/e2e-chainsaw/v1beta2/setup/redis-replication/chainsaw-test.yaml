@@ -110,15 +110,26 @@ spec:
 
     - name: Check master changed
       try:
-        - sleep:
-            duration: 60s
         - script:
-            timeout: 10s
+            timeout: 150s
             content: |
-              export MASTER_POD_FROM_STATUS=$(kubectl -n ${NAMESPACE} get redisreplication redis-replication -o jsonpath='{.status.masterNode}');
-              echo "$MASTER_POD_FROM_STATUS"
+              # Runs under /bin/sh via `sh -c`, so keep this POSIX-compatible.
+              # Poll for the failover instead of assuming 60s was long enough.
+              i=0
+              while [ $i -lt 45 ]; do
+                MASTER=$(kubectl -n ${NAMESPACE} get redisreplication redis-replication \
+                  -o jsonpath='{.status.masterNode}' 2>/dev/null)
+                if [ -n "$MASTER" ] && [ "$MASTER" != "redis-replication-0" ]; then
+                  echo "master moved off redis-replication-0 (now $MASTER)"
+                  exit 0
+                fi
+                i=$((i + 1))
+                sleep 3
+              done
+              echo "timed out; status.masterNode is still '$MASTER'"
+              exit 1
             check:
-              (contains($stdout, 'redis-replication-0')): false
+              (contains($stdout, 'master moved off redis-replication-0')): true
 
     - name: Assert data
       try:

@@ -7,7 +7,7 @@ spec:
   sentinel:
     size: 3
     image: quay.io/opstree/redis-sentinel:latest
-    imagePullPolicy: Always
+    imagePullPolicy: IfNotPresent
   clusterSize: 3
   redisConfig:
     maxMemoryPercentOfLimit: 80
@@ -23,13 +23,12 @@ spec:
         additionalAnnotations:
           opstreelabs.in/additional-annotation: present
     image: quay.io/opstree/redis:latest
-    imagePullPolicy: Always
+    imagePullPolicy: IfNotPresent
     resources:
       requests:
         cpu: 101m
         memory: 128Mi
       limits:
-        cpu: 101m
         memory: 128Mi
     redisSecret:
       name: redis-secret

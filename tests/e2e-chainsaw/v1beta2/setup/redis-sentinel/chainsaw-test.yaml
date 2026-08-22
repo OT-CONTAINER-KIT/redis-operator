@@ -29,10 +29,32 @@ spec:
             file: cli-pod.yaml
         - assert:
             file: cli-pod.yaml
-    - name: Sleep for five minutes
+    - name: Wait for the replication and sentinel services to answer
+      description: >
+        This replaces a flat `sleep 5m` that was ~90% of this case's runtime.
+        The ping steps below are the real assertions; this only waits until the
+        services have endpoints behind them.
       try:
-        - sleep:
-            duration: 5m
+        - script:
+            timeout: 6m
+            content: |
+              # Runs under /bin/sh via `sh -c`, so keep this POSIX-compatible.
+              i=0
+              while [ $i -lt 90 ]; do
+                if kubectl exec --namespace ${NAMESPACE} redis -- redis-cli \
+                     -h redis-replication.${NAMESPACE}.svc -p 6379 ping 2>/dev/null | grep -q PONG &&
+                   kubectl exec --namespace ${NAMESPACE} redis -- redis-cli \
+                     -h redis-sentinel-sentinel.${NAMESPACE}.svc -p 26379 -a Opstree@1234 ping 2>/dev/null | grep -q PONG; then
+                  echo "replication and sentinel services are answering"
+                  exit 0
+                fi
+                i=$((i + 1))
+                sleep 4
+              done
+              echo "timed out waiting for the services to answer"
+              exit 1
+            check:
+              (contains($stdout, 'replication and sentinel services are answering')): true
     - name: Ping Replicated Service from Cli Pod
       try:
         - script:
