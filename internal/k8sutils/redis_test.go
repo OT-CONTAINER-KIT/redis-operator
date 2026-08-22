@@ -14,6 +14,7 @@ import (
 	"github.com/go-redis/redismock/v9"
 	redis "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -244,9 +245,12 @@ e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@31001,redis-cluster-lea
 	)
 	followerMock.ExpectClusterReplicate("e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca").SetVal("OK")
 
+	namer := newClusterNodePodNamer(k8sClientFake.NewSimpleClientset(), &rcvb2.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "redis-cluster", Namespace: "default"},
+	})
 	repaired, lastError := repairStaleReplication(ctx, redisClient, func(_ string) *redis.Client {
 		return followerClient
-	})
+	}, namer.podName)
 	assert.NoError(t, lastError)
 	assert.Equal(t, 1, repaired)
 	assert.NoError(t, followerMock.ExpectationsWereMet(), "expected CLUSTER REPLICATE on the stale follower")
@@ -266,9 +270,12 @@ e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@31001,redis-cluster-lea
 		"# Replication\r\nrole:slave\r\nmaster_host:10.0.0.1\r\nmaster_port:6379\r\nmaster_link_status:up\r\nmaster_last_io_seconds_ago:0\r\n",
 	)
 
+	namer := newClusterNodePodNamer(k8sClientFake.NewSimpleClientset(), &rcvb2.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "redis-cluster", Namespace: "default"},
+	})
 	repaired, lastError := repairStaleReplication(ctx, redisClient, func(_ string) *redis.Client {
 		return followerClient
-	})
+	}, namer.podName)
 	assert.NoError(t, lastError)
 	assert.Equal(t, 0, repaired)
 }
@@ -1280,4 +1287,258 @@ e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@31001,hostname1 myself,
 			}
 		})
 	}
+}
+
+func TestParseClusterNodeAddress(t *testing.T) {
+	tests := []struct {
+		name             string
+		field            string
+		expectedIP       string
+		expectedPort     string
+		expectedHostname string
+		expectError      bool
+	}{
+		{
+			name:             "address with an announced hostname",
+			field:            "127.0.0.1:30001@31001,redis-cluster-leader-0.redis-cluster-leader-headless.default.svc.cluster.local",
+			expectedIP:       "127.0.0.1",
+			expectedPort:     "30001",
+			expectedHostname: "redis-cluster-leader-0.redis-cluster-leader-headless.default.svc.cluster.local",
+		},
+		{
+			// A NodePort cluster runs without cluster-announce-hostname, so Redis
+			// reports the address on its own.
+			name:         "address without a hostname",
+			field:        "192.168.10.16:30366@30781",
+			expectedIP:   "192.168.10.16",
+			expectedPort: "30366",
+		},
+		{
+			// Redis 7.2 and later may append auxiliary fields after the hostname.
+			name:             "address with auxiliary fields after the hostname",
+			field:            "127.0.0.1:6379@16379,redis-cluster-leader-0,shard-id=69bfa0c",
+			expectedIP:       "127.0.0.1",
+			expectedPort:     "6379",
+			expectedHostname: "redis-cluster-leader-0",
+		},
+		{
+			name:         "IPv6 address",
+			field:        "2001:db8::1:6379@16379",
+			expectedIP:   "2001:db8::1",
+			expectedPort: "6379",
+		},
+		{
+			name:        "address without a port",
+			field:       "127.0.0.1",
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			address, err := parseClusterNodeAddress(clusterNodesResponse{"nodeid", tt.field, "master"})
+			if tt.expectError {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectedIP, address.ip)
+			assert.Equal(t, tt.expectedPort, address.port)
+			assert.Equal(t, tt.expectedHostname, address.hostname)
+		})
+	}
+
+	t.Run("entry without an address field", func(t *testing.T) {
+		_, err := parseClusterNodeAddress(clusterNodesResponse{"nodeid"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "want at least 2")
+	})
+}
+
+func TestClusterNodePodNamer(t *testing.T) {
+	nodePortCluster := func() *rcvb2.RedisCluster {
+		return &rcvb2.RedisCluster{
+			ObjectMeta: metav1.ObjectMeta{Name: "redis-cluster", Namespace: "default"},
+			Spec: rcvb2.RedisClusterSpec{
+				ClusterSize: ptr.To(int32(1)),
+				KubernetesConfig: common.KubernetesConfig{
+					Service: &common.ServiceConfig{ServiceType: "NodePort"},
+				},
+			},
+		}
+	}
+	clusterIPCluster := func() *rcvb2.RedisCluster {
+		return &rcvb2.RedisCluster{
+			ObjectMeta: metav1.ObjectMeta{Name: "redis-cluster", Namespace: "default"},
+			Spec:       rcvb2.RedisClusterSpec{ClusterSize: ptr.To(int32(1))},
+		}
+	}
+	perPodService := func(name string, nodePort int32) *corev1.Service {
+		return &corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "default"},
+			Spec: corev1.ServiceSpec{
+				Type: corev1.ServiceTypeNodePort,
+				Ports: []corev1.ServicePort{
+					{Name: "redis-bus", Port: 16379, NodePort: nodePort + 1000},
+					{Name: "redis-client", Port: 6379, NodePort: nodePort},
+				},
+			},
+		}
+	}
+	node := func(address string) clusterNodesResponse {
+		return clusterNodesResponse{"nodeid", address, "master"}
+	}
+
+	t.Run("resolves a NodePort cluster node that announces no hostname", func(t *testing.T) {
+		client := k8sClientFake.NewSimpleClientset(
+			perPodService("redis-cluster-leader-0", 30366),
+			perPodService("redis-cluster-follower-0", 30445),
+		)
+		namer := newClusterNodePodNamer(client, nodePortCluster())
+
+		podName, err := namer.podName(context.Background(), node("192.168.10.16:30445@30199"))
+
+		require.NoError(t, err)
+		assert.Equal(t, "redis-cluster-follower-0", podName)
+	})
+
+	t.Run("matches the node port rather than the node IP so a rescheduled pod still resolves", func(t *testing.T) {
+		client := k8sClientFake.NewSimpleClientset(
+			perPodService("redis-cluster-leader-0", 30366),
+			perPodService("redis-cluster-follower-0", 30445),
+		)
+		namer := newClusterNodePodNamer(client, nodePortCluster())
+
+		// The recorded address still points at the node the pod used to run on.
+		podName, err := namer.podName(context.Background(), node("192.168.10.99:30366@30781"))
+
+		require.NoError(t, err)
+		assert.Equal(t, "redis-cluster-leader-0", podName)
+	})
+
+	t.Run("resolves a non-NodePort cluster node by pod IP", func(t *testing.T) {
+		client := k8sClientFake.NewSimpleClientset(
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{Name: "redis-cluster-follower-0", Namespace: "default"},
+				Status:     corev1.PodStatus{PodIP: "10.0.0.2"},
+			},
+		)
+		namer := newClusterNodePodNamer(client, clusterIPCluster())
+
+		podName, err := namer.podName(context.Background(), node("10.0.0.2:6379@16379"))
+
+		require.NoError(t, err)
+		assert.Equal(t, "redis-cluster-follower-0", podName)
+	})
+
+	t.Run("prefers the announced hostname and makes no API call", func(t *testing.T) {
+		client := k8sClientFake.NewSimpleClientset()
+		namer := newClusterNodePodNamer(client, nodePortCluster())
+
+		podName, err := namer.podName(context.Background(), node("127.0.0.1:30001@31001,redis-cluster-leader-0.headless.default.svc.cluster.local"))
+
+		require.NoError(t, err)
+		assert.Equal(t, "redis-cluster-leader-0", podName)
+		assert.Empty(t, client.Actions(), "the hostname is enough, nothing should be looked up")
+	})
+
+	t.Run("reports the unresolvable address instead of the element count", func(t *testing.T) {
+		client := k8sClientFake.NewSimpleClientset(perPodService("redis-cluster-leader-0", 30366))
+		namer := newClusterNodePodNamer(client, nodePortCluster())
+
+		_, err := namer.podName(context.Background(), node("192.168.10.16:31999@32999"))
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `announces address "192.168.10.16:31999@32999"`)
+	})
+
+	t.Run("reports a node the cluster lost the address of without any lookup", func(t *testing.T) {
+		client := k8sClientFake.NewSimpleClientset(perPodService("redis-cluster-leader-0", 30366))
+		namer := newClusterNodePodNamer(client, nodePortCluster())
+
+		// Redis reports a node it no longer has an address for as ":0@0", flagged
+		// noaddr. It happens after a pod is replaced and loses its node identity.
+		_, err := namer.podName(context.Background(), clusterNodesResponse{"f54b90db", ":0@0", "master,noaddr"})
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "announces no address")
+		assert.Contains(t, err.Error(), "f54b90db")
+		assert.Empty(t, client.Actions(), "an address-less node cannot be matched, so nothing should be looked up")
+	})
+
+	t.Run("builds the address index only once", func(t *testing.T) {
+		client := k8sClientFake.NewSimpleClientset(perPodService("redis-cluster-leader-0", 30366))
+		namer := newClusterNodePodNamer(client, nodePortCluster())
+
+		for i := 0; i < 3; i++ {
+			_, err := namer.podName(context.Background(), node("192.168.10.16:30366@31366"))
+			require.NoError(t, err)
+		}
+
+		var gets int
+		for _, action := range client.Actions() {
+			if action.GetVerb() == "get" {
+				gets++
+			}
+		}
+		assert.Equal(t, 2, gets, "one lookup per ordinal, cached for later nodes")
+	})
+}
+
+// TestRepairStaleReplication_nodePortClusterWithoutHostname reproduces the live
+// failure: a NodePort cluster runs without cluster-announce-hostname, so every
+// CLUSTER NODES entry is a bare "ip:port@cport". Resolving the follower used to
+// fail outright, which made the repair a no-op on exactly the clusters that need
+// it.
+func TestRepairStaleReplication_nodePortClusterWithoutHostname(t *testing.T) {
+	ctx := context.Background()
+	redisClient, mock := redismock.NewClientMock()
+
+	mock.ExpectClusterNodes().SetVal(`
+e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 192.168.10.16:30366@30781 myself,master - 0 0 1 connected 0-16383
+07c37dfeb235213a872192d90877d0cd55635b91 192.168.10.16:30445@30199 slave e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 0 1426238317239 1 connected
+`)
+
+	followerClient, followerMock := redismock.NewClientMock()
+	followerMock.ExpectInfo("replication").SetVal(
+		"# Replication\r\nrole:slave\r\nmaster_host:10.130.24.167\r\nmaster_port:6379\r\nmaster_link_status:down\r\n",
+	)
+	followerMock.ExpectClusterReplicate("e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca").SetVal("OK")
+
+	perPodService := func(name string, nodePort int32) *corev1.Service {
+		return &corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "default"},
+			Spec: corev1.ServiceSpec{
+				Type: corev1.ServiceTypeNodePort,
+				Ports: []corev1.ServicePort{
+					{Name: "redis-client", Port: 6379, NodePort: nodePort},
+					{Name: "redis-bus", Port: 16379, NodePort: nodePort + 10000},
+				},
+			},
+		}
+	}
+	client := k8sClientFake.NewSimpleClientset(
+		perPodService("redis-cluster-leader-0", 30366),
+		perPodService("redis-cluster-follower-0", 30445),
+	)
+	namer := newClusterNodePodNamer(client, &rcvb2.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "redis-cluster", Namespace: "default"},
+		Spec: rcvb2.RedisClusterSpec{
+			ClusterSize: ptr.To(int32(1)),
+			KubernetesConfig: common.KubernetesConfig{
+				Service: &common.ServiceConfig{ServiceType: "NodePort"},
+			},
+		},
+	})
+
+	var repairedPod string
+	repaired, lastError := repairStaleReplication(ctx, redisClient, func(podName string) *redis.Client {
+		repairedPod = podName
+		return followerClient
+	}, namer.podName)
+
+	require.NoError(t, lastError)
+	assert.Equal(t, 1, repaired)
+	assert.Equal(t, "redis-cluster-follower-0", repairedPod)
+	assert.NoError(t, followerMock.ExpectationsWereMet(), "expected CLUSTER REPLICATE on the stale follower")
 }
