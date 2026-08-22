@@ -1101,7 +1101,7 @@ func getEnvironmentVariables(role string, enabledPassword *bool, secretName *str
 
 // createStatefulSet is a method to create statefulset in Kubernetes
 func createStatefulSet(ctx context.Context, cl kubernetes.Interface, namespace string, stateful *appsv1.StatefulSet) error {
-	_, err := cl.AppsV1().StatefulSets(namespace).Create(context.TODO(), stateful, metav1.CreateOptions{})
+	_, err := cl.AppsV1().StatefulSets(namespace).Create(ctx, stateful, metav1.CreateOptions{})
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Redis stateful creation failed")
 		return err
@@ -1112,7 +1112,7 @@ func createStatefulSet(ctx context.Context, cl kubernetes.Interface, namespace s
 
 // updateStatefulSet is a method to update statefulset in Kubernetes
 func updateStatefulSet(ctx context.Context, cl kubernetes.Interface, namespace string, stateful *appsv1.StatefulSet, recreateStateFulSet bool, deletePropagation *metav1.DeletionPropagation) error {
-	_, err := cl.AppsV1().StatefulSets(namespace).Update(context.TODO(), stateful, metav1.UpdateOptions{})
+	_, err := cl.AppsV1().StatefulSets(namespace).Update(ctx, stateful, metav1.UpdateOptions{})
 	if recreateStateFulSet {
 		sErr, ok := err.(*apierrors.StatusError)
 		if ok && sErr.ErrStatus.Code == 422 && sErr.ErrStatus.Reason == metav1.StatusReasonInvalid {
@@ -1121,7 +1121,7 @@ func updateStatefulSet(ctx context.Context, cl kubernetes.Interface, namespace s
 				failMsg[messageCount] = cause.Message
 			}
 			log.FromContext(ctx).V(1).Info("recreating StatefulSet because the update operation wasn't possible", "reason", strings.Join(failMsg, ", "))
-			if err := cl.AppsV1().StatefulSets(namespace).Delete(context.TODO(), stateful.GetName(), metav1.DeleteOptions{PropagationPolicy: deletePropagation}); err != nil { //nolint:gocritic
+			if err := cl.AppsV1().StatefulSets(namespace).Delete(ctx, stateful.GetName(), metav1.DeleteOptions{PropagationPolicy: deletePropagation}); err != nil { //nolint:gocritic
 				return errors.Wrap(err, "failed to delete StatefulSet to avoid forbidden action")
 			}
 			return nil // rely on the controller to recreate the StatefulSet
@@ -1140,7 +1140,7 @@ func GetStatefulSet(ctx context.Context, cl kubernetes.Interface, namespace stri
 	getOpts := metav1.GetOptions{
 		TypeMeta: generateMetaInformation("StatefulSet", "apps/v1"),
 	}
-	statefulInfo, err := cl.AppsV1().StatefulSets(namespace).Get(context.TODO(), name, getOpts)
+	statefulInfo, err := cl.AppsV1().StatefulSets(namespace).Get(ctx, name, getOpts)
 	if err != nil {
 		log.FromContext(ctx).V(1).Info("Redis statefulset get action failed")
 		return nil, err
