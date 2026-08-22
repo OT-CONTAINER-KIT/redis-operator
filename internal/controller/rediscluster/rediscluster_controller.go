@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"time"
 
+	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/events"
@@ -33,6 +34,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -53,6 +55,12 @@ type Reconciler struct {
 	Checker   redis.Checker
 	K8sClient kubernetes.Interface
 	Recorder  record.EventRecorder
+	// ConfigMapWatcher and SecretWatcher enqueue this RedisCluster when a referenced
+	// external config ConfigMap or mounted/referenced Secret (TLS, ACL, password)
+	// changes. Leader and follower may reference different ConfigMaps, so both are
+	// registered when set.
+	ConfigMapWatcher *intctrlutil.ResourceWatcher
+	SecretWatcher    *intctrlutil.ResourceWatcher
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -73,6 +81,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return intctrlutil.Reconciled()
 	}
 	instance.SetDefault()
+
+	// Watch the leader/follower external config ConfigMaps and the referenced Secrets
+	// so an edit triggers a prompt rollout rather than waiting for the next requeue.
+	r.registerSourceWatches(ctx, instance)
 
 	leaderReplicas := instance.Spec.GetReplicaCounts("leader")
 	followerReplicas := instance.Spec.GetReplicaCounts("follower")
@@ -493,11 +505,36 @@ func (r *Reconciler) getStatefulSetReadyReplicas(ctx context.Context, namespace,
 	return sts.Status.ReadyReplicas
 }
 
+// registerSourceWatches registers the leader/follower external config ConfigMaps and
+// the cluster-level Secrets (TLS, ACL, password) so a change to any of them enqueues
+// this RedisCluster and rolls the affected StatefulSets via the checksum annotation.
+func (r *Reconciler) registerSourceWatches(ctx context.Context, instance *rcvb2.RedisCluster) {
+	dependent := types.NamespacedName{Namespace: instance.Namespace, Name: instance.Name}
+	if r.ConfigMapWatcher != nil {
+		for _, cfg := range []*commonapi.RedisConfig{instance.Spec.RedisLeader.RedisConfig, instance.Spec.RedisFollower.RedisConfig} {
+			if cfg != nil && cfg.AdditionalRedisConfig != nil {
+				r.ConfigMapWatcher.WatchMany(ctx, dependent, *cfg.AdditionalRedisConfig)
+			}
+		}
+	}
+	if r.SecretWatcher != nil {
+		r.SecretWatcher.WatchMany(ctx, dependent, common.ReferencedSecretNames(instance.Spec.TLS, instance.Spec.ACL, instance.Spec.KubernetesConfig.ExistingPasswordSecret)...)
+	}
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, opts controller.Options) error {
+	if r.ConfigMapWatcher == nil {
+		r.ConfigMapWatcher = intctrlutil.NewResourceWatcher()
+	}
+	if r.SecretWatcher == nil {
+		r.SecretWatcher = intctrlutil.NewResourceWatcher()
+	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&rcvb2.RedisCluster{}).
 		Owns(&appsv1.StatefulSet{}).
 		WithOptions(opts).
+		Watches(&corev1.ConfigMap{}, r.ConfigMapWatcher).
+		Watches(&corev1.Secret{}, r.SecretWatcher).
 		Complete(r)
 }

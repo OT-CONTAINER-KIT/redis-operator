@@ -18,6 +18,7 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/service/redis"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -40,6 +41,12 @@ type Reconciler struct {
 	RedisReplicationRealMaster func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string
 	CreateRedisReplicationLink func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string, string) error
 	ConfigureSentinel          func(context.Context, *rrvb2.RedisReplication, string) error
+	// ConfigMapWatcher and SecretWatcher enqueue this RedisReplication when a
+	// referenced external config ConfigMap or mounted/referenced Secret (TLS, ACL,
+	// password) changes, so an edit triggers a prompt rollout instead of waiting
+	// for the next periodic requeue.
+	ConfigMapWatcher *intctrlutil.ResourceWatcher
+	SecretWatcher    *intctrlutil.ResourceWatcher
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -60,6 +67,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if common.ShouldSkipReconcile(ctx, instance) {
 		return intctrlutil.Reconciled()
 	}
+
+	r.registerSourceWatches(ctx, instance)
 
 	reconcilers := []reconciler{
 		{typ: "finalizer", rec: r.reconcileFinalizer},
@@ -542,10 +551,31 @@ func (r *Reconciler) updateStatus(ctx context.Context, rr *rrvb2.RedisReplicatio
 	return common.UpdateStatus(ctx, r.Client, copy)
 }
 
+// registerSourceWatches registers the external config ConfigMap and the mounted/
+// referenced Secrets (TLS, ACL, password) so a change to any of them enqueues this
+// RedisReplication and rolls the StatefulSet via the checksum annotation.
+func (r *Reconciler) registerSourceWatches(ctx context.Context, instance *rrvb2.RedisReplication) {
+	dependent := types.NamespacedName{Namespace: instance.Namespace, Name: instance.Name}
+	if r.ConfigMapWatcher != nil && instance.Spec.RedisConfig != nil && instance.Spec.RedisConfig.AdditionalRedisConfig != nil {
+		r.ConfigMapWatcher.WatchMany(ctx, dependent, *instance.Spec.RedisConfig.AdditionalRedisConfig)
+	}
+	if r.SecretWatcher != nil {
+		r.SecretWatcher.WatchMany(ctx, dependent, common.ReferencedSecretNames(instance.Spec.TLS, instance.Spec.ACL, instance.Spec.KubernetesConfig.ExistingPasswordSecret)...)
+	}
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, opts controller.Options) error {
+	if r.ConfigMapWatcher == nil {
+		r.ConfigMapWatcher = intctrlutil.NewResourceWatcher()
+	}
+	if r.SecretWatcher == nil {
+		r.SecretWatcher = intctrlutil.NewResourceWatcher()
+	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&rrvb2.RedisReplication{}).
 		WithOptions(opts).
+		Watches(&corev1.ConfigMap{}, r.ConfigMapWatcher).
+		Watches(&corev1.Secret{}, r.SecretWatcher).
 		Complete(r)
 }
