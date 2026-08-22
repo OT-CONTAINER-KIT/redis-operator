@@ -10,7 +10,10 @@ spec:
     parallel: 2
     forceTerminationGracePeriod: 5s
   cleanup:
-    skipDelete: true
+    # skipDelete was set alongside parallel: 10 to dodge cleanup timeouts, but
+    # parallel has since dropped to 2 and leaving every namespace behind meant
+    # 75+ redis pods piling up on the runner by the end of a run, which is what
+    # made the late tests several times slower than the early ones.
     delayBeforeCleanup: 10s
   timeouts:
     apply: 5m

@@ -212,11 +212,12 @@ jobs:
     uses: ./.github/workflows/call-test-charts.yaml
 
   e2e_test:
-    # DEBUG
-    needs: [validate_yaml, helm_chart_test]
+    # Only gate on lint. The suite used to hang off validate_yaml and
+    # helm_chart_test, which pulled in the whole gotest chain and delayed the
+    # job by ~12 minutes without testing anything the suite depends on.
+    needs: [lint]
     name: E2E Test
     runs-on: ubuntu-latest
-    if: always() && (needs.validate_yaml.result == 'success') && (needs.helm_chart_test.result == 'success' || needs.helm_chart_test.result == 'skipped')
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -257,10 +258,49 @@ jobs:
           kubectl cluster-info --context kind-kind
           kind load docker-image redis-operator:e2e --name kind
 
+      # Kind nodes do not share an image store, so an imagePullPolicy of Always
+      # made every pod re-pull from quay.io on every node. Pull each image once
+      # here and side-load it into the nodes instead; the test manifests use
+      # IfNotPresent so nothing goes back over the network. This also pins the
+      # whole run to a single digest of the moving :latest tags.
+      - name: Preload test images into Kind
+        run: |
+          set -euo pipefail
+          IMAGES=(
+            quay.io/opstree/redis:latest
+            quay.io/opstree/redis:v7.0.15
+            quay.io/opstree/redis-sentinel:latest
+            quay.io/opstree/redis-exporter:v1.44.0
+            redis:alpine
+            busybox:latest
+            busybox:1.36
+          )
+          # Docker Hub rate-limits anonymous pulls from shared runner IPs, so a
+          # pull can fail for reasons that have nothing to do with this change.
+          printf '%s\n' "${IMAGES[@]}" \
+            | xargs -P 4 -n 1 -I{} sh -c 'docker pull -q "{}" || echo "::warning::pull failed for {}"'
+          # Side-loading is an optimisation, not a correctness requirement: the
+          # manifests ask for IfNotPresent, so anything that fails here is just
+          # pulled by the kubelet on first use. Warn rather than fail the job --
+          # `kind load` cannot import a multi-arch image saved from Docker's
+          # containerd image store, and that is not worth breaking E2E over.
+          for img in "${IMAGES[@]}"; do
+            kind load docker-image "$img" --name kind \
+              || echo "::warning::could not preload ${img}; kubelet will pull it on demand"
+          done
+
       - name: Install Redis Operator
         run: |
           make deploy IMG=redis-operator:e2e
           kubectl set env deployment/redis-operator-redis-operator -n redis-operator-system INIT_CONTAINER_IMAGE=redis-operator:e2e FEATURE_GATES=GenerateConfigInInitContainer=true MAX_CONCURRENT_RECONCILES=10
+          # config/manager ships a 100m CPU cap. With MAX_CONCURRENT_RECONCILES=10
+          # and the operator streaming every `redis-cli --cluster` exec itself,
+          # that cap throttles the suite rather than protecting anything. Lift it
+          # for the test run only -- the shipped default is left untouched.
+          # (`set resources --limits=cpu=0` would write cpu: "0", which then fails
+          # the requests<=limits check; a strategic merge with null drops the key.)
+          kubectl -n redis-operator-system patch deployment redis-operator-redis-operator \
+            -p '{"spec":{"template":{"spec":{"containers":[{"name":"manager","resources":{"limits":{"cpu":null}}}]}}}}'
 
       - name: Wait for Redis Operator to be ready
         run: |
