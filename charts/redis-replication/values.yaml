@@ -193,8 +193,17 @@ TLS:
   ca: ca.crt
   cert: tls.crt
   key: tls.key
+  # Any corev1.SecretVolumeSource field is accepted here and passed to the
+  # spec as-is.
   secret:
     secretName: ""
+    # Kubernetes mounts secret volumes with mode 0644 unless told otherwise,
+    # which leaves the Redis private key readable by every user on the node.
+    # Secret volumes are always mounted read-only, so kubelet ORs 0440 into
+    # whatever is set here, making 0440 the tightest reachable mode. It works
+    # with the podSecurityContext above because kubelet chowns the files to
+    # root:fsGroup.
+    defaultMode: 0440
 
 acl:
   # Configure ACL from Kubernetes Secret
