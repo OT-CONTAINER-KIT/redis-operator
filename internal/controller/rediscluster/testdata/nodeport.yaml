@@ -1,0 +1,18 @@
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisCluster
+metadata:
+  name: redis-cluster-nodeport
+spec:
+  clusterSize: 3
+  clusterVersion: v7
+  # A user supplied env slice is shared between the leader and the follower render
+  # of the same reconciliation, so it must not accumulate announce variables.
+  env:
+    - name: USER_DEFINED
+      value: "yes"
+  kubernetesConfig:
+    image: quay.io/opstree/redis:v7.0.12
+    imagePullPolicy: IfNotPresent
+    service:
+      serviceType: NodePort
