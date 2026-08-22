@@ -58,16 +58,32 @@ spec:
 
     # Step 6: Test read operation on replica
     - name: Test read operation on replica
+      description: >
+        ready-replication.yaml only asserts status.masterNode, which says the
+        operator picked a master -- not that the replica has been attached and
+        has finished syncing. Poll the replica for the link and the key instead
+        of sleeping a fixed 30s and hoping that was long enough.
       try:
-        - sleep:
-            duration: 30s
         - script:
-            timeout: 30s
-            content: >
-              kubectl exec --namespace ${NAMESPACE} redis-replication-acl-pvc-1 --
-              redis-cli -p 6379 --user repluser --pass repl@secure get repl-key 2>&1
+            timeout: 150s
+            content: |
+              # Runs under /bin/sh via `sh -c`, so keep this POSIX-compatible.
+              CMD="kubectl exec --namespace ${NAMESPACE} redis-replication-acl-pvc-1 -- redis-cli -p 6379 --user repluser --pass repl@secure"
+              i=0
+              while [ $i -lt 40 ]; do
+                if ${CMD} info replication 2>/dev/null | grep -q 'master_link_status:up' &&
+                   ${CMD} get repl-key 2>/dev/null | grep -q 'ACL PVC replication test'; then
+                  echo "replica is linked and has the key"
+                  exit 0
+                fi
+                i=$((i + 1))
+                sleep 3
+              done
+              echo "timed out waiting for the replica; last replication state:"
+              ${CMD} info replication 2>&1 | head -20
+              exit 1
             check:
-              (contains($stdout, 'ACL PVC replication test')): true
+              (contains($stdout, 'replica is linked and has the key')): true
 
     # Step 7: Verify ACL file on master
     - name: Verify ACL file on master
