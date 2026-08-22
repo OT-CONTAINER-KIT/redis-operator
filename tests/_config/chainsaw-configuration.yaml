@@ -17,9 +17,11 @@ spec:
   # No cleanup block: both settings it used to carry are back at their defaults.
   #
   # skipDelete: true was set alongside parallel: 10 to dodge cleanup timeouts.
-  # parallel has since dropped to 2, and leaving every namespace behind meant
+  # That parallelism is long gone, and leaving every namespace behind meant
   # 75+ redis pods piled up on the runner by the end of a run, which is what
-  # made the late tests several times slower than the early ones.
+  # made the late tests several times slower than the early ones. The right fix
+  # for the timeouts it was hiding is timeouts.cleanup below, not skipping the
+  # delete.
   #
   # delayBeforeCleanup: 10s only started costing anything once cleanup was
   # re-enabled, and 10s per test is +100% on an 11s case -- 230s of the suite's
