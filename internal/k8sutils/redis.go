@@ -248,18 +248,18 @@ func repairDisconnectedNodes(ctx context.Context, client kubernetes.Interface, c
 	if err != nil {
 		return err
 	}
+	namer := newClusterNodePodNamer(client, cr)
 	var lastError error
 	for _, node := range nodes {
 		if !nodeFailedOrDisconnected(node) {
 			continue
 		}
-		host, err := getHostFromClusterNode(node)
+		podName, err := namer.podName(ctx, node)
 		if err != nil {
 			lastError = err
 			log.FromContext(ctx).V(1).Error(err, "Failed to get pod name from cluster node. Continuing with other nodes.", "Node", node)
 			continue
 		}
-		podName := strings.Split(host, ".")[0]
 		ip := getRedisServerIP(ctx, client, RedisDetails{
 			PodName:   podName,
 			Namespace: cr.Namespace,
@@ -303,12 +303,13 @@ func repairDisconnectedNodes(ctx context.Context, client kubernetes.Interface, c
 func RepairStaleReplication(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) (int, error) {
 	redisClient := configureRedisClient(ctx, client, cr, cr.Name+"-leader-0")
 	defer redisClient.Close()
+	namer := newClusterNodePodNamer(client, cr)
 	return repairStaleReplication(ctx, redisClient, func(podName string) *redis.Client {
 		return configureRedisClient(ctx, client, cr, podName)
-	})
+	}, namer.podName)
 }
 
-func repairStaleReplication(ctx context.Context, redisClient *redis.Client, makeClient func(podName string) *redis.Client) (int, error) {
+func repairStaleReplication(ctx context.Context, redisClient *redis.Client, makeClient func(podName string) *redis.Client, podNameOf func(context.Context, clusterNodesResponse) (string, error)) (int, error) {
 	logger := log.FromContext(ctx)
 
 	nodes, err := clusterNodes(ctx, redisClient)
@@ -325,12 +326,11 @@ func repairStaleReplication(ctx context.Context, redisClient *redis.Client, make
 		if nodeFailedOrDisconnected(node) {
 			continue
 		}
-		host, err := getHostFromClusterNode(node)
+		podName, err := podNameOf(ctx, node)
 		if err != nil {
 			lastError = err
 			continue
 		}
-		podName := strings.Split(host, ".")[0]
 		masterNodeID := node[3]
 
 		followerClient := makeClient(podName)
@@ -373,13 +373,151 @@ func replicationLinkUp(info string) bool {
 	return true
 }
 
-func getHostFromClusterNode(node clusterNodesResponse) (string, error) {
-	addressAndHost := node[1]
-	s := strings.Split(addressAndHost, ",")
-	if len(s) != 2 {
-		return "", fmt.Errorf("failed to extract host from host and address string, unexpected number of elements: %d", len(s))
+// clusterNodeAddress holds the parts of the address field of a CLUSTER NODES
+// entry, which Redis formats as "<ip:port@cport[,hostname[,auxiliary-field=value]*]>".
+// The hostname is only present when the node runs with cluster-announce-hostname
+// set, and Redis 7.2 and later may append auxiliary fields after it.
+type clusterNodeAddress struct {
+	ip       string
+	port     string
+	hostname string
+}
+
+func parseClusterNodeAddress(node clusterNodesResponse) (clusterNodeAddress, error) {
+	if len(node) < 2 {
+		return clusterNodeAddress{}, fmt.Errorf("cluster node entry has %d fields, want at least 2", len(node))
 	}
-	return strings.Split(addressAndHost, ",")[1], nil
+
+	var address clusterNodeAddress
+	field := node[1]
+	if ipPort, rest, found := strings.Cut(field, ","); found {
+		field = ipPort
+		address.hostname, _, _ = strings.Cut(rest, ",")
+	}
+	field, _, _ = strings.Cut(field, "@")
+
+	// An IPv6 address contains colons of its own, so the port is whatever
+	// follows the last one.
+	separator := strings.LastIndex(field, ":")
+	if separator < 0 {
+		return clusterNodeAddress{}, fmt.Errorf("cluster node address %q has no port", node[1])
+	}
+	address.ip, address.port = field[:separator], field[separator+1:]
+	return address, nil
+}
+
+// clusterNodePodNamer resolves the pod backing a CLUSTER NODES entry.
+//
+// The announced hostname is used when Redis reports one, but it is absent unless
+// the node runs with cluster-announce-hostname set, which is never the case for
+// NodePort clusters. The fallback matches the announced address against the
+// addresses the operator expects each pod to announce, and is built lazily so
+// clusters that do announce hostnames make no extra API calls.
+type clusterNodePodNamer struct {
+	client kubernetes.Interface
+	cr     *rcvb2.RedisCluster
+	byAddr map[string]string
+}
+
+func newClusterNodePodNamer(client kubernetes.Interface, cr *rcvb2.RedisCluster) *clusterNodePodNamer {
+	return &clusterNodePodNamer{client: client, cr: cr}
+}
+
+func (n *clusterNodePodNamer) podName(ctx context.Context, node clusterNodesResponse) (string, error) {
+	address, err := parseClusterNodeAddress(node)
+	if err != nil {
+		return "", err
+	}
+	if address.hostname != "" {
+		// The announced hostname is the pod FQDN, for example
+		// redis-cluster-leader-0.redis-cluster-leader-headless.default.svc.cluster.local
+		return strings.Split(address.hostname, ".")[0], nil
+	}
+
+	// A node the cluster has lost the address of is reported as ":0@0" with the
+	// noaddr flag. There is nothing to match it against, and no index lookup is
+	// going to help, so say so plainly rather than reporting a failed match.
+	if address.ip == "" {
+		return "", fmt.Errorf("cluster node %s announces no address (%q)", node[0], node[1])
+	}
+
+	if n.byAddr == nil {
+		byAddr, err := n.buildAddressIndex(ctx)
+		if err != nil {
+			return "", err
+		}
+		n.byAddr = byAddr
+	}
+
+	key := address.ip
+	if n.cr.Spec.KubernetesConfig.GetServiceType() == "NodePort" {
+		key = address.port
+	}
+	podName, found := n.byAddr[key]
+	if !found {
+		return "", fmt.Errorf("no pod of redis cluster %s/%s announces address %q", n.cr.Namespace, n.cr.Name, node[1])
+	}
+	return podName, nil
+}
+
+// buildAddressIndex maps the address every pod of the cluster is expected to
+// announce to that pod's name.
+//
+// NodePort clusters announce the node IP and the node port of the pod's own
+// Service, so they are indexed by node port: it identifies the pod on its own
+// and, unlike the node IP, it survives the pod being rescheduled onto another
+// node. Every other service type announces the pod IP.
+func (n *clusterNodePodNamer) buildAddressIndex(ctx context.Context) (map[string]string, error) {
+	if n.cr.Spec.ClusterSize == nil {
+		return nil, fmt.Errorf("redis cluster %s/%s has no cluster size", n.cr.Namespace, n.cr.Name)
+	}
+	nodePort := n.cr.Spec.KubernetesConfig.GetServiceType() == "NodePort"
+
+	byAddr := map[string]string{}
+	for _, role := range []string{"leader", "follower"} {
+		replicas := n.cr.Spec.GetReplicaCounts(role)
+		for i := 0; i < int(replicas); i++ {
+			podName := n.cr.Name + "-" + role + "-" + strconv.Itoa(i)
+			address, err := n.announcedAddressOf(ctx, podName, nodePort)
+			if err != nil {
+				return nil, err
+			}
+			// A pod that has not been scheduled yet, or whose Service has not been
+			// created yet, simply cannot be the one that announced anything.
+			if address != "" {
+				byAddr[address] = podName
+			}
+		}
+	}
+	return byAddr, nil
+}
+
+func (n *clusterNodePodNamer) announcedAddressOf(ctx context.Context, podName string, nodePort bool) (string, error) {
+	if nodePort {
+		svc, err := getService(ctx, n.client, n.cr.Namespace, podName)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return "", nil
+			}
+			return "", err
+		}
+		clientPort, found := lo.Find(svc.Spec.Ports, func(port corev1.ServicePort) bool {
+			return port.Name == redisClientPortName
+		})
+		if !found || clientPort.NodePort == 0 {
+			return "", nil
+		}
+		return strconv.Itoa(int(clientPort.NodePort)), nil
+	}
+
+	pod, err := n.client.CoreV1().Pods(n.cr.Namespace).Get(ctx, podName, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return "", nil
+		}
+		return "", err
+	}
+	return pod.Status.PodIP, nil
 }
 
 // CreateMultipleLeaderRedisCommand will create command for single leader cluster creation
