@@ -24,13 +24,19 @@ spec:
         - |
           cp /configmap/* /go/src/data-assert/ && 
           sleep 1000000000
+      env:
+        # Bound the compiler's parallelism. Two of these pods can be building at
+        # once when tests run in parallel, and an unbounded `go build` peaked past
+        # the memory limit and was OOM-killed mid-run (exit 137).
+        - name: GOFLAGS
+          value: "-p=2"
       resources:
         limits:
           cpu: "500m"
-          memory: "512Mi"
+          memory: "1Gi"
         requests:
           cpu: "100m"
-          memory: "128Mi"
+          memory: "256Mi"
       volumeMounts:
         - name: data-assert
           mountPath: /go/src/data-assert
