@@ -11,6 +11,13 @@ redisCluster:
   imagePullSecrets: {}
     # - name:  Secret with Registry credentials
   serviceType: ClusterIP
+  # -- Annotations for the Redis cluster CR services, mirroring the CRD `spec.kubernetesConfig.service` field; only emitted when set.
+  serviceConfig:
+    # -- Annotations added to the Redis cluster service.
+    annotations: {}
+    headless:
+      # -- Annotations added to the headless Redis cluster service.
+      additionalAnnotations: {}
   redisSecret:
     secretName: ""
     secretKey: ""
