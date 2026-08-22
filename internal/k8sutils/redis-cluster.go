@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
@@ -465,7 +466,67 @@ func (service RedisClusterService) createOrUpdateClusterNodePortService(ctx cont
 			return err
 		}
 	}
+	if err := service.deleteStaleClusterNodePortServices(ctx, cr, cl, replicas); err != nil {
+		log.FromContext(ctx).Error(err, "Cannot delete stale nodeport services for Redis", "Setup.Type", service.RedisServiceRole)
+		return err
+	}
 	return nil
+}
+
+// deleteStaleClusterNodePortServices removes the per-pod NodePort Services left
+// behind by a scale-down. Their node ports stay allocated for as long as the
+// Services exist, so a cluster that is repeatedly scaled up and down eventually
+// exhausts the node port range.
+//
+// This runs as part of the Service reconciliation, which the controller performs
+// only after the StatefulSet has been updated to the smaller size. Deleting a
+// Service whose pod is still meant to be running would strip that pod of the node
+// port it announces to the cluster, so the ordering matters: never move this
+// ahead of the StatefulSet update, and in particular never into the preflight in
+// EnsureRedisClusterNodePortServices, which deliberately runs before it.
+func (service RedisClusterService) deleteStaleClusterNodePortServices(ctx context.Context, cr *rcvb2.RedisCluster, cl kubernetes.Interface, replicas int32) error {
+	prefix := cr.Name + "-" + service.RedisServiceRole + "-"
+	selector := labels.SelectorFromSet(getRedisStableLabels(cr.Name+"-"+service.RedisServiceRole, string(cluster), service.RedisServiceRole))
+
+	services, err := cl.CoreV1().Services(cr.Namespace).List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
+	if err != nil {
+		return err
+	}
+
+	for i := range services.Items {
+		stale := &services.Items[i]
+		// The role wide Services carry the same labels; only the per-pod ones are
+		// named after a pod and labelled with it.
+		if _, perPod := stale.Labels["statefulset.kubernetes.io/pod-name"]; !perPod {
+			continue
+		}
+		ordinal, err := strconv.Atoi(strings.TrimPrefix(stale.Name, prefix))
+		if err != nil || ordinal < int(replicas) {
+			continue
+		}
+		// Only ever delete Services this cluster owns.
+		if !isOwnedByRedisCluster(stale, cr) {
+			continue
+		}
+		log.FromContext(ctx).Info("Deleting nodeport service of a scaled down replica",
+			"Service", stale.Name, "Setup.Type", service.RedisServiceRole, "Replicas", replicas)
+		if err := deleteService(ctx, cl, cr.Namespace, stale.Name); err != nil && !apierrors.IsNotFound(err) {
+			return err
+		}
+	}
+	return nil
+}
+
+// isOwnedByRedisCluster reports whether cr owns obj. The owner reference is
+// matched on UID and name rather than on Kind, because the Kind of an object read
+// through a typed client is empty, and redisClusterAsOwner copies it verbatim.
+func isOwnedByRedisCluster(obj metav1.Object, cr *rcvb2.RedisCluster) bool {
+	for _, owner := range obj.GetOwnerReferences() {
+		if owner.UID == cr.UID && owner.Name == cr.Name {
+			return true
+		}
+	}
+	return false
 }
 
 // clusterNodePortServiceParams returns the object metadata and the cluster-bus
