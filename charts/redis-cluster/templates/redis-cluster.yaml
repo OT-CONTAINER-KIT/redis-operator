@@ -22,14 +22,14 @@ spec:
     redisConfig:
       additionalRedisConfig: "{{ .Values.redisCluster.name | default .Release.Name }}-ext-config"
     {{- end }}
-  
+
   redisFollower: {{-  include "redis.role" .Values.redisCluster.follower | nindent 4 }}
     replicas: {{ .Values.redisCluster.follower.replicas | default .Values.redisCluster.clusterSize }}
     {{- if .Values.externalConfig.enabled }}
     redisConfig:
       additionalRedisConfig: "{{ .Values.redisCluster.name | default .Release.Name }}-ext-config"
     {{- end }}
-  
+
   {{- if or (and .Values.redisCluster.maxMemoryPercentOfLimit (gt (int .Values.redisCluster.maxMemoryPercentOfLimit) 0)) (.Values.redisCluster.dynamicConfig) }}
   redisConfig:
     {{- if and .Values.redisCluster.maxMemoryPercentOfLimit (gt (int .Values.redisCluster.maxMemoryPercentOfLimit) 0) }}
@@ -53,7 +53,7 @@ spec:
     {{- if .Values.redisExporter.securityContext}}
     securityContext: {{ toYaml .Values.redisExporter.securityContext | nindent 6 }}
     {{- end }}
-    
+
   kubernetesConfig:
     image: "{{ .Values.redisCluster.image }}:{{ .Values.redisCluster.tag }}"
     imagePullPolicy: "{{ .Values.redisCluster.imagePullPolicy }}"
@@ -69,8 +69,8 @@ spec:
     {{- end }}
     {{- if and .Values.redisCluster.redisSecret.secretName .Values.redisCluster.redisSecret.secretKey }}
     redisSecret:
-      name: {{ .Values.redisCluster.redisSecret.secretName | quote }}
-      key: {{ .Values.redisCluster.redisSecret.secretKey | quote }}
+      name: {{ tpl .Values.redisCluster.redisSecret.secretName $ | quote }}
+      key: {{ tpl .Values.redisCluster.redisSecret.secretKey $ | quote }}
     {{- end }}
     {{- if .Values.redisCluster.minReadySeconds }}
     minReadySeconds: {{ .Values.redisCluster.minReadySeconds}}
@@ -94,13 +94,13 @@ spec:
     cert: {{ .Values.TLS.cert | quote }}
     key: {{ .Values.TLS.key | quote }}
     secret:
-      secretName: {{ .Values.TLS.secret.secretName | quote }}
+      secretName: {{ tpl .Values.TLS.secret.secretName $ | quote }}
   {{- end }}
   {{- if or (and .Values.acl.secret (ne .Values.acl.secret.secretName "")) .Values.acl.persistentVolumeClaim }}
   acl:
     {{- if and .Values.acl.secret (ne .Values.acl.secret.secretName "") }}
     secret:
-      secretName: {{ .Values.acl.secret.secretName | quote }}
+      secretName: {{ tpl .Values.acl.secret.secretName $ | quote }}
     {{- end }}
     {{- if .Values.acl.persistentVolumeClaim }}
     persistentVolumeClaim: {{ .Values.acl.persistentVolumeClaim | quote }}
@@ -116,7 +116,7 @@ spec:
   env: {{ toYaml .Values.env | nindent 4 }}
   {{- end }}
   {{- if and .Values.serviceAccountName (ne .Values.serviceAccountName "") }}
-  serviceAccountName: "{{ .Values.serviceAccountName }}"
+  serviceAccountName: "{{ tpl .Values.serviceAccountName $ }}"
   {{- end }}
   {{- if and .Values.podManagementPolicy (ne .Values.podManagementPolicy "") }}
   podManagementPolicy: "{{ .Values.podManagementPolicy }}"
