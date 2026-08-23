@@ -177,8 +177,11 @@ TLS:
   ca: ca.crt
   cert: tls.crt
   key: tls.key
+  # Any corev1.SecretVolumeSource field is accepted here and passed to the
+  # spec as-is.
   secret:
     secretName: ""
+    defaultMode: 0440
 
 acl:
   # Configure ACL from Kubernetes Secret
