@@ -17,6 +17,8 @@ import (
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	common "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/envs"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/features"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 	retry "github.com/avast/retry-go"
 	redis "github.com/redis/go-redis/v9"
 	"github.com/samber/lo"
@@ -81,7 +83,7 @@ func getEndpoint(ctx context.Context, client kubernetes.Interface, cr *rcvb2.Red
 		port int
 	)
 	port = *cr.Spec.Port
-	if cr.Spec.ClusterVersion != nil && *cr.Spec.ClusterVersion == "v7" {
+	if cr.Spec.ClusterVersion != nil && util.IsRedisVersionAtLeastV7(*cr.Spec.ClusterVersion) {
 		host = rd.FQDN()
 	} else {
 		host = getRedisServerIP(ctx, client, rd)
@@ -100,7 +102,7 @@ func getEndpoint(ctx context.Context, client kubernetes.Interface, cr *rcvb2.Red
 			return ""
 		}
 		svcPort, ok := lo.Find(svc.Spec.Ports, func(item corev1.ServicePort) bool {
-			return item.Name == "redis-client"
+			return item.Name == redisClientPortName
 		})
 		if ok {
 			port = int(svcPort.NodePort)
@@ -120,6 +122,66 @@ func getEndpoint(ctx context.Context, client kubernetes.Interface, cr *rcvb2.Red
 // can be unit tested without a live pod exec.
 type podExecFunc func(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, cmd []string, podName string)
 
+// checkRedisCLIAuthInEnv returns true if we can use the pod's REDISCLI_AUTH variable instead of sending redis-cli -a <password>.
+// It checks only variables specified via env[].valueFrom since this is what the operator sets; it does not look at envFrom.
+func checkRedisCLIAuthInEnv(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, podName, secretName, secretKey string) (bool, error) {
+	redisPod, err := client.CoreV1().Pods(cr.Namespace).Get(context.TODO(), podName, metav1.GetOptions{})
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Error checking Redis pod's REDISCLI_AUTH variable", "namespace", cr.Namespace, "podName", podName)
+		return false, err
+	}
+
+	for _, tr := range redisPod.Spec.Containers {
+		if tr.Name == cr.Name+"-leader" {
+			for _, e := range tr.Env {
+				if e.Name != "REDISCLI_AUTH" {
+					continue
+				}
+
+				if e.ValueFrom == nil || e.ValueFrom.SecretKeyRef == nil {
+					continue
+				}
+
+				if e.ValueFrom.SecretKeyRef.Name != secretName || e.ValueFrom.SecretKeyRef.Key != secretKey {
+					return false, nil
+				}
+
+				return true, nil
+			}
+
+			log.FromContext(ctx).V(1).Info("Leader container not configured with REDISCLI_AUTH", "podName", podName)
+			return false, nil
+		}
+	}
+
+	log.FromContext(ctx).V(1).Info("Leader container not found in pod", "podName", podName)
+	return false, nil
+}
+
+func getRedisClusterAuthArgs(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, podName string) ([]string, error) {
+	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
+		passwordInEnv, err := checkRedisCLIAuthInEnv(ctx, client, cr, podName, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+		if err != nil {
+			return []string{}, fmt.Errorf("error checking pod authentication config: %w", err)
+		}
+
+		if !passwordInEnv {
+			if features.Enabled(features.AvoidCommandLinePassword) {
+				return []string{}, errors.New("refusing to use command-line authentication because AvoidCommandLinePassword is set")
+			}
+
+			pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
+			if err != nil {
+				return []string{}, fmt.Errorf("error getting Redis password: %w", err)
+			}
+
+			return []string{"-a", pass}, nil
+		}
+	}
+
+	return []string{}, nil
+}
+
 // executeSingleLeaderAddSlots assigns all 16384 hash slots to the single
 // leader node. On Redis 7+ it uses CLUSTER ADDSLOTSRANGE 0 16383 (a single
 // compact command). On older versions it falls back to batched CLUSTER
@@ -127,22 +189,22 @@ type podExecFunc func(ctx context.Context, client kubernetes.Interface, cr *rcvb
 func executeSingleLeaderAddSlots(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, execute podExecFunc) {
 	logger := log.FromContext(ctx)
 
-	var flags []string
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
-		if err != nil {
-			logger.Error(err, "Error in getting redis password")
-		} else {
-			flags = append(flags, "-a", pass)
-		}
-	}
-	flags = append(flags, getRedisTLSArgs(cr.Spec.TLS, cr.Name+"-leader-0")...)
-
 	podName := cr.Name + "-leader-0"
+
+	authArgs, err := getRedisClusterAuthArgs(ctx, client, cr, podName)
+	if err != nil {
+		// Bail out instead of assigning slots unauthenticated: doing so would
+		// either fail outright or, worse, corrupt the new cluster's topology.
+		logger.Error(err, "Failed to get password authentication arguments")
+		return
+	}
+	var flags []string
+	flags = append(flags, authArgs...)
+	flags = append(flags, getRedisTLSArgs(cr.Spec.TLS, cr.Name+"-leader-0")...)
 
 	// Redis 7+ supports ADDSLOTSRANGE which takes a start-end pair instead
 	// of listing every slot number individually — avoids the URL length issue entirely.
-	if cr.Spec.ClusterVersion != nil && *cr.Spec.ClusterVersion == "v7" {
+	if cr.Spec.ClusterVersion != nil && util.IsRedisVersionAtLeastV7(*cr.Spec.ClusterVersion) {
 		cmd := []string{"redis-cli"}
 		cmd = append(cmd, flags...)
 		cmd = append(cmd, "CLUSTER", "ADDSLOTSRANGE", "0", "16383")
@@ -369,28 +431,39 @@ func ExecuteRedisClusterCommand(ctx context.Context, client kubernetes.Interface
 		executeSingleLeaderAddSlots(ctx, client, cr, executeCommand)
 	default:
 		cmd := CreateMultipleLeaderRedisCommand(ctx, client, cr)
-		if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-			pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
-			if err != nil {
-				log.FromContext(ctx).Error(err, "Error in getting redis password")
-			}
-			cmd.AddFlag("-a")
-			cmd.AddFlag(pass)
+		authArgs, err := getRedisClusterAuthArgs(ctx, client, cr, cr.Name+"-leader-0")
+		if err != nil {
+			// Bail out instead of creating the cluster unauthenticated: that
+			// would either fail or build a cluster the operator cannot manage.
+			log.FromContext(ctx).Error(err, "Failed to get password authentication arguments")
+			return
+		}
+		for _, arg := range authArgs {
+			cmd.AddFlag(arg)
 		}
 		cmd.AddFlag(getRedisTLSArgs(cr.Spec.TLS, cr.Name+"-leader-0")...)
 		executeCommand(ctx, client, cr, cmd.Args(), cr.Name+"-leader-0")
 	}
 }
 
+// getRedisTLSArgs returns the TLS flags for the redis-cli commands the operator
+// executes inside the Redis pods. The client certificate is always sent: Redis
+// defaults to `tls-auth-clients yes`, so a server requiring client certificates
+// rejects the TLS handshake when redis-cli presents none. This matches the flags
+// the generated liveness and readiness probes already use.
 func getRedisTLSArgs(tlsConfig *commonapi.TLSConfig, clientHost string) []string {
 	cmd := []string{}
 	if tlsConfig != nil {
+		caFile, certFile, keyFile := getTLSSecretKeys(tlsConfig)
 		cmd = append(cmd, "--tls")
 		if tlsConfig.CaCertFile != "" {
-			caFile, _, _ := getTLSSecretKeys(tlsConfig)
 			cmd = append(cmd, "--cacert")
 			cmd = append(cmd, "/tls/"+caFile)
 		}
+		cmd = append(cmd, "--cert")
+		cmd = append(cmd, "/tls/"+certFile)
+		cmd = append(cmd, "--key")
+		cmd = append(cmd, "/tls/"+keyFile)
 		cmd = append(cmd, "--insecure")
 	}
 	return cmd
@@ -402,14 +475,11 @@ func createRedisReplicationCommand(ctx context.Context, client kubernetes.Interf
 	cmd = append(cmd, getEndpoint(ctx, client, cr, followerPod))
 	cmd = append(cmd, getEndpoint(ctx, client, cr, leaderPod))
 	cmd = append(cmd, "--cluster-slave")
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
-		if err != nil {
-			log.FromContext(ctx).Error(err, "Failed to retrieve Redis password", "Secret", *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name)
-		} else {
-			cmd = append(cmd, "-a", pass)
-		}
+	authArgs, err := getRedisClusterAuthArgs(ctx, client, cr, leaderPod.PodName)
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Failed to get password authentication arguments")
 	}
+	cmd = append(cmd, authArgs...)
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, leaderPod.PodName)...)
 	return cmd
 }
@@ -609,21 +679,50 @@ func RedisClusterStatusHealth(ctx context.Context, client kubernetes.Interface, 
 	return false
 }
 
-// checkClusterHealth performs a single cluster health check against a specific pod
+// clusterCheckExecTimeout bounds a single `redis-cli --cluster check` exec.
+//
+// `--cluster check` dials every node recorded in the cluster config and
+// redis-cli applies no connect timeout of its own, so it blocks indefinitely on
+// any node whose recorded address is stale -- which is exactly the state left
+// behind when pods come back on new IPs (a StatefulSet recreate, an eviction, a
+// node drain). Because the health check runs 3 attempts against each leader, a
+// stuck dial can pin a single reconcile for far longer than
+// defaultExecCommandTimeout, so the reconcile never reaches
+// RepairDisconnectedNodes, which is what would issue the CLUSTER MEET that
+// corrects those addresses. The cluster then stays out of Ready indefinitely
+// instead of self-healing.
+//
+// The bound is applied to the exec context rather than through redis-cli's `-t`
+// flag because `-t` only exists in redis-cli 7.4 and later. Passing it to any
+// older redis-cli aborts the command with "Unrecognized option or bad number of
+// args for: '-t'", which breaks the health check outright on Redis 6.x and
+// 7.0-7.2 clusters. Bounding it operator-side keeps the anti-hang guarantee for
+// every supported Redis version.
+const clusterCheckExecTimeout = 15 * time.Second
+
+// clusterCheckCommand builds the `redis-cli --cluster check` argv. It carries no
+// timeout flag on purpose; see clusterCheckExecTimeout.
+func clusterCheckCommand(port int, authArgs, tlsArgs []string) []string {
+	cmd := []string{"redis-cli", "--cluster", "check", fmt.Sprintf("127.0.0.1:%d", port)}
+	cmd = append(cmd, authArgs...)
+	cmd = append(cmd, tlsArgs...)
+	return cmd
+}
+
+// checkClusterHealth performs a single cluster health check against a specific pod.
 func checkClusterHealth(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, podName string) error {
 	logger := log.FromContext(ctx)
 
-	cmd := []string{"redis-cli", "--cluster", "check", fmt.Sprintf("127.0.0.1:%d", *cr.Spec.Port)}
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		pass, err := getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
-		if err != nil {
-			return fmt.Errorf("error getting redis password: %w", err)
-		}
-		cmd = append(cmd, "-a", pass)
+	authArgs, err := getRedisClusterAuthArgs(ctx, client, cr, podName)
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Failed to get password authentication arguments")
 	}
-	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, podName)...)
+	cmd := clusterCheckCommand(*cr.Spec.Port, authArgs, getRedisTLSArgs(cr.Spec.TLS, podName))
 
-	out, err := executeCommand1(ctx, client, cr, cmd, podName)
+	execCtx, cancel := context.WithTimeout(ctx, clusterCheckExecTimeout)
+	defer cancel()
+
+	out, err := executeCommand1(execCtx, client, cr, cmd, podName)
 	if err != nil {
 		return fmt.Errorf("failed to execute cluster check command: %w", err)
 	}
@@ -743,11 +842,24 @@ const defaultExecCommandTimeout = 5 * time.Minute
 // reconciler opens against redis pods, so an unreachable pod cannot stall a reconcile.
 const defaultRedisClientTimeout = 5 * time.Second
 
+// wrapRedisCLIAuthSanitize wraps a redis-cli argv in a shell shim that strips
+// CR/LF from the container's REDISCLI_AUTH before redis-cli reads it (see
+// redisCLIAuthSanitizer for why). The original argv is forwarded via "$@" so
+// no re-quoting is needed and the password still never appears on the command
+// line. Non-redis-cli commands are passed through untouched.
+func wrapRedisCLIAuthSanitize(cmd []string) []string {
+	if len(cmd) == 0 || cmd[0] != "redis-cli" {
+		return cmd
+	}
+	return append([]string{"sh", "-c", redisCLIAuthSanitizer + `; exec "$@"`, "sh"}, cmd...)
+}
+
 func executeCommand1(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, cmd []string, podName string) (stdout string, stderr error) {
 	var (
 		execOut bytes.Buffer
 		execErr bytes.Buffer
 	)
+	cmd = wrapRedisCLIAuthSanitize(cmd)
 	config, err := GenerateK8sConfig()()
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Could not find pod to execute")

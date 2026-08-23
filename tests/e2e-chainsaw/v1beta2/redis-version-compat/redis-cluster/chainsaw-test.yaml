@@ -1,0 +1,34 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: redis-version-compat-redis-cluster
+spec:
+  steps:
+    # Every other cluster test in this suite runs quay.io/opstree/redis:latest,
+    # whose redis-cli is several majors ahead of the tag the charts install by
+    # default. Anything the operator shells out to redis-cli for is therefore
+    # only exercised against the newest CLI, so a flag missing from the default
+    # version passes CI while breaking real deployments. This lane pins the
+    # chart default so that class of regression fails here first.
+    - name: Install cluster on the default chart Redis version
+      try:
+        - apply:
+            file: cluster.yaml
+        # state: Ready is set from `redis-cli --cluster check`, so this assert
+        # fails whenever the operator builds a command the default redis-cli
+        # cannot parse.
+        - assert:
+            file: ready-cluster.yaml
+
+    - name: Cluster check succeeds on the default chart Redis version
+      try:
+        - script:
+            timeout: 60s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} redis-cluster-v1beta2-leader-0
+              -c redis-cluster-v1beta2-leader --
+              redis-cli --cluster check 127.0.0.1:6379
+            check:
+              (contains($stdout, 'All 16384 slots covered')): true

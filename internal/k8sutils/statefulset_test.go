@@ -4,6 +4,7 @@ import (
 	"context"
 	"path"
 	"strconv"
+	"strings"
 	"testing"
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
@@ -23,24 +24,19 @@ import (
 
 func TestGenerateAuthAndTLSArgs(t *testing.T) {
 	tests := []struct {
-		name         string
-		enableAuth   bool
-		enableTLS    bool
-		expectedAuth string
-		expectedTLS  string
+		name        string
+		enableTLS   bool
+		expectedTLS string
 	}{
-		{"NoAuthNoTLS", false, false, "", ""},
-		{"AuthOnly", true, false, " -a \"${REDIS_PASSWORD}\"", ""},
-		{"TLSOnly", false, true, "", " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\"${REDIS_TLS_CA_CERT:+ --cacert \"${REDIS_TLS_CA_CERT}\"}"},
-		{"AuthAndTLS", true, true, " -a \"${REDIS_PASSWORD}\"", " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\"${REDIS_TLS_CA_CERT:+ --cacert \"${REDIS_TLS_CA_CERT}\"}"},
+		{"NoAuthNoTLS", false, ""},
+		{"AuthOnly", false, ""},
+		{"TLSOnly", true, " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\"${REDIS_TLS_CA_CERT:+ --cacert \"${REDIS_TLS_CA_CERT}\"}"},
+		{"AuthAndTLS", true, " --tls --cert \"${REDIS_TLS_CERT}\" --key \"${REDIS_TLS_CERT_KEY}\"${REDIS_TLS_CA_CERT:+ --cacert \"${REDIS_TLS_CA_CERT}\"}"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			authArgs, tlsArgs := GenerateAuthAndTLSArgs(tt.enableAuth, tt.enableTLS)
-			if authArgs != tt.expectedAuth {
-				t.Errorf("expected auth args %q, got %q", tt.expectedAuth, authArgs)
-			}
+			tlsArgs := GenerateTLSArgs(tt.enableTLS)
 			if tlsArgs != tt.expectedTLS {
 				t.Errorf("expected TLS args %q, got %q", tt.expectedTLS, tlsArgs)
 			}
@@ -107,7 +103,6 @@ func TestStorageHasVolumeClaimTemplate(t *testing.T) {
 func TestGeneratePreStopCommand(t *testing.T) {
 	sentinelCfg := PreStopConfig{
 		Role:               "replication",
-		EnableAuth:         true,
 		EnableTLS:          true,
 		SentinelService:    "my-replication-s-hl",
 		SentinelMasterName: "mymaster",
@@ -120,11 +115,11 @@ func TestGeneratePreStopCommand(t *testing.T) {
 		cfg         PreStopConfig
 		expectEmpty bool
 	}{
-		{"ClusterRole", PreStopConfig{Role: "cluster", EnableAuth: true, EnableTLS: true}, false},
+		{"ClusterRole", PreStopConfig{Role: "cluster", EnableTLS: true}, false},
 		{"ReplicationWithSentinel", sentinelCfg, false},
 		// Embedded Sentinel disabled => no service => no hook, so master
 		// terminations of non-Sentinel replication never block on a missing svc.
-		{"ReplicationWithoutSentinel", PreStopConfig{Role: "replication", EnableAuth: true, EnableTLS: true}, true},
+		{"ReplicationWithoutSentinel", PreStopConfig{Role: "replication", EnableTLS: true}, true},
 		{"SentinelRole", PreStopConfig{Role: "sentinel"}, true},
 		{"StandaloneRole", PreStopConfig{Role: "standalone"}, true},
 		{"UnknownRole", PreStopConfig{Role: "unknown"}, true},
@@ -135,6 +130,12 @@ func TestGeneratePreStopCommand(t *testing.T) {
 			result := GeneratePreStopCommand(tt.cfg)
 			if (result == "") != tt.expectEmpty {
 				t.Errorf("expected empty: %v, got: %q", tt.expectEmpty, result)
+			}
+			// Every generated hook must sanitize REDISCLI_AUTH before the
+			// first redis-cli call: secrets commonly carry a trailing newline
+			// that the server-side password never has (see redisCLIAuthSanitizer).
+			if result != "" && !strings.Contains(result, redisCLIAuthSanitizer) {
+				t.Errorf("preStop script missing REDISCLI_AUTH sanitizer:\n%s", result)
 			}
 		})
 	}
@@ -172,7 +173,6 @@ func TestGenerateContainerDefAddsMaxMemoryEnv(t *testing.T) {
 func TestGenerateReplicationPreStopContent(t *testing.T) {
 	cfg := PreStopConfig{
 		Role:               "replication",
-		EnableAuth:         true,
 		EnableTLS:          false,
 		SentinelService:    "my-replication-s-hl",
 		SentinelMasterName: "customMaster",
@@ -983,7 +983,7 @@ func TestGenerateContainerDef(t *testing.T) {
 	probe := corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
 			Exec: &corev1.ExecAction{
-				Command: []string{"sh", "-ec", "RESP=\"$(redis-cli -h $(hostname) -p ${REDIS_PORT} ping)\"\n[ \"$RESP\" = \"PONG\" ]"},
+				Command: []string{"sh", "-ec", redisCLIAuthSanitizer + "\nRESP=\"$(redis-cli -h $(hostname) -p ${REDIS_PORT} ping)\"\n[ \"$RESP\" = \"PONG\" ]"},
 			},
 		},
 	}
@@ -1678,6 +1678,14 @@ func TestGetEnvironmentVariables(t *testing.T) {
 						Key: "test-key",
 					},
 				}},
+				{Name: "REDISCLI_AUTH", ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "test-secret",
+						},
+						Key: "test-key",
+					},
+				}},
 				{Name: "SERVER_MODE", Value: "sentinel"},
 				{Name: "SETUP_MODE", Value: "sentinel"},
 				{Name: "TEST_ENV", Value: "test-value"},
@@ -1746,6 +1754,14 @@ func TestGetEnvironmentVariables(t *testing.T) {
 						Key: "test-key",
 					},
 				}},
+				{Name: "REDISCLI_AUTH", ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "test-secret",
+						},
+						Key: "test-key",
+					},
+				}},
 				{Name: "SERVER_MODE", Value: "cluster"},
 				{Name: "SETUP_MODE", Value: "cluster"},
 				{Name: "TEST_ENV", Value: "test-value"},
@@ -1771,6 +1787,14 @@ func TestGetEnvironmentVariables(t *testing.T) {
 				{Name: "PERSISTENCE_ENABLED", Value: "true"},
 				{Name: "REDIS_ADDR", Value: "redis://localhost:6379"},
 				{Name: "REDIS_PASSWORD", ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "test-secret",
+						},
+						Key: "test-key",
+					},
+				}},
+				{Name: "REDISCLI_AUTH", ValueFrom: &corev1.EnvVarSource{
 					SecretKeyRef: &corev1.SecretKeySelector{
 						LocalObjectReference: corev1.LocalObjectReference{
 							Name: "test-secret",
@@ -1873,14 +1897,14 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 	probe := &corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
 			Exec: &corev1.ExecAction{
-				Command: []string{"sh", "-ec", "RESP=\"$(redis-cli -h $(hostname) -p ${REDIS_PORT} ping)\"\n[ \"$RESP\" = \"PONG\" ]"},
+				Command: []string{"sh", "-ec", redisCLIAuthSanitizer + "\nRESP=\"$(redis-cli -h $(hostname) -p ${REDIS_PORT} ping)\"\n[ \"$RESP\" = \"PONG\" ]"},
 			},
 		},
 	}
 	probeWithTLS := &corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
 			Exec: &corev1.ExecAction{
-				Command: []string{"sh", "-ec", "RESP=\"$(redis-cli -h $(hostname) -p ${REDIS_PORT} --tls --cert ${REDIS_TLS_CERT} --key ${REDIS_TLS_CERT_KEY} ${REDIS_TLS_CA_CERT:+--cacert} ${REDIS_TLS_CA_CERT} ping)\"\n[ \"$RESP\" = \"PONG\" ]"},
+				Command: []string{"sh", "-ec", redisCLIAuthSanitizer + "\nRESP=\"$(redis-cli -h $(hostname) -p ${REDIS_PORT} --tls --cert ${REDIS_TLS_CERT} --key ${REDIS_TLS_CERT_KEY} ${REDIS_TLS_CA_CERT:+--cacert} ${REDIS_TLS_CA_CERT} ping)\"\n[ \"$RESP\" = \"PONG\" ]"},
 			},
 		},
 	}

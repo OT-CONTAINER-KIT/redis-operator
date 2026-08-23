@@ -96,7 +96,7 @@ kubectl create secret tls <webhook-server-cert> --key tls.key --cert tls.crt -n 
 | certificate.secretName | string | `"webhook-server-cert"` |  |
 | certmanager.apiVersion | string | `"cert-manager.io/v1"` |  |
 | certmanager.enabled | bool | `false` |  |
-| featureGates.GenerateConfigInInitContainer | bool | `false` |  |
+| featureGates | object | `{}` | Feature gates for alpha/experimental features. Only set gates that are supported by the deployed operator image; passing an unknown gate makes the operator exit at startup. |
 | issuer.create | bool | `true` |  |
 | issuer.email | string | `"shubham.gupta@opstree.com"` |  |
 | issuer.kind | string | `"Issuer"` |  |
@@ -122,7 +122,7 @@ kubectl create secret tls <webhook-server-cert> --key tls.key --cert tls.crt -n 
 | redisOperator.imagePullPolicy | string | `"Always"` |  |
 | redisOperator.imagePullSecrets | list | `[]` |  |
 | redisOperator.imageTag | string | `""` |  |
-| redisOperator.initContainerImageTag | string | `"v0.25.0"` | initContainerImageTag is the init-config init container image tag. If not specified, defaults to imageTag, then falls back to chart appVersion. Typically only needs to be set when using a different version for the init container. |
+| redisOperator.initContainerImageTag | string | `"v0.26.0"` | initContainerImageTag is the init-config init container image tag. If not specified, defaults to imageTag, then falls back to chart appVersion. Typically only needs to be set when using a different version for the init container. |
 | redisOperator.metrics.bindAddress | string | `":8080"` |  |
 | redisOperator.metrics.enabled | bool | `true` |  |
 | redisOperator.name | string | `"redis-operator"` |  |

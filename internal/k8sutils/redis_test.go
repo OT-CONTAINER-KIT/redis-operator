@@ -485,13 +485,22 @@ func TestExecuteSingleLeaderAddSlots(t *testing.T) {
 			rangeCommand:  true,
 		},
 		{
+			name:         "redis v8 also uses a single ADDSLOTSRANGE command",
+			redisCluster: newCluster(ptr.To("v8"), false, false),
+			rangeCommand: true,
+		},
+		{
 			name:         "redis v6 falls back to batched ADDSLOTS",
+			redisCluster: newCluster(ptr.To("v6"), false, false),
+		},
+		{
+			name:         "unset cluster version falls back to batched ADDSLOTS",
 			redisCluster: newCluster(nil, false, false),
 		},
 		{
 			name:          "redis v6 with TLS includes TLS flags in every batch",
 			redisCluster:  newCluster(nil, false, true),
-			expectedFlags: []string{"--tls", "--cacert", "/tls/ca.crt", "--insecure"},
+			expectedFlags: []string{"--tls", "--cacert", "/tls/ca.crt", "--cert", "/tls/tls.crt", "--key", "/tls/tls.key", "--insecure"},
 		},
 	}
 
@@ -500,6 +509,16 @@ func TestExecuteSingleLeaderAddSlots(t *testing.T) {
 			var objects []runtime.Object
 			if tt.redisCluster.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
 				objects = mock_utils.CreateFakeObjectWithSecret("redis-password-secret", "default", "password")
+				// The leader pod must exist so the operator can check whether
+				// REDISCLI_AUTH is already set before deciding to pass -a on the
+				// command line. This pod has no REDISCLI_AUTH, so the -a fallback
+				// applies and the password flag is still emitted.
+				objects = append(objects, &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{Name: "redis-cluster-leader-0", Namespace: "default"},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{Name: "redis-cluster-leader"}},
+					},
+				})
 			}
 			client := k8sClientFake.NewSimpleClientset(objects...)
 
@@ -558,6 +577,48 @@ func TestCreateMultipleLeaderRedisCommand(t *testing.T) {
 				"mycluster-leader-0.mycluster-leader-headless.default.svc.cluster.local:6379",
 				"mycluster-leader-1.mycluster-leader-headless.default.svc.cluster.local:6379",
 				"mycluster-leader-2.mycluster-leader-headless.default.svc.cluster.local:6379",
+				"--cluster-yes",
+			},
+		},
+		{
+			name: "Multiple leaders cluster version v8 keeps FQDN addressing",
+			redisCluster: &rcvb2.RedisCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "mycluster",
+					Namespace: "default",
+				},
+				Spec: rcvb2.RedisClusterSpec{
+					ClusterSize:    ptr.To(int32(3)),
+					ClusterVersion: ptr.To("v8"),
+					Port:           ptr.To(6379),
+				},
+			},
+			expectedCommands: []string{
+				"redis-cli", "--cluster", "create",
+				"mycluster-leader-0.mycluster-leader-headless.default.svc.cluster.local:6379",
+				"mycluster-leader-1.mycluster-leader-headless.default.svc.cluster.local:6379",
+				"mycluster-leader-2.mycluster-leader-headless.default.svc.cluster.local:6379",
+				"--cluster-yes",
+			},
+		},
+		{
+			name: "Multiple leaders cluster version v6 uses pod IPs",
+			redisCluster: &rcvb2.RedisCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "mycluster",
+					Namespace: "default",
+				},
+				Spec: rcvb2.RedisClusterSpec{
+					ClusterSize:    ptr.To(int32(3)),
+					ClusterVersion: ptr.To("v6"),
+					Port:           ptr.To(6379),
+				},
+			},
+			expectedCommands: []string{
+				"redis-cli", "--cluster", "create",
+				"192.168.1.1:6379",
+				"192.168.1.2:6379",
+				"192.168.1.3:6379",
 				"--cluster-yes",
 			},
 		},
@@ -630,7 +691,7 @@ func TestGetRedisTLSArgs(t *testing.T) {
 			name:       "with TLS configuration",
 			tlsConfig:  &common.TLSConfig{},
 			clientHost: "redis-host",
-			expected:   []string{"--tls", "--insecure"},
+			expected:   []string{"--tls", "--cert", "/tls/tls.crt", "--key", "/tls/tls.key", "--insecure"},
 		},
 		{
 			name: "with TLS and explicit CA configuration",
@@ -638,7 +699,17 @@ func TestGetRedisTLSArgs(t *testing.T) {
 				CaCertFile: "custom-ca.crt",
 			},
 			clientHost: "redis-host",
-			expected:   []string{"--tls", "--cacert", "/tls/custom-ca.crt", "--insecure"},
+			expected:   []string{"--tls", "--cacert", "/tls/custom-ca.crt", "--cert", "/tls/tls.crt", "--key", "/tls/tls.key", "--insecure"},
+		},
+		{
+			name: "with custom client certificate and key keys",
+			tlsConfig: &common.TLSConfig{
+				CaCertFile:  "custom-ca.crt",
+				CertKeyFile: "custom-tls.crt",
+				KeyFile:     "custom-tls.key",
+			},
+			clientHost: "redis-host",
+			expected:   []string{"--tls", "--cacert", "/tls/custom-ca.crt", "--cert", "/tls/custom-tls.crt", "--key", "/tls/custom-tls.key", "--insecure"},
 		},
 		{
 			name:       "without TLS configuration",

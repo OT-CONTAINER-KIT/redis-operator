@@ -9,12 +9,14 @@ const (
 	// GenerateConfigInInitContainer enables generating Redis configuration using an init container
 	// instead of a regular container
 	GenerateConfigInInitContainer featuregate.Feature = "GenerateConfigInInitContainer"
+	AvoidCommandLinePassword      featuregate.Feature = "AvoidCommandLinePassword"
 )
 
 // DefaultRedisOperatorFeatureGates consists of all known Redis operator feature gates.
 // To add a new feature, define a key for it above and add it here.
 var DefaultRedisOperatorFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
 	GenerateConfigInInitContainer: {Default: false, PreRelease: featuregate.Alpha},
+	AvoidCommandLinePassword:      {Default: false, PreRelease: featuregate.Alpha},
 }
 
 // MutableFeatureGate is a feature gate that can be dynamically set
