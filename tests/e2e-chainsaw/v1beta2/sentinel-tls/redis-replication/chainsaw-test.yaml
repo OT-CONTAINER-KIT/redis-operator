@@ -1,0 +1,91 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: sentinel-tls-propagation
+spec:
+  template: true
+  steps:
+    - name: Create TLS certificates
+      description: >
+        Use cert-manager to generate a self-signed CA and TLS certificate.
+        The resulting Secret (redis-tls-cert) is mounted by both Redis and Sentinel pods.
+      try:
+        - script:
+            timeout: 10s
+            content: |
+              cat <<EOF | kubectl apply -f -
+              ---
+              apiVersion: cert-manager.io/v1
+              kind: Issuer
+              metadata:
+                name: selfsigned-issuer
+                namespace: ${NAMESPACE}
+              spec:
+                selfSigned: {}
+              ---
+              apiVersion: cert-manager.io/v1
+              kind: Certificate
+              metadata:
+                name: redis-tls
+                namespace: ${NAMESPACE}
+              spec:
+                commonName: redis-replication-sentinel-tls
+                dnsNames:
+                  - "*.redis-replication-sentinel-tls-headless.${NAMESPACE}.svc.cluster.local"
+                  - "*.redis-replication-sentinel-tls-s-hl.${NAMESPACE}.svc.cluster.local"
+                issuerRef:
+                  name: selfsigned-issuer
+                  kind: Issuer
+                secretName: redis-tls-cert
+              EOF
+        - assert:
+            timeout: 60s
+            resource:
+              apiVersion: v1
+              kind: Secret
+              metadata:
+                name: redis-tls-cert
+
+    - name: Deploy RedisReplication with embedded sentinel and TLS
+      description: >
+        The operator must propagate the TLS volume, volume mount, and env vars
+        (TLS_MODE, REDIS_TLS_CA_CERT, REDIS_TLS_CA_KEY, REDIS_TLS_CERT,
+        REDIS_TLS_CERT_KEY) into the sentinel StatefulSet pod template.
+      try:
+        - apply:
+            file: replication.yaml
+        - assert:
+            file: ready-sentinel-sts.yaml
+        - assert:
+            resource:
+              apiVersion: apps/v1
+              kind: StatefulSet
+              metadata:
+                name: redis-replication-sentinel-tls
+              status:
+                readyReplicas: 3
+
+    - name: Verify sentinel listens on TLS port
+      description: >
+        Sentinel must listen on tls-port 26379 and respond to TLS connections.
+      try:
+        - script:
+            timeout: 30s
+            content: |
+              kubectl exec -n ${NAMESPACE} redis-replication-sentinel-tls-s-0 -c sentinel -- \
+                redis-cli -p 26379 --tls --cacert /tls/ca.crt PING
+            check:
+              (contains($stdout, 'PONG')): true
+
+    - name: Uninstall
+      description: Deleting the RedisReplication tears down the sentinel StatefulSet.
+      try:
+        - delete:
+            ref:
+              apiVersion: redis.redis.opstreelabs.in/v1beta2
+              kind: RedisReplication
+              name: redis-replication-sentinel-tls
+        - error:
+            file: ready-sentinel-sts.yaml
