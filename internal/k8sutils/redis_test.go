@@ -1307,10 +1307,11 @@ func TestParseClusterNodeAddress(t *testing.T) {
 		},
 		{
 			// A NodePort cluster runs without cluster-announce-hostname, so Redis
-			// reports the address on its own.
+			// reports the address on its own. Use the RFC 5737 TEST-NET-1 range
+			// rather than an address belonging to a real cluster.
 			name:         "address without a hostname",
-			field:        "192.168.10.16:30366@30781",
-			expectedIP:   "192.168.10.16",
+			field:        "192.0.2.16:30366@30781",
+			expectedIP:   "192.0.2.16",
 			expectedPort: "30366",
 		},
 		{
@@ -1396,7 +1397,7 @@ func TestClusterNodePodNamer(t *testing.T) {
 		)
 		namer := newClusterNodePodNamer(client, nodePortCluster())
 
-		podName, err := namer.podName(context.Background(), node("192.168.10.16:30445@30199"))
+		podName, err := namer.podName(context.Background(), node("192.0.2.16:30445@30199"))
 
 		require.NoError(t, err)
 		assert.Equal(t, "redis-cluster-follower-0", podName)
@@ -1410,7 +1411,7 @@ func TestClusterNodePodNamer(t *testing.T) {
 		namer := newClusterNodePodNamer(client, nodePortCluster())
 
 		// The recorded address still points at the node the pod used to run on.
-		podName, err := namer.podName(context.Background(), node("192.168.10.99:30366@30781"))
+		podName, err := namer.podName(context.Background(), node("192.0.2.99:30366@30781"))
 
 		require.NoError(t, err)
 		assert.Equal(t, "redis-cluster-leader-0", podName)
@@ -1446,10 +1447,10 @@ func TestClusterNodePodNamer(t *testing.T) {
 		client := k8sClientFake.NewSimpleClientset(perPodService("redis-cluster-leader-0", 30366))
 		namer := newClusterNodePodNamer(client, nodePortCluster())
 
-		_, err := namer.podName(context.Background(), node("192.168.10.16:31999@32999"))
+		_, err := namer.podName(context.Background(), node("192.0.2.16:31999@32999"))
 
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), `announces address "192.168.10.16:31999@32999"`)
+		assert.Contains(t, err.Error(), `announces address "192.0.2.16:31999@32999"`)
 	})
 
 	t.Run("reports a node the cluster lost the address of without any lookup", func(t *testing.T) {
@@ -1471,7 +1472,7 @@ func TestClusterNodePodNamer(t *testing.T) {
 		namer := newClusterNodePodNamer(client, nodePortCluster())
 
 		for i := 0; i < 3; i++ {
-			_, err := namer.podName(context.Background(), node("192.168.10.16:30366@31366"))
+			_, err := namer.podName(context.Background(), node("192.0.2.16:30366@31366"))
 			require.NoError(t, err)
 		}
 
@@ -1495,8 +1496,8 @@ func TestRepairStaleReplication_nodePortClusterWithoutHostname(t *testing.T) {
 	redisClient, mock := redismock.NewClientMock()
 
 	mock.ExpectClusterNodes().SetVal(`
-e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 192.168.10.16:30366@30781 myself,master - 0 0 1 connected 0-16383
-07c37dfeb235213a872192d90877d0cd55635b91 192.168.10.16:30445@30199 slave e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 0 1426238317239 1 connected
+e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 192.0.2.16:30366@30781 myself,master - 0 0 1 connected 0-16383
+07c37dfeb235213a872192d90877d0cd55635b91 192.0.2.16:30445@30199 slave e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 0 1426238317239 1 connected
 `)
 
 	followerClient, followerMock := redismock.NewClientMock()
