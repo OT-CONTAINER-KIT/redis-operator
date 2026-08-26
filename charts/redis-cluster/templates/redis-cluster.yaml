@@ -12,6 +12,9 @@ metadata:
     {{- if .Values.redisCluster.enableMasterSlaveAntiAffinity }}
     redisclusters.redis.redis.opstreelabs.in/role-anti-affinity: "true"
     {{- end }}
+    {{- with .Values.redisCluster.masterSlaveAntiAffinityTopologyKey }}
+    redisclusters.redis.redis.opstreelabs.in/role-anti-affinity-topology-key: {{ . | quote }}
+    {{- end }}
 spec:
   clusterSize: {{ .Values.redisCluster.clusterSize }}
   persistenceEnabled: {{ .Values.redisCluster.persistenceEnabled }}
