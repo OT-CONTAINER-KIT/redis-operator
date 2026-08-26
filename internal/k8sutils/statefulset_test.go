@@ -2,6 +2,7 @@ package k8sutils
 
 import (
 	"context"
+	"fmt"
 	"path"
 	"strconv"
 	"strings"
@@ -186,8 +187,16 @@ func TestGenerateReplicationPreStopContent(t *testing.T) {
 	// Failover targets the injected service, port and master group rather than
 	// values derived in shell, so they stay correct across names/topologies.
 	assert.Contains(t, script, `redis-cli -h "my-replication-s-hl" -p 26379 SENTINEL FAILOVER customMaster`)
-	// The demotion wait is bounded by WaitSeconds, not a hardcoded 30.
-	assert.Contains(t, script, "seq 1 20")
+	// The demotion wait is bounded by WaitSeconds, not a hardcoded 30, and by a
+	// wall-clock deadline rather than an iteration count.
+	assert.Contains(t, script, "DEADLINE=$(( $(date +%s) + 20 ))")
+	// Sentinel declining the failover (-NOGOODSLAVE, -INPROGRESS) must skip the
+	// wait instead of burning the whole grace budget on a demotion that is
+	// never coming.
+	assert.Contains(t, script, "FAILOVER_RESULT=$(")
+	assert.Contains(t, script, "OK*) ;;")
+	assert.Less(t, strings.Index(script, "FAILOVER_RESULT"), strings.Index(script, "DEADLINE="),
+		"the failover result must be checked before the demotion wait is entered")
 
 	// No shell-side derivation of the service name or master group remains.
 	assert.NotContains(t, script, "CR_NAME")
@@ -198,21 +207,71 @@ func TestGenerateReplicationPreStopContent(t *testing.T) {
 }
 
 func TestGenerateClusterPreStopContent(t *testing.T) {
-	cfg := PreStopConfig{
+	script := GeneratePreStopCommand(PreStopConfig{
 		Role:        "cluster",
 		EnableTLS:   false,
 		WaitSeconds: 25,
-	}
-
-	script := GeneratePreStopCommand(cfg)
+	})
 	require.NotEmpty(t, script)
 
 	// The hook still triggers a failover to the best slave...
-	assert.Contains(t, script, "cluster failover")
+	assert.Contains(t, script, `redis-cli -h "$BEST_SLAVE" -p ${REDIS_PORT}  cluster failover 2>&1`)
 	// ...then waits for the local node to be demoted so the kubelet does not
-	// SIGKILL the old master mid-failover. The wait is bounded by WaitSeconds.
-	assert.Contains(t, script, "seq 1 25")
+	// SIGKILL the old master mid-failover. The wait is bounded by WaitSeconds
+	// and by a wall-clock deadline, not an iteration count: counting iterations
+	// bounds the wait from below, which is the wrong direction for a hook that
+	// must return before terminationGracePeriodSeconds.
+	assert.Contains(t, script, "DEADLINE=$(( $(date +%s) + 25 ))")
+	assert.Contains(t, script, `while [ "$(date +%s)" -lt "$DEADLINE" ]; do`)
 	assert.Contains(t, script, `awk -F: '/role:slave/ {print "slave"}'`)
+
+	// Redis declines a manual failover routinely (replica link down, slots
+	// already resharded away, lost election). Waiting anyway burns the whole
+	// budget and halves the SIGTERM shutdown window, so the wait is gated on
+	// the reply.
+	assert.Contains(t, script, "FAILOVER_RESULT=$(")
+	assert.Contains(t, script, "OK*) ;;")
+	assert.Contains(t, script, "exit 0")
+
+	// The nine positional Sprintf arguments are all strings but one, so go vet
+	// cannot catch a mis-ordering. Pin the order explicitly.
+	assert.Less(t, strings.Index(script, "BEST_SLAVE=$("), strings.Index(script, "cluster failover"),
+		"the best slave must be selected before the failover is triggered")
+	assert.Less(t, strings.Index(script, "cluster failover"), strings.Index(script, "FAILOVER_RESULT"+`" in`),
+		"the failover result must be inspected after the failover is triggered")
+	assert.Less(t, strings.Index(script, "cluster failover"), strings.Index(script, "DEADLINE="),
+		"the demotion wait must follow the failover, never precede it")
+}
+
+func TestGenerateClusterPreStopThreadsTLSIntoEveryCall(t *testing.T) {
+	script := GeneratePreStopCommand(PreStopConfig{
+		Role:        "cluster",
+		EnableTLS:   true,
+		WaitSeconds: 25,
+	})
+	require.NotEmpty(t, script)
+
+	tlsArgs := GenerateTLSArgs(true)
+	// Every redis-cli invocation in the hook must carry the TLS flags -- one
+	// that does not simply fails against a TLS-only Redis, silently skipping
+	// the failover or the demotion wait it guards.
+	for _, want := range []string{
+		fmt.Sprintf(`ROLE=$(redis-cli -h $(hostname) -p ${REDIS_PORT} %s info replication`, tlsArgs),
+		fmt.Sprintf(`BEST_SLAVE=$(redis-cli -h $(hostname) -p ${REDIS_PORT} %s info replication`, tlsArgs),
+		fmt.Sprintf(`redis-cli -h "$BEST_SLAVE" -p ${REDIS_PORT} %s cluster failover`, tlsArgs),
+		fmt.Sprintf(`NEW_ROLE=$(redis-cli -h $(hostname) -p ${REDIS_PORT} %s info replication`, tlsArgs),
+	} {
+		assert.Contains(t, script, want)
+	}
+	assert.Equal(t, 4, strings.Count(script, "--tls --cert"), "every redis-cli call should be TLS-enabled")
+}
+
+func TestGenerateClusterPreStopClampsZeroWait(t *testing.T) {
+	// WaitSeconds: 0 would render `+ 0`, making the deadline already expired and
+	// the wait a no-op, silently restoring the bug the hook exists to fix.
+	script := GeneratePreStopCommand(PreStopConfig{Role: "cluster", WaitSeconds: 0})
+	require.NotEmpty(t, script)
+	assert.Contains(t, script, "DEADLINE=$(( $(date +%s) + 1 ))")
 }
 
 func TestPreStopWaitSeconds(t *testing.T) {

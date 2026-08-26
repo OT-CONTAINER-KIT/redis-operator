@@ -156,6 +156,9 @@ type containerParameters struct {
 	SentinelService    string
 	SentinelMasterName string
 	SentinelPort       int
+	// PreStopWaitSeconds is not Sentinel-specific: it is populated for the
+	// "replication" role and for every RedisCluster leader and follower, and
+	// bounds the demotion wait in whichever preStop hook is installed.
 	PreStopWaitSeconds int
 }
 
@@ -601,9 +604,10 @@ type PreStopConfig struct {
 	SentinelService    string
 	SentinelMasterName string
 	SentinelPort       int
-	// WaitSeconds bounds how long the replication hook waits for the local node
-	// to be demoted to a slave. It is kept below terminationGracePeriodSeconds
-	// so the hook returns before the kubelet sends SIGKILL.
+	// WaitSeconds bounds how long a hook waits for the local node to be demoted
+	// to a slave -- both the cluster and the replication hook honour it. It is
+	// kept below terminationGracePeriodSeconds so the hook returns before the
+	// kubelet sends SIGKILL.
 	WaitSeconds int
 }
 
@@ -660,6 +664,51 @@ func GenerateTLSArgs(enableTLS bool) string {
 	return tlsArgs
 }
 
+// demotionWaitLoop renders the shell loop that blocks until the local node
+// reports role:slave, i.e. until a failover triggered above has actually
+// completed. Both the cluster and the Sentinel hook need it, so it lives in one
+// place: every hardening change here applies to both.
+//
+// The loop is bounded by a wall-clock deadline rather than an iteration count.
+// An iteration costs one redis-cli round trip plus a sleep, so counting
+// iterations bounds the wait from below, not above, and a slow local Redis
+// could push the hook past terminationGracePeriodSeconds. Re-checking a
+// deadline bounds it from above, which is what the hook actually promises.
+//
+// The individual redis-cli calls deliberately carry no per-call timeout. Do not
+// add `redis-cli -t`: that option only exists from Redis 7.4 onwards, and this
+// hook is rendered identically for every Redis version the operator supports --
+// including the default 7.0.x images. On anything older, redis-cli rejects it
+// with "Unrecognized option" and exits 1, so NEW_ROLE would be empty on every
+// iteration and the loop would burn the whole budget even when the demotion
+// succeeded immediately: worse than the bug this hook exists to fix.
+//
+// The cost is that a local Redis wedged on a fork or an fsync stall can still
+// overrun the deadline by one round trip. That matches the pre-existing
+// behaviour, and the deadline keeps the common case honest.
+//
+// indent is the leading whitespace of the block the loop is spliced into, so
+// the rendered script stays readable in `kubectl get sts -o yaml`.
+func demotionWaitLoop(tlsArgs string, waitSeconds int, indent string) string {
+	loop := fmt.Sprintf(`DEADLINE=$(( $(date +%%s) + %d ))
+while [ "$(date +%%s)" -lt "$DEADLINE" ]; do
+    NEW_ROLE=$(redis-cli -h $(hostname) -p ${REDIS_PORT} %s info replication | awk -F: '/role:slave/ {print "slave"}')
+    if [ "$NEW_ROLE" = "slave" ]; then
+        break
+    fi
+    sleep 1
+done`, waitSeconds, tlsArgs)
+
+	lines := strings.Split(loop, "\n")
+	for i, line := range lines {
+		if line != "" {
+			lines[i] = indent + line
+		}
+	}
+	// The caller supplies the indentation of the first line.
+	return strings.TrimPrefix(strings.Join(lines, "\n"), indent)
+}
+
 // generateClusterPreStop generates the preStop script for Redis cluster mode.
 // It identifies the master node and triggers a failover to the best available
 // slave before shutdown.
@@ -670,6 +719,14 @@ func GenerateTLSArgs(enableTLS bool) string {
 // abort the coordinated handoff and fall back to slower failure detection. The
 // wait is bounded by cfg.WaitSeconds so the hook still returns before the grace
 // period expires.
+//
+// The wait is entered only when the replica accepts the failover. Redis
+// declines a manual failover in routine situations -- a replica whose link to
+// the master is down, a leader whose slots were already resharded away, or an
+// election the replica cannot win -- and in all of them the local node is never
+// demoted. Waiting anyway would burn the whole budget on every such
+// termination and leave only the headroom for the SIGTERM shutdown, which is
+// where a master with save points writes its final RDB.
 func generateClusterPreStop(tlsArgs string, cfg PreStopConfig) string {
 	waitSeconds := max(cfg.WaitSeconds, 1)
 	return fmt.Sprintf(`#!/bin/sh
@@ -694,17 +751,20 @@ if [ "$ROLE" = "master" ]; then
     ')
 
     if [ -n "$BEST_SLAVE" ]; then
-        redis-cli -h "$BEST_SLAVE" -p ${REDIS_PORT} %s cluster failover
+        FAILOVER_RESULT=$(redis-cli -h "$BEST_SLAVE" -p ${REDIS_PORT} %s cluster failover 2>&1)
+        case "$FAILOVER_RESULT" in
+            OK*) ;;
+            *)
+                # Exit 0: a declined failover is routine, and a non-zero preStop
+                # hook only buys a FailedPreStopHook event on every such pod.
+                echo "preStop: cluster failover declined: $FAILOVER_RESULT" >&2
+                exit 0
+                ;;
+        esac
 
-        for i in $(seq 1 %d); do
-            NEW_ROLE=$(redis-cli -h $(hostname) -p ${REDIS_PORT} %s info replication | awk -F: '/role:slave/ {print "slave"}')
-            if [ "$NEW_ROLE" = "slave" ]; then
-                break
-            fi
-            sleep 1
-        done
+        %s
     fi
-fi`, redisCLIAuthSanitizer, tlsArgs, tlsArgs, tlsArgs, waitSeconds, tlsArgs)
+fi`, redisCLIAuthSanitizer, tlsArgs, tlsArgs, tlsArgs, demotionWaitLoop(tlsArgs, waitSeconds, "        "))
 }
 
 // generateReplicationPreStop generates the preStop script for Redis replication mode.
@@ -715,6 +775,11 @@ fi`, redisCLIAuthSanitizer, tlsArgs, tlsArgs, tlsArgs, waitSeconds, tlsArgs)
 // (embedded) Sentinel configuration rather than derived in shell, so they stay
 // correct regardless of the resource name or topology. The demotion wait is
 // bounded by cfg.WaitSeconds so the hook returns before the grace period expires.
+//
+// As in the cluster hook, the wait is entered only when Sentinel accepts the
+// failover: SENTINEL FAILOVER replies -NOGOODSLAVE when no replica is eligible
+// and -INPROGRESS when one is already running, and in neither case does waiting
+// for this node's demotion achieve anything.
 func generateReplicationPreStop(tlsArgs string, cfg PreStopConfig) string {
 	sentinelPort := cfg.SentinelPort
 	if sentinelPort == 0 {
@@ -726,16 +791,18 @@ func generateReplicationPreStop(tlsArgs string, cfg PreStopConfig) string {
 ROLE=$(redis-cli -h $(hostname) -p ${REDIS_PORT} %s info replication | awk -F: '/role:master/ {print "master"}')
 
 if [ "$ROLE" = "master" ]; then
-    redis-cli -h "%s" -p %d SENTINEL FAILOVER %s
+    FAILOVER_RESULT=$(redis-cli -h "%s" -p %d SENTINEL FAILOVER %s 2>&1)
+    case "$FAILOVER_RESULT" in
+        OK*) ;;
+        *)
+            # Exit 0: see generateClusterPreStop.
+            echo "preStop: sentinel failover declined: $FAILOVER_RESULT" >&2
+            exit 0
+            ;;
+    esac
 
-    for i in $(seq 1 %d); do
-        NEW_ROLE=$(redis-cli -h $(hostname) -p ${REDIS_PORT} %s info replication | awk -F: '/role:slave/ {print "slave"}')
-        if [ "$NEW_ROLE" = "slave" ]; then
-            break
-        fi
-        sleep 1
-    done
-fi`, redisCLIAuthSanitizer, tlsArgs, cfg.SentinelService, sentinelPort, cfg.SentinelMasterName, waitSeconds, tlsArgs)
+    %s
+fi`, redisCLIAuthSanitizer, tlsArgs, cfg.SentinelService, sentinelPort, cfg.SentinelMasterName, demotionWaitLoop(tlsArgs, waitSeconds, "    "))
 }
 
 func generateInitContainerDef(role, name string, initcontainerParams initContainerParameters, externalConfig *string, mountpath []corev1.VolumeMount, containerParams containerParameters, clusterVersion *string) []corev1.Container {
