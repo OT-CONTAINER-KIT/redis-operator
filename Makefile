@@ -47,6 +47,7 @@ CRD_REF_DOCS = $(LOCALBIN)/crd-ref-docs-$(CRD_REF_DOCS_VERSION)
 KUSTOMIZE_VERSION ?= v5.6.0
 CONTROLLER_TOOLS_VERSION ?= v0.17.2
 ENVTEST_VERSION ?= release-0.17
+ENVTEST_USE_DEPRECATED_GCS ?= false
 GOLANGCI_LINT_VERSION ?= v2.4.0
 KUTTL_VERSION ?= 0.15.0
 KIND_VERSION ?= v0.24.0
@@ -71,7 +72,7 @@ all: manager
 # Run tests
 .PHONY: test
 test: generate fmt vet manifests
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --use-deprecated-gcs=$(ENVTEST_USE_DEPRECATED_GCS) -p path)" go test ./... -coverprofile cover.out
 
 # Build manager binary
 .PHONY: manager
@@ -291,4 +292,3 @@ GOBIN=$(LOCALBIN) go install $${package} ;\
 mv "$$(echo "$(1)" | sed "s/-$(3)$$//")" $(1) ;\
 }
 endef
-
