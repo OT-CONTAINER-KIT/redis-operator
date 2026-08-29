@@ -1,0 +1,38 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: redis-cluster-single-shard-follower-disconnected-v7
+spec:
+  description: |
+    Test that a single-shard Redis cluster with HA (1 leader, 1 follower) can detect and repair
+    disconnected nodes when both leader and follower are deleted simultaneously. This validates
+    that RepairDisconnectedMasters properly handles both master and slave node disconnections.
+  steps:
+    - name: Create single-shard cluster with follower
+      try:
+        - apply:
+            file: single-shard-ha-cluster.yaml
+        - apply:
+            file: ../../../data-assert/resources.yaml
+        - assert:
+            file: ready-cluster.yaml
+    - name: Simulate both leader and follower disconnection simultaneously
+      try:
+        - script:
+            timeout: 10s
+            content: >
+              kubectl delete pod --namespace ${NAMESPACE} redis-single-shard-ha-leader-0 redis-single-shard-ha-follower-0
+
+    - name: Wait for cluster to detect failures
+      try:
+        - assert:
+            timeout: 5m
+            file: failed-cluster.yaml
+
+    - name: Wait for cluster to self-heal after both nodes disconnected
+      try:
+        - assert:
+            timeout: 5m
+            file: ready-cluster.yaml
