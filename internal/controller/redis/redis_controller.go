@@ -64,7 +64,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if err = k8sutils.AddFinalizer(ctx, instance, RedisFinalizer, r.Client); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "failed to add finalizer")
 	}
-	if instance.Status.State == "" || instance.Status.State == rvb2.RedisFailed {
+	if instance.Status.State == "" {
 		requeue, err := r.updateStatus(ctx, instance, rvb2.RedisStatus{
 			State:  rvb2.RedisInitializing,
 			Reason: rvb2.InitializingReason,
