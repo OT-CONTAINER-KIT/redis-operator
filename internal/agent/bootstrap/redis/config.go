@@ -30,6 +30,19 @@ supervised no
 pidfile /var/run/redis.pid
 `
 
+var fqdnHostname = fqdn.FqdnHostname
+
+func announceHostname() (string, error) {
+	name, err := fqdnHostname()
+	if err != nil {
+		return "", err
+	}
+	if !strings.Contains(name, ".") {
+		return "", fmt.Errorf("hostname %q is not fully qualified", name)
+	}
+	return name, nil
+}
+
 // GenerateConfig generates Redis configuration file
 func GenerateConfig() error {
 	confPath := util.CoalesceEnv1("REDIS_CONFIG_FILE", "/etc/redis/redis.conf")
@@ -58,7 +71,8 @@ func GenerateConfig() error {
 		cfg.Append("protected-mode", "no")
 	}
 
-	if clusterMode == "cluster" {
+	switch clusterMode {
+	case "cluster":
 		nodeConfPath := filepath.Join(nodeConfDir, "nodes.conf")
 
 		// cluster-node-timeout is raised from 5000ms to 15000ms (configurable
@@ -102,7 +116,18 @@ func GenerateConfig() error {
 				cfg.Append("cluster-announce-hostname", fqdnName)
 			}
 		}
-	} else {
+	case "replication":
+		fmt.Println("Setting up redis in replication mode")
+		announceHostnames := util.CoalesceEnv1("ANNOUNCE_HOSTNAMES", "no")
+		resolveHostnames := util.CoalesceEnv1("RESOLVE_HOSTNAMES", "no")
+		if announceHostnames == "yes" && resolveHostnames == "yes" {
+			if fqdnName, err := announceHostname(); err != nil {
+				log.Printf("Warning: Failed to get FQDN for replica-announce-ip: %v", err)
+			} else {
+				cfg.Append("replica-announce-ip", fqdnName)
+			}
+		}
+	default:
 		fmt.Println("Setting up redis in standalone mode")
 	}
 

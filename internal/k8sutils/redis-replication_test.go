@@ -1,6 +1,7 @@
 package k8sutils
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -198,6 +199,16 @@ func Test_generateRedisReplicationContainerParams(t *testing.T) {
 				Name:  "CUSTOM_ENV_VAR_2",
 				Value: "custom_value_2",
 			},
+			// Always present so the bootstrap agent can gate replica-announce-ip
+			// on whether the monitoring Sentinel resolves hostnames.
+			{
+				Name:  "RESOLVE_HOSTNAMES",
+				Value: "no",
+			},
+			{
+				Name:  "ANNOUNCE_HOSTNAMES",
+				Value: "no",
+			},
 		},
 		AdditionalVolume: []corev1.Volume{
 			{
@@ -230,7 +241,7 @@ func Test_generateRedisReplicationContainerParams(t *testing.T) {
 		t.Fatalf("Failed to unmarshal file %s: %v", path, err)
 	}
 
-	actual := generateRedisReplicationContainerParams(input)
+	actual := generateRedisReplicationContainerParams(context.TODO(), input, nil)
 	assert.EqualValues(t, expected, actual, "Expected %+v, got %+v", expected, actual)
 }
 
@@ -245,7 +256,7 @@ func Test_generateRedisReplicationContainerParams_SentinelPreStop(t *testing.T) 
 	}
 
 	t.Run("sentinel disabled leaves preStop fields empty", func(t *testing.T) {
-		got := generateRedisReplicationContainerParams(base())
+		got := generateRedisReplicationContainerParams(context.TODO(), base(), nil)
 		assert.Empty(t, got.SentinelService)
 		assert.Empty(t, got.SentinelMasterName)
 		assert.Zero(t, got.SentinelPort)
@@ -257,7 +268,7 @@ func Test_generateRedisReplicationContainerParams_SentinelPreStop(t *testing.T) 
 		cr.Spec.Sentinel = &rrvb2.Sentinel{Size: 3}
 		cr.Spec.TerminationGracePeriodSeconds = ptr.To(int64(60))
 
-		got := generateRedisReplicationContainerParams(cr)
+		got := generateRedisReplicationContainerParams(context.TODO(), cr, nil)
 		assert.Equal(t, "my-replication-s-hl", got.SentinelService)
 		assert.Equal(t, "mymaster", got.SentinelMasterName)
 		assert.Equal(t, 26379, got.SentinelPort)
@@ -269,7 +280,7 @@ func Test_generateRedisReplicationContainerParams_SentinelPreStop(t *testing.T) 
 		cr := base()
 		cr.Spec.Sentinel = &rrvb2.Sentinel{Size: 0}
 
-		got := generateRedisReplicationContainerParams(cr)
+		got := generateRedisReplicationContainerParams(context.TODO(), cr, nil)
 		assert.Empty(t, got.SentinelService)
 	})
 }

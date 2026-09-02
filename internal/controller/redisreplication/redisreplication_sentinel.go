@@ -127,6 +127,8 @@ func buildSentinelContainer(rr *rrvb2.RedisReplication) corev1.Container {
 func buildSentinelEnv(rr *rrvb2.RedisReplication) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{Name: "QUORUM", Value: fmt.Sprintf("%d", rr.Spec.Sentinel.Size/2+1)},
+		{Name: "RESOLVE_HOSTNAMES", Value: resolveHostnamesOrDefault(rr.Spec.Sentinel.ResolveHostnames)},
+		{Name: "ANNOUNCE_HOSTNAMES", Value: resolveHostnamesOrDefault(rr.Spec.Sentinel.AnnounceHostnames)},
 	}
 	passwordSecret := rr.Spec.KubernetesConfig.ExistingPasswordSecret
 	if rr.Spec.Sentinel.ExistingPasswordSecret != nil {
@@ -147,4 +149,11 @@ func buildSentinelEnv(rr *rrvb2.RedisReplication) []corev1.EnvVar {
 	}
 
 	return envs
+}
+
+func resolveHostnamesOrDefault(v string) string {
+	if v == "" {
+		return "no"
+	}
+	return v
 }
