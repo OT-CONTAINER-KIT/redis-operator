@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -69,28 +70,74 @@ func Test_GenerateConfig_TLS_CACertFile(t *testing.T) {
 }
 
 func Test_GenerateConfig_ReplicaAnnounceIP(t *testing.T) {
+	const fakeFQDN = "redis-replication-0.redis-replication-headless.ns.svc.cluster.local"
+
 	tests := []struct {
 		name      string
 		setupMode string
-		isReplica bool
+		announce  string
+		resolve   string
+		resolver  func() (string, error)
+		want      bool
 	}{
 		{
-			name:      "replication mode - sets replica-announce-ip when FQDN available",
-			setupMode: "replication",
-			isReplica: true,
+			name:      "replication with hostnames enabled announces the FQDN",
+			setupMode: "replication", announce: "yes", resolve: "yes",
+			resolver: func() (string, error) { return fakeFQDN, nil },
+			want:     true,
 		},
 		{
-			name:      "standalone mode - never sets replica-announce-ip",
-			setupMode: "standalone",
-			isReplica: false,
+			// Sentinel rejects a hostname here unless it resolves hostnames itself,
+			// so announcing one would make the replica undiscoverable.
+			name:      "replication with resolve-hostnames off stays on IPs",
+			setupMode: "replication", announce: "yes", resolve: "no",
+			resolver: func() (string, error) { return fakeFQDN, nil },
+			want:     false,
+		},
+		{
+			name:      "replication with announce-hostnames off stays on IPs",
+			setupMode: "replication", announce: "no", resolve: "yes",
+			resolver: func() (string, error) { return fakeFQDN, nil },
+			want:     false,
+		},
+		{
+			name:      "replication with both off (the default) stays on IPs",
+			setupMode: "replication", announce: "no", resolve: "no",
+			resolver: func() (string, error) { return fakeFQDN, nil },
+			want:     false,
+		},
+		{
+			name:      "resolver failure omits the directive",
+			setupMode: "replication", announce: "yes", resolve: "yes",
+			resolver: func() (string, error) { return "", errors.New("boom") },
+			want:     false,
+		},
+		{
+			// go-fqdn returns a nil error even when it only found the short name.
+			name:      "unqualified hostname is rejected",
+			setupMode: "replication", announce: "yes", resolve: "yes",
+			resolver: func() (string, error) { return "redis-replication-0", nil },
+			want:     false,
+		},
+		{
+			name:      "standalone never announces",
+			setupMode: "standalone", announce: "yes", resolve: "yes",
+			resolver: func() (string, error) { return fakeFQDN, nil },
+			want:     false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			orig := fqdnHostname
+			fqdnHostname = tt.resolver
+			t.Cleanup(func() { fqdnHostname = orig })
+
 			confPath := filepath.Join(t.TempDir(), "redis.conf")
 			t.Setenv("REDIS_CONFIG_FILE", confPath)
 			t.Setenv("SETUP_MODE", tt.setupMode)
+			t.Setenv("ANNOUNCE_HOSTNAMES", tt.announce)
+			t.Setenv("RESOLVE_HOSTNAMES", tt.resolve)
 
 			require.NoError(t, GenerateConfig())
 
@@ -98,14 +145,11 @@ func Test_GenerateConfig_ReplicaAnnounceIP(t *testing.T) {
 			require.NoError(t, err)
 			conf := string(raw)
 
-			if !tt.isReplica {
+			if tt.want {
+				assert.Contains(t, conf, "replica-announce-ip "+fakeFQDN)
+			} else {
 				assert.NotContains(t, conf, "replica-announce-ip")
 			}
-			// replica-announce-ip is only set when fqdn.FqdnHostname()
-			// succeeds (i.e. inside a K8s pod with DNS). On dev machines
-			// the FQDN lookup may fail, so we only assert the invariant:
-			// it must never fall back to 0.0.0.0.
-			assert.NotContains(t, conf, "replica-announce-ip 0.0.0.0")
 		})
 	}
 }

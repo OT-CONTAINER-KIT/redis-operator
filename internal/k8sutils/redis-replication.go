@@ -8,6 +8,7 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util/maps"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -217,6 +218,14 @@ func generateRedisReplicationContainerParams(cr *rrvb2.RedisReplication) contain
 		containerProp.SentinelMasterName = cr.SentinelMasterName()
 		containerProp.SentinelPort = 26379
 		containerProp.PreStopWaitSeconds = preStopWaitSeconds(cr.Spec.TerminationGracePeriodSeconds)
+		hostnameEnv := []corev1.EnvVar{
+			{Name: "RESOLVE_HOSTNAMES", Value: sentinelHostnameFlag(cr.Spec.Sentinel.ResolveHostnames)},
+			{Name: "ANNOUNCE_HOSTNAMES", Value: sentinelHostnameFlag(cr.Spec.Sentinel.AnnounceHostnames)},
+		}
+		if containerProp.EnvVars != nil {
+			hostnameEnv = append(append([]corev1.EnvVar{}, *containerProp.EnvVars...), hostnameEnv...)
+		}
+		containerProp.EnvVars = &hostnameEnv
 	}
 	return containerProp
 }
@@ -274,4 +283,11 @@ func IsRedisReplicationReady(ctx context.Context, client kubernetes.Interface, c
 		return false
 	}
 	return true
+}
+
+func sentinelHostnameFlag(v string) string {
+	if v == "" {
+		return "no"
+	}
+	return v
 }
