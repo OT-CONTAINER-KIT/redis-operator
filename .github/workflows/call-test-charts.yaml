@@ -22,13 +22,17 @@ jobs:
           cluster_name: kind
 
       - name: Install Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@v5
         with:
           version: v3.5.4
 
       - name: Install yq
         run: |
           sudo snap install yq
+
+      - name: Assert redis-operator RBAC scope templating
+        run: |
+          ./tests/helm/rbac-scope-test.sh
 
       - name: Install and test Redis Related Helm charts
         run: |

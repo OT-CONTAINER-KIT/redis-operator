@@ -1,0 +1,44 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: pod-management-policy-redis-cluster
+spec:
+  steps:
+    - name: Install cluster with Parallel pod management policy
+      try:
+        - apply:
+            file: cluster.yaml
+        - assert:
+            file: ready-cluster.yaml
+        - assert:
+            file: ready-sts-parallel.yaml
+
+    - name: Changing the policy without recreate annotation is ignored
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl patch rediscluster redis-cluster-v1beta2 --namespace ${NAMESPACE}
+              --type merge --patch '{"spec":{"podManagementPolicy":"OrderedReady"}}'
+        # Give the operator time to reconcile the change; the field is immutable
+        # so the StatefulSets must keep the stored policy and stay healthy.
+        - sleep:
+            duration: 30s
+        - assert:
+            file: ready-sts-parallel.yaml
+        - assert:
+            file: ready-cluster.yaml
+
+    - name: Recreating the statefulset applies the new policy
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl annotate rediscluster redis-cluster-v1beta2 --namespace ${NAMESPACE}
+              redis.opstreelabs.in/recreate-statefulset=true --overwrite
+        - assert:
+            file: ready-sts-ordered-ready.yaml
+        - assert:
+            file: ready-cluster.yaml

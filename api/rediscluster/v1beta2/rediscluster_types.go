@@ -30,6 +30,11 @@ type RedisClusterSpec struct {
 	HostNetwork      bool                    `json:"hostNetwork,omitempty"`
 	// +kubebuilder:default:=6379
 	Port *int `json:"port,omitempty"`
+	// ClusterVersion is the major version of the Redis image in use, written as
+	// `v6`, `v7`, `v8` and so on. It must match the major version of the image
+	// configured for the cluster: Redis 7+ features such as hostname based
+	// cluster announcements and CLUSTER ADDSLOTSRANGE are enabled for `v7` and
+	// every later major version, and disabled for `v6` and older.
 	// +kubebuilder:default:=v7
 	ClusterVersion     *string                      `json:"clusterVersion,omitempty"`
 	RedisConfig        *common.RedisConfig          `json:"redisConfig,omitempty"`
@@ -48,6 +53,15 @@ type RedisClusterSpec struct {
 	PersistenceEnabled *bool                        `json:"persistenceEnabled,omitempty"`
 	EnvVars            *[]corev1.EnvVar             `json:"env,omitempty"`
 	HostPort           *int                         `json:"hostPort,omitempty"`
+	// PodManagementPolicy controls how pods are created during initial scale up,
+	// when replacing pods on nodes, or when scaling down. This field is immutable
+	// on an existing StatefulSet; changing it for a running cluster requires
+	// recreating the StatefulSet (e.g. via the
+	// redis.opstreelabs.in/recreate-statefulset annotation), otherwise the change
+	// is ignored.
+	// +optional
+	// +kubebuilder:validation:Enum=OrderedReady;Parallel
+	PodManagementPolicy *string `json:"podManagementPolicy,omitempty"`
 }
 
 // Node-conf needs to be added only in redis cluster

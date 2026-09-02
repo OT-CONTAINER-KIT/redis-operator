@@ -2,9 +2,71 @@ package bootstrap
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func Test_GenerateConfig_TLS_CACertFile(t *testing.T) {
+	tests := []struct {
+		name           string
+		caCertEnv      string
+		setCACertEnv   bool
+		expectCALine   bool
+		expectedCAPath string
+	}{
+		{
+			name:           "explicit CA cert env set - writes provided path",
+			caCertEnv:      "/tls/ca.crt",
+			setCACertEnv:   true,
+			expectCALine:   true,
+			expectedCAPath: "/tls/ca.crt",
+		},
+		{
+			name:         "CA cert env not set - omits tls-ca-cert-file",
+			setCACertEnv: false,
+			expectCALine: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			confPath := filepath.Join(t.TempDir(), "redis.conf")
+
+			t.Setenv("REDIS_CONFIG_FILE", confPath)
+			t.Setenv("TLS_MODE", "true")
+			t.Setenv("REDIS_TLS_CERT", "/tls/tls.crt")
+			t.Setenv("REDIS_TLS_CERT_KEY", "/tls/tls.key")
+			// Keep the run in standalone mode so GenerateConfig does not try to
+			// reach the network / read nodes.conf for cluster bootstrapping.
+			t.Setenv("SETUP_MODE", "standalone")
+			if tt.setCACertEnv {
+				t.Setenv("REDIS_TLS_CA_CERT", tt.caCertEnv)
+			} else {
+				os.Unsetenv("REDIS_TLS_CA_CERT")
+			}
+
+			require.NoError(t, GenerateConfig())
+
+			raw, err := os.ReadFile(confPath)
+			require.NoError(t, err)
+			conf := string(raw)
+
+			// TLS should always be configured when TLS_MODE is true.
+			assert.Contains(t, conf, "tls-cert-file /tls/tls.crt")
+			assert.Contains(t, conf, "tls-key-file /tls/tls.key")
+
+			if tt.expectCALine {
+				assert.Contains(t, conf, "tls-ca-cert-file "+tt.expectedCAPath)
+			} else {
+				assert.NotContains(t, conf, "tls-ca-cert-file")
+			}
+		})
+	}
+}
 
 func Test_updateMyselfIP(t *testing.T) {
 	testData := `7a6b5f4f99496c97f4e32c30c077aa95cab92664 10.244.0.246:0@16379,,tls-port=6379,shard-id=a03445a0d3f6d405af261041e0cb77a8a176f42b slave b66f2fa597eeda567cf05f3701419be9a3b2f50e 0 1756463509000 1 connected
@@ -41,4 +103,49 @@ vars currentEpoch 3 lastVoteEpoch 0
 	}
 
 	t.Logf("Successfully updated nodes.conf with new IP %s", newIP)
+}
+
+func Test_GenerateConfig_RedisMajorVersionGates(t *testing.T) {
+	tests := []struct {
+		name              string
+		redisMajorVersion string
+		expectV7Features  bool
+	}{
+		{name: "v6 keeps the pre-7 configuration", redisMajorVersion: "v6", expectV7Features: false},
+		{name: "v7 enables hostname based clustering", redisMajorVersion: "v7", expectV7Features: true},
+		{name: "v8 also enables hostname based clustering", redisMajorVersion: "v8", expectV7Features: true},
+		{name: "v10 is not compared lexically", redisMajorVersion: "v10", expectV7Features: true},
+		{name: "unparseable version falls back to the v7 default", redisMajorVersion: "latest", expectV7Features: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmp := t.TempDir()
+			confPath := filepath.Join(tmp, "redis.conf")
+
+			t.Setenv("REDIS_CONFIG_FILE", confPath)
+			t.Setenv("SETUP_MODE", "cluster")
+			t.Setenv("NODE_CONF_DIR", tmp)
+			t.Setenv("NODEPORT", "false")
+			t.Setenv("TLS_MODE", "true")
+			t.Setenv("REDIS_TLS_CERT", "/tls/tls.crt")
+			t.Setenv("REDIS_TLS_CERT_KEY", "/tls/tls.key")
+			t.Setenv("REDIS_MAJOR_VERSION", tt.redisMajorVersion)
+
+			require.NoError(t, GenerateConfig())
+
+			raw, err := os.ReadFile(confPath)
+			require.NoError(t, err)
+			conf := string(raw)
+
+			if tt.expectV7Features {
+				assert.Contains(t, conf, "cluster-preferred-endpoint-type hostname")
+				// cluster-announce-hostname is only written when the FQDN lookup
+				// succeeds, which is environment dependent, so it is not asserted here.
+			} else {
+				assert.NotContains(t, conf, "cluster-preferred-endpoint-type")
+				assert.NotContains(t, conf, "cluster-announce-hostname")
+			}
+		})
+	}
 }

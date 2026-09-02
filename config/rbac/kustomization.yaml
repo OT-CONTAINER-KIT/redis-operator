@@ -1,10 +1,13 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-- auth_proxy_client_clusterrole.yaml
-- auth_proxy_role.yaml
-- auth_proxy_role_binding.yaml
-- auth_proxy_service.yaml
+# The following RBAC and Service protect the /metrics endpoint when the
+# operator is started with --metrics-secure (controller-runtime's built-in
+# authn/authz filter). They replace the deprecated kube-rbac-proxy sidecar.
+- metrics_auth_role.yaml
+- metrics_auth_role_binding.yaml
+- metrics_reader_role.yaml
+- metrics_service.yaml
 - leader_election_role.yaml
 - leader_election_role_binding.yaml
 - redis_editor_role.yaml

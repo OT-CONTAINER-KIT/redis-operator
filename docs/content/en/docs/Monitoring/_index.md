@@ -54,6 +54,8 @@ serviceMonitor:
 
 For kubectl related configuration, we may have to create `ServiceMonitor` definition in a YAML manifest and apply it using `kubectl` command.
 
+When the exporter is enabled, the operator creates a dedicated `<name>-metrics` service labelled with `app.kubernetes.io/component: metrics`. For standalone, replication and sentinel setups the regular Redis service exposes the exporter port as well, so a selector that only matches `redis_setup_type` selects both services and Prometheus scrapes the exporter twice. Match on `app.kubernetes.io/component: metrics` as well to select only the metrics service.
+
 ServiceMonitor for Redis cluster setup:
 
 ```yaml
@@ -62,13 +64,11 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: redis-cluster
-  labels:
-    redis-operator: "true"
-    env: production
 spec:
   selector:
     matchLabels:
       redis_setup_type: cluster
+      app.kubernetes.io/component: metrics
   endpoints:
   - port: redis-exporter
     interval: 30s
@@ -86,13 +86,11 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: redis-standalone
-  labels:
-    redis-operator: "true"
-    env: production
 spec:
   selector:
     matchLabels:
       redis_setup_type: standalone
+      app.kubernetes.io/component: metrics
   endpoints:
   - port: redis-exporter
     interval: 30s

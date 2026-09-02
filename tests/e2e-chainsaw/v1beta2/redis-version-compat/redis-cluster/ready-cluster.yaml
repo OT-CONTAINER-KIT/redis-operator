@@ -1,0 +1,10 @@
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisCluster
+metadata:
+  name: redis-cluster-v1beta2
+status:
+  readyFollowerReplicas: 0
+  readyLeaderReplicas: 3
+  state: Ready
+  reason: RedisCluster is ready

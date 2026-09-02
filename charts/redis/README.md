@@ -46,6 +46,7 @@ helm delete <my-release> --namespace <namespace>
 | TLS.ca | string | `"ca.crt"` |  |
 | TLS.cert | string | `"tls.crt"` |  |
 | TLS.key | string | `"tls.key"` |  |
+| TLS.secret.defaultMode | int | `288` |  |
 | TLS.secret.secretName | string | `""` |  |
 | acl.secret.secretName | string | `""` |  |
 | affinity | object | `{}` |  |
@@ -75,6 +76,7 @@ helm delete <my-release> --namespace <namespace>
 | redisExporter.resources | object | `{}` |  |
 | redisExporter.securityContext | object | `{}` |  |
 | redisExporter.tag | string | `"v1.44.0"` |  |
+| redisStandalone.dynamicConfig | list | `[]` | DynamicConfig is a list of "key value" Redis parameters applied at runtime    via CONFIG SET (without triggering a rolling restart). Note: CONFIG SET is    not persisted to disk, so values are not retained across pod restarts unless    they are also provided through externalConfig.    Example:    dynamicConfig:      - "maxmemory-policy allkeys-lru"      - "slowlog-log-slower-than 5000" |
 | redisStandalone.ignoreAnnotations | list | `[]` |  |
 | redisStandalone.image | string | `"quay.io/opstree/redis"` |  |
 | redisStandalone.imagePullPolicy | string | `"IfNotPresent"` |  |

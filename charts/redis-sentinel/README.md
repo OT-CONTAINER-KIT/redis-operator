@@ -47,6 +47,7 @@ helm delete <my-release> --namespace <namespace>
 | TLS.ca | string | `"ca.crt"` |  |
 | TLS.cert | string | `"tls.crt"` |  |
 | TLS.key | string | `"tls.key"` |  |
+| TLS.secret.defaultMode | int | `288` |  |
 | TLS.secret.secretName | string | `""` |  |
 | affinity | object | `{}` |  |
 | annotations | object | `{}` |  |
@@ -73,6 +74,7 @@ helm delete <my-release> --namespace <namespace>
 | pdb.enabled | bool | `false` |  |
 | pdb.maxUnavailable | string | `nil` |  |
 | pdb.minAvailable | int | `1` |  |
+| podManagementPolicy | string | `"OrderedReady"` |  |
 | podSecurityContext.fsGroup | int | `1000` |  |
 | podSecurityContext.runAsUser | int | `1000` |  |
 | priorityClassName | string | `""` |  |
