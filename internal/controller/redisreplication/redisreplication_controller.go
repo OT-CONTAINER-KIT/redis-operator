@@ -176,7 +176,7 @@ func (r *Reconciler) reconcileFinalizer(ctx context.Context, instance *rrvb2.Red
 }
 
 func (r *Reconciler) reconcileResources(ctx context.Context, instance *rrvb2.RedisReplication) (ctrl.Result, error) {
-	if err := k8sutils.CreateReplicationRedis(ctx, instance, r.K8sClient); err != nil {
+	if err := k8sutils.CreateReplicationRedis(ctx, instance, r.K8sClient, r.Client); err != nil {
 		return intctrlutil.RequeueAfter(ctx, time.Second*60, "")
 	}
 	if err := k8sutils.CreateReplicationService(ctx, instance, r.K8sClient); err != nil {

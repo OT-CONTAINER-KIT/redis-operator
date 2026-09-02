@@ -8,6 +8,7 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util/maps"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -77,7 +78,7 @@ func CreateReplicationService(ctx context.Context, cr *rrvb2.RedisReplication, c
 }
 
 // CreateReplicationRedis will create a replication redis setup
-func CreateReplicationRedis(ctx context.Context, cr *rrvb2.RedisReplication, cl kubernetes.Interface) error {
+func CreateReplicationRedis(ctx context.Context, cr *rrvb2.RedisReplication, cl kubernetes.Interface, ctrlClient client.Client) error {
 	stateFulName := cr.Name
 	labels := getRedisLabels(cr.Name, replication, "replication", cr.Labels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
@@ -91,7 +92,7 @@ func CreateReplicationRedis(ctx context.Context, cr *rrvb2.RedisReplication, cl 
 		generateRedisReplicationParams(cr),
 		redisReplicationAsOwner(cr),
 		generateRedisReplicationInitContainerParams(cr),
-		generateRedisReplicationContainerParams(cr),
+		generateRedisReplicationContainerParams(ctx, cr, ctrlClient),
 		cr.Spec.Sidecars,
 	)
 	if err != nil {
@@ -151,7 +152,7 @@ func generateRedisReplicationParams(cr *rrvb2.RedisReplication) statefulSetParam
 }
 
 // generateRedisReplicationContainerParams generates Redis container information
-func generateRedisReplicationContainerParams(cr *rrvb2.RedisReplication) containerParameters {
+func generateRedisReplicationContainerParams(ctx context.Context, cr *rrvb2.RedisReplication, ctrlClient client.Client) containerParameters {
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{
@@ -218,7 +219,39 @@ func generateRedisReplicationContainerParams(cr *rrvb2.RedisReplication) contain
 		containerProp.SentinelPort = 26379
 		containerProp.PreStopWaitSeconds = preStopWaitSeconds(cr.Spec.TerminationGracePeriodSeconds)
 	}
+	resolve, announce := sentinelHostnameSettings(ctx, ctrlClient, cr)
+	hostnameEnv := []corev1.EnvVar{
+		{Name: "RESOLVE_HOSTNAMES", Value: resolve},
+		{Name: "ANNOUNCE_HOSTNAMES", Value: announce},
+	}
+	if containerProp.EnvVars != nil {
+		hostnameEnv = append(append([]corev1.EnvVar{}, *containerProp.EnvVars...), hostnameEnv...)
+	}
+	containerProp.EnvVars = &hostnameEnv
+
 	return containerProp
+}
+
+func sentinelHostnameSettings(ctx context.Context, ctrlClient client.Client, cr *rrvb2.RedisReplication) (string, string) {
+	if cr.EnableSentinel() {
+		return sentinelHostnameFlag(cr.Spec.Sentinel.ResolveHostnames), sentinelHostnameFlag(cr.Spec.Sentinel.AnnounceHostnames)
+	}
+	if ctrlClient == nil {
+		return "no", "no"
+	}
+	var sentinels rsvb2.RedisSentinelList
+	if err := ctrlClient.List(ctx, &sentinels, client.InNamespace(cr.Namespace)); err != nil {
+		log.FromContext(ctx).Error(err, "failed to list RedisSentinel, assuming hostnames are disabled")
+		return "no", "no"
+	}
+	for i := range sentinels.Items {
+		cfg := sentinels.Items[i].Spec.RedisSentinelConfig
+		if cfg == nil || cfg.RedisReplicationName != cr.Name {
+			continue
+		}
+		return sentinelHostnameFlag(cfg.ResolveHostnames), sentinelHostnameFlag(cfg.AnnounceHostnames)
+	}
+	return "no", "no"
 }
 
 // generateRedisReplicationInitContainerParams generates Redis Replication initcontainer information
@@ -274,4 +307,11 @@ func IsRedisReplicationReady(ctx context.Context, client kubernetes.Interface, c
 		return false
 	}
 	return true
+}
+
+func sentinelHostnameFlag(v string) string {
+	if v == "" {
+		return "no"
+	}
+	return v
 }
