@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	rvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redis/v1beta2"
@@ -110,6 +111,56 @@ var _ = Describe("Redis Controller", func() {
 			Expect(exporterContainer.Image).To(Equal(redis.Spec.RedisExporter.Image))
 			Expect(exporterContainer.ImagePullPolicy).To(Equal(redis.Spec.RedisExporter.ImagePullPolicy))
 			Expect(exporterContainer.Resources).To(Equal(*redis.Spec.RedisExporter.Resources))
+		})
+
+		It("should not transition to Ready while dynamic config has not been applied", func() {
+			dcRedis := &rvb2.Redis{
+				ObjectMeta: testutil.CreateTestObject("redis-dynamic-config", ns, nil),
+				Spec: rvb2.RedisSpec{
+					KubernetesConfig: common.KubernetesConfig{
+						Image: testutil.DefaultRedisImage,
+					},
+					RedisConfig: &common.RedisConfig{
+						DynamicConfig: []string{"maxmemory-policy allkeys-lru"},
+					},
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), dcRedis)).Should(Succeed())
+			defer func() {
+				Expect(k8sClient.Delete(context.Background(), dcRedis)).Should(Succeed())
+			}()
+
+			By("marking the StatefulSet as ready")
+			sts := &appsv1.StatefulSet{}
+			Eventually(func() error {
+				return k8sClient.Get(context.Background(), types.NamespacedName{
+					Name:      dcRedis.Name,
+					Namespace: ns,
+				}, sts)
+			}, timeout, interval).Should(Succeed())
+
+			replicas := int32(1)
+			if sts.Spec.Replicas != nil {
+				replicas = *sts.Spec.Replicas
+			}
+			sts.Status.Replicas = replicas
+			sts.Status.ReadyReplicas = replicas
+			sts.Status.CurrentReplicas = replicas
+			sts.Status.UpdatedReplicas = replicas
+			sts.Status.ObservedGeneration = sts.Generation
+			Expect(k8sClient.Status().Update(context.Background(), sts)).Should(Succeed())
+
+			By("verifying status stays Initializing since dynamic config can never reach an unreachable envtest pod")
+			Consistently(func() (rvb2.RedisState, error) {
+				current := &rvb2.Redis{}
+				if err := k8sClient.Get(context.Background(), types.NamespacedName{
+					Name:      dcRedis.Name,
+					Namespace: ns,
+				}, current); err != nil {
+					return "", err
+				}
+				return current.Status.State, nil
+			}, 3*time.Second, interval).Should(Equal(rvb2.RedisInitializing))
 		})
 
 		It("should transition status from Initializing to Ready when the StatefulSet becomes ready", func() {

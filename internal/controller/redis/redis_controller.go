@@ -19,6 +19,7 @@ package redis
 import (
 	"context"
 	"reflect"
+	"time"
 
 	rvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redis/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
@@ -96,6 +97,24 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return intctrlutil.RequeueE(ctx, statusErr, "failed to update status to failed")
 		}
 		return intctrlutil.RequeueE(ctx, err, "failed to create service")
+	}
+
+	// Apply any dynamic (CONFIG SET-able) Redis configuration from spec.redisConfig.dynamicConfig.
+	// Runs unconditionally on every reconcile (not gated on status.state) so config changes are
+	// re-applied to an already-Ready instance without a restart, and — since it returns/requeues
+	// before reaching the Ready check below — also defers the first Ready transition until the
+	// requested configuration has actually been applied.
+	if len(instance.Spec.GetRedisDynamicConfig()) > 0 {
+		if !r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name) {
+			return intctrlutil.RequeueAfter(ctx, time.Second*10, "waiting for redis statefulset to be ready before applying dynamic config")
+		}
+		applied, err := k8sutils.SetRedisStandaloneDynamicConfig(ctx, r.K8sClient, instance)
+		if err != nil {
+			return intctrlutil.RequeueE(ctx, err, "failed to set dynamic config")
+		}
+		if !applied {
+			return intctrlutil.RequeueAfter(ctx, time.Second*10, "waiting for redis to become reachable to apply dynamic config")
+		}
 	}
 
 	// The Ready transition is event-driven: this controller owns the StatefulSet,
