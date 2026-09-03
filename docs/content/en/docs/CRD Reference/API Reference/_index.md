@@ -419,11 +419,13 @@ _Appears in:_
 | `podManagementPolicy` _string_ | PodManagementPolicy controls how pods are created during initial scale up,<br />when replacing pods on nodes, or when scaling down. This field is immutable<br />on an existing StatefulSet; changing it for a running cluster requires<br />recreating the StatefulSet (e.g. via the<br />redis.opstreelabs.in/recreate-statefulset annotation), otherwise the change<br />is ignored. |  | Enum: [OrderedReady Parallel] <br /> |
 
 
+
+
 #### RedisSentinel
 
 
 
-Redis is the Schema for the redis API
+RedisSentinel is the Schema for the redis sentinel API
 
 
 
@@ -501,6 +503,8 @@ _Appears in:_
 | `podManagementPolicy` _string_ | PodManagementPolicy controls how pods are created during initial scale up,<br />when replacing pods on nodes, or when scaling down. This field is immutable<br />on an existing StatefulSet; changing it for a running cluster requires<br />recreating the StatefulSet (e.g. via the<br />redis.opstreelabs.in/recreate-statefulset annotation), otherwise the change<br />is ignored. |  | Enum: [OrderedReady Parallel] <br /> |
 
 
+
+
 #### RedisSpec
 
 
@@ -534,6 +538,8 @@ _Appears in:_
 | `terminationGracePeriodSeconds` _integer_ |  |  |  |
 | `env` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#envvar-v1-core)_ |  |  |  |
 | `hostPort` _integer_ |  |  |  |
+
+
 
 
 #### Sentinel
