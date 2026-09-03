@@ -481,6 +481,27 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 				log.FromContext(ctx).Info("Successfully reconfigured slave replication")
 			}
 		}
+	} else if len(masterNodes) == 0 && len(slaveNodes) > 0 {
+		// No pod reports role:master but replicas exist: the replication set has
+		// lost its master with no surviving master pod (for example the previous
+		// master was deleted and its Pod IP was recycled, leaving the replicas
+		// replicating from a node that is no longer their master). Neither this
+		// reconcile loop nor Sentinel recovers this on its own — Sentinel may
+		// still consider the stale master "up" — so elect a local pod and promote
+		// it to master, then re-point the remaining replicas at it.
+		realMaster = slaveNodes[0]
+		if instance.Status.MasterNode != "" && k8sutils.IsPodRunning(ctx, r.K8sClient, instance.Namespace, instance.Status.MasterNode) {
+			log.FromContext(ctx).Info("No master found; preferring last-known master from status for promotion",
+				"statusMasterNode", instance.Status.MasterNode)
+			realMaster = instance.Status.MasterNode
+		}
+		log.FromContext(ctx).Info("No master found among replication pods; promoting a replica to master",
+			"electedMaster", realMaster, "replicas", slaveNodes)
+		if err := k8sutils.CreateMasterSlaveReplication(ctx, r.K8sClient, instance, slaveNodes, realMaster); err != nil {
+			log.FromContext(ctx).Error(err, "Failed to promote replica to master", "electedMaster", realMaster)
+			return intctrlutil.RequeueAfter(ctx, time.Second*60, "")
+		}
+		log.FromContext(ctx).Info("Successfully promoted replica to master", "master", realMaster)
 	}
 
 	monitoring.RedisReplicationReplicasSizeMismatch.WithLabelValues(instance.Namespace, instance.Name).Set(0)
