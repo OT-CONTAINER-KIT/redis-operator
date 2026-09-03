@@ -51,6 +51,6 @@ spec:
             timeout: 30s
             content: >
               kubectl exec --namespace ${NAMESPACE} --container redis-sentinel-expand-sentinel redis-sentinel-expand-sentinel-0 --
-              redis-cli -p 26379 CONFIG GET loglevel
+              redis-cli -p 26379 SENTINEL CONFIG GET loglevel
             check:
               (contains($stdout, 'verbose')): true
