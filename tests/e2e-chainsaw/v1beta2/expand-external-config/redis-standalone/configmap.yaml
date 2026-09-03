@@ -1,0 +1,11 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-external-config
+data:
+  # ${MAXMEMORY_POLICY} is only defined via spec.env on the Redis CR, so the
+  # value can only reach Redis through env expansion of this file.
+  redis-additional.conf: |
+    maxmemory-policy ${MAXMEMORY_POLICY}
+    slowlog-max-len 158

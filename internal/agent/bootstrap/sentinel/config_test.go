@@ -131,3 +131,86 @@ func Test_GenerateConfig_TLS_CACertFile(t *testing.T) {
 		})
 	}
 }
+
+func Test_GenerateConfig_ExternalConfig_ExpandsEnvPlaceholders(t *testing.T) {
+	dir := t.TempDir()
+	confPath := filepath.Join(dir, "sentinel.conf")
+	externalPath := filepath.Join(dir, "redis-sentinel-additional.conf")
+
+	// SENTINEL_LOGLEVEL is not something GenerateConfig writes itself, so the
+	// value can only reach the config through expansion of the external file.
+	external := "loglevel ${SENTINEL_LOGLEVEL}\nsentinel deny-scripts-reconfig no\n"
+	require.NoError(t, os.WriteFile(externalPath, []byte(external), 0o644))
+
+	t.Setenv("SENTINEL_CONFIG_FILE", confPath)
+	t.Setenv("EXTERNAL_CONFIG_FILE", externalPath)
+	t.Setenv("TLS_MODE", "false")
+	t.Setenv("SENTINEL_LOGLEVEL", "verbose")
+	t.Setenv("EXPAND_EXTERNAL_CONFIG", "true")
+
+	require.NoError(t, GenerateConfig())
+
+	raw, err := os.ReadFile(confPath)
+	require.NoError(t, err)
+	conf := string(raw)
+
+	// The include must point at an expanded copy, not the raw placeholder file.
+	expandedPath := filepath.Join(dir, "redis-sentinel-additional.expanded.conf")
+	assert.Contains(t, conf, "include "+expandedPath)
+	assert.NotContains(t, conf, "include "+externalPath)
+
+	includedRaw, err := os.ReadFile(expandedPath)
+	require.NoError(t, err)
+	included := string(includedRaw)
+
+	assert.Contains(t, included, "loglevel verbose")
+	assert.NotContains(t, included, "${SENTINEL_LOGLEVEL}")
+	// Non-placeholder directives are preserved unchanged.
+	assert.Contains(t, included, "sentinel deny-scripts-reconfig no")
+}
+
+func Test_GenerateConfig_ExternalConfig_GateOff_IncludesVerbatim(t *testing.T) {
+	dir := t.TempDir()
+	confPath := filepath.Join(dir, "sentinel.conf")
+	externalPath := filepath.Join(dir, "redis-sentinel-additional.conf")
+
+	require.NoError(t, os.WriteFile(externalPath, []byte("loglevel ${SENTINEL_LOGLEVEL}\n"), 0o644))
+
+	t.Setenv("SENTINEL_CONFIG_FILE", confPath)
+	t.Setenv("EXTERNAL_CONFIG_FILE", externalPath)
+	t.Setenv("TLS_MODE", "false")
+	t.Setenv("SENTINEL_LOGLEVEL", "verbose")
+	// Gate off (default) — must include the raw file, no expanded copy written.
+	os.Unsetenv("EXPAND_EXTERNAL_CONFIG")
+
+	require.NoError(t, GenerateConfig())
+
+	raw, err := os.ReadFile(confPath)
+	require.NoError(t, err)
+	conf := string(raw)
+
+	assert.Contains(t, conf, "include "+externalPath)
+	_, statErr := os.Stat(filepath.Join(dir, "redis-sentinel-additional.expanded.conf"))
+	assert.True(t, os.IsNotExist(statErr), "no expanded copy should be written when gate is off")
+}
+
+func Test_GenerateConfig_ExternalConfig_MissingVarBecomesEmpty(t *testing.T) {
+	dir := t.TempDir()
+	confPath := filepath.Join(dir, "sentinel.conf")
+	externalPath := filepath.Join(dir, "redis-sentinel-additional.conf")
+
+	require.NoError(t, os.WriteFile(externalPath, []byte("loglevel ${NOT_SET_VAR}\n"), 0o644))
+
+	t.Setenv("SENTINEL_CONFIG_FILE", confPath)
+	t.Setenv("EXTERNAL_CONFIG_FILE", externalPath)
+	t.Setenv("TLS_MODE", "false")
+	t.Setenv("EXPAND_EXTERNAL_CONFIG", "true")
+	os.Unsetenv("NOT_SET_VAR")
+
+	require.NoError(t, GenerateConfig())
+
+	includedRaw, err := os.ReadFile(filepath.Join(dir, "redis-sentinel-additional.expanded.conf"))
+	require.NoError(t, err)
+	assert.NotContains(t, string(includedRaw), "${NOT_SET_VAR}")
+	assert.Contains(t, string(includedRaw), "loglevel \n")
+}

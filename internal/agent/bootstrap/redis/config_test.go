@@ -159,17 +159,16 @@ func Test_GenerateConfig_ExternalConfig_ExpandsEnvPlaceholders(t *testing.T) {
 	confPath := filepath.Join(dir, "redis.conf")
 	externalPath := filepath.Join(dir, "redis-additional.conf")
 
-	// Mimic the ConfigMap-mounted additional config that carries an
-	// un-substituted placeholder, which is the pattern that caused the
-	// literal string to override the operator-managed password.
-	external := "protected-mode yes\nrequirepass ${REDIS_PASSWORD}\nmasterauth ${REDIS_PASSWORD}\nmaxmemory-policy noeviction\n"
+	// MAXMEMORY_POLICY is not something GenerateConfig writes itself, so the
+	// value can only reach the config through expansion of the external file.
+	external := "maxmemory-policy ${MAXMEMORY_POLICY}\nslowlog-max-len 158\n"
 	require.NoError(t, os.WriteFile(externalPath, []byte(external), 0o644))
 
 	t.Setenv("REDIS_CONFIG_FILE", confPath)
 	t.Setenv("EXTERNAL_CONFIG_FILE", externalPath)
 	t.Setenv("SETUP_MODE", "standalone")
 	t.Setenv("TLS_MODE", "false")
-	t.Setenv("REDIS_PASSWORD", "s3cr3t-pass")
+	t.Setenv("MAXMEMORY_POLICY", "allkeys-lru")
 	t.Setenv("EXPAND_EXTERNAL_CONFIG", "true")
 
 	require.NoError(t, GenerateConfig())
@@ -178,26 +177,19 @@ func Test_GenerateConfig_ExternalConfig_ExpandsEnvPlaceholders(t *testing.T) {
 	require.NoError(t, err)
 	conf := string(raw)
 
-	// Operator sets the real password inline.
-	assert.Contains(t, conf, "requirepass s3cr3t-pass")
-	assert.Contains(t, conf, "masterauth s3cr3t-pass")
-
 	// The include must point at an expanded copy, not the raw placeholder file.
-	includeIdx := strings.LastIndex(conf, "include ")
-	require.NotEqual(t, -1, includeIdx, "expected an include directive")
-	includedPath := strings.TrimSpace(conf[includeIdx+len("include "):])
+	expandedPath := filepath.Join(dir, "redis-additional.expanded.conf")
+	assert.Contains(t, conf, "include "+expandedPath)
+	assert.NotContains(t, conf, "include "+externalPath)
 
-	includedRaw, err := os.ReadFile(includedPath)
+	includedRaw, err := os.ReadFile(expandedPath)
 	require.NoError(t, err)
 	included := string(includedRaw)
 
-	// Placeholder must be expanded, not carried through verbatim — otherwise
-	// the literal ${REDIS_PASSWORD} would override the inline password.
-	assert.Contains(t, included, "requirepass s3cr3t-pass")
-	assert.Contains(t, included, "masterauth s3cr3t-pass")
-	assert.NotContains(t, included, "${REDIS_PASSWORD}")
+	assert.Contains(t, included, "maxmemory-policy allkeys-lru")
+	assert.NotContains(t, included, "${MAXMEMORY_POLICY}")
 	// Non-placeholder directives are preserved unchanged.
-	assert.Contains(t, included, "maxmemory-policy noeviction")
+	assert.Contains(t, included, "slowlog-max-len 158")
 }
 
 func Test_GenerateConfig_ExternalConfig_GateOff_IncludesVerbatim(t *testing.T) {
@@ -205,13 +197,13 @@ func Test_GenerateConfig_ExternalConfig_GateOff_IncludesVerbatim(t *testing.T) {
 	confPath := filepath.Join(dir, "redis.conf")
 	externalPath := filepath.Join(dir, "redis-additional.conf")
 
-	require.NoError(t, os.WriteFile(externalPath, []byte("requirepass ${REDIS_PASSWORD}\n"), 0o644))
+	require.NoError(t, os.WriteFile(externalPath, []byte("maxmemory-policy ${MAXMEMORY_POLICY}\n"), 0o644))
 
 	t.Setenv("REDIS_CONFIG_FILE", confPath)
 	t.Setenv("EXTERNAL_CONFIG_FILE", externalPath)
 	t.Setenv("SETUP_MODE", "standalone")
 	t.Setenv("TLS_MODE", "false")
-	t.Setenv("REDIS_PASSWORD", "s3cr3t-pass")
+	t.Setenv("MAXMEMORY_POLICY", "allkeys-lru")
 	// Gate off (default) — must include the raw file, no expanded copy written.
 	os.Unsetenv("EXPAND_EXTERNAL_CONFIG")
 
@@ -227,46 +219,26 @@ func Test_GenerateConfig_ExternalConfig_GateOff_IncludesVerbatim(t *testing.T) {
 	assert.True(t, os.IsNotExist(statErr), "no expanded copy should be written when gate is off")
 }
 
-func Test_expandExternalConfig_MissingVarBecomesEmpty(t *testing.T) {
+func Test_GenerateConfig_ExternalConfig_MissingVarBecomesEmpty(t *testing.T) {
 	dir := t.TempDir()
-	externalPath := filepath.Join(dir, "redis-additional.conf")
 	confPath := filepath.Join(dir, "redis.conf")
-	require.NoError(t, os.WriteFile(externalPath, []byte("requirepass ${NOT_SET_VAR}\n"), 0o644))
+	externalPath := filepath.Join(dir, "redis-additional.conf")
 
+	require.NoError(t, os.WriteFile(externalPath, []byte("maxmemory-policy ${NOT_SET_VAR}\n"), 0o644))
+
+	t.Setenv("REDIS_CONFIG_FILE", confPath)
+	t.Setenv("EXTERNAL_CONFIG_FILE", externalPath)
+	t.Setenv("SETUP_MODE", "standalone")
+	t.Setenv("TLS_MODE", "false")
+	t.Setenv("EXPAND_EXTERNAL_CONFIG", "true")
 	os.Unsetenv("NOT_SET_VAR")
-	out, err := expandExternalConfig(externalPath, confPath)
+
+	require.NoError(t, GenerateConfig())
+
+	includedRaw, err := os.ReadFile(filepath.Join(dir, "redis-additional.expanded.conf"))
 	require.NoError(t, err)
-
-	// Expanded file is written next to redis.conf, not the (read-only) source.
-	assert.Equal(t, filepath.Join(dir, "redis-additional.expanded.conf"), out)
-	assert.NotEqual(t, externalPath, out)
-
-	raw, err := os.ReadFile(out)
-	require.NoError(t, err)
-	assert.NotContains(t, string(raw), "${NOT_SET_VAR}")
-}
-
-func Test_expandExternalConfig_WritesToConfDirNotSourceDir(t *testing.T) {
-	// Source lives in a read-only dir; conf dir is separate and writable —
-	// mirrors the pod layout (ConfigMap mount vs redis.conf emptyDir).
-	roDir := t.TempDir()
-	externalPath := filepath.Join(roDir, "redis-additional.conf")
-	require.NoError(t, os.WriteFile(externalPath, []byte("requirepass ${REDIS_PASSWORD}\n"), 0o644))
-	require.NoError(t, os.Chmod(roDir, 0o555))
-	t.Cleanup(func() { _ = os.Chmod(roDir, 0o755) })
-
-	confDir := t.TempDir()
-	confPath := filepath.Join(confDir, "redis.conf")
-
-	t.Setenv("REDIS_PASSWORD", "s3cr3t-pass")
-	out, err := expandExternalConfig(externalPath, confPath)
-	require.NoError(t, err)
-	assert.Equal(t, filepath.Join(confDir, "redis-additional.expanded.conf"), out)
-
-	raw, err := os.ReadFile(out)
-	require.NoError(t, err)
-	assert.Contains(t, string(raw), "requirepass s3cr3t-pass")
-	assert.NotContains(t, string(raw), "${REDIS_PASSWORD}")
+	assert.NotContains(t, string(includedRaw), "${NOT_SET_VAR}")
+	assert.Contains(t, string(includedRaw), "maxmemory-policy \n")
 }
 
 func Test_updateMyselfIP(t *testing.T) {

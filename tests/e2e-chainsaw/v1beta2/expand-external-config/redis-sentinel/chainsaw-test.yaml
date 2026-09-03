@@ -1,0 +1,56 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+# Requires the operator to run with FEATURE_GATES=GenerateConfigInInitContainer=true
+# (set in CI after `make deploy`), since the init container performs the expansion.
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: expand-external-config-redis-sentinel
+spec:
+  timeouts:
+    apply: 30s
+    assert: 5m
+    exec: 1m
+  steps:
+    - name: Deploy Redis Sentinel with EXPAND_EXTERNAL_CONFIG
+      try:
+        - apply:
+            file: configmap.yaml
+        - apply:
+            file: replication.yaml
+        - apply:
+            file: sentinel.yaml
+        - assert:
+            file: ready-sentinel.yaml
+
+    - name: Verify sentinel.conf includes the expanded copy
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container redis-sentinel-expand-sentinel redis-sentinel-expand-sentinel-0 --
+              cat /etc/redis/sentinel.conf
+            check:
+              (contains($stdout, 'include /etc/redis/redis-sentinel-additional.expanded.conf')): true
+
+    - name: Verify placeholders are expanded in the included file
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container redis-sentinel-expand-sentinel redis-sentinel-expand-sentinel-0 --
+              cat /etc/redis/redis-sentinel-additional.expanded.conf
+            check:
+              (contains($stdout, 'loglevel verbose')): true
+              (contains($stdout, 'sentinel deny-scripts-reconfig yes')): true
+              (contains($stdout, '${SENTINEL_LOGLEVEL}')): false
+
+    - name: Verify Sentinel loaded the expanded value
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container redis-sentinel-expand-sentinel redis-sentinel-expand-sentinel-0 --
+              redis-cli -p 26379 CONFIG GET loglevel
+            check:
+              (contains($stdout, 'verbose')): true
