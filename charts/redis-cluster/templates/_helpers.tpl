@@ -88,6 +88,16 @@ args:
 {{- end }}
 {{- end -}}
 
+{{/* Resolve leader/follower replica count, falling back to clusterSize only when replicas is unset (nil), so an explicit 0 is preserved */}}
+{{/* Usage: include "redis.replicas" (dict "replicas" .Values.redisCluster.leader.replicas "clusterSize" .Values.redisCluster.clusterSize) */}}
+{{- define "redis.replicas" -}}
+{{- if kindIs "invalid" .replicas -}}
+{{- .clusterSize -}}
+{{- else -}}
+{{- .replicas -}}
+{{- end -}}
+{{- end -}}
+
 {{/* Validate service type and return the value */}}
 {{/* Usage: include "common.validateServiceType" (dict "serviceType" .Values.xxx.serviceType "name" (.Values.xxx.name | default .Release.Name)) */}}
 {{- define "common.validateServiceType" -}}

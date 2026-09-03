@@ -17,14 +17,14 @@ spec:
   persistenceEnabled: {{ .Values.redisCluster.persistenceEnabled }}
   clusterVersion: {{ .Values.redisCluster.clusterVersion }}
   redisLeader: {{- include "redis.role" .Values.redisCluster.leader | nindent 4 }}
-    replicas: {{ .Values.redisCluster.leader.replicas | default .Values.redisCluster.clusterSize }}
+    replicas: {{ include "redis.replicas" (dict "replicas" .Values.redisCluster.leader.replicas "clusterSize" .Values.redisCluster.clusterSize) }}
     {{- if .Values.externalConfig.enabled }}
     redisConfig:
       additionalRedisConfig: "{{ .Values.redisCluster.name | default .Release.Name }}-ext-config"
     {{- end }}
   
   redisFollower: {{-  include "redis.role" .Values.redisCluster.follower | nindent 4 }}
-    replicas: {{ .Values.redisCluster.follower.replicas | default .Values.redisCluster.clusterSize }}
+    replicas: {{ include "redis.replicas" (dict "replicas" .Values.redisCluster.follower.replicas "clusterSize" .Values.redisCluster.clusterSize) }}
     {{- if .Values.externalConfig.enabled }}
     redisConfig:
       additionalRedisConfig: "{{ .Values.redisCluster.name | default .Release.Name }}-ext-config"

@@ -1,4 +1,4 @@
-{{- $leaderReplicas := .Values.redisCluster.leader.replicas | default .Values.redisCluster.clusterSize }}
+{{- $leaderReplicas := include "redis.replicas" (dict "replicas" .Values.redisCluster.leader.replicas "clusterSize" .Values.redisCluster.clusterSize) }}
 {{- if and (eq .Values.serviceMonitor.enabled true) (eq .Values.redisExporter.enabled true) (gt (int $leaderReplicas) 0) }}
 ---
 apiVersion: monitoring.coreos.com/v1
