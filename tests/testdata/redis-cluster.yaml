@@ -40,6 +40,7 @@ spec:
         drop: [ALL]
         add: [NET_BIND_SERVICE]
     replicas: 3
+    terminationGracePeriodSeconds: 60
     redisConfig:
       additionalRedisConfig: redis-external-config-leader
     tolerations:
@@ -67,6 +68,7 @@ spec:
         drop: [ALL]
         add: [NET_BIND_SERVICE]
     replicas: 3
+    terminationGracePeriodSeconds: 45
     redisConfig:
       additionalRedisConfig: redis-external-config-follower
     tolerations:

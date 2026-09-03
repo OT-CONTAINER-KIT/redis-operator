@@ -9,6 +9,74 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func Test_GenerateConfig_SentinelAnnounceIP(t *testing.T) {
+	const fakeFQDN = "redis-replication-s-0.redis-replication-s-hl.ns.svc.cluster.local"
+
+	tests := []struct {
+		name              string
+		resolveHostnames  string
+		announceHostnames string
+		hostnamesEnabled  bool
+	}{
+		{
+			name:              "both enabled - uses FQDN, never 0.0.0.0",
+			resolveHostnames:  "yes",
+			announceHostnames: "yes",
+			hostnamesEnabled:  true,
+		},
+		{
+			name:              "resolve only - does not set sentinel announce-ip",
+			resolveHostnames:  "yes",
+			announceHostnames: "no",
+			hostnamesEnabled:  false,
+		},
+		{
+			name:              "announce only - does not set sentinel announce-ip",
+			resolveHostnames:  "no",
+			announceHostnames: "yes",
+			hostnamesEnabled:  false,
+		},
+		{
+			name:              "both disabled - does not set sentinel announce-ip",
+			resolveHostnames:  "no",
+			announceHostnames: "no",
+			hostnamesEnabled:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			orig := fqdnHostname
+			fqdnHostname = func() (string, error) { return fakeFQDN, nil }
+			t.Cleanup(func() { fqdnHostname = orig })
+
+			confPath := filepath.Join(t.TempDir(), "sentinel.conf")
+			t.Setenv("SENTINEL_CONFIG_FILE", confPath)
+			t.Setenv("RESOLVE_HOSTNAMES", tt.resolveHostnames)
+			t.Setenv("ANNOUNCE_HOSTNAMES", tt.announceHostnames)
+			// Pin the guard below to the real pre-fix value rather than the default.
+			t.Setenv("IP", "0.0.0.0")
+
+			require.NoError(t, GenerateConfig())
+
+			raw, err := os.ReadFile(confPath)
+			require.NoError(t, err)
+			conf := string(raw)
+
+			assert.NotContains(t, conf, "sentinel announce-ip 0.0.0.0",
+				"sentinel announce-ip must never be set to 0.0.0.0")
+
+			if tt.hostnamesEnabled {
+				// Positive assertion: without this an implementation that stopped
+				// emitting announce-ip altogether would still satisfy the test.
+				assert.Contains(t, conf, "sentinel announce-ip "+fakeFQDN)
+			} else {
+				assert.NotContains(t, conf, "sentinel announce-ip ")
+			}
+		})
+	}
+}
+
 func Test_GenerateConfig_TLS_CACertFile(t *testing.T) {
 	tests := []struct {
 		name           string
