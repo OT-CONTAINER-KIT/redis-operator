@@ -22,14 +22,14 @@ spec:
     redisConfig:
       additionalRedisConfig: "{{ .Values.redisCluster.name | default .Release.Name }}-ext-config"
     {{- end }}
-  
+
   redisFollower: {{-  include "redis.role" .Values.redisCluster.follower | nindent 4 }}
     replicas: {{ .Values.redisCluster.follower.replicas | default .Values.redisCluster.clusterSize }}
     {{- if .Values.externalConfig.enabled }}
     redisConfig:
       additionalRedisConfig: "{{ .Values.redisCluster.name | default .Release.Name }}-ext-config"
     {{- end }}
-  
+
   {{- if or (and .Values.redisCluster.maxMemoryPercentOfLimit (gt (int .Values.redisCluster.maxMemoryPercentOfLimit) 0)) (.Values.redisCluster.dynamicConfig) }}
   redisConfig:
     {{- if and .Values.redisCluster.maxMemoryPercentOfLimit (gt (int .Values.redisCluster.maxMemoryPercentOfLimit) 0) }}
@@ -53,16 +53,29 @@ spec:
     {{- if .Values.redisExporter.securityContext}}
     securityContext: {{ toYaml .Values.redisExporter.securityContext | nindent 6 }}
     {{- end }}
-    
+
   kubernetesConfig:
     image: "{{ .Values.redisCluster.image }}:{{ .Values.redisCluster.tag }}"
     imagePullPolicy: "{{ .Values.redisCluster.imagePullPolicy }}"
     {{- if .Values.redisCluster.imagePullSecrets}}
     imagePullSecrets: {{ toYaml .Values.redisCluster.imagePullSecrets | nindent 4 }}
     {{- end }}
-    {{- if .Values.redisCluster.serviceType }}
+    {{- $svcCfg := .Values.redisCluster.serviceConfig | default dict }}
+    {{- $hasSvcAnnotations := or $svcCfg.annotations (dig "headless" "additionalAnnotations" dict $svcCfg) }}
+    {{- if or .Values.redisCluster.serviceType $hasSvcAnnotations }}
     service:
+      {{- if .Values.redisCluster.serviceType }}
       serviceType: {{ include "common.validateServiceType" (dict "serviceType" .Values.redisCluster.serviceType "name" (.Values.redisCluster.name | default .Release.Name)) }}
+      {{- end }}
+      {{- with $svcCfg.annotations }}
+      annotations: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $svcCfg.headless }}
+      {{- with .additionalAnnotations }}
+      headless:
+        additionalAnnotations: {{ toYaml . | nindent 10 }}
+      {{- end }}
+      {{- end }}
     {{- end }}
     {{- if .Values.redisCluster.resources}}
     resources: {{ toYaml .Values.redisCluster.resources | nindent 6 }}
