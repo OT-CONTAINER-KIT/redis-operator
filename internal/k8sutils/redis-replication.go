@@ -2,6 +2,9 @@ package k8sutils
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"sort"
 
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
@@ -9,6 +12,7 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util/maps"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -175,10 +179,13 @@ func generateRedisReplicationContainerParams(ctx context.Context, cr *rrvb2.Redi
 		containerProp.AdditionalMountPath = cr.Spec.Storage.VolumeMount.MountPath
 	}
 
-	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
+	if secretRef := cr.Spec.KubernetesConfig.ExistingPasswordSecret; secretRef != nil {
 		containerProp.EnabledPassword = &trueProperty
-		containerProp.SecretName = cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name
-		containerProp.SecretKey = cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key
+		containerProp.SecretName = secretRef.Name
+		containerProp.SecretKey = secretRef.Key
+		if secretRef.Name != nil {
+			containerProp.SecretChecksum = passwordSecretChecksum(ctx, ctrlClient, cr.Namespace, *secretRef.Name)
+		}
 	} else {
 		containerProp.EnabledPassword = &falseProperty
 	}
@@ -307,6 +314,34 @@ func IsRedisReplicationReady(ctx context.Context, client kubernetes.Interface, c
 		return false
 	}
 	return true
+}
+
+// passwordSecretChecksum returns a hex-encoded sha256 checksum of the named
+// Secret's data, or "" if it cannot be read. The checksum is stamped onto the
+// pod template so that rotating the Secret's content triggers a StatefulSet
+// rolling restart: Kubernetes does not refresh a SecretKeyRef env var inside
+// an already-running container, so without this a pod keeps authenticating
+// with the password it started with until something else restarts it.
+func passwordSecretChecksum(ctx context.Context, ctrlClient client.Client, namespace, name string) string {
+	if ctrlClient == nil {
+		return ""
+	}
+	var secret corev1.Secret
+	if err := ctrlClient.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, &secret); err != nil {
+		log.FromContext(ctx).Error(err, "Failed to get password secret for checksum", "secretName", name, "namespace", namespace)
+		return ""
+	}
+	keys := make([]string, 0, len(secret.Data))
+	for key := range secret.Data {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	h := sha256.New()
+	for _, key := range keys {
+		h.Write([]byte(key))
+		h.Write(secret.Data[key])
+	}
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 func sentinelHostnameFlag(v string) string {
