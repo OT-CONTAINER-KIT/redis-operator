@@ -35,8 +35,9 @@ func Test_generateRedisClusterParams(t *testing.T) {
 			RunAsUser: ptr.To(int64(1000)),
 			FSGroup:   ptr.To(int64(1000)),
 		},
-		PriorityClassName: "high-priority",
-		MinReadySeconds:   5,
+		PriorityClassName:             "high-priority",
+		MinReadySeconds:               5,
+		TerminationGracePeriodSeconds: ptr.To(int64(60)),
 		Affinity: &corev1.Affinity{
 			NodeAffinity: &corev1.NodeAffinity{
 				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
@@ -102,8 +103,9 @@ func Test_generateRedisClusterParams(t *testing.T) {
 			RunAsUser: ptr.To(int64(1000)),
 			FSGroup:   ptr.To(int64(1000)),
 		},
-		PriorityClassName: "high-priority",
-		MinReadySeconds:   5,
+		PriorityClassName:             "high-priority",
+		MinReadySeconds:               5,
+		TerminationGracePeriodSeconds: ptr.To(int64(45)),
 		Affinity: &corev1.Affinity{
 			NodeAffinity: &corev1.NodeAffinity{
 				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
@@ -272,6 +274,7 @@ func Test_generateRedisClusterContainerParams(t *testing.T) {
 		SecretName:         ptr.To("redis-secret"),
 		SecretKey:          ptr.To("password"),
 		PersistenceEnabled: ptr.To(true),
+		PreStopWaitSeconds: 50, // redisLeader.terminationGracePeriodSeconds 60 - 10s headroom
 		TLSConfig: &common.TLSConfig{
 			CaCertFile:  "ca.crt",
 			CertKeyFile: "tls.crt",
@@ -383,6 +386,7 @@ func Test_generateRedisClusterContainerParams(t *testing.T) {
 		SecretName:         ptr.To("redis-secret"),
 		SecretKey:          ptr.To("password"),
 		PersistenceEnabled: ptr.To(true),
+		PreStopWaitSeconds: 35, // redisFollower.terminationGracePeriodSeconds 45 - 10s headroom
 		TLSConfig: &common.TLSConfig{
 			CaCertFile:  "ca.crt",
 			CertKeyFile: "tls.crt",

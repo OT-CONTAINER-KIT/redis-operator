@@ -1,0 +1,56 @@
+---
+# The preStop hook is rendered by fmt.Sprintf in Go and only ever runs inside a
+# terminating pod, so an ungated wait or a missing TLS flag stays invisible
+# until a master is killed mid-failover. Assert the rendered script on the real
+# StatefulSet instead.
+#
+# Both roles carry the same hook and the same invariants. The demotion deadline
+# is derived from each role's own terminationGracePeriodSeconds rather than
+# hard-coded, so this stays correct when the fixture's grace periods change.
+# NB: that derivation is only sound because these StatefulSets are created by
+# the operator. Chainsaw's forceTerminationGracePeriod (tests/_config) rewrites
+# the grace period of StatefulSets the test itself applies, never of ones it
+# only asserts on.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-cluster-v1beta2-leader
+spec:
+  template:
+    spec:
+      (containers[?name == 'redis-cluster-v1beta2-leader'] | [0].lifecycle.preStop.exec.command[2])-> script:
+        # The hook fails over to the best replica before the master goes away...
+        (contains($script, 'cluster failover')): true
+        # ...and only waits for the demotion once the replica accepted it, so a
+        # declined failover returns immediately instead of burning the whole
+        # grace period and halving the budget left for the SIGTERM shutdown.
+        (contains($script, 'case "$FAILOVER_RESULT" in')): true
+        (contains($script, 'OK*) ;;')): true
+        # Every redis-cli call needs the TLS flags or it cannot reach Redis on
+        # this cluster. Asserted as an invariant over the whole script rather
+        # than as a call count, so adding or removing a call cannot pass by
+        # coincidence.
+        "(length(split($script, 'redis-cli ')) == length(split($script, '--tls --cert')))": true
+      # The wait is bounded by a wall-clock deadline of grace - 10s, leaving
+      # headroom for Redis to shut down cleanly after SIGTERM.
+      ? >-
+        (contains(containers[?name == 'redis-cluster-v1beta2-leader'] | [0].lifecycle.preStop.exec.command[2],
+        join('', ['DEADLINE=$(( $(date +%s) + ', to_string(terminationGracePeriodSeconds - `10`), ' ))'])))
+      : true
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-cluster-v1beta2-follower
+spec:
+  template:
+    spec:
+      (containers[?name == 'redis-cluster-v1beta2-follower'] | [0].lifecycle.preStop.exec.command[2])-> script:
+        (contains($script, 'cluster failover')): true
+        (contains($script, 'case "$FAILOVER_RESULT" in')): true
+        (contains($script, 'OK*) ;;')): true
+        "(length(split($script, 'redis-cli ')) == length(split($script, '--tls --cert')))": true
+      ? >-
+        (contains(containers[?name == 'redis-cluster-v1beta2-follower'] | [0].lifecycle.preStop.exec.command[2],
+        join('', ['DEADLINE=$(( $(date +%s) + ', to_string(terminationGracePeriodSeconds - `10`), ' ))'])))
+      : true

@@ -92,6 +92,11 @@ spec:
             check:
               (contains($stdout, 'command-line-password-free authentication verified')): true
 
+    - name: Assert cluster preStop failover hook
+      try:
+        - assert:
+            file: prestop-hook.yaml
+
     - name: Assert config
       try:
         - script:
@@ -164,14 +169,15 @@ spec:
 
     - name: Check follower-0 label updated
       try:
-        - sleep:
-            duration: 1m
-        - script:
-            timeout: 30s
-            content: >
-              kubectl get pod -n ${NAMESPACE} redis-cluster-v1beta2-follower-0 -o jsonpath='{.metadata.labels.redis-role}'
-            check:
-              (contains($stdout, 'master')): true
+        - assert:
+            timeout: 1m
+            resource:
+              apiVersion: v1
+              kind: Pod
+              metadata:
+                name: redis-cluster-v1beta2-follower-0
+                labels:
+                  redis-role: master
 
     - name: Failover the follower-0 to slave
       try:

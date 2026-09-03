@@ -1,0 +1,30 @@
+---
+# After enabling the knobs on the CR, the operator must propagate them to both
+# StatefulSets and the rollout must complete -- the values are env vars, so the
+# pods restart before the new config is rendered. Asserting readyReplicas here
+# is what makes the following exec-based checks race-free.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-replication
+spec:
+  template:
+    spec:
+      (containers[?name == 'redis-replication'] | [0].env[?name == 'RESOLVE_HOSTNAMES'] | [0].value): "yes"
+      (containers[?name == 'redis-replication'] | [0].env[?name == 'ANNOUNCE_HOSTNAMES'] | [0].value): "yes"
+status:
+  readyReplicas: 3
+  updatedReplicas: 3
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-replication-s
+spec:
+  template:
+    spec:
+      (containers[?name == 'sentinel'] | [0].env[?name == 'RESOLVE_HOSTNAMES'] | [0].value): "yes"
+      (containers[?name == 'sentinel'] | [0].env[?name == 'ANNOUNCE_HOSTNAMES'] | [0].value): "yes"
+status:
+  readyReplicas: 3
+  updatedReplicas: 3
