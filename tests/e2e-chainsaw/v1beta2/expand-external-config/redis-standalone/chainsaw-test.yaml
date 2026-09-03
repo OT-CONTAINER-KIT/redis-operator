@@ -1,0 +1,54 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+# Requires the operator to run with FEATURE_GATES=GenerateConfigInInitContainer=true
+# (set in CI after `make deploy`), since the init container performs the expansion.
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: expand-external-config-redis-standalone
+spec:
+  timeouts:
+    apply: 30s
+    assert: 5m
+    exec: 1m
+  steps:
+    - name: Deploy Redis Standalone with EXPAND_EXTERNAL_CONFIG
+      try:
+        - apply:
+            file: configmap.yaml
+        - apply:
+            file: standalone.yaml
+        - assert:
+            file: ready-standalone.yaml
+
+    - name: Verify redis.conf includes the expanded copy
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container redis-standalone-expand redis-standalone-expand-0 --
+              cat /etc/redis/redis.conf
+            check:
+              (contains($stdout, 'include /etc/redis/redis-additional.expanded.conf')): true
+
+    - name: Verify placeholders are expanded in the included file
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container redis-standalone-expand redis-standalone-expand-0 --
+              cat /etc/redis/redis-additional.expanded.conf
+            check:
+              (contains($stdout, 'maxmemory-policy allkeys-lru')): true
+              (contains($stdout, 'slowlog-max-len 158')): true
+              (contains($stdout, '${MAXMEMORY_POLICY}')): false
+
+    - name: Verify Redis loaded the expanded value
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container redis-standalone-expand redis-standalone-expand-0 --
+              redis-cli -p 6379 CONFIG GET maxmemory-policy
+            check:
+              (contains($stdout, 'allkeys-lru')): true

@@ -3,10 +3,10 @@ package bootstrap
 import (
 	"fmt"
 	"log"
-	"os"
 	"strings"
 
 	agentutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/agent/util"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/consts"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 	"github.com/Showmax/go-fqdn"
 )
@@ -146,9 +146,8 @@ func GenerateConfig() error {
 
 	// If external config file exists, include it
 	externalConfigFile, _ := util.CoalesceEnv("EXTERNAL_CONFIG_FILE", "/etc/redis/external.conf.d/redis-sentinel-additional.conf")
-	if fileExists(externalConfigFile) {
-		cfg.Append("include", externalConfigFile)
-	}
+	expandExternal, _ := util.CoalesceEnv(consts.ENV_KEY_EXPAND_EXTERNAL_CONFIG, "false")
+	cfg.AppendExternalConfig(externalConfigFile, expandExternal == "true")
 
 	// Commit configuration
 	if err := cfg.Commit(); err != nil {
@@ -157,10 +156,4 @@ func GenerateConfig() error {
 
 	fmt.Println("Starting sentinel service .....")
 	return nil
-}
-
-// fileExists checks if a file exists
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
 }

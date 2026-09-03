@@ -70,3 +70,112 @@ func TestAppend_PreservesValidValues(t *testing.T) {
 		}
 	}
 }
+
+func TestExpandExternalConfig_MissingVarBecomesEmpty(t *testing.T) {
+	dir := t.TempDir()
+	externalPath := filepath.Join(dir, "redis-additional.conf")
+	confPath := filepath.Join(dir, "redis.conf")
+	if err := os.WriteFile(externalPath, []byte("maxmemory-policy ${NOT_SET_VAR}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	os.Unsetenv("NOT_SET_VAR")
+	out, err := ExpandExternalConfig(externalPath, confPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(dir, "redis-additional.expanded.conf"); out != want {
+		t.Fatalf("expanded path = %q, want %q", out, want)
+	}
+
+	raw, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "${NOT_SET_VAR}") {
+		t.Fatalf("placeholder not expanded: %q", raw)
+	}
+}
+
+func TestExpandExternalConfig_WritesToConfDirNotSourceDir(t *testing.T) {
+	// Source lives in a read-only dir; conf dir is separate and writable —
+	// mirrors the pod layout (ConfigMap mount vs config emptyDir).
+	roDir := t.TempDir()
+	externalPath := filepath.Join(roDir, "redis-sentinel-additional.conf")
+	if err := os.WriteFile(externalPath, []byte("loglevel ${SENTINEL_LOGLEVEL}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(roDir, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(roDir, 0o755) })
+
+	confDir := t.TempDir()
+	confPath := filepath.Join(confDir, "sentinel.conf")
+
+	t.Setenv("SENTINEL_LOGLEVEL", "verbose")
+	out, err := ExpandExternalConfig(externalPath, confPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(confDir, "redis-sentinel-additional.expanded.conf"); out != want {
+		t.Fatalf("expanded path = %q, want %q", out, want)
+	}
+
+	raw, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), "loglevel verbose") {
+		t.Fatalf("expected expanded directive, got %q", raw)
+	}
+	if strings.Contains(string(raw), "${SENTINEL_LOGLEVEL}") {
+		t.Fatalf("placeholder not expanded: %q", raw)
+	}
+}
+
+func TestAppendExternalConfig(t *testing.T) {
+	t.Run("gate on includes expanded copy", func(t *testing.T) {
+		dir := t.TempDir()
+		externalPath := filepath.Join(dir, "redis-additional.conf")
+		if err := os.WriteFile(externalPath, []byte("maxmemory-policy ${MAXMEMORY_POLICY}\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("MAXMEMORY_POLICY", "allkeys-lru")
+
+		cfg := NewConfig(filepath.Join(dir, "redis.conf"))
+		cfg.AppendExternalConfig(externalPath, true)
+
+		want := "include " + filepath.Join(dir, "redis-additional.expanded.conf")
+		if !strings.Contains(cfg.content, want) {
+			t.Fatalf("expected %q in %q", want, cfg.content)
+		}
+	})
+
+	t.Run("gate off includes raw file and writes nothing", func(t *testing.T) {
+		dir := t.TempDir()
+		externalPath := filepath.Join(dir, "redis-additional.conf")
+		if err := os.WriteFile(externalPath, []byte("maxmemory-policy ${MAXMEMORY_POLICY}\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		cfg := NewConfig(filepath.Join(dir, "redis.conf"))
+		cfg.AppendExternalConfig(externalPath, false)
+
+		if !strings.Contains(cfg.content, "include "+externalPath) {
+			t.Fatalf("expected raw include in %q", cfg.content)
+		}
+		if _, err := os.Stat(filepath.Join(dir, "redis-additional.expanded.conf")); !os.IsNotExist(err) {
+			t.Fatal("no expanded copy should be written when gate is off")
+		}
+	})
+
+	t.Run("missing file appends nothing", func(t *testing.T) {
+		dir := t.TempDir()
+		cfg := NewConfig(filepath.Join(dir, "redis.conf"))
+		cfg.AppendExternalConfig(filepath.Join(dir, "does-not-exist.conf"), true)
+		if strings.Contains(cfg.content, "include") {
+			t.Fatalf("unexpected include in %q", cfg.content)
+		}
+	})
+}

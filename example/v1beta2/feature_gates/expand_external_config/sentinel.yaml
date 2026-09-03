@@ -1,0 +1,31 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-sentinel-external-config
+data:
+  redis-sentinel-additional.conf: |
+    loglevel ${SENTINEL_LOGLEVEL}
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisSentinel
+metadata:
+  name: redis-sentinel
+spec:
+  clusterSize: 3
+  redisSentinelConfig:
+    redisReplicationName: redis-replication
+    additionalSentinelConfig: redis-sentinel-external-config
+  kubernetesConfig:
+    image: quay.io/opstree/redis-sentinel:latest
+    imagePullPolicy: IfNotPresent
+  # Requires the operator to run with the GenerateConfigInInitContainer
+  # feature gate enabled.
+  env:
+    - name: EXPAND_EXTERNAL_CONFIG
+      value: "true"
+    - name: SENTINEL_LOGLEVEL
+      value: verbose
+  podSecurityContext:
+    runAsUser: 1000
+    fsGroup: 1000
