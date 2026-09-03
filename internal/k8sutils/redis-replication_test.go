@@ -9,11 +9,15 @@ import (
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/utils/ptr"
+	clientfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func Test_generateRedisReplicationParams(t *testing.T) {
@@ -283,6 +287,58 @@ func Test_generateRedisReplicationContainerParams_SentinelPreStop(t *testing.T) 
 		got := generateRedisReplicationContainerParams(context.TODO(), cr, nil)
 		assert.Empty(t, got.SentinelService)
 	})
+}
+
+func Test_passwordSecretChecksum(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, clientgoscheme.AddToScheme(scheme))
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "redis-secret", Namespace: "default"},
+		Data:       map[string][]byte{"password": []byte("old-password")},
+	}
+	ctrlClient := clientfake.NewClientBuilder().WithScheme(scheme).WithObjects(secret).Build()
+
+	checksum := passwordSecretChecksum(context.TODO(), ctrlClient, "default", "redis-secret")
+	assert.NotEmpty(t, checksum)
+
+	rotated := secret.DeepCopy()
+	rotated.Data["password"] = []byte("new-password")
+	require.NoError(t, ctrlClient.Update(context.TODO(), rotated))
+
+	rotatedChecksum := passwordSecretChecksum(context.TODO(), ctrlClient, "default", "redis-secret")
+	assert.NotEmpty(t, rotatedChecksum)
+	assert.NotEqual(t, checksum, rotatedChecksum, "checksum must change when the secret's password rotates")
+
+	assert.Empty(t, passwordSecretChecksum(context.TODO(), ctrlClient, "default", "missing-secret"), "unreadable secret yields an empty checksum instead of failing reconcile")
+	assert.Empty(t, passwordSecretChecksum(context.TODO(), nil, "default", "redis-secret"), "nil ctrlClient yields an empty checksum instead of panicking")
+}
+
+func Test_generateRedisReplicationContainerParams_SecretChecksum(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, clientgoscheme.AddToScheme(scheme))
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "redis-secret", Namespace: "default"},
+		Data:       map[string][]byte{"password": []byte("s3cr3t")},
+	}
+	ctrlClient := clientfake.NewClientBuilder().WithScheme(scheme).WithObjects(secret).Build()
+
+	cr := &rrvb2.RedisReplication{
+		ObjectMeta: metav1.ObjectMeta{Name: "example-replication", Namespace: "default"},
+		Spec: rrvb2.RedisReplicationSpec{
+			Size: ptr.To(int32(3)),
+		},
+	}
+	cr.Spec.KubernetesConfig.ExistingPasswordSecret = &common.ExistingPasswordSecret{
+		Name: ptr.To("redis-secret"),
+		Key:  ptr.To("password"),
+	}
+
+	got := generateRedisReplicationContainerParams(context.TODO(), cr, ctrlClient)
+	want := passwordSecretChecksum(context.TODO(), ctrlClient, "default", "redis-secret")
+	assert.NotEmpty(t, want)
+	assert.Equal(t, want, got.SecretChecksum)
 }
 
 func Test_generateRedisReplicationInitContainerParams(t *testing.T) {
