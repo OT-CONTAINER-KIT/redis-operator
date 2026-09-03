@@ -1,0 +1,47 @@
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisCluster
+metadata:
+  name: redis-cluster
+spec:
+  clusterSize: 3
+  clusterVersion: v7
+  persistenceEnabled: true
+  kubernetesConfig:
+    image: quay.io/opstree/redis:latest
+    imagePullPolicy: IfNotPresent
+  # Requires the operator to run with the GenerateConfigInInitContainer
+  # feature gate enabled. See README.md.
+  env:
+    - name: EXPAND_EXTERNAL_CONFIG
+      value: "true"
+    - name: MAXMEMORY_POLICY
+      value: allkeys-lru
+    - name: SLOWLOG_MAX_LEN
+      value: "158"
+  podSecurityContext:
+    runAsUser: 1000
+    fsGroup: 1000
+  redisLeader:
+    redisConfig:
+      additionalRedisConfig: redis-external-config
+  redisFollower:
+    redisConfig:
+      additionalRedisConfig: redis-external-config
+  storage:
+    volumeClaimTemplate:
+      spec:
+        # storageClassName: standard
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+    nodeConfVolumeClaimTemplate:
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+  redisExporter:
+    enabled: false
+    image: quay.io/opstree/redis-exporter:latest

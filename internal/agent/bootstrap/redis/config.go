@@ -60,6 +60,7 @@ func GenerateConfig() error {
 		clusterMode        = util.CoalesceEnv1("SETUP_MODE", "standalone")
 		aclMode            = util.CoalesceEnv1("ACL_MODE", "")
 		aclFilePath        = util.CoalesceEnv1("ACL_FILE_PATH", "/etc/redis/user.acl")
+		expandExternal     = util.CoalesceEnv1(consts.ENV_KEY_EXPAND_EXTERNAL_CONFIG, "false")
 	)
 
 	if val, ok := util.CoalesceEnv("REDIS_PASSWORD", ""); ok && val != "" {
@@ -197,10 +198,9 @@ func GenerateConfig() error {
 	if maxMemory := util.CoalesceEnv1(consts.ENV_KEY_REDIS_MAX_MEMORY, ""); maxMemory != "" {
 		cfg.Append("maxmemory", maxMemory)
 	}
+
 	// External configuration defined by user at the end
-	if _, err := os.Stat(externalConfigFile); err == nil {
-		cfg.Append("include", externalConfigFile)
-	}
+	cfg.AppendExternalConfig(externalConfigFile, expandExternal == "true")
 	return cfg.Commit()
 }
 

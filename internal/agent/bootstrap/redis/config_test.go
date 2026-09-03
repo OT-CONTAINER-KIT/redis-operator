@@ -154,6 +154,93 @@ func Test_GenerateConfig_ReplicaAnnounceIP(t *testing.T) {
 	}
 }
 
+func Test_GenerateConfig_ExternalConfig_ExpandsEnvPlaceholders(t *testing.T) {
+	dir := t.TempDir()
+	confPath := filepath.Join(dir, "redis.conf")
+	externalPath := filepath.Join(dir, "redis-additional.conf")
+
+	// MAXMEMORY_POLICY is not something GenerateConfig writes itself, so the
+	// value can only reach the config through expansion of the external file.
+	external := "maxmemory-policy ${MAXMEMORY_POLICY}\nslowlog-max-len 158\n"
+	require.NoError(t, os.WriteFile(externalPath, []byte(external), 0o644))
+
+	t.Setenv("REDIS_CONFIG_FILE", confPath)
+	t.Setenv("EXTERNAL_CONFIG_FILE", externalPath)
+	t.Setenv("SETUP_MODE", "standalone")
+	t.Setenv("TLS_MODE", "false")
+	t.Setenv("MAXMEMORY_POLICY", "allkeys-lru")
+	t.Setenv("EXPAND_EXTERNAL_CONFIG", "true")
+
+	require.NoError(t, GenerateConfig())
+
+	raw, err := os.ReadFile(confPath)
+	require.NoError(t, err)
+	conf := string(raw)
+
+	// The include must point at an expanded copy, not the raw placeholder file.
+	expandedPath := filepath.Join(dir, "redis-additional.expanded.conf")
+	assert.Contains(t, conf, "include "+expandedPath)
+	assert.NotContains(t, conf, "include "+externalPath)
+
+	includedRaw, err := os.ReadFile(expandedPath)
+	require.NoError(t, err)
+	included := string(includedRaw)
+
+	assert.Contains(t, included, "maxmemory-policy allkeys-lru")
+	assert.NotContains(t, included, "${MAXMEMORY_POLICY}")
+	// Non-placeholder directives are preserved unchanged.
+	assert.Contains(t, included, "slowlog-max-len 158")
+}
+
+func Test_GenerateConfig_ExternalConfig_GateOff_IncludesVerbatim(t *testing.T) {
+	dir := t.TempDir()
+	confPath := filepath.Join(dir, "redis.conf")
+	externalPath := filepath.Join(dir, "redis-additional.conf")
+
+	require.NoError(t, os.WriteFile(externalPath, []byte("maxmemory-policy ${MAXMEMORY_POLICY}\n"), 0o644))
+
+	t.Setenv("REDIS_CONFIG_FILE", confPath)
+	t.Setenv("EXTERNAL_CONFIG_FILE", externalPath)
+	t.Setenv("SETUP_MODE", "standalone")
+	t.Setenv("TLS_MODE", "false")
+	t.Setenv("MAXMEMORY_POLICY", "allkeys-lru")
+	// Gate off (default) — must include the raw file, no expanded copy written.
+	os.Unsetenv("EXPAND_EXTERNAL_CONFIG")
+
+	require.NoError(t, GenerateConfig())
+
+	raw, err := os.ReadFile(confPath)
+	require.NoError(t, err)
+	conf := string(raw)
+
+	// Historical behaviour: include points at the original mount, untouched.
+	assert.Contains(t, conf, "include "+externalPath)
+	_, statErr := os.Stat(filepath.Join(dir, "redis-additional.expanded.conf"))
+	assert.True(t, os.IsNotExist(statErr), "no expanded copy should be written when gate is off")
+}
+
+func Test_GenerateConfig_ExternalConfig_MissingVarBecomesEmpty(t *testing.T) {
+	dir := t.TempDir()
+	confPath := filepath.Join(dir, "redis.conf")
+	externalPath := filepath.Join(dir, "redis-additional.conf")
+
+	require.NoError(t, os.WriteFile(externalPath, []byte("maxmemory-policy ${NOT_SET_VAR}\n"), 0o644))
+
+	t.Setenv("REDIS_CONFIG_FILE", confPath)
+	t.Setenv("EXTERNAL_CONFIG_FILE", externalPath)
+	t.Setenv("SETUP_MODE", "standalone")
+	t.Setenv("TLS_MODE", "false")
+	t.Setenv("EXPAND_EXTERNAL_CONFIG", "true")
+	os.Unsetenv("NOT_SET_VAR")
+
+	require.NoError(t, GenerateConfig())
+
+	includedRaw, err := os.ReadFile(filepath.Join(dir, "redis-additional.expanded.conf"))
+	require.NoError(t, err)
+	assert.NotContains(t, string(includedRaw), "${NOT_SET_VAR}")
+	assert.Contains(t, string(includedRaw), "maxmemory-policy \n")
+}
+
 func Test_updateMyselfIP(t *testing.T) {
 	testData := `7a6b5f4f99496c97f4e32c30c077aa95cab92664 10.244.0.246:0@16379,,tls-port=6379,shard-id=a03445a0d3f6d405af261041e0cb77a8a176f42b slave b66f2fa597eeda567cf05f3701419be9a3b2f50e 0 1756463509000 1 connected
 93ad60e9ce21430683a3534d2c96ab1b8077cfe8 10.244.0.237:0@16379,,tls-port=6379,shard-id=2f177491b895051f91e91e554a2a9da2cd167aeb master - 0 1756463509685 2 connected 5461-10922
