@@ -7,6 +7,7 @@ import (
 
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -126,6 +127,27 @@ func TestGetRedisNodesByRoleSkipsWhenReadyPodProbeFails(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"example-replication-0"}, nodes)
+}
+
+// Every probe shares the reconcile context, so a cancellation fails all of them.
+// Skipping them would report a partial topology as a complete one.
+func TestGetRedisNodesByRolePropagatesContextCancellation(t *testing.T) {
+	client := k8sClientFake.NewSimpleClientset(
+		newRedisReplicationStatefulSet(),
+		newReadyRedisPod("example-replication-0", "10.0.0.10"),
+		newReadyRedisPod("example-replication-1", "10.0.0.11"),
+		newReadyRedisPod("example-replication-2", "10.0.0.12"),
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	nodes, err := getRedisNodesByRole(ctx, client, newRedisReplication(), "master", func(ctx context.Context, _ *corev1.Pod) (string, error) {
+		return "", ctx.Err()
+	})
+
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Empty(t, nodes)
 }
 
 func TestGetRedisNodesByRoleCompleteTopology(t *testing.T) {

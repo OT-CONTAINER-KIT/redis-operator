@@ -88,6 +88,19 @@ func (r *Reconciler) UpdateRedisReplicationMaster(ctx context.Context, instance 
 		monitoring.RedisReplicationHasMaster.WithLabelValues(instance.Namespace, instance.Name).Set(1)
 	}
 
+	// No master could be observed in this reconcile, for example because every
+	// pod was skipped by the role probe. Keep the last known master rather than
+	// clearing it: a transient probe failure is not a master role change, and both
+	// this controller and the sentinel controller fall back to Status.MasterNode
+	// (guarded by IsPodRunning) when no master has attached slaves. The
+	// RedisReplicationHasMaster gauge above still reports 0, so the "no master is
+	// currently observable" signal is not lost.
+	if masterNode == "" && instance.Status.MasterNode != "" {
+		log.FromContext(ctx).Info("No master observed, keeping the last known master node",
+			"statusMasterNode", instance.Status.MasterNode)
+		masterNode = instance.Status.MasterNode
+	}
+
 	connectionInfo := instance.GetConnectionInfo(envs.GetServiceDNSDomain())
 
 	if instance.Status.MasterNode == masterNode && connectionInfoEqual(instance.Status.ConnectionInfo, connectionInfo) {

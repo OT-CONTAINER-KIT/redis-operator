@@ -4,7 +4,11 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
+	"io"
+	"net"
+	"os"
 	"strings"
 
 	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
@@ -14,6 +18,7 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/service/redis"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util/cryptutil"
+	rediscli "github.com/redis/go-redis/v9"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -24,12 +29,14 @@ import (
 
 type Healer interface {
 	SentinelMonitor(ctx context.Context, rs *rsvb2.RedisSentinel, master string) error
-	// SentinelSet set the config for specific master
-	// reference: https://redis.io/docs/latest/operate/oss_and_stack/management/sentinel/#reconfiguring-sentinel-at-runtime
+	// SentinelSet sets the config for a specific master
+	// See: https://redis.io/docs/latest/operate/oss_and_stack/management/sentinel/#reconfiguring-sentinel-at-runtime
 	SentinelSet(ctx context.Context, rs *rsvb2.RedisSentinel, master string) error
 	SentinelReset(ctx context.Context, rs *rsvb2.RedisSentinel) error
 
-	// UpdatePodRoleLabel connect to all redis pods and update pod role label `redis-role` to `master` or `slave` according to their role.
+	// UpdateRedisRoleLabel probes Running and Ready pods and updates their `redis-role` label
+	// based on their reported role. Pods that fail to probe keep their current label, except
+	// master labels are removed on network errors if another pod reported as master with replicas.
 	UpdateRedisRoleLabel(ctx context.Context, ns string, labels map[string]string, secret *commonapi.ExistingPasswordSecret, tlsConfig *commonapi.TLSConfig) error
 }
 
@@ -69,30 +76,66 @@ func (h *healer) UpdateRedisRoleLabel(ctx context.Context, ns string, labels map
 			return err
 		}
 	}
+	removeRoleLabelFunc := func(pod string) func() error {
+		patchBs := []byte(fmt.Sprintf(`{"metadata":{"labels":{"%s":null}}}`, common.RedisRoleLabelKey))
+		return func() error {
+			_, err := h.k8s.
+				CoreV1().
+				Pods(ns).
+				Patch(ctx, pod, types.MergePatchType, patchBs, metav1.PatchOptions{})
+			return err
+		}
+	}
+
+	var masterConfirmed bool
+	var unreachableMasterPods []string
 	for _, pod := range pods.Items {
 		if !k8sutils.IsRedisPodProbeable(&pod) {
 			continue
 		}
 
 		connInfo := createConnectionInfo(ctx, pod, password, tlsConfig, h.k8s, ns, "6379")
-		isMaster, err := h.redis.Connect(connInfo).IsMaster(ctx)
+		redisService := h.redis.Connect(connInfo)
+		isMaster, err := redisService.IsMaster(ctx)
 		if err != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return ctxErr
+			}
 			log.FromContext(ctx).Error(err, "failed to check redis role, skipping pod", "pod", pod.Name)
-			if oldRole := pod.Labels[common.RedisRoleLabelKey]; oldRole != "" {
-				patch := []byte(fmt.Sprintf(`[{"op": "remove", "path": "/metadata/labels/%s"}]`, common.RedisRoleLabelKey))
-				if rErr := retry.RetryOnConflict(retry.DefaultRetry, patchFunc(pod.Name, patch)); rErr != nil {
-					return fmt.Errorf("failed to remove stale pod role label: %w", rErr)
+			// A probe failure doesn't prove the pod lost its master role. Only a pod
+			// with a master label can cause split-brain, so collect unreachable pods
+			// and remove their master labels only if another master with replicas
+			// answers. This avoids removing labels due to operator-side issues like
+			// authentication or network policy. Stale slave labels are left alone.
+			if pod.Labels[common.RedisRoleLabelKey] == common.RedisRoleLabelMaster {
+				if isConnectivityError(err) {
+					unreachableMasterPods = append(unreachableMasterPods, pod.Name)
+				} else {
+					log.FromContext(ctx).Info("keeping master role label, the probe failed without evidence that the pod is unreachable",
+						"pod", pod.Name,
+					)
 				}
-				log.FromContext(ctx).Info("removed stale pod role label after probe failure",
-					"pod", pod.Name,
-					"oldRole", oldRole,
-				)
 			}
 			continue
 		}
 		role := common.RedisRoleLabelSlave
 		if isMaster {
 			role = common.RedisRoleLabelMaster
+			if !masterConfirmed {
+				replicas, rErr := redisService.GetAttachedReplicaCount(ctx)
+				switch {
+				case rErr != nil:
+					if ctxErr := ctx.Err(); ctxErr != nil {
+						return ctxErr
+					}
+					log.FromContext(ctx).V(1).Info("failed to count attached replicas, not using the pod as evidence of a stale master",
+						"pod", pod.Name,
+						"error", rErr,
+					)
+				case replicas > 0:
+					masterConfirmed = true
+				}
+			}
 		}
 		if oldRole := pod.Labels[common.RedisRoleLabelKey]; oldRole != role {
 			patch := []byte(fmt.Sprintf(`[{"op": "add", "path": "/metadata/labels/%s", "value": "%s"}]`, common.RedisRoleLabelKey, role))
@@ -107,7 +150,68 @@ func (h *healer) UpdateRedisRoleLabel(ctx context.Context, ns string, labels map
 			)
 		}
 	}
+	if len(unreachableMasterPods) == 0 {
+		return nil
+	}
+	if !masterConfirmed {
+		log.FromContext(ctx).Info("keeping master role label of unreachable pods, no other pod answered as a master with attached replicas",
+			"pods", unreachableMasterPods,
+		)
+		return nil
+	}
+	for _, podName := range unreachableMasterPods {
+		if rErr := retry.RetryOnConflict(retry.DefaultRetry, removeRoleLabelFunc(podName)); rErr != nil {
+			// The pod may have been deleted since the List. Skip it rather than
+			// abandoning the remaining pods; the next reconcile retries.
+			log.FromContext(ctx).Error(rErr, "failed to remove stale master role label, skipping pod", "pod", podName)
+			continue
+		}
+		log.FromContext(ctx).Info("removed stale master role label after probe failure",
+			"pod", podName,
+		)
+	}
 	return nil
+}
+
+// isConnectivityError reports whether err means the pod was unreachable.
+// Redis server errors, TLS alerts, and cert failures prove the pod responded,
+// so they return false. Unrecognized errors are treated as inconclusive.
+func isConnectivityError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var serverErr rediscli.Error
+	if errors.As(err, &serverErr) {
+		return false
+	}
+	var (
+		certErr             *tls.CertificateVerificationError
+		recordErr           tls.RecordHeaderError
+		unknownAuthorityErr x509.UnknownAuthorityError
+		hostnameErr         x509.HostnameError
+		certInvalidErr      x509.CertificateInvalidError
+	)
+	if errors.As(err, &certErr) || errors.As(err, &recordErr) ||
+		errors.As(err, &unknownAuthorityErr) || errors.As(err, &hostnameErr) ||
+		errors.As(err, &certInvalidErr) {
+		return false
+	}
+	// TLS alerts surface as OpError with Op "remote error"/"local error" and
+	// mean the pod answered; any other Op (dial, read, write) is a real failure.
+	var opErr *net.OpError
+	if errors.As(err, &opErr) {
+		return opErr.Op != "remote error" && opErr.Op != "local error"
+	}
+	// Bare context errors belong to the reconcile, not the pod.
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return true
+	}
+	return errors.Is(err, io.EOF) ||
+		errors.Is(err, os.ErrDeadlineExceeded)
 }
 
 func (h *healer) SentinelSet(ctx context.Context, rs *rsvb2.RedisSentinel, master string) error {

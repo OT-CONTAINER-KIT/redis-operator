@@ -205,6 +205,87 @@ func TestReconcileRedisConfiguresSentinelForSingleObservedMaster(t *testing.T) {
 	assert.Equal(t, "example-replication-1", gotMaster)
 }
 
+// A probe blip that hides every master must not clear the recorded master: both
+// this controller and the sentinel controller fall back to Status.MasterNode.
+func TestReconcileStatusKeepsLastKnownMasterWhenNoMasterIsObserved(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, rrvb2.AddToScheme(scheme))
+
+	seedInstance := newReplicationInstanceForTest()
+	seedInstance.Status.MasterNode = "example-replication-0"
+	ctrlClient := clientfake.NewClientBuilder().
+		WithScheme(scheme).
+		WithStatusSubresource(seedInstance).
+		WithObjects(seedInstance.DeepCopy()).
+		Build()
+
+	instance := &rrvb2.RedisReplication{}
+	require.NoError(t, ctrlClient.Get(context.Background(), client.ObjectKeyFromObject(seedInstance), instance))
+
+	r := &Reconciler{
+		Client:    ctrlClient,
+		K8sClient: fake.NewSimpleClientset(),
+		Healer:    &fakeHealer{},
+		RedisNodesByRole: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, string) ([]string, error) {
+			return nil, nil
+		},
+		RedisReplicationRealMaster: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string {
+			return ""
+		},
+	}
+
+	result, err := r.reconcileStatus(context.Background(), instance)
+
+	require.NoError(t, err)
+	assert.Equal(t, ctrl.Result{}, result)
+
+	updated := &rrvb2.RedisReplication{}
+	require.NoError(t, ctrlClient.Get(context.Background(), client.ObjectKeyFromObject(instance), updated))
+	assert.Equal(t, "example-replication-0", updated.Status.MasterNode)
+}
+
+// ... but a real promotion is still recorded, so the guard cannot pin the status
+// to a master that has been replaced.
+func TestReconcileStatusUpdatesMasterWhenANewMasterIsObserved(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, rrvb2.AddToScheme(scheme))
+
+	seedInstance := newReplicationInstanceForTest()
+	seedInstance.Status.MasterNode = "example-replication-0"
+	ctrlClient := clientfake.NewClientBuilder().
+		WithScheme(scheme).
+		WithStatusSubresource(seedInstance).
+		WithObjects(seedInstance.DeepCopy()).
+		Build()
+
+	instance := &rrvb2.RedisReplication{}
+	require.NoError(t, ctrlClient.Get(context.Background(), client.ObjectKeyFromObject(seedInstance), instance))
+
+	r := &Reconciler{
+		Client:    ctrlClient,
+		K8sClient: fake.NewSimpleClientset(),
+		Healer:    &fakeHealer{},
+		RedisNodesByRole: func(_ context.Context, _ kubernetes.Interface, _ *rrvb2.RedisReplication, role string) ([]string, error) {
+			if role == "master" {
+				return []string{"example-replication-1"}, nil
+			}
+			return nil, nil
+		},
+		RedisReplicationRealMaster: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string {
+			return ""
+		},
+	}
+
+	result, err := r.reconcileStatus(context.Background(), instance)
+
+	require.NoError(t, err)
+	assert.Equal(t, ctrl.Result{}, result)
+
+	updated := &rrvb2.RedisReplication{}
+	require.NoError(t, ctrlClient.Get(context.Background(), client.ObjectKeyFromObject(instance), updated))
+	assert.Equal(t, "example-replication-1", updated.Status.MasterNode)
+}
+
 func newReplicationInstanceForTest() *rrvb2.RedisReplication {
 	size := int32(3)
 	return &rrvb2.RedisReplication{

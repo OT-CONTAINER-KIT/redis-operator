@@ -1046,7 +1046,14 @@ func getRedisNodesByRole(ctx context.Context, cl kubernetes.Interface, cr *rrvb2
 
 		podRole, err := probeRole(ctx, pod)
 		if err != nil {
-			log.FromContext(ctx).Error(err, "Failed to probe Redis role, skipping pod", "pod", podName)
+			// A cancelled or expired reconcile context says nothing about this pod:
+			// every remaining probe shares the context and would fail the same way,
+			// so skipping them would turn a shutdown into a successful reconcile over
+			// a partial topology. Only pod-specific failures may be skipped.
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return nil, ctxErr
+			}
+			log.FromContext(ctx).V(1).Info("Failed to probe Redis role, skipping pod", "pod", podName, "error", err)
 			continue
 		}
 		if podRole == redisRole {
