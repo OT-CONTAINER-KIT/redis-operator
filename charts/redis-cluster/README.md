@@ -79,8 +79,7 @@ helm delete <my-release> --namespace <namespace>
 | redisCluster.follower.livenessProbe | object | `{}` |  |
 | redisCluster.follower.nodeSelector | string | `nil` |  |
 | redisCluster.follower.pdb.enabled | bool | `false` |  |
-| redisCluster.follower.pdb.maxUnavailable | int | `1` |  |
-| redisCluster.follower.pdb.minAvailable | int | `1` |  |
+| redisCluster.follower.pdb.maxUnavailable | int | `1` | Cannot be set together with minAvailable |
 | redisCluster.follower.readinessProbe | object | `{}` |  |
 | redisCluster.follower.replicas | int | `3` | Number of Redis follower (slave) nodes. If not set, uses clusterSize value |
 | redisCluster.follower.securityContext | object | `{}` |  |
@@ -94,8 +93,7 @@ helm delete <my-release> --namespace <namespace>
 | redisCluster.leader.livenessProbe | object | `{}` |  |
 | redisCluster.leader.nodeSelector | string | `nil` |  |
 | redisCluster.leader.pdb.enabled | bool | `false` |  |
-| redisCluster.leader.pdb.maxUnavailable | int | `1` |  |
-| redisCluster.leader.pdb.minAvailable | int | `1` |  |
+| redisCluster.leader.pdb.maxUnavailable | int | `1` | Cannot be set together with minAvailable |
 | redisCluster.leader.readinessProbe | object | `{}` |  |
 | redisCluster.leader.replicas | int | `3` | Number of Redis leader (master) nodes. If not set, uses clusterSize value |
 | redisCluster.leader.securityContext | object | `{}` |  |
