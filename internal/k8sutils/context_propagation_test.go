@@ -16,6 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/utils/ptr"
 )
 
 type contextPropagationKey struct{}
@@ -26,12 +27,31 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
 }
 
-func newContextCheckingClient(t *testing.T) kubernetes.Interface {
+// responder lets a test override the response for a particular request. Returning
+// nil falls through to the default success response.
+type responder func(*http.Request) *http.Response
+
+func jsonResponse(status int, body string) *http.Response {
+	return &http.Response{
+		StatusCode: status,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(body)),
+	}
+}
+
+func newContextCheckingClient(t *testing.T, overrides ...responder) kubernetes.Interface {
 	t.Helper()
 
 	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if req.Context().Value(contextPropagationKey{}) != "reconcile" {
 			return nil, errors.New("reconcile context was not propagated to the Kubernetes API request")
+		}
+
+		for _, override := range overrides {
+			if resp := override(req); resp != nil {
+				resp.Request = req
+				return resp, nil
+			}
 		}
 
 		body := `{}`
@@ -48,12 +68,9 @@ func newContextCheckingClient(t *testing.T) kubernetes.Interface {
 			body = `{"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"name":"data-test-0","namespace":"test"},"spec":{"resources":{"requests":{"storage":"2Gi"}}}}`
 		}
 
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Request:    req,
-		}, nil
+		resp := jsonResponse(http.StatusOK, body)
+		resp.Request = req
+		return resp, nil
 	})
 
 	client, err := kubernetes.NewForConfig(&rest.Config{
@@ -84,6 +101,34 @@ func TestStatefulSetHelpersPropagateContext(t *testing.T) {
 	require.NoError(t, updateStatefulSet(ctx, client, "test", statefulSet, false, nil))
 	_, err := GetStatefulSet(ctx, client, "test", "test")
 	require.NoError(t, err)
+}
+
+// updateStatefulSet falls back to deleting the StatefulSet when the API server
+// rejects the update as Invalid, and relies on the controller to recreate it.
+// That DELETE is a request of its own, on a path the success case never reaches,
+// so it needs its own coverage.
+func TestStatefulSetRecreatePropagatesContext(t *testing.T) {
+	ctx := context.WithValue(t.Context(), contextPropagationKey{}, "reconcile")
+
+	var deleteRequests int
+	client := newContextCheckingClient(t, func(req *http.Request) *http.Response {
+		if !strings.Contains(req.URL.Path, "/statefulsets") {
+			return nil
+		}
+		switch req.Method {
+		case http.MethodPut:
+			return jsonResponse(http.StatusUnprocessableEntity, `{"apiVersion":"v1","kind":"Status","status":"Failure","code":422,"reason":"Invalid","message":"StatefulSet.apps \"test\" is invalid","details":{"name":"test","group":"apps","kind":"StatefulSet","causes":[{"reason":"FieldValueForbidden","message":"updates to statefulset spec for fields other than 'replicas' are forbidden","field":"spec"}]}}`)
+		case http.MethodDelete:
+			deleteRequests++
+			return jsonResponse(http.StatusOK, `{"apiVersion":"v1","kind":"Status","status":"Success"}`)
+		}
+		return nil
+	})
+
+	statefulSet := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "test"}}
+
+	require.NoError(t, updateStatefulSet(ctx, client, "test", statefulSet, true, ptr.To(metav1.DeletePropagationForeground)))
+	require.Equal(t, 1, deleteRequests, "the recreate branch should delete the StatefulSet once")
 }
 
 func TestPodDisruptionBudgetHelpersPropagateContext(t *testing.T) {
