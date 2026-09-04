@@ -4,10 +4,6 @@ import (
 	"context"
 	"testing"
 
-	common "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
-	sentinelv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
-	apicommon "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
-	redisservice "github.com/OT-CONTAINER-KIT/redis-operator/internal/service/redis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -15,6 +11,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
+
+	apicommon "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
+	sentinelv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
+	common "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
+	redisservice "github.com/OT-CONTAINER-KIT/redis-operator/internal/service/redis"
 )
 
 func TestUpdateRedisRoleLabelSkipsUnprobeablePods(t *testing.T) {
