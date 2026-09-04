@@ -59,10 +59,9 @@ type fakeRedisClient struct {
 func (f *fakeRedisClient) Connect(info *redisservice.ConnectionInfo) redisservice.Service {
 	f.connectHosts = append(f.connectHosts, info.Host)
 	return &fakeRedisService{
-		host:              info.Host,
-		isMasterByHost:    f.isMasterByHost,
-		SentinelInfo:      &redisservice.InfoSentinelResult{},
-		SentinelResetCalls: nil,
+		host:           info.Host,
+		isMasterByHost: f.isMasterByHost,
+		SentinelInfo:   &redisservice.InfoSentinelResult{},
 	}
 }
 
@@ -213,16 +212,26 @@ type fakeRedisSvc struct {
 	resetCalls []string
 }
 
-func (f *fakeRedisSvc) IsMaster(ctx context.Context) (bool, error)                    { return false, nil }
-func (f *fakeRedisSvc) GetAttachedReplicaCount(ctx context.Context) (int, error)       { return 0, nil }
+func (f *fakeRedisSvc) IsMaster(ctx context.Context) (bool, error) { return false, nil }
+
+func (f *fakeRedisSvc) GetAttachedReplicaCount(ctx context.Context) (int, error) { return 0, nil }
+
 func (f *fakeRedisSvc) SentinelMonitor(ctx context.Context, master *redisservice.ConnectionInfo, masterGroupName, quorum string) error {
 	return nil
 }
-func (f *fakeRedisSvc) SentinelSet(ctx context.Context, masterGroupName, key, value string) error { return nil }
-func (f *fakeRedisSvc) GetClusterInfo(ctx context.Context) (*redisservice.ClusterStatus, error) { return &redisservice.ClusterStatus{}, nil }
+
+func (f *fakeRedisSvc) SentinelSet(ctx context.Context, masterGroupName, key, value string) error {
+	return nil
+}
+
+func (f *fakeRedisSvc) GetClusterInfo(ctx context.Context) (*redisservice.ClusterStatus, error) {
+	return &redisservice.ClusterStatus{}, nil
+}
+
 func (f *fakeRedisSvc) GetInfoSentinel(ctx context.Context) (*redisservice.InfoSentinelResult, error) {
 	return f.info, nil
 }
+
 func (f *fakeRedisSvc) SentinelReset(ctx context.Context, masterGroupName string) error {
 	f.resetCalls = append(f.resetCalls, masterGroupName)
 	return nil
