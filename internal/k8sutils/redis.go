@@ -23,7 +23,6 @@ import (
 	redis "github.com/redis/go-redis/v9"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -1008,52 +1007,6 @@ func formatRedisAddress(ip string, port int) string {
 
 func getRedisReplicationHostname(redisInfo RedisDetails, cr *rrvb2.RedisReplication) string {
 	return fmt.Sprintf("%s.%s-headless.%s.svc.%s", redisInfo.PodName, cr.Name, cr.Namespace, envs.GetServiceDNSDomain())
-}
-
-// Get Redis nodes by it's role i.e. master, slave and sentinel
-func GetRedisNodesByRole(ctx context.Context, cl kubernetes.Interface, cr *rrvb2.RedisReplication, redisRole string) ([]string, error) {
-	return getRedisNodesByRole(ctx, cl, cr, redisRole, func(ctx context.Context, pod *corev1.Pod) (string, error) {
-		redisClient := configureRedisReplicationClientForPod(ctx, cl, cr, pod)
-		defer redisClient.Close()
-
-		return checkRedisServerRole(ctx, redisClient, pod.Name)
-	})
-}
-
-func getRedisNodesByRole(ctx context.Context, cl kubernetes.Interface, cr *rrvb2.RedisReplication, redisRole string, probeRole func(context.Context, *corev1.Pod) (string, error)) ([]string, error) {
-	statefulset, err := GetStatefulSet(ctx, cl, cr.GetNamespace(), cr.GetName())
-	if err != nil {
-		log.FromContext(ctx).Error(err, "Failed to Get the Statefulset of the", "custom resource", cr.Name, "in namespace", cr.Namespace)
-		return nil, err
-	}
-
-	var pods []string
-	replicas := cr.Spec.GetReplicationCounts("replication")
-
-	for i := 0; i < int(replicas); i++ {
-		podName := statefulset.Name + "-" + strconv.Itoa(i)
-		pod, err := cl.CoreV1().Pods(cr.Namespace).Get(ctx, podName, metav1.GetOptions{})
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				continue
-			}
-			return nil, err
-		}
-
-		if !IsRedisPodProbeable(pod) {
-			continue
-		}
-
-		podRole, err := probeRole(ctx, pod)
-		if err != nil {
-			return nil, err
-		}
-		if podRole == redisRole {
-			pods = append(pods, podName)
-		}
-	}
-
-	return pods, nil
 }
 
 func IsRedisPodProbeable(pod *corev1.Pod) bool {
