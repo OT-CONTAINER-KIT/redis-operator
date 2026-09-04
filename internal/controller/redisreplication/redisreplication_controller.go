@@ -36,10 +36,11 @@ type Reconciler struct {
 	k8sutils.StatefulSet
 	Healer                     redishealer.Healer
 	K8sClient                  kubernetes.Interface
-	RedisNodesByRole           func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, string) ([]string, error)
+	RedisReplicationTopology   func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication) (k8sutils.RedisReplicationTopology, error)
 	RedisReplicationRealMaster func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string
 	CreateRedisReplicationLink func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string, string) error
 	ConfigureSentinel          func(context.Context, *rrvb2.RedisReplication, string) error
+	SentinelMonitoredMaster    func(context.Context, *rrvb2.RedisReplication, []string) (string, error)
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -81,11 +82,33 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	return intctrlutil.RequeueAfter(ctx, time.Second*30, "")
 }
 
-func (r *Reconciler) UpdateRedisReplicationMaster(ctx context.Context, instance *rrvb2.RedisReplication, masterNode string) error {
+// UpdateRedisReplicationMaster records masterNode as the master of the
+// replication. An empty masterNode means no master was identified in this
+// reconcile, which the RedisReplicationHasMaster gauge reports either way.
+//
+// Whether the recorded master is then cleared depends on why none was
+// identified. masterAbsent says every pod was observed and none of them is a
+// master: that is conclusive, and a recorded master that is provably not the
+// master must not feed the bootstrap election or the sentinel controller's
+// fallback, so it is cleared. Anything else - pods that could not be probed, or
+// masters that could not be told apart - is not evidence that the recorded
+// master changed, so the last known master is kept for those fallbacks.
+func (r *Reconciler) UpdateRedisReplicationMaster(ctx context.Context, instance *rrvb2.RedisReplication, masterNode string, masterAbsent bool) error {
 	if masterNode == "" {
 		monitoring.RedisReplicationHasMaster.WithLabelValues(instance.Namespace, instance.Name).Set(0)
 	} else {
 		monitoring.RedisReplicationHasMaster.WithLabelValues(instance.Namespace, instance.Name).Set(1)
+	}
+
+	if masterNode == "" && instance.Status.MasterNode != "" {
+		if masterAbsent {
+			log.FromContext(ctx).Info("Every pod answered and none is a master, clearing the recorded master node",
+				"statusMasterNode", instance.Status.MasterNode)
+		} else {
+			log.FromContext(ctx).Info("No master identified in a partial or ambiguous view, keeping the last known master node",
+				"statusMasterNode", instance.Status.MasterNode)
+			masterNode = instance.Status.MasterNode
+		}
 	}
 
 	connectionInfo := instance.GetConnectionInfo(envs.GetServiceDNSDomain())
@@ -117,11 +140,11 @@ func connectionInfoEqual(a, b *rrvb2.ConnectionInfo) bool {
 	return a.Host == b.Host && a.Port == b.Port && a.MasterName == b.MasterName
 }
 
-func (r *Reconciler) redisNodesByRole(ctx context.Context, instance *rrvb2.RedisReplication, role string) ([]string, error) {
-	if r.RedisNodesByRole != nil {
-		return r.RedisNodesByRole(ctx, r.K8sClient, instance, role)
+func (r *Reconciler) redisReplicationTopology(ctx context.Context, instance *rrvb2.RedisReplication) (k8sutils.RedisReplicationTopology, error) {
+	if r.RedisReplicationTopology != nil {
+		return r.RedisReplicationTopology(ctx, r.K8sClient, instance)
 	}
-	return k8sutils.GetRedisNodesByRole(ctx, r.K8sClient, instance, role)
+	return k8sutils.GetRedisReplicationTopology(ctx, r.K8sClient, instance)
 }
 
 func (r *Reconciler) redisReplicationRealMaster(ctx context.Context, instance *rrvb2.RedisReplication, masterPods []string) string {
@@ -145,14 +168,57 @@ func (r *Reconciler) configureReplicationSentinel(ctx context.Context, instance 
 	return r.configureSentinel(ctx, instance, masterPodName)
 }
 
-func (r *Reconciler) observedRedisReplicationMaster(ctx context.Context, instance *rrvb2.RedisReplication, masterPods []string) (string, bool) {
-	switch len(masterPods) {
+// Read PR description for context: https://github.com/OT-CONTAINER-KIT/redis-operator/pull/1843
+func (r *Reconciler) observedRedisReplicationMaster(ctx context.Context, instance *rrvb2.RedisReplication, topology k8sutils.RedisReplicationTopology) (string, bool) {
+	switch len(topology.Masters) {
 	case 0:
 		return "", false
 	case 1:
-		return masterPods[0], true
+		candidate := topology.Masters[0]
+		if topology.Complete() {
+			return candidate, true
+		}
+		if r.redisReplicationRealMaster(ctx, instance, topology.Masters) == candidate {
+			return candidate, true
+		}
+		if instance.EnableSentinel() {
+			monitored, err := r.sentinelMonitoredMaster(ctx, instance, topology.Masters)
+			if err != nil {
+				log.FromContext(ctx).Error(err, "Not trusting the only observed master: the topology is incomplete, the pod has no attached replicas and sentinel could not be asked",
+					"candidate", candidate,
+					"unobservedPods", topology.Unobserved)
+				return "", false
+			}
+			if monitored == candidate {
+				return candidate, true
+			}
+			log.FromContext(ctx).Info("Not trusting the only observed master: the topology is incomplete, the pod has no attached replicas and sentinel does not report it as master",
+				"candidate", candidate,
+				"statusMasterNode", instance.Status.MasterNode,
+				"unobservedPods", topology.Unobserved)
+			return "", false
+		}
+		if candidate == instance.Status.MasterNode {
+			return candidate, true
+		}
+		log.FromContext(ctx).Info("Not trusting the only observed master: the topology is incomplete, the pod has no attached replicas and it is not the recorded master",
+			"candidate", candidate,
+			"statusMasterNode", instance.Status.MasterNode,
+			"unobservedPods", topology.Unobserved)
+		return "", false
 	default:
-		realMaster := r.redisReplicationRealMaster(ctx, instance, masterPods)
+		realMaster := r.redisReplicationRealMaster(ctx, instance, topology.Masters)
+		if realMaster == "" && instance.EnableSentinel() {
+			monitored, err := r.sentinelMonitoredMaster(ctx, instance, topology.Masters)
+			if err != nil {
+				log.FromContext(ctx).Error(err, "Could not ask sentinel which of the observed masters it monitors",
+					"masters", topology.Masters)
+			} else if monitored != "" {
+				log.FromContext(ctx).Info("No master with attached replicas found, using the master monitored by sentinel",
+					"master", monitored)
+				realMaster = monitored
+			}
+		}
 		return realMaster, realMaster != ""
 	}
 }
@@ -210,13 +276,7 @@ func (r *Reconciler) configureSentinel(ctx context.Context, inst *rrvb2.RedisRep
 	}
 	var monitorAddr string
 	if inst.Spec.Sentinel.ResolveHostnames == "yes" {
-		monitorAddr = fmt.Sprintf(
-			"%s.%s.%s.svc.%s",
-			masterPodName,
-			common.GetHeadlessServiceNameFromPodName(masterPodName),
-			inst.Namespace,
-			envs.GetServiceDNSDomain(),
-		)
+		monitorAddr = replicationPodHostname(inst, masterPodName)
 	} else {
 		monitorAddr = masterPod.Status.PodIP
 	}
@@ -284,17 +344,9 @@ func (r *Reconciler) configureSentinelPod(
 	masterAddr string,
 	masterPassword string,
 ) error {
-	var sentinelPassword string
-	if inst.Spec.Sentinel.ExistingPasswordSecret != nil {
-		secret, err := r.K8sClient.CoreV1().Secrets(inst.Namespace).Get(
-			ctx,
-			*inst.Spec.Sentinel.ExistingPasswordSecret.Name,
-			metav1.GetOptions{},
-		)
-		if err != nil {
-			return err
-		}
-		sentinelPassword = string(secret.Data[*inst.Spec.Sentinel.ExistingPasswordSecret.Key])
+	sentinelPassword, err := r.sentinelPassword(ctx, inst)
+	if err != nil {
+		return err
 	}
 
 	sentinelConnInfo := &redis.ConnectionInfo{
@@ -405,17 +457,14 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 	}
 
 	var realMaster string
-	masterNodes, err := r.redisNodesByRole(ctx, instance, "master")
+	topology, err := r.redisReplicationTopology(ctx, instance)
 	if err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
-	slaveNodes, err := r.redisNodesByRole(ctx, instance, "slave")
-	if err != nil {
-		return intctrlutil.RequeueE(ctx, err, "")
-	}
-	observedPods := len(masterNodes) + len(slaveNodes)
-	incompleteTopology := instance.Spec.Size != nil && observedPods < int(*instance.Spec.Size)
-	realMaster, masterPositivelyIdentified := r.observedRedisReplicationMaster(ctx, instance, masterNodes)
+	masterNodes, slaveNodes := topology.Masters, topology.Slaves
+	observedPods := topology.Observed()
+	incompleteTopology := !topology.Complete()
+	realMaster, masterPositivelyIdentified := r.observedRedisReplicationMaster(ctx, instance, topology)
 	if len(masterNodes) > 1 {
 		log.FromContext(ctx).Info("Creating redis replication by executing replication creation commands")
 
@@ -454,7 +503,7 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 		if incompleteTopology {
 			log.FromContext(ctx).Info("Skipping replication reconfiguration because the observed topology is incomplete",
 				"observedPods", observedPods,
-				"expectedPods", *instance.Spec.Size)
+				"unobservedPods", topology.Unobserved)
 		} else if realMaster == "" {
 			log.FromContext(ctx).Info("Skipping replication reconfiguration because the current master could not be identified")
 		} else if err := r.createRedisReplicationLink(ctx, instance, masterNodes, realMaster); err != nil {
@@ -470,7 +519,7 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 			if incompleteTopology {
 				log.FromContext(ctx).Info("Skipping master-slave reconfiguration because the observed topology is incomplete",
 					"observedPods", observedPods,
-					"expectedPods", *instance.Spec.Size)
+					"unobservedPods", topology.Unobserved)
 			} else {
 				allPods := append(masterNodes, slaveNodes...)
 				if err := r.createRedisReplicationLink(ctx, instance, allPods, realMaster); err != nil {
@@ -495,7 +544,7 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 		if incompleteTopology && !masterPositivelyIdentified {
 			log.FromContext(ctx).Info("Skipping sentinel reconfiguration because topology is incomplete and the master is ambiguous",
 				"observedPods", observedPods,
-				"expectedPods", *instance.Spec.Size)
+				"unobservedPods", topology.Unobserved)
 		} else if err := r.configureReplicationSentinel(ctx, instance, realMaster); err != nil {
 			log.FromContext(ctx).Error(err, "failed to configure sentinel")
 		}
@@ -506,28 +555,24 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 
 // reconcileStatus update status and label.
 func (r *Reconciler) reconcileStatus(ctx context.Context, instance *rrvb2.RedisReplication) (ctrl.Result, error) {
-	var err error
-	var realMaster string
-
-	masterNodes, err := r.redisNodesByRole(ctx, instance, "master")
+	topology, err := r.redisReplicationTopology(ctx, instance)
 	if err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
-	realMaster, _ = r.observedRedisReplicationMaster(ctx, instance, masterNodes)
-	if err = r.UpdateRedisReplicationMaster(ctx, instance, realMaster); err != nil {
+	realMaster, _ := r.observedRedisReplicationMaster(ctx, instance, topology)
+	// Every pod answered and none is a master: there is no master to record, as
+	// opposed to a master that could not be identified.
+	masterAbsent := topology.Complete() && len(topology.Masters) == 0
+	if err = r.UpdateRedisReplicationMaster(ctx, instance, realMaster, masterAbsent); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
 	labels := common.GetRedisLabels(instance.GetName(), common.SetupTypeReplication, "replication", instance.GetLabels())
-	if err = r.Healer.UpdateRedisRoleLabel(ctx, instance.GetNamespace(), labels, instance.Spec.KubernetesConfig.ExistingPasswordSecret, instance.Spec.TLS); err != nil {
+	if err = r.Healer.UpdateRedisRoleLabel(ctx, instance.GetNamespace(), labels, instance.Spec.KubernetesConfig.ExistingPasswordSecret, instance.Spec.TLS, realMaster); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
 
-	slaveNodes, err := r.redisNodesByRole(ctx, instance, "slave")
-	if err != nil {
-		return intctrlutil.RequeueE(ctx, err, "")
-	}
 	if realMaster != "" {
-		monitoring.RedisReplicationConnectedSlavesTotal.WithLabelValues(instance.Namespace, instance.Name).Set(float64(len(slaveNodes)))
+		monitoring.RedisReplicationConnectedSlavesTotal.WithLabelValues(instance.Namespace, instance.Name).Set(float64(len(topology.Slaves)))
 	} else {
 		monitoring.RedisReplicationConnectedSlavesTotal.WithLabelValues(instance.Namespace, instance.Name).Set(float64(0))
 	}
