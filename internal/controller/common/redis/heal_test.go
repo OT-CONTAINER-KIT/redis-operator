@@ -70,7 +70,7 @@ type fakeRedisService struct {
 	host               string
 	isMasterByHost     map[string]bool
 	SentinelInfo       *redisservice.InfoSentinelResult
-	SentinelResetCalls []string // records masterGroupName each time SentinelReset was called
+	SentinelResetCalls []string
 }
 
 func (f *fakeRedisService) IsMaster(ctx context.Context) (bool, error) {
@@ -105,7 +105,6 @@ func (f *fakeRedisService) GetClusterInfo(ctx context.Context) (*redisservice.Cl
 func TestSentinelReset_Conditional(t *testing.T) {
 	masterGroupName := "mymaster"
 
-	// RedisSentinel with nested MasterGroupName via RedisSentinelConfig
 	makeSentinelRS := func() *sentinelv1beta2.RedisSentinel {
 		size := int32(3)
 		return &sentinelv1beta2.RedisSentinel{
@@ -121,7 +120,6 @@ func TestSentinelReset_Conditional(t *testing.T) {
 		}
 	}
 
-	// sentinel labels must match StatefulSet selector
 	sentinelLabels := map[string]string{"app": "redis-sentinel", "sentinel-name": "rs"}
 	makePod := func(name string) *corev1.Pod {
 		return &corev1.Pod{
@@ -136,9 +134,6 @@ func TestSentinelReset_Conditional(t *testing.T) {
 			},
 		}
 	}
-
-	// expectedSlaves = 2 (size=3 minus 1 master)
-	// expectedSentinels = 3 (INFO counts the reporting sentinel itself)
 
 	t.Run("no reset when topology matches", func(t *testing.T) {
 		rs := makeSentinelRS()
@@ -163,7 +158,7 @@ func TestSentinelReset_Conditional(t *testing.T) {
 		fakeSvc := &fakeRedisSvc{
 			info: &redisservice.InfoSentinelResult{
 				Masters: []redisservice.SentinelMasterInfo{
-					{Name: masterGroupName, Slaves: 1, Sentinels: 3}, // expected 2, got 1
+					{Name: masterGroupName, Slaves: 1, Sentinels: 3},
 				},
 			},
 			resetCalls: nil,
@@ -181,7 +176,7 @@ func TestSentinelReset_Conditional(t *testing.T) {
 		fakeSvc := &fakeRedisSvc{
 			info: &redisservice.InfoSentinelResult{
 				Masters: []redisservice.SentinelMasterInfo{
-					{Name: masterGroupName, Slaves: 2, Sentinels: 2}, // expected 3, got 2
+					{Name: masterGroupName, Slaves: 2, Sentinels: 2},
 				},
 			},
 			resetCalls: nil,
@@ -209,7 +204,6 @@ func TestSentinelReset_Conditional(t *testing.T) {
 	})
 }
 
-// fakeRedisSvcClient returns a single controlled fake service from Connect
 type fakeRedisSvcClient struct{ svc *fakeRedisSvc }
 
 func (c *fakeRedisSvcClient) Connect(*redisservice.ConnectionInfo) redisservice.Service { return c.svc }
@@ -226,11 +220,9 @@ func (f *fakeRedisSvc) SentinelMonitor(ctx context.Context, master *redisservice
 }
 func (f *fakeRedisSvc) SentinelSet(ctx context.Context, masterGroupName, key, value string) error { return nil }
 func (f *fakeRedisSvc) GetClusterInfo(ctx context.Context) (*redisservice.ClusterStatus, error) { return &redisservice.ClusterStatus{}, nil }
-
 func (f *fakeRedisSvc) GetInfoSentinel(ctx context.Context) (*redisservice.InfoSentinelResult, error) {
 	return f.info, nil
 }
-
 func (f *fakeRedisSvc) SentinelReset(ctx context.Context, masterGroupName string) error {
 	f.resetCalls = append(f.resetCalls, masterGroupName)
 	return nil
