@@ -1,0 +1,29 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-external-config
+data:
+  redis-additional.conf: |
+    tcp-keepalive 400
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: Redis
+metadata:
+  name: redis-standalone-config-reload
+spec:
+  redisConfig:
+    additionalRedisConfig: redis-external-config
+  podSecurityContext:
+    runAsUser: 1000
+    fsGroup: 1000
+  kubernetesConfig:
+    image: quay.io/opstree/redis:latest
+    imagePullPolicy: Always
+    resources:
+      requests:
+        cpu: 101m
+        memory: 128Mi
+      limits:
+        cpu: 101m
+        memory: 128Mi

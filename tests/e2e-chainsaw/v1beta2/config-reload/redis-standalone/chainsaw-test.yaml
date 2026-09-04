@@ -1,0 +1,101 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: config-reload-redis-standalone
+# Verifies the fix for issue #960: editing the external/additional config ConfigMap
+# must roll the StatefulSet so pods pick up the new config. The standalone controller
+# has no periodic requeue, so a passing run also proves the ConfigMap watch fired.
+spec:
+  timeouts:
+    apply: 30s
+    assert: 5m
+    exec: 5m
+  steps:
+    - name: Deploy standalone with an external config ConfigMap
+      try:
+        - apply:
+            file: standalone.yaml
+        - assert:
+            file: ready-sts.yaml
+
+    - name: The external-config checksum annotation is stamped on the pod template
+      try:
+        - script:
+            timeout: 30s
+            content: |
+              #!/bin/sh
+              set -eu
+              CK=$(kubectl get statefulset redis-standalone-config-reload -n "${NAMESPACE}" \
+                -o jsonpath='{.spec.template.metadata.annotations.redis\.opstreelabs\.in/external-config-checksum}')
+              echo "checksum=${CK}"
+              test -n "${CK}"
+            check:
+              ($error == null): true
+
+    - name: Editing the ConfigMap changes the checksum and rolls the StatefulSet
+      try:
+        - script:
+            timeout: 5m
+            content: |
+              #!/bin/sh
+              set -eu
+              NS="${NAMESPACE}"
+              STS=redis-standalone-config-reload
+              ANN='{.spec.template.metadata.annotations.redis\.opstreelabs\.in/external-config-checksum}'
+
+              before=$(kubectl get statefulset "$STS" -n "$NS" -o jsonpath="$ANN")
+              echo "checksum before=$before"
+
+              kubectl patch configmap redis-external-config -n "$NS" --type merge \
+                -p '{"data":{"redis-additional.conf":"tcp-keepalive 500\nmaxmemory 256mb\n"}}'
+
+              # The controller must observe the ConfigMap change and re-stamp the
+              # pod template. Without the watch + checksum annotation this never happens.
+              after="$before"
+              for _ in $(seq 1 60); do
+                after=$(kubectl get statefulset "$STS" -n "$NS" -o jsonpath="$ANN")
+                if [ "$after" != "$before" ]; then
+                  echo "checksum after=$after"
+                  break
+                fi
+                sleep 5
+              done
+
+              if [ "$after" = "$before" ]; then
+                echo "ERROR: checksum annotation did not change after ConfigMap edit"
+                exit 1
+              fi
+
+              # The annotation change must produce an actual rolling update.
+              kubectl rollout status statefulset/"$STS" -n "$NS" --timeout=180s
+            check:
+              ($error == null): true
+
+    - name: Editing an unrelated ConfigMap does not roll the StatefulSet
+      try:
+        - script:
+            timeout: 90s
+            content: |
+              #!/bin/sh
+              set -eu
+              NS="${NAMESPACE}"
+              STS=redis-standalone-config-reload
+              ANN='{.spec.template.metadata.annotations.redis\.opstreelabs\.in/external-config-checksum}'
+
+              kubectl create configmap unrelated-config -n "$NS" --from-literal=foo=bar
+
+              before=$(kubectl get statefulset "$STS" -n "$NS" -o jsonpath="$ANN")
+              kubectl patch configmap unrelated-config -n "$NS" --type merge \
+                -p '{"data":{"foo":"baz"}}'
+              sleep 20
+              after=$(kubectl get statefulset "$STS" -n "$NS" -o jsonpath="$ANN")
+
+              if [ "$after" != "$before" ]; then
+                echo "ERROR: unrelated ConfigMap change altered the checksum annotation"
+                exit 1
+              fi
+              echo "checksum unchanged as expected: $after"
+            check:
+              ($error == null): true

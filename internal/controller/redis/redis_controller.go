@@ -26,6 +26,7 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -41,6 +42,13 @@ type Reconciler struct {
 	client.Client
 	k8sutils.StatefulSet
 	K8sClient kubernetes.Interface
+	// ConfigMapWatcher and SecretWatcher enqueue this Redis when a referenced
+	// external config ConfigMap or mounted/referenced Secret (TLS, ACL, password)
+	// changes. The standalone controller has no periodic requeue, so without these
+	// such an edit would not trigger a reconcile (and therefore no checksum rollout)
+	// until the next informer resync.
+	ConfigMapWatcher *intctrlutil.ResourceWatcher
+	SecretWatcher    *intctrlutil.ResourceWatcher
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -62,6 +70,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if err = k8sutils.AddFinalizer(ctx, instance, RedisFinalizer, r.Client); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "failed to add finalizer")
 	}
+	r.registerSourceWatches(ctx, instance)
 	err = k8sutils.CreateStandaloneRedis(ctx, instance, r.K8sClient)
 	if err != nil {
 		return intctrlutil.RequeueE(ctx, err, "failed to create redis")
@@ -86,6 +95,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	return intctrlutil.Reconciled()
 }
 
+// registerSourceWatches registers the external config ConfigMap and the mounted/
+// referenced Secrets (TLS, ACL, password) so a change to any of them enqueues this
+// Redis and rolls the StatefulSet via the checksum annotation.
+func (r *Reconciler) registerSourceWatches(ctx context.Context, instance *rvb2.Redis) {
+	dependent := types.NamespacedName{Namespace: instance.Namespace, Name: instance.Name}
+	if r.ConfigMapWatcher != nil && instance.Spec.RedisConfig != nil && instance.Spec.RedisConfig.AdditionalRedisConfig != nil {
+		r.ConfigMapWatcher.WatchMany(ctx, dependent, *instance.Spec.RedisConfig.AdditionalRedisConfig)
+	}
+	if r.SecretWatcher != nil {
+		r.SecretWatcher.WatchMany(ctx, dependent, common.ReferencedSecretNames(instance.Spec.TLS, instance.Spec.ACL, instance.Spec.KubernetesConfig.ExistingPasswordSecret)...)
+	}
+}
+
 // SetupWithManager sets up the controller with the Manager.
 //
 // Unlike RedisCluster, RedisReplication, and RedisSentinel controllers, the Redis standalone
@@ -95,10 +117,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 // controller only creates a StatefulSet and a Service with no ongoing distributed state to poll,
 // so a timed requeue is unnecessary.
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, opts controller.Options) error {
+	if r.ConfigMapWatcher == nil {
+		r.ConfigMapWatcher = intctrlutil.NewResourceWatcher()
+	}
+	if r.SecretWatcher == nil {
+		r.SecretWatcher = intctrlutil.NewResourceWatcher()
+	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&rvb2.Redis{}).
 		WithOptions(opts).
 		Owns(&corev1.Service{}).
 		Owns(&appsv1.StatefulSet{}).
+		Watches(&corev1.ConfigMap{}, r.ConfigMapWatcher).
+		Watches(&corev1.Secret{}, r.SecretWatcher).
 		Complete(r)
 }
