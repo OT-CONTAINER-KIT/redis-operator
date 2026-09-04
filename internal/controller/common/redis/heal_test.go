@@ -216,8 +216,9 @@ func TestUpdateRedisRoleLabelKeepsSlaveLabelOnUnreachablePod(t *testing.T) {
 }
 
 // The pods this branch exists for are the ones most likely to be deleted between
-// the List and the Patch, so a failed removal must not abandon the rest.
-func TestUpdateRedisRoleLabelContinuesWhenStaleLabelRemovalFails(t *testing.T) {
+// the List and the Patch. A deleted pod took its label with it, so it is passed
+// over without abandoning the rest and without failing the reconcile.
+func TestUpdateRedisRoleLabelPassesOverPodDeletedBeforeStaleLabelRemoval(t *testing.T) {
 	labels := map[string]string{"app": "redis"}
 	goneMaster := newLabeledRedisPod("redis-0", labels, "10.0.0.10", corev1.PodRunning, true)
 	goneMaster.Labels[common.RedisRoleLabelKey] = common.RedisRoleLabelMaster
@@ -256,6 +257,59 @@ func TestUpdateRedisRoleLabelContinuesWhenStaleLabelRemovalFails(t *testing.T) {
 	stillLabelled, err := clientset.CoreV1().Pods("default").Get(context.Background(), "redis-1", metav1.GetOptions{})
 	require.NoError(t, err)
 	assert.NotContains(t, stillLabelled.Labels, common.RedisRoleLabelKey)
+}
+
+// Any other failure leaves a dead pod behind the master service, so it must fail
+// the reconcile - after the remaining removals have still been attempted.
+func TestUpdateRedisRoleLabelReturnsErrorWhenStaleLabelRemovalFails(t *testing.T) {
+	labels := map[string]string{"app": "redis"}
+	forbiddenMaster := newLabeledRedisPod("redis-0", labels, "10.0.0.10", corev1.PodRunning, true)
+	forbiddenMaster.Labels[common.RedisRoleLabelKey] = common.RedisRoleLabelMaster
+	staleMaster := newLabeledRedisPod("redis-1", labels, "10.0.0.11", corev1.PodRunning, true)
+	staleMaster.Labels[common.RedisRoleLabelKey] = common.RedisRoleLabelMaster
+	newMaster := newLabeledRedisPod("redis-2", labels, "10.0.0.12", corev1.PodRunning, true)
+
+	clientset := k8sfake.NewSimpleClientset(forbiddenMaster, staleMaster, newMaster)
+	clientset.PrependReactor("patch", "pods", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		if action.(k8stesting.PatchAction).GetName() == "redis-0" {
+			return true, nil, apierrors.NewForbidden(schema.GroupResource{Resource: "pods"}, "redis-0", errors.New("patch denied"))
+		}
+		return false, nil, nil
+	})
+	redisClient := &fakeRedisClient{
+		isMasterByHost: map[string]bool{
+			"10.0.0.12": true,
+		},
+		replicasByHost: map[string]int{
+			"10.0.0.12": 1,
+		},
+		errByHost: map[string]error{
+			"10.0.0.10": dialError(),
+			"10.0.0.11": dialError(),
+		},
+	}
+	h := &healer{
+		k8s:   clientset,
+		redis: redisClient,
+	}
+
+	err := h.UpdateRedisRoleLabel(context.Background(), "default", labels, nil, nil)
+
+	require.Error(t, err)
+	assert.True(t, apierrors.IsForbidden(err), "expected the API error to be preserved, got %v", err)
+	assert.ErrorContains(t, err, "redis-0")
+
+	stillForbidden, err := clientset.CoreV1().Pods("default").Get(context.Background(), "redis-0", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, common.RedisRoleLabelMaster, stillForbidden.Labels[common.RedisRoleLabelKey])
+
+	removed, err := clientset.CoreV1().Pods("default").Get(context.Background(), "redis-1", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.NotContains(t, removed.Labels, common.RedisRoleLabelKey)
+
+	masterPod, err := clientset.CoreV1().Pods("default").Get(context.Background(), "redis-2", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, common.RedisRoleLabelMaster, masterPod.Labels[common.RedisRoleLabelKey])
 }
 
 // dialError is what an unreachable pod actually produces: a dial failure or, for

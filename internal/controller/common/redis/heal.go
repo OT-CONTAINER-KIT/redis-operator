@@ -20,6 +20,7 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util/cryptutil"
 	rediscli "github.com/redis/go-redis/v9"
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -34,9 +35,14 @@ type Healer interface {
 	SentinelSet(ctx context.Context, rs *rsvb2.RedisSentinel, master string) error
 	SentinelReset(ctx context.Context, rs *rsvb2.RedisSentinel) error
 
-	// UpdateRedisRoleLabel probes Running and Ready pods and updates their `redis-role` label
-	// based on their reported role. Pods that fail to probe keep their current label, except
-	// master labels are removed on network errors if another pod reported as master with replicas.
+	// UpdateRedisRoleLabel checks each Running and Ready pod and updates its `redis-role`
+	// label to match the pod's real role.
+	//
+	// If a pod can't be reached, its label is normally left as is. The one exception is a pod
+	// labeled as master that is unreachable while another pod already answers as master and has
+	// replicas attached. In that case the old master label is removed, because keeping it could
+	// point the master service at a dead pod. If that removal fails, an error is returned so the
+	// caller retries.
 	UpdateRedisRoleLabel(ctx context.Context, ns string, labels map[string]string, secret *commonapi.ExistingPasswordSecret, tlsConfig *commonapi.TLSConfig) error
 }
 
@@ -159,18 +165,23 @@ func (h *healer) UpdateRedisRoleLabel(ctx context.Context, ns string, labels map
 		)
 		return nil
 	}
+	var removeErrs []error
 	for _, podName := range unreachableMasterPods {
-		if rErr := retry.RetryOnConflict(retry.DefaultRetry, removeRoleLabelFunc(podName)); rErr != nil {
-			// The pod may have been deleted since the List. Skip it rather than
-			// abandoning the remaining pods; the next reconcile retries.
-			log.FromContext(ctx).Error(rErr, "failed to remove stale master role label, skipping pod", "pod", podName)
-			continue
+		rErr := retry.RetryOnConflict(retry.DefaultRetry, removeRoleLabelFunc(podName))
+		switch {
+		case rErr == nil:
+			log.FromContext(ctx).Info("removed stale master role label after probe failure",
+				"pod", podName,
+			)
+		case apierrors.IsNotFound(rErr):
+			log.FromContext(ctx).V(1).Info("pod was deleted before its stale master role label could be removed",
+				"pod", podName,
+			)
+		default:
+			removeErrs = append(removeErrs, fmt.Errorf("failed to remove stale master role label from pod %s: %w", podName, rErr))
 		}
-		log.FromContext(ctx).Info("removed stale master role label after probe failure",
-			"pod", podName,
-		)
 	}
-	return nil
+	return errors.Join(removeErrs...)
 }
 
 // isConnectivityError reports whether err means the pod was unreachable.

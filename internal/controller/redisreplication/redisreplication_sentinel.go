@@ -1,15 +1,22 @@
 package redisreplication
 
 import (
+	"context"
 	"fmt"
+	"net"
+	"strings"
 
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/statefulset"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/envs"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/service/redis"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 func newSentinelService(rr *rrvb2.RedisReplication) corev1.Service {
@@ -156,4 +163,112 @@ func resolveHostnamesOrDefault(v string) string {
 		return "no"
 	}
 	return v
+}
+
+func (r *Reconciler) sentinelMonitoredMaster(ctx context.Context, inst *rrvb2.RedisReplication, candidates []string) (string, error) {
+	if r.SentinelMonitoredMaster != nil {
+		return r.SentinelMonitoredMaster(ctx, inst, candidates)
+	}
+	return r.querySentinelMonitoredMaster(ctx, redis.NewClient(), inst, candidates)
+}
+
+func (r *Reconciler) querySentinelMonitoredMaster(ctx context.Context, redisClient redis.Client, inst *rrvb2.RedisReplication, candidates []string) (string, error) {
+	// Sentinel reports the master by IP, or by hostname when hostnames are announced.
+	podByAddress := make(map[string]string, 2*len(candidates))
+	for _, podName := range candidates {
+		pod, err := r.K8sClient.CoreV1().Pods(inst.Namespace).Get(ctx, podName, metav1.GetOptions{})
+		if err != nil {
+			return "", fmt.Errorf("get pod %s: %w", podName, err)
+		}
+		podByAddress[replicationPodHostname(inst, podName)] = podName
+		if pod.Status.PodIP != "" {
+			podByAddress[pod.Status.PodIP] = podName
+		}
+	}
+
+	sentinelPassword, err := r.sentinelPassword(ctx, inst)
+	if err != nil {
+		return "", fmt.Errorf("get sentinel password secret: %w", err)
+	}
+	sentinelPods, err := r.getSentinelPods(ctx, inst)
+	if err != nil {
+		return "", fmt.Errorf("get sentinel pods: %w", err)
+	}
+
+	votes := make(map[string]int, len(candidates))
+	for _, sentinelPod := range sentinelPods.Items {
+		if !k8sutils.IsRedisPodProbeable(&sentinelPod) {
+			continue
+		}
+		info, err := redisClient.Connect(&redis.ConnectionInfo{
+			Host:     sentinelPod.Status.PodIP,
+			Port:     "26379",
+			Password: sentinelPassword,
+		}).GetInfoSentinel(ctx)
+		if err != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return "", ctxErr
+			}
+			log.FromContext(ctx).V(1).Info("Failed to read sentinel info, skipping sentinel pod", "pod", sentinelPod.Name, "error", err)
+			continue
+		}
+		if podName := podByAddress[sentinelReportedMasterHost(info)]; podName != "" {
+			votes[podName]++
+		}
+	}
+
+	quorum := int(inst.Spec.Sentinel.Size/2) + 1
+	for _, podName := range candidates {
+		if votes[podName] >= quorum {
+			return podName, nil
+		}
+	}
+	return "", nil
+}
+
+func sentinelReportedMasterHost(info *redis.InfoSentinelResult) string {
+	if info == nil {
+		return ""
+	}
+	for _, master := range info.Masters {
+		if master.Name == masterGroupName {
+			return sentinelAddressHost(master.Address)
+		}
+	}
+	return ""
+}
+
+func sentinelAddressHost(address string) string {
+	if host, _, err := net.SplitHostPort(address); err == nil {
+		return host
+	}
+	if i := strings.LastIndex(address, ":"); i >= 0 {
+		return strings.Trim(address[:i], "[]")
+	}
+	return address
+}
+
+func (r *Reconciler) sentinelPassword(ctx context.Context, inst *rrvb2.RedisReplication) (string, error) {
+	if inst.Spec.Sentinel.ExistingPasswordSecret == nil {
+		return "", nil
+	}
+	secret, err := r.K8sClient.CoreV1().Secrets(inst.Namespace).Get(
+		ctx,
+		*inst.Spec.Sentinel.ExistingPasswordSecret.Name,
+		metav1.GetOptions{},
+	)
+	if err != nil {
+		return "", err
+	}
+	return string(secret.Data[*inst.Spec.Sentinel.ExistingPasswordSecret.Key]), nil
+}
+
+func replicationPodHostname(inst *rrvb2.RedisReplication, podName string) string {
+	return fmt.Sprintf(
+		"%s.%s.%s.svc.%s",
+		podName,
+		common.GetHeadlessServiceNameFromPodName(podName),
+		inst.Namespace,
+		envs.GetServiceDNSDomain(),
+	)
 }

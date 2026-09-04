@@ -10,9 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8sClientFake "k8s.io/client-go/kubernetes/fake"
+	k8sTesting "k8s.io/client-go/testing"
 	"k8s.io/utils/ptr"
 )
 
@@ -56,14 +58,35 @@ func TestIsRedisPodProbeable(t *testing.T) {
 	}
 }
 
-func TestGetRedisNodesByRoleSkipsUnprobeablePods(t *testing.T) {
+// Every probe shares the reconcile context, so a cancellation fails all of them.
+// Skipping them would report a partial topology as a complete one.
+func TestGetRedisReplicationTopologyPropagatesContextCancellation(t *testing.T) {
+	client := k8sClientFake.NewSimpleClientset(
+		newRedisReplicationStatefulSet(),
+		newReadyRedisPod("example-replication-0", "10.0.0.10"),
+		newReadyRedisPod("example-replication-1", "10.0.0.11"),
+		newReadyRedisPod("example-replication-2", "10.0.0.12"),
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	topology, err := getRedisReplicationTopology(ctx, client, newRedisReplication(), func(ctx context.Context, _ *corev1.Pod) (string, error) {
+		return "", ctx.Err()
+	})
+
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Equal(t, RedisReplicationTopology{}, topology)
+}
+
+func TestGetRedisReplicationTopologyReportsUnobservedPods(t *testing.T) {
 	tests := []struct {
-		name string
-		pod  runtime.Object
+		name  string
+		pod   runtime.Object
+		probe func(pod *corev1.Pod) (string, error)
 	}{
 		{
 			name: "pod not found",
-			pod:  nil,
 		},
 		{
 			name: "pod pending",
@@ -76,6 +99,20 @@ func TestGetRedisNodesByRoleSkipsUnprobeablePods(t *testing.T) {
 		{
 			name: "pod running and ready without ip",
 			pod:  newReadyRedisPod("example-replication-2", ""),
+		},
+		{
+			name: "ready pod fails the probe",
+			pod:  newReadyRedisPod("example-replication-2", "10.0.0.12"),
+			probe: func(*corev1.Pod) (string, error) {
+				return "", errors.New("probe failed")
+			},
+		},
+		{
+			name: "ready pod reports no role",
+			pod:  newReadyRedisPod("example-replication-2", "10.0.0.12"),
+			probe: func(*corev1.Pod) (string, error) {
+				return "", nil
+			},
 		},
 	}
 
@@ -91,23 +128,29 @@ func TestGetRedisNodesByRoleSkipsUnprobeablePods(t *testing.T) {
 			}
 			client := k8sClientFake.NewSimpleClientset(objects...)
 
-			var probedPods []string
-			nodes, err := getRedisNodesByRole(context.Background(), client, newRedisReplication(), "master", func(_ context.Context, pod *corev1.Pod) (string, error) {
-				probedPods = append(probedPods, pod.Name)
-				if pod.Name == "example-replication-0" {
+			topology, err := getRedisReplicationTopology(context.Background(), client, newRedisReplication(), func(_ context.Context, pod *corev1.Pod) (string, error) {
+				switch pod.Name {
+				case "example-replication-0":
 					return "master", nil
+				case "example-replication-1":
+					return "slave", nil
+				default:
+					require.NotNil(t, tt.probe, "pod %s should not have been probed", pod.Name)
+					return tt.probe(pod)
 				}
-				return "slave", nil
 			})
 
-			assert.NoError(t, err)
-			assert.Equal(t, []string{"example-replication-0"}, nodes)
-			assert.ElementsMatch(t, []string{"example-replication-0", "example-replication-1"}, probedPods)
+			require.NoError(t, err)
+			assert.Equal(t, []string{"example-replication-0"}, topology.Masters)
+			assert.Equal(t, []string{"example-replication-1"}, topology.Slaves)
+			assert.Equal(t, []string{"example-replication-2"}, topology.Unobserved)
+			assert.False(t, topology.Complete())
+			assert.Equal(t, 2, topology.Observed())
 		})
 	}
 }
 
-func TestGetRedisNodesByRoleSkipsWhenReadyPodProbeFails(t *testing.T) {
+func TestGetRedisReplicationTopologyIsCompleteWhenEveryPodAnswers(t *testing.T) {
 	client := k8sClientFake.NewSimpleClientset(
 		newRedisReplicationStatefulSet(),
 		newReadyRedisPod("example-replication-0", "10.0.0.10"),
@@ -115,58 +158,56 @@ func TestGetRedisNodesByRoleSkipsWhenReadyPodProbeFails(t *testing.T) {
 		newReadyRedisPod("example-replication-2", "10.0.0.12"),
 	)
 
-	nodes, err := getRedisNodesByRole(context.Background(), client, newRedisReplication(), "master", func(_ context.Context, pod *corev1.Pod) (string, error) {
-		if pod.Name == "example-replication-0" {
-			return "master", nil
-		}
+	topology, err := getRedisReplicationTopology(context.Background(), client, newRedisReplication(), func(_ context.Context, pod *corev1.Pod) (string, error) {
 		if pod.Name == "example-replication-1" {
-			return "", errors.New("probe failed")
-		}
-		return "slave", nil
-	})
-
-	assert.NoError(t, err)
-	assert.Equal(t, []string{"example-replication-0"}, nodes)
-}
-
-// Every probe shares the reconcile context, so a cancellation fails all of them.
-// Skipping them would report a partial topology as a complete one.
-func TestGetRedisNodesByRolePropagatesContextCancellation(t *testing.T) {
-	client := k8sClientFake.NewSimpleClientset(
-		newRedisReplicationStatefulSet(),
-		newReadyRedisPod("example-replication-0", "10.0.0.10"),
-		newReadyRedisPod("example-replication-1", "10.0.0.11"),
-		newReadyRedisPod("example-replication-2", "10.0.0.12"),
-	)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	nodes, err := getRedisNodesByRole(ctx, client, newRedisReplication(), "master", func(ctx context.Context, _ *corev1.Pod) (string, error) {
-		return "", ctx.Err()
-	})
-
-	require.ErrorIs(t, err, context.Canceled)
-	assert.Empty(t, nodes)
-}
-
-func TestGetRedisNodesByRoleCompleteTopology(t *testing.T) {
-	client := k8sClientFake.NewSimpleClientset(
-		newRedisReplicationStatefulSet(),
-		newReadyRedisPod("example-replication-0", "10.0.0.10"),
-		newReadyRedisPod("example-replication-1", "10.0.0.11"),
-		newReadyRedisPod("example-replication-2", "10.0.0.12"),
-	)
-
-	nodes, err := getRedisNodesByRole(context.Background(), client, newRedisReplication(), "slave", func(_ context.Context, pod *corev1.Pod) (string, error) {
-		if pod.Name == "example-replication-0" {
 			return "master", nil
 		}
 		return "slave", nil
 	})
 
-	assert.NoError(t, err)
-	assert.ElementsMatch(t, []string{"example-replication-1", "example-replication-2"}, nodes)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"example-replication-1"}, topology.Masters)
+	assert.Equal(t, []string{"example-replication-0", "example-replication-2"}, topology.Slaves)
+	assert.Empty(t, topology.Unobserved)
+	assert.True(t, topology.Complete())
+	assert.Equal(t, 3, topology.Observed())
+}
+
+// Only NotFound is a fact about the pod; any other API failure is a failure of
+// the sweep and must not be reported as a partial topology.
+func TestGetRedisReplicationTopologyFailsWhenPodCannotBeFetched(t *testing.T) {
+	client := k8sClientFake.NewSimpleClientset(
+		newRedisReplicationStatefulSet(),
+		newReadyRedisPod("example-replication-0", "10.0.0.10"),
+		newReadyRedisPod("example-replication-1", "10.0.0.11"),
+		newReadyRedisPod("example-replication-2", "10.0.0.12"),
+	)
+	client.PrependReactor("get", "pods", func(action k8sTesting.Action) (bool, runtime.Object, error) {
+		if action.(k8sTesting.GetAction).GetName() == "example-replication-1" {
+			return true, nil, apierrors.NewInternalError(errors.New("etcd unavailable"))
+		}
+		return false, nil, nil
+	})
+
+	topology, err := getRedisReplicationTopology(context.Background(), client, newRedisReplication(), func(context.Context, *corev1.Pod) (string, error) {
+		return "master", nil
+	})
+
+	require.Error(t, err)
+	assert.True(t, apierrors.IsInternalError(err))
+	assert.Equal(t, RedisReplicationTopology{}, topology)
+}
+
+func TestRedisReplicationTopologyByRole(t *testing.T) {
+	topology := RedisReplicationTopology{
+		Masters:    []string{"example-replication-1"},
+		Slaves:     []string{"example-replication-0", "example-replication-2"},
+		Unobserved: []string{"example-replication-3"},
+	}
+
+	assert.Equal(t, []string{"example-replication-1"}, topology.byRole("master"))
+	assert.Equal(t, []string{"example-replication-0", "example-replication-2"}, topology.byRole("slave"))
+	assert.Nil(t, topology.byRole("sentinel"))
 }
 
 func newRedisReplication() *rrvb2.RedisReplication {
