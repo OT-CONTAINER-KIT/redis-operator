@@ -249,7 +249,7 @@ func (f *fakeHealer) SentinelSet(context.Context, *rsvb2.RedisSentinel, string) 
 	return nil
 }
 
-func (f *fakeHealer) SentinelReset(context.Context, *rsvb2.RedisSentinel) error {
+func (f *fakeHealer) SentinelReset(context.Context, *rsvb2.RedisSentinel, int) error {
 	return nil
 }
 
