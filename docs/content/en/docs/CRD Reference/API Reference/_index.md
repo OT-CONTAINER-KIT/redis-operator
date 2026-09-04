@@ -26,6 +26,20 @@ Package v1alpha1 contains API Schema definitions for the redis v1alpha1 API grou
 
 
 
+#### CleanupPolicy
+
+_Underlying type:_ _string_
+
+CleanupPolicy controls whether stored backup objects outlive the resource.
+
+_Validation:_
+- Enum: [Retain Delete]
+
+_Appears in:_
+- [RedisBackupSpec](#redisbackupspec)
+
+
+
 #### RedisBackup
 
 
@@ -59,11 +73,13 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `redisClusterName` _string_ | RedisClusterName is the name of the Redis resource in the same namespace<br />that this backup targets. Must match an existing Redis/RedisCluster resource. |  | MinLength: 1 <br />Required: \{\} <br /> |
+| `redisClusterName` _string_ | RedisClusterName is the name of the Redis resource in the same namespace<br />that this backup targets. Must match an existing Redis, RedisReplication<br />or RedisCluster resource. |  | MinLength: 1 <br />Required: \{\} <br /> |
+| `targetKind` _string_ | TargetKind is the kind of the referenced Redis resource. Each kind lays<br />its StatefulSets and containers out differently, so the controller has to<br />know which one it is looking at. Leave it empty to discover the kind by<br />looking the resource up. |  | Enum: [Redis RedisReplication RedisCluster] <br /> |
 | `storageType` _[StorageType](#storagetype)_ | StorageType is the backend storage provider. Currently supported: s3 |  | Enum: [s3] <br />Required: \{\} <br /> |
 | `s3` _[S3StorageConfig](#s3storageconfig)_ | S3 holds configuration specific to AWS S3 storage.<br />Required when storageType is "s3". |  |  |
-| `schedule` _string_ | Schedule is an optional cron expression for recurring backups.<br />Example: "0 2 * * *" means every day at 2 AM UTC.<br />Leave empty to trigger a one-time backup immediately on creation. |  |  |
-| `retentionDays` _integer_ | RetentionDays defines how many days backup files are kept in storage.<br />Defaults to 7 days if not specified. Minimum value is 1. | 7 | Minimum: 1 <br /> |
+| `schedule` _string_ | Schedule is reserved for recurring backups and is NOT implemented yet.<br />Setting it is rejected rather than ignored, so a backup can never appear<br />to be scheduled when nothing will run it. Use a CronJob that creates<br />RedisBackup resources until this is supported. |  |  |
+| `retentionDays` _integer_ | RetentionDays is how many days after completion the controller deletes<br />this backup's objects from storage. Zero (the default) keeps them<br />indefinitely. Expiry is recorded on the resource's status and conditions<br />when it happens. |  | Minimum: 0 <br /> |
+| `cleanupPolicy` _[CleanupPolicy](#cleanuppolicy)_ | CleanupPolicy decides what happens to the stored objects when this<br />resource is deleted. "Retain" keeps them, which is the safe default;<br />"Delete" removes this backup's own prefix from storage. | Retain | Enum: [Retain Delete] <br /> |
 
 
 #### RedisRestore
@@ -100,9 +116,12 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `redisClusterName` _string_ | RedisClusterName is the name of the target Redis resource to restore to |  | MinLength: 1 <br />Required: \{\} <br /> |
+| `targetKind` _string_ | TargetKind is the kind of the referenced Redis resource. Leave it empty<br />to discover the kind by looking the resource up. |  | Enum: [Redis RedisReplication RedisCluster] <br /> |
 | `storageType` _[StorageType](#storagetype)_ | StorageType is the backend storage provider where the backup is stored |  | Enum: [s3] <br />Required: \{\} <br /> |
 | `s3` _[S3StorageConfig](#s3storageconfig)_ | S3 holds configuration specific to AWS S3 storage |  |  |
 | `backupLocation` _string_ | BackupLocation is the full path to the backup directory in storage<br />Example: s3://my-bucket/backups/redis-cluster/2026-06-01T02-00-00Z |  | Required: \{\} <br /> |
+
+
 
 
 

@@ -37,6 +37,12 @@ type RedisRestoreSpec struct {
 	// +kubebuilder:validation:MinLength=1
 	RedisClusterName string `json:"redisClusterName"`
 
+	// TargetKind is the kind of the referenced Redis resource. Leave it empty
+	// to discover the kind by looking the resource up.
+	// +optional
+	// +kubebuilder:validation:Enum=Redis;RedisReplication;RedisCluster
+	TargetKind string `json:"targetKind,omitempty"`
+
 	// StorageType is the backend storage provider where the backup is stored
 	// +kubebuilder:validation:Required
 	StorageType StorageType `json:"storageType"`
@@ -65,11 +71,47 @@ type RedisRestoreStatus struct {
 	// +optional
 	RestoreCompletedTime *metav1.Time `json:"restoreCompletedTime,omitempty"`
 
+	// ObservedGeneration is the spec generation this status refers to. A
+	// restore is destructive, so a failed one is not retried against the same
+	// spec until the user changes it.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
 	// Conditions is a standard Kubernetes condition list
 	// +optional
 	// +listType=map
 	// +listMapKey=type
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// Rollback records what the in-flight restore has changed on the target,
+	// so that if the operator restarts mid-restore the next reconcile can put
+	// the workload back instead of guessing. It is cleared on completion.
+	// +optional
+	Rollback *RestoreRollbackState `json:"rollback,omitempty"`
+}
+
+// RestoreRollbackState is the checkpointed footprint of an in-flight restore.
+type RestoreRollbackState struct {
+	// TargetKind is the resolved kind of the target resource.
+	TargetKind string `json:"targetKind,omitempty"`
+	// Annotated is true once the target's skip-reconcile annotation was set.
+	Annotated bool `json:"annotated,omitempty"`
+	// StatefulSetReplicas holds the original replica count of every
+	// StatefulSet the restore scales, keyed by name.
+	// +optional
+	StatefulSetReplicas map[string]int32 `json:"statefulSetReplicas,omitempty"`
+	// SentinelsAnnotated lists RedisSentinel resources whose skip-reconcile
+	// annotation the restore set.
+	// +optional
+	SentinelsAnnotated []string `json:"sentinelsAnnotated,omitempty"`
+	// SentinelReplicas holds the original replica count of every sentinel
+	// StatefulSet the restore scaled to zero, keyed by name.
+	// +optional
+	SentinelReplicas map[string]int32 `json:"sentinelReplicas,omitempty"`
+	// Destructive is true once the target's existing data has been removed.
+	// From then on an interrupted restore must not be rolled back
+	// automatically: the old data is gone and the archive is the only copy.
+	Destructive bool `json:"destructive,omitempty"`
 }
 
 // +kubebuilder:object:root=true

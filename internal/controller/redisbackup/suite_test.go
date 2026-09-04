@@ -24,7 +24,10 @@ import (
 	"testing"
 	"time"
 
+	rvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redis/v1beta2"
 	redisv1alpha1 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisbackup/v1alpha1"
+	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
+	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
@@ -81,6 +84,12 @@ var _ = BeforeSuite(func() {
 
 	err = redisv1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).ToNot(HaveOccurred())
+
+	// The controller resolves the target CR to work out which StatefulSet,
+	// pod and container to talk to, so those kinds have to be known here too.
+	Expect(rvb2.AddToScheme(scheme.Scheme)).To(Succeed())
+	Expect(rrvb2.AddToScheme(scheme.Scheme)).To(Succeed())
+	Expect(rcvb2.AddToScheme(scheme.Scheme)).To(Succeed())
 
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).ToNot(HaveOccurred())

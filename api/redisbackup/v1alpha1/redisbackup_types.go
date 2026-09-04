@@ -62,10 +62,19 @@ type S3StorageConfig struct {
 // RedisBackupSpec defines what the user wants — the desired state
 type RedisBackupSpec struct {
 	// RedisClusterName is the name of the Redis resource in the same namespace
-	// that this backup targets. Must match an existing Redis/RedisCluster resource.
+	// that this backup targets. Must match an existing Redis, RedisReplication
+	// or RedisCluster resource.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	RedisClusterName string `json:"redisClusterName"`
+
+	// TargetKind is the kind of the referenced Redis resource. Each kind lays
+	// its StatefulSets and containers out differently, so the controller has to
+	// know which one it is looking at. Leave it empty to discover the kind by
+	// looking the resource up.
+	// +optional
+	// +kubebuilder:validation:Enum=Redis;RedisReplication;RedisCluster
+	TargetKind string `json:"targetKind,omitempty"`
 
 	// StorageType is the backend storage provider. Currently supported: s3
 	// +kubebuilder:validation:Required
@@ -76,19 +85,38 @@ type RedisBackupSpec struct {
 	// +optional
 	S3 *S3StorageConfig `json:"s3,omitempty"`
 
-	// Schedule is an optional cron expression for recurring backups.
-	// Example: "0 2 * * *" means every day at 2 AM UTC.
-	// Leave empty to trigger a one-time backup immediately on creation.
+	// Schedule is reserved for recurring backups and is NOT implemented yet.
+	// Setting it is rejected rather than ignored, so a backup can never appear
+	// to be scheduled when nothing will run it. Use a CronJob that creates
+	// RedisBackup resources until this is supported.
 	// +optional
 	Schedule string `json:"schedule,omitempty"`
 
-	// RetentionDays defines how many days backup files are kept in storage.
-	// Defaults to 7 days if not specified. Minimum value is 1.
+	// RetentionDays is how many days after completion the controller deletes
+	// this backup's objects from storage. Zero (the default) keeps them
+	// indefinitely. Expiry is recorded on the resource's status and conditions
+	// when it happens.
 	// +optional
-	// +kubebuilder:default=7
-	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Minimum=0
 	RetentionDays int32 `json:"retentionDays,omitempty"`
+
+	// CleanupPolicy decides what happens to the stored objects when this
+	// resource is deleted. "Retain" keeps them, which is the safe default;
+	// "Delete" removes this backup's own prefix from storage.
+	// +optional
+	// +kubebuilder:default=Retain
+	// +kubebuilder:validation:Enum=Retain;Delete
+	CleanupPolicy CleanupPolicy `json:"cleanupPolicy,omitempty"`
 }
+
+// CleanupPolicy controls whether stored backup objects outlive the resource.
+// +kubebuilder:validation:Enum=Retain;Delete
+type CleanupPolicy string
+
+const (
+	CleanupPolicyRetain CleanupPolicy = "Retain"
+	CleanupPolicyDelete CleanupPolicy = "Delete"
+)
 
 // RedisBackupStatus reflects what the controller has actually done — observed state
 type RedisBackupStatus struct {
@@ -108,6 +136,11 @@ type RedisBackupStatus struct {
 	// LastBackupTime is the timestamp of the most recent successful backup
 	// +optional
 	LastBackupTime *metav1.Time `json:"lastBackupTime,omitempty"`
+
+	// ExpiredTime is set when retentionDays elapsed and the stored objects were
+	// deleted. The resource stays Completed; BackupLocation is cleared.
+	// +optional
+	ExpiredTime *metav1.Time `json:"expiredTime,omitempty"`
 
 	// Conditions is a standard Kubernetes condition list for this resource
 	// +optional

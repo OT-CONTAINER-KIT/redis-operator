@@ -1,3 +1,4 @@
+---
 apiVersion: redis.redis.opstreelabs.in/v1alpha1
 kind: RedisBackup
 metadata:
@@ -7,25 +8,33 @@ metadata:
     app.kubernetes.io/name: redisbackup
     app.kubernetes.io/managed-by: redis-operator
 spec:
-  # Name of the Redis cluster in the same namespace to back up
-  redisClusterName: redis-cluster
+  # Name of the Redis resource in the same namespace to back up.
+  # This must be an existing Redis, RedisReplication or RedisCluster.
+  redisClusterName: redis-standalone
+
+  # Kind of the resource above. Leave it out to have the operator discover it.
+  targetKind: Redis
 
   # Storage backend — currently supported: s3
   storageType: s3
 
   s3:
-    # Name of the S3 bucket where backups will be stored
     bucket: my-redis-backups
-
-    # AWS region of the bucket
     region: ap-south-1
 
-    # Name of the Kubernetes Secret containing:
-    #   AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
+    # Name of the Kubernetes Secret holding AWS_ACCESS_KEY_ID and
+    # AWS_SECRET_ACCESS_KEY.
     secretName: aws-s3-credentials
 
-  # How many days to keep backup files in S3 (default: 7)
+    # Point this at any S3-compatible endpoint (for example an in-cluster
+    # MinIO) to test without an AWS account:
+    # endpoint: "http://minio.minio.svc:9000"
+
+  # Keep the uploaded objects when this resource is deleted. Set to "Delete"
+  # to have the operator remove them along with the resource.
+  cleanupPolicy: Retain
+
   retentionDays: 7
 
-  # Uncomment below to enable scheduled recurring backups (cron format)
-  # schedule: "0 2 * * *"
+  # NOTE: spec.schedule is not implemented and is rejected if set. Create
+  # RedisBackup resources from a CronJob for recurring backups.

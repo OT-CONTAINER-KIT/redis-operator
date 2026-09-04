@@ -19,18 +19,63 @@ package redisbackup
 import (
 	"context"
 
+	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
+	rvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redis/v1beta2"
 	redisv1alpha1 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisbackup/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
+
+// ensureRedisTarget creates the Redis CR and the StatefulSet the controller
+// resolves the backup target from. envtest runs no other controllers, so the
+// StatefulSet the Redis controller would normally create is made here.
+func ensureRedisTarget(ctx context.Context, name string) {
+	redis := &rvb2.Redis{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ns},
+		Spec: rvb2.RedisSpec{
+			KubernetesConfig: commonapi.KubernetesConfig{
+				Image: "quay.io/opstree/redis:v7.0.12",
+			},
+		},
+	}
+	if err := k8sClient.Create(ctx, redis); err != nil {
+		Expect(apierrors.IsAlreadyExists(err)).To(BeTrue(), "unexpected error creating Redis: %v", err)
+	}
+
+	replicas := int32(1)
+	labels := map[string]string{"app": name}
+	sts := &appsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ns},
+		Spec: appsv1.StatefulSetSpec{
+			Replicas:    &replicas,
+			ServiceName: name,
+			Selector:    &metav1.LabelSelector{MatchLabels: labels},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{Labels: labels},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Name:  name,
+						Image: "quay.io/opstree/redis:v7.0.12",
+					}},
+				},
+			},
+		},
+	}
+	if err := k8sClient.Create(ctx, sts); err != nil {
+		Expect(apierrors.IsAlreadyExists(err)).To(BeTrue(), "unexpected error creating StatefulSet: %v", err)
+	}
+}
 
 var _ = Describe("RedisBackup Controller", func() {
 	Context("When a valid RedisBackup is created with an existing Secret", func() {
 		It("Should reach the Completed phase and record the backup location", func() {
 			ctx := context.Background()
+			ensureRedisTarget(ctx, "test-redis-cluster")
 
 			// Create the Secret that the backup references
 			secret := &corev1.Secret{
@@ -199,6 +244,7 @@ var _ = Describe("RedisBackup Controller", func() {
 	Context("When a completed RedisBackup is reconciled again", func() {
 		It("Should remain completed without changes (idempotent)", func() {
 			ctx := context.Background()
+			ensureRedisTarget(ctx, "test-redis-cluster")
 
 			// Create the Secret for this test
 			secret := &corev1.Secret{
@@ -252,6 +298,88 @@ var _ = Describe("RedisBackup Controller", func() {
 				return result.Status.Phase == redisv1alpha1.BackupPhaseCompleted &&
 					result.Status.BackupLocation == originalLocation
 			}, timeout/2, interval).Should(BeTrue(), "backup should remain completed with same location")
+		})
+	})
+
+	Context("When a RedisBackup sets spec.schedule", func() {
+		// schedule was previously accepted and silently ignored, which made a
+		// one-shot backup look like a recurring one.
+		It("Should fail with an explicit not-implemented error", func() {
+			ctx := context.Background()
+			ensureRedisTarget(ctx, "test-redis-cluster")
+
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-aws-secret-sched", Namespace: ns},
+				Data: map[string][]byte{
+					"AWS_ACCESS_KEY_ID":     []byte("k"),
+					"AWS_SECRET_ACCESS_KEY": []byte("s"),
+				},
+			}
+			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
+
+			backup := &redisv1alpha1.RedisBackup{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-scheduled-backup", Namespace: ns},
+				Spec: redisv1alpha1.RedisBackupSpec{
+					RedisClusterName: "test-redis-cluster",
+					StorageType:      redisv1alpha1.StorageTypeS3,
+					Schedule:         "0 2 * * *",
+					S3: &redisv1alpha1.S3StorageConfig{
+						Bucket: "test-bucket", Region: "ap-south-1", SecretName: "test-aws-secret-sched",
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, backup)).Should(Succeed())
+
+			key := types.NamespacedName{Name: "test-scheduled-backup", Namespace: ns}
+			result := &redisv1alpha1.RedisBackup{}
+			Eventually(func() bool {
+				if err := k8sClient.Get(ctx, key, result); err != nil {
+					return false
+				}
+				return result.Status.Phase == redisv1alpha1.BackupPhaseFailed
+			}, timeout, interval).Should(BeTrue(), "expected schedule to be rejected")
+
+			Expect(result.Status.Message).To(ContainSubstring("spec.schedule is not implemented"))
+		})
+	})
+
+	Context("When a RedisBackup targets a resource that does not exist", func() {
+		// Previously this surfaced as `pods "<name>-0" not found` from the
+		// first exec, after the controller had already started work.
+		It("Should fail during validation with an actionable message", func() {
+			ctx := context.Background()
+
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-aws-secret-notarget", Namespace: ns},
+				Data: map[string][]byte{
+					"AWS_ACCESS_KEY_ID":     []byte("k"),
+					"AWS_SECRET_ACCESS_KEY": []byte("s"),
+				},
+			}
+			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
+
+			backup := &redisv1alpha1.RedisBackup{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-no-target-backup", Namespace: ns},
+				Spec: redisv1alpha1.RedisBackupSpec{
+					RedisClusterName: "does-not-exist",
+					StorageType:      redisv1alpha1.StorageTypeS3,
+					S3: &redisv1alpha1.S3StorageConfig{
+						Bucket: "test-bucket", Region: "ap-south-1", SecretName: "test-aws-secret-notarget",
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, backup)).Should(Succeed())
+
+			key := types.NamespacedName{Name: "test-no-target-backup", Namespace: ns}
+			result := &redisv1alpha1.RedisBackup{}
+			Eventually(func() bool {
+				if err := k8sClient.Get(ctx, key, result); err != nil {
+					return false
+				}
+				return result.Status.Phase == redisv1alpha1.BackupPhaseFailed
+			}, timeout, interval).Should(BeTrue(), "expected an unresolvable target to fail validation")
+
+			Expect(result.Status.Message).To(ContainSubstring("no Redis, RedisReplication or RedisCluster named"))
 		})
 	})
 })

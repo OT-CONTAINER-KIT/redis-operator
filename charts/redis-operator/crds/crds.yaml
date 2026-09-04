@@ -5465,19 +5465,35 @@ spec:
             description: RedisBackupSpec defines what the user wants — the desired
               state
             properties:
+              cleanupPolicy:
+                allOf:
+                - enum:
+                  - Retain
+                  - Delete
+                - enum:
+                  - Retain
+                  - Delete
+                default: Retain
+                description: |-
+                  CleanupPolicy decides what happens to the stored objects when this
+                  resource is deleted. "Retain" keeps them, which is the safe default;
+                  "Delete" removes this backup's own prefix from storage.
+                type: string
               redisClusterName:
                 description: |-
                   RedisClusterName is the name of the Redis resource in the same namespace
-                  that this backup targets. Must match an existing Redis/RedisCluster resource.
+                  that this backup targets. Must match an existing Redis, RedisReplication
+                  or RedisCluster resource.
                 minLength: 1
                 type: string
               retentionDays:
-                default: 7
                 description: |-
-                  RetentionDays defines how many days backup files are kept in storage.
-                  Defaults to 7 days if not specified. Minimum value is 1.
+                  RetentionDays is how many days after completion the controller deletes
+                  this backup's objects from storage. Zero (the default) keeps them
+                  indefinitely. Expiry is recorded on the resource's status and conditions
+                  when it happens.
                 format: int32
-                minimum: 1
+                minimum: 0
                 type: integer
               s3:
                 description: |-
@@ -5509,15 +5525,27 @@ spec:
                 type: object
               schedule:
                 description: |-
-                  Schedule is an optional cron expression for recurring backups.
-                  Example: "0 2 * * *" means every day at 2 AM UTC.
-                  Leave empty to trigger a one-time backup immediately on creation.
+                  Schedule is reserved for recurring backups and is NOT implemented yet.
+                  Setting it is rejected rather than ignored, so a backup can never appear
+                  to be scheduled when nothing will run it. Use a CronJob that creates
+                  RedisBackup resources until this is supported.
                 type: string
               storageType:
                 description: 'StorageType is the backend storage provider. Currently
                   supported: s3'
                 enum:
                 - s3
+                type: string
+              targetKind:
+                description: |-
+                  TargetKind is the kind of the referenced Redis resource. Each kind lays
+                  its StatefulSets and containers out differently, so the controller has to
+                  know which one it is looking at. Leave it empty to discover the kind by
+                  looking the resource up.
+                enum:
+                - Redis
+                - RedisReplication
+                - RedisCluster
                 type: string
             required:
             - redisClusterName
@@ -5593,6 +5621,12 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              expiredTime:
+                description: |-
+                  ExpiredTime is set when retentionDays elapsed and the stored objects were
+                  deleted. The resource stays Completed; BackupLocation is cleared.
+                format: date-time
+                type: string
               lastBackupTime:
                 description: LastBackupTime is the timestamp of the most recent successful
                   backup
@@ -20938,6 +20972,15 @@ spec:
                 enum:
                 - s3
                 type: string
+              targetKind:
+                description: |-
+                  TargetKind is the kind of the referenced Redis resource. Leave it empty
+                  to discover the kind by looking the resource up.
+                enum:
+                - Redis
+                - RedisReplication
+                - RedisCluster
+                type: string
             required:
             - backupLocation
             - redisClusterName
@@ -21011,6 +21054,13 @@ spec:
                 description: Message is a human-readable explanation of the current
                   phase
                 type: string
+              observedGeneration:
+                description: |-
+                  ObservedGeneration is the spec generation this status refers to. A
+                  restore is destructive, so a failed one is not retried against the same
+                  spec until the user changes it.
+                format: int64
+                type: integer
               phase:
                 description: 'Phase is the current stage: Pending, Running, Completed,
                   or Failed'
@@ -21020,6 +21070,49 @@ spec:
                   finished
                 format: date-time
                 type: string
+              rollback:
+                description: |-
+                  Rollback records what the in-flight restore has changed on the target,
+                  so that if the operator restarts mid-restore the next reconcile can put
+                  the workload back instead of guessing. It is cleared on completion.
+                properties:
+                  annotated:
+                    description: Annotated is true once the target's skip-reconcile
+                      annotation was set.
+                    type: boolean
+                  destructive:
+                    description: |-
+                      Destructive is true once the target's existing data has been removed.
+                      From then on an interrupted restore must not be rolled back
+                      automatically: the old data is gone and the archive is the only copy.
+                    type: boolean
+                  sentinelReplicas:
+                    additionalProperties:
+                      format: int32
+                      type: integer
+                    description: |-
+                      SentinelReplicas holds the original replica count of every sentinel
+                      StatefulSet the restore scaled to zero, keyed by name.
+                    type: object
+                  sentinelsAnnotated:
+                    description: |-
+                      SentinelsAnnotated lists RedisSentinel resources whose skip-reconcile
+                      annotation the restore set.
+                    items:
+                      type: string
+                    type: array
+                  statefulSetReplicas:
+                    additionalProperties:
+                      format: int32
+                      type: integer
+                    description: |-
+                      StatefulSetReplicas holds the original replica count of every
+                      StatefulSet the restore scales, keyed by name.
+                    type: object
+                  targetKind:
+                    description: TargetKind is the resolved kind of the target resource.
+                    type: string
+                type: object
             type: object
         type: object
     served: true
