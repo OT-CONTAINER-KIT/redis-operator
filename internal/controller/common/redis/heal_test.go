@@ -44,7 +44,7 @@ func TestUpdateRedisRoleLabelSkipsUnprobeablePods(t *testing.T) {
 		redis: redisClient,
 	}
 
-	err := h.UpdateRedisRoleLabel(context.Background(), "default", labels, nil, nil)
+	err := h.UpdateRedisRoleLabel(context.Background(), "default", labels, nil, nil, "")
 
 	require.NoError(t, err)
 	assert.Equal(t, []string{"10.0.0.10"}, redisClient.connectHosts)
@@ -83,7 +83,7 @@ func TestUpdateRedisRoleLabelRemovesStaleMasterLabelWhenAMasterWithReplicasIsCon
 		redis: redisClient,
 	}
 
-	err := h.UpdateRedisRoleLabel(context.Background(), "default", labels, nil, nil)
+	err := h.UpdateRedisRoleLabel(context.Background(), "default", labels, nil, nil, "")
 
 	require.NoError(t, err)
 
@@ -130,7 +130,7 @@ func TestUpdateRedisRoleLabelKeepsStaleMasterLabelWhenNoMasterIsConfirmed(t *tes
 		redis: redisClient,
 	}
 
-	err := h.UpdateRedisRoleLabel(context.Background(), "default", labels, nil, nil)
+	err := h.UpdateRedisRoleLabel(context.Background(), "default", labels, nil, nil, "")
 
 	require.NoError(t, err)
 
@@ -165,7 +165,7 @@ func TestUpdateRedisRoleLabelKeepsRoleLabelsWhenEveryProbeFails(t *testing.T) {
 		redis: redisClient,
 	}
 
-	err := h.UpdateRedisRoleLabel(context.Background(), "default", labels, nil, nil)
+	err := h.UpdateRedisRoleLabel(context.Background(), "default", labels, nil, nil, "")
 
 	require.NoError(t, err)
 
@@ -206,7 +206,7 @@ func TestUpdateRedisRoleLabelKeepsSlaveLabelOnUnreachablePod(t *testing.T) {
 		redis: redisClient,
 	}
 
-	err := h.UpdateRedisRoleLabel(context.Background(), "default", labels, nil, nil)
+	err := h.UpdateRedisRoleLabel(context.Background(), "default", labels, nil, nil, "")
 
 	require.NoError(t, err)
 
@@ -250,7 +250,7 @@ func TestUpdateRedisRoleLabelPassesOverPodDeletedBeforeStaleLabelRemoval(t *test
 		redis: redisClient,
 	}
 
-	err := h.UpdateRedisRoleLabel(context.Background(), "default", labels, nil, nil)
+	err := h.UpdateRedisRoleLabel(context.Background(), "default", labels, nil, nil, "")
 
 	require.NoError(t, err)
 
@@ -293,7 +293,7 @@ func TestUpdateRedisRoleLabelReturnsErrorWhenStaleLabelRemovalFails(t *testing.T
 		redis: redisClient,
 	}
 
-	err := h.UpdateRedisRoleLabel(context.Background(), "default", labels, nil, nil)
+	err := h.UpdateRedisRoleLabel(context.Background(), "default", labels, nil, nil, "")
 
 	require.Error(t, err)
 	assert.True(t, apierrors.IsForbidden(err), "expected the API error to be preserved, got %v", err)
@@ -368,7 +368,7 @@ func TestUpdateRedisRoleLabelKeepsMasterLabelOnAuthFailure(t *testing.T) {
 		redis: redisClient,
 	}
 
-	err := h.UpdateRedisRoleLabel(context.Background(), "default", labels, nil, nil)
+	err := h.UpdateRedisRoleLabel(context.Background(), "default", labels, nil, nil, "")
 
 	require.NoError(t, err)
 
@@ -402,7 +402,7 @@ func TestUpdateRedisRoleLabelKeepsMasterLabelWhenOnlyAStandaloneMasterAnswers(t 
 		redis: redisClient,
 	}
 
-	err := h.UpdateRedisRoleLabel(context.Background(), "default", labels, nil, nil)
+	err := h.UpdateRedisRoleLabel(context.Background(), "default", labels, nil, nil, "")
 
 	require.NoError(t, err)
 	// One connection per pod: the replica count is read on the handle that
@@ -416,6 +416,74 @@ func TestUpdateRedisRoleLabelKeepsMasterLabelWhenOnlyAStandaloneMasterAnswers(t 
 	standalonePod, err := clientset.CoreV1().Pods("default").Get(context.Background(), "redis-1", metav1.GetOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, common.RedisRoleLabelMaster, standalonePod.Labels[common.RedisRoleLabelKey])
+}
+
+// After a two-pod failover the promoted survivor has no replica left to attach,
+// so it cannot prove itself here. The controller has confirmed it through
+// Sentinel, and passes it in; the lost master's label is then stale and removed.
+func TestUpdateRedisRoleLabelRemovesStaleMasterLabelWhenTheIdentifiedMasterHasNoReplicas(t *testing.T) {
+	labels := map[string]string{"app": "redis"}
+	lostMaster := newLabeledRedisPod("redis-0", labels, "10.0.0.10", corev1.PodRunning, true)
+	lostMaster.Labels[common.RedisRoleLabelKey] = common.RedisRoleLabelMaster
+	survivor := newLabeledRedisPod("redis-1", labels, "10.0.0.11", corev1.PodRunning, true)
+	survivor.Labels[common.RedisRoleLabelKey] = common.RedisRoleLabelSlave
+
+	clientset := k8sfake.NewSimpleClientset(lostMaster, survivor)
+	redisClient := &fakeRedisClient{
+		isMasterByHost: map[string]bool{
+			"10.0.0.11": true,
+		},
+		errByHost: map[string]error{
+			"10.0.0.10": dialError(),
+		},
+	}
+	h := &healer{
+		k8s:   clientset,
+		redis: redisClient,
+	}
+
+	err := h.UpdateRedisRoleLabel(context.Background(), "default", labels, nil, nil, "redis-1")
+
+	require.NoError(t, err)
+
+	lostPod, err := clientset.CoreV1().Pods("default").Get(context.Background(), "redis-0", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.NotContains(t, lostPod.Labels, common.RedisRoleLabelKey)
+
+	survivorPod, err := clientset.CoreV1().Pods("default").Get(context.Background(), "redis-1", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, common.RedisRoleLabelMaster, survivorPod.Labels[common.RedisRoleLabelKey])
+}
+
+// The identified master only counts once it answers as master here; naming a
+// pod that cannot be reached changes nothing.
+func TestUpdateRedisRoleLabelKeepsMasterLabelWhenTheIdentifiedMasterDoesNotAnswer(t *testing.T) {
+	labels := map[string]string{"app": "redis"}
+	unreachableMaster := newLabeledRedisPod("redis-0", labels, "10.0.0.10", corev1.PodRunning, true)
+	unreachableMaster.Labels[common.RedisRoleLabelKey] = common.RedisRoleLabelMaster
+	standalone := newLabeledRedisPod("redis-1", labels, "10.0.0.11", corev1.PodRunning, true)
+
+	clientset := k8sfake.NewSimpleClientset(unreachableMaster, standalone)
+	redisClient := &fakeRedisClient{
+		isMasterByHost: map[string]bool{
+			"10.0.0.11": true,
+		},
+		errByHost: map[string]error{
+			"10.0.0.10": dialError(),
+		},
+	}
+	h := &healer{
+		k8s:   clientset,
+		redis: redisClient,
+	}
+
+	err := h.UpdateRedisRoleLabel(context.Background(), "default", labels, nil, nil, "redis-0")
+
+	require.NoError(t, err)
+
+	unreachablePod, err := clientset.CoreV1().Pods("default").Get(context.Background(), "redis-0", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, common.RedisRoleLabelMaster, unreachablePod.Labels[common.RedisRoleLabelKey])
 }
 
 // A master whose replica count cannot be read is not evidence either way.
@@ -442,7 +510,7 @@ func TestUpdateRedisRoleLabelKeepsMasterLabelWhenReplicaCountCannotBeRead(t *tes
 		redis: redisClient,
 	}
 
-	err := h.UpdateRedisRoleLabel(context.Background(), "default", labels, nil, nil)
+	err := h.UpdateRedisRoleLabel(context.Background(), "default", labels, nil, nil, "")
 
 	require.NoError(t, err)
 
@@ -475,7 +543,7 @@ func TestUpdateRedisRoleLabelPropagatesContextCancellation(t *testing.T) {
 	}
 	cancel()
 
-	err := h.UpdateRedisRoleLabel(ctx, "default", labels, nil, nil)
+	err := h.UpdateRedisRoleLabel(ctx, "default", labels, nil, nil, "")
 
 	require.ErrorIs(t, err, context.Canceled)
 

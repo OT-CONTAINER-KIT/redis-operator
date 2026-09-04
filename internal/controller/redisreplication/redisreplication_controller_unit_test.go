@@ -318,6 +318,81 @@ func TestReconcileRedisConfiguresSentinelForLoneMasterWhenTopologyIsComplete(t *
 	assert.Equal(t, "example-replication-1", gotMaster)
 }
 
+// Every pod answered and every one of them is a replica: there is no master,
+// and the recorded one is provably not it. Keeping it would feed a stale name
+// to the bootstrap election and the sentinel controller's fallback.
+func TestReconcileStatusClearsMasterWhenEveryPodReportsSlave(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, rrvb2.AddToScheme(scheme))
+
+	seedInstance := newReplicationInstanceForTest()
+	seedInstance.Status.MasterNode = "example-replication-0"
+	ctrlClient := clientfake.NewClientBuilder().
+		WithScheme(scheme).
+		WithStatusSubresource(seedInstance).
+		WithObjects(seedInstance.DeepCopy()).
+		Build()
+
+	instance := &rrvb2.RedisReplication{}
+	require.NoError(t, ctrlClient.Get(context.Background(), client.ObjectKeyFromObject(seedInstance), instance))
+
+	r := &Reconciler{
+		Client:                   ctrlClient,
+		K8sClient:                fake.NewSimpleClientset(),
+		Healer:                   &fakeHealer{},
+		RedisReplicationTopology: topologyOf(nil, []string{"example-replication-0", "example-replication-1", "example-replication-2"}, nil),
+		RedisReplicationRealMaster: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string {
+			return ""
+		},
+	}
+
+	result, err := r.reconcileStatus(context.Background(), instance)
+
+	require.NoError(t, err)
+	assert.Equal(t, ctrl.Result{}, result)
+
+	updated := &rrvb2.RedisReplication{}
+	require.NoError(t, ctrlClient.Get(context.Background(), client.ObjectKeyFromObject(instance), updated))
+	assert.Empty(t, updated.Status.MasterNode)
+}
+
+// Several masters that cannot be told apart are an ambiguous view, not an
+// absent master, so the recorded master survives it.
+func TestReconcileStatusKeepsLastKnownMasterWhenMastersCannotBeToldApart(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, rrvb2.AddToScheme(scheme))
+
+	seedInstance := newReplicationInstanceForTest()
+	seedInstance.Status.MasterNode = "example-replication-0"
+	ctrlClient := clientfake.NewClientBuilder().
+		WithScheme(scheme).
+		WithStatusSubresource(seedInstance).
+		WithObjects(seedInstance.DeepCopy()).
+		Build()
+
+	instance := &rrvb2.RedisReplication{}
+	require.NoError(t, ctrlClient.Get(context.Background(), client.ObjectKeyFromObject(seedInstance), instance))
+
+	r := &Reconciler{
+		Client:                   ctrlClient,
+		K8sClient:                fake.NewSimpleClientset(),
+		Healer:                   &fakeHealer{},
+		RedisReplicationTopology: topologyOf([]string{"example-replication-0", "example-replication-1", "example-replication-2"}, nil, nil),
+		RedisReplicationRealMaster: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string {
+			return ""
+		},
+	}
+
+	result, err := r.reconcileStatus(context.Background(), instance)
+
+	require.NoError(t, err)
+	assert.Equal(t, ctrl.Result{}, result)
+
+	updated := &rrvb2.RedisReplication{}
+	require.NoError(t, ctrlClient.Get(context.Background(), client.ObjectKeyFromObject(instance), updated))
+	assert.Equal(t, "example-replication-0", updated.Status.MasterNode)
+}
+
 // A probe blip that hides every master must not clear the recorded master: both
 // this controller and the sentinel controller fall back to Status.MasterNode.
 func TestReconcileStatusKeepsLastKnownMasterWhenNoMasterIsObserved(t *testing.T) {
@@ -485,6 +560,9 @@ func TestReconcileStatusKeepsLastKnownMasterWhenOnlyAStandaloneMasterIsObserved(
 			require.NoError(t, err)
 			assert.Equal(t, ctrl.Result{}, result)
 			assert.True(t, healer.updateCalled)
+			// The kept Status.MasterNode is a fallback, not an identification; the
+			// healer must not take it as proof against other master labels.
+			assert.Empty(t, healer.master)
 
 			updated := &rrvb2.RedisReplication{}
 			require.NoError(t, ctrlClient.Get(context.Background(), client.ObjectKeyFromObject(instance), updated))
@@ -511,10 +589,11 @@ func TestReconcileStatusRecordsPromotedMasterReportedBySentinel(t *testing.T) {
 	instance := &rrvb2.RedisReplication{}
 	require.NoError(t, ctrlClient.Get(context.Background(), client.ObjectKeyFromObject(seedInstance), instance))
 
+	healer := &fakeHealer{}
 	r := &Reconciler{
 		Client:                   ctrlClient,
 		K8sClient:                fake.NewSimpleClientset(),
-		Healer:                   &fakeHealer{},
+		Healer:                   healer,
 		RedisReplicationTopology: topologyOf([]string{"example-replication-1"}, nil, []string{"example-replication-0"}),
 		RedisReplicationRealMaster: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string {
 			return ""
@@ -526,6 +605,9 @@ func TestReconcileStatusRecordsPromotedMasterReportedBySentinel(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, ctrl.Result{}, result)
+	// The healer is told which pod is the master, so it can drop the lost
+	// master's label even though the survivor has no replicas to show.
+	assert.Equal(t, "example-replication-1", healer.master)
 
 	updated := &rrvb2.RedisReplication{}
 	require.NoError(t, ctrlClient.Get(context.Background(), client.ObjectKeyFromObject(instance), updated))
@@ -1030,6 +1112,7 @@ func (f *fakeStatefulSetService) GetStatefulSetReplicas(context.Context, string,
 
 type fakeHealer struct {
 	updateCalled bool
+	master       string
 }
 
 func (f *fakeHealer) SentinelMonitor(context.Context, *rsvb2.RedisSentinel, string) error {
@@ -1044,7 +1127,8 @@ func (f *fakeHealer) SentinelReset(context.Context, *rsvb2.RedisSentinel) error 
 	return nil
 }
 
-func (f *fakeHealer) UpdateRedisRoleLabel(context.Context, string, map[string]string, *commonapi.ExistingPasswordSecret, *commonapi.TLSConfig) error {
+func (f *fakeHealer) UpdateRedisRoleLabel(_ context.Context, _ string, _ map[string]string, _ *commonapi.ExistingPasswordSecret, _ *commonapi.TLSConfig, masterPod string) error {
 	f.updateCalled = true
+	f.master = masterPod
 	return nil
 }

@@ -82,24 +82,33 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	return intctrlutil.RequeueAfter(ctx, time.Second*30, "")
 }
 
-func (r *Reconciler) UpdateRedisReplicationMaster(ctx context.Context, instance *rrvb2.RedisReplication, masterNode string) error {
+// UpdateRedisReplicationMaster records masterNode as the master of the
+// replication. An empty masterNode means no master was identified in this
+// reconcile, which the RedisReplicationHasMaster gauge reports either way.
+//
+// Whether the recorded master is then cleared depends on why none was
+// identified. masterAbsent says every pod was observed and none of them is a
+// master: that is conclusive, and a recorded master that is provably not the
+// master must not feed the bootstrap election or the sentinel controller's
+// fallback, so it is cleared. Anything else - pods that could not be probed, or
+// masters that could not be told apart - is not evidence that the recorded
+// master changed, so the last known master is kept for those fallbacks.
+func (r *Reconciler) UpdateRedisReplicationMaster(ctx context.Context, instance *rrvb2.RedisReplication, masterNode string, masterAbsent bool) error {
 	if masterNode == "" {
 		monitoring.RedisReplicationHasMaster.WithLabelValues(instance.Namespace, instance.Name).Set(0)
 	} else {
 		monitoring.RedisReplicationHasMaster.WithLabelValues(instance.Namespace, instance.Name).Set(1)
 	}
 
-	// No master could be observed in this reconcile, for example because every
-	// pod was skipped by the role probe. Keep the last known master rather than
-	// clearing it: a transient probe failure is not a master role change, and both
-	// this controller and the sentinel controller fall back to Status.MasterNode
-	// (guarded by IsPodRunning) when no master has attached slaves. The
-	// RedisReplicationHasMaster gauge above still reports 0, so the "no master is
-	// currently observable" signal is not lost.
 	if masterNode == "" && instance.Status.MasterNode != "" {
-		log.FromContext(ctx).Info("No master observed, keeping the last known master node",
-			"statusMasterNode", instance.Status.MasterNode)
-		masterNode = instance.Status.MasterNode
+		if masterAbsent {
+			log.FromContext(ctx).Info("Every pod answered and none is a master, clearing the recorded master node",
+				"statusMasterNode", instance.Status.MasterNode)
+		} else {
+			log.FromContext(ctx).Info("No master identified in a partial or ambiguous view, keeping the last known master node",
+				"statusMasterNode", instance.Status.MasterNode)
+			masterNode = instance.Status.MasterNode
+		}
 	}
 
 	connectionInfo := instance.GetConnectionInfo(envs.GetServiceDNSDomain())
@@ -550,13 +559,15 @@ func (r *Reconciler) reconcileStatus(ctx context.Context, instance *rrvb2.RedisR
 	if err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
-	// An unidentified master yields "", which keeps the last known master.
 	realMaster, _ := r.observedRedisReplicationMaster(ctx, instance, topology)
-	if err = r.UpdateRedisReplicationMaster(ctx, instance, realMaster); err != nil {
+	// Every pod answered and none is a master: there is no master to record, as
+	// opposed to a master that could not be identified.
+	masterAbsent := topology.Complete() && len(topology.Masters) == 0
+	if err = r.UpdateRedisReplicationMaster(ctx, instance, realMaster, masterAbsent); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
 	labels := common.GetRedisLabels(instance.GetName(), common.SetupTypeReplication, "replication", instance.GetLabels())
-	if err = r.Healer.UpdateRedisRoleLabel(ctx, instance.GetNamespace(), labels, instance.Spec.KubernetesConfig.ExistingPasswordSecret, instance.Spec.TLS); err != nil {
+	if err = r.Healer.UpdateRedisRoleLabel(ctx, instance.GetNamespace(), labels, instance.Spec.KubernetesConfig.ExistingPasswordSecret, instance.Spec.TLS, realMaster); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
 

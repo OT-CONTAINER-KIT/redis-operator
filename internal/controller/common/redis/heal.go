@@ -39,11 +39,13 @@ type Healer interface {
 	// label to match the pod's real role.
 	//
 	// If a pod can't be reached, its label is normally left as is. The one exception is a pod
-	// labeled as master that is unreachable while another pod already answers as master and has
-	// replicas attached. In that case the old master label is removed, because keeping it could
-	// point the master service at a dead pod. If that removal fails, an error is returned so the
-	// caller retries.
-	UpdateRedisRoleLabel(ctx context.Context, ns string, labels map[string]string, secret *commonapi.ExistingPasswordSecret, tlsConfig *commonapi.TLSConfig) error
+	// labeled as master that is unreachable while another pod already answers as master and
+	// either has replicas attached or is masterPod, the pod the caller has positively identified
+	// as the master (through Sentinel, say, after a failover that left it no replica to attach).
+	// In that case the old master label is removed, because keeping it could point the master
+	// service at a dead pod. If that removal fails, an error is returned so the caller retries.
+	// Pass an empty masterPod when no master has been identified.
+	UpdateRedisRoleLabel(ctx context.Context, ns string, labels map[string]string, secret *commonapi.ExistingPasswordSecret, tlsConfig *commonapi.TLSConfig, masterPod string) error
 }
 
 type healer struct {
@@ -58,7 +60,7 @@ func NewHealer(clientset kubernetes.Interface) Healer {
 	}
 }
 
-func (h *healer) UpdateRedisRoleLabel(ctx context.Context, ns string, labels map[string]string, secret *commonapi.ExistingPasswordSecret, tlsConfig *commonapi.TLSConfig) error {
+func (h *healer) UpdateRedisRoleLabel(ctx context.Context, ns string, labels map[string]string, secret *commonapi.ExistingPasswordSecret, tlsConfig *commonapi.TLSConfig, masterPod string) error {
 	selector := make([]string, 0, len(labels))
 	for key, value := range labels {
 		selector = append(selector, fmt.Sprintf("%s=%s", key, value))
@@ -127,6 +129,12 @@ func (h *healer) UpdateRedisRoleLabel(ctx context.Context, ns string, labels map
 		role := common.RedisRoleLabelSlave
 		if isMaster {
 			role = common.RedisRoleLabelMaster
+			// The pod the caller identified as the master needs no further proof: a
+			// survivor promoted by Sentinel after its only peer was lost has no replica
+			// left to attach, yet it is the master and the lost peer's label is stale.
+			if !masterConfirmed && pod.Name == masterPod {
+				masterConfirmed = true
+			}
 			if !masterConfirmed {
 				replicas, rErr := redisService.GetAttachedReplicaCount(ctx)
 				switch {
@@ -160,8 +168,9 @@ func (h *healer) UpdateRedisRoleLabel(ctx context.Context, ns string, labels map
 		return nil
 	}
 	if !masterConfirmed {
-		log.FromContext(ctx).Info("keeping master role label of unreachable pods, no other pod answered as a master with attached replicas",
+		log.FromContext(ctx).Info("keeping master role label of unreachable pods, no other pod answered as the identified master or as a master with attached replicas",
 			"pods", unreachableMasterPods,
+			"identifiedMaster", masterPod,
 		)
 		return nil
 	}
