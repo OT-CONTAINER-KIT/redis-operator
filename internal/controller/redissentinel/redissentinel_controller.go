@@ -144,7 +144,8 @@ func (r *RedisSentinelReconciler) reconcileSentinel(ctx context.Context, instanc
 	if err := r.Healer.SentinelSet(ctx, instance, monitorAddr); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
-	if err := r.Healer.SentinelReset(ctx, instance); err != nil {
+	expectedSlaves := int(*rr.Spec.Size - 1) // total replication size minus 1 master
+	if err := r.Healer.SentinelReset(ctx, instance, expectedSlaves); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
 	return intctrlutil.Reconciled()

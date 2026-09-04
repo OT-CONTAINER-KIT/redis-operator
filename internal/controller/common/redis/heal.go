@@ -27,7 +27,7 @@ type Healer interface {
 	// SentinelSet set the config for specific master
 	// reference: https://redis.io/docs/latest/operate/oss_and_stack/management/sentinel/#reconfiguring-sentinel-at-runtime
 	SentinelSet(ctx context.Context, rs *rsvb2.RedisSentinel, master string) error
-	SentinelReset(ctx context.Context, rs *rsvb2.RedisSentinel) error
+	SentinelReset(ctx context.Context, rs *rsvb2.RedisSentinel, expectedSlaves int) error
 
 	// UpdatePodRoleLabel connect to all redis pods and update pod role label `redis-role` to `master` or `slave` according to their role.
 	UpdateRedisRoleLabel(ctx context.Context, ns string, labels map[string]string, secret *commonapi.ExistingPasswordSecret, tlsConfig *commonapi.TLSConfig) error
@@ -129,8 +129,14 @@ func (h *healer) SentinelSet(ctx context.Context, rs *rsvb2.RedisSentinel, maste
 	return nil
 }
 
-// SentinelReset range all sentinel execute `sentinel reset *`
-func (h *healer) SentinelReset(ctx context.Context, rs *rsvb2.RedisSentinel) error {
+// SentinelReset ranges over all sentinels and executes `sentinel reset` only when
+// the sentinel's view is stale, i.e. the reported number of slaves or other
+// sentinels differs from the expected values. An unconditional reset wipes the
+// slave topology and creates a blind window (~10s) in which a master loss
+// permanently breaks failover (`-failover-abort-no-good-slave`).
+func (h *healer) SentinelReset(ctx context.Context, rs *rsvb2.RedisSentinel, expectedSlaves int) error {
+	logger := log.FromContext(ctx)
+
 	pods, err := h.getSentinelPods(ctx, rs)
 	if err != nil {
 		return err
@@ -141,12 +147,40 @@ func (h *healer) SentinelReset(ctx context.Context, rs *rsvb2.RedisSentinel) err
 		return err
 	}
 
+	masterGroupName := rs.Spec.RedisSentinelConfig.MasterGroupName
+	expectedSentinels := int(*rs.Spec.Size) // INFO sentinel counts the reporting sentinel itself
+
 	for _, pod := range pods.Items {
 		connInfo := createConnectionInfo(ctx, pod, sentinelPass, rs.Spec.TLS, h.k8s, rs.Namespace, "26379")
+		sentinelService := h.redis.Connect(connInfo)
 
-		err = h.redis.Connect(connInfo).SentinelReset(ctx, rs.Spec.RedisSentinelConfig.MasterGroupName)
+		sentinelInfo, err := sentinelService.GetInfoSentinel(ctx)
 		if err != nil {
 			return err
+		}
+
+		var masterInfo *redis.SentinelMasterInfo
+		for i := range sentinelInfo.Masters {
+			if sentinelInfo.Masters[i].Name == masterGroupName {
+				masterInfo = &sentinelInfo.Masters[i]
+				break
+			}
+		}
+		if masterInfo == nil {
+			// master group is not monitored yet, nothing to reset
+			continue
+		}
+
+		if masterInfo.Slaves != expectedSlaves || masterInfo.Sentinels != expectedSentinels {
+			logger.Info("Sentinel has stale topology, reset needed",
+				"pod", pod.Name,
+				"expectedSlaves", expectedSlaves,
+				"actualSlaves", masterInfo.Slaves,
+				"expectedSentinels", expectedSentinels,
+				"actualSentinels", masterInfo.Sentinels)
+			if err := sentinelService.SentinelReset(ctx, masterGroupName); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
