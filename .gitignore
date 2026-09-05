@@ -33,3 +33,6 @@ docs/build
 kubeconfig
 CLAUDE.md
 coverage.txt
+# Redis backup files — never commit these
+*.rdb
+*.dump

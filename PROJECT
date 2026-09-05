@@ -51,4 +51,22 @@ resources:
   webhooks:
     defaulting: true
     webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: redis.opstreelabs.in
+  group: redis
+  kind: RedisBackup
+  path: redis-operator/api/redisbackup/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: redis.opstreelabs.in
+  group: redis
+  kind: RedisRestore
+  path: github.com/OT-CONTAINER-KIT/redis-operator/api/redisbackup/v1alpha1
+  version: v1alpha1
 version: "3"

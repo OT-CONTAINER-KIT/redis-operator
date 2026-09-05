@@ -1,0 +1,21 @@
+---
+apiVersion: redis.redis.opstreelabs.in/v1alpha1
+kind: RedisRestore
+metadata:
+  name: redis-restore-sample
+  namespace: default
+spec:
+  # The Redis resource to restore into. Its topology must match the backup.
+  redisClusterName: redis-standalone
+  targetKind: Redis
+
+  storageType: s3
+
+  # Copy this from the RedisBackup's .status.backupLocation
+  backupLocation: "s3://my-redis-backups/backups/redis-standalone/redis-backup-sample-<uid>"
+
+  s3:
+    bucket: my-redis-backups
+    region: ap-south-1
+    secretName: aws-s3-credentials
+    # endpoint: "http://minio.minio.svc:9000"

@@ -10,7 +10,156 @@ description: >
 # API Reference
 
 ## Packages
+- [redis.redis.opstreelabs.in/v1alpha1](#redisredisopstreelabsinv1alpha1)
 - [redis.redis.opstreelabs.in/v1beta2](#redisredisopstreelabsinv1beta2)
+
+
+## redis.redis.opstreelabs.in/v1alpha1
+
+Package v1alpha1 contains API Schema definitions for the redis v1alpha1 API group.
+
+### Resource Types
+- [RedisBackup](#redisbackup)
+- [RedisRestore](#redisrestore)
+
+
+
+
+
+#### CleanupPolicy
+
+_Underlying type:_ _string_
+
+CleanupPolicy controls whether stored backup objects outlive the resource.
+
+_Validation:_
+- Enum: [Retain Delete]
+
+_Appears in:_
+- [RedisBackupSpec](#redisbackupspec)
+
+
+
+#### RedisBackup
+
+
+
+RedisBackup defines a backup operation for a Redis cluster.
+When created, the operator will snapshot the target Redis cluster
+and upload the backup file to the configured storage backend.
+
+
+
+
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `redis.redis.opstreelabs.in/v1alpha1` | | |
+| `kind` _string_ | `RedisBackup` | | |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `spec` _[RedisBackupSpec](#redisbackupspec)_ |  |  |  |
+
+
+#### RedisBackupSpec
+
+
+
+RedisBackupSpec defines what the user wants — the desired state
+
+
+
+_Appears in:_
+- [RedisBackup](#redisbackup)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `redisClusterName` _string_ | RedisClusterName is the name of the Redis resource in the same namespace<br />that this backup targets. Must match an existing Redis, RedisReplication<br />or RedisCluster resource. |  | MinLength: 1 <br />Required: \{\} <br /> |
+| `targetKind` _string_ | TargetKind is the kind of the referenced Redis resource. Each kind lays<br />its StatefulSets and containers out differently, so the controller has to<br />know which one it is looking at. Leave it empty to discover the kind by<br />looking the resource up. |  | Enum: [Redis RedisReplication RedisCluster] <br /> |
+| `storageType` _[StorageType](#storagetype)_ | StorageType is the backend storage provider. Currently supported: s3 |  | Enum: [s3] <br />Required: \{\} <br /> |
+| `s3` _[S3StorageConfig](#s3storageconfig)_ | S3 holds configuration specific to AWS S3 storage.<br />Required when storageType is "s3". |  |  |
+| `schedule` _string_ | Schedule is reserved for recurring backups and is NOT implemented yet.<br />Setting it is rejected rather than ignored, so a backup can never appear<br />to be scheduled when nothing will run it. Use a CronJob that creates<br />RedisBackup resources until this is supported. |  |  |
+| `retentionDays` _integer_ | RetentionDays is how many days after completion the controller deletes<br />this backup's objects from storage. Zero (the default) keeps them<br />indefinitely. Expiry is recorded on the resource's status and conditions<br />when it happens. |  | Minimum: 0 <br /> |
+| `cleanupPolicy` _[CleanupPolicy](#cleanuppolicy)_ | CleanupPolicy decides what happens to the stored objects when this<br />resource is deleted. "Retain" keeps them, which is the safe default;<br />"Delete" removes this backup's own prefix from storage. | Retain | Enum: [Retain Delete] <br /> |
+
+
+#### RedisRestore
+
+
+
+RedisRestore defines a restore operation for a Redis cluster from a backup.
+When created, the operator downloads the backup from storage, scales down the
+target Redis, restores dump.rdb and node.conf, and scales it back up.
+
+
+
+
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `redis.redis.opstreelabs.in/v1alpha1` | | |
+| `kind` _string_ | `RedisRestore` | | |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `spec` _[RedisRestoreSpec](#redisrestorespec)_ |  |  |  |
+
+
+#### RedisRestoreSpec
+
+
+
+RedisRestoreSpec defines the desired state of a Redis restore operation
+
+
+
+_Appears in:_
+- [RedisRestore](#redisrestore)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `redisClusterName` _string_ | RedisClusterName is the name of the target Redis resource to restore to |  | MinLength: 1 <br />Required: \{\} <br /> |
+| `targetKind` _string_ | TargetKind is the kind of the referenced Redis resource. Leave it empty<br />to discover the kind by looking the resource up. |  | Enum: [Redis RedisReplication RedisCluster] <br /> |
+| `storageType` _[StorageType](#storagetype)_ | StorageType is the backend storage provider where the backup is stored |  | Enum: [s3] <br />Required: \{\} <br /> |
+| `s3` _[S3StorageConfig](#s3storageconfig)_ | S3 holds configuration specific to AWS S3 storage |  |  |
+| `backupLocation` _string_ | BackupLocation is the full path to the backup directory in storage<br />Example: s3://my-bucket/backups/redis-cluster/2026-06-01T02-00-00Z |  | Required: \{\} <br /> |
+
+
+
+
+
+
+#### S3StorageConfig
+
+
+
+S3StorageConfig holds all configuration needed to upload a backup to AWS S3
+
+
+
+_Appears in:_
+- [RedisBackupSpec](#redisbackupspec)
+- [RedisRestoreSpec](#redisrestorespec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `bucket` _string_ | Bucket is the name of the S3 bucket where backups will be stored |  | MinLength: 3 <br />Required: \{\} <br /> |
+| `region` _string_ | Region is the AWS region where the S3 bucket lives (e.g. ap-south-1) |  | Required: \{\} <br /> |
+| `endpoint` _string_ | Endpoint is an optional custom S3-compatible endpoint URL (e.g. for MinIO) |  |  |
+| `secretName` _string_ | SecretName is the name of the Kubernetes Secret in the same namespace<br />that contains AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY keys |  | Required: \{\} <br /> |
+
+
+#### StorageType
+
+_Underlying type:_ _string_
+
+StorageType defines the backend storage provider for backups
+
+_Validation:_
+- Enum: [s3]
+
+_Appears in:_
+- [RedisBackupSpec](#redisbackupspec)
+- [RedisRestoreSpec](#redisrestorespec)
+
+
 
 
 ## redis.redis.opstreelabs.in/v1beta2
