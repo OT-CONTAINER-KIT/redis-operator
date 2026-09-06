@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	rvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redis/v1beta2"
+	rbva1 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisbackup/v1alpha1"
 	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
@@ -12,8 +13,9 @@ import (
 )
 
 var (
-	Scheme      = clientgoscheme.Scheme
-	oncev1beta2 sync.Once
+	Scheme       = clientgoscheme.Scheme
+	oncev1beta2  sync.Once
+	oncev1alpha1 sync.Once
 )
 
 func mustAddSchemeOnce(once *sync.Once, schemes []func(scheme *runtime.Scheme) error) {
@@ -35,4 +37,11 @@ func SetupV1beta2Scheme() {
 		rsvb2.AddToScheme,
 	}
 	mustAddSchemeOnce(&oncev1beta2, schemes)
+}
+
+func SetupV1alpha1Scheme() {
+	schemes := []func(scheme *runtime.Scheme) error{
+		rbva1.AddToScheme,
+	}
+	mustAddSchemeOnce(&oncev1alpha1, schemes)
 }

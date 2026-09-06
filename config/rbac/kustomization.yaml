@@ -14,6 +14,9 @@ resources:
 - redis_viewer_role.yaml
 - rediscluster_editor_role.yaml
 - rediscluster_viewer_role.yaml
+- redisbackup_admin_role.yaml
+- redisbackup_editor_role.yaml
+- redisbackup_viewer_role.yaml
 - role.yaml
 - role_binding.yaml
 - serviceaccount.yaml

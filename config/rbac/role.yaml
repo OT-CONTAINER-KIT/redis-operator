@@ -39,6 +39,7 @@ rules:
   - apps
   resources:
   - statefulsets
+  - statefulsets/scale
   verbs:
   - create
   - delete
@@ -75,10 +76,12 @@ rules:
   - redis.redis.opstreelabs.in
   resources:
   - redis
+  - redisbackups
   - rediscluster
   - redisclusters
   - redisreplication
   - redisreplications
+  - redisrestores
   - rediss
   - redissentinel
   - redissentinels
@@ -94,10 +97,12 @@ rules:
   - redis.redis.opstreelabs.in
   resources:
   - redis/finalizers
+  - redisbackups/finalizers
   - rediscluster/finalizers
   - redisclusters/finalizers
   - redisreplication/finalizers
   - redisreplications/finalizers
+  - redisrestores/finalizers
   - redissentinel/finalizers
   - redissentinels/finalizers
   verbs:
@@ -106,10 +111,12 @@ rules:
   - redis.redis.opstreelabs.in
   resources:
   - redis/status
+  - redisbackups/status
   - rediscluster/status
   - redisclusters/status
   - redisreplication/status
   - redisreplications/status
+  - redisrestores/status
   - redissentinel/status
   - redissentinels/status
   verbs:
