@@ -2,9 +2,12 @@ package util
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 )
 
 type Config struct {
@@ -56,4 +59,37 @@ func (c *Config) Commit() error {
 		return fmt.Errorf("failed to create directory %s: %v", dir, err)
 	}
 	return os.WriteFile(c.path, []byte(c.content), 0o644)
+}
+
+func (c *Config) AppendExternalConfig(externalConfigFile string, expand bool) *Config {
+	if _, err := os.Stat(externalConfigFile); err != nil {
+		return c
+	}
+	includeFile := externalConfigFile
+	if expand {
+		expandedFile, err := ExpandExternalConfig(externalConfigFile, c.path)
+		if err != nil {
+			log.Printf("Warning: Failed to expand external config %s, including verbatim: %v", externalConfigFile, err)
+		} else {
+			includeFile = expandedFile
+		}
+	}
+	return c.Append("include", includeFile)
+}
+
+func ExpandExternalConfig(externalConfigFile, confPath string) (string, error) {
+	raw, err := os.ReadFile(externalConfigFile)
+	if err != nil {
+		return "", err
+	}
+	expanded := os.Expand(string(raw), func(key string) string {
+		return util.CoalesceEnv1(key, "")
+	})
+
+	base := strings.TrimSuffix(filepath.Base(externalConfigFile), ".conf")
+	expandedFile := filepath.Join(filepath.Dir(confPath), base+".expanded.conf")
+	if err := os.WriteFile(expandedFile, []byte(expanded), 0o644); err != nil {
+		return "", fmt.Errorf("write expanded config to %s: %v", expandedFile, err)
+	}
+	return expandedFile, nil
 }
