@@ -6,6 +6,7 @@ import (
 
 	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/service/redis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -91,6 +92,9 @@ func TestBuildSentinelPodTemplate(t *testing.T) {
 	assert.Equal(t, "sentinel-sa", spec.ServiceAccountName)
 	require.Len(t, spec.Containers, 1)
 	assert.Equal(t, "sentinel", spec.Containers[0].Name)
+	require.Len(t, spec.Volumes, 1)
+	assert.Equal(t, common.VolumeNameConfig, spec.Volumes[0].Name)
+	assert.NotNil(t, spec.Volumes[0].EmptyDir)
 }
 
 // TestBuildSentinelPodTemplateOmitsUnsetPlacement ensures nil/empty placement
@@ -142,6 +146,9 @@ func TestBuildSentinelContainer(t *testing.T) {
 	assert.Same(t, securityContext, container.SecurityContext)
 	require.Len(t, container.Ports, 1)
 	assert.Equal(t, int32(26379), container.Ports[0].ContainerPort)
+	require.Len(t, container.VolumeMounts, 1)
+	assert.Equal(t, common.VolumeNameConfig, container.VolumeMounts[0].Name)
+	assert.Equal(t, "/etc/redis", container.VolumeMounts[0].MountPath)
 }
 
 func TestBuildSentinelEnv(t *testing.T) {
