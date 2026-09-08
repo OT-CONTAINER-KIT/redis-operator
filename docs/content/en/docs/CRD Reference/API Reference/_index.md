@@ -359,6 +359,7 @@ _Appears in:_
 | `enabled` _boolean_ |  |  |  |
 | `minAvailable` _integer_ |  |  |  |
 | `maxUnavailable` _integer_ |  |  |  |
+| `unhealthyPodEvictionPolicy` _[UnhealthyPodEvictionPolicyType](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#unhealthypodevictionpolicytype-v1-policy)_ |  |  |  |
 
 
 #### RedisReplication

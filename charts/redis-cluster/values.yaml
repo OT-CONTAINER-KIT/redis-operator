@@ -80,6 +80,7 @@ redisCluster:
       enabled: false
       maxUnavailable: 1
       minAvailable: 1
+      # unhealthyPodEvictionPolicy: AlwaysAllow
     livenessProbe: {}
       # timeoutSeconds: 30
       # periodSeconds: 45
@@ -126,6 +127,7 @@ redisCluster:
       enabled: false
       maxUnavailable: 1
       minAvailable: 1
+      # unhealthyPodEvictionPolicy: AlwaysAllow
     livenessProbe: {}
       # timeoutSeconds: 30
       # periodSeconds: 45

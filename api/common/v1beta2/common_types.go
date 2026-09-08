@@ -5,6 +5,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 )
 
 // KubernetesConfig will be the JSON struct for Basic Redis Config
@@ -232,9 +233,10 @@ type RedisFollower struct {
 // RedisPodDisruptionBudget configure a PodDisruptionBudget on the resource (leader/follower)
 // +k8s:deepcopy-gen=true
 type RedisPodDisruptionBudget struct {
-	Enabled        bool   `json:"enabled,omitempty"`
-	MinAvailable   *int32 `json:"minAvailable,omitempty"`
-	MaxUnavailable *int32 `json:"maxUnavailable,omitempty"`
+	Enabled                    bool                                     `json:"enabled,omitempty"`
+	MinAvailable               *int32                                   `json:"minAvailable,omitempty"`
+	MaxUnavailable             *int32                                   `json:"maxUnavailable,omitempty"`
+	UnhealthyPodEvictionPolicy *policyv1.UnhealthyPodEvictionPolicyType `json:"unhealthyPodEvictionPolicy,omitempty"`
 }
 
 // +k8s:deepcopy-gen=true
