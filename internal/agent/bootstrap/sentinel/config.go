@@ -71,7 +71,16 @@ func GenerateConfig() error {
 		resolveHostnames, _ := util.CoalesceEnv("RESOLVE_HOSTNAMES", "no")
 		announceHostnames, _ := util.CoalesceEnv("ANNOUNCE_HOSTNAMES", "no")
 
-		cfg.Append("sentinel monitor", masterGroupName, ip, port, quorum)
+		// Only seed an active `sentinel monitor` line when we have a real master
+		// address. Emitting 0.0.0.0 (the default when IP is unset) writes invalid
+		// Sentinel state on first boot / restart, which can surface as a
+		// master-down / 0.0.0.0-monitored state before runtime reconciliation
+		// repairs it. See #1806.
+		if ip != "" && ip != "0.0.0.0" {
+			cfg.Append("sentinel monitor", masterGroupName, ip, port, quorum)
+		} else {
+			fmt.Println("Warning: IP is not set (or is 0.0.0.0); skipping bootstrap `sentinel monitor` line to avoid seeding an invalid master address. The operator will configure SENTINEL MONITOR once the real master is known.")
+		}
 		cfg.Append("sentinel down-after-milliseconds", masterGroupName, downAfterMilliseconds)
 		cfg.Append("sentinel parallel-syncs", masterGroupName, parallelSyncs)
 		cfg.Append("sentinel failover-timeout", masterGroupName, failoverTimeout)
@@ -92,9 +101,6 @@ func GenerateConfig() error {
 		}
 
 		// If resolveHostnames is set to yes, then we need to announce the hostnames.
-		// Note the pre-existing `sentinel monitor` line above still renders the
-		// unset IP env as 0.0.0.0; the operator repairs it with SENTINEL MONITOR
-		// once it knows the master. See #1806.
 		if announceHostnames == "yes" && resolveHostnames == "yes" {
 			if fqdnName, err := announceHostname(); err != nil {
 				log.Printf("Warning: Failed to get FQDN for sentinel announce-ip: %v", err)
