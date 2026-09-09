@@ -21,14 +21,21 @@ func main() {
 		return clusterMetrics[i].Name < clusterMetrics[j].Name
 	})
 
+	sentinelMetrics := monitoring.ListRedisSentinelMetrics()
+	sort.Slice(sentinelMetrics, func(i, j int) bool {
+		return sentinelMetrics[i].Name < sentinelMetrics[j].Name
+	})
+
 	type MetricsData struct {
 		Replication []monitoring.MetricDescription
 		Cluster     []monitoring.MetricDescription
+		Sentinel    []monitoring.MetricDescription
 	}
 
 	data := MetricsData{
 		Replication: replicationMetrics,
 		Cluster:     clusterMetrics,
+		Sentinel:    sentinelMetrics,
 	}
 
 	tmpl, err := template.New("Redis Operator metrics").Parse("# Operator Metrics\n" +
@@ -39,6 +46,14 @@ func main() {
 		"## Redis Replication Metrics" +
 		"\n" +
 		"{{range .Replication}}\n" +
+		"### {{.Name}}\n" +
+		"{{.Help}} " +
+		"Type: {{.Type}}.\n" +
+		"{{end}}" +
+		"\n" +
+		"## Redis Sentinel Metrics" +
+		"\n" +
+		"{{range .Sentinel}}\n" +
 		"### {{.Name}}\n" +
 		"{{.Help}} " +
 		"Type: {{.Type}}.\n" +

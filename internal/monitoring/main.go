@@ -34,3 +34,13 @@ func RegisterRedisClusterMetrics() {
 		RedisClusterReshardTotal,
 	)
 }
+
+func RegisterRedisSentinelMetrics() {
+	metrics.Registry.MustRegister(
+		RedisSentinelHealthy,
+		RedisSentinelSkipReconcile,
+		RedisSentinelMonitorTotal,
+		RedisSentinelResetTotal,
+		RedisSentinelSetTotal,
+	)
+}
