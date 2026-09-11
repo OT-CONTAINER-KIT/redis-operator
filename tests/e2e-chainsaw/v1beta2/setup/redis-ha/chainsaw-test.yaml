@@ -67,17 +67,90 @@ spec:
 
     - name: Test Master IP consistency
       try:
-        - sleep:
-            duration: 90s
+        # Sentinel's own view is the only one of the three values that is not a
+        # Kubernetes object, so it has to be read with `kubectl exec`. Poll
+        # until it reports a pod name and has stopped changing: for a window
+        # after a promotion Sentinel serves the master by IP, before the
+        # operator re-monitors it by hostname, and `cut -d'.' -f1` on an IP
+        # yields "10". Everything downstream is then a plain assertion.
+        # NB: this runs under /bin/sh (dash) via `sh -c`, so it must stay
+        # POSIX-compatible.
         - script:
-            timeout: 10s
+            timeout: 150s
             content: |
-              export MASTER_POD_FROM_STATUS=$(kubectl -n ${NAMESPACE} get redisreplication redis-replication -o jsonpath='{.status.masterNode}');
-              export FROM_SENTINEL=$(kubectl -n ${NAMESPACE} exec redis-sentinel-sentinel-0 -c redis-sentinel-sentinel -- redis-cli --no-auth-warning --tls --cacert /tls/ca.crt -a Opstree@1234sentinel -p 26379 sentinel get-master-addr-by-name myMaster | head -n 1 | cut -d'.' -f1);
-              export MASTER_POD_FROM_LABEL=$(kubectl -n ${NAMESPACE} get pod -l app=redis-replication,redis-role=master,redis_setup_type=replication -o jsonpath='{.items[0].metadata.name}');
-              if [ "$FROM_SENTINEL" = "$MASTER_POD_FROM_LABEL" ] && [ "$FROM_SENTINEL" = "$MASTER_POD_FROM_STATUS" ]; then echo "OK"; else echo "FAIL"; fi
-            check:
-              (contains($stdout, 'OK')): true
+              STABLE_NEEDED=3
+              STABLE=0
+              LAST=
+              DEADLINE=$(( $(date +%s) + 120 ))
+              while :; do
+                MASTER=$(kubectl -n ${NAMESPACE} exec redis-sentinel-sentinel-0 -c redis-sentinel-sentinel -- redis-cli --no-auth-warning --tls --cacert /tls/ca.crt -a Opstree@1234sentinel -p 26379 sentinel get-master-addr-by-name myMaster 2>/dev/null | head -n 1 | cut -d'.' -f1)
+                case "$MASTER" in
+                  redis-replication-*)
+                    if [ "$MASTER" = "$LAST" ]; then
+                      STABLE=$(( STABLE + 1 ))
+                    else
+                      STABLE=1
+                      LAST=$MASTER
+                    fi
+                    if [ "$STABLE" -ge "$STABLE_NEEDED" ]; then
+                      printf '%s' "$MASTER"
+                      exit 0
+                    fi
+                    ;;
+                  *)
+                    STABLE=0
+                    LAST=
+                    ;;
+                esac
+                if [ "$(date +%s)" -ge "$DEADLINE" ]; then
+                  echo "sentinel never settled on a master pod; last=[$MASTER]" >&2
+                  exit 1
+                fi
+                sleep 5
+              done
+            outputs:
+              - name: master
+                value: ($stdout)
+        # The operator's two views must converge on the pod Sentinel serves.
+        # assert and error both poll, so no sleep or retry loop is needed here.
+        # 90s is what this step can hold the operator to: reconcileStatus writes
+        # the status and the labels together on a 30s requeue, and the longest
+        # earlier return that skips it requeues after 60s
+        # (redisreplication_controller.go). On a converged cluster these pass in
+        # one poll; the timeout only caps a genuine failure.
+        - assert:
+            timeout: 90s
+            resource:
+              apiVersion: redis.redis.opstreelabs.in/v1beta2
+              kind: RedisReplication
+              metadata:
+                name: redis-replication
+              status:
+                masterNode: ($master)
+        - assert:
+            timeout: 90s
+            resource:
+              apiVersion: v1
+              kind: Pod
+              metadata:
+                name: ($master)
+                labels:
+                  redis-role: master
+        # No other pod may keep a stale redis-role=master label. While
+        # replication is being established every pod reports role:master and the
+        # operator labels each of them accordingly, so this is what the original
+        # `.items[0]` lookup silently tolerated.
+        - error:
+            timeout: 90s
+            resource:
+              apiVersion: v1
+              kind: Pod
+              metadata:
+                labels:
+                  app: redis-replication
+                  redis-role: master
+                  redis_setup_type: replication
+              (metadata.name != $master): true
 
     - name: Put data
       try:
@@ -97,23 +170,117 @@ spec:
     - name: Restart redis-replication-0 pod
       try:
         - script:
-            timeout: 10s
+            timeout: 60s
             content: |
               kubectl -n ${NAMESPACE} delete pod redis-replication-0
 
     - name: Test Master IP consistency
       try:
-        - sleep:
-            duration: 90s
+        # Wait for the deleted pod to be back before reading Sentinel, so the
+        # failover decision has already been made either way: whether Sentinel
+        # promotes a replica depends on whether the StatefulSet recreates the
+        # pod before down-after-milliseconds elapses, and both outcomes have
+        # been observed on the same cluster. The assertion is therefore "the
+        # three views reconverge on a single master", not "the master moved".
+        #
+        # This is the one wait here bounded by pod lifecycle rather than by the
+        # reconcile loop: terminationGracePeriodSeconds (30s) for the delete,
+        # then reschedule, an image pull (ha.yaml sets imagePullPolicy: Always,
+        # so it re-pulls) and the readiness probe. Hence the longer budget than
+        # the operator-convergence asserts below.
+        - assert:
+            timeout: 3m
+            resource:
+              apiVersion: apps/v1
+              kind: StatefulSet
+              metadata:
+                name: redis-replication
+              status:
+                readyReplicas: 3
+        # Sentinel's own view is the only one of the three values that is not a
+        # Kubernetes object, so it has to be read with `kubectl exec`. Poll
+        # until it reports a pod name and has stopped changing: for a window
+        # after a promotion Sentinel serves the master by IP, before the
+        # operator re-monitors it by hostname, and `cut -d'.' -f1` on an IP
+        # yields "10". Everything downstream is then a plain assertion.
+        # NB: this runs under /bin/sh (dash) via `sh -c`, so it must stay
+        # POSIX-compatible.
         - script:
-            timeout: 10s
+            timeout: 150s
             content: |
-              export MASTER_POD_FROM_STATUS=$(kubectl -n ${NAMESPACE} get redisreplication redis-replication -o jsonpath='{.status.masterNode}');
-              export FROM_SENTINEL=$(kubectl -n ${NAMESPACE} exec redis-sentinel-sentinel-0 -c redis-sentinel-sentinel -- redis-cli --no-auth-warning --tls --cacert /tls/ca.crt -a Opstree@1234sentinel -p 26379 sentinel get-master-addr-by-name myMaster | head -n 1 | cut -d'.' -f1);
-              export MASTER_POD_FROM_LABEL=$(kubectl -n ${NAMESPACE} get pod -l app=redis-replication,redis-role=master,redis_setup_type=replication -o jsonpath='{.items[0].metadata.name}');
-              if [ "$FROM_SENTINEL" = "$MASTER_POD_FROM_LABEL" ] && [ "$FROM_SENTINEL" = "$MASTER_POD_FROM_STATUS" ]; then echo "OK"; else echo "FAIL"; fi
-            check:
-              (contains($stdout, 'OK')): true
+              STABLE_NEEDED=3
+              STABLE=0
+              LAST=
+              DEADLINE=$(( $(date +%s) + 120 ))
+              while :; do
+                MASTER=$(kubectl -n ${NAMESPACE} exec redis-sentinel-sentinel-0 -c redis-sentinel-sentinel -- redis-cli --no-auth-warning --tls --cacert /tls/ca.crt -a Opstree@1234sentinel -p 26379 sentinel get-master-addr-by-name myMaster 2>/dev/null | head -n 1 | cut -d'.' -f1)
+                case "$MASTER" in
+                  redis-replication-*)
+                    if [ "$MASTER" = "$LAST" ]; then
+                      STABLE=$(( STABLE + 1 ))
+                    else
+                      STABLE=1
+                      LAST=$MASTER
+                    fi
+                    if [ "$STABLE" -ge "$STABLE_NEEDED" ]; then
+                      printf '%s' "$MASTER"
+                      exit 0
+                    fi
+                    ;;
+                  *)
+                    STABLE=0
+                    LAST=
+                    ;;
+                esac
+                if [ "$(date +%s)" -ge "$DEADLINE" ]; then
+                  echo "sentinel never settled on a master pod; last=[$MASTER]" >&2
+                  exit 1
+                fi
+                sleep 5
+              done
+            outputs:
+              - name: master
+                value: ($stdout)
+        # The operator's two views must converge on the pod Sentinel serves.
+        # assert and error both poll, so no sleep or retry loop is needed here.
+        # 90s is what this step can hold the operator to: reconcileStatus writes
+        # the status and the labels together on a 30s requeue, and the longest
+        # earlier return that skips it requeues after 60s
+        # (redisreplication_controller.go). On a converged cluster these pass in
+        # one poll; the timeout only caps a genuine failure.
+        - assert:
+            timeout: 90s
+            resource:
+              apiVersion: redis.redis.opstreelabs.in/v1beta2
+              kind: RedisReplication
+              metadata:
+                name: redis-replication
+              status:
+                masterNode: ($master)
+        - assert:
+            timeout: 90s
+            resource:
+              apiVersion: v1
+              kind: Pod
+              metadata:
+                name: ($master)
+                labels:
+                  redis-role: master
+        # No other pod may keep a stale redis-role=master label. While
+        # replication is being established every pod reports role:master and the
+        # operator labels each of them accordingly, so this is what the original
+        # `.items[0]` lookup silently tolerated.
+        - error:
+            timeout: 90s
+            resource:
+              apiVersion: v1
+              kind: Pod
+              metadata:
+                labels:
+                  app: redis-replication
+                  redis-role: master
+                  redis_setup_type: replication
+              (metadata.name != $master): true
 
     - name: Assert data
       try:

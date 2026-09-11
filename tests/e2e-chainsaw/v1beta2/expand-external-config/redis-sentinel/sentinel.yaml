@@ -1,0 +1,28 @@
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisSentinel
+metadata:
+  name: redis-sentinel-expand
+spec:
+  clusterSize: 1
+  redisSentinelConfig:
+    redisReplicationName: redis-replication-expand
+    additionalSentinelConfig: redis-sentinel-external-config
+  kubernetesConfig:
+    image: quay.io/opstree/redis-sentinel:latest
+    imagePullPolicy: Always
+    resources:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+  env:
+    - name: EXPAND_EXTERNAL_CONFIG
+      value: "true"
+    - name: SENTINEL_LOGLEVEL
+      value: verbose
+  podSecurityContext:
+    runAsUser: 1000
+    fsGroup: 1000

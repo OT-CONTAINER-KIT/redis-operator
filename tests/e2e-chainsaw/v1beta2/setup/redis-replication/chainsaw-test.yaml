@@ -87,6 +87,30 @@ spec:
             timeout: 300s
             file: ready-pvc-resized.yaml
 
+    - name: Assert sentinel discovered the replicas
+      try:
+        - script:
+            timeout: 90s
+            content: |
+              ./wait-for.sh 60 2 "kubectl -n ${NAMESPACE} exec redis-replication-s-0 -c sentinel -- redis-cli -p 26379 sentinel replicas mymaster | grep -cE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:[0-9]+$'"
+            check:
+              (contains($stdout, 'matched')): true
+
+    - name: Assert hostname announcements are off by default
+      try:
+        - script:
+            timeout: 60s
+            content: |
+              ./wait-for.sh 30 no "kubectl -n ${NAMESPACE} exec redis-replication-s-0 -c sentinel -- redis-cli -p 26379 sentinel config get resolve-hostnames | tail -1"
+            check:
+              (contains($stdout, 'matched')): true
+        - script:
+            timeout: 60s
+            content: |
+              ./wait-for.sh 30 "" "kubectl -n ${NAMESPACE} exec redis-replication-0 -c redis-replication -- redis-cli -a Opstree1234 --no-auth-warning config get replica-announce-ip | tail -1"
+            check:
+              (contains($stdout, 'matched')): true
+
     - name: Put data
       try:
         - script:
@@ -133,6 +157,37 @@ spec:
                        --password Opstree1234"
             check:
               (contains($stdout, 'OK')): true
+
+    - name: Enable hostname announcements
+      try:
+        - apply:
+            resource:
+              apiVersion: redis.redis.opstreelabs.in/v1beta2
+              kind: RedisReplication
+              metadata:
+                name: redis-replication
+              spec:
+                sentinel:
+                  resolveHostnames: "yes"
+                  announceHostnames: "yes"
+        - assert:
+            timeout: 5m
+            file: hostname-announce-on.yaml
+
+    - name: Assert the replica announces its FQDN
+      try:
+        - script:
+            timeout: 120s
+            content: |
+              ./wait-for.sh 90 "redis-replication-0.redis-replication-headless.${NAMESPACE}.svc.cluster.local" "kubectl -n ${NAMESPACE} exec redis-replication-0 -c redis-replication -- redis-cli -a Opstree1234 --no-auth-warning config get replica-announce-ip | tail -1"
+            check:
+              (contains($stdout, 'matched')): true
+        - script:
+            timeout: 120s
+            content: |
+              ./wait-for.sh 90 2 "kubectl -n ${NAMESPACE} exec redis-replication-s-0 -c sentinel -- redis-cli -p 26379 sentinel replicas mymaster | grep -cE '^redis-replication-[0-9]+\.redis-replication-headless\.${NAMESPACE}\.svc\.cluster\.local:[0-9]+$'"
+            check:
+              (contains($stdout, 'matched')): true
 
     - name: redis-replication-uninstall
       description: Uninstall Redis Replication
