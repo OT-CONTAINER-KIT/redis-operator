@@ -10,6 +10,7 @@ import (
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/consts"
+	controllercommon "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/features"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1265,6 +1266,72 @@ func TestGenerateContainerDef(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			containerDef := generateContainerDef(test.containerName, test.containerDef, test.redisClusterMode, test.containerNodeConfVolume, test.containerEnableMetrics, test.containerExternalConfig, test.redisClusterVersion, test.containerMountPaths, test.sideCareContainer)
 			assert.Equal(t, containerDef, test.expectedContainerDef, "Container Configuration")
+		})
+	}
+}
+
+func TestGenerateContainerDefPorts(t *testing.T) {
+	tests := []struct {
+		name          string
+		containerDef  containerParameters
+		expectedPorts []corev1.ContainerPort
+	}{
+		{
+			name: "redis client port is declared without host port",
+			containerDef: containerParameters{
+				Role: "master",
+				Port: ptr.To(controllercommon.RedisPort),
+			},
+			expectedPorts: []corev1.ContainerPort{
+				{
+					Name:          redisClientPortName,
+					ContainerPort: 6379,
+					Protocol:      corev1.ProtocolTCP,
+				},
+			},
+		},
+		{
+			name: "sentinel container uses the sentinel port name",
+			containerDef: containerParameters{
+				Role: "sentinel",
+				Port: ptr.To(controllercommon.SentinelPort),
+			},
+			expectedPorts: []corev1.ContainerPort{
+				{
+					Name:          sentinelClientPortName,
+					ContainerPort: 26379,
+					Protocol:      corev1.ProtocolTCP,
+				},
+			},
+		},
+		{
+			name: "host port is kept alongside the named container port",
+			containerDef: containerParameters{
+				Role:     "master",
+				Port:     ptr.To(7000),
+				HostPort: ptr.To(7000),
+			},
+			expectedPorts: []corev1.ContainerPort{
+				{
+					Name:          redisClientPortName,
+					ContainerPort: 7000,
+					HostPort:      7000,
+					Protocol:      corev1.ProtocolTCP,
+				},
+			},
+		},
+		{
+			name:          "no port is declared when the port is unset",
+			containerDef:  containerParameters{Role: "master"},
+			expectedPorts: nil,
+		},
+	}
+
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			containerDef := generateContainerDef("redis", test.containerDef, false, false, false, nil, nil, nil, nil)
+			assert.Equal(t, test.expectedPorts, containerDef[0].Ports)
 		})
 	}
 }

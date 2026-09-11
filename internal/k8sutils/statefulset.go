@@ -533,13 +533,23 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 		}
 	}
 
-	if containerParams.HostPort != nil {
-		containerDefinition[0].Ports = []corev1.ContainerPort{
-			{
-				HostPort:      int32(*containerParams.HostPort),
-				ContainerPort: int32(*containerParams.Port),
-			},
+	// Always declare the client port on the container so that it can be
+	// referenced by name (service targetPort, network policies, port-forward)
+	// instead of hardcoding the number.
+	if containerParams.Port != nil {
+		portName := redisClientPortName
+		if sentinelCntr {
+			portName = sentinelClientPortName
 		}
+		port := corev1.ContainerPort{
+			Name:          portName,
+			ContainerPort: int32(*containerParams.Port),
+			Protocol:      corev1.ProtocolTCP,
+		}
+		if containerParams.HostPort != nil {
+			port.HostPort = int32(*containerParams.HostPort)
+		}
+		containerDefinition[0].Ports = []corev1.ContainerPort{port}
 	}
 
 	if containerParams.Resources != nil {
