@@ -5,6 +5,9 @@ metadata:
   name: {{ .Values.redisOperator.name }}
   namespace: {{ .Release.Namespace }}
   labels: {{- include "redisOperator.labels" . | nindent 4 }}
+    {{- with .Values.redisOperator.deploymentLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
 spec:
   strategy:
   {{- toYaml .Values.redisOperator.strategy | nindent 4 }}
