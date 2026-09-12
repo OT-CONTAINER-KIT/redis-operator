@@ -33,3 +33,5 @@ docs/build
 kubeconfig
 CLAUDE.md
 coverage.txt
+
+.claude
