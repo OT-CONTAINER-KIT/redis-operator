@@ -413,6 +413,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if k8sutils.RedisClusterStatusHealth(ctx, r.K8sClient, instance) {
 			monitoring.RedisClusterHealthy.WithLabelValues(instance.Namespace, instance.Name).Set(1)
 
+			// Apply dynamic config before persisting the Ready status, so that a
+			// failing CONFIG SET (e.g. an invalid setting) prevents the cluster
+			// from being reported Ready with an unapplied configuration.
+			if err = k8sutils.SetRedisClusterDynamicConfig(ctx, r.K8sClient, instance); err != nil {
+				logger.Error(err, "Failed to set dynamic config")
+				return intctrlutil.RequeueE(ctx, err, "failed to set dynamic config")
+			}
+
 			requeue, err := r.updateStatus(ctx, instance, rcvb2.RedisClusterStatus{
 				State:                 rcvb2.RedisClusterReady,
 				Reason:                rcvb2.ReadyClusterReason,
