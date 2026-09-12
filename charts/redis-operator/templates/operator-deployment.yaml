@@ -4,10 +4,7 @@ kind: Deployment
 metadata:
   name: {{ .Values.redisOperator.name }}
   namespace: {{ .Release.Namespace }}
-  labels: {{- include "redisOperator.labels" . | nindent 4 }}
-    {{- with .Values.redisOperator.deploymentLabels }}
-    {{- toYaml . | nindent 4 }}
-    {{- end }}
+  labels: {{- include "redisOperator.deploymentLabels" . | nindent 4 }}
 spec:
   strategy:
   {{- toYaml .Values.redisOperator.strategy | nindent 4 }}
