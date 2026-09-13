@@ -412,7 +412,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		monitoring.RedisClusterHealthy.WithLabelValues(instance.Namespace, instance.Name).Set(0)
 		if k8sutils.RedisClusterStatusHealth(ctx, r.K8sClient, instance) {
 			monitoring.RedisClusterHealthy.WithLabelValues(instance.Namespace, instance.Name).Set(1)
-			// Apply dynamic config to all Redis instances in the cluster
+
+			// Apply dynamic config before persisting the Ready status, so that a
+			// failing CONFIG SET (e.g. an invalid setting) prevents the cluster
+			// from being reported Ready with an unapplied configuration.
 			if err = k8sutils.SetRedisClusterDynamicConfig(ctx, r.K8sClient, instance); err != nil {
 				logger.Error(err, "Failed to set dynamic config")
 				return intctrlutil.RequeueE(ctx, err, "failed to set dynamic config")
@@ -430,6 +433,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			if requeue {
 				return intctrlutil.Requeue()
 			}
+		}
+	}
+
+	// Apply dynamic config to all Redis instances in the cluster on every reconcile
+	// once the cluster is ready, so that changes to spec.redisConfig.dynamicConfig
+	// made after the initial bootstrap are picked up instead of only being applied
+	// once during the transition into the Ready state.
+	if instance.Status.State == rcvb2.RedisClusterReady {
+		if err = k8sutils.SetRedisClusterDynamicConfig(ctx, r.K8sClient, instance); err != nil {
+			logger.Error(err, "Failed to set dynamic config")
+			return intctrlutil.RequeueE(ctx, err, "failed to set dynamic config")
 		}
 	}
 

@@ -7,6 +7,7 @@ import (
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	rvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redis/v1beta2"
+	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	"github.com/go-redis/redismock/v9"
 	redis "github.com/redis/go-redis/v9"
@@ -248,5 +249,125 @@ func TestSetRedisStandaloneDynamicConfig(t *testing.T) {
 		})
 		assert.Error(t, err)
 		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+func TestSetRedisClusterDynamicConfig(t *testing.T) {
+	ctx := context.Background()
+
+	newCluster := func(dynamicConfig []string) *rcvb2.RedisCluster {
+		return &rcvb2.RedisCluster{
+			ObjectMeta: metav1.ObjectMeta{Name: "redis-cluster", Namespace: "default"},
+			Spec: rcvb2.RedisClusterSpec{
+				ClusterSize: ptr.To(int32(2)),
+				RedisConfig: &common.RedisConfig{
+					DynamicConfig: dynamicConfig,
+				},
+			},
+		}
+	}
+
+	t.Run("applies config to every leader and follower pod", func(t *testing.T) {
+		cr := newCluster([]string{"maxmemory-policy allkeys-lru"})
+		mocks := map[string]redismock.ClientMock{}
+		makeClient := func(podName string) *redis.Client {
+			c, m := redismock.NewClientMock()
+			m.ExpectPing().SetVal("PONG")
+			m.ExpectConfigSet("maxmemory-policy", "allkeys-lru").SetVal("OK")
+			mocks[podName] = m
+			return c
+		}
+
+		err := setRedisClusterDynamicConfig(ctx, cr, makeClient)
+		assert.NoError(t, err)
+		assert.Len(t, mocks, 4)
+		for _, name := range []string{"redis-cluster-leader-0", "redis-cluster-leader-1", "redis-cluster-follower-0", "redis-cluster-follower-1"} {
+			m, ok := mocks[name]
+			assert.True(t, ok, "expected a client for pod %s", name)
+			assert.NoError(t, m.ExpectationsWereMet())
+		}
+	})
+
+	t.Run("no-op when dynamic config is empty", func(t *testing.T) {
+		cr := newCluster(nil)
+		called := false
+		err := setRedisClusterDynamicConfig(ctx, cr, func(podName string) *redis.Client {
+			called = true
+			return nil
+		})
+		assert.NoError(t, err)
+		assert.False(t, called, "client factory must not be called without dynamic config")
+	})
+
+	t.Run("re-applies an updated value on a later call, simulating a later reconcile", func(t *testing.T) {
+		// This is the behavior issue #1757 relied on: once the cluster reaches
+		// Ready, the operator must keep re-applying dynamicConfig on subsequent
+		// reconciles so a spec change (e.g. maxmemory-samples 4 -> 11) actually
+		// reaches the running pods instead of only being applied once.
+		cr := newCluster([]string{"maxmemory-samples 4"})
+		mocks := map[string]redismock.ClientMock{}
+		makeClientWith := func(value string) func(string) *redis.Client {
+			return func(podName string) *redis.Client {
+				c, m := redismock.NewClientMock()
+				m.ExpectPing().SetVal("PONG")
+				m.ExpectConfigSet("maxmemory-samples", value).SetVal("OK")
+				mocks[podName] = m
+				return c
+			}
+		}
+
+		err := setRedisClusterDynamicConfig(ctx, cr, makeClientWith("4"))
+		assert.NoError(t, err)
+		for _, m := range mocks {
+			assert.NoError(t, m.ExpectationsWereMet())
+		}
+
+		mocks = map[string]redismock.ClientMock{}
+		cr.Spec.RedisConfig.DynamicConfig = []string{"maxmemory-samples 11"}
+		err = setRedisClusterDynamicConfig(ctx, cr, makeClientWith("11"))
+		assert.NoError(t, err)
+		for _, m := range mocks {
+			assert.NoError(t, m.ExpectationsWereMet())
+		}
+	})
+
+	t.Run("continues past unreachable pods", func(t *testing.T) {
+		cr := newCluster([]string{"maxmemory-policy allkeys-lru"})
+		mocks := map[string]redismock.ClientMock{}
+		makeClient := func(podName string) *redis.Client {
+			c, m := redismock.NewClientMock()
+			if podName == "redis-cluster-leader-0" {
+				m.ExpectPing().SetErr(errors.New("connection refused"))
+			} else {
+				m.ExpectPing().SetVal("PONG")
+				m.ExpectConfigSet("maxmemory-policy", "allkeys-lru").SetVal("OK")
+			}
+			mocks[podName] = m
+			return c
+		}
+
+		err := setRedisClusterDynamicConfig(ctx, cr, makeClient)
+		assert.NoError(t, err)
+		assert.Len(t, mocks, 4, "every pod should be visited even if an earlier one is unreachable")
+		for _, m := range mocks {
+			assert.NoError(t, m.ExpectationsWereMet())
+		}
+	})
+
+	t.Run("returns error when a CONFIG SET fails", func(t *testing.T) {
+		cr := newCluster([]string{"maxmemory-policy allkeys-lru"})
+		makeClient := func(podName string) *redis.Client {
+			c, m := redismock.NewClientMock()
+			m.ExpectPing().SetVal("PONG")
+			if podName == "redis-cluster-leader-0" {
+				m.ExpectConfigSet("maxmemory-policy", "allkeys-lru").SetErr(errors.New("CONFIG SET failed"))
+			} else {
+				m.ExpectConfigSet("maxmemory-policy", "allkeys-lru").SetVal("OK")
+			}
+			return c
+		}
+
+		err := setRedisClusterDynamicConfig(ctx, cr, makeClient)
+		assert.Error(t, err)
 	})
 }
