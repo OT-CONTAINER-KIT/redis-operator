@@ -69,6 +69,27 @@ func Test_GenerateConfig_TLS_CACertFile(t *testing.T) {
 	}
 }
 
+func Test_GenerateConfig_AppendOnlyFilename_MatchesRedisDefault(t *testing.T) {
+	confPath := filepath.Join(t.TempDir(), "redis.conf")
+
+	t.Setenv("REDIS_CONFIG_FILE", confPath)
+	t.Setenv("PERSISTENCE_ENABLED", "true")
+	t.Setenv("SETUP_MODE", "standalone")
+	t.Setenv("TLS_MODE", "false")
+
+	require.NoError(t, GenerateConfig())
+
+	raw, err := os.ReadFile(confPath)
+	require.NoError(t, err)
+	conf := string(raw)
+
+	// The generated appendfilename must match Redis' own lowercase default
+	// ("appendonly.aof"). Diverging from it (e.g. "Appendonly.aof") makes
+	// Redis look for a file that doesn't exist on disk, silently losing all
+	// previously persisted data on startup.
+	assert.Contains(t, conf, `appendfilename "appendonly.aof"`)
+}
+
 func Test_GenerateConfig_ReplicaAnnounceIP(t *testing.T) {
 	const fakeFQDN = "redis-replication-0.redis-replication-headless.ns.svc.cluster.local"
 

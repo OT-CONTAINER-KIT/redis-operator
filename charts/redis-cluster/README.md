@@ -82,7 +82,7 @@ helm delete <my-release> --namespace <namespace>
 | redisCluster.follower.pdb.maxUnavailable | int | `1` |  |
 | redisCluster.follower.pdb.minAvailable | int | `1` |  |
 | redisCluster.follower.readinessProbe | object | `{}` |  |
-| redisCluster.follower.replicas | int | `3` | Number of Redis follower (slave) nodes. If not set, uses clusterSize value |
+| redisCluster.follower.replicas | string | `redisCluster.clusterSize` | Number of Redis follower (slave) nodes. Left unset it inherits `clusterSize`; set it explicitly to override that for followers only, including `0` for a leader-only cluster. |
 | redisCluster.follower.securityContext | object | `{}` |  |
 | redisCluster.follower.serviceType | string | `"ClusterIP"` |  |
 | redisCluster.follower.tolerations | list | `[]` |  |
@@ -97,7 +97,7 @@ helm delete <my-release> --namespace <namespace>
 | redisCluster.leader.pdb.maxUnavailable | int | `1` |  |
 | redisCluster.leader.pdb.minAvailable | int | `1` |  |
 | redisCluster.leader.readinessProbe | object | `{}` |  |
-| redisCluster.leader.replicas | int | `3` | Number of Redis leader (master) nodes. If not set, uses clusterSize value |
+| redisCluster.leader.replicas | string | `redisCluster.clusterSize` | Number of Redis leader (master) nodes. Left unset it inherits `clusterSize`; set it explicitly to override that for leaders only. |
 | redisCluster.leader.securityContext | object | `{}` |  |
 | redisCluster.leader.serviceType | string | `"ClusterIP"` |  |
 | redisCluster.leader.tolerations | list | `[]` |  |
