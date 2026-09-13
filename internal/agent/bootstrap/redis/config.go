@@ -162,8 +162,8 @@ func GenerateConfig() error {
 		cfg.Append("save", "900 1")
 		cfg.Append("save", "300 10")
 		cfg.Append("save", "60 10000")
-		cfg.Append("Appendonly", "yes")
-		cfg.Append("Appendfilename", "\"Appendonly.aof\"")
+		cfg.Append("appendonly", "yes")
+		cfg.Append("appendfilename", "\"appendonly.aof\"")
 		cfg.Append("dir", dataDir)
 	} else {
 		fmt.Println("Running without persistence mode")
