@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	agentutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/agent/util"
@@ -204,12 +203,18 @@ func GenerateConfig() error {
 	return cfg.Commit()
 }
 
+// updateMyselfIP rewrites the address of the "myself" entry in nodes.conf to
+// newIP. The endpoint field has the form <addr>:<port>@<cport>[,<hostname>,...],
+// so the address is everything before the last ':' preceding '@'. Matching by
+// position instead of by IP format keeps this address-family agnostic (IPv4,
+// IPv6 and announced hostnames are all rewritten); the previous IPv4-only
+// regexp silently never matched on IPv6 clusters, leaving stale addresses
+// behind forever (#1898).
 func updateMyselfIP(nodesConfPath, newIP string) (updated []byte, err error) {
 	raw, err := os.ReadFile(nodesConfPath)
 	if err != nil {
 		return nil, err
 	}
-	ipRe := regexp.MustCompile(`\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b`)
 	var out bytes.Buffer
 	scanner := bufio.NewScanner(bytes.NewReader(raw))
 	changed := false
@@ -217,8 +222,7 @@ func updateMyselfIP(nodesConfPath, newIP string) (updated []byte, err error) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		if bytes.Contains([]byte(line), []byte("myself")) {
-			replaced := ipRe.ReplaceAllString(line, newIP)
-			if replaced != line {
+			if replaced := replaceEndpointAddr(line, newIP); replaced != line {
 				changed = true
 				line = replaced
 			}
@@ -233,4 +237,26 @@ func updateMyselfIP(nodesConfPath, newIP string) (updated []byte, err error) {
 		return out.Bytes(), os.WriteFile(nodesConfPath, out.Bytes(), 0o644)
 	}
 	return nil, nil
+}
+
+// replaceEndpointAddr rewrites the address part of the endpoint in the second
+// field of a nodes.conf line, preserving port, bus port and any auxiliary
+// fields (hostname, tls-port, shard-id, ...). The line is returned unchanged
+// when it does not contain a parseable endpoint.
+func replaceEndpointAddr(line, newAddr string) string {
+	fields := strings.Fields(line)
+	if len(fields) < 2 {
+		return line
+	}
+	endpoint := fields[1]
+	at := strings.Index(endpoint, "@")
+	if at == -1 {
+		return line
+	}
+	portIdx := strings.LastIndex(endpoint[:at], ":")
+	if portIdx == -1 {
+		return line
+	}
+	newEndpoint := newAddr + endpoint[portIdx:]
+	return strings.Replace(line, endpoint, newEndpoint, 1)
 }

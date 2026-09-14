@@ -4,7 +4,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -263,40 +262,115 @@ func Test_GenerateConfig_ExternalConfig_MissingVarBecomesEmpty(t *testing.T) {
 }
 
 func Test_updateMyselfIP(t *testing.T) {
-	testData := `7a6b5f4f99496c97f4e32c30c077aa95cab92664 10.244.0.246:0@16379,,tls-port=6379,shard-id=a03445a0d3f6d405af261041e0cb77a8a176f42b slave b66f2fa597eeda567cf05f3701419be9a3b2f50e 0 1756463509000 1 connected
+	tests := []struct {
+		name      string
+		nodesConf string
+		newAddr   string
+		// expected is the nodes.conf content after the rewrite; empty means
+		// no change is expected and the file must be left untouched.
+		expected string
+	}{
+		{
+			name: "IPv4 myself address is rewritten",
+			nodesConf: `7a6b5f4f99496c97f4e32c30c077aa95cab92664 10.244.0.246:0@16379,,tls-port=6379,shard-id=a03445a0d3f6d405af261041e0cb77a8a176f42b slave b66f2fa597eeda567cf05f3701419be9a3b2f50e 0 1756463509000 1 connected
 93ad60e9ce21430683a3534d2c96ab1b8077cfe8 10.244.0.237:0@16379,,tls-port=6379,shard-id=2f177491b895051f91e91e554a2a9da2cd167aeb master - 0 1756463509685 2 connected 5461-10922
 b66f2fa597eeda567cf05f3701419be9a3b2f50e 10.244.0.222:0@16379,,tls-port=6379,shard-id=a03445a0d3f6d405af261041e0cb77a8a176f42b myself,master - 0 0 1 connected 0-5460
 88456cac1830f3e00f6ab681fb819b4b1d7ad36b 10.244.0.252:0@16379,,tls-port=6379,shard-id=b61110535f09b9c0703517f79da79118fee8d1a4 slave 580e234a8dcd74717c37d01ed8097929c64536ff 0 1756463509691 3 connected
 580e234a8dcd74717c37d01ed8097929c64536ff 10.244.0.240:0@16379,,tls-port=6379,shard-id=b61110535f09b9c0703517f79da79118fee8d1a4 master - 0 1756463509583 3 connected 10923-16383
 c0fc3c21460fec045775d2dcde220fb26ca668c1 10.244.0.249:0@16379,,tls-port=6379,shard-id=2f177491b895051f91e91e554a2a9da2cd167aeb slave 93ad60e9ce21430683a3534d2c96ab1b8077cfe8 0 1756463509583 2 connected
 vars currentEpoch 3 lastVoteEpoch 0
-`
-
-	tmpFile := "/tmp/test_nodes.conf"
-	err := os.WriteFile(tmpFile, []byte(testData), 0o644)
-	if err != nil {
-		t.Fatalf("Failed to create test file: %v", err)
+`,
+			newAddr: "10.244.0.9",
+			expected: `7a6b5f4f99496c97f4e32c30c077aa95cab92664 10.244.0.246:0@16379,,tls-port=6379,shard-id=a03445a0d3f6d405af261041e0cb77a8a176f42b slave b66f2fa597eeda567cf05f3701419be9a3b2f50e 0 1756463509000 1 connected
+93ad60e9ce21430683a3534d2c96ab1b8077cfe8 10.244.0.237:0@16379,,tls-port=6379,shard-id=2f177491b895051f91e91e554a2a9da2cd167aeb master - 0 1756463509685 2 connected 5461-10922
+b66f2fa597eeda567cf05f3701419be9a3b2f50e 10.244.0.9:0@16379,,tls-port=6379,shard-id=a03445a0d3f6d405af261041e0cb77a8a176f42b myself,master - 0 0 1 connected 0-5460
+88456cac1830f3e00f6ab681fb819b4b1d7ad36b 10.244.0.252:0@16379,,tls-port=6379,shard-id=b61110535f09b9c0703517f79da79118fee8d1a4 slave 580e234a8dcd74717c37d01ed8097929c64536ff 0 1756463509691 3 connected
+580e234a8dcd74717c37d01ed8097929c64536ff 10.244.0.240:0@16379,,tls-port=6379,shard-id=b61110535f09b9c0703517f79da79118fee8d1a4 master - 0 1756463509583 3 connected 10923-16383
+c0fc3c21460fec045775d2dcde220fb26ca668c1 10.244.0.249:0@16379,,tls-port=6379,shard-id=2f177491b895051f91e91e554a2a9da2cd167aeb slave 93ad60e9ce21430683a3534d2c96ab1b8077cfe8 0 1756463509583 2 connected
+vars currentEpoch 3 lastVoteEpoch 0
+`,
+		},
+		{
+			// Regression test for #1898: the previous IPv4-only regexp never
+			// matched IPv6 addresses, so the stale myself entry survived
+			// every pod restart on IPv6 clusters.
+			name: "IPv6 myself address is rewritten",
+			nodesConf: `c1d5280a4b0e0b0e0b0e0b0e0b0e0b0e0b0e0b0e fd00:177:177::5d3a:6379@16379 master - 0 1789002849590 15 connected 10923-16383
+2c14588c4b0e0b0e0b0e0b0e0b0e0b0e0b0e0b0e fd00:177:177::5d25:6379@16379 myself,slave 37b8a6f14b0e0b0e0b0e0b0e0b0e0b0e0b0e0b0e 0 1789002848000 14 connected
+37b8a6f14b0e0b0e0b0e0b0e0b0e0b0e0b0e0b0e fd00:177:177::e04:6379@16379 master - 0 1789002849000 14 connected 0-5460
+vars currentEpoch 15 lastVoteEpoch 0
+`,
+			newAddr: "fd00:177:177::5d23",
+			expected: `c1d5280a4b0e0b0e0b0e0b0e0b0e0b0e0b0e0b0e fd00:177:177::5d3a:6379@16379 master - 0 1789002849590 15 connected 10923-16383
+2c14588c4b0e0b0e0b0e0b0e0b0e0b0e0b0e0b0e fd00:177:177::5d23:6379@16379 myself,slave 37b8a6f14b0e0b0e0b0e0b0e0b0e0b0e0b0e0b0e 0 1789002848000 14 connected
+37b8a6f14b0e0b0e0b0e0b0e0b0e0b0e0b0e0b0e fd00:177:177::e04:6379@16379 master - 0 1789002849000 14 connected 0-5460
+vars currentEpoch 15 lastVoteEpoch 0
+`,
+		},
+		{
+			// Redis 7 appends the announced hostname after the bus port; only
+			// the address before the port may be replaced.
+			name: "IPv6 myself address with trailing hostname is rewritten",
+			nodesConf: `2c14588c4b0e0b0e0b0e0b0e0b0e0b0e0b0e0b0e fd00:177:177::5d25:6379@16379,redis-cluster-leader-0.redis-cluster-leader-headless.ns.svc.cluster.local myself,master - 0 0 14 connected 0-5460
+vars currentEpoch 14 lastVoteEpoch 0
+`,
+			newAddr: "fd00:177:177::5d23",
+			expected: `2c14588c4b0e0b0e0b0e0b0e0b0e0b0e0b0e0b0e fd00:177:177::5d23:6379@16379,redis-cluster-leader-0.redis-cluster-leader-headless.ns.svc.cluster.local myself,master - 0 0 14 connected 0-5460
+vars currentEpoch 14 lastVoteEpoch 0
+`,
+		},
+		{
+			name: "hostname myself address is rewritten to the announced hostname",
+			nodesConf: `2c14588c4b0e0b0e0b0e0b0e0b0e0b0e0b0e0b0e old-hostname.ns.svc.cluster.local:6379@16379 myself,master - 0 0 14 connected 0-5460
+vars currentEpoch 14 lastVoteEpoch 0
+`,
+			newAddr: "redis-cluster-leader-0.redis-cluster-leader-headless.ns.svc.cluster.local",
+			expected: `2c14588c4b0e0b0e0b0e0b0e0b0e0b0e0b0e0b0e redis-cluster-leader-0.redis-cluster-leader-headless.ns.svc.cluster.local:6379@16379 myself,master - 0 0 14 connected 0-5460
+vars currentEpoch 14 lastVoteEpoch 0
+`,
+		},
+		{
+			name: "myself address already current leaves the file untouched",
+			nodesConf: `2c14588c4b0e0b0e0b0e0b0e0b0e0b0e0b0e0b0e fd00:177:177::5d23:6379@16379 myself,master - 0 0 14 connected 0-5460
+vars currentEpoch 14 lastVoteEpoch 0
+`,
+			newAddr:  "fd00:177:177::5d23",
+			expected: "",
+		},
+		{
+			name: "no myself entry leaves the file untouched",
+			nodesConf: `c1d5280a4b0e0b0e0b0e0b0e0b0e0b0e0b0e0b0e fd00:177:177::5d3a:6379@16379 master - 0 1789002849590 15 connected 10923-16383
+vars currentEpoch 15 lastVoteEpoch 0
+`,
+			newAddr:  "fd00:177:177::5d23",
+			expected: "",
+		},
 	}
-	defer os.Remove(tmpFile)
 
-	newIP := "10.244.0.9"
-	updated, err := updateMyselfIP(tmpFile, newIP)
-	if err != nil {
-		t.Errorf("updateMyselfIP() error = %v", err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpFile := filepath.Join(t.TempDir(), "nodes.conf")
+			require.NoError(t, os.WriteFile(tmpFile, []byte(tt.nodesConf), 0o644))
+
+			updated, err := updateMyselfIP(tmpFile, tt.newAddr)
+			require.NoError(t, err)
+
+			if tt.expected == "" {
+				assert.Nil(t, updated, "no change expected, file must not be rewritten")
+				raw, err := os.ReadFile(tmpFile)
+				require.NoError(t, err)
+				assert.Equal(t, tt.nodesConf, string(raw))
+				return
+			}
+
+			require.NotNil(t, updated, "expected changes to be made")
+			assert.Equal(t, tt.expected, string(updated))
+
+			raw, err := os.ReadFile(tmpFile)
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, string(raw))
+		})
 	}
-
-	if updated == nil {
-		t.Errorf("Expected changes to be made, but updated is nil")
-		return
-	}
-	expectedContent := strings.ReplaceAll(testData, "10.244.0.222", newIP)
-	updatedContent := string(updated)
-
-	if updatedContent != expectedContent {
-		t.Errorf("Expected updated content to match:\nExpected:\n%s\nGot:\n%s", expectedContent, updatedContent)
-	}
-
-	t.Logf("Successfully updated nodes.conf with new IP %s", newIP)
 }
 
 func Test_GenerateConfig_RedisMajorVersionGates(t *testing.T) {
