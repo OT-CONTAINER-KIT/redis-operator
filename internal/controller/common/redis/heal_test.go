@@ -12,10 +12,13 @@ import (
 	"testing"
 	"time"
 
+	apicommon "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
+	sentinelv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	common "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	redisservice "github.com/OT-CONTAINER-KIT/redis-operator/internal/service/redis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -597,6 +600,142 @@ func TestIsConnectivityError(t *testing.T) {
 			assert.Equal(t, tt.want, isConnectivityError(tt.err))
 		})
 	}
+}
+
+func TestSentinelReset_Conditional(t *testing.T) {
+	masterGroupName := "mymaster"
+
+	makeSentinelRS := func() *sentinelv1beta2.RedisSentinel {
+		size := int32(3)
+		return &sentinelv1beta2.RedisSentinel{
+			ObjectMeta: metav1.ObjectMeta{Name: "rs", Namespace: "default"},
+			Spec: sentinelv1beta2.RedisSentinelSpec{
+				Size: &size,
+				RedisSentinelConfig: &sentinelv1beta2.RedisSentinelConfig{
+					RedisSentinelConfig: apicommon.RedisSentinelConfig{
+						MasterGroupName: masterGroupName,
+					},
+				},
+			},
+		}
+	}
+
+	sentinelLabels := map[string]string{"app": "redis-sentinel", "sentinel-name": "rs"}
+	makePod := func(name string) *corev1.Pod {
+		return &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "default", Labels: sentinelLabels},
+		}
+	}
+	makeSTS := func() *appsv1.StatefulSet {
+		return &appsv1.StatefulSet{
+			ObjectMeta: metav1.ObjectMeta{Name: "rs-sentinel", Namespace: "default"},
+			Spec: appsv1.StatefulSetSpec{
+				Selector: &metav1.LabelSelector{MatchLabels: sentinelLabels},
+			},
+		}
+	}
+
+	t.Run("no reset when topology matches", func(t *testing.T) {
+		rs := makeSentinelRS()
+		fakeSvc := &fakeRedisSvc{
+			info: &redisservice.InfoSentinelResult{
+				Masters: []redisservice.SentinelMasterInfo{
+					{Name: masterGroupName, Slaves: 2, Sentinels: 3},
+				},
+			},
+			resetCalls: nil,
+		}
+		k8s := k8sfake.NewSimpleClientset([]runtime.Object{makeSTS(), makePod("sentinel-0")}...)
+		h := &healer{k8s: k8s, redis: &fakeRedisSvcClient{svc: fakeSvc}}
+
+		err := h.SentinelReset(context.Background(), rs, 2)
+		require.NoError(t, err)
+		assert.Empty(t, fakeSvc.resetCalls, "SentinelReset should not be called when topology matches")
+	})
+
+	t.Run("reset when slave count mismatches", func(t *testing.T) {
+		rs := makeSentinelRS()
+		fakeSvc := &fakeRedisSvc{
+			info: &redisservice.InfoSentinelResult{
+				Masters: []redisservice.SentinelMasterInfo{
+					{Name: masterGroupName, Slaves: 1, Sentinels: 3},
+				},
+			},
+			resetCalls: nil,
+		}
+		k8s := k8sfake.NewSimpleClientset([]runtime.Object{makeSTS(), makePod("sentinel-0")}...)
+		h := &healer{k8s: k8s, redis: &fakeRedisSvcClient{svc: fakeSvc}}
+
+		err := h.SentinelReset(context.Background(), rs, 2)
+		require.NoError(t, err)
+		assert.Equal(t, []string{masterGroupName}, fakeSvc.resetCalls, "SentinelReset should be called when slave count mismatches")
+	})
+
+	t.Run("reset when sentinel count mismatches", func(t *testing.T) {
+		rs := makeSentinelRS()
+		fakeSvc := &fakeRedisSvc{
+			info: &redisservice.InfoSentinelResult{
+				Masters: []redisservice.SentinelMasterInfo{
+					{Name: masterGroupName, Slaves: 2, Sentinels: 2},
+				},
+			},
+			resetCalls: nil,
+		}
+		k8s := k8sfake.NewSimpleClientset([]runtime.Object{makeSTS(), makePod("sentinel-0")}...)
+		h := &healer{k8s: k8s, redis: &fakeRedisSvcClient{svc: fakeSvc}}
+
+		err := h.SentinelReset(context.Background(), rs, 2)
+		require.NoError(t, err)
+		assert.Equal(t, []string{masterGroupName}, fakeSvc.resetCalls, "SentinelReset should be called when sentinel count mismatches")
+	})
+
+	t.Run("skip when master group not found", func(t *testing.T) {
+		rs := makeSentinelRS()
+		fakeSvc := &fakeRedisSvc{
+			info:       &redisservice.InfoSentinelResult{Masters: []redisservice.SentinelMasterInfo{}},
+			resetCalls: nil,
+		}
+		k8s := k8sfake.NewSimpleClientset([]runtime.Object{makeSTS(), makePod("sentinel-0")}...)
+		h := &healer{k8s: k8s, redis: &fakeRedisSvcClient{svc: fakeSvc}}
+
+		err := h.SentinelReset(context.Background(), rs, 2)
+		require.NoError(t, err)
+		assert.Empty(t, fakeSvc.resetCalls, "SentinelReset should not be called when master group not found")
+	})
+}
+
+type fakeRedisSvcClient struct{ svc *fakeRedisSvc }
+
+func (c *fakeRedisSvcClient) Connect(*redisservice.ConnectionInfo) redisservice.Service { return c.svc }
+
+type fakeRedisSvc struct {
+	info       *redisservice.InfoSentinelResult
+	resetCalls []string
+}
+
+func (f *fakeRedisSvc) IsMaster(ctx context.Context) (bool, error) { return false, nil }
+
+func (f *fakeRedisSvc) GetAttachedReplicaCount(ctx context.Context) (int, error) { return 0, nil }
+
+func (f *fakeRedisSvc) SentinelMonitor(ctx context.Context, master *redisservice.ConnectionInfo, masterGroupName, quorum string) error {
+	return nil
+}
+
+func (f *fakeRedisSvc) SentinelSet(ctx context.Context, masterGroupName, key, value string) error {
+	return nil
+}
+
+func (f *fakeRedisSvc) GetClusterInfo(ctx context.Context) (*redisservice.ClusterStatus, error) {
+	return &redisservice.ClusterStatus{}, nil
+}
+
+func (f *fakeRedisSvc) GetInfoSentinel(ctx context.Context) (*redisservice.InfoSentinelResult, error) {
+	return f.info, nil
+}
+
+func (f *fakeRedisSvc) SentinelReset(ctx context.Context, masterGroupName string) error {
+	f.resetCalls = append(f.resetCalls, masterGroupName)
+	return nil
 }
 
 type fakeRedisClient struct {
