@@ -35,6 +35,9 @@ pdb:
   enabled: {{ .pdb.enabled }}
   maxUnavailable: {{ .pdb.maxUnavailable }}
   minAvailable: {{ .pdb.minAvailable }}
+  {{- with .pdb.unhealthyPodEvictionPolicy }}
+  unhealthyPodEvictionPolicy: {{ . }}
+  {{- end }}
 {{- end }}
 {{- if .nodeSelector }}
 nodeSelector:
