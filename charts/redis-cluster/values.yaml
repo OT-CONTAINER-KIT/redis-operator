@@ -80,8 +80,10 @@ redisCluster:
       #       clusterId: redis-cluster
     pdb:
       enabled: false
+      # -- Cannot be set together with minAvailable
       maxUnavailable: 1
-      minAvailable: 1
+      # -- Cannot be set together with maxUnavailable; uncomment to use instead
+      # minAvailable: 1
     livenessProbe: {}
       # timeoutSeconds: 30
       # periodSeconds: 45
@@ -129,8 +131,10 @@ redisCluster:
       #       clusterId: redis-cluster
     pdb:
       enabled: false
+      # -- Cannot be set together with minAvailable
       maxUnavailable: 1
-      minAvailable: 1
+      # -- Cannot be set together with maxUnavailable; uncomment to use instead
+      # minAvailable: 1
     livenessProbe: {}
       # timeoutSeconds: 30
       # periodSeconds: 45
