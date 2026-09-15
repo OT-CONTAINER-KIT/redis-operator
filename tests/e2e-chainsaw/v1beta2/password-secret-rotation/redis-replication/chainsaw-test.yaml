@@ -1,0 +1,95 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: password-secret-rotation-redis-replication
+spec:
+  steps:
+    - name: Install
+      try:
+        - apply:
+            file: secret.yaml
+        - apply:
+            file: replication.yaml
+        - assert:
+            file: ready-sts.yaml
+
+    - name: Rotate the password secret and wait for the rollout
+      description: >
+        Rotating the Secret's password must change the checksum annotation
+        the operator stamps on the pod template, which is what makes
+        Kubernetes roll the StatefulSet's pods -- Kubernetes does not refresh
+        an already-running container's SecretKeyRef env var in place.
+      try:
+        - script:
+            timeout: 5m
+            content: |
+              set -eu
+
+              OLD_CHECKSUM=$(kubectl get statefulset redis-replication -n ${NAMESPACE} \
+                -o jsonpath='{.spec.template.metadata.annotations.redis\.opstreelabs\.in/password-secret-checksum}')
+              if [ -z "$OLD_CHECKSUM" ]; then
+                echo "expected an initial password-secret-checksum annotation, got none"
+                exit 1
+              fi
+
+              kubectl patch secret redis-secret -n ${NAMESPACE} --type merge \
+                -p '{"data":{"password":"TmV3UGFzc3dvcmQ1Njc4"}}'
+
+              NEW_CHECKSUM="$OLD_CHECKSUM"
+              for i in $(seq 1 24); do
+                NEW_CHECKSUM=$(kubectl get statefulset redis-replication -n ${NAMESPACE} \
+                  -o jsonpath='{.spec.template.metadata.annotations.redis\.opstreelabs\.in/password-secret-checksum}')
+                if [ -n "$NEW_CHECKSUM" ] && [ "$NEW_CHECKSUM" != "$OLD_CHECKSUM" ]; then
+                  break
+                fi
+                sleep 5
+              done
+              if [ "$NEW_CHECKSUM" = "$OLD_CHECKSUM" ]; then
+                echo "timed out waiting for the checksum annotation to change"
+                exit 1
+              fi
+
+              READY=0
+              UPDATED=0
+              for i in $(seq 1 36); do
+                READY=$(kubectl get statefulset redis-replication -n ${NAMESPACE} -o jsonpath='{.status.readyReplicas}')
+                UPDATED=$(kubectl get statefulset redis-replication -n ${NAMESPACE} -o jsonpath='{.status.updatedReplicas}')
+                if [ "$READY" = "3" ] && [ "$UPDATED" = "3" ]; then
+                  echo "rollout complete"
+                  exit 0
+                fi
+                sleep 5
+              done
+              echo "timed out waiting for the rollout to complete: readyReplicas=$READY updatedReplicas=$UPDATED"
+              exit 1
+            check:
+              (contains($stdout, 'rollout complete')): true
+
+    - name: Assert pods authenticate with the rotated password
+      try:
+        - script:
+            timeout: 30s
+            content: |
+              kubectl exec -n ${NAMESPACE} redis-replication-0 -c redis-replication -- \
+                redis-cli --no-auth-warning -a NewPassword5678 ping
+            check:
+              (contains($stdout, 'PONG')): true
+        - script:
+            timeout: 30s
+            content: |
+              kubectl exec -n ${NAMESPACE} redis-replication-0 -c redis-replication -- \
+                redis-cli --no-auth-warning -a Opstree1234 ping
+            check:
+              (contains($stdout, 'PONG')): false
+
+    - name: Uninstall
+      try:
+        - delete:
+            ref:
+              name: redis-replication
+              kind: RedisReplication
+              apiVersion: redis.redis.opstreelabs.in/v1beta2
+        - error:
+            file: ready-sts.yaml

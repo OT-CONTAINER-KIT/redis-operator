@@ -10,6 +10,7 @@ import (
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/consts"
+	ctrlcommon "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/features"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -2426,6 +2427,32 @@ func TestGenerateStatefulSetsDefPodManagementPolicy(t *testing.T) {
 			assert.Equal(t, test.expectedPolicy, stsDef.Spec.PodManagementPolicy, "StatefulSet PodManagementPolicy")
 		})
 	}
+}
+
+func TestGenerateStatefulSetsDefSecretChecksumAnnotation(t *testing.T) {
+	t.Run("empty checksum leaves the pod template unannotated", func(t *testing.T) {
+		stsDef := generateStatefulSetsDef(
+			metav1.ObjectMeta{Name: "test-sts", Namespace: "test-ns"},
+			statefulSetParameters{Replicas: ptr.To(int32(3))},
+			metav1.OwnerReference{},
+			initContainerParameters{},
+			containerParameters{Image: "redis:latest"},
+			nil,
+		)
+		assert.NotContains(t, stsDef.Spec.Template.Annotations, ctrlcommon.AnnotationKeyPasswordSecretChecksum)
+	})
+
+	t.Run("non-empty checksum is stamped on the pod template to force a rolling restart on secret rotation", func(t *testing.T) {
+		stsDef := generateStatefulSetsDef(
+			metav1.ObjectMeta{Name: "test-sts", Namespace: "test-ns"},
+			statefulSetParameters{Replicas: ptr.To(int32(3))},
+			metav1.OwnerReference{},
+			initContainerParameters{},
+			containerParameters{Image: "redis:latest", SecretChecksum: "deadbeef"},
+			nil,
+		)
+		assert.Equal(t, "deadbeef", stsDef.Spec.Template.Annotations[ctrlcommon.AnnotationKeyPasswordSecretChecksum])
+	})
 }
 
 func TestPodManagementPolicyImmutableOnExistingStatefulSet(t *testing.T) {
