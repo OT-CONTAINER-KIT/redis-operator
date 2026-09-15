@@ -28,6 +28,14 @@ app.kubernetes.io/component: operator
 app.kubernetes.io/part-of: {{ .Release.Name }}
 {{- end }}
 
+{{/* Deployment labels: common labels plus any user-supplied deploymentLabels */}}
+{{- define "redisOperator.deploymentLabels" -}}
+{{ include "redisOperator.labels" . }}
+{{- with .Values.redisOperator.deploymentLabels }}
+{{ toYaml . }}
+{{- end }}
+{{- end }}
+
 {{/* Selector labels */}}
 {{- define "redisOperator.selectorLabels" -}}
 name: {{ .Values.redisOperator.name }}
