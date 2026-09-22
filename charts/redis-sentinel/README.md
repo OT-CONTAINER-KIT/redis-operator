@@ -86,6 +86,7 @@ helm delete <my-release> --namespace <namespace>
 | redisExporter.enabled | bool | `false` |  |
 | redisExporter.env | list | `[]` |  |
 | redisExporter.image | string | `"quay.io/opstree/redis-exporter"` |  |
+| redisExporter.digest | string | `""` | Optional image digest (e.g. `sha256:abc...`). If set, rendered as `image:tag@digest`. Can be used instead of or together with tag. |
 | redisExporter.imagePullPolicy | string | `"IfNotPresent"` |  |
 | redisExporter.resources | object | `{}` |  |
 | redisExporter.securityContext | object | `{}` |  |
@@ -93,6 +94,7 @@ helm delete <my-release> --namespace <namespace>
 | redisSentinel.clusterSize | int | `3` |  |
 | redisSentinel.ignoreAnnotations | list | `[]` |  |
 | redisSentinel.image | string | `"quay.io/opstree/redis-sentinel"` |  |
+| redisSentinel.digest | string | `""` | Optional image digest (e.g. `sha256:abc...`). If set, rendered as `image:tag@digest`. Can be used instead of or together with tag. |
 | redisSentinel.imagePullPolicy | string | `"IfNotPresent"` |  |
 | redisSentinel.imagePullSecrets | list | `[]` |  |
 | redisSentinel.minReadySeconds | int | `0` |  |
