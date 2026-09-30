@@ -4,7 +4,7 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: {{ .Values.redisCluster.name | default .Release.Name }}-follower-prometheus-monitoring
+  name: {{ include "redis.name" $ }}-follower-prometheus-monitoring
   namespace: {{ .Values.serviceMonitor.namespace | default .Release.Namespace }}
   labels:
     {{- include "common.labels" $ | nindent 4 }}
@@ -14,7 +14,7 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: {{ .Values.redisCluster.name | default .Release.Name }}-follower
+      app: {{ include "redis.name" $ }}-follower
       app.kubernetes.io/component: metrics
       redis_setup_type: cluster
       role: follower

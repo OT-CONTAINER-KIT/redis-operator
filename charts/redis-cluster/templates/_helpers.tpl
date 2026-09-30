@@ -2,10 +2,10 @@
 
 {{/* Define common labels */}}
 {{- define "common.labels" -}}
-app.kubernetes.io/name: {{ .Values.redisCluster.name | default .Release.Name }}
+app.kubernetes.io/name: {{ include "redis.name" $ }}
 helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
-app.kubernetes.io/instance: {{ .Values.redisCluster.name | default .Release.Name }}
+app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/version: {{ .Chart.AppVersion }}
 app.kubernetes.io/component: middleware
 {{- if .Values.labels }}
@@ -19,6 +19,10 @@ app.kubernetes.io/component: middleware
 {{ toYaml .Values.annotations }}
 {{- end }}
 {{- end -}}
+
+{{- define "redis.name" -}}
+{{- .Values.redisCluster.name | default .Release.Name | trunc 63 | trimSuffix "-" }}
+{{- end }}
 
 {{/* Helper for Redis Cluster (leader & follower) */}}
 {{- define "redis.role" -}}

@@ -3,7 +3,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ .Values.redisCluster.name | default .Release.Name }}-ext-config
+  name: {{ include "redis.name" $ }}-ext-config
   labels:
     {{- include "common.labels" $ | nindent 4 }}
 data:

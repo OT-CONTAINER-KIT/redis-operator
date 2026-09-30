@@ -2,7 +2,7 @@
 apiVersion: redis.redis.opstreelabs.in/v1beta2
 kind: RedisCluster
 metadata:
-  name: {{ .Values.redisCluster.name | default .Release.Name }}
+  name: {{ include "redis.name" $ }}
   labels:
     {{- include "common.labels" . | nindent 4 }}
   annotations:
@@ -21,14 +21,14 @@ spec:
     replicas: {{ include "redis.replicas" (dict "replicas" .Values.redisCluster.leader.replicas "clusterSize" .Values.redisCluster.clusterSize) }}
     {{- if .Values.externalConfig.enabled }}
     redisConfig:
-      additionalRedisConfig: "{{ .Values.redisCluster.name | default .Release.Name }}-ext-config"
+      additionalRedisConfig: "{{ include "redis.name" $ }}-ext-config"
     {{- end }}
 
   redisFollower: {{-  include "redis.role" .Values.redisCluster.follower | nindent 4 }}
     replicas: {{ include "redis.replicas" (dict "replicas" .Values.redisCluster.follower.replicas "clusterSize" .Values.redisCluster.clusterSize) }}
     {{- if .Values.externalConfig.enabled }}
     redisConfig:
-      additionalRedisConfig: "{{ .Values.redisCluster.name | default .Release.Name }}-ext-config"
+      additionalRedisConfig: "{{ include "redis.name" $ }}-ext-config"
     {{- end }}
 
   {{- if or (and .Values.redisCluster.maxMemoryPercentOfLimit (gt (int .Values.redisCluster.maxMemoryPercentOfLimit) 0)) (.Values.redisCluster.dynamicConfig) }}
@@ -63,7 +63,7 @@ spec:
     {{- end }}
     {{- if .Values.redisCluster.serviceType }}
     service:
-      serviceType: {{ include "common.validateServiceType" (dict "serviceType" .Values.redisCluster.serviceType "name" (.Values.redisCluster.name | default .Release.Name)) }}
+      serviceType: {{ include "common.validateServiceType" (dict "serviceType" .Values.redisCluster.serviceType "name" (include "redis.name" $)) }}
     {{- end }}
     {{- if .Values.redisCluster.resources}}
     resources: {{ toYaml .Values.redisCluster.resources | nindent 6 }}
