@@ -10,12 +10,7 @@ metadata:
 {{ toYaml .Values.externalService.annotations | indent 4 }}
 {{- end }}
   labels:
-    app.kubernetes.io/name: {{ .Values.redisCluster.name | default .Release.Name }}
-    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
-    app.kubernetes.io/managed-by: {{ .Release.Service }}
-    app.kubernetes.io/instance: {{ .Values.redisCluster.name | default .Release.Name }}
-    app.kubernetes.io/version: {{ .Chart.AppVersion }}
-    app.kubernetes.io/component: middleware
+    {{- include "common.labels" $ | nindent 4 }}
 spec:
   type: {{ .Values.externalService.serviceType }}
   selector:

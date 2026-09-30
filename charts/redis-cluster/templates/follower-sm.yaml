@@ -7,12 +7,7 @@ metadata:
   name: {{ .Values.redisCluster.name | default .Release.Name }}-follower-prometheus-monitoring
   namespace: {{ .Values.serviceMonitor.namespace | default .Release.Namespace }}
   labels:
-    app.kubernetes.io/name: {{ .Values.redisCluster.name | default .Release.Name }}
-    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
-    app.kubernetes.io/managed-by: {{ .Release.Service }}
-    app.kubernetes.io/instance: {{ .Values.redisCluster.name | default .Release.Name }}
-    app.kubernetes.io/version: {{ .Chart.AppVersion }}
-    app.kubernetes.io/component: middleware
+    {{- include "common.labels" $ | nindent 4 }}
     {{- with .Values.serviceMonitor.extraLabels }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
