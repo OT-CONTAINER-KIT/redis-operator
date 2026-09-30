@@ -5,6 +5,7 @@ metadata:
   name: {{ include "redis.name" $ }}
   labels:
     {{- include "common.labels" . | nindent 4 }}
+  {{- if or .Values.annotations .Values.redisCluster.recreateStatefulSetOnUpdateInvalid .Values.redisCluster.enableMasterSlaveAntiAffinity }}
   annotations:
     {{- include "common.annotations" . | nindent 4 }}
     {{ if .Values.redisCluster.recreateStatefulSetOnUpdateInvalid }}
@@ -13,6 +14,7 @@ metadata:
     {{- if .Values.redisCluster.enableMasterSlaveAntiAffinity }}
     redisclusters.redis.redis.opstreelabs.in/role-anti-affinity: "true"
     {{- end }}
+  {{- end }}
 spec:
   clusterSize: {{ .Values.redisCluster.clusterSize }}
   persistenceEnabled: {{ .Values.redisCluster.persistenceEnabled }}
