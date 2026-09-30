@@ -21,7 +21,7 @@ app.kubernetes.io/component: middleware
 {{- end -}}
 
 {{- define "redis.name" -}}
-{{- .Values.redisCluster.name | default .Release.Name | trunc 63 | trimSuffix "-" }}
+{{- tpl .Values.redisCluster.name $ | default .Release.Name | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/* Helper for Redis Cluster (leader & follower) */}}
