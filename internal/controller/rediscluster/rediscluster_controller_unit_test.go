@@ -5,9 +5,11 @@ import (
 	"errors"
 	"testing"
 
+	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/redis"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/client-go/kubernetes"
 )
 
 type fakeChecker struct {
@@ -87,4 +89,54 @@ func TestShouldScaleUpExistingCluster(t *testing.T) {
 			assert.Equal(t, tt.wantCheckerHit, checker.called)
 		})
 	}
+}
+
+func TestReapplyDynamicConfigIfReady(t *testing.T) {
+	newCluster := func(state rcvb2.RedisClusterState, maxmemory string) *rcvb2.RedisCluster {
+		return &rcvb2.RedisCluster{
+			Spec: rcvb2.RedisClusterSpec{
+				RedisConfig: &common.RedisConfig{
+					DynamicConfig: []string{"maxmemory " + maxmemory},
+				},
+			},
+			Status: rcvb2.RedisClusterStatus{State: state},
+		}
+	}
+
+	t.Run("re-applies on successive reconciles once Ready, picking up spec edits", func(t *testing.T) {
+		var applied [][]string
+		r := &Reconciler{setDynamicConfig: func(_ context.Context, _ kubernetes.Interface, cr *rcvb2.RedisCluster) error {
+			applied = append(applied, cr.Spec.RedisConfig.DynamicConfig)
+			return nil
+		}}
+
+		assert.NoError(t, r.reapplyDynamicConfigIfReady(context.TODO(), newCluster(rcvb2.RedisClusterReady, "100mb")))
+		assert.NoError(t, r.reapplyDynamicConfigIfReady(context.TODO(), newCluster(rcvb2.RedisClusterReady, "200mb")))
+		assert.Equal(t, [][]string{{"maxmemory 100mb"}, {"maxmemory 200mb"}}, applied)
+	})
+
+	t.Run("skips clusters that are not Ready", func(t *testing.T) {
+		for _, state := range []rcvb2.RedisClusterState{
+			rcvb2.RedisClusterInitializing,
+			rcvb2.RedisClusterBootstrap,
+			rcvb2.RedisClusterFailed,
+			"",
+		} {
+			called := false
+			r := &Reconciler{setDynamicConfig: func(context.Context, kubernetes.Interface, *rcvb2.RedisCluster) error {
+				called = true
+				return nil
+			}}
+			assert.NoError(t, r.reapplyDynamicConfigIfReady(context.TODO(), newCluster(state, "100mb")))
+			assert.False(t, called, "dynamic config applied in state %q", state)
+		}
+	})
+
+	t.Run("returns the apply error", func(t *testing.T) {
+		wantErr := errors.New("CONFIG SET failed")
+		r := &Reconciler{setDynamicConfig: func(context.Context, kubernetes.Interface, *rcvb2.RedisCluster) error {
+			return wantErr
+		}}
+		assert.ErrorIs(t, r.reapplyDynamicConfigIfReady(context.TODO(), newCluster(rcvb2.RedisClusterReady, "100mb")), wantErr)
+	})
 }
