@@ -55,6 +55,11 @@ helm delete <my-release> --namespace <namespace>
 | env | list | `[]` |  |
 | externalConfig.data | string | `"tcp-keepalive 400\nslowlog-max-len 158\nstream-node-max-bytes 2048\n"` |  |
 | externalConfig.enabled | bool | `false` |  |
+| externalMaster | object | `{"enabled":false,"host":"","password":{},"port":6379}` | External master configuration for cross-cluster (passive) replication. When enabled, pod-0 replicates from the external master and pods 1..N cascade from pod-0. Cannot be combined with sentinel. |
+| externalMaster.enabled | bool | `false` | Enable external master (passive) mode. |
+| externalMaster.host | string | `""` | DNS name or IP address of the external Redis master. |
+| externalMaster.password | object | `{}` | Optional password secret for the external master. If omitted, the local cluster's redisSecret is used. |
+| externalMaster.port | int | `6379` | Port of the external Redis master. |
 | externalService.enabled | bool | `false` |  |
 | externalService.port | int | `6379` |  |
 | externalService.serviceType | string | `"NodePort"` |  |
