@@ -1078,6 +1078,123 @@ func topologyOf(masters, slaves, unobserved []string) func(context.Context, kube
 	}
 }
 
+func TestReconcileRedisExternalMasterSkipsInternalMasterElection(t *testing.T) {
+	topologyCalled := false
+	createLinkCalled := false
+	externalMasterCalled := false
+
+	r := &Reconciler{
+		StatefulSet: &fakeStatefulSetService{},
+		K8sClient:   fake.NewSimpleClientset(),
+		RedisReplicationTopology: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication) (k8sutils.RedisReplicationTopology, error) {
+			topologyCalled = true
+			return k8sutils.RedisReplicationTopology{}, nil
+		},
+		CreateRedisReplicationLink: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string, string) error {
+			createLinkCalled = true
+			return nil
+		},
+		ConfigureExternalMasterReplication: func(_ context.Context, _ kubernetes.Interface, cr *rrvb2.RedisReplication) error {
+			externalMasterCalled = true
+			assert.Equal(t, "redis.primary.example.com", cr.Spec.ExternalMaster.Host)
+			return nil
+		},
+	}
+
+	result, err := r.reconcileRedis(context.Background(), newExternalMasterInstanceForTest())
+
+	require.NoError(t, err)
+	assert.Equal(t, ctrl.Result{}, result)
+	assert.True(t, externalMasterCalled, "ConfigureExternalMasterReplication should be called")
+	assert.False(t, topologyCalled, "RedisReplicationTopology should NOT be called in external master mode")
+	assert.False(t, createLinkCalled, "CreateRedisReplicationLink should NOT be called in external master mode")
+}
+
+func TestReconcileRedisExternalMasterRequeuesWhenStatefulSetNotReady(t *testing.T) {
+	externalMasterCalled := false
+
+	r := &Reconciler{
+		StatefulSet: &fakeStatefulSetServiceNotReady{},
+		K8sClient:   fake.NewSimpleClientset(),
+		ConfigureExternalMasterReplication: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication) error {
+			externalMasterCalled = true
+			return nil
+		},
+	}
+
+	result, err := r.reconcileRedis(context.Background(), newExternalMasterInstanceForTest())
+
+	require.NoError(t, err)
+	assert.True(t, result.RequeueAfter > 0, "should requeue when StatefulSet is not ready")
+	assert.False(t, externalMasterCalled, "ConfigureExternalMasterReplication should NOT be called when StatefulSet is not ready")
+}
+
+func TestReconcileStatusExternalMaster(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, rrvb2.AddToScheme(scheme))
+
+	seedInstance := newExternalMasterInstanceForTest()
+	ctrlClient := clientfake.NewClientBuilder().
+		WithScheme(scheme).
+		WithStatusSubresource(seedInstance).
+		WithObjects(seedInstance.DeepCopy()).
+		Build()
+
+	instance := &rrvb2.RedisReplication{}
+	require.NoError(t, ctrlClient.Get(context.Background(), client.ObjectKeyFromObject(seedInstance), instance))
+
+	healer := &fakeHealer{}
+	topologyCalled := false
+
+	r := &Reconciler{
+		Client:    ctrlClient,
+		K8sClient: fake.NewSimpleClientset(),
+		Healer:    healer,
+		RedisReplicationTopology: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication) (k8sutils.RedisReplicationTopology, error) {
+			topologyCalled = true
+			return k8sutils.RedisReplicationTopology{}, nil
+		},
+		GetExternalReplicationLinkStatus: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication) string {
+			return "up"
+		},
+	}
+
+	result, err := r.reconcileStatus(context.Background(), instance)
+
+	require.NoError(t, err)
+	assert.Equal(t, ctrl.Result{}, result)
+	assert.True(t, healer.updateCalled)
+	assert.False(t, topologyCalled, "RedisReplicationTopology should NOT be called in external master mode")
+
+	updated := &rrvb2.RedisReplication{}
+	require.NoError(t, ctrlClient.Get(context.Background(), client.ObjectKeyFromObject(instance), updated))
+	require.NotNil(t, updated.Status.ExternalReplication)
+	assert.Equal(t, "passive", updated.Status.ExternalReplication.Mode)
+	assert.Equal(t, "redis.primary.example.com:6380", updated.Status.ExternalReplication.ExternalMasterHost)
+	assert.Equal(t, "up", updated.Status.ExternalReplication.LinkStatus)
+	assert.Empty(t, updated.Status.MasterNode)
+}
+
+func newExternalMasterInstanceForTest() *rrvb2.RedisReplication {
+	size := int32(3)
+	return &rrvb2.RedisReplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "example-replication",
+			Namespace: "default",
+		},
+		Spec: rrvb2.RedisReplicationSpec{
+			Size: ptr.To(size),
+			KubernetesConfig: commonapi.KubernetesConfig{
+				Image: "redis:7",
+			},
+			ExternalMaster: &rrvb2.ExternalMaster{
+				Host: "redis.primary.example.com",
+				Port: ptr.To(int32(6380)),
+			},
+		},
+	}
+}
+
 func newReplicationInstanceForTest() *rrvb2.RedisReplication {
 	size := int32(3)
 	return &rrvb2.RedisReplication{
@@ -1107,6 +1224,16 @@ func (f *fakeStatefulSetService) IsStatefulSetReady(context.Context, string, str
 }
 
 func (f *fakeStatefulSetService) GetStatefulSetReplicas(context.Context, string, string) int32 {
+	return 0
+}
+
+type fakeStatefulSetServiceNotReady struct{}
+
+func (f *fakeStatefulSetServiceNotReady) IsStatefulSetReady(context.Context, string, string) bool {
+	return false
+}
+
+func (f *fakeStatefulSetServiceNotReady) GetStatefulSetReplicas(context.Context, string, string) int32 {
 	return 0
 }
 

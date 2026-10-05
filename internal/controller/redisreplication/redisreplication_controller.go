@@ -34,13 +34,15 @@ const (
 type Reconciler struct {
 	client.Client
 	k8sutils.StatefulSet
-	Healer                     redishealer.Healer
-	K8sClient                  kubernetes.Interface
-	RedisReplicationTopology   func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication) (k8sutils.RedisReplicationTopology, error)
-	RedisReplicationRealMaster func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string
-	CreateRedisReplicationLink func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string, string) error
-	ConfigureSentinel          func(context.Context, *rrvb2.RedisReplication, string) error
-	SentinelMonitoredMaster    func(context.Context, *rrvb2.RedisReplication, []string) (string, error)
+	Healer                             redishealer.Healer
+	K8sClient                          kubernetes.Interface
+	RedisReplicationTopology           func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication) (k8sutils.RedisReplicationTopology, error)
+	RedisReplicationRealMaster         func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string
+	CreateRedisReplicationLink         func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string, string) error
+	ConfigureSentinel                  func(context.Context, *rrvb2.RedisReplication, string) error
+	SentinelMonitoredMaster            func(context.Context, *rrvb2.RedisReplication, []string) (string, error)
+	ConfigureExternalMasterReplication func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication) error
+	GetExternalReplicationLinkStatus   func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication) string
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -159,6 +161,20 @@ func (r *Reconciler) createRedisReplicationLink(ctx context.Context, instance *r
 		return r.CreateRedisReplicationLink(ctx, r.K8sClient, instance, pods, realMaster)
 	}
 	return k8sutils.CreateMasterSlaveReplication(ctx, r.K8sClient, instance, pods, realMaster)
+}
+
+func (r *Reconciler) configureExternalMasterReplication(ctx context.Context, instance *rrvb2.RedisReplication) error {
+	if r.ConfigureExternalMasterReplication != nil {
+		return r.ConfigureExternalMasterReplication(ctx, r.K8sClient, instance)
+	}
+	return k8sutils.ConfigureExternalMasterReplication(ctx, r.K8sClient, instance)
+}
+
+func (r *Reconciler) getExternalReplicationLinkStatus(ctx context.Context, instance *rrvb2.RedisReplication) string {
+	if r.GetExternalReplicationLinkStatus != nil {
+		return r.GetExternalReplicationLinkStatus(ctx, r.K8sClient, instance)
+	}
+	return k8sutils.GetExternalReplicationLinkStatus(ctx, r.K8sClient, instance)
 }
 
 func (r *Reconciler) configureReplicationSentinel(ctx context.Context, instance *rrvb2.RedisReplication, masterPodName string) error {
@@ -441,6 +457,30 @@ func (r *Reconciler) sentinelResetIfNeed(ctx context.Context, inst *rrvb2.RedisR
 }
 
 func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisReplication) (ctrl.Result, error) {
+	// External master mode: skip all internal master election and failover logic.
+	// Pod-0 replicates from the external master, pods 1..N cascade from pod-0.
+	if instance.UseExternalMaster() {
+		if !r.IsStatefulSetReady(ctx, instance.Namespace, instance.RedisStatefulSet()) {
+			return intctrlutil.RequeueAfter(ctx, time.Second*30, "waiting for redis statefulset to be ready for external master replication")
+		}
+
+		if len(instance.Spec.GetRedisDynamicConfig()) > 0 {
+			if err := k8sutils.SetRedisReplicationDynamicConfig(ctx, r.K8sClient, instance); err != nil {
+				return intctrlutil.RequeueE(ctx, err, "failed to set dynamic config")
+			}
+		}
+
+		if err := r.configureExternalMasterReplication(ctx, instance); err != nil {
+			return intctrlutil.RequeueAfter(ctx, time.Second*60, "failed to configure external master replication")
+		}
+
+		monitoring.RedisReplicationReplicasSizeMismatch.WithLabelValues(instance.Namespace, instance.Name).Set(0)
+		monitoring.RedisReplicationReplicasSizeCurrent.WithLabelValues(instance.Namespace, instance.Name).Set(float64(*instance.Spec.Size))
+		monitoring.RedisReplicationReplicasSizeDesired.WithLabelValues(instance.Namespace, instance.Name).Set(float64(*instance.Spec.Size))
+
+		return intctrlutil.Reconciled()
+	}
+
 	if instance.EnableSentinel() {
 		if !r.IsStatefulSetReady(ctx, instance.Namespace, instance.SentinelStatefulSet()) {
 			return intctrlutil.RequeueAfter(ctx, time.Second*30, "waiting for sentinel statefulset to be ready")
@@ -555,6 +595,34 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 
 // reconcileStatus update status and label.
 func (r *Reconciler) reconcileStatus(ctx context.Context, instance *rrvb2.RedisReplication) (ctrl.Result, error) {
+	// External master mode: no local master to discover. All pods are replicas.
+	if instance.UseExternalMaster() {
+		linkStatus := r.getExternalReplicationLinkStatus(ctx, instance)
+		externalEndpoint := instance.GetExternalMasterEndpoint()
+
+		status := rrvb2.RedisReplicationStatus{
+			ConnectionInfo: instance.GetConnectionInfo(envs.GetServiceDNSDomain()),
+			ExternalReplication: &rrvb2.ExternalReplicationStatus{
+				Mode:               "passive",
+				ExternalMasterHost: externalEndpoint,
+				LinkStatus:         linkStatus,
+			},
+		}
+		if err := r.updateStatus(ctx, instance, status); err != nil {
+			return intctrlutil.RequeueE(ctx, err, "")
+		}
+
+		labels := common.GetRedisLabels(instance.GetName(), common.SetupTypeReplication, "replication", instance.GetLabels())
+		if err := r.Healer.UpdateRedisRoleLabel(ctx, instance.GetNamespace(), labels, instance.Spec.KubernetesConfig.ExistingPasswordSecret, instance.Spec.TLS, ""); err != nil {
+			return intctrlutil.RequeueE(ctx, err, "")
+		}
+
+		monitoring.RedisReplicationHasMaster.WithLabelValues(instance.Namespace, instance.Name).Set(0)
+		monitoring.RedisReplicationConnectedSlavesTotal.WithLabelValues(instance.Namespace, instance.Name).Set(float64(*instance.Spec.Size))
+
+		return intctrlutil.Reconciled()
+	}
+
 	topology, err := r.redisReplicationTopology(ctx, instance)
 	if err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
