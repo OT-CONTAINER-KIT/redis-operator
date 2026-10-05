@@ -80,6 +80,24 @@ func (r *RedisReplication) validate(_ *RedisReplication) (admission.Warnings, er
 		}
 	}
 
+	// Validate ExternalMaster configuration
+	if r.Spec.ExternalMaster != nil {
+		if r.Spec.Sentinel != nil && r.Spec.Sentinel.Size > 0 {
+			errors = append(errors, field.Invalid(
+				field.NewPath("spec").Child("externalMaster"),
+				r.Spec.ExternalMaster,
+				"externalMaster cannot be combined with sentinel: sentinel requires a local master, "+
+					"but externalMaster mode creates read-replicas only",
+			))
+		}
+		if r.Spec.ExternalMaster.Host == "" {
+			errors = append(errors, field.Required(
+				field.NewPath("spec").Child("externalMaster").Child("host"),
+				"host must be set when externalMaster is configured",
+			))
+		}
+	}
+
 	if len(errors) == 0 {
 		return nil, nil
 	}
