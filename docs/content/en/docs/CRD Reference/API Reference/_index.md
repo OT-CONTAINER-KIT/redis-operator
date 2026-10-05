@@ -96,6 +96,7 @@ ExistingPasswordSecret is the struct to access the existing secret
 
 
 _Appears in:_
+- [ExternalMaster](#externalmaster)
 - [KubernetesConfig](#kubernetesconfig)
 - [Sentinel](#sentinel)
 
@@ -103,6 +104,25 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `name` _string_ |  |  |  |
 | `key` _string_ |  |  |  |
+
+
+#### ExternalMaster
+
+
+
+ExternalMaster configures cross-cluster replication where this deployment
+acts as a passive replica of a Redis master in another cluster.
+
+
+
+_Appears in:_
+- [RedisReplicationSpec](#redisreplicationspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `host` _string_ | Host is the FQDN or IP of the external Redis master. |  | MinLength: 1 <br /> |
+| `port` _integer_ | Port is the Redis port on the external master. | 6379 | Maximum: 65535 <br />Minimum: 1 <br /> |
+| `password` _[ExistingPasswordSecret](#existingpasswordsecret)_ | Password is an optional secret reference for the external master's<br />requirepass/masterauth. If omitted, the local cluster password<br />(spec.kubernetesConfig.redisSecret) is used. |  |  |
 
 
 #### InitContainer
@@ -417,6 +437,7 @@ _Appears in:_
 | `hostPort` _integer_ |  |  |  |
 | `sentinel` _[Sentinel](#sentinel)_ |  |  |  |
 | `podManagementPolicy` _string_ | PodManagementPolicy controls how pods are created during initial scale up,<br />when replacing pods on nodes, or when scaling down. This field is immutable<br />on an existing StatefulSet; changing it for a running cluster requires<br />recreating the StatefulSet (e.g. via the<br />redis.opstreelabs.in/recreate-statefulset annotation), otherwise the change<br />is ignored. |  | Enum: [OrderedReady Parallel] <br /> |
+| `externalMaster` _[ExternalMaster](#externalmaster)_ | ExternalMaster configures this RedisReplication as a passive replica of an<br />external Redis master (e.g., cross-cluster or cross-DC replication).<br />When set, pod-0 replicates from the external master and pods 1..N cascade<br />from pod-0. Internal master election is skipped and the master-role service<br />is not created. Cannot be combined with Sentinel. |  |  |
 
 
 #### RedisSentinel
