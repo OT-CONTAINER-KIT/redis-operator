@@ -128,6 +128,14 @@ func (r *RedisSentinelReconciler) reconcileSentinel(ctx context.Context, instanc
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
 
+	if rr.UseExternalMaster() {
+		return intctrlutil.RequeueE(ctx,
+			fmt.Errorf("RedisReplication %s/%s has externalMaster configured; "+
+				"sentinel cannot monitor a passive replication cluster because all pods are replicas "+
+				"and promoting one would break the external replication chain", rr.Namespace, rr.Name),
+			"")
+	}
+
 	var monitorAddr string
 	if master, err := r.Checker.GetMasterFromReplication(ctx, rr); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
