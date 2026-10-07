@@ -71,6 +71,9 @@ rbac:
   # "namespace" restricts the operator to its own release namespace; set redisOperator.watchNamespace
   # accordingly and ensure the CRDs are installed separately (CRDs are cluster-scoped).
   scope: "cluster"
+  # -- Aggregate the Redis CRs into the builtin view, edit and admin ClusterRoles.
+  # Only rendered when rbac.scope is "cluster".
+  aggregate: true
 serviceAccountName: redis-operator
 
 serviceAccount:
