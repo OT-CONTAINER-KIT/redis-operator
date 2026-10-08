@@ -35,6 +35,8 @@ rules:
   - redissentinel
   - redissentinels
   - redisreplication
+  - redisbackups
+  - redisrestores
   verbs:
   - create
   - delete
@@ -68,6 +70,8 @@ rules:
   - redissentinels/finalizers
   - redisreplication/finalizers
   - redisreplications/finalizers
+  - redisbackups/finalizers
+  - redisrestores/finalizers
   verbs:
   - update
 - apiGroups:
@@ -80,6 +84,8 @@ rules:
   - redissentinels/status
   - redisreplication/status
   - redisreplications/status
+  - redisbackups/status
+  - redisrestores/status
   verbs:
   - get
   - patch
@@ -110,6 +116,7 @@ rules:
   - apps
   resources:
   - statefulsets
+  - statefulsets/scale
   verbs:
   - create
   - delete
