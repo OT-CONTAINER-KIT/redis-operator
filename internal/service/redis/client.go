@@ -6,12 +6,17 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 
 	rediscli "github.com/redis/go-redis/v9"
 )
 
 const (
 	redisRoleMaster = "role:master"
+	// defaultRedisClientTimeout bounds dial/read/write operations so an
+	// unreachable pod cannot stall a reconcile worker. It mirrors the
+	// defaultRedisClientTimeout used by the k8sutils exec-based path.
+	defaultRedisClientTimeout = 5 * time.Second
 )
 
 type ConnectionInfo struct {
@@ -85,9 +90,12 @@ func (s *service) createClient() *rediscli.Client {
 		return nil
 	}
 	opts := &rediscli.Options{
-		Addr:     s.connectionInfo.GetAddress(),
-		Password: s.connectionInfo.Password,
-		DB:       0,
+		Addr:         s.connectionInfo.GetAddress(),
+		Password:     s.connectionInfo.Password,
+		DB:           0,
+		DialTimeout:  defaultRedisClientTimeout,
+		ReadTimeout:  defaultRedisClientTimeout,
+		WriteTimeout: defaultRedisClientTimeout,
 	}
 	if s.connectionInfo.TLSConfig != nil {
 		opts.TLSConfig = s.connectionInfo.TLSConfig
