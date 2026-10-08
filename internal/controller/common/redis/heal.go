@@ -244,8 +244,13 @@ func (h *healer) SentinelSet(ctx context.Context, rs *rsvb2.RedisSentinel, maste
 	if err != nil {
 		return err
 	}
+	var errs []error
 	for _, pod := range pods.Items {
+		if !k8sutils.IsRedisPodProbeable(&pod) {
+			continue
+		}
 		connInfo := createConnectionInfo(ctx, pod, sentinelPass, rs.Spec.TLS, h.k8s, rs.Namespace, "26379")
+		sentinel := h.redis.Connect(connInfo)
 
 		for k, v := range map[string]string{
 			"down-after-milliseconds": rs.Spec.RedisSentinelConfig.DownAfterMilliseconds,
@@ -255,13 +260,16 @@ func (h *healer) SentinelSet(ctx context.Context, rs *rsvb2.RedisSentinel, maste
 			if v == "" {
 				continue
 			}
-			err = h.redis.Connect(connInfo).SentinelSet(ctx, rs.Spec.RedisSentinelConfig.MasterGroupName, k, v)
-			if err != nil {
-				return err
+			if err := sentinel.SentinelSet(ctx, rs.Spec.RedisSentinelConfig.MasterGroupName, k, v); err != nil {
+				if ctxErr := ctx.Err(); ctxErr != nil {
+					return ctxErr
+				}
+				errs = append(errs, fmt.Errorf("sentinel set %s on pod %s: %w", k, pod.Name, err))
+				break
 			}
 		}
 	}
-	return nil
+	return errors.Join(errs...)
 }
 
 func (h *healer) SentinelReset(ctx context.Context, rs *rsvb2.RedisSentinel, rr *rrvb2.RedisReplication) error {
@@ -279,13 +287,21 @@ func (h *healer) SentinelReset(ctx context.Context, rs *rsvb2.RedisSentinel, rr 
 	expectedSlaves := int(rr.Spec.GetReplicationCounts("replication")) - 1
 	expectedSentinels := int(rs.Spec.GetSentinelCounts("sentinel"))
 
+	var errs []error
 	for _, pod := range pods.Items {
+		if !k8sutils.IsRedisPodProbeable(&pod) {
+			continue
+		}
 		connInfo := createConnectionInfo(ctx, pod, sentinelPass, rs.Spec.TLS, h.k8s, rs.Namespace, "26379")
 		sentinel := h.redis.Connect(connInfo)
 
 		info, err := sentinel.GetInfoSentinel(ctx)
 		if err != nil {
-			return err
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return ctxErr
+			}
+			errs = append(errs, fmt.Errorf("sentinel info on pod %s: %w", pod.Name, err))
+			continue
 		}
 		masterInfo, ok := info.Master(masterGroupName)
 		if !ok {
@@ -306,10 +322,13 @@ func (h *healer) SentinelReset(ctx context.Context, rs *rsvb2.RedisSentinel, rr 
 			"sentinels", masterInfo.Sentinels,
 		)
 		if err := sentinel.SentinelReset(ctx, masterGroupName); err != nil {
-			return err
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return ctxErr
+			}
+			errs = append(errs, fmt.Errorf("sentinel reset on pod %s: %w", pod.Name, err))
 		}
 	}
-	return nil
+	return errors.Join(errs...)
 }
 
 func (h *healer) SentinelMonitor(ctx context.Context, rs *rsvb2.RedisSentinel, master string) error {
@@ -334,7 +353,11 @@ func (h *healer) SentinelMonitor(ctx context.Context, rs *rsvb2.RedisSentinel, m
 		}
 	}
 
+	var errs []error
 	for _, pod := range pods.Items {
+		if !k8sutils.IsRedisPodProbeable(&pod) {
+			continue
+		}
 		connInfo := createConnectionInfo(ctx, pod, sentinelPass, rs.Spec.TLS, h.k8s, rs.Namespace, "26379")
 
 		masterConnInfo := &redis.ConnectionInfo{
@@ -349,11 +372,14 @@ func (h *healer) SentinelMonitor(ctx context.Context, rs *rsvb2.RedisSentinel, m
 			rs.Spec.RedisSentinelConfig.Quorum,
 		)
 		if err != nil {
-			return err
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return ctxErr
+			}
+			errs = append(errs, fmt.Errorf("sentinel monitor on pod %s: %w", pod.Name, err))
 		}
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
 
 func (h *healer) getSentinelPods(ctx context.Context, rs *rsvb2.RedisSentinel) (*v1.PodList, error) {
