@@ -4,10 +4,6 @@ kind: ClusterRole
 metadata:
   name: manager-role
 rules:
-- nonResourceURLs:
-  - '*'
-  verbs:
-  - get
 - apiGroups:
   - ""
   resources:
