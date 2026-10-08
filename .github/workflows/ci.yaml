@@ -129,7 +129,8 @@ jobs:
           done
 
   validate_yaml:
-    needs: [validate_examples]
+    # Standalone on purpose: e2e_test gates on this job, and it only lints
+    # ./tests/, so it must not inherit the gotest chain via validate_examples.
     name: Validate YAML
     runs-on: ubuntu-latest
     steps:
@@ -212,10 +213,11 @@ jobs:
     uses: ./.github/workflows/call-test-charts.yaml
 
   e2e_test:
-    # Only gate on lint. The suite used to hang off validate_yaml and
-    # helm_chart_test, which pulled in the whole gotest chain and delayed the
-    # job by ~12 minutes without testing anything the suite depends on.
-    needs: [lint]
+    # validate_yaml lints ./tests/, which is this suite's own YAML, so keep it
+    # as a gate. helm_chart_test is dropped: it pulled in the whole gotest
+    # chain and delayed the job by ~12 minutes without testing anything the
+    # suite depends on.
+    needs: [lint, validate_yaml]
     name: E2E Test
     runs-on: ubuntu-latest
     steps:
