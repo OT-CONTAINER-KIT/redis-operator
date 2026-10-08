@@ -54,10 +54,12 @@ spec:
       limits:
         cpu: 100m
         memory: 128Mi
-    # Sentinel-specific Redis auth secret. If omitted, the operator falls back
-    # to spec.kubernetesConfig.redisSecret.
+    # Password protecting the Sentinel port (requirepass on 26379). The
+    # operator authenticates to Sentinel with it; Sentinel-aware clients must
+    # send it too. The password Sentinel uses towards the Redis master always
+    # comes from spec.kubernetesConfig.redisSecret.
     # redisSecret:
-    #   name: redis-secret
+    #   name: redis-sentinel-secret
     #   key: password
 
     # Pod placement: keep Sentinel pods away from the Redis replication pods so

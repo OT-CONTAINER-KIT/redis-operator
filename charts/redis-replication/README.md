@@ -109,7 +109,7 @@ helm delete <my-release> --namespace <namespace>
 | sentinel.parallelSyncs | string | `"1"` | Number of replicas to reconfigure in parallel during failover |
 | sentinel.podSecurityContext | object | `{}` | Pod-level security context for Sentinel pods. |
 | sentinel.priorityClassName | string | `""` | PriorityClass name for Sentinel pods. |
-| sentinel.redisSecret | object | `{"secretKey":"","secretName":""}` | Secret holding the password Sentinel uses to authenticate to Redis. Leave empty to fall back to redisReplication.redisSecret. |
+| sentinel.redisSecret | object | `{"secretKey":"","secretName":""}` | Secret holding the Sentinel password (requirepass on port 26379). The password Sentinel uses towards Redis always comes from redisReplication.redisSecret. |
 | sentinel.resolveHostnames | string | `"no"` | Use hostnames instead of IPs for Sentinel monitoring. WARNING: the operator does not pass RESOLVE_HOSTNAMES env var to sentinel pods, so setting this to "yes" will cause SENTINEL MONITOR to fail. Keep as "no". |
 | sentinel.securityContext | object | `{}` | Container-level security context for the Sentinel container. |
 | sentinel.serviceAccountName | string | `""` | ServiceAccount name for Sentinel pods. |

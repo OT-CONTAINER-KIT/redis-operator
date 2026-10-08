@@ -200,26 +200,31 @@ func TestBuildSentinelEnv(t *testing.T) {
 		assert.Equal(t, "yes", v)
 	})
 
-	t.Run("falls back to top-level redis secret", func(t *testing.T) {
+	t.Run("top-level redis secret becomes the master auth-pass", func(t *testing.T) {
 		envs := buildSentinelEnv(newRR(redisSecret, nil))
-		assertMasterPassword(t, envs, "redis-secret", "redis-password")
+		assertSecretEnv(t, envs, "MASTER_PASSWORD", "redis-secret", "redis-password")
+		_, ok := envValue(envs, "REDIS_PASSWORD")
+		assert.False(t, ok, "REDIS_PASSWORD must not be set without spec.sentinel.redisSecret")
 	})
 
-	t.Run("sentinel redisSecret overrides top-level", func(t *testing.T) {
+	t.Run("sentinel redisSecret protects the sentinel port only", func(t *testing.T) {
 		envs := buildSentinelEnv(newRR(redisSecret, sentinelSecret))
-		assertMasterPassword(t, envs, "sentinel-secret", "sentinel-password")
+		assertSecretEnv(t, envs, "MASTER_PASSWORD", "redis-secret", "redis-password")
+		assertSecretEnv(t, envs, "REDIS_PASSWORD", "sentinel-secret", "sentinel-password")
 	})
 
-	t.Run("sentinel-only redisSecret is honoured", func(t *testing.T) {
+	t.Run("sentinel-only redisSecret leaves the master unauthenticated", func(t *testing.T) {
 		envs := buildSentinelEnv(newRR(nil, sentinelSecret))
-		assertMasterPassword(t, envs, "sentinel-secret", "sentinel-password")
+		assertSecretEnv(t, envs, "REDIS_PASSWORD", "sentinel-secret", "sentinel-password")
+		_, ok := envValue(envs, "MASTER_PASSWORD")
+		assert.False(t, ok, "MASTER_PASSWORD must not be set without spec.kubernetesConfig.redisSecret")
 	})
 }
 
-func assertMasterPassword(t *testing.T, envs []corev1.EnvVar, wantName, wantKey string) {
+func assertSecretEnv(t *testing.T, envs []corev1.EnvVar, name, wantName, wantKey string) {
 	t.Helper()
 	for _, e := range envs {
-		if e.Name != "MASTER_PASSWORD" {
+		if e.Name != name {
 			continue
 		}
 		require.NotNil(t, e.ValueFrom)
@@ -228,7 +233,7 @@ func assertMasterPassword(t *testing.T, envs []corev1.EnvVar, wantName, wantKey 
 		assert.Equal(t, wantKey, e.ValueFrom.SecretKeyRef.Key)
 		return
 	}
-	t.Fatalf("MASTER_PASSWORD env var not found in %+v", envs)
+	t.Fatalf("%s env var not found in %+v", name, envs)
 }
 
 // TestConfigureSentinelPodUsesSentinelRedisSecret exercises the controller path
@@ -267,6 +272,51 @@ func TestConfigureSentinelPodUsesSentinelRedisSecret(t *testing.T) {
 	assert.Equal(t, "s3cr3t", redisClient.connections[0].Password)
 }
 
+func TestConfigureSentinelKeepsSentinelAndMasterPasswordsApart(t *testing.T) {
+	clientset := fake.NewSimpleClientset(&corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "redis-secret", Namespace: "default"},
+		Data: map[string][]byte{
+			"redis_password":    []byte("REDIS_PASS"),
+			"sentinel_password": []byte("SENTINEL_PASS"),
+		},
+	})
+
+	inst := &rrvb2.RedisReplication{
+		ObjectMeta: metav1.ObjectMeta{Name: "redis", Namespace: "default"},
+		Spec: rrvb2.RedisReplicationSpec{
+			Size:     ptr.To(int32(3)),
+			Sentinel: &rrvb2.Sentinel{Size: 3},
+		},
+	}
+	inst.Spec.KubernetesConfig.ExistingPasswordSecret = &commonapi.ExistingPasswordSecret{
+		Name: ptr.To("redis-secret"),
+		Key:  ptr.To("redis_password"),
+	}
+	inst.Spec.Sentinel.ExistingPasswordSecret = &commonapi.ExistingPasswordSecret{
+		Name: ptr.To("redis-secret"),
+		Key:  ptr.To("sentinel_password"),
+	}
+
+	r := &Reconciler{K8sClient: clientset}
+
+	masterPassword, err := r.masterPassword(context.Background(), inst)
+	require.NoError(t, err)
+	assert.Equal(t, "REDIS_PASS", masterPassword)
+
+	svc := &fakeSentinelRedisService{slaves: 2, sentinels: 3}
+	redisClient := &fakeSentinelRedisClient{svc: svc}
+	pod := corev1.Pod{Status: corev1.PodStatus{PodIP: "10.0.0.10"}}
+
+	err = r.configureSentinelPod(context.Background(), redisClient, inst, pod, "10.0.0.20", masterPassword)
+
+	require.NoError(t, err)
+	require.Len(t, redisClient.connections, 1)
+	assert.Equal(t, "SENTINEL_PASS", redisClient.connections[0].Password)
+	require.NotNil(t, svc.monitoredMaster)
+	assert.Equal(t, "10.0.0.20", svc.monitoredMaster.Host)
+	assert.Equal(t, "REDIS_PASS", svc.monitoredMaster.Password)
+}
+
 func TestConfigureSentinelPodWithoutSecretSendsEmptyPassword(t *testing.T) {
 	inst := &rrvb2.RedisReplication{
 		ObjectMeta: metav1.ObjectMeta{Name: "example-replication", Namespace: "default"},
@@ -300,8 +350,9 @@ func (f *fakeSentinelRedisClient) Connect(info *redis.ConnectionInfo) redis.Serv
 }
 
 type fakeSentinelRedisService struct {
-	slaves    int
-	sentinels int
+	slaves          int
+	sentinels       int
+	monitoredMaster *redis.ConnectionInfo
 }
 
 func (f *fakeSentinelRedisService) IsMaster(context.Context) (bool, error) { return false, nil }
@@ -310,7 +361,8 @@ func (f *fakeSentinelRedisService) GetAttachedReplicaCount(context.Context) (int
 	return 0, nil
 }
 
-func (f *fakeSentinelRedisService) SentinelMonitor(context.Context, *redis.ConnectionInfo, string, string) error {
+func (f *fakeSentinelRedisService) SentinelMonitor(_ context.Context, master *redis.ConnectionInfo, _, _ string) error {
+	f.monitoredMaster = master
 	return nil
 }
 
