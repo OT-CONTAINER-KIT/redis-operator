@@ -19,6 +19,9 @@ spec:
         memory: 128Mi
       limits:
         memory: 128Mi
+    redisSecret:
+      name: acl-secret
+      key: password
   acl:
     secret:
       secretName: acl-secret

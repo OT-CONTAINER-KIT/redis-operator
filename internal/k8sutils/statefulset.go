@@ -821,6 +821,9 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 		if externalConfig != nil {
 			VolumeMounts = append(VolumeMounts, externalConfigMount)
 		}
+		if aclMount := generateACLVolumeMount(containerParams.ACLConfig, true); aclMount != nil {
+			VolumeMounts = append(VolumeMounts, *aclMount)
+		}
 
 		container := corev1.Container{
 			Name:            "init-config",
@@ -1013,19 +1016,8 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nod
 		})
 	}
 
-	if aclConfig != nil {
-		if aclConfig.PersistentVolumeClaim != nil {
-			VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
-				Name:      "acl-pvc",
-				MountPath: "/data/redis",
-			})
-		} else {
-			VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
-				Name:      "acl-secret",
-				MountPath: "/etc/redis/user.acl",
-				SubPath:   "user.acl",
-			})
-		}
+	if aclMount := generateACLVolumeMount(aclConfig, false); aclMount != nil {
+		VolumeMounts = append(VolumeMounts, *aclMount)
 	}
 
 	if externalConfig != nil {
@@ -1039,6 +1031,28 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nod
 	VolumeMounts = append(VolumeMounts, mountpath...)
 
 	return VolumeMounts
+}
+
+func generateACLVolumeMount(aclConfig *commonapi.ACLConfig, readOnly bool) *corev1.VolumeMount {
+	switch {
+	case aclConfig == nil:
+		return nil
+	case aclConfig.Secret != nil:
+		return &corev1.VolumeMount{
+			Name:      "acl-secret",
+			MountPath: "/etc/redis/user.acl",
+			SubPath:   "user.acl",
+			ReadOnly:  readOnly,
+		}
+	case aclConfig.PersistentVolumeClaim != nil:
+		return &corev1.VolumeMount{
+			Name:      "acl-pvc",
+			MountPath: "/data/redis",
+			ReadOnly:  readOnly,
+		}
+	default:
+		return nil
+	}
 }
 
 // getProbeInfo generate probe for Redis StatefulSet

@@ -343,3 +343,61 @@ func Test_GenerateConfig_RedisMajorVersionGates(t *testing.T) {
 		})
 	}
 }
+
+func Test_validateACLDefaultUser(t *testing.T) {
+	tests := []struct {
+		name     string
+		acl      string
+		password string
+		wantErr  string
+	}{
+		{name: "plaintext password matches", acl: "user alice on >alicepass ~* &* +@all\nuser default on >secret ~* &* +@all\n", password: "secret"},
+		{name: "sha256 hash matches", acl: "user default on #2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b ~* &* +@all\n", password: "secret"},
+		{name: "trailing newline from secret is trimmed", acl: "user default on >secret ~* &* +@all\n", password: "secret\n"},
+		{name: "quoted arguments skip password comparison", acl: "user default on \">my secret\" ~* &* +@all\n", password: "other"},
+		{name: "empty password skips validation", acl: "user alice on >alicepass ~* &* +@all\n", password: ""},
+		{name: "file missing", password: "secret", wantErr: "not readable"},
+		{name: "default user missing", acl: "user alice on >alicepass ~* &* +@all\n", password: "secret", wantErr: "does not define the default user"},
+		{name: "default user nopass", acl: "user default on nopass ~* &* +@all\n", password: "secret", wantErr: "must define the default user as on with a password"},
+		{name: "default user off", acl: "user default off >secret ~* &* +@all\n", password: "secret", wantErr: "must define the default user as on with a password"},
+		{name: "default user without on", acl: "user default >secret ~* &* +@all\n", password: "secret", wantErr: "must define the default user as on with a password"},
+		{name: "password mismatch", acl: "user default on >wrong ~* &* +@all\n", password: "secret", wantErr: "does not match"},
+		{name: "resetpass after password", acl: "user default on >secret resetpass ~* &* +@all\n", password: "secret", wantErr: "must define the default user as on with a password"},
+		{name: "password removed again", acl: "user default on >secret <secret ~* &* +@all\n", password: "secret", wantErr: "must define the default user as on with a password"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "user.acl")
+			if tt.acl != "" {
+				require.NoError(t, os.WriteFile(path, []byte(tt.acl), 0o600))
+			}
+
+			err := validateACLDefaultUser(path, tt.password)
+			if tt.wantErr == "" {
+				assert.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+			assert.NotContains(t, err.Error(), "secret")
+		})
+	}
+}
+
+func Test_GenerateConfig_ACLMode_RejectsMissingDefaultUser(t *testing.T) {
+	dir := t.TempDir()
+	confPath := filepath.Join(dir, "redis.conf")
+	aclPath := filepath.Join(dir, "user.acl")
+	require.NoError(t, os.WriteFile(aclPath, []byte("user alice on >alicepass ~* &* +@all\n"), 0o600))
+
+	t.Setenv("REDIS_CONFIG_FILE", confPath)
+	t.Setenv("SETUP_MODE", "standalone")
+	t.Setenv("TLS_MODE", "false")
+	t.Setenv("ACL_MODE", "true")
+	t.Setenv("ACL_FILE_PATH", aclPath)
+	t.Setenv("REDIS_PASSWORD", "secret")
+
+	require.Error(t, GenerateConfig())
+	assert.NoFileExists(t, confPath)
+}

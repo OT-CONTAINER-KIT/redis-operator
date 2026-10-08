@@ -29,3 +29,13 @@ spec:
               redis-cli -c -p 6379 --user opstree --pass abc@123 set foo-0 bar-0
             check:
               (contains($stdout, 'OK')): true
+
+    - name: Default user authenticates with the redisSecret password
+      try:
+        - script:
+            timeout: 30s
+            content: >
+              kubectl exec --namespace ${NAMESPACE} --container redis-cluster-v1beta2-leader redis-cluster-v1beta2-leader-0 --
+              redis-cli -c -p 6379 --no-auth-warning -a Opstree1234 get foo-0
+            check:
+              (contains($stdout, 'bar-0')): true

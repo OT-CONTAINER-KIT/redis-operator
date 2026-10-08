@@ -140,3 +140,7 @@ spec:
 4. **Limitations**
    - Only supports parameters that can be modified at runtime
    - `CONFIG SET` is not persisted to disk, so values supplied through `dynamicConfig` are **not retained across pod restarts** unless they are also provided through `externalConfig` (`additionalRedisConfig`). `dynamicConfig` is applied at runtime only and intentionally does not rewrite the ConfigMap, so that runtime-tunable parameters do not trigger a StatefulSet rolling restart.
+
+## ACL Configuration
+
+When `spec.acl` and `spec.kubernetesConfig.redisSecret` are both set, the ACL file must define the `default` user with the `redisSecret` password. See [RedisReplication ACL Configuration]({{< relref "../RedisReplication/_index.md#acl-configuration" >}}) for details and an example.
