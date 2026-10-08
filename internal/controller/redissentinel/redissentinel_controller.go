@@ -3,6 +3,7 @@ package redissentinel
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
@@ -22,6 +23,11 @@ import (
 
 const (
 	RedisSentinelFinalizer = "redisSentinelFinalizer"
+
+	// sentinelResyncInterval bounds how long Sentinel can keep handing clients a master the
+	// replication controller has since demoted. That demotion does not change the
+	// RedisReplication object, so no watch event re-runs reconcileSentinel for it.
+	sentinelResyncInterval = 30 * time.Second
 )
 
 // RedisSentinelReconciler reconciles a RedisSentinel object
@@ -31,6 +37,9 @@ type RedisSentinelReconciler struct {
 	Healer             redis.Healer
 	K8sClient          kubernetes.Interface
 	ReplicationWatcher *intctrlutil.ResourceWatcher
+
+	// lastReset records, per RedisSentinel, the inputs of the last SENTINEL RESET.
+	lastReset sync.Map
 }
 
 func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -131,12 +140,22 @@ func (r *RedisSentinelReconciler) reconcileSentinel(ctx context.Context, instanc
 	var monitorAddr string
 	if master, err := r.Checker.GetMasterFromReplication(ctx, rr); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
-	} else {
+	} else if master.Name != "" {
 		if instance.Spec.RedisSentinelConfig.ResolveHostnames == "yes" {
 			monitorAddr = fmt.Sprintf("%s.%s.%s.svc.%s", master.Name, common.GetHeadlessServiceNameFromPodName(master.Name), rr.Namespace, envs.GetServiceDNSDomain())
 		} else {
 			monitorAddr = master.Status.PodIP
 		}
+	}
+	return r.resyncSentinel(ctx, instance, rr, monitorAddr)
+}
+
+// resyncSentinel points every sentinel at monitorAddr and requeues, so a sentinel left on a
+// demoted master is repointed within sentinelResyncInterval. SentinelMonitor is a no-op for a
+// sentinel already on monitorAddr; the RESET runs only when the inputs changed.
+func (r *RedisSentinelReconciler) resyncSentinel(ctx context.Context, instance *rsvb2.RedisSentinel, rr *rrvb2.RedisReplication, monitorAddr string) (ctrl.Result, error) {
+	if monitorAddr == "" {
+		return intctrlutil.RequeueAfter(ctx, sentinelResyncInterval, "no master with attached replicas yet, leaving sentinel as is")
 	}
 	if err := r.Healer.SentinelMonitor(ctx, instance, monitorAddr); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
@@ -144,10 +163,15 @@ func (r *RedisSentinelReconciler) reconcileSentinel(ctx context.Context, instanc
 	if err := r.Healer.SentinelSet(ctx, instance, monitorAddr); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
-	if err := r.Healer.SentinelReset(ctx, instance); err != nil {
-		return intctrlutil.RequeueE(ctx, err, "")
+	key := types.NamespacedName{Namespace: instance.Namespace, Name: instance.Name}
+	inputs := fmt.Sprintf("%d/%s/%s", instance.Generation, rr.ResourceVersion, monitorAddr)
+	if last, ok := r.lastReset.Load(key); !ok || last != inputs {
+		if err := r.Healer.SentinelReset(ctx, instance); err != nil {
+			return intctrlutil.RequeueE(ctx, err, "")
+		}
+		r.lastReset.Store(key, inputs)
 	}
-	return intctrlutil.Reconciled()
+	return intctrlutil.RequeueAfter(ctx, sentinelResyncInterval, "")
 }
 
 func (r *RedisSentinelReconciler) reconcilePDB(ctx context.Context, instance *rsvb2.RedisSentinel) (ctrl.Result, error) {
