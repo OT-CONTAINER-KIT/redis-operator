@@ -47,7 +47,9 @@ func ShouldSkipReconcile(ctx context.Context, obj metav1.Object) (skip bool) {
 			return true
 		}
 	case *rsvb2.RedisSentinel:
+		monitoring.RedisSentinelSkipReconcile.WithLabelValues(obj.GetNamespace(), obj.GetName()).Set(0)
 		if value, found := annotations[RedisSentinelSkipReconcileAnnotation]; found && value == "true" {
+			monitoring.RedisSentinelSkipReconcile.WithLabelValues(obj.GetNamespace(), obj.GetName()).Set(1)
 			return true
 		}
 	}

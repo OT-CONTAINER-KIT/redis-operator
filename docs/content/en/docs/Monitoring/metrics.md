@@ -27,6 +27,23 @@ Total number of times the redisreplication size mismatches. Type: Gauge.
 ### redisreplication_skipreconcile
 Whether or not to skip the reconcile of RedisReplication. Type: Gauge.
 
+## Redis Sentinel Metrics
+
+### redissentinel_healthy
+Whether or not to check Redis Sentinel Health status. Type: Gauge.
+
+### redissentinel_monitor_total
+Total number of Redis Sentinel monitor event. Type: Counter.
+
+### redissentinel_reset_total
+Total number of Redis Sentinel reset event. Type: Counter.
+
+### redissentinel_set_total
+Total number of Redis Sentinel set event. Type: Counter.
+
+### redissentinel_skipreconcile
+Whether skip-reconcile of RedisSentinel enabled or not Type: Gauge.
+
 ## Redis Cluster Metrics
 
 ### rediscluster_adding_node_attempt

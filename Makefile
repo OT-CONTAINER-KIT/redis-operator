@@ -268,7 +268,7 @@ $(KUTTL): $(LOCALBIN)
 .PHONY: generate-metricsdocs
 generate-metricsdocs:
 	@mkdir -p $(shell pwd)/docs/content/en/docs/Monitoring
-	@go run ./internal/monitoring/metricsdocs > docs/content/en/docs/Monitoring/metrics.md
+	@go run ./internal/monitoring/metricsdocs/metricsdocs.go > docs/content/en/docs/Monitoring/metrics.md
 
 .PHONY: generate-dataAssert
 generate-dataAssert:
