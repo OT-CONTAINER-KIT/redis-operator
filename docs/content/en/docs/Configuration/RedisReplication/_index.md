@@ -78,6 +78,8 @@ Redis replication configuration can be customized by [values.yaml](https://githu
 | sentinel.downAfterMilliseconds | string | `"5000"` | Time before Sentinel considers the master down |
 | sentinel.resolveHostnames | string | `"no"` | Whether Sentinel resolves hostnames instead of IPs |
 | sentinel.announceHostnames | string | `"no"` | Whether Sentinel announces hostnames to clients |
+| sentinel.redisSecret.secretName | string | `""` | Secret containing the Sentinel password (`requirepass` on port 26379) |
+| sentinel.redisSecret.secretKey | string | `""` | Key in the secret containing the Sentinel password |
 
 ## RedisReplication Instance Configuration
 
@@ -129,6 +131,35 @@ spec:
 4. **Limitations**
    - Only supports parameters that can be modified at runtime
    - `CONFIG SET` is not persisted to disk, so values supplied through `dynamicConfig` are **not retained across pod restarts** unless they are also provided through `externalConfig` (`additionalRedisConfig`). `dynamicConfig` is applied at runtime only and intentionally does not rewrite the ConfigMap, so that runtime-tunable parameters do not trigger a StatefulSet rolling restart.
+
+## Embedded Sentinel Authentication
+
+When `spec.sentinel` is set, two secrets control authentication:
+
+- `spec.kubernetesConfig.redisSecret` is the Redis password. The embedded Sentinel uses it as `auth-pass` towards the monitored master; it is passed to the Sentinel pod as `MASTER_PASSWORD`, and the operator sets it again with `SENTINEL SET mymaster auth-pass` whenever it points Sentinel at a new master address.
+- `spec.sentinel.redisSecret` is the Sentinel's own password (`requirepass` on port 26379), the same role `kubernetesConfig.redisSecret` plays on a standalone `RedisSentinel`. It is passed to the Sentinel pod as `REDIS_PASSWORD`; the operator authenticates to Sentinel with it, and Sentinel-aware clients must send it as well. When it is omitted, the Sentinel port accepts unauthenticated connections.
+
+Previously `spec.sentinel.redisSecret` only changed the boot-time `MASTER_PASSWORD` and the Sentinel port was always unauthenticated. If you already set it, upgrading enables `requirepass` on the Sentinel pods, so clients that discover the master through Sentinel must start sending that password.
+
+```yaml
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisReplication
+metadata:
+  name: redis-replication
+spec:
+  clusterSize: 3
+  kubernetesConfig:
+    image: quay.io/opstree/redis:latest
+    redisSecret:
+      name: redis-secret
+      key: password
+  sentinel:
+    size: 3
+    image: quay.io/opstree/redis-sentinel:latest
+    redisSecret:
+      name: redis-sentinel-secret
+      key: password
+```
 
 ## ACL Configuration
 
