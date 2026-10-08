@@ -24,7 +24,7 @@ https://operatorhub.io/operator/redis-operator
 
 So for deploying the redis-operator and setup we need a Kubernetes cluster 1.18+ and that's it. Let's deploy the redis operator first.
 
-The easiest way to install a redis operator is using Helm chart. The operator helm chart is developed on the `helm=>3.0.0` version. The [values.yaml](https://github.com/OT-CONTAINER-KIT/helm-charts/blob/main/charts/redis-operator/values.yaml) can be modified.
+The easiest way to install a redis operator is using Helm chart. The operator helm chart is developed on the `helm=>3.0.0` version. The [values.yaml](https://github.com/OT-CONTAINER-KIT/redis-operator/blob/main/charts/redis-operator/values.yaml) can be modified.
 
 ## Helm Installation
 

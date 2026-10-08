@@ -12,7 +12,7 @@ spec:
     redisReplicationName: redis-replication-sentinel-metrics
   kubernetesConfig:
     image: quay.io/opstree/redis-sentinel:latest
-    imagePullPolicy: Always
+    imagePullPolicy: IfNotPresent
     redisSecret:
       name: redis-secret
       key: password
@@ -21,16 +21,14 @@ spec:
         cpu: 101m
         memory: 128Mi
       limits:
-        cpu: 101m
         memory: 128Mi
   redisExporter:
     enabled: true
     image: quay.io/opstree/redis-exporter:v1.44.0
-    imagePullPolicy: Always
+    imagePullPolicy: IfNotPresent
     resources:
       requests:
         cpu: 100m
         memory: 128Mi
       limits:
-        cpu: 100m
         memory: 128Mi

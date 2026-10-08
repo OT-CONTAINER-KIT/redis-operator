@@ -72,6 +72,22 @@ type SentinelMasterInfo struct {
 	Sentinels int
 }
 
+func (r *InfoSentinelResult) Master(name string) (SentinelMasterInfo, bool) {
+	if r == nil {
+		return SentinelMasterInfo{}, false
+	}
+	for _, master := range r.Masters {
+		if master.Name == name {
+			return master, true
+		}
+	}
+	return SentinelMasterInfo{}, false
+}
+
+func (m SentinelMasterInfo) HasStaleEntries(expectedSlaves, expectedSentinels int) bool {
+	return m.Slaves > expectedSlaves || m.Sentinels > expectedSentinels
+}
+
 type service struct {
 	connectionInfo *ConnectionInfo
 }

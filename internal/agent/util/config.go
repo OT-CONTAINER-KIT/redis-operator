@@ -32,11 +32,11 @@ var configValueSanitizer = strings.NewReplacer(
 	"\n", "",
 )
 
-// sanitizeConfigValue removes characters that would let a value escape its
+// SanitizeConfigValue removes characters that would let a value escape its
 // directive line. Cleaning rather than erroring keeps the bootstrap path
 // resilient when upstream CRD validation is bypassed (e.g. existing objects,
 // partial RBAC).
-func sanitizeConfigValue(s string) string {
+func SanitizeConfigValue(s string) string {
 	return configValueSanitizer.Replace(s)
 }
 
@@ -44,10 +44,10 @@ func (c *Config) Append(config ...string) *Config {
 	if len(config) == 0 {
 		return c
 	}
-	directive := sanitizeConfigValue(config[0])
+	directive := SanitizeConfigValue(config[0])
 	args := make([]string, 0, len(config)-1)
 	for _, a := range config[1:] {
-		args = append(args, sanitizeConfigValue(a))
+		args = append(args, SanitizeConfigValue(a))
 	}
 	c.content = fmt.Sprintf("%s\n%s %s", c.content, directive, strings.Join(args, " "))
 	return c

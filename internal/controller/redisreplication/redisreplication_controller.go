@@ -401,40 +401,24 @@ func (r *Reconciler) sentinelResetIfNeed(ctx context.Context, inst *rrvb2.RedisR
 		return fmt.Errorf("get sentinel info: %w", err)
 	}
 
-	var masterInfo *redis.SentinelMasterInfo
-	for i := range sentinelInfo.Masters {
-		if sentinelInfo.Masters[i].Name == masterGroupName {
-			masterInfo = &sentinelInfo.Masters[i]
-			break
-		}
-	}
-
-	if masterInfo == nil {
+	masterInfo, ok := sentinelInfo.Master(masterGroupName)
+	if !ok {
 		return fmt.Errorf("master group %s not found in sentinel info", masterGroupName)
 	}
 
-	expectedSlaves := int(*inst.Spec.Size - 1)        // Total size minus 1 master
-	expectedSentinels := int(inst.Spec.Sentinel.Size) // Total sentinels minus current one
+	expectedSlaves := int(inst.Spec.GetReplicationCounts("replication")) - 1
+	expectedSentinels := int(inst.Spec.Sentinel.Size)
 
-	needReset := false
-	if masterInfo.Slaves != expectedSlaves {
-		logger.Info("Sentinel has incorrect number of slaves, reset needed",
-			"expected", expectedSlaves,
-			"actual", masterInfo.Slaves)
-		needReset = true
+	if !masterInfo.HasStaleEntries(expectedSlaves, expectedSentinels) {
+		return nil
 	}
-
-	if masterInfo.Sentinels != expectedSentinels {
-		logger.Info("Sentinel has incorrect number of other sentinels, reset needed",
-			"expected", expectedSentinels,
-			"actual", masterInfo.Sentinels)
-		needReset = true
-	}
-
-	if needReset {
-		if err := redisService.SentinelReset(ctx, masterGroupName); err != nil {
-			return fmt.Errorf("reset sentinel: %w", err)
-		}
+	logger.Info("Sentinel has stale topology entries, reset needed",
+		"expectedSlaves", expectedSlaves,
+		"slaves", masterInfo.Slaves,
+		"expectedSentinels", expectedSentinels,
+		"sentinels", masterInfo.Sentinels)
+	if err := redisService.SentinelReset(ctx, masterGroupName); err != nil {
+		return fmt.Errorf("reset sentinel: %w", err)
 	}
 
 	return nil
