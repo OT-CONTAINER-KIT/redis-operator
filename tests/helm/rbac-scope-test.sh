@@ -16,8 +16,8 @@ default_out="$(helm template ro "$CHART_DIR" --namespace redis-operator \
 echo "$default_out" | grep -q '^kind: ClusterRole$'        || fail "default scope should render a ClusterRole"
 echo "$default_out" | grep -q '^kind: ClusterRoleBinding$' || fail "default scope should render a ClusterRoleBinding"
 echo "$default_out" | grep -q 'nonResourceURLs'            || fail "default ClusterRole should keep the nonResourceURLs rule"
-echo "$default_out" | grep -q 'aggregate-to-admin: "true"' || fail "default operator ClusterRole should keep the aggregate-to-admin label"
 echo "$default_out" | grep -q 'customresourcedefinitions'  || fail "default ClusterRole should keep the CRD rule"
+echo "$default_out" | grep -q 'aggregate-to-'              && fail "operator ClusterRole must not carry any aggregate-to-* label" || true
 pass "default scope renders ClusterRole/ClusterRoleBinding"
 
 # --- aggregation roles: default cluster scope aggregates into view, edit and admin ---
@@ -26,6 +26,7 @@ echo "$agg_out" | grep -q 'aggregate-to-view: "true"'  || fail "default should r
 echo "$agg_out" | grep -q 'aggregate-to-edit: "true"'  || fail "default should render an aggregate-to-edit ClusterRole"
 echo "$agg_out" | grep -q 'aggregate-to-admin: "true"' || fail "default should render an aggregate-to-admin label"
 echo "$agg_out" | grep -q 'finalizers'                 && fail "aggregation roles must not grant finalizers" || true
+echo "$agg_out" | grep -q 'nonResourceURLs'            && fail "aggregation roles must not contain nonResourceURLs" || true
 # view role: 3 labels, read verbs only; edit role: 2 labels, write verbs only
 view_doc="$(echo "$agg_out" | awk -v pat="\n  name: [^\n]*-view\n" '/^---$/{if(d~pat)print d; d=""; next}{d=d $0 "\n"}END{if(d~pat)print d}')"
 edit_doc="$(echo "$agg_out" | awk -v pat="\n  name: [^\n]*-edit\n" '/^---$/{if(d~pat)print d; d=""; next}{d=d $0 "\n"}END{if(d~pat)print d}')"
