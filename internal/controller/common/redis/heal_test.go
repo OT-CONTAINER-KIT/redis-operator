@@ -626,6 +626,21 @@ func TestSentinelResetSkipsSentinelsWithoutMasterGroup(t *testing.T) {
 	assert.Equal(t, []string{"10.0.1.12"}, redisClient.resetHosts)
 }
 
+func TestSentinelMonitorSkipsUnreadySentinelsAndReportsUnreachableOnes(t *testing.T) {
+	rs, _, objects := newSentinelFixture("10.0.1.10", "10.0.1.11")
+	labels := map[string]string{"app": rs.GetStatefulSetName()}
+	objects = append(objects, newLabeledRedisPod(rs.GetStatefulSetName()+"-2", labels, "10.0.1.12", corev1.PodRunning, false))
+	redisClient := &fakeRedisClient{
+		errByHost: map[string]error{"10.0.1.10": errors.New("dial tcp 10.0.1.10:26379: i/o timeout")},
+	}
+	h := &healer{redis: redisClient, k8s: k8sfake.NewSimpleClientset(objects...)}
+
+	err := h.SentinelMonitor(context.Background(), rs, "10.0.0.10")
+
+	require.ErrorContains(t, err, rs.GetStatefulSetName()+"-0")
+	assert.Equal(t, []string{"10.0.1.11"}, redisClient.monitorHosts)
+}
+
 func TestIsConnectivityError(t *testing.T) {
 	tests := []struct {
 		name string
@@ -675,6 +690,7 @@ type fakeRedisClient struct {
 	errByHost          map[string]error
 	replicaErrByHost   map[string]error
 	sentinelInfoByHost map[string]*redisservice.InfoSentinelResult
+	monitorHosts       []string
 	setHosts           []string
 	resetHosts         []string
 }
@@ -704,7 +720,11 @@ func (f *fakeRedisService) GetAttachedReplicaCount(context.Context) (int, error)
 }
 
 func (f *fakeRedisService) SentinelMonitor(context.Context, *redisservice.ConnectionInfo, string, string) error {
-	return f.client.errByHost[f.host]
+	if err := f.client.errByHost[f.host]; err != nil {
+		return err
+	}
+	f.client.monitorHosts = append(f.client.monitorHosts, f.host)
+	return nil
 }
 
 func (f *fakeRedisService) SentinelSet(context.Context, string, string, string) error {
