@@ -64,22 +64,13 @@ spec:
 
     - name: Verify annotation updated after successful expand
       try:
-        - script:
+        - assert:
             timeout: 120s
-            content: |
-              # Runs under /bin/sh via `sh -c`, so keep this POSIX-compatible.
-              # Polls for the reconcile rather than sleeping a flat 30s first.
-              # 2Gi = 2147483648 bytes
-              i=0
-              while [ $i -lt 40 ]; do
-                ANNOTATION=$(kubectl get statefulset -n ${NAMESPACE} redis-standalone-shrink-test \
-                  -o jsonpath='{.metadata.annotations.storageCapacity}' 2>/dev/null)
-                if [ "${ANNOTATION}" = "2147483648" ]; then
-                  echo "PASS: annotation correctly updated to 2Gi after expansion"
-                  exit 0
-                fi
-                i=$((i + 1))
-                sleep 3
-              done
-              echo "FAIL: annotation should be 2147483648 (2Gi), got ${ANNOTATION}"
-              exit 1
+            resource:
+              apiVersion: apps/v1
+              kind: StatefulSet
+              metadata:
+                name: redis-standalone-shrink-test
+                annotations:
+                  # 2Gi = 2147483648 bytes
+                  storageCapacity: "2147483648"
