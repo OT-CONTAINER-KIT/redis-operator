@@ -270,9 +270,7 @@ jobs:
           set -euo pipefail
           IMAGES=(
             quay.io/opstree/redis:latest
-            quay.io/opstree/redis:v7.0.15
             quay.io/opstree/redis-sentinel:latest
-            quay.io/opstree/redis-exporter:v1.44.0
             redis:alpine
             busybox:latest
             busybox:1.36
