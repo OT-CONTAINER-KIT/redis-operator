@@ -300,3 +300,19 @@ sentinel:
   terminationGracePeriodSeconds:
   # -- ServiceAccount name for Sentinel pods.
   serviceAccountName: ""
+
+# -- External master configuration for cross-cluster (passive) replication.
+# When enabled, pod-0 replicates from the external master and pods 1..N cascade
+# from pod-0. Cannot be combined with sentinel.
+externalMaster:
+  # -- Enable external master (passive) mode.
+  enabled: false
+  # -- DNS name or IP address of the external Redis master.
+  host: ""
+  # -- Port of the external Redis master.
+  port: 6379
+  # -- Optional password secret for the external master. If omitted, the local
+  # cluster's redisSecret is used.
+  password: {}
+    # secretName: ""
+    # secretKey: "password"

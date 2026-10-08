@@ -1162,6 +1162,165 @@ func GetRedisReplicationBestMaster(ctx context.Context, client kubernetes.Interf
 	return bestMasterPod
 }
 
+// ConfigureExternalMasterReplication sets up cascade replication from an external
+// Redis master. Pod-0 replicates from the external master (bridge replica), and
+// pods 1..N replicate from pod-0 (cascade replicas).
+//
+// For each pod the function:
+//  1. Checks INFO replication; skips if already replicating from the correct master.
+//  2. Issues CONFIG SET masterauth before REPLICAOF so auth succeeds on first handshake.
+//  3. When spec.TLS is set, issues CONFIG SET tls-replication yes.
+//  4. Issues REPLICAOF <host> <port>.
+//  5. Issues CONFIG REWRITE to persist config across pod restarts (best-effort).
+func ConfigureExternalMasterReplication(ctx context.Context, client kubernetes.Interface, cr *rrvb2.RedisReplication) error {
+	logger := log.FromContext(ctx)
+
+	externalHost := cr.Spec.ExternalMaster.Host
+	externalPort := cr.GetExternalMasterPort()
+	externalPortStr := strconv.Itoa(int(externalPort))
+
+	pass, err := getExternalMasterPassword(ctx, client, cr)
+	if err != nil {
+		return err
+	}
+
+	tlsReplication := cr.Spec.TLS != nil
+	replicas := int(cr.Spec.GetReplicationCounts("replication"))
+	bridgePod := cr.Name + "-0"
+
+	// Pod-0: bridge replica of external master
+	if err := configureReplicaOf(ctx, client, cr, bridgePod, externalHost, externalPortStr, pass, tlsReplication); err != nil {
+		return err
+	}
+
+	// Pods 1..N: cascade replicas of pod-0
+	if replicas > 1 {
+		var pod0Addr string
+		if cr.Spec.TLS != nil {
+			pod0Addr = getRedisReplicationHostname(RedisDetails{PodName: bridgePod, Namespace: cr.Namespace}, cr)
+		} else {
+			pod0Addr = getRedisServerIP(ctx, client, RedisDetails{PodName: bridgePod, Namespace: cr.Namespace})
+			if pod0Addr == "" {
+				return fmt.Errorf("failed to get IP for bridge pod %s", bridgePod)
+			}
+		}
+
+		for i := 1; i < replicas; i++ {
+			podName := fmt.Sprintf("%s-%d", cr.Name, i)
+			if err := configureReplicaOf(ctx, client, cr, podName, pod0Addr, "6379", pass, tlsReplication); err != nil {
+				logger.Error(err, "Failed to configure cascade replica", "pod", podName)
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// configureReplicaOf configures a single pod as a replica of the given master,
+// skipping if already correctly configured.
+func configureReplicaOf(ctx context.Context, client kubernetes.Interface, cr *rrvb2.RedisReplication, podName, masterHost, masterPort, masterPass string, tlsReplication bool) error {
+	logger := log.FromContext(ctx)
+
+	redisClient := configureRedisReplicationClient(ctx, client, cr, podName)
+	defer redisClient.Close()
+
+	info, err := redisClient.Info(ctx, "Replication").Result()
+	if err != nil {
+		logger.Error(err, "Failed to get replication info, skipping pod", "pod", podName)
+		return nil
+	}
+	if isAlreadySlaveOf(info, masterHost, masterPort) {
+		logger.V(1).Info("Pod already replicating from correct master, skipping",
+			"pod", podName, "host", masterHost, "port", masterPort)
+		return nil
+	}
+
+	if masterPass != "" {
+		if err := redisClient.ConfigSet(ctx, "masterauth", masterPass).Err(); err != nil {
+			logger.Error(err, "Failed to set masterauth", "pod", podName)
+			return err
+		}
+	}
+
+	if tlsReplication {
+		if err := redisClient.ConfigSet(ctx, "tls-replication", "yes").Err(); err != nil {
+			logger.Error(err, "Failed to enable tls-replication", "pod", podName)
+			return err
+		}
+	}
+
+	logger.V(1).Info("Configuring pod as replica",
+		"pod", podName, "masterHost", masterHost, "masterPort", masterPort)
+	if err := redisClient.SlaveOf(ctx, masterHost, masterPort).Err(); err != nil {
+		logger.Error(err, "Failed to issue REPLICAOF", "pod", podName)
+		return err
+	}
+
+	if err := redisClient.ConfigRewrite(ctx).Err(); err != nil {
+		logger.Error(err, "CONFIG REWRITE failed (best-effort); replication is active but "+
+			"may not survive a pod restart until next reconcile", "pod", podName)
+	}
+
+	return nil
+}
+
+// getExternalMasterPassword resolves the password for the external master.
+// Uses ExternalMaster.Password if set, otherwise falls back to the local cluster password.
+func getExternalMasterPassword(ctx context.Context, client kubernetes.Interface, cr *rrvb2.RedisReplication) (string, error) {
+	secret := cr.Spec.ExternalMaster.Password
+	if secret == nil {
+		secret = cr.Spec.KubernetesConfig.ExistingPasswordSecret
+	}
+	if secret == nil || secret.Name == nil || secret.Key == nil {
+		return "", nil
+	}
+	pass, err := getRedisPassword(ctx, client, cr.Namespace, *secret.Name, *secret.Key)
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Failed to get password for external master replication")
+		return "", err
+	}
+	return pass, nil
+}
+
+// GetExternalReplicationLinkStatus checks the replication link status on pod-0
+// by parsing INFO replication output. Returns "up", "down", or "" if unknown.
+func GetExternalReplicationLinkStatus(ctx context.Context, client kubernetes.Interface, cr *rrvb2.RedisReplication) string {
+	bridgePod := cr.Name + "-0"
+	redisClient := configureRedisReplicationClient(ctx, client, cr, bridgePod)
+	defer redisClient.Close()
+
+	info, err := redisClient.Info(ctx, "Replication").Result()
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Failed to get replication info for link status", "pod", bridgePod)
+		return ""
+	}
+
+	for _, line := range strings.Split(info, "\r\n") {
+		if strings.HasPrefix(line, "master_link_status:") {
+			return strings.TrimPrefix(line, "master_link_status:")
+		}
+	}
+	return ""
+}
+
+// isAlreadySlaveOf reports whether an INFO replication output indicates the instance
+// is already a slave of the given host:port.
+func isAlreadySlaveOf(info, host, port string) bool {
+	var isSlave, correctHost, correctPort bool
+	for _, line := range strings.Split(info, "\r\n") {
+		switch {
+		case strings.HasPrefix(line, "role:"):
+			isSlave = strings.TrimPrefix(line, "role:") == "slave"
+		case strings.HasPrefix(line, "master_host:"):
+			correctHost = strings.TrimPrefix(line, "master_host:") == host
+		case strings.HasPrefix(line, "master_port:"):
+			correctPort = strings.TrimPrefix(line, "master_port:") == port
+		}
+	}
+	return isSlave && correctHost && correctPort
+}
+
 func applyDynamicConfig(ctx context.Context, redisClient *redis.Client, podName string, dynamicConfig []string) (bool, error) {
 	pong, err := redisClient.Ping(ctx).Result()
 	if err != nil {

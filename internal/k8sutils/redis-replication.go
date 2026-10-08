@@ -57,9 +57,13 @@ func CreateReplicationService(ctx context.Context, cr *rrvb2.RedisReplication, c
 		log.FromContext(ctx).Error(err, "Cannot create additional service for Redis Replication")
 		return err
 	}
-	if err := CreateOrUpdateService(ctx, cr.Namespace, masterObjectMetaInfo, redisReplicationAsOwner(cr), disableMetrics, false, "ClusterIP", common.RedisPort, cl); err != nil {
-		log.FromContext(ctx).Error(err, "Cannot create master service for Redis")
-		return err
+	// In external master mode there is no local master pod, so skip the
+	// master-role selector service.
+	if !cr.UseExternalMaster() {
+		if err := CreateOrUpdateService(ctx, cr.Namespace, masterObjectMetaInfo, redisReplicationAsOwner(cr), disableMetrics, false, "ClusterIP", common.RedisPort, cl); err != nil {
+			log.FromContext(ctx).Error(err, "Cannot create master service for Redis")
+			return err
+		}
 	}
 	if err := CreateOrUpdateService(ctx, cr.Namespace, replicaObjectMetaInfo, redisReplicationAsOwner(cr), disableMetrics, false, "ClusterIP", common.RedisPort, cl); err != nil {
 		log.FromContext(ctx).Error(err, "Cannot create replica service for Redis")

@@ -134,6 +134,16 @@ spec:
   {{- if and .Values.podManagementPolicy (ne .Values.podManagementPolicy "") }}
   podManagementPolicy: "{{ .Values.podManagementPolicy }}"
   {{- end }}
+  {{- if and .Values.externalMaster .Values.externalMaster.enabled }}
+  externalMaster:
+    host: {{ required "externalMaster.host is required when externalMaster.enabled is true" .Values.externalMaster.host | quote }}
+    port: {{ .Values.externalMaster.port | default 6379 }}
+    {{- if and .Values.externalMaster.password .Values.externalMaster.password.secretName }}
+    password:
+      name: {{ .Values.externalMaster.password.secretName | quote }}
+      key: {{ .Values.externalMaster.password.secretKey | default "password" | quote }}
+    {{- end }}
+  {{- end }}
   {{- if .Values.sentinel.enabled }}
   sentinel:
     image: "{{ .Values.sentinel.image }}:{{ .Values.sentinel.tag }}"

@@ -40,6 +40,13 @@ type RedisReplicationSpec struct {
 	// +optional
 	// +kubebuilder:validation:Enum=OrderedReady;Parallel
 	PodManagementPolicy *string `json:"podManagementPolicy,omitempty"`
+	// ExternalMaster configures this RedisReplication as a passive replica of an
+	// external Redis master (e.g., cross-cluster or cross-DC replication).
+	// When set, pod-0 replicates from the external master and pods 1..N cascade
+	// from pod-0. Internal master election is skipped and the master-role service
+	// is not created. Cannot be combined with Sentinel.
+	// +optional
+	ExternalMaster *ExternalMaster `json:"externalMaster,omitempty"`
 }
 
 type Sentinel struct {
@@ -55,6 +62,26 @@ type Sentinel struct {
 	PriorityClassName             string                            `json:"priorityClassName,omitempty"`
 	TerminationGracePeriodSeconds *int64                            `json:"terminationGracePeriodSeconds,omitempty"`
 	ServiceAccountName            *string                           `json:"serviceAccountName,omitempty"`
+}
+
+// ExternalMaster configures cross-cluster replication where this deployment
+// acts as a passive replica of a Redis master in another cluster.
+// +k8s:deepcopy-gen=true
+type ExternalMaster struct {
+	// Host is the FQDN or IP of the external Redis master.
+	// +kubebuilder:validation:MinLength=1
+	Host string `json:"host"`
+	// Port is the Redis port on the external master.
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +kubebuilder:default=6379
+	Port *int32 `json:"port,omitempty"`
+	// Password is an optional secret reference for the external master's
+	// requirepass/masterauth. If omitted, the local cluster password
+	// (spec.kubernetesConfig.redisSecret) is used.
+	// +optional
+	Password *common.ExistingPasswordSecret `json:"password,omitempty"`
 }
 
 func (cr *RedisReplicationSpec) GetReplicationCounts(t string) int32 {
@@ -80,12 +107,27 @@ type ConnectionInfo struct {
 	MasterName string `json:"masterName,omitempty"`
 }
 
-// RedisStatus defines the observed state of Redis
+// ExternalReplicationStatus tracks the state of external master replication.
+// +k8s:deepcopy-gen=true
+type ExternalReplicationStatus struct {
+	// Mode is the replication mode: "active" (normal internal master) or
+	// "passive" (external master).
+	Mode string `json:"mode,omitempty"`
+	// ExternalMasterHost is the configured external master address.
+	ExternalMasterHost string `json:"externalMasterHost,omitempty"`
+	// LinkStatus is the replication link status from pod-0: "up" or "down".
+	LinkStatus string `json:"linkStatus,omitempty"`
+}
+
+// RedisReplicationStatus defines the observed state of Redis
 type RedisReplicationStatus struct {
 	MasterNode string `json:"masterNode,omitempty"`
 	// ConnectionInfo provides connection details for clients to connect to Redis
 	// +optional
 	ConnectionInfo *ConnectionInfo `json:"connectionInfo,omitempty"`
+	// ExternalReplication tracks the state when an external master is configured.
+	// +optional
+	ExternalReplication *ExternalReplicationStatus `json:"externalReplication,omitempty"`
 }
 
 // +kubebuilder:object:root=true
