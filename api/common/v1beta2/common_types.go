@@ -133,6 +133,14 @@ type Service struct {
 type ExistingPasswordSecret struct {
 	Name *string `json:"name,omitempty"`
 	Key  *string `json:"key,omitempty"`
+	// MountAsFile mounts the secret as a volume file instead of injecting it as
+	// an environment variable. When true the operator mounts the secret at
+	// /etc/redis/secret/<key>, sets REDIS_PASSWORD_FILE to that path, and
+	// populates REDISCLI_AUTH at runtime by reading the file. This avoids
+	// exposing the password via env vars, which is required on clusters that
+	// enforce Kyverno's disallow-secrets-from-env-vars policy.
+	// +optional
+	MountAsFile *bool `json:"mountAsFile,omitempty"`
 }
 
 // RedisExporter interface will have the information for redis exporter related stuff

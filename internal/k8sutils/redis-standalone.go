@@ -175,6 +175,7 @@ func generateRedisStandaloneContainerParams(cr *rvb2.Redis) containerParameters 
 		containerProp.EnabledPassword = &trueProperty
 		containerProp.SecretName = cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name
 		containerProp.SecretKey = cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key
+		containerProp.SecretMountAsFile = cr.Spec.KubernetesConfig.ExistingPasswordSecret.MountAsFile
 	} else {
 		containerProp.EnabledPassword = &falseProperty
 	}

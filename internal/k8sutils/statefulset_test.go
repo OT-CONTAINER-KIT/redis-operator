@@ -484,7 +484,7 @@ func TestGetVolumeMount(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := getVolumeMount("persistent-volume", tt.persistenceEnabled, tt.clusterMode, tt.nodeConfVolume, tt.externalConfig, tt.mountpath, tt.tlsConfig, tt.aclConfig)
+			got := getVolumeMount("persistent-volume", tt.persistenceEnabled, tt.clusterMode, tt.nodeConfVolume, tt.externalConfig, tt.mountpath, tt.tlsConfig, tt.aclConfig, false, nil)
 			assert.ElementsMatch(t, tt.expectedMounts, got)
 		})
 	}
@@ -1097,7 +1097,7 @@ func TestGenerateContainerDef(t *testing.T) {
 					Name:            "redis",
 					Image:           "redis:latest",
 					ImagePullPolicy: corev1.PullAlways,
-					VolumeMounts:    getVolumeMount("redisVolume", ptr.To(false), false, false, nil, []corev1.VolumeMount{}, nil, nil),
+					VolumeMounts:    getVolumeMount("redisVolume", ptr.To(false), false, false, nil, []corev1.VolumeMount{}, nil, nil, false, nil),
 					// Command:         []string{"/bin/bash", "-c", "/app/restore.bash"},
 					Env: []corev1.EnvVar{
 						{
@@ -1163,7 +1163,7 @@ func TestGenerateContainerDef(t *testing.T) {
 							ReadOnly:  false,
 							MountPath: "/etc/redis/external.conf.d",
 						},
-					}, nil, nil),
+					}, nil, nil, false, nil),
 					// Command:         []string{"/bin/bash", "-c", "/app/restore.bash"},
 					Env: []corev1.EnvVar{
 						{
@@ -1309,7 +1309,7 @@ func TestGenerateInitContainerDef(t *testing.T) {
 					Image:           "redis-init-container:latest",
 					Command:         []string{"/bin/bash", "-c", "/app/restore.bash"},
 					ImagePullPolicy: corev1.PullAlways,
-					VolumeMounts:    getVolumeMount("redisVolume", ptr.To(false), false, false, nil, []corev1.VolumeMount{}, nil, nil),
+					VolumeMounts:    getVolumeMount("redisVolume", ptr.To(false), false, false, nil, []corev1.VolumeMount{}, nil, nil, false, nil),
 					Resources: corev1.ResourceRequirements{
 						Requests: corev1.ResourceList{
 							corev1.ResourceCPU:    resource.MustParse("220m"),
@@ -1351,7 +1351,7 @@ func TestGenerateInitContainerDef(t *testing.T) {
 							Name:      "Redis-1",
 							MountPath: "/data",
 						},
-					}, nil, nil),
+					}, nil, nil, false, nil),
 					Env: []corev1.EnvVar{},
 				},
 			},
@@ -1430,7 +1430,7 @@ func TestGenerateInitContainerDefWithSecurityContext(t *testing.T) {
 					Image:           "redis-init-container:latest",
 					Command:         []string{"/bin/bash", "-c", "/app/restore.bash"},
 					ImagePullPolicy: corev1.PullAlways,
-					VolumeMounts:    getVolumeMount("redis", ptr.To(false), false, false, nil, []corev1.VolumeMount{}, nil, nil),
+					VolumeMounts:    getVolumeMount("redis", ptr.To(false), false, false, nil, []corev1.VolumeMount{}, nil, nil, false, nil),
 					SecurityContext: &corev1.SecurityContext{
 						RunAsUser:  ptr.To(int64(1000)),
 						RunAsGroup: ptr.To(int64(1000)),
@@ -1473,7 +1473,7 @@ func TestGenerateInitContainerDefWithSecurityContext(t *testing.T) {
 					Image:           "redis-init-container:latest",
 					Command:         []string{"/bin/bash", "-c", "/app/restore.bash"},
 					ImagePullPolicy: corev1.PullAlways,
-					VolumeMounts:    getVolumeMount("redis", ptr.To(false), false, false, nil, []corev1.VolumeMount{}, nil, nil),
+					VolumeMounts:    getVolumeMount("redis", ptr.To(false), false, false, nil, []corev1.VolumeMount{}, nil, nil, false, nil),
 					SecurityContext: &corev1.SecurityContext{
 						RunAsUser:  ptr.To(int64(1000)),
 						RunAsGroup: ptr.To(int64(1000)),
@@ -1525,7 +1525,7 @@ func TestGenerateInitContainerDefWithSecurityContext(t *testing.T) {
 					Image:           "redis-init-container:latest",
 					Command:         []string{"/bin/bash", "-c", "/app/restore.bash"},
 					ImagePullPolicy: corev1.PullAlways,
-					VolumeMounts:    getVolumeMount("redis", ptr.To(false), false, false, nil, []corev1.VolumeMount{}, nil, nil),
+					VolumeMounts:    getVolumeMount("redis", ptr.To(false), false, false, nil, []corev1.VolumeMount{}, nil, nil, false, nil),
 					Resources: corev1.ResourceRequirements{
 						Requests: corev1.ResourceList{
 							corev1.ResourceCPU:    resource.MustParse("100m"),
@@ -1575,7 +1575,7 @@ func TestGenerateInitContainerDefWithSecurityContext(t *testing.T) {
 					Image:           "redis-sentinel-init:latest",
 					Command:         []string{"/bin/bash", "-c", "/app/sentinel-init.bash"},
 					ImagePullPolicy: corev1.PullAlways,
-					VolumeMounts:    getVolumeMount("sentinel", ptr.To(false), false, false, nil, []corev1.VolumeMount{}, nil, nil),
+					VolumeMounts:    getVolumeMount("sentinel", ptr.To(false), false, false, nil, []corev1.VolumeMount{}, nil, nil, false, nil),
 					SecurityContext: &corev1.SecurityContext{
 						RunAsUser:  ptr.To(int64(999)),
 						RunAsGroup: ptr.To(int64(999)),
@@ -1905,7 +1905,7 @@ func TestGetEnvironmentVariables(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			actualEnvironment := getEnvironmentVariables(tt.role, tt.enabledPassword, tt.secretName,
-				tt.secretKey, tt.persistenceEnabled, tt.tlsConfig, tt.aclConfig, tt.envVar, tt.port, tt.clusterVersion, nil, nil)
+				tt.secretKey, tt.persistenceEnabled, tt.tlsConfig, tt.aclConfig, tt.envVar, tt.port, tt.clusterVersion, nil, nil, false)
 
 			assert.ElementsMatch(t, tt.expectedEnvironment, actualEnvironment)
 		})

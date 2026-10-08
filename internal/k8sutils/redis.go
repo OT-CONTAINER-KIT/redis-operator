@@ -123,6 +123,9 @@ type podExecFunc func(ctx context.Context, client kubernetes.Interface, cr *rcvb
 
 // checkRedisCLIAuthInEnv returns true if we can use the pod's REDISCLI_AUTH variable instead of sending redis-cli -a <password>.
 // It checks only variables specified via env[].valueFrom since this is what the operator sets; it does not look at envFrom.
+// It also returns true for file-mount mode: when the pod has REDIS_PASSWORD_FILE set as a plain value env var the
+// redisCLIAuthSanitizer shell snippet (embedded in probes and preStop hooks) will read the file and populate
+// REDISCLI_AUTH at runtime, so we must not also pass -a on the command line.
 func checkRedisCLIAuthInEnv(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, podName, secretName, secretKey string) (bool, error) {
 	redisPod, err := client.CoreV1().Pods(cr.Namespace).Get(context.TODO(), podName, metav1.GetOptions{})
 	if err != nil {
@@ -133,6 +136,13 @@ func checkRedisCLIAuthInEnv(ctx context.Context, client kubernetes.Interface, cr
 	for _, tr := range redisPod.Spec.Containers {
 		if tr.Name == cr.Name+"-leader" {
 			for _, e := range tr.Env {
+				// File-mount mode: REDIS_PASSWORD_FILE is a plain value env var.
+				// The redisCLIAuthSanitizer reads the file at runtime and exports
+				// REDISCLI_AUTH, so authentication is handled without -a.
+				if e.Name == "REDIS_PASSWORD_FILE" && e.Value != "" {
+					return true, nil
+				}
+
 				if e.Name != "REDISCLI_AUTH" {
 					continue
 				}

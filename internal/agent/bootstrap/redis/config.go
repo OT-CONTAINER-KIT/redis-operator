@@ -67,6 +67,15 @@ func GenerateConfig() error {
 		cfg.Append("masterauth", val)
 		cfg.Append("requirepass", val)
 		cfg.Append("protected-mode", "yes")
+	} else if filePath, ok := util.CoalesceEnv("REDIS_PASSWORD_FILE", ""); ok && filePath != "" {
+		data, err := os.ReadFile(filePath)
+		if err != nil {
+			return fmt.Errorf("reading REDIS_PASSWORD_FILE %q: %w", filePath, err)
+		}
+		password := strings.TrimRight(string(data), "\r\n")
+		cfg.Append("masterauth", password)
+		cfg.Append("requirepass", password)
+		cfg.Append("protected-mode", "yes")
 	} else {
 		fmt.Println("Redis is running without password which is not recommended")
 		cfg.Append("protected-mode", "no")

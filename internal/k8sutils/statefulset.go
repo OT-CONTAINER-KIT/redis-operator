@@ -139,17 +139,21 @@ type containerParameters struct {
 	EnabledPassword              *bool
 	SecretName                   *string
 	SecretKey                    *string
-	PersistenceEnabled           *bool
-	TLSConfig                    *commonapi.TLSConfig
-	ACLConfig                    *commonapi.ACLConfig
-	ReadinessProbe               *corev1.Probe
-	LivenessProbe                *corev1.Probe
-	AdditionalEnvVariable        *[]corev1.EnvVar
-	AdditionalVolume             []corev1.Volume
-	AdditionalMountPath          []corev1.VolumeMount
-	EnvVars                      *[]corev1.EnvVar
-	Port                         *int
-	HostPort                     *int
+	// SecretMountAsFile mirrors ExistingPasswordSecret.MountAsFile. When true
+	// the password secret is mounted as a volume file rather than injected as
+	// an environment variable.
+	SecretMountAsFile     *bool
+	PersistenceEnabled    *bool
+	TLSConfig             *commonapi.TLSConfig
+	ACLConfig             *commonapi.ACLConfig
+	ReadinessProbe        *corev1.Probe
+	LivenessProbe         *corev1.Probe
+	AdditionalEnvVariable *[]corev1.EnvVar
+	AdditionalVolume      []corev1.Volume
+	AdditionalMountPath   []corev1.VolumeMount
+	EnvVars               *[]corev1.EnvVar
+	Port                  *int
+	HostPort              *int
 	// Sentinel-driven preStop settings. These are only populated for the
 	// "replication" role when an embedded Sentinel is enabled. When
 	// SentinelService is empty the replication preStop hook is not installed.
@@ -402,6 +406,18 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 		}
 	}
 
+	if secretMountAsFile(containerParams) {
+		statefulset.Spec.Template.Spec.Volumes = append(statefulset.Spec.Template.Spec.Volumes,
+			corev1.Volume{
+				Name: "redis-password",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: *containerParams.SecretName,
+					},
+				},
+			})
+	}
+
 	if params.ServiceAccountName != nil {
 		statefulset.Spec.Template.Spec.ServiceAccountName = *params.ServiceAccountName
 	}
@@ -488,10 +504,11 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 				clusterVersion,
 				containerParams.Resources,
 				containerParams.MaxMemoryPercentOfLimit,
+				secretMountAsFile(containerParams),
 			),
 			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe, sentinelCntr, enableTLS),
 			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe, sentinelCntr, enableTLS),
-			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, clusterMode, nodeConfVolume, externalConfig, mountpath, containerParams.TLSConfig, containerParams.ACLConfig),
+			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, clusterMode, nodeConfVolume, externalConfig, mountpath, containerParams.TLSConfig, containerParams.ACLConfig, secretMountAsFile(containerParams), containerParams.SecretKey),
 		},
 	}
 
@@ -589,7 +606,26 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 // redis-cli sends the untrimmed one and every AUTH fails with WRONGPASS.
 // The -n guard keeps the variable unset on password-less deployments, where
 // exporting an empty value would make redis-cli send AUTH with an empty password.
-const redisCLIAuthSanitizer = `if [ -n "${REDISCLI_AUTH:-}" ]; then REDISCLI_AUTH="$(printf %s "$REDISCLI_AUTH" | tr -d '\r\n')"; export REDISCLI_AUTH; fi`
+//
+// In file-mount mode the password is not injected as an env var. REDIS_PASSWORD_FILE
+// points to the mounted secret file. We read the file and populate REDISCLI_AUTH
+// so that all downstream redis-cli invocations can authenticate without secrets
+// appearing in environment variables.
+const redisCLIAuthSanitizer = `if [ -n "${REDISCLI_AUTH:-}" ]; then REDISCLI_AUTH="$(printf %s "$REDISCLI_AUTH" | tr -d '\r\n')"; export REDISCLI_AUTH; elif [ -n "${REDIS_PASSWORD_FILE:-}" ] && [ -f "$REDIS_PASSWORD_FILE" ]; then REDISCLI_AUTH="$(tr -d '\r\n' < "$REDIS_PASSWORD_FILE")"; export REDISCLI_AUTH; fi`
+
+// secretMountAsFile reports whether the password secret should be mounted as a
+// volume file rather than injected via an environment variable.
+func secretMountAsFile(p containerParameters) bool {
+	return p.EnabledPassword != nil && *p.EnabledPassword &&
+		p.SecretMountAsFile != nil && *p.SecretMountAsFile &&
+		p.SecretName != nil && p.SecretKey != nil
+}
+
+// passwordFilePath returns the path at which the password file is mounted when
+// secretMountAsFile is true.
+func passwordFilePath(secretKey string) string {
+	return "/etc/redis/secret/" + secretKey
+}
 
 // PreStopConfig holds the inputs needed to render a container preStop hook.
 type PreStopConfig struct {
@@ -821,6 +857,13 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 		if externalConfig != nil {
 			VolumeMounts = append(VolumeMounts, externalConfigMount)
 		}
+		if secretMountAsFile(containerParams) {
+			VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
+				Name:      "redis-password",
+				MountPath: "/etc/redis/secret",
+				ReadOnly:  true,
+			})
+		}
 
 		container := corev1.Container{
 			Name:            "init-config",
@@ -841,6 +884,7 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 				clusterVersion,
 				containerParams.Resources,
 				containerParams.MaxMemoryPercentOfLimit,
+				secretMountAsFile(containerParams),
 			),
 			VolumeMounts: VolumeMounts,
 		}
@@ -863,7 +907,7 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 			ImagePullPolicy: initcontainerParams.ImagePullPolicy,
 			Command:         initcontainerParams.Command,
 			Args:            initcontainerParams.Arguments,
-			VolumeMounts:    getVolumeMount(name, initcontainerParams.PersistenceEnabled, false, false, nil, mountpath, nil, nil),
+			VolumeMounts:    getVolumeMount(name, initcontainerParams.PersistenceEnabled, false, false, nil, mountpath, nil, nil, false, nil),
 			SecurityContext: initcontainerParams.SecurityContext,
 			Resources:       ptr.Deref(initcontainerParams.Resources, corev1.ResourceRequirements{}),
 			Env:             ptr.Deref(initcontainerParams.AdditionalEnvVariable, []corev1.EnvVar{}),
@@ -906,7 +950,7 @@ func enableRedisMonitoring(params containerParameters) corev1.Container {
 		Image:           params.RedisExporterImage,
 		ImagePullPolicy: params.RedisExporterImagePullPolicy,
 		Env:             getExporterEnvironmentVariables(params),
-		VolumeMounts:    getVolumeMount("", nil, false, false, nil, params.AdditionalMountPath, params.TLSConfig, params.ACLConfig), // We need/want the tls-certs but we DON'T need the PVC (if one is available)
+		VolumeMounts:    getVolumeMount("", nil, false, false, nil, params.AdditionalMountPath, params.TLSConfig, params.ACLConfig, false, nil), // We need/want the tls-certs but we DON'T need the PVC (if one is available)
 		Ports: []corev1.ContainerPort{
 			{
 				Name:          common.RedisExporterPortName,
@@ -988,7 +1032,7 @@ var externalConfigMount = corev1.VolumeMount{
 }
 
 // getVolumeMount gives information about persistence mount
-func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nodeConfVolume bool, externalConfig *string, mountpath []corev1.VolumeMount, tlsConfig *commonapi.TLSConfig, aclConfig *commonapi.ACLConfig) []corev1.VolumeMount {
+func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nodeConfVolume bool, externalConfig *string, mountpath []corev1.VolumeMount, tlsConfig *commonapi.TLSConfig, aclConfig *commonapi.ACLConfig, mountSecretAsFile bool, secretKey *string) []corev1.VolumeMount {
 	var VolumeMounts []corev1.VolumeMount
 
 	if persistenceEnabled != nil && clusterMode && nodeConfVolume {
@@ -1026,6 +1070,14 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nod
 				SubPath:   "user.acl",
 			})
 		}
+	}
+
+	if mountSecretAsFile && secretKey != nil {
+		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
+			Name:      "redis-password",
+			MountPath: "/etc/redis/secret",
+			ReadOnly:  true,
+		})
 	}
 
 	if externalConfig != nil {
@@ -1081,7 +1133,7 @@ func getProbeInfo(probe *corev1.Probe, sentinel, enableTLS bool) *corev1.Probe {
 func getEnvironmentVariables(role string, enabledPassword *bool, secretName *string,
 	secretKey *string, persistenceEnabled *bool, tlsConfig *commonapi.TLSConfig,
 	aclConfig *commonapi.ACLConfig, envVar *[]corev1.EnvVar, port *int, clusterVersion *string,
-	resources *corev1.ResourceRequirements, maxMemoryPercentOfLimit *int,
+	resources *corev1.ResourceRequirements, maxMemoryPercentOfLimit *int, mountSecretAsFile bool,
 ) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{Name: "SERVER_MODE", Value: role},
@@ -1147,27 +1199,35 @@ func getEnvironmentVariables(role string, enabledPassword *bool, secretName *str
 	})
 
 	if enabledPassword != nil && *enabledPassword {
-		envVars = append(envVars, corev1.EnvVar{
-			Name: "REDIS_PASSWORD",
-			ValueFrom: &corev1.EnvVarSource{
-				SecretKeyRef: &corev1.SecretKeySelector{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: *secretName,
+		if mountSecretAsFile && secretKey != nil {
+			filePath := passwordFilePath(*secretKey)
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  "REDIS_PASSWORD_FILE",
+				Value: filePath,
+			})
+		} else {
+			envVars = append(envVars, corev1.EnvVar{
+				Name: "REDIS_PASSWORD",
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: *secretName,
+						},
+						Key: *secretKey,
 					},
-					Key: *secretKey,
 				},
-			},
-		}, corev1.EnvVar{
-			Name: "REDISCLI_AUTH",
-			ValueFrom: &corev1.EnvVarSource{
-				SecretKeyRef: &corev1.SecretKeySelector{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: *secretName,
+			}, corev1.EnvVar{
+				Name: "REDISCLI_AUTH",
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: *secretName,
+						},
+						Key: *secretKey,
 					},
-					Key: *secretKey,
 				},
-			},
-		})
+			})
+		}
 	}
 	if persistenceEnabled != nil && *persistenceEnabled {
 		envVars = append(envVars, corev1.EnvVar{Name: "PERSISTENCE_ENABLED", Value: "true"})
