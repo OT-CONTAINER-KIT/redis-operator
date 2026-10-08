@@ -1,0 +1,11 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-sentinel-external-config
+data:
+  # ${SENTINEL_LOGLEVEL} is only defined via spec.env on the RedisSentinel CR,
+  # so the value can only reach Sentinel through env expansion of this file.
+  redis-sentinel-additional.conf: |
+    loglevel ${SENTINEL_LOGLEVEL}
+    sentinel deny-scripts-reconfig yes

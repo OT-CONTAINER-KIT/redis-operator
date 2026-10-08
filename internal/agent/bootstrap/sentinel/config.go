@@ -2,11 +2,27 @@ package bootstrap
 
 import (
 	"fmt"
-	"os"
+	"log"
+	"strings"
 
 	agentutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/agent/util"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/consts"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
+	"github.com/Showmax/go-fqdn"
 )
+
+var fqdnHostname = fqdn.FqdnHostname
+
+func announceHostname() (string, error) {
+	name, err := fqdnHostname()
+	if err != nil {
+		return "", err
+	}
+	if !strings.Contains(name, ".") {
+		return "", fmt.Errorf("hostname %q is not fully qualified", name)
+	}
+	return name, nil
+}
 
 // defaultSentinelConfig from https://github.com/OT-CONTAINER-KIT/redis/blob/master/sentinel.conf
 const defaultSentinelConfig = `
@@ -75,9 +91,16 @@ func GenerateConfig() error {
 			cfg.Append("sentinel myid", sentinelID)
 		}
 
-		// If resolveHostnames is set to yes, then we need to announce the hostnames
+		// If resolveHostnames is set to yes, then we need to announce the hostnames.
+		// Note the pre-existing `sentinel monitor` line above still renders the
+		// unset IP env as 0.0.0.0; the operator repairs it with SENTINEL MONITOR
+		// once it knows the master. See #1806.
 		if announceHostnames == "yes" && resolveHostnames == "yes" {
-			cfg.Append("sentinel announce-ip", ip)
+			if fqdnName, err := announceHostname(); err != nil {
+				log.Printf("Warning: Failed to get FQDN for sentinel announce-ip: %v", err)
+			} else {
+				cfg.Append("sentinel announce-ip", fqdnName)
+			}
 		}
 	}
 
@@ -123,9 +146,8 @@ func GenerateConfig() error {
 
 	// If external config file exists, include it
 	externalConfigFile, _ := util.CoalesceEnv("EXTERNAL_CONFIG_FILE", "/etc/redis/external.conf.d/redis-sentinel-additional.conf")
-	if fileExists(externalConfigFile) {
-		cfg.Append("include", externalConfigFile)
-	}
+	expandExternal, _ := util.CoalesceEnv(consts.ENV_KEY_EXPAND_EXTERNAL_CONFIG, "false")
+	cfg.AppendExternalConfig(externalConfigFile, expandExternal == "true")
 
 	// Commit configuration
 	if err := cfg.Commit(); err != nil {
@@ -134,10 +156,4 @@ func GenerateConfig() error {
 
 	fmt.Println("Starting sentinel service .....")
 	return nil
-}
-
-// fileExists checks if a file exists
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
 }

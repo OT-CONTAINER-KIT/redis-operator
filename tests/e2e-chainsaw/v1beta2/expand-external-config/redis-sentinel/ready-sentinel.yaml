@@ -1,0 +1,24 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-replication-expand
+  labels:
+    app: redis-replication-expand
+    redis_setup_type: replication
+    role: replication
+status:
+  replicas: 1
+  readyReplicas: 1
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-sentinel-expand-sentinel
+  labels:
+    app: redis-sentinel-expand-sentinel
+    redis_setup_type: sentinel
+    role: sentinel
+status:
+  replicas: 1
+  readyReplicas: 1

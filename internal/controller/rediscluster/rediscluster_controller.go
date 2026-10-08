@@ -435,7 +435,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	for _, fakeRole := range []string{"leader", "follower"} {
 		labels := common.GetRedisLabels(instance.GetName()+"-"+fakeRole, common.SetupTypeCluster, fakeRole, instance.GetLabels())
-		if err = r.Healer.UpdateRedisRoleLabel(ctx, instance.GetNamespace(), labels, instance.Spec.KubernetesConfig.ExistingPasswordSecret, instance.Spec.TLS); err != nil {
+		if err = r.Healer.UpdateRedisRoleLabel(ctx, instance.GetNamespace(), labels, instance.Spec.KubernetesConfig.ExistingPasswordSecret, instance.Spec.TLS, ""); err != nil {
 			return intctrlutil.RequeueE(ctx, err, "")
 		}
 	}

@@ -1,4 +1,4 @@
-{{- $followerReplicas := .Values.redisCluster.follower.replicas | default .Values.redisCluster.clusterSize }}
+{{- $followerReplicas := include "redis.replicas" (dict "replicas" .Values.redisCluster.follower.replicas "clusterSize" .Values.redisCluster.clusterSize) }}
 {{- if and (gt (int $followerReplicas) 0) (eq .Values.externalService.enabled true) }}
 ---
 apiVersion: v1

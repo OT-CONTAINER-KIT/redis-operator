@@ -47,6 +47,7 @@ helm delete <my-release> --namespace <namespace>
 | TLS.ca | string | `"ca.crt"` |  |
 | TLS.cert | string | `"tls.crt"` |  |
 | TLS.key | string | `"tls.key"` |  |
+| TLS.secret.defaultMode | int | `288` |  |
 | TLS.secret.secretName | string | `""` |  |
 | acl.secret.secretName | string | `""` |  |
 | affinity | object | `{}` |  |
@@ -87,7 +88,7 @@ helm delete <my-release> --namespace <namespace>
 | redisReplication.imagePullPolicy | string | `"IfNotPresent"` |  |
 | redisReplication.imagePullSecrets | list | `[]` |  |
 | redisReplication.livenessProbe | object | `{}` |  |
-| redisReplication.maxMemoryPercentOfLimit | int | `0` | MaxMemoryPercentOfLimit is the percentage of the Redis container memory limit to be used as maxmemory.    When a memory limit exists, the operator also exposes the computed value via the REDIS_MAX_MEMORY env var.    Default is 0 (disabled). |
+| redisReplication.maxMemoryPercentOfLimit | int | `0` | MaxMemoryPercentOfLimit is the percentage of the Redis container memory limit to be used as maxmemory.    When a memory limit exists, the operator also exposes the computed value via the REDIS_MAX_MEMORY env var.    Requires the operator to run with the GenerateConfigInInitContainer feature gate enabled    (featureGates.GenerateConfigInInitContainer=true in the redis-operator chart); otherwise maxmemory stays 0.    Default is 0 (disabled). |
 | redisReplication.minReadySeconds | int | `0` |  |
 | redisReplication.name | string | `""` |  |
 | redisReplication.persistentVolumeClaimRetentionPolicy | object | `{}` |  |

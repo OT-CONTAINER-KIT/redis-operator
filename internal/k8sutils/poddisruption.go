@@ -224,7 +224,7 @@ func patchPodDisruptionBudget(ctx context.Context, storedPdb *policyv1.PodDisrup
 
 // createPodDisruptionBudget is a method to create PodDisruptionBudgets in Kubernetes
 func createPodDisruptionBudget(ctx context.Context, namespace string, pdb *policyv1.PodDisruptionBudget, cl kubernetes.Interface) error {
-	_, err := cl.PolicyV1().PodDisruptionBudgets(namespace).Create(context.TODO(), pdb, metav1.CreateOptions{})
+	_, err := cl.PolicyV1().PodDisruptionBudgets(namespace).Create(ctx, pdb, metav1.CreateOptions{})
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Redis PodDisruptionBudget creation failed")
 		return err
@@ -235,7 +235,7 @@ func createPodDisruptionBudget(ctx context.Context, namespace string, pdb *polic
 
 // updatePodDisruptionBudget is a method to update PodDisruptionBudgets in Kubernetes
 func updatePodDisruptionBudget(ctx context.Context, namespace string, pdb *policyv1.PodDisruptionBudget, cl kubernetes.Interface) error {
-	_, err := cl.PolicyV1().PodDisruptionBudgets(namespace).Update(context.TODO(), pdb, metav1.UpdateOptions{})
+	_, err := cl.PolicyV1().PodDisruptionBudgets(namespace).Update(ctx, pdb, metav1.UpdateOptions{})
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Redis PodDisruptionBudget update failed")
 		return err
@@ -246,7 +246,7 @@ func updatePodDisruptionBudget(ctx context.Context, namespace string, pdb *polic
 
 // deletePodDisruptionBudget is a method to delete PodDisruptionBudgets in Kubernetes
 func deletePodDisruptionBudget(ctx context.Context, namespace string, pdbName string, cl kubernetes.Interface) error {
-	err := cl.PolicyV1().PodDisruptionBudgets(namespace).Delete(context.TODO(), pdbName, metav1.DeleteOptions{})
+	err := cl.PolicyV1().PodDisruptionBudgets(namespace).Delete(ctx, pdbName, metav1.DeleteOptions{})
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Redis PodDisruption deletion failed")
 		return err
@@ -260,7 +260,7 @@ func getPodDisruptionBudget(ctx context.Context, namespace string, pdb string, c
 	getOpts := metav1.GetOptions{
 		TypeMeta: generateMetaInformation("PodDisruptionBudget", "policy/v1"),
 	}
-	pdbInfo, err := cl.PolicyV1().PodDisruptionBudgets(namespace).Get(context.TODO(), pdb, getOpts)
+	pdbInfo, err := cl.PolicyV1().PodDisruptionBudgets(namespace).Get(ctx, pdb, getOpts)
 	if err != nil {
 		log.FromContext(ctx).V(1).Info("Redis PodDisruptionBudget get action failed")
 		return nil, err

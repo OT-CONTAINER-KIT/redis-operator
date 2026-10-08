@@ -47,6 +47,7 @@ helm delete <my-release> --namespace <namespace>
 | TLS.ca | string | `"ca.crt"` |  |
 | TLS.cert | string | `"tls.crt"` |  |
 | TLS.key | string | `"tls.key"` |  |
+| TLS.secret.defaultMode | int | `288` |  |
 | TLS.secret.secretName | string | `""` |  |
 | affinity | object | `{}` |  |
 | annotations | object | `{}` |  |

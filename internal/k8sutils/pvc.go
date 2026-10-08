@@ -80,7 +80,7 @@ func HandlePVCResizing(ctx context.Context, storedStateful, newStateful *appsv1.
 	})
 	listOpt := metav1.ListOptions{LabelSelector: labelSelector}
 
-	pvcs, err := cl.CoreV1().PersistentVolumeClaims(storedStateful.Namespace).List(context.Background(), listOpt)
+	pvcs, err := cl.CoreV1().PersistentVolumeClaims(storedStateful.Namespace).List(ctx, listOpt)
 	if err != nil {
 		return err
 	}
@@ -102,7 +102,7 @@ func HandlePVCResizing(ctx context.Context, storedStateful, newStateful *appsv1.
 		currentCapacity := pvc.Spec.Resources.Requests.Storage().Value()
 		if currentCapacity != desiredCapacity {
 			pvc.Spec.Resources.Requests = newStateful.Spec.VolumeClaimTemplates[targetIndex].Spec.Resources.Requests
-			if _, err := cl.CoreV1().PersistentVolumeClaims(storedStateful.Namespace).Update(context.Background(), pvc, metav1.UpdateOptions{}); err != nil {
+			if _, err := cl.CoreV1().PersistentVolumeClaims(storedStateful.Namespace).Update(ctx, pvc, metav1.UpdateOptions{}); err != nil {
 				updateFailed = true
 				log.FromContext(ctx).Error(fmt.Errorf("sts:%s resize pvc [%s] failed: %s", storedStateful.Name, pvc.Name, err.Error()), "")
 			} else {

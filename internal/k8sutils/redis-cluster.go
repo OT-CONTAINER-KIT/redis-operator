@@ -232,6 +232,13 @@ func generateRedisClusterContainerParams(ctx context.Context, cl kubernetes.Inte
 	if cr.Spec.ACL != nil {
 		containerProp.ACLConfig = cr.Spec.ACL
 	}
+	// Bound the cluster preStop demotion wait by the role's grace period so the
+	// hook returns before the kubelet sends SIGKILL.
+	if role == "follower" {
+		containerProp.PreStopWaitSeconds = preStopWaitSeconds(cr.Spec.RedisFollower.TerminationGracePeriodSeconds)
+	} else {
+		containerProp.PreStopWaitSeconds = preStopWaitSeconds(cr.Spec.RedisLeader.TerminationGracePeriodSeconds)
+	}
 
 	return containerProp, nil
 }

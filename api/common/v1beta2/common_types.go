@@ -153,6 +153,8 @@ type RedisExporter struct {
 type RedisConfig struct {
 	// MaxMemoryPercentOfLimit is the percentage of the Redis container memory limit to be used as maxmemory.
 	// When set with a memory limit, the operator also exports the computed value via the REDIS_MAX_MEMORY environment variable.
+	// This feature requires the GenerateConfigInInitContainer feature gate to be enabled on the operator;
+	// without it the REDIS_MAX_MEMORY value is exported but never applied to the Redis configuration.
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=100
 	MaxMemoryPercentOfLimit *int     `json:"maxMemoryPercentOfLimit,omitempty"`

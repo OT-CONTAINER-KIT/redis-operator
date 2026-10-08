@@ -165,11 +165,39 @@ func TestBuildSentinelEnv(t *testing.T) {
 		return rr
 	}
 
-	t.Run("no password secret only sets quorum", func(t *testing.T) {
+	envValue := func(envs []corev1.EnvVar, name string) (string, bool) {
+		for _, e := range envs {
+			if e.Name == name {
+				return e.Value, true
+			}
+		}
+		return "", false
+	}
+
+	t.Run("no password secret sets quorum and the hostname knobs", func(t *testing.T) {
 		envs := buildSentinelEnv(newRR(nil, nil))
-		require.Len(t, envs, 1)
+		require.Len(t, envs, 3)
 		assert.Equal(t, "QUORUM", envs[0].Name)
 		assert.Equal(t, "2", envs[0].Value) // size 3 -> 3/2+1
+		// Without these the embedded Sentinel always rendered `resolve-hostnames no`
+		// and spec.sentinel.resolveHostnames was silently a no-op.
+		v, ok := envValue(envs, "RESOLVE_HOSTNAMES")
+		require.True(t, ok, "RESOLVE_HOSTNAMES must be passed to the embedded Sentinel")
+		assert.Equal(t, "no", v)
+		v, ok = envValue(envs, "ANNOUNCE_HOSTNAMES")
+		require.True(t, ok, "ANNOUNCE_HOSTNAMES must be passed to the embedded Sentinel")
+		assert.Equal(t, "no", v)
+	})
+
+	t.Run("hostname knobs are propagated from the spec", func(t *testing.T) {
+		rr := newRR(nil, nil)
+		rr.Spec.Sentinel.ResolveHostnames = "yes"
+		rr.Spec.Sentinel.AnnounceHostnames = "yes"
+		envs := buildSentinelEnv(rr)
+		v, _ := envValue(envs, "RESOLVE_HOSTNAMES")
+		assert.Equal(t, "yes", v)
+		v, _ = envValue(envs, "ANNOUNCE_HOSTNAMES")
+		assert.Equal(t, "yes", v)
 	})
 
 	t.Run("falls back to top-level redis secret", func(t *testing.T) {

@@ -40,6 +40,11 @@ spec:
             storage: 1Gi
   sentinel:
     size: 3
+    # Requires Redis 6.2+, which added Sentinel's hostname support.
+    # Set both together: a hostname is only a valid announce address when
+    # Sentinel is resolving hostnames.
+    resolveHostnames: "yes"
+    announceHostnames: "yes"
     image: quay.io/opstree/redis-sentinel:latest
     imagePullPolicy: IfNotPresent
     resources:
