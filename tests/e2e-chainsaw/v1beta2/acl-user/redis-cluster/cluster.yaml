@@ -20,6 +20,9 @@ spec:
       limits:
         cpu: 101m
         memory: 128Mi
+    redisSecret:
+      name: acl-secret
+      key: password
   acl:
     secret:
       secretName: acl-secret

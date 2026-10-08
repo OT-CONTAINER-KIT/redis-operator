@@ -129,3 +129,36 @@ spec:
 4. **Limitations**
    - Only supports parameters that can be modified at runtime
    - `CONFIG SET` is not persisted to disk, so values supplied through `dynamicConfig` are **not retained across pod restarts** unless they are also provided through `externalConfig` (`additionalRedisConfig`). `dynamicConfig` is applied at runtime only and intentionally does not rewrite the ConfigMap, so that runtime-tunable parameters do not trigger a StatefulSet rolling restart.
+
+## ACL Configuration
+
+Enabling `spec.acl` (either `acl.secret` or `acl.persistentVolumeClaim`) makes Redis load users from the ACL file via the `aclfile` directive. Once `aclfile` is set, the ACL file is the sole authority on users: `requirepass` is ignored, and when the file does not define `default`, Redis creates a `default` user without a password.
+
+The operator, the health probes, replicas (`masterauth`) and Sentinel (`auth-pass`) all authenticate as the `default` user with the password from `spec.kubernetesConfig.redisSecret`. When both `redisSecret` and `acl` are configured, the ACL file must therefore define the `default` user with the same password, either in plain text (`>password`) or as a SHA-256 hash (`#<sha256>`):
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-secret
+stringData:
+  password: Opstree1234
+  user.acl: |
+    user default on >Opstree1234 ~* &* +@all
+    user app on >app-password ~app:* &* +@all
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisReplication
+metadata:
+  name: redisreplication
+spec:
+  kubernetesConfig:
+    redisSecret:
+      name: redis-secret
+      key: password
+  acl:
+    secret:
+      secretName: redis-secret
+```
+
+With the `GenerateConfigInInitContainer` feature gate enabled, the `init-config` container validates this before writing the configuration. It fails with a descriptive error when the ACL file is missing, does not define `default`, leaves it disabled (no `on`), sets it to `nopass`, or defines it with a different password, instead of letting the pod crash-loop on `NOAUTH`.
