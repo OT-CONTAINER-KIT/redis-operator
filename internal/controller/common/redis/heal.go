@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
+	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/envs"
@@ -33,7 +34,7 @@ type Healer interface {
 	// SentinelSet sets the config for a specific master
 	// See: https://redis.io/docs/latest/operate/oss_and_stack/management/sentinel/#reconfiguring-sentinel-at-runtime
 	SentinelSet(ctx context.Context, rs *rsvb2.RedisSentinel, master string) error
-	SentinelReset(ctx context.Context, rs *rsvb2.RedisSentinel) error
+	SentinelReset(ctx context.Context, rs *rsvb2.RedisSentinel, rr *rrvb2.RedisReplication) error
 
 	// UpdateRedisRoleLabel checks each Running and Ready pod and updates its `redis-role`
 	// label to match the pod's real role.
@@ -263,8 +264,7 @@ func (h *healer) SentinelSet(ctx context.Context, rs *rsvb2.RedisSentinel, maste
 	return nil
 }
 
-// SentinelReset range all sentinel execute `sentinel reset *`
-func (h *healer) SentinelReset(ctx context.Context, rs *rsvb2.RedisSentinel) error {
+func (h *healer) SentinelReset(ctx context.Context, rs *rsvb2.RedisSentinel, rr *rrvb2.RedisReplication) error {
 	pods, err := h.getSentinelPods(ctx, rs)
 	if err != nil {
 		return err
@@ -275,18 +275,43 @@ func (h *healer) SentinelReset(ctx context.Context, rs *rsvb2.RedisSentinel) err
 		return err
 	}
 
+	masterGroupName := rs.Spec.RedisSentinelConfig.MasterGroupName
+	expectedSlaves := int(rr.Spec.GetReplicationCounts("replication")) - 1
+	expectedSentinels := int(rs.Spec.GetSentinelCounts("sentinel"))
+
 	for _, pod := range pods.Items {
 		connInfo := createConnectionInfo(ctx, pod, sentinelPass, rs.Spec.TLS, h.k8s, rs.Namespace, "26379")
+		sentinel := h.redis.Connect(connInfo)
 
-		err = h.redis.Connect(connInfo).SentinelReset(ctx, rs.Spec.RedisSentinelConfig.MasterGroupName)
+		info, err := sentinel.GetInfoSentinel(ctx)
 		if err != nil {
+			return err
+		}
+		masterInfo, ok := info.Master(masterGroupName)
+		if !ok {
+			log.FromContext(ctx).Info("master group not found in sentinel info, skipping reset",
+				"pod", pod.Name,
+				"masterGroupName", masterGroupName,
+			)
+			continue
+		}
+		if !masterInfo.HasStaleEntries(expectedSlaves, expectedSentinels) {
+			continue
+		}
+		log.FromContext(ctx).Info("sentinel has stale topology entries, resetting",
+			"pod", pod.Name,
+			"expectedSlaves", expectedSlaves,
+			"slaves", masterInfo.Slaves,
+			"expectedSentinels", expectedSentinels,
+			"sentinels", masterInfo.Sentinels,
+		)
+		if err := sentinel.SentinelReset(ctx, masterGroupName); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// SentinelMonitor range all sentinel execute `sentinel monitor`
 func (h *healer) SentinelMonitor(ctx context.Context, rs *rsvb2.RedisSentinel, master string) error {
 	pods, err := h.getSentinelPods(ctx, rs)
 	if err != nil {
