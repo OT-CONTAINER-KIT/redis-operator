@@ -285,17 +285,9 @@ func (r *Reconciler) configureSentinel(ctx context.Context, inst *rrvb2.RedisRep
 		return fmt.Errorf("master pod IP not ready")
 	}
 
-	var masterPassword string
-	if inst.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
-		secret, err := r.K8sClient.CoreV1().Secrets(inst.Namespace).Get(
-			ctx,
-			*inst.Spec.KubernetesConfig.ExistingPasswordSecret.Name,
-			metav1.GetOptions{},
-		)
-		if err != nil {
-			return fmt.Errorf("get master password secret: %w", err)
-		}
-		masterPassword = string(secret.Data[*inst.Spec.KubernetesConfig.ExistingPasswordSecret.Key])
+	masterPassword, err := r.masterPassword(ctx, inst)
+	if err != nil {
+		return fmt.Errorf("get master password secret: %w", err)
 	}
 
 	sentinelPods, err := r.getSentinelPods(ctx, inst)
