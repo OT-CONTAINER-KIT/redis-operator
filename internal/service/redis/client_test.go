@@ -27,7 +27,8 @@ func TestCreateClientSetsTimeouts(t *testing.T) {
 // accepts the connection but never answers does not stall the caller: the
 // read timeout must turn the PING into an error instead of blocking forever.
 func TestCreateClientUnresponsiveServerReturns(t *testing.T) {
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	var listenConfig net.ListenConfig
+	ln, err := listenConfig.Listen(t.Context(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	defer ln.Close()
 
