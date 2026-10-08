@@ -134,15 +134,14 @@ spec:
 
     - name: Check master changed
       try:
-        - sleep:
-            duration: 60s
-        - script:
-            timeout: 10s
-            content: |
-              export MASTER_POD_FROM_STATUS=$(kubectl -n ${NAMESPACE} get redisreplication redis-replication -o jsonpath='{.status.masterNode}');
-              echo "$MASTER_POD_FROM_STATUS"
-            check:
-              (contains($stdout, 'redis-replication-0')): false
+        - assert:
+            timeout: 150s
+            resource:
+              apiVersion: redis.redis.opstreelabs.in/v1beta2
+              kind: RedisReplication
+              metadata:
+                name: redis-replication
+              (contains(['redis-replication-1', 'redis-replication-2'], status.masterNode)): true
 
     - name: Assert data
       try:

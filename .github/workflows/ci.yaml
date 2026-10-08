@@ -129,7 +129,8 @@ jobs:
           done
 
   validate_yaml:
-    needs: [validate_examples]
+    # Standalone on purpose: e2e_test gates on this job, and it only lints
+    # ./tests/, so it must not inherit the gotest chain via validate_examples.
     name: Validate YAML
     runs-on: ubuntu-latest
     steps:
@@ -212,11 +213,13 @@ jobs:
     uses: ./.github/workflows/call-test-charts.yaml
 
   e2e_test:
-    # DEBUG
-    needs: [validate_yaml, helm_chart_test]
+    # validate_yaml lints ./tests/, which is this suite's own YAML, so keep it
+    # as a gate. helm_chart_test is dropped: it pulled in the whole gotest
+    # chain and delayed the job by ~12 minutes without testing anything the
+    # suite depends on.
+    needs: [lint, validate_yaml]
     name: E2E Test
     runs-on: ubuntu-latest
-    if: always() && (needs.validate_yaml.result == 'success') && (needs.helm_chart_test.result == 'success' || needs.helm_chart_test.result == 'skipped')
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -257,10 +260,21 @@ jobs:
           kubectl cluster-info --context kind-kind
           kind load docker-image redis-operator:e2e --name kind
 
+      - name: Preload test images into Kind
+        run: ./hack/preload-e2e-images.sh kind
+
       - name: Install Redis Operator
         run: |
           make deploy IMG=redis-operator:e2e
           kubectl set env deployment/redis-operator-redis-operator -n redis-operator-system INIT_CONTAINER_IMAGE=redis-operator:e2e FEATURE_GATES=GenerateConfigInInitContainer=true MAX_CONCURRENT_RECONCILES=10
+          # config/manager ships a 100m CPU cap. With MAX_CONCURRENT_RECONCILES=10
+          # and the operator streaming every `redis-cli --cluster` exec itself,
+          # that cap throttles the suite rather than protecting anything. Lift it
+          # for the test run only -- the shipped default is left untouched.
+          # (`set resources --limits=cpu=0` would write cpu: "0", which then fails
+          # the requests<=limits check; a strategic merge with null drops the key.)
+          kubectl -n redis-operator-system patch deployment redis-operator-redis-operator \
+            -p '{"spec":{"template":{"spec":{"containers":[{"name":"manager","resources":{"limits":{"cpu":null}}}]}}}}'
 
       - name: Wait for Redis Operator to be ready
         run: |

@@ -29,13 +29,12 @@ spec:
       name: redis-replication-password
       key: password
     image: quay.io/opstree/redis:latest
-    imagePullPolicy: Always
+    imagePullPolicy: IfNotPresent
     resources:
       requests:
         cpu: 101m
         memory: 128Mi
       limits:
-        cpu: 101m
         memory: 128Mi
   storage:
     volumeClaimTemplate:
@@ -84,11 +83,10 @@ spec:
       name: redis-sentinel-password
       key: password
     image: quay.io/opstree/redis-sentinel:latest
-    imagePullPolicy: Always
+    imagePullPolicy: IfNotPresent
     resources:
       requests:
         cpu: 101m
         memory: 128Mi
       limits:
-        cpu: 101m
         memory: 128Mi

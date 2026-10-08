@@ -1,24 +1,53 @@
 ---
+# Kept byte-identical to cluster.yaml apart from clusterSize so that "scale out"
+# means only that. It previously omitted TLS, redisConfig and the service block;
+# chainsaw applies with a merge patch so those fields survived and the test still
+# passed, but the file read as though the scale-out dropped them.
+
 apiVersion: redis.redis.opstreelabs.in/v1beta2
 kind: RedisCluster
 metadata:
   name: redis-cluster-v1beta2
 spec:
+  TLS:
+    ca: ca.crt
+    cert: tls.crt
+    key: tls.key
+    secret:
+      secretName: redis-tls-cert
   clusterSize: 6
   clusterVersion: v7
   persistenceEnabled: true
+  redisLeader:
+    redisConfig:
+      additionalRedisConfig: redis-external-config
+  redisFollower:
+    redisConfig:
+      additionalRedisConfig: redis-external-config
+  redisConfig:
+    maxMemoryPercentOfLimit: 80
+    dynamicConfig:
+      - "slowlog-log-slower-than 5000"
   podSecurityContext:
     runAsUser: 1000
     fsGroup: 1000
   kubernetesConfig:
+    service:
+      serviceType: NodePort
+      includeBusPort: true
+      headless:
+        includeBusPort: true
+        additionalAnnotations:
+          test: test
+      additional:
+        includeBusPort: true
     image: quay.io/opstree/redis:latest
-    imagePullPolicy: Always
+    imagePullPolicy: IfNotPresent
     resources:
       requests:
         cpu: 101m
         memory: 128Mi
       limits:
-        cpu: 101m
         memory: 128Mi
     redisSecret:
       name: redis-secret
@@ -26,13 +55,12 @@ spec:
   redisExporter:
     enabled: true
     image: quay.io/opstree/redis-exporter:v1.44.0
-    imagePullPolicy: Always
+    imagePullPolicy: IfNotPresent
     resources:
       requests:
         cpu: 100m
         memory: 128Mi
       limits:
-        cpu: 100m
         memory: 128Mi
   storage:
     volumeClaimTemplate:

@@ -185,8 +185,7 @@ spec:
         #
         # This is the one wait here bounded by pod lifecycle rather than by the
         # reconcile loop: terminationGracePeriodSeconds (30s) for the delete,
-        # then reschedule, an image pull (ha.yaml sets imagePullPolicy: Always,
-        # so it re-pulls) and the readiness probe. Hence the longer budget than
+        # then reschedule and the readiness probe. Hence the longer budget than
         # the operator-convergence asserts below.
         - assert:
             timeout: 3m
