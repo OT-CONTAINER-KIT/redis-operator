@@ -14,19 +14,14 @@ spec:
     # 4 is the ceiling worth trying -- 5 buys nothing.
     parallel: 3
     forceTerminationGracePeriod: 5s
-  # No cleanup block: both settings it used to carry are back at their defaults.
-  #
   # skipDelete: true was set alongside parallel: 10 to dodge cleanup timeouts.
   # That parallelism is long gone, and leaving every namespace behind meant
   # 75+ redis pods piled up on the runner by the end of a run, which is what
   # made the late tests several times slower than the early ones. The right fix
   # for the timeouts it was hiding is timeouts.cleanup below, not skipping the
   # delete.
-  #
-  # delayBeforeCleanup: 10s only started costing anything once cleanup was
-  # re-enabled, and 10s per test is +100% on an 11s case -- 230s of the suite's
-  # 3763s. Two full runs finished with no cleanup timeouts, so the settling
-  # time it bought is not needed.
+  cleanup:
+    delayBeforeCleanup: 10s
   timeouts:
     # Namespace teardown has to wait out the CRD finalizers, and chainsaw's
     # 30s default is not enough: sentinel-pod-placement hit "context deadline
