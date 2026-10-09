@@ -108,6 +108,9 @@ spec:
     enabled: {{ .Values.pdb.enabled }}
     minAvailable: {{ .Values.pdb.minAvailable }}
     maxUnavailable: {{ .Values.pdb.maxUnavailable }}
+    {{- with .Values.pdb.unhealthyPodEvictionPolicy }}
+    unhealthyPodEvictionPolicy: {{ . }}
+    {{- end }}
   {{- end }}
   {{- with .Values.livenessProbe }}
   livenessProbe:

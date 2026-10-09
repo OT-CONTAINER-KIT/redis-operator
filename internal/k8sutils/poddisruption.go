@@ -107,6 +107,9 @@ func generatePodDisruptionBudgetDef(ctx context.Context, cr *rcvb2.RedisCluster,
 		// If we don't have a value for either, assume quorum: (N/2)+1
 		pdbTemplate.Spec.MinAvailable = &intstr.IntOrString{Type: intstr.Int, IntVal: (*cr.Spec.ClusterSize / 2) + 1}
 	}
+	if pdbParams.UnhealthyPodEvictionPolicy != nil {
+		pdbTemplate.Spec.UnhealthyPodEvictionPolicy = pdbParams.UnhealthyPodEvictionPolicy
+	}
 	AddOwnerRefToObject(pdbTemplate, redisClusterAsOwner(cr))
 	return pdbTemplate
 }
@@ -134,6 +137,9 @@ func generateReplicationPodDisruptionBudgetDef(ctx context.Context, cr *rrvb2.Re
 		// If we don't have a value for either, assume quorum: (N/2)+1
 		pdbTemplate.Spec.MinAvailable = &intstr.IntOrString{Type: intstr.Int, IntVal: (*cr.Spec.Size / 2) + 1}
 	}
+	if pdbParams.UnhealthyPodEvictionPolicy != nil {
+		pdbTemplate.Spec.UnhealthyPodEvictionPolicy = pdbParams.UnhealthyPodEvictionPolicy
+	}
 	AddOwnerRefToObject(pdbTemplate, redisReplicationAsOwner(cr))
 	return pdbTemplate
 }
@@ -160,6 +166,9 @@ func generateSentinelPodDisruptionBudgetDef(ctx context.Context, cr *rsvb2.Redis
 	} else {
 		// If we don't have a value for either, assume quorum: (N/2)+1
 		pdbTemplate.Spec.MinAvailable = &intstr.IntOrString{Type: intstr.Int, IntVal: (*cr.Spec.Size / 2) + 1}
+	}
+	if pdbParams.UnhealthyPodEvictionPolicy != nil {
+		pdbTemplate.Spec.UnhealthyPodEvictionPolicy = pdbParams.UnhealthyPodEvictionPolicy
 	}
 	AddOwnerRefToObject(pdbTemplate, redisSentinelAsOwner(cr))
 	return pdbTemplate
