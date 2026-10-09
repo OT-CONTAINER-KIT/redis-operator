@@ -33,7 +33,7 @@ spec:
     {{- end }}
 
   kubernetesConfig:
-    image: "{{ .Values.redisSentinel.image }}:{{ .Values.redisSentinel.tag }}"
+    image: "{{ .Values.redisSentinel.image }}{{- if .Values.redisSentinel.tag }}:{{ .Values.redisSentinel.tag }}{{- end }}{{- if .Values.redisSentinel.digest }}@{{ .Values.redisSentinel.digest }}{{- end }}"
     imagePullPolicy: "{{ .Values.redisSentinel.imagePullPolicy }}"
     {{- if .Values.redisSentinel.imagePullSecrets }}
     imagePullSecrets: {{ toYaml .Values.redisSentinel.imagePullSecrets | nindent 4 }}
@@ -62,7 +62,7 @@ spec:
 
   redisExporter:
     enabled: {{ .Values.redisExporter.enabled }}
-    image: "{{ .Values.redisExporter.image }}:{{ .Values.redisExporter.tag }}"
+    image: "{{ .Values.redisExporter.image }}{{- if .Values.redisExporter.tag }}:{{ .Values.redisExporter.tag }}{{- end }}{{- if .Values.redisExporter.digest }}@{{ .Values.redisExporter.digest }}{{- end }}"
     imagePullPolicy: "{{ .Values.redisExporter.imagePullPolicy }}"
     {{- if .Values.redisExporter.resources}}
     resources: {{ toYaml .Values.redisExporter.resources | nindent 6 }}

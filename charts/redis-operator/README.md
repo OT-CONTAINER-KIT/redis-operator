@@ -120,6 +120,7 @@ kubectl create secret tls <webhook-server-cert> --key tls.key --cert tls.crt -n 
 | redisOperator.env | list | `[]` |  |
 | redisOperator.extraArgs | list | `[]` |  |
 | redisOperator.imageName | string | `"quay.io/opstree/redis-operator"` |  |
+| redisOperator.imageDigest | string | `""` | Optional image digest (e.g. `sha256:abc...`). If set, rendered as `imageName:imageTag@digest`. Can be used instead of or together with imageTag. |
 | redisOperator.imagePullPolicy | string | `"Always"` |  |
 | redisOperator.imagePullSecrets | list | `[]` |  |
 | redisOperator.imageTag | string | `""` |  |
