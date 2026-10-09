@@ -19,6 +19,7 @@ import (
 
 type Checker interface {
 	GetMasterFromReplication(ctx context.Context, rr *rr.RedisReplication) (corev1.Pod, error)
+	GetReplicationKeyCounts(ctx context.Context, rr *rr.RedisReplication, podNames []string) map[string]int64
 	GetPassword(ctx context.Context, ns string, secret *commonapi.ExistingPasswordSecret) (string, error)
 	CheckClusterSlotsAssigned(ctx context.Context, cr *rcvb2.RedisCluster) (bool, error)
 }
@@ -114,6 +115,33 @@ func (c *checker) GetMasterFromReplication(ctx context.Context, rr *rr.RedisRepl
 		}
 	}
 	return realMasterPod, nil
+}
+
+func (c *checker) GetReplicationKeyCounts(ctx context.Context, rr *rr.RedisReplication, podNames []string) map[string]int64 {
+	keyCounts := make(map[string]int64, len(podNames))
+	password, err := c.GetPassword(ctx, rr.Namespace, rr.Spec.KubernetesConfig.ExistingPasswordSecret)
+	if err != nil {
+		log.FromContext(ctx).Error(err, "failed to get redis password, key counts unavailable")
+		return keyCounts
+	}
+	for _, podName := range podNames {
+		pod, err := c.k8s.CoreV1().Pods(rr.Namespace).Get(ctx, podName, metav1.GetOptions{})
+		if err != nil {
+			log.FromContext(ctx).Error(err, "failed to get pod, skipping key count", "pod", podName)
+			continue
+		}
+		if !k8sutils.IsRedisPodProbeable(pod) {
+			continue
+		}
+		connInfo := createConnectionInfo(ctx, *pod, password, rr.Spec.TLS, c.k8s, rr.Namespace, "6379")
+		keys, err := c.redis.Connect(connInfo).GetKeyCount(ctx)
+		if err != nil {
+			log.FromContext(ctx).Error(err, "failed to get key count, skipping pod", "pod", podName)
+			continue
+		}
+		keyCounts[podName] = keys
+	}
+	return keyCounts
 }
 
 // CheckClusterSlotsAssigned verifies if all Redis cluster slots (16384 total) are properly assigned

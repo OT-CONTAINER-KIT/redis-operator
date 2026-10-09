@@ -70,6 +70,10 @@ func (f *fakeChecker) CheckClusterSlotsAssigned(context.Context, *rcvb2.RedisClu
 	return true, nil
 }
 
+func (f *fakeChecker) GetReplicationKeyCounts(context.Context, *rrvb2.RedisReplication, []string) map[string]int64 {
+	return nil
+}
+
 type fakeHealer struct {
 	monitoredMasters []string
 }

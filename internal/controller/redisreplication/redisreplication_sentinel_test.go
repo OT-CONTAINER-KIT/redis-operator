@@ -357,6 +357,10 @@ type fakeSentinelRedisService struct {
 
 func (f *fakeSentinelRedisService) IsMaster(context.Context) (bool, error) { return false, nil }
 
+func (f *fakeSentinelRedisService) GetKeyCount(context.Context) (int64, error) {
+	return 0, nil
+}
+
 func (f *fakeSentinelRedisService) GetAttachedReplicaCount(context.Context) (int, error) {
 	return 0, nil
 }

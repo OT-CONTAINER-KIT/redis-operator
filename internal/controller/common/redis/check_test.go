@@ -35,6 +35,27 @@ func TestGetMasterFromReplicationSkipsUnreachableAndUnreadyPods(t *testing.T) {
 	assert.NotContains(t, redisClient.connectHosts, "10.0.0.12")
 }
 
+func TestGetReplicationKeyCountsSkipsUnprobeableAndFailedPods(t *testing.T) {
+	rr, objects := newReplicationFixture("10.0.0.10", "10.0.0.11")
+	labels := map[string]string{"app": rr.GetStatefulSetName()}
+	objects = append(objects, newLabeledRedisPod(rr.GetStatefulSetName()+"-2", labels, "10.0.0.12", corev1.PodRunning, false))
+	redisClient := &fakeRedisClient{
+		keyCountByHost:    map[string]int64{"10.0.0.11": 120, "10.0.0.12": 120},
+		keyCountErrByHost: map[string]error{"10.0.0.10": errors.New("dial tcp 10.0.0.10:6379: i/o timeout")},
+	}
+	c := &checker{redis: redisClient, k8s: k8sfake.NewSimpleClientset(objects...)}
+
+	keyCounts := c.GetReplicationKeyCounts(context.Background(), rr, []string{
+		rr.GetStatefulSetName() + "-0",
+		rr.GetStatefulSetName() + "-1",
+		rr.GetStatefulSetName() + "-2",
+		rr.GetStatefulSetName() + "-3",
+	})
+
+	assert.Equal(t, map[string]int64{rr.GetStatefulSetName() + "-1": 120}, keyCounts)
+	assert.NotContains(t, redisClient.connectHosts, "10.0.0.12")
+}
+
 func newReplicationFixture(podIPs ...string) (*rrvb2.RedisReplication, []runtime.Object) {
 	rr := &rrvb2.RedisReplication{
 		ObjectMeta: metav1.ObjectMeta{Name: "example-replication", Namespace: "default"},
