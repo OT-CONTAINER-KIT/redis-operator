@@ -35,6 +35,7 @@ type Reconciler struct {
 	client.Client
 	k8sutils.StatefulSet
 	Healer                     redishealer.Healer
+	Checker                    redishealer.Checker
 	K8sClient                  kubernetes.Interface
 	RedisReplicationTopology   func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication) (k8sutils.RedisReplicationTopology, error)
 	RedisReplicationRealMaster func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string
@@ -154,7 +155,43 @@ func (r *Reconciler) redisReplicationRealMaster(ctx context.Context, instance *r
 	return k8sutils.GetRedisReplicationRealMaster(ctx, r.K8sClient, instance, masterPods)
 }
 
+func (r *Reconciler) ensureMasterHoldsData(ctx context.Context, instance *rrvb2.RedisReplication, pods []string, realMaster string) error {
+	if r.Checker == nil {
+		return fmt.Errorf("no checker configured, cannot verify that master %s holds data", realMaster)
+	}
+	keyCounts := r.Checker.GetReplicationKeyCounts(ctx, instance, pods)
+	masterKeys, ok := keyCounts[realMaster]
+	if !ok {
+		return fmt.Errorf("key count of master %s could not be read", realMaster)
+	}
+	if masterKeys > 0 {
+		return nil
+	}
+	var podsHoldingData, podsUnknown []string
+	for _, pod := range pods {
+		if pod == realMaster {
+			continue
+		}
+		keys, ok := keyCounts[pod]
+		switch {
+		case !ok:
+			podsUnknown = append(podsUnknown, pod)
+		case keys > 0:
+			podsHoldingData = append(podsHoldingData, pod)
+		}
+	}
+	if len(podsHoldingData) == 0 && len(podsUnknown) == 0 {
+		return nil
+	}
+	return fmt.Errorf("master %s holds no keys while pods %v hold data and %v could not be probed, refusing to replicate from it; "+
+		"to recover, run REPLICAOF NO ONE on a pod that holds data, then REPLICAOF <its address> 6379 on %s, and the operator will attach the rest",
+		realMaster, podsHoldingData, podsUnknown, realMaster)
+}
+
 func (r *Reconciler) createRedisReplicationLink(ctx context.Context, instance *rrvb2.RedisReplication, pods []string, realMaster string) error {
+	if err := r.ensureMasterHoldsData(ctx, instance, pods, realMaster); err != nil {
+		return err
+	}
 	if r.CreateRedisReplicationLink != nil {
 		return r.CreateRedisReplicationLink(ctx, r.K8sClient, instance, pods, realMaster)
 	}
@@ -491,6 +528,8 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 		} else if realMaster == "" {
 			log.FromContext(ctx).Info("Skipping replication reconfiguration because the current master could not be identified")
 		} else if err := r.createRedisReplicationLink(ctx, instance, masterNodes, realMaster); err != nil {
+			log.FromContext(ctx).Error(err, "Failed to create redis replication link",
+				"master", realMaster, "masters", masterNodes)
 			return intctrlutil.RequeueAfter(ctx, time.Second*60, "")
 		}
 	} else if len(masterNodes) == 1 && len(slaveNodes) > 0 {

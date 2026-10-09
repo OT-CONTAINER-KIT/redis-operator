@@ -689,6 +689,8 @@ type fakeRedisClient struct {
 	replicasByHost     map[string]int
 	errByHost          map[string]error
 	replicaErrByHost   map[string]error
+	keyCountByHost     map[string]int64
+	keyCountErrByHost  map[string]error
 	sentinelInfoByHost map[string]*redisservice.InfoSentinelResult
 	monitorHosts       []string
 	setHosts           []string
@@ -717,6 +719,13 @@ func (f *fakeRedisService) GetAttachedReplicaCount(context.Context) (int, error)
 		return 0, err
 	}
 	return f.client.replicasByHost[f.host], nil
+}
+
+func (f *fakeRedisService) GetKeyCount(context.Context) (int64, error) {
+	if err := f.client.keyCountErrByHost[f.host]; err != nil {
+		return 0, err
+	}
+	return f.client.keyCountByHost[f.host], nil
 }
 
 func (f *fakeRedisService) SentinelMonitor(context.Context, *redisservice.ConnectionInfo, string, string) error {
