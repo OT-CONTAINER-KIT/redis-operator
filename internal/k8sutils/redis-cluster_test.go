@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"testing"
 
@@ -793,5 +794,152 @@ func Test_generateRedisClusterContainerParams_NodePort(t *testing.T) {
 
 		require.NotNil(t, cr.Spec.EnvVars)
 		assert.Len(t, *cr.Spec.EnvVars, 1, "the cluster spec must not be mutated by rendering")
+	})
+}
+
+func TestDeleteStaleClusterNodePortServices(t *testing.T) {
+	newRedisCluster := func() *rcvb2.RedisCluster {
+		cluster := &rcvb2.RedisCluster{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "redis.redis.opstreelabs.in/v1beta2",
+				Kind:       "RedisCluster",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "redis-cluster",
+				Namespace: "redis",
+				UID:       "11111111-2222-3333-4444-555555555555",
+			},
+			Spec: rcvb2.RedisClusterSpec{
+				ClusterSize: ptr.To(int32(4)),
+				KubernetesConfig: common.KubernetesConfig{
+					Service: &common.ServiceConfig{ServiceType: "NodePort"},
+				},
+			},
+		}
+		cluster.SetDefault()
+		return cluster
+	}
+	serviceNames := func(t *testing.T, client *fake.Clientset) []string {
+		t.Helper()
+		services, err := client.CoreV1().Services("redis").List(t.Context(), metav1.ListOptions{})
+		require.NoError(t, err)
+		names := make([]string, 0, len(services.Items))
+		for i := range services.Items {
+			names = append(names, services.Items[i].Name)
+		}
+		sort.Strings(names)
+		return names
+	}
+	// createPerPodServices builds the per-pod Services through the production code
+	// path, so the labels and owner references cannot drift from what is deleted.
+	createPerPodServices := func(t *testing.T, client *fake.Clientset, cr *rcvb2.RedisCluster, role string, count int) {
+		t.Helper()
+		service := RedisClusterService{RedisServiceRole: role}
+		for i := 0; i < count; i++ {
+			require.NoError(t, service.createOrUpdateClusterNodePortServiceForReplica(t.Context(), cr, client, i))
+		}
+	}
+
+	t.Run("deletes the services of scaled down ordinals", func(t *testing.T) {
+		cr := newRedisCluster()
+		client := fake.NewSimpleClientset()
+		createPerPodServices(t, client, cr, "leader", 4)
+
+		service := RedisClusterService{RedisServiceRole: "leader"}
+		require.NoError(t, service.deleteStaleClusterNodePortServices(t.Context(), cr, client, 2))
+
+		assert.Equal(t, []string{"redis-cluster-leader-0", "redis-cluster-leader-1"}, serviceNames(t, client))
+	})
+
+	t.Run("keeps every service when nothing was scaled down", func(t *testing.T) {
+		cr := newRedisCluster()
+		client := fake.NewSimpleClientset()
+		createPerPodServices(t, client, cr, "leader", 3)
+
+		service := RedisClusterService{RedisServiceRole: "leader"}
+		require.NoError(t, service.deleteStaleClusterNodePortServices(t.Context(), cr, client, 3))
+
+		require.Len(t, serviceNames(t, client), 3)
+		var deletes int
+		for _, action := range client.Actions() {
+			if action.GetVerb() == "delete" {
+				deletes++
+			}
+		}
+		assert.Zero(t, deletes)
+	})
+
+	t.Run("only touches the role it was asked about", func(t *testing.T) {
+		cr := newRedisCluster()
+		client := fake.NewSimpleClientset()
+		createPerPodServices(t, client, cr, "leader", 4)
+		createPerPodServices(t, client, cr, "follower", 4)
+
+		service := RedisClusterService{RedisServiceRole: "leader"}
+		require.NoError(t, service.deleteStaleClusterNodePortServices(t.Context(), cr, client, 3))
+
+		assert.Equal(t, []string{
+			"redis-cluster-follower-0", "redis-cluster-follower-1",
+			"redis-cluster-follower-2", "redis-cluster-follower-3",
+			"redis-cluster-leader-0", "redis-cluster-leader-1", "redis-cluster-leader-2",
+		}, serviceNames(t, client))
+	})
+
+	t.Run("keeps the role wide services that share the same labels", func(t *testing.T) {
+		cr := newRedisCluster()
+		client := fake.NewSimpleClientset()
+		createPerPodServices(t, client, cr, "leader", 4)
+		// The role wide Services carry app/role/redis_setup_type just like the
+		// per-pod ones, but are not named after a pod.
+		roleLabels := getRedisLabels("redis-cluster-leader", cluster, "leader", nil)
+		for _, name := range []string{"redis-cluster-leader", "redis-cluster-leader-headless", "redis-cluster-leader-additional"} {
+			_, err := client.CoreV1().Services("redis").Create(t.Context(), &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "redis", Labels: roleLabels},
+			}, metav1.CreateOptions{})
+			require.NoError(t, err)
+		}
+
+		service := RedisClusterService{RedisServiceRole: "leader"}
+		require.NoError(t, service.deleteStaleClusterNodePortServices(t.Context(), cr, client, 0))
+
+		assert.Equal(t, []string{
+			"redis-cluster-leader", "redis-cluster-leader-additional", "redis-cluster-leader-headless",
+		}, serviceNames(t, client))
+	})
+
+	t.Run("never deletes a service this cluster does not own", func(t *testing.T) {
+		cr := newRedisCluster()
+		client := fake.NewSimpleClientset()
+		createPerPodServices(t, client, cr, "leader", 4)
+
+		// Same name and labels, but owned by a different RedisCluster.
+		foreign, err := client.CoreV1().Services("redis").Get(t.Context(), "redis-cluster-leader-3", metav1.GetOptions{})
+		require.NoError(t, err)
+		foreign.OwnerReferences = []metav1.OwnerReference{{
+			APIVersion: "redis.redis.opstreelabs.in/v1beta2",
+			Kind:       "RedisCluster",
+			Name:       "some-other-cluster",
+			UID:        "99999999-9999-9999-9999-999999999999",
+		}}
+		_, err = client.CoreV1().Services("redis").Update(t.Context(), foreign, metav1.UpdateOptions{})
+		require.NoError(t, err)
+
+		service := RedisClusterService{RedisServiceRole: "leader"}
+		require.NoError(t, service.deleteStaleClusterNodePortServices(t.Context(), cr, client, 3))
+
+		assert.Contains(t, serviceNames(t, client), "redis-cluster-leader-3")
+	})
+
+	t.Run("returns a list error", func(t *testing.T) {
+		cr := newRedisCluster()
+		client := fake.NewSimpleClientset()
+		client.PrependReactor("list", "services", func(k8stesting.Action) (bool, runtime.Object, error) {
+			return true, nil, errors.New("service list failed")
+		})
+
+		service := RedisClusterService{RedisServiceRole: "leader"}
+		err := service.deleteStaleClusterNodePortServices(t.Context(), cr, client, 3)
+
+		require.EqualError(t, err, "service list failed")
 	})
 }
