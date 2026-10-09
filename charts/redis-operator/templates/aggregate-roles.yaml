@@ -1,0 +1,66 @@
+{{- if and .Values.rbac.enabled .Values.rbac.aggregate (eq (include "redis-operator.rbacScope" .) "cluster") }}
+# Aggregate the Redis custom resources into the builtin view, edit and admin ClusterRoles.
+# Credentials are only referenced via secretRefs (redisSecret, TLS, ACL, valueFrom), never stored in the CRs.
+# Only valid as ClusterRoles, hence cluster scope only.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Values.redisOperator.name }}-view
+  labels:
+    app.kubernetes.io/name : {{ .Values.redisOperator.name }}
+    helm.sh/chart : {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    app.kubernetes.io/managed-by : {{ .Release.Service }}
+    app.kubernetes.io/instance : {{ .Release.Name }}
+    app.kubernetes.io/version : {{ .Chart.AppVersion }}
+    app.kubernetes.io/component: role
+    app.kubernetes.io/part-of : {{ .Release.Name }}
+    rbac.authorization.k8s.io/aggregate-to-view: "true"
+    rbac.authorization.k8s.io/aggregate-to-edit: "true"
+    rbac.authorization.k8s.io/aggregate-to-admin: "true"
+rules:
+- apiGroups:
+  - redis.redis.opstreelabs.in
+  resources:
+  - redis
+  - redis/status
+  - redisclusters
+  - redisclusters/status
+  - redisreplications
+  - redisreplications/status
+  - redissentinels
+  - redissentinels/status
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Values.redisOperator.name }}-edit
+  labels:
+    app.kubernetes.io/name : {{ .Values.redisOperator.name }}
+    helm.sh/chart : {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    app.kubernetes.io/managed-by : {{ .Release.Service }}
+    app.kubernetes.io/instance : {{ .Release.Name }}
+    app.kubernetes.io/version : {{ .Chart.AppVersion }}
+    app.kubernetes.io/component: role
+    app.kubernetes.io/part-of : {{ .Release.Name }}
+    rbac.authorization.k8s.io/aggregate-to-edit: "true"
+    rbac.authorization.k8s.io/aggregate-to-admin: "true"
+rules:
+- apiGroups:
+  - redis.redis.opstreelabs.in
+  resources:
+  - redis
+  - redisclusters
+  - redisreplications
+  - redissentinels
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - patch
+  - update
+{{- end }}

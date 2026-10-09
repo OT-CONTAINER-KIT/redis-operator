@@ -236,8 +236,8 @@ sentinel:
     # limits:
     #   cpu: 100m
     #   memory: 128Mi
-  # -- Secret holding the password Sentinel uses to authenticate to Redis.
-  # Leave empty to fall back to redisReplication.redisSecret.
+  # -- Secret holding the Sentinel password (requirepass on port 26379). The password
+  # Sentinel uses towards Redis always comes from redisReplication.redisSecret.
   redisSecret:
     secretName: ""
     secretKey: ""
