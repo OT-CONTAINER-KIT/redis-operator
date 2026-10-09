@@ -26,7 +26,7 @@ $td-sidebar-tree-root-color: #222 !default;
 
 .navbar-bg-onscroll {
     box-shadow: 0 2px 2px -2px rgba(0,0,0,.2);
-    #agones-top {
+    #redis-operator-top {
         display: block !important;
     }
 }
@@ -46,7 +46,7 @@ $td-sidebar-tree-root-color: #222 !default;
     background-color:black !important;
 }
 
-#agones-search {
+#redis-operator-search {
     background: rgba(190, 185, 185, 0.3);
 }
 input[type="search"]::placeholder {
