@@ -144,6 +144,13 @@ $ make manifests
 
 The operator deployment can be done via `helm` cli, we just need to define the custom image name and tag for testing the operator functionality:
 
+Add the Helm repository before installing the operator and Redis charts:
+
+```shell
+$ helm repo add ot-helm https://ot-container-kit.github.io/helm-charts/
+$ helm repo update
+```
+
 ```shell
 $ helm upgrade redis-operator ot-helm/redis-operator \
   --install --create-namespace --namespace ot-operators \
@@ -153,10 +160,10 @@ $ helm upgrade redis-operator ot-helm/redis-operator \
 
 ```shell
 # For deploying standalone redis
-$ helm upgrade redis ot-helm/redis --namespace ot-operators
+$ helm upgrade redis ot-helm/redis --install --namespace ot-operators
 
 # For deploying cluster redis
-$ helm upgrade redis-cluster ot-helm/redis-cluster \n
+$ helm upgrade redis-cluster ot-helm/redis-cluster \
   --set redisCluster.clusterSize=3 --install --namespace ot-operators \
   --set pdb.enabled=false --set redisCluster.tag=v7.0.5-beta
 ```
