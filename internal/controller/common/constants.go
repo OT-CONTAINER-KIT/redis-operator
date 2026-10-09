@@ -3,6 +3,7 @@ package common
 const (
 	AnnotationKeyRecreateStatefulset         = "redis.opstreelabs.in/recreate-statefulset"
 	AnnotationKeyRecreateStatefulsetStrategy = "redis.opstreelabs.in/recreate-statefulset-strategy"
+	AnnotationKeyPasswordSecretChecksum      = "redis.opstreelabs.in/password-secret-checksum"
 )
 
 const (
