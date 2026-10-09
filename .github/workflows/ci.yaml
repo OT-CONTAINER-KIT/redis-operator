@@ -55,7 +55,7 @@ jobs:
       - name: Run Go Tests with coverage
         run: go test ./... -coverprofile=coverage.txt -covermode=atomic
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           file: ./coverage.txt
           fail_ci_if_error: false
