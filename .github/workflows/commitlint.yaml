@@ -1,0 +1,18 @@
+name: Validate Commit Messages and Authors
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  commitlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Lint commit messages
+        uses: wagoid/commitlint-github-action@v6

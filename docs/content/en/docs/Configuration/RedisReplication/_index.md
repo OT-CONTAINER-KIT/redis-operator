@@ -26,7 +26,7 @@ Redis replication configuration can be customized by [values.yaml](https://githu
 | redisReplication.ignoreAnnotations | list | `[]` | List of annotations ignored by the operator |
 | redisReplication.minReadySeconds | int | `0` | Minimum number of seconds for a pod to be ready before it is considered available |
 | redisReplication.recreateStatefulSetOnUpdateInvalid | bool | `false` | Recreates the StatefulSet when immutable fields need to be updated |
-| redisReplication.maxMemoryPercentOfLimit | int | `0` | Sets Redis maxmemory as a percentage of container memory limit |
+| redisReplication.maxMemoryPercentOfLimit | int | `0` | Sets Redis maxmemory as a percentage of container memory limit. Requires the `GenerateConfigInInitContainer` feature gate on the operator; otherwise maxmemory stays 0 |
 | externalConfig.enabled | bool | `false` | Enables custom Redis configuration from ConfigMap data |
 | externalConfig.data | string | multiline config | Additional Redis configuration parameters |
 | externalService.enabled | bool | `false` | Enables external access to Redis |
@@ -78,6 +78,8 @@ Redis replication configuration can be customized by [values.yaml](https://githu
 | sentinel.downAfterMilliseconds | string | `"5000"` | Time before Sentinel considers the master down |
 | sentinel.resolveHostnames | string | `"no"` | Whether Sentinel resolves hostnames instead of IPs |
 | sentinel.announceHostnames | string | `"no"` | Whether Sentinel announces hostnames to clients |
+| sentinel.redisSecret.secretName | string | `""` | Secret containing the Sentinel password (`requirepass` on port 26379) |
+| sentinel.redisSecret.secretKey | string | `""` | Key in the secret containing the Sentinel password |
 
 ## RedisReplication Instance Configuration
 
@@ -129,3 +131,65 @@ spec:
 4. **Limitations**
    - Only supports parameters that can be modified at runtime
    - `CONFIG SET` is not persisted to disk, so values supplied through `dynamicConfig` are **not retained across pod restarts** unless they are also provided through `externalConfig` (`additionalRedisConfig`). `dynamicConfig` is applied at runtime only and intentionally does not rewrite the ConfigMap, so that runtime-tunable parameters do not trigger a StatefulSet rolling restart.
+
+## Embedded Sentinel Authentication
+
+When `spec.sentinel` is set, two secrets control authentication:
+
+- `spec.kubernetesConfig.redisSecret` is the Redis password. The embedded Sentinel uses it as `auth-pass` towards the monitored master; it is passed to the Sentinel pod as `MASTER_PASSWORD`, and the operator sets it again with `SENTINEL SET mymaster auth-pass` whenever it points Sentinel at a new master address.
+- `spec.sentinel.redisSecret` is the Sentinel's own password (`requirepass` on port 26379), the same role `kubernetesConfig.redisSecret` plays on a standalone `RedisSentinel`. It is passed to the Sentinel pod as `REDIS_PASSWORD`; the operator authenticates to Sentinel with it, and Sentinel-aware clients must send it as well. When it is omitted, the Sentinel port accepts unauthenticated connections.
+
+Previously `spec.sentinel.redisSecret` only changed the boot-time `MASTER_PASSWORD` and the Sentinel port was always unauthenticated. If you already set it, upgrading enables `requirepass` on the Sentinel pods, so clients that discover the master through Sentinel must start sending that password.
+
+```yaml
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisReplication
+metadata:
+  name: redis-replication
+spec:
+  clusterSize: 3
+  kubernetesConfig:
+    image: quay.io/opstree/redis:latest
+    redisSecret:
+      name: redis-secret
+      key: password
+  sentinel:
+    size: 3
+    image: quay.io/opstree/redis-sentinel:latest
+    redisSecret:
+      name: redis-sentinel-secret
+      key: password
+```
+
+## ACL Configuration
+
+Enabling `spec.acl` (either `acl.secret` or `acl.persistentVolumeClaim`) makes Redis load users from the ACL file via the `aclfile` directive. Once `aclfile` is set, the ACL file is the sole authority on users: `requirepass` is ignored, and when the file does not define `default`, Redis creates a `default` user without a password.
+
+The operator, the health probes, replicas (`masterauth`) and Sentinel (`auth-pass`) all authenticate as the `default` user with the password from `spec.kubernetesConfig.redisSecret`. When both `redisSecret` and `acl` are configured, the ACL file must therefore define the `default` user with the same password, either in plain text (`>password`) or as a SHA-256 hash (`#<sha256>`):
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-secret
+stringData:
+  password: Opstree1234
+  user.acl: |
+    user default on >Opstree1234 ~* &* +@all
+    user app on >app-password ~app:* &* +@all
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisReplication
+metadata:
+  name: redisreplication
+spec:
+  kubernetesConfig:
+    redisSecret:
+      name: redis-secret
+      key: password
+  acl:
+    secret:
+      secretName: redis-secret
+```
+
+With the `GenerateConfigInInitContainer` feature gate enabled, the `init-config` container validates this before writing the configuration. It fails with a descriptive error when the ACL file is missing, does not define `default`, leaves it disabled (no `on`), sets it to `nopass`, or defines it with a different password, instead of letting the pod crash-loop on `NOAUTH`.

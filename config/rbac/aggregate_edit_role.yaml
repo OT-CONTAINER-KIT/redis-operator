@@ -1,0 +1,22 @@
+# Aggregates write access to the Redis CRs into the builtin edit and admin roles.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: redis-operator-aggregate-edit
+  labels:
+    rbac.authorization.k8s.io/aggregate-to-edit: "true"
+    rbac.authorization.k8s.io/aggregate-to-admin: "true"
+rules:
+- apiGroups:
+  - redis.redis.opstreelabs.in
+  resources:
+  - redis
+  - redisclusters
+  - redisreplications
+  - redissentinels
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - patch
+  - update

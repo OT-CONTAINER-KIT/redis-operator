@@ -254,7 +254,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `maxMemoryPercentOfLimit` _integer_ | MaxMemoryPercentOfLimit is the percentage of the Redis container memory limit to be used as maxmemory.<br />When set with a memory limit, the operator also exports the computed value via the REDIS_MAX_MEMORY environment variable. |  | Maximum: 100 <br />Minimum: 1 <br /> |
+| `maxMemoryPercentOfLimit` _integer_ | MaxMemoryPercentOfLimit is the percentage of the Redis container memory limit to be used as maxmemory.<br />When set with a memory limit, the operator also exports the computed value via the REDIS_MAX_MEMORY environment variable.<br />This feature requires the GenerateConfigInInitContainer feature gate to be enabled on the operator;<br />without it the REDIS_MAX_MEMORY value is exported but never applied to the Redis configuration. |  | Maximum: 100 <br />Minimum: 1 <br /> |
 | `dynamicConfig` _string array_ |  |  |  |
 | `additionalRedisConfig` _string_ |  |  |  |
 

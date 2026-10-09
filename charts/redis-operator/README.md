@@ -113,6 +113,7 @@ kubectl create secret tls <webhook-server-cert> --key tls.key --cert tls.crt -n 
 | nodeSelector | object | `{}` |  |
 | podSecurityContext | object | `{}` |  |
 | priorityClassName | string | `""` |  |
+| rbac.aggregate | bool | `true` | Aggregate the Redis CRs into the builtin view, edit and admin ClusterRoles. Only rendered when rbac.scope is "cluster". |
 | rbac.enabled | bool | `true` | Enable RBAC resources creation |
 | rbac.scope | string | `"cluster"` | RBAC scope: "cluster" for ClusterRole/ClusterRoleBinding or "namespace" for Role/RoleBinding. "cluster" lets the operator manage Redis resources across all namespaces (default behavior). "namespace" restricts the operator to its own release namespace; set redisOperator.watchNamespace accordingly and ensure the CRDs are installed separately (CRDs are cluster-scoped). |
 | redisOperator.automountServiceAccountToken | bool | `true` |  |

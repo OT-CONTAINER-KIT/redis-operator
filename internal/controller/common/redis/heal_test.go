@@ -12,10 +12,14 @@ import (
 	"testing"
 	"time"
 
+	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
+	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
+	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	common "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	redisservice "github.com/OT-CONTAINER-KIT/redis-operator/internal/service/redis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
+	"k8s.io/utils/ptr"
 )
 
 func TestUpdateRedisRoleLabelSkipsUnprobeablePods(t *testing.T) {
@@ -557,6 +562,85 @@ func TestUpdateRedisRoleLabelPropagatesContextCancellation(t *testing.T) {
 	}
 }
 
+func TestSentinelResetSkipsSentinelsWithCompleteTopology(t *testing.T) {
+	rs, rr, objects := newSentinelFixture("10.0.1.10", "10.0.1.11", "10.0.1.12")
+	redisClient := &fakeRedisClient{
+		sentinelInfoByHost: map[string]*redisservice.InfoSentinelResult{
+			"10.0.1.10": sentinelInfo(2, 3),
+			"10.0.1.11": sentinelInfo(2, 3),
+			"10.0.1.12": sentinelInfo(2, 3),
+		},
+	}
+	h := &healer{redis: redisClient, k8s: k8sfake.NewSimpleClientset(objects...)}
+
+	require.NoError(t, h.SentinelReset(context.Background(), rs, rr))
+
+	assert.Empty(t, redisClient.resetHosts)
+}
+
+func TestSentinelResetSkipsSentinelsStillDiscoveringTopology(t *testing.T) {
+	rs, rr, objects := newSentinelFixture("10.0.1.10", "10.0.1.11", "10.0.1.12")
+	redisClient := &fakeRedisClient{
+		sentinelInfoByHost: map[string]*redisservice.InfoSentinelResult{
+			"10.0.1.10": sentinelInfo(0, 1),
+			"10.0.1.11": sentinelInfo(1, 3),
+			"10.0.1.12": sentinelInfo(2, 2),
+		},
+	}
+	h := &healer{redis: redisClient, k8s: k8sfake.NewSimpleClientset(objects...)}
+
+	require.NoError(t, h.SentinelReset(context.Background(), rs, rr))
+
+	assert.Empty(t, redisClient.resetHosts)
+}
+
+func TestSentinelResetResetsSentinelsWithStaleEntries(t *testing.T) {
+	rs, rr, objects := newSentinelFixture("10.0.1.10", "10.0.1.11", "10.0.1.12")
+	redisClient := &fakeRedisClient{
+		sentinelInfoByHost: map[string]*redisservice.InfoSentinelResult{
+			"10.0.1.10": sentinelInfo(3, 3),
+			"10.0.1.11": sentinelInfo(2, 4),
+			"10.0.1.12": sentinelInfo(2, 3),
+		},
+	}
+	h := &healer{redis: redisClient, k8s: k8sfake.NewSimpleClientset(objects...)}
+
+	require.NoError(t, h.SentinelReset(context.Background(), rs, rr))
+
+	assert.ElementsMatch(t, []string{"10.0.1.10", "10.0.1.11"}, redisClient.resetHosts)
+}
+
+func TestSentinelResetSkipsSentinelsWithoutMasterGroup(t *testing.T) {
+	rs, rr, objects := newSentinelFixture("10.0.1.10", "10.0.1.11", "10.0.1.12")
+	redisClient := &fakeRedisClient{
+		sentinelInfoByHost: map[string]*redisservice.InfoSentinelResult{
+			"10.0.1.10": nil,
+			"10.0.1.11": {Masters: []redisservice.SentinelMasterInfo{{Name: "other", Slaves: 5, Sentinels: 5}}},
+			"10.0.1.12": sentinelInfo(3, 3),
+		},
+	}
+	h := &healer{redis: redisClient, k8s: k8sfake.NewSimpleClientset(objects...)}
+
+	require.NoError(t, h.SentinelReset(context.Background(), rs, rr))
+
+	assert.Equal(t, []string{"10.0.1.12"}, redisClient.resetHosts)
+}
+
+func TestSentinelMonitorSkipsUnreadySentinelsAndReportsUnreachableOnes(t *testing.T) {
+	rs, _, objects := newSentinelFixture("10.0.1.10", "10.0.1.11")
+	labels := map[string]string{"app": rs.GetStatefulSetName()}
+	objects = append(objects, newLabeledRedisPod(rs.GetStatefulSetName()+"-2", labels, "10.0.1.12", corev1.PodRunning, false))
+	redisClient := &fakeRedisClient{
+		errByHost: map[string]error{"10.0.1.10": errors.New("dial tcp 10.0.1.10:26379: i/o timeout")},
+	}
+	h := &healer{redis: redisClient, k8s: k8sfake.NewSimpleClientset(objects...)}
+
+	err := h.SentinelMonitor(context.Background(), rs, "10.0.0.10")
+
+	require.ErrorContains(t, err, rs.GetStatefulSetName()+"-0")
+	assert.Equal(t, []string{"10.0.1.11"}, redisClient.monitorHosts)
+}
+
 func TestIsConnectivityError(t *testing.T) {
 	tests := []struct {
 		name string
@@ -600,64 +684,123 @@ func TestIsConnectivityError(t *testing.T) {
 }
 
 type fakeRedisClient struct {
-	connectHosts     []string
-	isMasterByHost   map[string]bool
-	replicasByHost   map[string]int
-	errByHost        map[string]error
-	replicaErrByHost map[string]error
+	connectHosts       []string
+	isMasterByHost     map[string]bool
+	replicasByHost     map[string]int
+	errByHost          map[string]error
+	replicaErrByHost   map[string]error
+	keyCountByHost     map[string]int64
+	keyCountErrByHost  map[string]error
+	sentinelInfoByHost map[string]*redisservice.InfoSentinelResult
+	monitorHosts       []string
+	setHosts           []string
+	resetHosts         []string
 }
 
 func (f *fakeRedisClient) Connect(info *redisservice.ConnectionInfo) redisservice.Service {
 	f.connectHosts = append(f.connectHosts, info.Host)
-	return &fakeRedisService{
-		host:             info.Host,
-		isMasterByHost:   f.isMasterByHost,
-		replicasByHost:   f.replicasByHost,
-		errByHost:        f.errByHost,
-		replicaErrByHost: f.replicaErrByHost,
-	}
+	return &fakeRedisService{client: f, host: info.Host}
 }
 
 type fakeRedisService struct {
-	host             string
-	isMasterByHost   map[string]bool
-	replicasByHost   map[string]int
-	errByHost        map[string]error
-	replicaErrByHost map[string]error
+	client *fakeRedisClient
+	host   string
 }
 
 func (f *fakeRedisService) IsMaster(context.Context) (bool, error) {
-	if err := f.errByHost[f.host]; err != nil {
+	if err := f.client.errByHost[f.host]; err != nil {
 		return false, err
 	}
-	return f.isMasterByHost[f.host], nil
+	return f.client.isMasterByHost[f.host], nil
 }
 
 func (f *fakeRedisService) GetAttachedReplicaCount(context.Context) (int, error) {
-	if err := f.replicaErrByHost[f.host]; err != nil {
+	if err := f.client.replicaErrByHost[f.host]; err != nil {
 		return 0, err
 	}
-	return f.replicasByHost[f.host], nil
+	return f.client.replicasByHost[f.host], nil
+}
+
+func (f *fakeRedisService) GetKeyCount(context.Context) (int64, error) {
+	if err := f.client.keyCountErrByHost[f.host]; err != nil {
+		return 0, err
+	}
+	return f.client.keyCountByHost[f.host], nil
 }
 
 func (f *fakeRedisService) SentinelMonitor(context.Context, *redisservice.ConnectionInfo, string, string) error {
+	if err := f.client.errByHost[f.host]; err != nil {
+		return err
+	}
+	f.client.monitorHosts = append(f.client.monitorHosts, f.host)
 	return nil
 }
 
 func (f *fakeRedisService) SentinelSet(context.Context, string, string, string) error {
+	if err := f.client.errByHost[f.host]; err != nil {
+		return err
+	}
+	f.client.setHosts = append(f.client.setHosts, f.host)
 	return nil
 }
 
 func (f *fakeRedisService) SentinelReset(context.Context, string) error {
+	if err := f.client.errByHost[f.host]; err != nil {
+		return err
+	}
+	f.client.resetHosts = append(f.client.resetHosts, f.host)
 	return nil
 }
 
 func (f *fakeRedisService) GetInfoSentinel(context.Context) (*redisservice.InfoSentinelResult, error) {
+	if err := f.client.errByHost[f.host]; err != nil {
+		return nil, err
+	}
+	if info, ok := f.client.sentinelInfoByHost[f.host]; ok {
+		return info, nil
+	}
 	return &redisservice.InfoSentinelResult{}, nil
 }
 
 func (f *fakeRedisService) GetClusterInfo(context.Context) (*redisservice.ClusterStatus, error) {
 	return &redisservice.ClusterStatus{}, nil
+}
+
+func sentinelInfo(slaves, sentinels int) *redisservice.InfoSentinelResult {
+	return &redisservice.InfoSentinelResult{
+		Masters: []redisservice.SentinelMasterInfo{{Name: "myMaster", Status: "ok", Slaves: slaves, Sentinels: sentinels}},
+	}
+}
+
+func newSentinelFixture(podIPs ...string) (*rsvb2.RedisSentinel, *rrvb2.RedisReplication, []runtime.Object) {
+	rs := &rsvb2.RedisSentinel{
+		ObjectMeta: metav1.ObjectMeta{Name: "example", Namespace: "default"},
+		Spec: rsvb2.RedisSentinelSpec{
+			Size: ptr.To(int32(len(podIPs))),
+			RedisSentinelConfig: &rsvb2.RedisSentinelConfig{
+				RedisSentinelConfig: commonapi.RedisSentinelConfig{
+					RedisReplicationName: "example-replication",
+					MasterGroupName:      "myMaster",
+					SentinelConfig:       commonapi.SentinelConfig{Quorum: "2"},
+				},
+			},
+		},
+	}
+	rr := &rrvb2.RedisReplication{
+		ObjectMeta: metav1.ObjectMeta{Name: "example-replication", Namespace: "default"},
+		Spec:       rrvb2.RedisReplicationSpec{Size: ptr.To(int32(3))},
+	}
+	labels := map[string]string{"app": rs.GetStatefulSetName()}
+	objects := []runtime.Object{
+		&appsv1.StatefulSet{
+			ObjectMeta: metav1.ObjectMeta{Name: rs.GetStatefulSetName(), Namespace: "default"},
+			Spec:       appsv1.StatefulSetSpec{Selector: &metav1.LabelSelector{MatchLabels: labels}},
+		},
+	}
+	for i, podIP := range podIPs {
+		objects = append(objects, newLabeledRedisPod(fmt.Sprintf("%s-%d", rs.GetStatefulSetName(), i), labels, podIP, corev1.PodRunning, true))
+	}
+	return rs, rr, objects
 }
 
 func newLabeledRedisPod(name string, labels map[string]string, podIP string, phase corev1.PodPhase, ready bool) *corev1.Pod {

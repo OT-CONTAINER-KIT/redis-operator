@@ -505,16 +505,6 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 		}
 	}
 
-	// Mount the config emptyDir volume for sentinel containers so that
-	// sentinel.conf persists across container restarts. Without this,
-	// sentinel.conf lives on the overlay filesystem and is lost on restart,
-	// causing sentinel to lose all runtime-discovered master topology.
-	// The config volume is already created on all StatefulSets but only
-	// mounted when GenerateConfigInInitContainer is enabled.
-	if sentinelCntr && !features.Enabled(features.GenerateConfigInInitContainer) {
-		containerDefinition[0].VolumeMounts = append(containerDefinition[0].VolumeMounts, generateConfigVolumeMount(common.VolumeNameConfig))
-	}
-
 	preStopCfg := PreStopConfig{
 		Role:               containerParams.Role,
 		EnableTLS:          enableTLS,
@@ -821,6 +811,9 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 		if externalConfig != nil {
 			VolumeMounts = append(VolumeMounts, externalConfigMount)
 		}
+		if aclMount := generateACLVolumeMount(containerParams.ACLConfig, true); aclMount != nil {
+			VolumeMounts = append(VolumeMounts, *aclMount)
+		}
 
 		container := corev1.Container{
 			Name:            "init-config",
@@ -1013,19 +1006,8 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nod
 		})
 	}
 
-	if aclConfig != nil {
-		if aclConfig.PersistentVolumeClaim != nil {
-			VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
-				Name:      "acl-pvc",
-				MountPath: "/data/redis",
-			})
-		} else {
-			VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
-				Name:      "acl-secret",
-				MountPath: "/etc/redis/user.acl",
-				SubPath:   "user.acl",
-			})
-		}
+	if aclMount := generateACLVolumeMount(aclConfig, false); aclMount != nil {
+		VolumeMounts = append(VolumeMounts, *aclMount)
 	}
 
 	if externalConfig != nil {
@@ -1039,6 +1021,28 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nod
 	VolumeMounts = append(VolumeMounts, mountpath...)
 
 	return VolumeMounts
+}
+
+func generateACLVolumeMount(aclConfig *commonapi.ACLConfig, readOnly bool) *corev1.VolumeMount {
+	switch {
+	case aclConfig == nil:
+		return nil
+	case aclConfig.Secret != nil:
+		return &corev1.VolumeMount{
+			Name:      "acl-secret",
+			MountPath: "/etc/redis/user.acl",
+			SubPath:   "user.acl",
+			ReadOnly:  readOnly,
+		}
+	case aclConfig.PersistentVolumeClaim != nil:
+		return &corev1.VolumeMount{
+			Name:      "acl-pvc",
+			MountPath: "/data/redis",
+			ReadOnly:  readOnly,
+		}
+	default:
+		return nil
+	}
 }
 
 // getProbeInfo generate probe for Redis StatefulSet

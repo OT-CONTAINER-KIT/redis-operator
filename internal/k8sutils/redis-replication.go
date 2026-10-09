@@ -286,27 +286,10 @@ func generateRedisReplicationInitContainerParams(cr *rrvb2.RedisReplication) ini
 }
 
 func IsRedisReplicationReady(ctx context.Context, client kubernetes.Interface, ctrlClient client.Client, rs *rsvb2.RedisSentinel) bool {
-	// statefulset name the same as the redis replication name
-	sts, err := GetStatefulSet(ctx, client, rs.GetNamespace(), rs.Spec.RedisSentinelConfig.RedisReplicationName)
-	if err != nil {
+	if _, err := GetStatefulSet(ctx, client, rs.GetNamespace(), rs.Spec.RedisSentinelConfig.RedisReplicationName); err != nil {
 		return false
 	}
-	if sts.Status.ReadyReplicas != *sts.Spec.Replicas {
-		return false
-	}
-	if sts.Status.ObservedGeneration != sts.Generation {
-		return false
-	}
-	if sts.Status.UpdateRevision != sts.Status.CurrentRevision {
-		return false
-	}
-	// Enhanced check: When the pod is ready, it may not have been
-	// created as part of a replication cluster, so we should verify
-	// whether there is an actual master node.
-	if master := getRedisReplicationMasterIP(ctx, client, rs, ctrlClient); master == "" {
-		return false
-	}
-	return true
+	return getRedisReplicationMasterIP(ctx, client, rs, ctrlClient) != ""
 }
 
 func sentinelHostnameFlag(v string) string {

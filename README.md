@@ -77,6 +77,12 @@ To monitor Redis performance we will be using Prometheus. In any case, extra Pro
 
 In addition to the annotations you have the possibility to deploy a `ServiceMonitor` for each of the Redis installations (configurable via Helm values file).
 
+#### Grafana Dashboard Integration
+
+The operator supports a detailed Grafana dashboard (ID 16056) for visualizing Redis metrics collected by Prometheus. For manual import, download the JSON from [Grafana.com](https://grafana.com/grafana/dashboards/16056-redis-dashboard-opstree/).
+
+For automated deployment of this dashboard as a ConfigMap (auto-imported via the kube-prometheus-stack sidecar), consider the community Helm chart: [redis-grafana-dashboard](https://github.com/Emrin/redis-grafana-dashboard) (also available on [Artifact Hub](https://artifacthub.io/packages/helm/redis-grafana-dashboard/redis-grafana-dashboard)).
+
 ## Contribution
 
 Please see our [CONTRIBUTING.md](./CONTRIBUTING.md) for details.

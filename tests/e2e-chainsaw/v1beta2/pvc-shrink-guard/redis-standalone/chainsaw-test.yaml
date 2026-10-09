@@ -19,7 +19,8 @@ spec:
       try:
         - apply:
             file: shrink-patch.yaml
-        # Wait for the operator to reconcile the change
+        # Deliberately a flat sleep, not a poll: this step proves a non-event
+        # (the shrink is ignored), and there is no state change to wait for.
         - sleep:
             duration: 30s
         # PVC must remain at 1Gi - shrink should have been skipped
@@ -61,23 +62,15 @@ spec:
         - assert:
             file: ready-sts.yaml
 
-    - name: Wait for operator to reconcile annotation
-      try:
-        - sleep:
-            duration: 30s
-
     - name: Verify annotation updated after successful expand
       try:
-        - script:
-            timeout: 30s
-            content: |
-              #!/bin/bash
-              set -e
-              ANNOTATION=$(kubectl get statefulset -n ${NAMESPACE} redis-standalone-shrink-test -o jsonpath='{.metadata.annotations.storageCapacity}')
-              echo "storageCapacity annotation: ${ANNOTATION}"
-              # 2Gi = 2147483648 bytes
-              if [ "${ANNOTATION}" != "2147483648" ]; then
-                echo "FAIL: annotation should be 2147483648 (2Gi), got ${ANNOTATION}"
-                exit 1
-              fi
-              echo "PASS: annotation correctly updated to 2Gi after expansion"
+        - assert:
+            timeout: 120s
+            resource:
+              apiVersion: apps/v1
+              kind: StatefulSet
+              metadata:
+                name: redis-standalone-shrink-test
+                annotations:
+                  # 2Gi = 2147483648 bytes
+                  storageCapacity: "2147483648"

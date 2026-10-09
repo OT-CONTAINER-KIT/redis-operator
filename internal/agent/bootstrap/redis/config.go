@@ -3,10 +3,13 @@ package bootstrap
 import (
 	"bufio"
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	agentutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/agent/util"
@@ -62,9 +65,15 @@ func GenerateConfig() error {
 		expandExternal     = util.CoalesceEnv1(consts.ENV_KEY_EXPAND_EXTERNAL_CONFIG, "false")
 	)
 
-	if val, ok := util.CoalesceEnv("REDIS_PASSWORD", ""); ok && val != "" {
-		cfg.Append("masterauth", val)
-		cfg.Append("requirepass", val)
+	redisPassword := util.CoalesceEnv1("REDIS_PASSWORD", "")
+	if aclMode == "true" {
+		if err := validateACLDefaultUser(aclFilePath, redisPassword); err != nil {
+			return err
+		}
+	}
+	if redisPassword != "" {
+		cfg.Append("masterauth", redisPassword)
+		cfg.Append("requirepass", redisPassword)
 		cfg.Append("protected-mode", "yes")
 	} else {
 		fmt.Println("Redis is running without password which is not recommended")
@@ -161,8 +170,8 @@ func GenerateConfig() error {
 		cfg.Append("save", "900 1")
 		cfg.Append("save", "300 10")
 		cfg.Append("save", "60 10000")
-		cfg.Append("Appendonly", "yes")
-		cfg.Append("Appendfilename", "\"Appendonly.aof\"")
+		cfg.Append("appendonly", "yes")
+		cfg.Append("appendfilename", "\"appendonly.aof\"")
 		cfg.Append("dir", dataDir)
 	} else {
 		fmt.Println("Running without persistence mode")
@@ -259,4 +268,37 @@ func replaceEndpointAddr(line, newAddr string) string {
 	}
 	newEndpoint := newAddr + endpoint[portIdx:]
 	return strings.Replace(line, endpoint, newEndpoint, 1)
+}
+
+func validateACLDefaultUser(path, password string) error {
+	password = agentutil.SanitizeConfigValue(password)
+	if password == "" {
+		return nil
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("ACL file %s is not readable: %w", path, err)
+	}
+	sum := sha256.Sum256([]byte(password))
+	hash := "#" + hex.EncodeToString(sum[:])
+	for _, line := range strings.Split(string(raw), "\n") {
+		rules := strings.Fields(line)
+		if len(rules) < 2 || rules[0] != "user" || rules[1] != "default" {
+			continue
+		}
+		if !slices.Contains(rules, "on") || slices.ContainsFunc(rules, func(r string) bool {
+			return r == "off" || r == "nopass" || r == "reset" || r == "resetpass" || r[0] == '<' || r[0] == '!'
+		}) {
+			return fmt.Errorf("ACL file %s must define the default user as on with a password; the operator authenticates as default with the redisSecret password", path)
+		}
+		if strings.ContainsAny(line, `"'`) {
+			log.Printf("Warning: ACL file %s defines the default user with quoted arguments; skipping password comparison", path)
+			return nil
+		}
+		if slices.Contains(rules, ">"+password) || slices.Contains(rules, hash) {
+			return nil
+		}
+		return fmt.Errorf("ACL file %s defines the default user with a password that does not match redisSecret; add >password or #sha256 for the redisSecret password", path)
+	}
+	return fmt.Errorf("ACL file %s does not define the default user; when redisSecret is set the ACL file must contain a line like \"user default on >password ~* &* +@all\" with the same password", path)
 }

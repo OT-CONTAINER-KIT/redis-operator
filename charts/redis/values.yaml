@@ -26,6 +26,8 @@ redisStandalone:
   recreateStatefulSetOnUpdateInvalid: false
   # -- MaxMemoryPercentOfLimit is the percentage of the Redis container memory limit to be used as maxmemory.
   #    When a memory limit exists, the operator also exposes the computed value via the REDIS_MAX_MEMORY env var.
+  #    Requires the operator to run with the GenerateConfigInInitContainer feature gate enabled
+  #    (featureGates.GenerateConfigInInitContainer=true in the redis-operator chart); otherwise maxmemory stays 0.
   #    Default is 0 (disabled).
   maxMemoryPercentOfLimit: 0
   # -- DynamicConfig is a list of "key value" Redis parameters applied at runtime
