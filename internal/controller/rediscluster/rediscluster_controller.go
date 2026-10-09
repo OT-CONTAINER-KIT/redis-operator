@@ -326,7 +326,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 			if followerReplicas > 0 {
 				logger.Info("All leader are part of the cluster, adding follower/replicas", "Leaders.Count", leaderCount, "Instance.Size", leaderReplicas, "Follower.Replicas", followerReplicas)
-				k8sutils.ExecuteRedisReplicationCommand(ctx, r.K8sClient, instance)
+				if err := k8sutils.ExecuteRedisReplicationCommand(ctx, r.K8sClient, instance); err != nil {
+					return ctrl.Result{}, err
+				}
 			} else {
 				logger.Info("no follower/replicas configured, skipping replication configuration", "Leaders.Count", leaderCount, "Leader.Size", leaderReplicas, "Follower.Replicas", followerReplicas)
 			}
