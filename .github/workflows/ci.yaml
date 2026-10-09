@@ -15,7 +15,7 @@ env:
   APPLICATION_NAME: redis-operator
   DockerImagName: docker.io/opstree/redis-operator
   BuildDocs: true
-  AppVersion: "v0.26.0"
+  AppVersion: "v0.27.0"
   DOCKERFILE_PATH: "**/Dockerfile"
 
 jobs:
