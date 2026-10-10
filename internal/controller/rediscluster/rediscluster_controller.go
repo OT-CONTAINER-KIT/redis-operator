@@ -53,6 +53,10 @@ type Reconciler struct {
 	Checker   redis.Checker
 	K8sClient kubernetes.Interface
 	Recorder  record.EventRecorder
+
+	// setDynamicConfig applies spec.redisConfig.dynamicConfig to the cluster's
+	// pods. Nil means k8sutils.SetRedisClusterDynamicConfig; tests override it.
+	setDynamicConfig func(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) error
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -412,8 +416,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		monitoring.RedisClusterHealthy.WithLabelValues(instance.Namespace, instance.Name).Set(0)
 		if k8sutils.RedisClusterStatusHealth(ctx, r.K8sClient, instance) {
 			monitoring.RedisClusterHealthy.WithLabelValues(instance.Namespace, instance.Name).Set(1)
-			// Apply dynamic config to all Redis instances in the cluster
-			if err = k8sutils.SetRedisClusterDynamicConfig(ctx, r.K8sClient, instance); err != nil {
+
+			// Apply dynamic config before persisting the Ready status, so that a
+			// failing CONFIG SET (e.g. an invalid setting) prevents the cluster
+			// from being reported Ready with an unapplied configuration.
+			if err = r.applyDynamicConfig(ctx, instance); err != nil {
 				logger.Error(err, "Failed to set dynamic config")
 				return intctrlutil.RequeueE(ctx, err, "failed to set dynamic config")
 			}
@@ -433,6 +440,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 
+	if err = r.reapplyDynamicConfigIfReady(ctx, instance); err != nil {
+		logger.Error(err, "Failed to set dynamic config")
+		return intctrlutil.RequeueE(ctx, err, "failed to set dynamic config")
+	}
+
 	for _, fakeRole := range []string{"leader", "follower"} {
 		labels := common.GetRedisLabels(instance.GetName()+"-"+fakeRole, common.SetupTypeCluster, fakeRole, instance.GetLabels())
 		if err = r.Healer.UpdateRedisRoleLabel(ctx, instance.GetNamespace(), labels, instance.Spec.KubernetesConfig.ExistingPasswordSecret, instance.Spec.TLS, ""); err != nil {
@@ -441,6 +453,24 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	return intctrlutil.RequeueAfter(ctx, time.Second*10, "")
+}
+
+func (r *Reconciler) applyDynamicConfig(ctx context.Context, instance *rcvb2.RedisCluster) error {
+	if r.setDynamicConfig != nil {
+		return r.setDynamicConfig(ctx, r.K8sClient, instance)
+	}
+	return k8sutils.SetRedisClusterDynamicConfig(ctx, r.K8sClient, instance)
+}
+
+// reapplyDynamicConfigIfReady applies dynamic config to all Redis instances in
+// the cluster on every reconcile once the cluster is ready, so that changes to
+// spec.redisConfig.dynamicConfig made after the initial bootstrap are picked up
+// instead of only being applied once during the transition into the Ready state.
+func (r *Reconciler) reapplyDynamicConfigIfReady(ctx context.Context, instance *rcvb2.RedisCluster) error {
+	if instance.Status.State != rcvb2.RedisClusterReady {
+		return nil
+	}
+	return r.applyDynamicConfig(ctx, instance)
 }
 
 // shouldScaleUpExistingCluster reports whether the missing leaders should be
