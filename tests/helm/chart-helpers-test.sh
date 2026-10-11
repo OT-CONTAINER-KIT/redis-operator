@@ -41,10 +41,11 @@ EOF
     if ((index < 2)); then
       label_name="$name"
     fi
+    # Feed stdin because Snap-installed yq has a separate /tmp.
     yq --exit-status "select(.kind == \"${kinds[$index]}\") |
       .metadata.name == \"$name\" and
       .metadata.labels.\"app.kubernetes.io/name\" == \"$label_name\" and
-      .metadata.labels.example == \"$chart\"" "$test_dir/rendered.yaml" > /dev/null
+      .metadata.labels.example == \"$chart\"" < "$test_dir/rendered.yaml" > /dev/null
   done
   echo "PASS: ${selected[*]} render with each chart's name and labels"
 }
