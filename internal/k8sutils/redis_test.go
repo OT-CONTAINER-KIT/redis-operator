@@ -1146,7 +1146,29 @@ func Test_parseRedisReplicationState(t *testing.T) {
 				"master_replid:99d053a3ae7258dbd67b6deb3250a883869b8a22\r\n" +
 				"master_replid2:0000000000000000000000000000000000000000\r\n" +
 				"master_repl_offset:35049\r\n",
-			want: RedisReplicationState{Role: "slave", ReplID: "99d053a3ae7258dbd67b6deb3250a883869b8a22", Offset: 35049},
+			want: RedisReplicationState{
+				Role:    "slave",
+				ReplID:  "99d053a3ae7258dbd67b6deb3250a883869b8a22",
+				Offset:  35049,
+				ReplID2: "0000000000000000000000000000000000000000",
+			},
+		},
+		{
+			name: "replica promoted with REPLICAOF NO ONE",
+			info: "# Replication\r\n" +
+				"role:master\r\n" +
+				"connected_slaves:0\r\n" +
+				"master_replid:3f1c5b0d7e8a4c2f9b6d1e0a7c5b3d2f1e0a9b8c\r\n" +
+				"master_replid2:99d053a3ae7258dbd67b6deb3250a883869b8a22\r\n" +
+				"master_repl_offset:35049\r\n" +
+				"second_repl_offset:35050\r\n",
+			want: RedisReplicationState{
+				Role:         "master",
+				ReplID:       "3f1c5b0d7e8a4c2f9b6d1e0a7c5b3d2f1e0a9b8c",
+				Offset:       35049,
+				ReplID2:      "99d053a3ae7258dbd67b6deb3250a883869b8a22",
+				SecondOffset: 35050,
+			},
 		},
 		{
 			name: "master",
@@ -1177,6 +1199,28 @@ func Test_parseRedisReplicationState(t *testing.T) {
 			}
 			assert.NoError(t, err)
 			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestRedisReplicationStateCanPartiallyResyncFrom(t *testing.T) {
+	promoted := RedisReplicationState{Role: "master", ReplID: "new", Offset: 600, ReplID2: "old", SecondOffset: 501}
+	tests := []struct {
+		name    string
+		replica RedisReplicationState
+		want    bool
+	}{
+		{name: "behind on the current stream", replica: RedisReplicationState{ReplID: "new", Offset: 550}, want: true},
+		{name: "level with the current stream", replica: RedisReplicationState{ReplID: "new", Offset: 600}, want: true},
+		{name: "ahead of the current stream", replica: RedisReplicationState{ReplID: "new", Offset: 601}, want: false},
+		{name: "on the stream the master was promoted from", replica: RedisReplicationState{ReplID: "old", Offset: 500}, want: true},
+		{name: "past the point the master was promoted at", replica: RedisReplicationState{ReplID: "old", Offset: 501}, want: false},
+		{name: "on another stream", replica: RedisReplicationState{ReplID: "other", Offset: 10}, want: false},
+		{name: "unknown stream", replica: RedisReplicationState{}, want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.replica.CanPartiallyResyncFrom(promoted))
 		})
 	}
 }

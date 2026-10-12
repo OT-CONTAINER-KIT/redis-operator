@@ -527,18 +527,27 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 				realMaster = masterNodes[0]
 			}
 		}
+		linkPods := masterNodes
+		if realMaster == "" && len(slaveNodes) > 0 && !incompleteTopology && !instance.EnableSentinel() {
+			if master := r.resumableMaster(ctx, instance, topology); master != "" {
+				log.FromContext(ctx).Info("No master with attached slaves found, attaching every pod to Status.MasterNode",
+					"statusMasterNode", master)
+				realMaster = master
+				linkPods = append(append([]string{}, masterNodes...), slaveNodes...)
+			}
+		}
 		if incompleteTopology {
 			log.FromContext(ctx).Info("Skipping replication reconfiguration because the observed topology is incomplete",
 				"observedPods", observedPods,
 				"unobservedPods", topology.Unobserved)
 		} else if realMaster == "" {
 			log.FromContext(ctx).Info("Skipping replication reconfiguration because the current master could not be identified")
-		} else if err := r.createRedisReplicationLink(ctx, instance, masterNodes, realMaster); err != nil {
+		} else if err := r.createRedisReplicationLink(ctx, instance, linkPods, realMaster); err != nil {
 			if result, handled := r.recoverFromEmptyMaster(ctx, instance, topology, err); handled {
 				return result, nil
 			}
 			log.FromContext(ctx).Error(err, "Failed to create redis replication link",
-				"master", realMaster, "masters", masterNodes)
+				"master", realMaster, "pods", linkPods)
 			return intctrlutil.RequeueAfter(ctx, time.Second*60, "")
 		}
 	} else if len(masterNodes) == 1 && len(slaveNodes) > 0 {
@@ -566,7 +575,11 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 			}
 		}
 	}
-	r.forgetEmptyMaster(instance)
+	// A pass that saw every pod and was not refused ends the wait for a
+	// Sentinel failover. A partial view says nothing about it.
+	if !incompleteTopology {
+		r.forgetEmptyMaster(instance)
+	}
 
 	monitoring.RedisReplicationReplicasSizeMismatch.WithLabelValues(instance.Namespace, instance.Name).Set(0)
 	if instance.Spec.Size != nil && int(*instance.Spec.Size) != observedPods {

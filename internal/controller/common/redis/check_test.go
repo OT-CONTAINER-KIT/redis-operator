@@ -57,7 +57,7 @@ func TestGetReplicationKeyCountsSkipsUnprobeableAndFailedPods(t *testing.T) {
 	assert.NotContains(t, redisClient.connectHosts, "10.0.0.12")
 }
 
-func TestGetSentinelMastersReportsEachProbeableSentinel(t *testing.T) {
+func TestGetSentinelMastersReportsEverySentinel(t *testing.T) {
 	rs, _, objects := newSentinelFixture("10.0.1.10", "10.0.1.11", "10.0.1.12")
 	labels := map[string]string{"app": rs.GetStatefulSetName()}
 	objects = append(objects, newLabeledRedisPod(rs.GetStatefulSetName()+"-3", labels, "10.0.1.13", corev1.PodRunning, false))
@@ -74,7 +74,7 @@ func TestGetSentinelMastersReportsEachProbeableSentinel(t *testing.T) {
 	reports, err := c.GetSentinelMasters(context.Background(), rs)
 
 	require.NoError(t, err)
-	require.Len(t, reports, 3)
+	require.Len(t, reports, 4)
 	byPod := make(map[string]SentinelMasterReport, len(reports))
 	for _, report := range reports {
 		byPod[report.Pod] = report
@@ -84,6 +84,7 @@ func TestGetSentinelMastersReportsEachProbeableSentinel(t *testing.T) {
 	assert.Nil(t, byPod[rs.GetStatefulSetName()+"-1"].Master, "a Sentinel that does not monitor the group reports no master")
 	assert.NoError(t, byPod[rs.GetStatefulSetName()+"-1"].Err)
 	assert.Error(t, byPod[rs.GetStatefulSetName()+"-2"].Err)
+	assert.Error(t, byPod[rs.GetStatefulSetName()+"-3"].Err, "a Sentinel that is not ready may still hold its state")
 	assert.NotContains(t, redisClient.connectHosts, "10.0.1.13")
 }
 

@@ -35,7 +35,7 @@ const (
 // The master restarted empty while its Sentinels lost their state too: the
 // replicas still hold the dataset but nobody will fail over to them.
 func TestReconcileRedisPromotesTheBestDataHoldingSlaveWhenNoSentinelCanFailOver(t *testing.T) {
-	ctrlClient, instance := newStatusClientForTest(t)
+	ctrlClient, instance := newStatusClientForTest(t, "")
 	links := &linkRecorder{}
 	promotions := &promotionRecorder{}
 	r := &Reconciler{
@@ -68,7 +68,7 @@ func TestReconcileRedisPromotesTheBestDataHoldingSlaveWhenNoSentinelCanFailOver(
 // The empty pod already has a replica of its own, which then holds no data
 // either; only the second master still holds the dataset.
 func TestReconcileRedisPromotesTheDataHoldingMasterWhenNoSentinelCanFailOver(t *testing.T) {
-	ctrlClient, instance := newStatusClientForTest(t)
+	ctrlClient, instance := newStatusClientForTest(t, "")
 	links := &linkRecorder{}
 	promotions := &promotionRecorder{}
 	r := &Reconciler{
@@ -100,7 +100,7 @@ func TestReconcileRedisPromotesTheDataHoldingMasterWhenNoSentinelCanFailOver(t *
 }
 
 func TestReconcileRedisPromotesAfterTheSentinelFailoverWindowExpires(t *testing.T) {
-	ctrlClient, instance := newStatusClientForTest(t)
+	ctrlClient, instance := newStatusClientForTest(t, "")
 	now := time.Date(2026, time.October, 12, 9, 0, 0, 0, time.UTC)
 	promotions := &promotionRecorder{}
 	r := &Reconciler{
@@ -121,16 +121,16 @@ func TestReconcileRedisPromotesAfterTheSentinelFailoverWindowExpires(t *testing.
 
 	result, err := r.reconcileRedis(context.Background(), instance)
 	require.NoError(t, err)
-	assert.Equal(t, 60*time.Second, result.RequeueAfter)
+	assert.Equal(t, sentinelFailoverRequeue, result.RequeueAfter)
 	assert.Empty(t, promotions.pods)
 
-	now = now.Add(60 * time.Second)
+	now = now.Add(65 * time.Second)
 	result, err = r.reconcileRedis(context.Background(), instance)
 	require.NoError(t, err)
-	assert.Equal(t, 10*time.Second, result.RequeueAfter, "the requeue is cut to what is left of the window")
+	assert.Equal(t, 5*time.Second, result.RequeueAfter, "the requeue is cut to what is left of the window")
 	assert.Empty(t, promotions.pods)
 
-	now = now.Add(10 * time.Second)
+	now = now.Add(5 * time.Second)
 	result, err = r.reconcileRedis(context.Background(), instance)
 	require.NoError(t, err)
 	assert.Equal(t, promotedMasterRequeue, result.RequeueAfter)
@@ -138,7 +138,7 @@ func TestReconcileRedisPromotesAfterTheSentinelFailoverWindowExpires(t *testing.
 }
 
 func TestReconcileRedisRestartsTheSentinelFailoverWindowWhenTheEmptyMasterIsRecreated(t *testing.T) {
-	ctrlClient, instance := newStatusClientForTest(t)
+	ctrlClient, instance := newStatusClientForTest(t, "")
 	now := time.Date(2026, time.October, 12, 9, 0, 0, 0, time.UTC)
 	k8sClient := fake.NewSimpleClientset(&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: pod2, Namespace: "default", UID: "first"}})
 	r := &Reconciler{
@@ -166,13 +166,50 @@ func TestReconcileRedisRestartsTheSentinelFailoverWindowWhenTheEmptyMasterIsRecr
 	now = now.Add(10 * time.Second)
 	result, err := r.reconcileRedis(context.Background(), instance)
 	require.NoError(t, err)
-	assert.Equal(t, 60*time.Second, result.RequeueAfter)
+	assert.Equal(t, sentinelFailoverRequeue, result.RequeueAfter)
 }
 
 func TestReconcileRedisRestartsTheSentinelFailoverWindowAfterAPassWithoutRefusal(t *testing.T) {
-	ctrlClient, instance := newStatusClientForTest(t)
+	ctrlClient, instance := newStatusClientForTest(t, "")
+	now := time.Date(2026, time.October, 12, 9, 0, 0, 0, time.UTC)
+	realMaster := ""
+	r := &Reconciler{
+		Client:                   ctrlClient,
+		K8sClient:                fake.NewSimpleClientset(),
+		RedisReplicationTopology: topologyOf([]string{pod2}, []string{pod0, pod1}, nil),
+		RedisReplicationRealMaster: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string {
+			return realMaster
+		},
+		Checker:                    keyCountsOf(map[string]int64{pod0: 120, pod1: 120, pod2: 0}),
+		CreateRedisReplicationLink: (&linkRecorder{}).link,
+		SentinelFailover:           sentinelFailoverExpected(70 * time.Second),
+		ReplicationStates:          replicationStatesOf(lostMasterReplicas),
+		PromoteReplicationPod:      promotionForbidden(t),
+		Now:                        func() time.Time { return now },
+	}
+
+	_, err := r.reconcileRedis(context.Background(), instance)
+	require.NoError(t, err)
+
+	// The replicas are attached for a while, as after a Sentinel failover.
+	now = now.Add(50 * time.Second)
+	realMaster = pod2
+	_, err = r.reconcileRedis(context.Background(), instance)
+	require.NoError(t, err)
+
+	now = now.Add(30 * time.Second)
+	realMaster = ""
+	result, err := r.reconcileRedis(context.Background(), instance)
+	require.NoError(t, err)
+	assert.Equal(t, sentinelFailoverRequeue, result.RequeueAfter)
+}
+
+// A pod that keeps restarting must not postpone the promotion forever.
+func TestReconcileRedisKeepsTheSentinelFailoverWindowAcrossAPartialView(t *testing.T) {
+	ctrlClient, instance := newStatusClientForTest(t, "")
 	now := time.Date(2026, time.October, 12, 9, 0, 0, 0, time.UTC)
 	topology := topologyOf([]string{pod2}, []string{pod0, pod1}, nil)
+	promotions := &promotionRecorder{}
 	r := &Reconciler{
 		Client:    ctrlClient,
 		K8sClient: fake.NewSimpleClientset(),
@@ -184,7 +221,7 @@ func TestReconcileRedisRestartsTheSentinelFailoverWindowAfterAPassWithoutRefusal
 		CreateRedisReplicationLink: (&linkRecorder{}).link,
 		SentinelFailover:           sentinelFailoverExpected(70 * time.Second),
 		ReplicationStates:          replicationStatesOf(lostMasterReplicas),
-		PromoteReplicationPod:      promotionForbidden(t),
+		PromoteReplicationPod:      promotions.promote,
 		Now:                        func() time.Time { return now },
 	}
 
@@ -200,11 +237,114 @@ func TestReconcileRedisRestartsTheSentinelFailoverWindowAfterAPassWithoutRefusal
 	topology = topologyOf([]string{pod2}, []string{pod0, pod1}, nil)
 	result, err := r.reconcileRedis(context.Background(), instance)
 	require.NoError(t, err)
+	assert.Equal(t, promotedMasterRequeue, result.RequeueAfter)
+	assert.Equal(t, []string{pod0}, promotions.pods)
+}
+
+func TestReconcileRedisKeepsRefusingWhenSentinelCannotBeAsked(t *testing.T) {
+	r := &Reconciler{
+		K8sClient:                  fake.NewSimpleClientset(),
+		RedisReplicationTopology:   topologyOf([]string{pod2}, []string{pod0, pod1}, nil),
+		RedisReplicationRealMaster: noRealMaster,
+		Checker:                    keyCountsOf(map[string]int64{pod0: 120, pod1: 120, pod2: 0}),
+		CreateRedisReplicationLink: (&linkRecorder{}).link,
+		SentinelFailover: func(context.Context, *rrvb2.RedisReplication, string) (bool, time.Duration, error) {
+			return false, 0, errors.New("list RedisSentinels: forbidden")
+		},
+		ReplicationStates:     replicationStatesOf(lostMasterReplicas),
+		PromoteReplicationPod: promotionForbidden(t),
+	}
+
+	result, err := r.reconcileRedis(context.Background(), newReplicationInstanceForTest())
+
+	require.NoError(t, err)
 	assert.Equal(t, 60*time.Second, result.RequeueAfter)
 }
 
+// The operator stopped after promoting and recording a pod but before
+// attaching any other pod to it: two masters, nobody replicating from either.
+func TestReconcileRedisResumesAnInterruptedPromotionFromTheRecordedMaster(t *testing.T) {
+	instance := newReplicationInstanceForTest()
+	instance.Status.MasterNode = pod1
+	links := &linkRecorder{}
+	r := &Reconciler{
+		K8sClient:                  fake.NewSimpleClientset(),
+		RedisReplicationTopology:   topologyOf([]string{pod0, pod1}, []string{pod2}, nil),
+		RedisReplicationRealMaster: noRealMaster,
+		Checker:                    keyCountsOf(map[string]int64{pod0: 0, pod1: 120, pod2: 120}),
+		CreateRedisReplicationLink: links.link,
+		SentinelFailover:           noSentinelFailover,
+		ReplicationStates:          replicationStatesOf(promotedFromLostMaster),
+		PromoteReplicationPod:      promotionForbidden(t),
+	}
+
+	result, err := r.reconcileRedis(context.Background(), instance)
+
+	require.NoError(t, err)
+	assert.Equal(t, ctrl.Result{}, result)
+	assert.Equal(t, []replicationLink{{pods: []string{pod0, pod1, pod2}, master: pod1}}, links.links)
+}
+
+// The operator stopped after promoting a pod but before recording it, so the
+// record still names the empty pod. The promotion is entered again and keeps
+// the pod that already is a master.
+func TestReconcileRedisResumesAPromotionInterruptedBeforeItWasRecorded(t *testing.T) {
+	ctrlClient, instance := newStatusClientForTest(t, pod0)
+	links := &linkRecorder{}
+	promotions := &promotionRecorder{}
+	r := &Reconciler{
+		Client:                     ctrlClient,
+		K8sClient:                  fake.NewSimpleClientset(),
+		RedisReplicationTopology:   topologyOf([]string{pod0, pod1}, []string{pod2}, nil),
+		RedisReplicationRealMaster: noRealMaster,
+		Checker:                    keyCountsOf(map[string]int64{pod0: 0, pod1: 120, pod2: 120}),
+		CreateRedisReplicationLink: links.link,
+		SentinelFailover:           noSentinelFailover,
+		ReplicationStates:          replicationStatesOf(promotedFromLostMaster),
+		PromoteReplicationPod:      promotions.promote,
+	}
+
+	result, err := r.reconcileRedis(context.Background(), instance)
+
+	require.NoError(t, err)
+	assert.Equal(t, promotedMasterRequeue, result.RequeueAfter)
+	assert.Equal(t, []string{pod1}, promotions.pods)
+	assert.Equal(t, []replicationLink{
+		{pods: []string{pod1, pod2}, master: pod1},
+		{pods: []string{pod1, pod0}, master: pod1},
+	}, links.links)
+	assert.Equal(t, pod1, recordedMaster(t, ctrlClient, instance))
+}
+
+// A replica that followed another stream, or got further on it, would lose
+// data by replicating from the recorded master, so the view stays unresolved.
+func TestReconcileRedisDoesNotResumeWhenAReplicaHoldsDataTheRecordedMasterLacks(t *testing.T) {
+	instance := newReplicationInstanceForTest()
+	instance.Status.MasterNode = pod1
+	links := &linkRecorder{}
+	r := &Reconciler{
+		K8sClient:                  fake.NewSimpleClientset(),
+		RedisReplicationTopology:   topologyOf([]string{pod0, pod1}, []string{pod2}, nil),
+		RedisReplicationRealMaster: noRealMaster,
+		Checker:                    keyCountsOf(map[string]int64{pod0: 0, pod1: 120, pod2: 150}),
+		CreateRedisReplicationLink: links.link,
+		SentinelFailover:           noSentinelFailover,
+		ReplicationStates: replicationStatesOf(map[string]k8sutils.RedisReplicationState{
+			pod1: {Role: "master", ReplID: "old-master", Offset: 500, ReplID2: zeroReplID, SecondOffset: -1},
+			pod2: {Role: "slave", ReplID: "newer-master", Offset: 700, ReplID2: zeroReplID, SecondOffset: -1},
+		}),
+		PromoteReplicationPod: promotionForbidden(t),
+	}
+
+	result, err := r.reconcileRedis(context.Background(), instance)
+
+	require.NoError(t, err)
+	assert.Equal(t, ctrl.Result{}, result)
+	assert.Empty(t, links.links)
+}
+
 func TestReconcileRedisKeepsRefusingWhenTheCandidateCannotBePromoted(t *testing.T) {
-	ctrlClient, instance := newStatusClientForTest(t)
+	ctrlClient, instance := newStatusClientForTest(t, "")
 	links := &linkRecorder{}
 	r := &Reconciler{
 		Client:                     ctrlClient,
@@ -360,6 +500,16 @@ func TestBestDataHoldingPod(t *testing.T) {
 				pod1: {Role: "slave", ReplID: "lost-master", Offset: 500},
 			},
 			want: pod1,
+		},
+		{
+			name:      "a pod that already is a master breaks a tie before the ordinal",
+			pods:      []string{pod1, pod2},
+			keyCounts: map[string]int64{pod1: 10, pod2: 10},
+			states: map[string]k8sutils.RedisReplicationState{
+				pod1: {Role: "slave", ReplID: "lost-master", Offset: 500},
+				pod2: {Role: "master", ReplID: "promoted", Offset: 500, ReplID2: "lost-master", SecondOffset: 501},
+			},
+			want: pod2,
 		},
 		{
 			name:      "the lowest ordinal breaks a full tie",
@@ -519,6 +669,16 @@ func TestSentinelsNeededForFailover(t *testing.T) {
 	}
 }
 
+const zeroReplID = "0000000000000000000000000000000000000000"
+
+// promotedFromLostMaster is pod 1 promoted with REPLICAOF NO ONE out of the
+// stream that pod 2 still follows; pod 0 is the empty master.
+var promotedFromLostMaster = map[string]k8sutils.RedisReplicationState{
+	pod0: {Role: "master", ReplID: "empty-master", Offset: 0, ReplID2: zeroReplID, SecondOffset: -1},
+	pod1: {Role: "master", ReplID: "promoted", Offset: 500, ReplID2: "lost-master", SecondOffset: 501},
+	pod2: {Role: "slave", ReplID: "lost-master", Offset: 500, ReplID2: zeroReplID, SecondOffset: -1},
+}
+
 // lostMasterReplicas are two replicas that followed the same master up to the
 // same offset.
 var lostMasterReplicas = map[string]k8sutils.RedisReplicationState{
@@ -546,12 +706,13 @@ func newRedisSentinelForTest(name, replicationName string) *rsvb2.RedisSentinel 
 	}
 }
 
-func newStatusClientForTest(t *testing.T) (client.Client, *rrvb2.RedisReplication) {
+func newStatusClientForTest(t *testing.T, masterNode string) (client.Client, *rrvb2.RedisReplication) {
 	t.Helper()
 	scheme := runtime.NewScheme()
 	require.NoError(t, rrvb2.AddToScheme(scheme))
 	seed := newReplicationInstanceForTest()
 	seed.UID = types.UID("example-replication-uid")
+	seed.Status.MasterNode = masterNode
 	ctrlClient := clientfake.NewClientBuilder().
 		WithScheme(scheme).
 		WithStatusSubresource(seed).

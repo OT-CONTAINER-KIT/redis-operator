@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -30,8 +31,10 @@ const (
 	// first refusal and the failover.
 	sentinelFailoverMargin = 30 * time.Second
 
-	emptyMasterRequeue    = 60 * time.Second
-	promotedMasterRequeue = 10 * time.Second
+	// sentinelFailoverRequeue paces the passes while waiting for a Sentinel
+	// failover, so the empty pod is attached soon after Sentinel acts.
+	sentinelFailoverRequeue = 10 * time.Second
+	promotedMasterRequeue   = 10 * time.Second
 )
 
 // emptyMasterError is returned by ensureMasterHoldsData when the master to
@@ -110,7 +113,7 @@ func (r *Reconciler) recoverFromEmptyMaster(ctx context.Context, instance *rrvb2
 		if remaining := r.sentinelFailoverRemaining(ctx, instance, refusal.master, window); remaining > 0 {
 			logger.Info("Master holds no keys while other pods hold data, waiting for Sentinel to fail over to one of them",
 				"podsHoldingData", podsHoldingData, "remaining", remaining.String())
-			result, _ := intctrlutil.RequeueAfter(ctx, min(remaining, emptyMasterRequeue), "")
+			result, _ := intctrlutil.RequeueAfter(ctx, min(remaining, sentinelFailoverRequeue), "")
 			return result, true
 		}
 		logger.Info("Sentinel did not fail over within its failover window", "window", window.String())
@@ -130,15 +133,18 @@ func (r *Reconciler) recoverFromEmptyMaster(ctx context.Context, instance *rrvb2
 		return ctrl.Result{}, false
 	}
 	r.forgetEmptyMaster(instance)
-	// Record the new master before attaching the rest, so the Sentinel
-	// controller's readiness fallback stops pointing at the empty pod even if
-	// attaching fails part way.
+	// Record the new master before attaching the rest. The Sentinel
+	// controller's readiness fallback stops pointing at the empty pod, and if
+	// no pod gets attached, for example because the operator restarts right
+	// here, a later pass resumes from the record (resumableMaster).
 	if err := r.UpdateRedisReplicationMaster(ctx, instance, candidate, false); err != nil {
 		logger.Error(err, "Failed to record the promoted pod as master", "pod", candidate)
 	}
-	// Attach the other data-holding pods first and one at a time: once any pod
-	// replicates from the candidate, later reconciles identify the candidate as
-	// the master by its attached replica, even if attaching the rest fails.
+	// Attach the other data-holding pods first and one at a time, so a pod that
+	// fails does not keep the rest from being attached. Such a pod stays behind
+	// once any other pod is attached: later passes identify the candidate as
+	// the master by that replica, and replicas are only reconfigured while no
+	// master has any.
 	var linkErrs []error
 	for _, pod := range attachOrder(pods, podsHoldingData, candidate) {
 		if err := r.linkReplicationPods(ctx, instance, []string{candidate, pod}, candidate); err != nil {
@@ -150,6 +156,54 @@ func (r *Reconciler) recoverFromEmptyMaster(ctx context.Context, instance *rrvb2
 	}
 	result, _ = intctrlutil.RequeueAfter(ctx, promotedMasterRequeue, "")
 	return result, true
+}
+
+// resumableMaster returns Status.MasterNode when it is one of several masters
+// that no pod replicates from while other pods are replicas, and attaching
+// every pod to it loses nothing: it is empty, so attaching is either harmless
+// or refused for the pods that hold data, or every other pod holding data
+// could continue its stream with a partial resync. This is the state a
+// promotion leaves behind when the promoted pod was recorded but no pod got
+// attached to it. It returns "" otherwise.
+func (r *Reconciler) resumableMaster(ctx context.Context, instance *rrvb2.RedisReplication, topology k8sutils.RedisReplicationTopology) string {
+	master := instance.Status.MasterNode
+	if master == "" || !slices.Contains(topology.Masters, master) || r.Checker == nil {
+		return ""
+	}
+	logger := log.FromContext(ctx).WithValues("statusMasterNode", master)
+
+	pods := append(append([]string{}, topology.Masters...), topology.Slaves...)
+	keyCounts := r.Checker.GetReplicationKeyCounts(ctx, instance, pods)
+	var podsHoldingData []string
+	for _, pod := range pods {
+		keys, ok := keyCounts[pod]
+		if !ok {
+			logger.Info("Not attaching the pods to the recorded master: the key count of a pod is unknown", "pod", pod)
+			return ""
+		}
+		if keys > 0 && pod != master {
+			podsHoldingData = append(podsHoldingData, pod)
+		}
+	}
+	if keyCounts[master] == 0 || len(podsHoldingData) == 0 {
+		return master
+	}
+
+	states := r.replicationStates(ctx, instance, append([]string{master}, podsHoldingData...))
+	masterState, ok := states[master]
+	if !ok {
+		logger.Info("Not attaching the pods to the recorded master: its replication state is unknown")
+		return ""
+	}
+	for _, pod := range podsHoldingData {
+		state, ok := states[pod]
+		if !ok || !state.CanPartiallyResyncFrom(masterState) {
+			logger.Info("Not attaching the pods to the recorded master: a pod holds data it cannot continue from it",
+				"pod", pod)
+			return ""
+		}
+	}
+	return master
 }
 
 // attachOrder lists every pod except master, the pods holding data first.
@@ -173,9 +227,10 @@ func attachOrder(pods, podsHoldingData []string, master string) []string {
 // bestDataHoldingPod picks the pod to promote. Pods that replicated the same
 // stream share its replication ID: the largest such group most likely carries
 // on the lost master's dataset, and within it the highest offset has seen the
-// most writes. More keys and then the lowest ordinal break the remaining ties,
-// so repeated reconciles pick the same pod. It returns "" when the replication
-// state of any pod is unknown.
+// most writes. More keys, then a pod that already is a master, then the lowest
+// ordinal break the remaining ties, so repeated reconciles pick the same pod
+// and an interrupted promotion is not redone on another pod. It returns ""
+// when the replication state of any pod is unknown.
 func bestDataHoldingPod(pods []string, keyCounts map[string]int64, states map[string]k8sutils.RedisReplicationState) string {
 	streamSize := make(map[string]int, len(pods))
 	for _, pod := range pods {
@@ -195,6 +250,9 @@ func bestDataHoldingPod(pods []string, keyCounts map[string]int64, states map[st
 		}
 		if keyCounts[a] != keyCounts[b] {
 			return keyCounts[a] > keyCounts[b]
+		}
+		if (sa.Role == "master") != (sb.Role == "master") {
+			return sa.Role == "master"
 		}
 		return podOrdinal(a) < podOrdinal(b)
 	}

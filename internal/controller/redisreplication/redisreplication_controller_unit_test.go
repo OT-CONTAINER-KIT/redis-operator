@@ -119,7 +119,7 @@ func TestReconcileRedisRefusesToReplicateDataHoldingMastersFromAnEmptyMaster(t *
 	result, err := r.reconcileRedis(context.Background(), newReplicationInstanceForTest())
 
 	require.NoError(t, err)
-	assert.Equal(t, time.Second*60, result.RequeueAfter)
+	assert.Equal(t, sentinelFailoverRequeue, result.RequeueAfter)
 	assert.False(t, createCalled)
 }
 
@@ -146,7 +146,7 @@ func TestReconcileRedisRefusesToReplicateDataHoldingSlavesFromAnEmptyMaster(t *t
 	result, err := r.reconcileRedis(context.Background(), newReplicationInstanceForTest())
 
 	require.NoError(t, err)
-	assert.Equal(t, time.Second*60, result.RequeueAfter)
+	assert.Equal(t, sentinelFailoverRequeue, result.RequeueAfter)
 	assert.False(t, createCalled)
 }
 

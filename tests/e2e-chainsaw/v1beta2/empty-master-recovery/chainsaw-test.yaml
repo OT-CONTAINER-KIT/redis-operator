@@ -13,7 +13,8 @@ spec:
     the operator has to promote a replica that holds the data itself instead of
     refusing to replicate from the empty master forever.
   steps:
-    - try:
+    - name: Deploy the replication and the Sentinels
+      try:
         - apply:
             file: replication.yaml
         - assert:
@@ -51,11 +52,13 @@ spec:
     - name: Restart the master together with every Sentinel
       try:
         - script:
-            timeout: 1m
+            timeout: 4m
             content: |
               master=$(kubectl -n ${NAMESPACE} get redisreplication redis-replication -o jsonpath='{.status.masterNode}')
-              kubectl -n ${NAMESPACE} delete pod --wait=false $master \
+              ./delete-pods.sh 180 $master \
                 redis-sentinel-sentinel-0 redis-sentinel-sentinel-1 redis-sentinel-sentinel-2
+            check:
+              (contains($stdout, 'deleted')): true
 
     - name: A replica holding the data becomes the master
       try:
@@ -68,10 +71,12 @@ spec:
     - name: Restart the master alone
       try:
         - script:
-            timeout: 1m
+            timeout: 4m
             content: |
               master=$(kubectl -n ${NAMESPACE} get redisreplication redis-replication -o jsonpath='{.status.masterNode}')
-              kubectl -n ${NAMESPACE} delete pod --wait=false $master
+              ./delete-pods.sh 180 $master
+            check:
+              (contains($stdout, 'deleted')): true
 
     - name: Sentinel fails over to a replica holding the data
       try:

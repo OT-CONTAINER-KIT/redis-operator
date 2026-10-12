@@ -1164,11 +1164,28 @@ func GetRedisReplicationBestMaster(ctx context.Context, client kubernetes.Interf
 
 // RedisReplicationState is a pod's position in a replication stream as
 // INFO replication reports it. A replica reports the replication ID and offset
-// of the stream it follows, even while its link to the master is down.
+// of the stream it follows, even while its link to the master is down. A
+// promoted replica starts a new stream and keeps the one it followed as
+// ReplID2, accepting partial resyncs on it below SecondOffset.
 type RedisReplicationState struct {
-	Role   string
-	ReplID string
-	Offset int64
+	Role         string
+	ReplID       string
+	Offset       int64
+	ReplID2      string
+	SecondOffset int64
+}
+
+// CanPartiallyResyncFrom tells whether a replica in state s could continue
+// the stream of master m with a partial resync: it followed the same stream
+// and is not ahead of it, so attaching it to m loses nothing it holds.
+func (s RedisReplicationState) CanPartiallyResyncFrom(m RedisReplicationState) bool {
+	switch {
+	case s.ReplID != "" && s.ReplID == m.ReplID:
+		return s.Offset <= m.Offset
+	case s.ReplID != "" && s.ReplID == m.ReplID2:
+		return s.Offset < m.SecondOffset
+	}
+	return false
 }
 
 // GetRedisReplicationStates reads the replication state of each pod. Pods
@@ -1213,6 +1230,14 @@ func parseRedisReplicationState(info string) (RedisReplicationState, error) {
 			}
 			state.Offset = offset
 			hasOffset = true
+		case "master_replid2":
+			state.ReplID2 = value
+		case "second_repl_offset":
+			offset, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				return RedisReplicationState{}, fmt.Errorf("parse second_repl_offset %q: %w", value, err)
+			}
+			state.SecondOffset = offset
 		}
 	}
 	if state.Role == "" || state.ReplID == "" || !hasOffset {
