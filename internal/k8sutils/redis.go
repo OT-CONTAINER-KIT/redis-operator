@@ -1162,6 +1162,98 @@ func GetRedisReplicationBestMaster(ctx context.Context, client kubernetes.Interf
 	return bestMasterPod
 }
 
+// RedisReplicationState is a pod's position in a replication stream as
+// INFO replication reports it. A replica reports the replication ID and offset
+// of the stream it follows, even while its link to the master is down. A
+// promoted replica starts a new stream and keeps the one it followed as
+// ReplID2, accepting partial resyncs on it below SecondOffset.
+type RedisReplicationState struct {
+	Role         string
+	ReplID       string
+	Offset       int64
+	ReplID2      string
+	SecondOffset int64
+}
+
+// CanPartiallyResyncFrom tells whether a replica in state s could continue
+// the stream of master m with a partial resync: it followed the same stream
+// and is not ahead of it, so attaching it to m loses nothing it holds.
+func (s RedisReplicationState) CanPartiallyResyncFrom(m RedisReplicationState) bool {
+	switch {
+	case s.ReplID != "" && s.ReplID == m.ReplID:
+		return s.Offset <= m.Offset
+	case s.ReplID != "" && s.ReplID == m.ReplID2:
+		return s.Offset < m.SecondOffset
+	}
+	return false
+}
+
+// GetRedisReplicationStates reads the replication state of each pod. Pods
+// whose state cannot be read are left out.
+func GetRedisReplicationStates(ctx context.Context, client kubernetes.Interface, cr *rrvb2.RedisReplication, podNames []string) map[string]RedisReplicationState {
+	states := make(map[string]RedisReplicationState, len(podNames))
+	for _, podName := range podNames {
+		redisClient := configureRedisReplicationClient(ctx, client, cr, podName)
+		info, err := redisClient.Info(ctx, "Replication").Result()
+		redisClient.Close()
+		if err != nil {
+			log.FromContext(ctx).Error(err, "Failed to get the replication info", "pod", podName)
+			continue
+		}
+		state, err := parseRedisReplicationState(info)
+		if err != nil {
+			log.FromContext(ctx).Error(err, "Failed to parse the replication info", "pod", podName)
+			continue
+		}
+		states[podName] = state
+	}
+	return states
+}
+
+func parseRedisReplicationState(info string) (RedisReplicationState, error) {
+	var state RedisReplicationState
+	var hasOffset bool
+	for _, line := range strings.Split(info, "\r\n") {
+		key, value, ok := strings.Cut(line, ":")
+		if !ok {
+			continue
+		}
+		switch key {
+		case "role":
+			state.Role = value
+		case "master_replid":
+			state.ReplID = value
+		case "master_repl_offset":
+			offset, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				return RedisReplicationState{}, fmt.Errorf("parse master_repl_offset %q: %w", value, err)
+			}
+			state.Offset = offset
+			hasOffset = true
+		case "master_replid2":
+			state.ReplID2 = value
+		case "second_repl_offset":
+			offset, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				return RedisReplicationState{}, fmt.Errorf("parse second_repl_offset %q: %w", value, err)
+			}
+			state.SecondOffset = offset
+		}
+	}
+	if state.Role == "" || state.ReplID == "" || !hasOffset {
+		return RedisReplicationState{}, errors.New("role, master_replid or master_repl_offset missing from INFO replication")
+	}
+	return state, nil
+}
+
+// PromoteRedisReplicationPod makes podName a master with REPLICAOF NO ONE. The
+// pod keeps its dataset; the other pods still have to be pointed at it.
+func PromoteRedisReplicationPod(ctx context.Context, client kubernetes.Interface, cr *rrvb2.RedisReplication, podName string) error {
+	redisClient := configureRedisReplicationClient(ctx, client, cr, podName)
+	defer redisClient.Close()
+	return redisClient.SlaveOf(ctx, "NO", "ONE").Err()
+}
+
 func applyDynamicConfig(ctx context.Context, redisClient *redis.Client, podName string, dynamicConfig []string) (bool, error) {
 	pong, err := redisClient.Ping(ctx).Result()
 	if err != nil {
