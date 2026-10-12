@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
@@ -18,6 +19,7 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/service/redis"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -42,6 +44,15 @@ type Reconciler struct {
 	CreateRedisReplicationLink func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string, string) error
 	ConfigureSentinel          func(context.Context, *rrvb2.RedisReplication, string) error
 	SentinelMonitoredMaster    func(context.Context, *rrvb2.RedisReplication, []string) (string, error)
+	ReplicationStates          func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) map[string]k8sutils.RedisReplicationState
+	PromoteReplicationPod      func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, string) error
+	// SentinelFailover reports whether a Sentinel can still be expected to
+	// fail over away from emptyMaster, and how long that may take.
+	SentinelFailover func(ctx context.Context, instance *rrvb2.RedisReplication, emptyMaster string) (expected bool, window time.Duration, err error)
+	Now              func() time.Time
+
+	emptyMasterMu    sync.Mutex
+	emptyMasterSince map[types.UID]emptyMasterObservation
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -53,6 +64,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if k8sutils.IsDeleted(instance) {
+		r.forgetEmptyMaster(instance)
 		if err := k8sutils.HandleRedisReplicationFinalizer(ctx, r.Client, instance, RedisReplicationFinalizer); err != nil {
 			return intctrlutil.RequeueE(ctx, err, "")
 		}
@@ -183,15 +195,17 @@ func (r *Reconciler) ensureMasterHoldsData(ctx context.Context, instance *rrvb2.
 	if len(podsHoldingData) == 0 && len(podsUnknown) == 0 {
 		return nil
 	}
-	return fmt.Errorf("master %s holds no keys while pods %v hold data and %v could not be probed, refusing to replicate from it; "+
-		"to recover, run REPLICAOF NO ONE on a pod that holds data, then REPLICAOF <its address> 6379 on %s, and the operator will attach the rest",
-		realMaster, podsHoldingData, podsUnknown, realMaster)
+	return &emptyMasterError{master: realMaster, podsHoldingData: podsHoldingData, podsUnknown: podsUnknown}
 }
 
 func (r *Reconciler) createRedisReplicationLink(ctx context.Context, instance *rrvb2.RedisReplication, pods []string, realMaster string) error {
 	if err := r.ensureMasterHoldsData(ctx, instance, pods, realMaster); err != nil {
 		return err
 	}
+	return r.linkReplicationPods(ctx, instance, pods, realMaster)
+}
+
+func (r *Reconciler) linkReplicationPods(ctx context.Context, instance *rrvb2.RedisReplication, pods []string, realMaster string) error {
 	if r.CreateRedisReplicationLink != nil {
 		return r.CreateRedisReplicationLink(ctx, r.K8sClient, instance, pods, realMaster)
 	}
@@ -520,6 +534,9 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 		} else if realMaster == "" {
 			log.FromContext(ctx).Info("Skipping replication reconfiguration because the current master could not be identified")
 		} else if err := r.createRedisReplicationLink(ctx, instance, masterNodes, realMaster); err != nil {
+			if result, handled := r.recoverFromEmptyMaster(ctx, instance, topology, err); handled {
+				return result, nil
+			}
 			log.FromContext(ctx).Error(err, "Failed to create redis replication link",
 				"master", realMaster, "masters", masterNodes)
 			return intctrlutil.RequeueAfter(ctx, time.Second*60, "")
@@ -538,6 +555,9 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 			} else {
 				allPods := append(masterNodes, slaveNodes...)
 				if err := r.createRedisReplicationLink(ctx, instance, allPods, realMaster); err != nil {
+					if result, handled := r.recoverFromEmptyMaster(ctx, instance, topology, err); handled {
+						return result, nil
+					}
 					log.FromContext(ctx).Error(err, "Failed to reconfigure master-slave replication",
 						"master", realMaster, "slaves", slaveNodes)
 					return intctrlutil.RequeueAfter(ctx, time.Second*60, "")
@@ -546,6 +566,7 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 			}
 		}
 	}
+	r.forgetEmptyMaster(instance)
 
 	monitoring.RedisReplicationReplicasSizeMismatch.WithLabelValues(instance.Namespace, instance.Name).Set(0)
 	if instance.Spec.Size != nil && int(*instance.Spec.Size) != observedPods {
