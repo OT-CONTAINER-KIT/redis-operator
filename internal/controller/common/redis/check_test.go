@@ -60,7 +60,10 @@ func TestGetReplicationKeyCountsSkipsUnprobeableAndFailedPods(t *testing.T) {
 func TestGetSentinelMastersReportsEverySentinel(t *testing.T) {
 	rs, _, objects := newSentinelFixture("10.0.1.10", "10.0.1.11", "10.0.1.12")
 	labels := map[string]string{"app": rs.GetStatefulSetName()}
-	objects = append(objects, newLabeledRedisPod(rs.GetStatefulSetName()+"-3", labels, "10.0.1.13", corev1.PodRunning, false))
+	objects = append(objects,
+		newLabeledRedisPod(rs.GetStatefulSetName()+"-3", labels, "10.0.1.13", corev1.PodRunning, false),
+		newLabeledRedisPod(rs.GetStatefulSetName()+"-4", labels, "10.0.1.14", corev1.PodFailed, false),
+	)
 	monitored := redisservice.SentinelMasterInfo{Name: "myMaster", Status: "ok", Address: "10.0.0.10:6379", Slaves: 2, Sentinels: 3}
 	redisClient := &fakeRedisClient{
 		errByHost: map[string]error{"10.0.1.12": errors.New("dial tcp 10.0.1.12:26379: i/o timeout")},
@@ -85,6 +88,7 @@ func TestGetSentinelMastersReportsEverySentinel(t *testing.T) {
 	assert.NoError(t, byPod[rs.GetStatefulSetName()+"-1"].Err)
 	assert.Error(t, byPod[rs.GetStatefulSetName()+"-2"].Err)
 	assert.Error(t, byPod[rs.GetStatefulSetName()+"-3"].Err, "a Sentinel that is not ready may still hold its state")
+	assert.NotContains(t, byPod, rs.GetStatefulSetName()+"-4", "a terminated pod runs no Sentinel")
 	assert.NotContains(t, redisClient.connectHosts, "10.0.1.13")
 }
 

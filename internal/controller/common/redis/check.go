@@ -159,8 +159,8 @@ func (c *checker) GetReplicationKeyCounts(ctx context.Context, rr *rr.RedisRepli
 
 // GetSentinelMasters asks every Sentinel pod of rs about its master group. A
 // pod that is not Running and Ready, or does not answer, is reported with Err:
-// it may still hold its state. A Sentinel StatefulSet that does not exist
-// yields no reports.
+// it may still hold its state. Terminated pods run no Sentinel and are left
+// out, and a Sentinel StatefulSet that does not exist yields no reports.
 func (c *checker) GetSentinelMasters(ctx context.Context, rs *rsvb2.RedisSentinel) ([]SentinelMasterReport, error) {
 	if rs.Spec.RedisSentinelConfig == nil {
 		return nil, nil
@@ -180,6 +180,9 @@ func (c *checker) GetSentinelMasters(ctx context.Context, rs *rsvb2.RedisSentine
 
 	var reports []SentinelMasterReport
 	for _, pod := range pods.Items {
+		if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
+			continue
+		}
 		if !k8sutils.IsRedisPodProbeable(&pod) {
 			reports = append(reports, SentinelMasterReport{Pod: pod.Name, Err: errors.New("pod is not running and ready")})
 			continue
