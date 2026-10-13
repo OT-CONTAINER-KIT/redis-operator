@@ -65,6 +65,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	reconcilers := []reconciler{
 		{typ: "finalizer", rec: r.reconcileFinalizer},
+		{typ: "routing", rec: r.reconcileSentinelRouting},
 		{typ: "resources", rec: r.reconcileResources},
 		{typ: "redis", rec: r.reconcileRedis},
 		{typ: "status", rec: r.reconcileStatus},
@@ -80,7 +81,39 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 
-	return intctrlutil.RequeueAfter(ctx, time.Second*30, "")
+	return intctrlutil.RequeueAfter(ctx, replicationReconcileInterval(instance), "")
+}
+
+func replicationReconcileInterval(instance *rrvb2.RedisReplication) time.Duration {
+	if instance.EnableSentinel() && instance.Status.MasterNode != "" {
+		return 5 * time.Second
+	}
+	return 30 * time.Second
+}
+
+func (r *Reconciler) reconcileSentinelRouting(ctx context.Context, instance *rrvb2.RedisReplication) (ctrl.Result, error) {
+	if !instance.EnableSentinel() || instance.Status.MasterNode == "" {
+		return intctrlutil.Reconciled()
+	}
+	routingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	candidates := make([]string, 0, instance.Spec.GetReplicationCounts("replication"))
+	for i := int32(0); i < instance.Spec.GetReplicationCounts("replication"); i++ {
+		candidates = append(candidates, fmt.Sprintf("%s-%d", instance.Name, i))
+	}
+	master, err := r.sentinelMonitoredMaster(routingCtx, instance, candidates)
+	if ctx.Err() != nil {
+		return ctrl.Result{}, ctx.Err()
+	}
+	if err != nil || master == "" {
+		// Do not replace routing based on an incomplete Sentinel view.
+		return intctrlutil.Reconciled()
+	}
+	labels := common.GetRedisLabels(instance.Name, common.SetupTypeReplication, "replication", instance.Labels)
+	if err := r.Healer.UpdateRedisRoleLabel(routingCtx, instance.Namespace, labels, instance.Spec.KubernetesConfig.ExistingPasswordSecret, instance.Spec.TLS, master); err != nil {
+		return intctrlutil.RequeueE(ctx, err, "failed to update Sentinel-confirmed routing")
+	}
+	return intctrlutil.Reconciled()
 }
 
 // UpdateRedisReplicationMaster records masterNode as the master of the
@@ -519,6 +552,10 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 				"unobservedPods", topology.Unobserved)
 		} else if realMaster == "" {
 			log.FromContext(ctx).Info("Skipping replication reconfiguration because the current master could not be identified")
+		} else if instance.EnableSentinel() && instance.Status.MasterNode != "" && r.sentinelOwnsReplicationDemotion(ctx, instance, masterNodes, realMaster) {
+			// Sentinel demotes through a transaction that also disconnects normal
+			// and Pub/Sub clients. Plain SLAVEOF here would bypass that transaction.
+			log.FromContext(ctx).Info("Deferring returning-master demotion to Sentinel", "master", realMaster)
 		} else if err := r.createRedisReplicationLink(ctx, instance, masterNodes, realMaster); err != nil {
 			log.FromContext(ctx).Error(err, "Failed to create redis replication link",
 				"master", realMaster, "masters", masterNodes)
@@ -568,6 +605,11 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 	return intctrlutil.Reconciled()
 }
 
+func (r *Reconciler) sentinelOwnsReplicationDemotion(ctx context.Context, instance *rrvb2.RedisReplication, candidates []string, master string) bool {
+	monitored, err := r.sentinelMonitoredMaster(ctx, instance, candidates)
+	return err == nil && monitored == master
+}
+
 // reconcileStatus update status and label.
 func (r *Reconciler) reconcileStatus(ctx context.Context, instance *rrvb2.RedisReplication) (ctrl.Result, error) {
 	topology, err := r.redisReplicationTopology(ctx, instance)
@@ -575,6 +617,21 @@ func (r *Reconciler) reconcileStatus(ctx context.Context, instance *rrvb2.RedisR
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
 	realMaster, _ := r.observedRedisReplicationMaster(ctx, instance, topology)
+	if instance.EnableSentinel() && instance.Status.MasterNode != "" {
+		// Initialized Sentinel routes must never fall back to per-pod publication.
+		candidates := make([]string, 0, instance.Spec.GetReplicationCounts("replication"))
+		for i := int32(0); i < instance.Spec.GetReplicationCounts("replication"); i++ {
+			candidates = append(candidates, fmt.Sprintf("%s-%d", instance.Name, i))
+		}
+		realMaster, err = r.sentinelMonitoredMaster(ctx, instance, candidates)
+		if ctx.Err() != nil {
+			return ctrl.Result{}, ctx.Err()
+		}
+		if err != nil || realMaster == "" {
+			log.FromContext(ctx).Info("Keeping role routes unchanged: Sentinel master is not confirmed")
+			return intctrlutil.Reconciled()
+		}
+	}
 	// Every pod answered and none is a master: there is no master to record, as
 	// opposed to a master that could not be identified.
 	masterAbsent := topology.Complete() && len(topology.Masters) == 0

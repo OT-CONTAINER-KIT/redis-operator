@@ -65,6 +65,142 @@ func TestUpdateRedisRoleLabelSkipsUnprobeablePods(t *testing.T) {
 	}
 }
 
+func TestUpdateRedisRoleLabelDoesNotRouteToReturningMaster(t *testing.T) {
+	for _, oldLabel := range []string{"", common.RedisRoleLabelMaster, common.RedisRoleLabelSlave} {
+		for _, selectedName := range []string{"redis-0", "redis-1"} {
+			t.Run(fmt.Sprintf("oldLabel=%s/selected=%s", oldLabel, selectedName), func(t *testing.T) {
+				labels := map[string]string{"app": "redis"}
+				oldName := "redis-0"
+				if selectedName == oldName {
+					oldName = "redis-1"
+				}
+				returning := newLabeledRedisPod(oldName, labels, "10.0.0.10", corev1.PodRunning, true)
+				if oldLabel != "" {
+					returning.Labels[common.RedisRoleLabelKey] = oldLabel
+				}
+				selected := newLabeledRedisPod(selectedName, labels, "10.0.0.11", corev1.PodRunning, true)
+				selected.Labels[common.RedisRoleLabelKey] = common.RedisRoleLabelSlave
+				clientset := k8sfake.NewSimpleClientset(returning, selected)
+				h := &healer{k8s: clientset, redis: &fakeRedisClient{
+					isMasterByHost: map[string]bool{"10.0.0.10": true, "10.0.0.11": true},
+				}}
+
+				require.NoError(t, h.UpdateRedisRoleLabel(context.Background(), "default", labels, nil, nil, selectedName))
+
+				oldPod, err := clientset.CoreV1().Pods("default").Get(context.Background(), oldName, metav1.GetOptions{})
+				require.NoError(t, err)
+				assert.NotContains(t, oldPod.Labels, common.RedisRoleLabelKey,
+					"a returning master must not enter either role Service before demotion")
+				newPod, err := clientset.CoreV1().Pods("default").Get(context.Background(), selectedName, metav1.GetOptions{})
+				require.NoError(t, err)
+				assert.Equal(t, common.RedisRoleLabelMaster, newPod.Labels[common.RedisRoleLabelKey])
+				if oldLabel == common.RedisRoleLabelMaster {
+					var patchedNames []string
+					for _, action := range clientset.Actions() {
+						if patch, ok := action.(k8stesting.PatchAction); ok {
+							patchedNames = append(patchedNames, patch.GetName())
+						}
+					}
+					require.NotEmpty(t, patchedNames)
+					assert.Equal(t, oldName, patchedNames[0], "remove the old route before publishing the new one")
+				}
+			})
+		}
+	}
+}
+
+func TestSingleMasterRoutingDoesNotPublishAfterInconclusivePreflight(t *testing.T) {
+	labels := map[string]string{"app": "redis"}
+	old := newLabeledRedisPod("redis-0", labels, "10.0.0.10", corev1.PodRunning, true)
+	old.Labels[common.RedisRoleLabelKey] = common.RedisRoleLabelMaster
+	selected := newLabeledRedisPod("redis-1", labels, "10.0.0.11", corev1.PodRunning, true)
+	selected.Labels[common.RedisRoleLabelKey] = common.RedisRoleLabelSlave
+	clientset := k8sfake.NewSimpleClientset(old, selected)
+	redisClient := &fakeRedisClient{
+		isMasterByHost:   map[string]bool{"10.0.0.11": true},
+		errByHost:        map[string]error{"10.0.0.10": dialError()},
+		roleErrorsByHost: map[string][]error{"10.0.0.11": {dialError(), nil}},
+	}
+	h := &healer{k8s: clientset, redis: redisClient}
+	require.NoError(t, h.UpdateRedisRoleLabel(context.Background(), "default", labels, nil, nil, selected.Name))
+	for _, action := range clientset.Actions() {
+		assert.NotEqual(t, "patch", action.GetVerb(), "an inconclusive selected-master probe must not fall through to publication")
+	}
+}
+
+func TestUpdateRedisRoleLabelDoesNotPublishIdentifiedMasterOnConflictingAuthFailure(t *testing.T) {
+	labels := map[string]string{"app": "redis"}
+	old := newLabeledRedisPod("redis-0", labels, "10.0.0.10", corev1.PodRunning, true)
+	old.Labels[common.RedisRoleLabelKey] = common.RedisRoleLabelMaster
+	selected := newLabeledRedisPod("redis-1", labels, "10.0.0.11", corev1.PodRunning, true)
+	selected.Labels[common.RedisRoleLabelKey] = common.RedisRoleLabelSlave
+	clientset := k8sfake.NewSimpleClientset(old, selected)
+	authErr := redisServerError("WRONGPASS invalid username-password pair")
+	h := &healer{k8s: clientset, redis: &fakeRedisClient{
+		isMasterByHost: map[string]bool{"10.0.0.11": true},
+		errByHost:      map[string]error{"10.0.0.10": authErr},
+	}}
+
+	err := h.UpdateRedisRoleLabel(context.Background(), "default", labels, nil, nil, selected.Name)
+
+	require.ErrorContains(t, err, "cannot verify conflicting master")
+	require.ErrorIs(t, err, authErr)
+	for name, expected := range map[string]string{old.Name: common.RedisRoleLabelMaster, selected.Name: common.RedisRoleLabelSlave} {
+		pod, getErr := clientset.CoreV1().Pods("default").Get(context.Background(), name, metav1.GetOptions{})
+		require.NoError(t, getErr)
+		assert.Equal(t, expected, pod.Labels[common.RedisRoleLabelKey])
+	}
+}
+
+func TestUpdateRedisRoleLabelDoesNotPublishIdentifiedMasterWhenRemovalFails(t *testing.T) {
+	labels := map[string]string{"app": "redis"}
+	selected := newLabeledRedisPod("redis-0", labels, "10.0.0.10", corev1.PodRunning, true)
+	selected.Labels[common.RedisRoleLabelKey] = common.RedisRoleLabelSlave
+	old := newLabeledRedisPod("redis-1", labels, "10.0.0.11", corev1.PodRunning, true)
+	old.Labels[common.RedisRoleLabelKey] = common.RedisRoleLabelMaster
+	clientset := k8sfake.NewSimpleClientset(selected, old)
+	clientset.PrependReactor("patch", "pods", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		if action.(k8stesting.PatchAction).GetName() == old.Name {
+			return true, nil, apierrors.NewForbidden(schema.GroupResource{Resource: "pods"}, old.Name, errors.New("patch denied"))
+		}
+		return false, nil, nil
+	})
+	h := &healer{k8s: clientset, redis: &fakeRedisClient{
+		isMasterByHost: map[string]bool{"10.0.0.10": true, "10.0.0.11": true},
+	}}
+
+	err := h.UpdateRedisRoleLabel(context.Background(), "default", labels, nil, nil, selected.Name)
+
+	require.Error(t, err)
+	assert.True(t, apierrors.IsForbidden(err))
+	newPod, err := clientset.CoreV1().Pods("default").Get(context.Background(), selected.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, common.RedisRoleLabelSlave, newPod.Labels[common.RedisRoleLabelKey],
+		"failure to remove the old route must not publish a second master")
+}
+
+func TestUpdateRedisRoleLabelDoesNotExcludeMastersWithoutVerifiedIdentity(t *testing.T) {
+	for _, selectedName := range []string{"", "missing", "redis-0"} {
+		t.Run(selectedName, func(t *testing.T) {
+			labels := map[string]string{"app": "redis"}
+			old := newLabeledRedisPod("redis-0", labels, "10.0.0.10", corev1.PodRunning, true)
+			old.Labels[common.RedisRoleLabelKey] = common.RedisRoleLabelMaster
+			other := newLabeledRedisPod("redis-1", labels, "10.0.0.11", corev1.PodRunning, true)
+			clientset := k8sfake.NewSimpleClientset(old, other)
+			h := &healer{k8s: clientset, redis: &fakeRedisClient{
+				isMasterByHost: map[string]bool{"10.0.0.11": true},
+				errByHost:      map[string]error{"10.0.0.10": dialError()},
+			}}
+
+			require.NoError(t, h.UpdateRedisRoleLabel(context.Background(), "default", labels, nil, nil, selectedName))
+
+			oldPod, err := clientset.CoreV1().Pods("default").Get(context.Background(), old.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.Equal(t, common.RedisRoleLabelMaster, oldPod.Labels[common.RedisRoleLabelKey])
+		})
+	}
+}
+
 func TestUpdateRedisRoleLabelRemovesStaleMasterLabelWhenAMasterWithReplicasIsConfirmed(t *testing.T) {
 	labels := map[string]string{"app": "redis"}
 	staleMaster := newLabeledRedisPod("redis-0", labels, "10.0.0.10", corev1.PodRunning, true)
@@ -688,6 +824,7 @@ type fakeRedisClient struct {
 	isMasterByHost     map[string]bool
 	replicasByHost     map[string]int
 	errByHost          map[string]error
+	roleErrorsByHost   map[string][]error
 	replicaErrByHost   map[string]error
 	keyCountByHost     map[string]int64
 	keyCountErrByHost  map[string]error
@@ -708,6 +845,12 @@ type fakeRedisService struct {
 }
 
 func (f *fakeRedisService) IsMaster(context.Context) (bool, error) {
+	if sequence := f.client.roleErrorsByHost[f.host]; len(sequence) > 0 {
+		f.client.roleErrorsByHost[f.host] = sequence[1:]
+		if sequence[0] != nil {
+			return false, sequence[0]
+		}
+	}
 	if err := f.client.errByHost[f.host]; err != nil {
 		return false, err
 	}

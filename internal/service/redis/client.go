@@ -8,6 +8,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 
 	rediscli "github.com/redis/go-redis/v9"
 )
@@ -24,6 +25,8 @@ type ConnectionInfo struct {
 	Password string
 	// TLSConfig configuration, nil means TLS is disabled
 	TLSConfig *tls.Config
+	// ProbeTimeout bounds role queries on a failed pod without changing maintenance operations.
+	ProbeTimeout time.Duration
 }
 
 // ClusterStatus cluster status information, including the number of assigned slots
@@ -110,6 +113,13 @@ func (s *service) createClient() *rediscli.Client {
 	}
 	if s.connectionInfo.TLSConfig != nil {
 		opts.TLSConfig = s.connectionInfo.TLSConfig
+	}
+	if s.connectionInfo.ProbeTimeout > 0 {
+		opts.DialTimeout = s.connectionInfo.ProbeTimeout
+		opts.ReadTimeout = s.connectionInfo.ProbeTimeout
+		opts.WriteTimeout = s.connectionInfo.ProbeTimeout
+		opts.ContextTimeoutEnabled = true
+		opts.MaxRetries = -1
 	}
 	return rediscli.NewClient(opts)
 }
