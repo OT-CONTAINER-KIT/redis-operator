@@ -370,9 +370,9 @@ func TestReconcileRedisSkipsSentinelReconfigurationWhenSentinelCannotBeAsked(t *
 // The recorded master was lost, Sentinel promoted the other pod, and the old
 // master is back as an empty standalone master before the promotion was ever
 // recorded. Two replica-less masters and a stale Status.MasterNode are exactly
-// what the bootstrap election would resolve the wrong way round; Sentinel's
-// pick takes precedence so the returning pod is attached under the promoted one.
-func TestReconcileRedisAttachesReturningMasterUnderTheMasterSentinelMonitors(t *testing.T) {
+// what the bootstrap election would resolve the wrong way round. Sentinel's
+// choice is preserved, including its demotion transaction that disconnects clients.
+func TestReconcileRedisDefersReturningMasterDemotionToSentinel(t *testing.T) {
 	var gotPods []string
 	var gotMaster, gotSentinelMaster string
 	r := &Reconciler{
@@ -402,9 +402,66 @@ func TestReconcileRedisAttachesReturningMasterUnderTheMasterSentinelMonitors(t *
 
 	require.NoError(t, err)
 	assert.Equal(t, ctrl.Result{}, result)
-	assert.ElementsMatch(t, []string{"example-replication-0", "example-replication-1"}, gotPods)
-	assert.Equal(t, "example-replication-1", gotMaster)
+	assert.Empty(t, gotPods, "plain SLAVEOF must not preempt Sentinel's client-disconnection transaction")
+	assert.Empty(t, gotMaster)
 	assert.Equal(t, "example-replication-1", gotSentinelMaster)
+}
+
+func TestReconcileRedisBootstrapsSentinelReplicationWithoutRecordedMaster(t *testing.T) {
+	var linkedMaster string
+	r := &Reconciler{
+		StatefulSet:              &fakeStatefulSetService{},
+		K8sClient:                fake.NewSimpleClientset(),
+		RedisReplicationTopology: topologyOf([]string{"example-replication-0", "example-replication-1"}, nil, nil),
+		RedisReplicationRealMaster: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string {
+			return ""
+		},
+		SentinelMonitoredMaster: sentinelMonitoring("example-replication-0"),
+		CreateRedisReplicationLink: func(_ context.Context, _ kubernetes.Interface, _ *rrvb2.RedisReplication, _ []string, master string) error {
+			linkedMaster = master
+			return nil
+		},
+		ConfigureSentinel: func(context.Context, *rrvb2.RedisReplication, string) error { return nil },
+		Checker:           keyCountsOf(map[string]int64{"example-replication-0": 0, "example-replication-1": 0}),
+	}
+	instance := newSentinelReplicationInstanceForTest()
+	instance.Spec.Size = ptr.To(int32(2))
+
+	_, err := r.reconcileRedis(context.Background(), instance)
+
+	require.NoError(t, err)
+	assert.Equal(t, "example-replication-0", linkedMaster, "fresh deployment must still establish replication")
+}
+
+func TestReconcileRedisDoesNotDelegateDemotionWithoutSentinelConfirmation(t *testing.T) {
+	for _, confirmation := range []string{"", "example-replication-0"} {
+		t.Run(confirmation, func(t *testing.T) {
+			linked := false
+			r := &Reconciler{
+				StatefulSet:              &fakeStatefulSetService{},
+				K8sClient:                fake.NewSimpleClientset(),
+				RedisReplicationTopology: topologyOf([]string{"example-replication-0", "example-replication-1"}, nil, nil),
+				RedisReplicationRealMaster: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string {
+					return "example-replication-1"
+				},
+				SentinelMonitoredMaster: sentinelMonitoring(confirmation),
+				CreateRedisReplicationLink: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string, string) error {
+					linked = true
+					return nil
+				},
+				ConfigureSentinel: func(context.Context, *rrvb2.RedisReplication, string) error { return nil },
+				Checker:           keyCountsOf(map[string]int64{"example-replication-0": 120, "example-replication-1": 120}),
+			}
+			instance := newSentinelReplicationInstanceForTest()
+			instance.Spec.Size = ptr.To(int32(2))
+			instance.Status.MasterNode = "example-replication-0"
+
+			_, err := r.reconcileRedis(context.Background(), instance)
+
+			require.NoError(t, err)
+			assert.True(t, linked, "unconfirmed or conflicting Sentinel must not trigger delegation")
+		})
+	}
 }
 
 // With every pod observed a lone master is conclusive on its own.

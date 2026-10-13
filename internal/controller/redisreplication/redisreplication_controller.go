@@ -519,6 +519,10 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 				"unobservedPods", topology.Unobserved)
 		} else if realMaster == "" {
 			log.FromContext(ctx).Info("Skipping replication reconfiguration because the current master could not be identified")
+		} else if instance.EnableSentinel() && instance.Status.MasterNode != "" && r.sentinelOwnsReplicationDemotion(ctx, instance, masterNodes, realMaster) {
+			// Sentinel demotes through a transaction that also disconnects normal
+			// and Pub/Sub clients. Plain SLAVEOF here would bypass that transaction.
+			log.FromContext(ctx).Info("Deferring returning-master demotion to Sentinel", "master", realMaster)
 		} else if err := r.createRedisReplicationLink(ctx, instance, masterNodes, realMaster); err != nil {
 			log.FromContext(ctx).Error(err, "Failed to create redis replication link",
 				"master", realMaster, "masters", masterNodes)
@@ -566,6 +570,11 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 	}
 
 	return intctrlutil.Reconciled()
+}
+
+func (r *Reconciler) sentinelOwnsReplicationDemotion(ctx context.Context, instance *rrvb2.RedisReplication, candidates []string, master string) bool {
+	monitored, err := r.sentinelMonitoredMaster(ctx, instance, candidates)
+	return err == nil && monitored == master
 }
 
 // reconcileStatus update status and label.
