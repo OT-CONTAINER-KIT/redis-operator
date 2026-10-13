@@ -433,6 +433,85 @@ func TestReconcileRedisBootstrapsSentinelReplicationWithoutRecordedMaster(t *tes
 	assert.Equal(t, "example-replication-0", linkedMaster, "fresh deployment must still establish replication")
 }
 
+func TestSentinelRoutingPublishesBeforeSlowTopologyMaintenance(t *testing.T) {
+	instance := newSentinelReplicationInstanceForTest()
+	instance.Status.MasterNode = "example-replication-0"
+	healer := &fakeHealer{}
+	r := &Reconciler{
+		Healer:                  healer,
+		SentinelMonitoredMaster: sentinelMonitoring("example-replication-1"),
+		RedisReplicationTopology: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication) (k8sutils.RedisReplicationTopology, error) {
+			t.Fatal("routing must not wait for probes of the failed master")
+			return k8sutils.RedisReplicationTopology{}, nil
+		},
+	}
+	_, err := r.reconcileSentinelRouting(context.Background(), instance)
+	require.NoError(t, err)
+	assert.True(t, healer.updateCalled)
+	assert.Equal(t, "example-replication-1", healer.master)
+	assert.Equal(t, 5*time.Second, replicationReconcileInterval(instance))
+	instance.Status.MasterNode = ""
+	healer.updateCalled = false
+	_, err = r.reconcileSentinelRouting(context.Background(), instance)
+	require.NoError(t, err)
+	assert.False(t, healer.updateCalled, "initial bootstrap must not publish an unestablished topology")
+	assert.Equal(t, 30*time.Second, replicationReconcileInterval(instance))
+}
+
+func TestSentinelRoutingPreservesLabelsWhenMasterIsNotConfirmed(t *testing.T) {
+	for _, sentinelErr := range []error{nil, errors.New("no Sentinel quorum")} {
+		healer := &fakeHealer{}
+		instance := newSentinelReplicationInstanceForTest()
+		instance.Status.MasterNode = "example-replication-0"
+		r := &Reconciler{Healer: healer, SentinelMonitoredMaster: func(context.Context, *rrvb2.RedisReplication, []string) (string, error) {
+			return "", sentinelErr
+		}}
+		_, err := r.reconcileSentinelRouting(context.Background(), instance)
+		require.NoError(t, err)
+		assert.False(t, healer.updateCalled)
+	}
+}
+
+func TestSentinelRoutingPropagatesParentCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	instance := newSentinelReplicationInstanceForTest()
+	instance.Status.MasterNode = "example-replication-0"
+	r := &Reconciler{SentinelMonitoredMaster: func(context.Context, *rrvb2.RedisReplication, []string) (string, error) {
+		cancel()
+		return "", context.Canceled
+	}}
+	_, err := r.reconcileSentinelRouting(ctx, instance)
+	require.ErrorIs(t, err, context.Canceled)
+}
+
+func TestReconcileStopsBeforeMaintenanceWhenRoutingContextIsCanceled(t *testing.T) {
+	instance := newSentinelReplicationInstanceForTest()
+	instance.Status.MasterNode = "example-replication-0"
+	instance.Finalizers = []string{RedisReplicationFinalizer}
+	scheme := runtime.NewScheme()
+	require.NoError(t, rrvb2.AddToScheme(scheme))
+	ctrlClient := clientfake.NewClientBuilder().WithScheme(scheme).WithObjects(instance).Build()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	routingCalled := false
+	r := &Reconciler{
+		Client: ctrlClient,
+		SentinelMonitoredMaster: func(context.Context, *rrvb2.RedisReplication, []string) (string, error) {
+			routingCalled = true
+			cancel()
+			return "", context.Canceled
+		},
+		RedisReplicationTopology: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication) (k8sutils.RedisReplicationTopology, error) {
+			t.Fatal("maintenance must not run before routing or after its parent context is canceled")
+			return k8sutils.RedisReplicationTopology{}, nil
+		},
+	}
+	_, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKeyFromObject(instance)})
+	require.ErrorIs(t, err, context.Canceled)
+	assert.True(t, routingCalled)
+}
+
 func TestReconcileRedisDoesNotDelegateDemotionWithoutSentinelConfirmation(t *testing.T) {
 	for _, confirmation := range []string{"", "example-replication-0"} {
 		t.Run(confirmation, func(t *testing.T) {
@@ -731,7 +810,8 @@ func TestReconcileStatusKeepsLastKnownMasterWhenOnlyAStandaloneMasterIsObserved(
 
 			require.NoError(t, err)
 			assert.Equal(t, ctrl.Result{}, result)
-			assert.True(t, healer.updateCalled)
+			assert.Equal(t, !instance.EnableSentinel(), healer.updateCalled,
+				"an initialized Sentinel topology must not call the generic publisher without an authority")
 			// The kept Status.MasterNode is a fallback, not an identification; the
 			// healer must not take it as proof against other master labels.
 			assert.Empty(t, healer.master)
