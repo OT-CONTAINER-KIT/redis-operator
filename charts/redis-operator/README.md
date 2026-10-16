@@ -97,6 +97,17 @@ kubectl create secret tls <webhook-server-cert> --key tls.key --cert tls.crt -n 
 | certmanager.apiVersion | string | `"cert-manager.io/v1"` |  |
 | certmanager.enabled | bool | `false` |  |
 | featureGates | object | `{}` | Feature gates for alpha/experimental features. Only set gates that are supported by the deployed operator image; passing an unknown gate makes the operator exit at startup. |
+| fleetServiceMonitor.allNamespaces | bool | `false` | Scrape matching Services in every namespace (overrides targetNamespaces) |
+| fleetServiceMonitor.enabled | bool | `false` | Create one ServiceMonitor for the whole Redis fleet |
+| fleetServiceMonitor.extraLabels | object | `{}` | Extra labels on the ServiceMonitor, e.g. the `release` label your Prometheus selects on |
+| fleetServiceMonitor.interval | string | `"30s"` |  |
+| fleetServiceMonitor.metricRelabelings | list | `[]` | Metric relabelings applied to the scrape endpoint |
+| fleetServiceMonitor.name | string | `""` | ServiceMonitor name. Defaults to `<release>-redis-fleet` |
+| fleetServiceMonitor.namespace | string | `""` | Namespace to create the ServiceMonitor in. Defaults to the release namespace |
+| fleetServiceMonitor.relabelings | list | `[]` | Relabelings applied to the scrape endpoint |
+| fleetServiceMonitor.scrapeTimeout | string | `"10s"` |  |
+| fleetServiceMonitor.setupTypes | list | `["cluster"]` | Values of the `redis_setup_type` label to scrape: cluster, standalone, replication, sentinel |
+| fleetServiceMonitor.targetNamespaces | list | `[]` | Namespaces whose Redis metrics Services are scraped. Empty means the ServiceMonitor's own namespace |
 | issuer.create | bool | `true` |  |
 | issuer.email | string | `"shubham.gupta@opstree.com"` |  |
 | issuer.kind | string | `"Issuer"` |  |
