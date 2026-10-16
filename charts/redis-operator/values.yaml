@@ -147,3 +147,36 @@ manager:
     maxConcurrentReconciles: 3
     # Accepts a Go duration (e.g. "30s", "5m"). Empty uses the operator's built-in default.
     execCommandTimeout: ""
+
+# A single ServiceMonitor that scrapes the redis-exporter of every matching Redis CR,
+# instead of one ServiceMonitor per CR. It selects the `<name>-metrics` Services the
+# operator creates when `spec.redisExporter.enabled` is true, so newly created CRs are
+# picked up automatically. Requires the Prometheus Operator CRDs.
+# When using this, set `serviceMonitor.enabled=false` in the per-CR charts
+# (e.g. redis-cluster) to avoid scraping the same targets twice.
+fleetServiceMonitor:
+  # -- Create one ServiceMonitor for the whole Redis fleet
+  enabled: false
+  # -- ServiceMonitor name. Defaults to `<release>-redis-fleet`
+  name: ""
+  # -- Namespace to create the ServiceMonitor in. Defaults to the release namespace
+  namespace: ""
+  # -- Values of the `redis_setup_type` label to scrape: cluster, standalone, replication, sentinel
+  setupTypes:
+    - cluster
+  # -- Namespaces whose Redis metrics Services are scraped. Empty means the ServiceMonitor's own namespace
+  targetNamespaces: []
+  # -- Scrape matching Services in every namespace (overrides targetNamespaces)
+  allNamespaces: false
+  interval: 30s
+  scrapeTimeout: 10s
+  # -- Extra labels on the ServiceMonitor, e.g. the `release` label your Prometheus selects on
+  extraLabels: {}
+  # -- Relabelings applied to the scrape endpoint
+  relabelings: []
+    # Add a redis_cluster label holding the RedisCluster name (service label app=<name>-leader|follower)
+    # - sourceLabels: [__meta_kubernetes_service_label_app]
+    #   regex: (.+)-(leader|follower)
+    #   targetLabel: redis_cluster
+  # -- Metric relabelings applied to the scrape endpoint
+  metricRelabelings: []
