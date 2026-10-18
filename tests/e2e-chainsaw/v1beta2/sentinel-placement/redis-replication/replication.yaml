@@ -7,11 +7,11 @@ spec:
   clusterSize: 3
   kubernetesConfig:
     image: quay.io/opstree/redis:latest
-    imagePullPolicy: Always
+    imagePullPolicy: IfNotPresent
   sentinel:
     size: 3
     image: quay.io/opstree/redis-sentinel:latest
-    imagePullPolicy: Always
+    imagePullPolicy: IfNotPresent
     # Pod placement controls under test: these must be wired verbatim into the
     # sentinel StatefulSet pod template so Sentinel pods can be kept off the
     # Redis nodes (HA/quorum preservation).

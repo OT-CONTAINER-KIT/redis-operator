@@ -101,6 +101,7 @@ var _ = BeforeSuite(func() {
 		Client:      k8sManager.GetClient(),
 		K8sClient:   k8sClient,
 		Healer:      healer,
+		Checker:     redis.NewChecker(k8sClient),
 		StatefulSet: k8sutils.NewStatefulSetService(k8sClient),
 	}).SetupWithManager(k8sManager, controller.Options{})
 	Expect(err).ToNot(HaveOccurred())

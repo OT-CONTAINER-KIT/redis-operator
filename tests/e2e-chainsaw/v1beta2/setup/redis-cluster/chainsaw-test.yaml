@@ -188,8 +188,17 @@ spec:
               bash -c  "redis-cli -a Opstree1234 --tls --cacert /tls/ca.crt cluster failover"
             check:
               (contains($stdout, 'OK')): true
-        - sleep:
-            duration: 1m
+        # Wait for the role to swing back before scaling out, rather than
+        # assuming a minute was enough.
+        - assert:
+            timeout: 2m
+            resource:
+              apiVersion: v1
+              kind: Pod
+              metadata:
+                name: redis-cluster-v1beta2-follower-0
+                labels:
+                  redis-role: slave
 
     - name: Scale Out Redis Cluster
       try:

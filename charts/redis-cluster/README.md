@@ -102,7 +102,7 @@ helm delete <my-release> --namespace <namespace>
 | redisCluster.leader.serviceType | string | `"ClusterIP"` |  |
 | redisCluster.leader.tolerations | list | `[]` |  |
 | redisCluster.leader.topologySpreadConstraints | list | `[]` |  |
-| redisCluster.maxMemoryPercentOfLimit | int | `0` | MaxMemoryPercentOfLimit is the percentage of the Redis container memory limit to be used as maxmemory.    When a memory limit exists, the operator also exposes the computed value via the REDIS_MAX_MEMORY env var.    Default is 0 (disabled). |
+| redisCluster.maxMemoryPercentOfLimit | int | `0` | MaxMemoryPercentOfLimit is the percentage of the Redis container memory limit to be used as maxmemory.    When a memory limit exists, the operator also exposes the computed value via the REDIS_MAX_MEMORY env var.    Requires the operator to run with the GenerateConfigInInitContainer feature gate enabled    (featureGates.GenerateConfigInInitContainer=true in the redis-operator chart); otherwise maxmemory stays 0.    Default is 0 (disabled). |
 | redisCluster.minReadySeconds | int | `0` |  |
 | redisCluster.name | string | `""` |  |
 | redisCluster.persistenceEnabled | bool | `true` |  |
