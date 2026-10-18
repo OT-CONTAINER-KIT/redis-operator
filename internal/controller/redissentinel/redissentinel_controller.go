@@ -18,6 +18,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -128,15 +129,19 @@ func (r *RedisSentinelReconciler) reconcileSentinel(ctx context.Context, instanc
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
 
-	var monitorAddr string
-	if master, err := r.Checker.GetMasterFromReplication(ctx, rr); err != nil {
+	master, err := r.Checker.GetMasterFromReplication(ctx, rr)
+	if err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
+	}
+	if master.Name == "" {
+		log.FromContext(ctx).Info("no reachable master found in Redis Replication, requeueing", "redisReplication", rr.Name)
+		return intctrlutil.RequeueAfter(ctx, time.Second*10, "")
+	}
+	var monitorAddr string
+	if instance.Spec.RedisSentinelConfig.ResolveHostnames == "yes" {
+		monitorAddr = fmt.Sprintf("%s.%s.%s.svc.%s", master.Name, common.GetHeadlessServiceNameFromPodName(master.Name), rr.Namespace, envs.GetServiceDNSDomain())
 	} else {
-		if instance.Spec.RedisSentinelConfig.ResolveHostnames == "yes" {
-			monitorAddr = fmt.Sprintf("%s.%s.%s.svc.%s", master.Name, common.GetHeadlessServiceNameFromPodName(master.Name), rr.Namespace, envs.GetServiceDNSDomain())
-		} else {
-			monitorAddr = master.Status.PodIP
-		}
+		monitorAddr = master.Status.PodIP
 	}
 	if err := r.Healer.SentinelMonitor(ctx, instance, monitorAddr); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
@@ -144,7 +149,7 @@ func (r *RedisSentinelReconciler) reconcileSentinel(ctx context.Context, instanc
 	if err := r.Healer.SentinelSet(ctx, instance, monitorAddr); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
-	if err := r.Healer.SentinelReset(ctx, instance); err != nil {
+	if err := r.Healer.SentinelReset(ctx, instance, rr); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
 	return intctrlutil.Reconciled()

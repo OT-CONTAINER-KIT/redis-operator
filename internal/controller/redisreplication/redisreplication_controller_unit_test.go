@@ -5,11 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
+	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
+	redischecker "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/redis"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/service/redis"
 	"github.com/stretchr/testify/assert"
@@ -76,6 +79,7 @@ func TestReconcileRedisKeepsHealthyBehaviorWhenTopologyIsComplete(t *testing.T) 
 		RedisReplicationRealMaster: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string {
 			return "example-replication-1"
 		},
+		Checker: keyCountsOf(map[string]int64{"example-replication-0": 120, "example-replication-1": 120}),
 		CreateRedisReplicationLink: func(_ context.Context, _ kubernetes.Interface, _ *rrvb2.RedisReplication, pods []string, realMaster string) error {
 			createCalled = true
 			gotPods = append([]string{}, pods...)
@@ -90,6 +94,116 @@ func TestReconcileRedisKeepsHealthyBehaviorWhenTopologyIsComplete(t *testing.T) 
 	assert.True(t, createCalled)
 	assert.ElementsMatch(t, []string{"example-replication-0", "example-replication-1"}, gotPods)
 	assert.Equal(t, "example-replication-1", gotMaster)
+}
+
+func TestReconcileRedisRefusesToReplicateDataHoldingMastersFromAnEmptyMaster(t *testing.T) {
+	createCalled := false
+	r := &Reconciler{
+		K8sClient:                fake.NewSimpleClientset(),
+		RedisReplicationTopology: topologyOf([]string{"example-replication-0", "example-replication-2"}, []string{"example-replication-1"}, nil),
+		RedisReplicationRealMaster: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string {
+			return "example-replication-0"
+		},
+		Checker: keyCountsOf(map[string]int64{"example-replication-0": 0, "example-replication-2": 120}),
+		CreateRedisReplicationLink: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string, string) error {
+			createCalled = true
+			return nil
+		},
+	}
+
+	result, err := r.reconcileRedis(context.Background(), newReplicationInstanceForTest())
+
+	require.NoError(t, err)
+	assert.Equal(t, time.Second*60, result.RequeueAfter)
+	assert.False(t, createCalled)
+}
+
+func TestReconcileRedisRefusesToReplicateDataHoldingSlavesFromAnEmptyMaster(t *testing.T) {
+	createCalled := false
+	r := &Reconciler{
+		K8sClient:                fake.NewSimpleClientset(),
+		RedisReplicationTopology: topologyOf([]string{"example-replication-2"}, []string{"example-replication-0", "example-replication-1"}, nil),
+		RedisReplicationRealMaster: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string {
+			return ""
+		},
+		Checker: keyCountsOf(map[string]int64{"example-replication-0": 120, "example-replication-1": 120, "example-replication-2": 0}),
+		CreateRedisReplicationLink: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string, string) error {
+			createCalled = true
+			return nil
+		},
+	}
+
+	result, err := r.reconcileRedis(context.Background(), newReplicationInstanceForTest())
+
+	require.NoError(t, err)
+	assert.Equal(t, time.Second*60, result.RequeueAfter)
+	assert.False(t, createCalled)
+}
+
+func TestReconcileRedisBootstrapsReplicationWhenEveryPodIsEmpty(t *testing.T) {
+	var gotMaster string
+	r := &Reconciler{
+		K8sClient:                fake.NewSimpleClientset(),
+		RedisReplicationTopology: topologyOf([]string{"example-replication-0", "example-replication-1", "example-replication-2"}, nil, nil),
+		RedisReplicationRealMaster: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string {
+			return ""
+		},
+		Checker: keyCountsOf(map[string]int64{"example-replication-0": 0, "example-replication-1": 0, "example-replication-2": 0}),
+		CreateRedisReplicationLink: func(_ context.Context, _ kubernetes.Interface, _ *rrvb2.RedisReplication, _ []string, realMaster string) error {
+			gotMaster = realMaster
+			return nil
+		},
+	}
+
+	result, err := r.reconcileRedis(context.Background(), newReplicationInstanceForTest())
+
+	require.NoError(t, err)
+	assert.Equal(t, ctrl.Result{}, result)
+	assert.Equal(t, "example-replication-0", gotMaster)
+}
+
+func TestReconcileRedisRefusesEmptyMasterWhenAPeerKeyCountIsUnknown(t *testing.T) {
+	createCalled := false
+	r := &Reconciler{
+		K8sClient:                fake.NewSimpleClientset(),
+		RedisReplicationTopology: topologyOf([]string{"example-replication-2"}, []string{"example-replication-0", "example-replication-1"}, nil),
+		RedisReplicationRealMaster: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string {
+			return ""
+		},
+		Checker: keyCountsOf(map[string]int64{"example-replication-0": 0, "example-replication-2": 0}),
+		CreateRedisReplicationLink: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string, string) error {
+			createCalled = true
+			return nil
+		},
+	}
+
+	result, err := r.reconcileRedis(context.Background(), newReplicationInstanceForTest())
+
+	require.NoError(t, err)
+	assert.Equal(t, time.Second*60, result.RequeueAfter)
+	assert.False(t, createCalled)
+}
+
+func TestReconcileRedisSkipsReplicationChangesWhenTheMasterKeyCountIsUnknown(t *testing.T) {
+	createCalled := false
+	r := &Reconciler{
+		K8sClient:                fake.NewSimpleClientset(),
+		RedisReplicationTopology: topologyOf([]string{"example-replication-0", "example-replication-1"}, []string{"example-replication-2"}, nil),
+		RedisReplicationRealMaster: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string {
+			return "example-replication-1"
+		},
+		Checker: keyCountsOf(map[string]int64{"example-replication-0": 120}),
+		CreateRedisReplicationLink: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string, string) error {
+			createCalled = true
+			return nil
+		},
+	}
+
+	result, err := r.reconcileRedis(context.Background(), newReplicationInstanceForTest())
+
+	require.NoError(t, err)
+	assert.Equal(t, time.Second*60, result.RequeueAfter)
+	assert.False(t, createCalled)
 }
 
 func TestReconcileRedisSkipsSentinelReconfigurationWhenTopologyIsIncompleteAndMasterIsAmbiguous(t *testing.T) {
@@ -278,6 +392,7 @@ func TestReconcileRedisAttachesReturningMasterUnderTheMasterSentinelMonitors(t *
 			return nil
 		},
 		SentinelMonitoredMaster: sentinelMonitoring("example-replication-1"),
+		Checker:                 keyCountsOf(map[string]int64{"example-replication-0": 0, "example-replication-1": 120}),
 	}
 	instance := newSentinelReplicationInstanceForTest()
 	instance.Spec.Size = ptr.To(int32(2))
@@ -1032,6 +1147,10 @@ func (f *fakeSentinelInfoService) GetAttachedReplicaCount(context.Context) (int,
 	return 0, nil
 }
 
+func (f *fakeSentinelInfoService) GetKeyCount(context.Context) (int64, error) {
+	return 0, nil
+}
+
 func (f *fakeSentinelInfoService) SentinelMonitor(context.Context, *redis.ConnectionInfo, string, string) error {
 	return nil
 }
@@ -1076,6 +1195,36 @@ func topologyOf(masters, slaves, unobserved []string) func(context.Context, kube
 			Unobserved: unobserved,
 		}, nil
 	}
+}
+
+func keyCountsOf(keyCounts map[string]int64) redischecker.Checker {
+	return &fakeChecker{keyCounts: keyCounts}
+}
+
+type fakeChecker struct {
+	keyCounts map[string]int64
+}
+
+func (f *fakeChecker) GetMasterFromReplication(context.Context, *rrvb2.RedisReplication) (corev1.Pod, error) {
+	return corev1.Pod{}, nil
+}
+
+func (f *fakeChecker) GetPassword(context.Context, string, *commonapi.ExistingPasswordSecret) (string, error) {
+	return "", nil
+}
+
+func (f *fakeChecker) CheckClusterSlotsAssigned(context.Context, *rcvb2.RedisCluster) (bool, error) {
+	return true, nil
+}
+
+func (f *fakeChecker) GetReplicationKeyCounts(_ context.Context, _ *rrvb2.RedisReplication, pods []string) map[string]int64 {
+	probed := make(map[string]int64, len(pods))
+	for _, pod := range pods {
+		if keys, ok := f.keyCounts[pod]; ok {
+			probed[pod] = keys
+		}
+	}
+	return probed
 }
 
 func newReplicationInstanceForTest() *rrvb2.RedisReplication {
@@ -1123,7 +1272,7 @@ func (f *fakeHealer) SentinelSet(context.Context, *rsvb2.RedisSentinel, string) 
 	return nil
 }
 
-func (f *fakeHealer) SentinelReset(context.Context, *rsvb2.RedisSentinel) error {
+func (f *fakeHealer) SentinelReset(context.Context, *rsvb2.RedisSentinel, *rrvb2.RedisReplication) error {
 	return nil
 }
 

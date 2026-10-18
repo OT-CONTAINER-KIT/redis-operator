@@ -88,7 +88,7 @@ helm delete <my-release> --namespace <namespace>
 | redisReplication.imagePullPolicy | string | `"IfNotPresent"` |  |
 | redisReplication.imagePullSecrets | list | `[]` |  |
 | redisReplication.livenessProbe | object | `{}` |  |
-| redisReplication.maxMemoryPercentOfLimit | int | `0` | MaxMemoryPercentOfLimit is the percentage of the Redis container memory limit to be used as maxmemory.    When a memory limit exists, the operator also exposes the computed value via the REDIS_MAX_MEMORY env var.    Default is 0 (disabled). |
+| redisReplication.maxMemoryPercentOfLimit | int | `0` | MaxMemoryPercentOfLimit is the percentage of the Redis container memory limit to be used as maxmemory.    When a memory limit exists, the operator also exposes the computed value via the REDIS_MAX_MEMORY env var.    Requires the operator to run with the GenerateConfigInInitContainer feature gate enabled    (featureGates.GenerateConfigInInitContainer=true in the redis-operator chart); otherwise maxmemory stays 0.    Default is 0 (disabled). |
 | redisReplication.minReadySeconds | int | `0` |  |
 | redisReplication.name | string | `""` |  |
 | redisReplication.persistentVolumeClaimRetentionPolicy | object | `{}` |  |
@@ -109,7 +109,7 @@ helm delete <my-release> --namespace <namespace>
 | sentinel.parallelSyncs | string | `"1"` | Number of replicas to reconfigure in parallel during failover |
 | sentinel.podSecurityContext | object | `{}` | Pod-level security context for Sentinel pods. |
 | sentinel.priorityClassName | string | `""` | PriorityClass name for Sentinel pods. |
-| sentinel.redisSecret | object | `{"secretKey":"","secretName":""}` | Secret holding the password Sentinel uses to authenticate to Redis. Leave empty to fall back to redisReplication.redisSecret. |
+| sentinel.redisSecret | object | `{"secretKey":"","secretName":""}` | Secret holding the Sentinel password (requirepass on port 26379). The password Sentinel uses towards Redis always comes from redisReplication.redisSecret. |
 | sentinel.resolveHostnames | string | `"no"` | Use hostnames instead of IPs for Sentinel monitoring. WARNING: the operator does not pass RESOLVE_HOSTNAMES env var to sentinel pods, so setting this to "yes" will cause SENTINEL MONITOR to fail. Keep as "no". |
 | sentinel.securityContext | object | `{}` | Container-level security context for the Sentinel container. |
 | sentinel.serviceAccountName | string | `""` | ServiceAccount name for Sentinel pods. |
