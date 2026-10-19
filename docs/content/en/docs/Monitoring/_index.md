@@ -20,9 +20,10 @@ For the helm chart installation of redis setup, we can simply enable the redis e
 ```yaml
 redisExporter:
   enabled: true
-  image: quay.io/opstree/redis-exporter:1.0
   imagePullPolicy: Always
 ```
+
+This uses the chart's default exporter image and tag. To override them, set `redisExporter.image` to the image repository and `redisExporter.tag` separately; the chart joins them with a colon.
 
 When we have defined the redis-exporter related config in values file, we can apply or upgrade the redis setup. We need to pass the created file as an argument to the `helm` command.
 
@@ -52,7 +53,9 @@ serviceMonitor:
   namespace: monitoring
 ```
 
-For kubectl related configuration, we may have to create `ServiceMonitor` definition in a YAML manifest and apply it using `kubectl` command.
+For kubectl related configuration, we may have to create `ServiceMonitor` definition in a YAML manifest and apply it using `kubectl` command. Keep `serviceMonitor.enabled: false` when using these hand-written manifests so the chart does not create additional ServiceMonitors.
+
+The examples below create the ServiceMonitor in the `monitoring` namespace and select Redis services in `ot-operators`, the namespace used by the Helm commands above. `metadata.namespace` locates the ServiceMonitor itself; `spec.namespaceSelector.matchNames` identifies the namespaces of the services to scrape. Adjust these namespaces for your installation, ensure `monitoring` exists, and configure Prometheus to select the ServiceMonitor.
 
 When the exporter is enabled, the operator creates a dedicated `<name>-metrics` service labelled with `app.kubernetes.io/component: metrics`. For standalone, replication and sentinel setups the regular Redis service exposes the exporter port as well, so a selector that only matches `redis_setup_type` selects both services and Prometheus scrapes the exporter twice. Match on `app.kubernetes.io/component: metrics` as well to select only the metrics service.
 
@@ -64,6 +67,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: redis-cluster
+  namespace: monitoring
 spec:
   selector:
     matchLabels:
@@ -75,7 +79,7 @@ spec:
     scrapeTimeout: 10s
   namespaceSelector:
     matchNames:
-    - monitoring
+    - ot-operators
 ```
 
 ServiceMonitor for Redis standalone setup:
@@ -86,6 +90,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: redis-standalone
+  namespace: monitoring
 spec:
   selector:
     matchLabels:
@@ -97,7 +102,7 @@ spec:
     scrapeTimeout: 10s
   namespaceSelector:
     matchNames:
-    - monitoring
+    - ot-operators
 ```
 
 ## Grafana Dashboards
