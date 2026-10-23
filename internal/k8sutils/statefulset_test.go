@@ -2571,3 +2571,58 @@ func TestStatefulSetSelectorLabels(t *testing.T) {
 		})
 	}
 }
+
+func TestGenerateInitContainerDefMountsACLFile(t *testing.T) {
+	originalEnabled := features.Enabled(features.GenerateConfigInInitContainer)
+	require.NoError(t, features.MutableFeatureGate.Set("GenerateConfigInInitContainer=true"))
+	t.Cleanup(func() {
+		require.NoError(t, features.MutableFeatureGate.Set(fmt.Sprintf("GenerateConfigInInitContainer=%t", originalEnabled)))
+	})
+
+	tests := []struct {
+		name      string
+		aclConfig *common.ACLConfig
+		wantMount corev1.VolumeMount
+	}{
+		{
+			name: "acl from secret is mounted read-only at the aclfile path",
+			aclConfig: &common.ACLConfig{
+				Secret: &corev1.SecretVolumeSource{SecretName: "acl-secret"},
+			},
+			wantMount: corev1.VolumeMount{Name: "acl-secret", MountPath: "/etc/redis/user.acl", SubPath: "user.acl", ReadOnly: true},
+		},
+		{
+			name: "acl from pvc is mounted read-only at the aclfile directory",
+			aclConfig: &common.ACLConfig{
+				PersistentVolumeClaim: ptr.To("acl-pvc"),
+			},
+			wantMount: corev1.VolumeMount{Name: "acl-pvc", MountPath: "/data/redis", ReadOnly: true},
+		},
+		{
+			name: "secret wins over pvc to match the volume definition",
+			aclConfig: &common.ACLConfig{
+				Secret:                &corev1.SecretVolumeSource{SecretName: "acl-secret"},
+				PersistentVolumeClaim: ptr.To("acl-pvc"),
+			},
+			wantMount: corev1.VolumeMount{Name: "acl-secret", MountPath: "/etc/redis/user.acl", SubPath: "user.acl", ReadOnly: true},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			containers := generateInitContainerDef("", "redis", initContainerParameters{}, nil, nil, containerParameters{ACLConfig: tt.aclConfig}, ptr.To("v7"))
+			require.Len(t, containers, 1)
+			initConfig := containers[0]
+			assert.Equal(t, "init-config", initConfig.Name)
+
+			var aclMounts []corev1.VolumeMount
+			for _, m := range initConfig.VolumeMounts {
+				if m.Name == "acl-secret" || m.Name == "acl-pvc" {
+					aclMounts = append(aclMounts, m)
+				}
+			}
+			require.Len(t, aclMounts, 1)
+			assert.Equal(t, tt.wantMount, aclMounts[0])
+		})
+	}
+}

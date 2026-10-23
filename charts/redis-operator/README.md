@@ -113,6 +113,7 @@ kubectl create secret tls <webhook-server-cert> --key tls.key --cert tls.crt -n 
 | nodeSelector | object | `{}` |  |
 | podSecurityContext | object | `{}` |  |
 | priorityClassName | string | `""` |  |
+| rbac.aggregate | bool | `true` | Aggregate the Redis CRs into the builtin view, edit and admin ClusterRoles. Only rendered when rbac.scope is "cluster". |
 | rbac.enabled | bool | `true` | Enable RBAC resources creation |
 | rbac.scope | string | `"cluster"` | RBAC scope: "cluster" for ClusterRole/ClusterRoleBinding or "namespace" for Role/RoleBinding. "cluster" lets the operator manage Redis resources across all namespaces (default behavior). "namespace" restricts the operator to its own release namespace; set redisOperator.watchNamespace accordingly and ensure the CRDs are installed separately (CRDs are cluster-scoped). |
 | redisOperator.automountServiceAccountToken | bool | `true` |  |
@@ -122,7 +123,7 @@ kubectl create secret tls <webhook-server-cert> --key tls.key --cert tls.crt -n 
 | redisOperator.imagePullPolicy | string | `"Always"` |  |
 | redisOperator.imagePullSecrets | list | `[]` |  |
 | redisOperator.imageTag | string | `""` |  |
-| redisOperator.initContainerImageTag | string | `"v0.26.0"` | initContainerImageTag is the init-config init container image tag. If not specified, defaults to imageTag, then falls back to chart appVersion. Typically only needs to be set when using a different version for the init container. |
+| redisOperator.initContainerImageTag | string | `"v0.27.0"` | initContainerImageTag is the init-config init container image tag. If not specified, defaults to imageTag, then falls back to chart appVersion. Typically only needs to be set when using a different version for the init container. |
 | redisOperator.metrics.bindAddress | string | `":8080"` |  |
 | redisOperator.metrics.enabled | bool | `true` |  |
 | redisOperator.name | string | `"redis-operator"` |  |

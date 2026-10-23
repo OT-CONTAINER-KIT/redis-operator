@@ -3,6 +3,8 @@ package redis
 import (
 	"context"
 	"crypto/tls"
+	"errors"
+	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -53,6 +55,7 @@ func NewClient() Client {
 type Service interface {
 	IsMaster(ctx context.Context) (bool, error)
 	GetAttachedReplicaCount(ctx context.Context) (int, error)
+	GetKeyCount(ctx context.Context) (int64, error)
 	SentinelMonitor(ctx context.Context, master *ConnectionInfo, masterGroupName, quorum string) error
 	SentinelSet(ctx context.Context, masterGroupName, key, value string) error
 	SentinelReset(ctx context.Context, masterGroupName string) error
@@ -70,6 +73,22 @@ type SentinelMasterInfo struct {
 	Address   string
 	Slaves    int
 	Sentinels int
+}
+
+func (r *InfoSentinelResult) Master(name string) (SentinelMasterInfo, bool) {
+	if r == nil {
+		return SentinelMasterInfo{}, false
+	}
+	for _, master := range r.Masters {
+		if master.Name == name {
+			return master, true
+		}
+	}
+	return SentinelMasterInfo{}, false
+}
+
+func (m SentinelMasterInfo) HasStaleEntries(expectedSlaves, expectedSentinels int) bool {
+	return m.Slaves > expectedSlaves || m.Sentinels > expectedSentinels
 }
 
 type service struct {
@@ -308,6 +327,46 @@ func (c *service) GetAttachedReplicaCount(ctx context.Context) (int, error) {
 		}
 	}
 	return count, nil
+}
+
+func (c *service) GetKeyCount(ctx context.Context) (int64, error) {
+	client := c.createClient()
+	if client == nil {
+		return 0, errors.New("redis connection info is not set")
+	}
+	defer client.Close()
+
+	result, err := client.Info(ctx, "keyspace").Result()
+	if err != nil {
+		return 0, err
+	}
+	return countKeyspaceKeys(result)
+}
+
+func countKeyspaceKeys(info string) (int64, error) {
+	var total int64
+	for _, line := range strings.Split(info, "\r\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "db") {
+			continue
+		}
+		_, fields, ok := strings.Cut(line, ":")
+		if !ok {
+			continue
+		}
+		for _, field := range strings.Split(fields, ",") {
+			value, found := strings.CutPrefix(field, "keys=")
+			if !found {
+				continue
+			}
+			keys, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				return 0, fmt.Errorf("parse %q: %w", line, err)
+			}
+			total += keys
+		}
+	}
+	return total, nil
 }
 
 // GetClusterInfo get cluster information by checking slot allocation

@@ -22,8 +22,9 @@ spec:
             content: >
               kubectl patch rediscluster redis-cluster-v1beta2 --namespace ${NAMESPACE}
               --type merge --patch '{"spec":{"podManagementPolicy":"OrderedReady"}}'
-        # Give the operator time to reconcile the change; the field is immutable
-        # so the StatefulSets must keep the stored policy and stay healthy.
+        # Deliberately a flat sleep, not a poll: this step proves a non-event
+        # (the field is immutable, so the StatefulSets must keep the stored
+        # policy and stay healthy), and there is no state change to wait for.
         - sleep:
             duration: 30s
         - assert:
