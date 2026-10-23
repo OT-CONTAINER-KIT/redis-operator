@@ -6,6 +6,7 @@ import (
 	"net"
 	"strings"
 
+	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/statefulset"
@@ -137,25 +138,28 @@ func buildSentinelEnv(rr *rrvb2.RedisReplication) []corev1.EnvVar {
 		{Name: "RESOLVE_HOSTNAMES", Value: resolveHostnamesOrDefault(rr.Spec.Sentinel.ResolveHostnames)},
 		{Name: "ANNOUNCE_HOSTNAMES", Value: resolveHostnamesOrDefault(rr.Spec.Sentinel.AnnounceHostnames)},
 	}
-	passwordSecret := rr.Spec.KubernetesConfig.ExistingPasswordSecret
-	if rr.Spec.Sentinel.ExistingPasswordSecret != nil {
-		passwordSecret = rr.Spec.Sentinel.ExistingPasswordSecret
+	if secret := rr.Spec.KubernetesConfig.ExistingPasswordSecret; secret != nil {
+		envs = append(envs, secretEnvVar("MASTER_PASSWORD", secret))
 	}
-	if passwordSecret != nil {
-		envs = append(envs, corev1.EnvVar{
-			Name: "MASTER_PASSWORD",
-			ValueFrom: &corev1.EnvVarSource{
-				SecretKeyRef: &corev1.SecretKeySelector{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: *passwordSecret.Name,
-					},
-					Key: *passwordSecret.Key,
-				},
-			},
-		})
+	if secret := rr.Spec.Sentinel.ExistingPasswordSecret; secret != nil {
+		envs = append(envs, secretEnvVar("REDIS_PASSWORD", secret))
 	}
 
 	return envs
+}
+
+func secretEnvVar(name string, secret *commonapi.ExistingPasswordSecret) corev1.EnvVar {
+	return corev1.EnvVar{
+		Name: name,
+		ValueFrom: &corev1.EnvVarSource{
+			SecretKeyRef: &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: *secret.Name,
+				},
+				Key: *secret.Key,
+			},
+		},
+	}
 }
 
 func resolveHostnamesOrDefault(v string) string {
@@ -249,18 +253,22 @@ func sentinelAddressHost(address string) string {
 }
 
 func (r *Reconciler) sentinelPassword(ctx context.Context, inst *rrvb2.RedisReplication) (string, error) {
-	if inst.Spec.Sentinel.ExistingPasswordSecret == nil {
+	return r.secretPassword(ctx, inst.Namespace, inst.Spec.Sentinel.ExistingPasswordSecret)
+}
+
+func (r *Reconciler) masterPassword(ctx context.Context, inst *rrvb2.RedisReplication) (string, error) {
+	return r.secretPassword(ctx, inst.Namespace, inst.Spec.KubernetesConfig.ExistingPasswordSecret)
+}
+
+func (r *Reconciler) secretPassword(ctx context.Context, namespace string, ref *commonapi.ExistingPasswordSecret) (string, error) {
+	if ref == nil {
 		return "", nil
 	}
-	secret, err := r.K8sClient.CoreV1().Secrets(inst.Namespace).Get(
-		ctx,
-		*inst.Spec.Sentinel.ExistingPasswordSecret.Name,
-		metav1.GetOptions{},
-	)
+	secret, err := r.K8sClient.CoreV1().Secrets(namespace).Get(ctx, *ref.Name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
-	return string(secret.Data[*inst.Spec.Sentinel.ExistingPasswordSecret.Key]), nil
+	return string(secret.Data[*ref.Key]), nil
 }
 
 func replicationPodHostname(inst *rrvb2.RedisReplication, podName string) string {

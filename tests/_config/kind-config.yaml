@@ -2,13 +2,14 @@
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 name: kind
+# One control-plane, three workers. The extra two control-planes this used to
+# carry kept kind's NoSchedule taint (kind only untaints when a cluster has no
+# workers), so they added a second and third etcd/apiserver/controller-manager
+# plus an haproxy front-end to a 4-vCPU runner while contributing zero
+# schedulable capacity. The node-shutdown simulation and pod anti-affinity they
+# were added for are no longer part of the suite.
 nodes:
   - role: control-plane
-  - role: control-plane
-  - role: control-plane
-  - role: worker
-  - role: worker
-  - role: worker
   - role: worker
   - role: worker
   - role: worker

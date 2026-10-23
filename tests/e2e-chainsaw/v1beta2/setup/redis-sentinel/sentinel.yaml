@@ -14,7 +14,7 @@ spec:
         additionalAnnotations:
           opstreelabs.in/additional-annotation: present
     image: quay.io/opstree/redis-sentinel:latest
-    imagePullPolicy: Always
+    imagePullPolicy: IfNotPresent
     redisSecret:
       name: redis-secret
       key: password
@@ -23,5 +23,4 @@ spec:
         cpu: 101m
         memory: 128Mi
       limits:
-        cpu: 101m
         memory: 128Mi

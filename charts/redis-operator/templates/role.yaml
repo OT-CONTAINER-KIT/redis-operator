@@ -20,9 +20,6 @@ metadata:
     app.kubernetes.io/version : {{ .Chart.AppVersion }}
     app.kubernetes.io/component: role
     app.kubernetes.io/part-of : {{ .Release.Name }}
-{{- if eq $scope "cluster" }}
-    rbac.authorization.k8s.io/aggregate-to-admin: "true"
-{{- end }}
 rules:
 - apiGroups:
   - redis.redis.opstreelabs.in
