@@ -90,6 +90,53 @@ func Test_GenerateConfig_AppendOnlyFilename_MatchesRedisDefault(t *testing.T) {
 	assert.Contains(t, conf, `appendfilename "appendonly.aof"`)
 }
 
+func Test_GenerateConfig_AppendOnlyFilename_KeepsExistingAOF(t *testing.T) {
+	tests := []struct {
+		name  string
+		files []string
+		want  string
+	}{
+		{name: "empty data dir uses the Redis default", want: "appendonly.aof"},
+		{
+			name:  "legacy multi-part AOF keeps the legacy name",
+			files: []string{"appendonlydir/Appendonly.aof.manifest", "appendonlydir/Appendonly.aof.1.base.rdb"},
+			want:  "Appendonly.aof",
+		},
+		{name: "legacy single-file AOF keeps the legacy name", files: []string{"Appendonly.aof"}, want: "Appendonly.aof"},
+		{
+			name:  "default AOF uses the default name",
+			files: []string{"appendonlydir/appendonly.aof.manifest"},
+			want:  "appendonly.aof",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmp := t.TempDir()
+			dataDir := filepath.Join(tmp, "data")
+			require.NoError(t, os.MkdirAll(dataDir, 0o755))
+			for _, f := range tt.files {
+				p := filepath.Join(dataDir, f)
+				require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
+				require.NoError(t, os.WriteFile(p, nil, 0o644))
+			}
+			confPath := filepath.Join(tmp, "redis.conf")
+
+			t.Setenv("REDIS_CONFIG_FILE", confPath)
+			t.Setenv("PERSISTENCE_ENABLED", "true")
+			t.Setenv("DATA_DIR", dataDir)
+			t.Setenv("SETUP_MODE", "standalone")
+			t.Setenv("TLS_MODE", "false")
+
+			require.NoError(t, GenerateConfig())
+
+			raw, err := os.ReadFile(confPath)
+			require.NoError(t, err)
+			assert.Contains(t, string(raw), `appendfilename "`+tt.want+`"`)
+		})
+	}
+}
+
 func Test_GenerateConfig_ReplicaAnnounceIP(t *testing.T) {
 	const fakeFQDN = "redis-replication-0.redis-replication-headless.ns.svc.cluster.local"
 

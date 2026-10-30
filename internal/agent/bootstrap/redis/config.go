@@ -46,6 +46,47 @@ func announceHostname() (string, error) {
 	return name, nil
 }
 
+const (
+	// defaultAppendFilename matches Redis' own default AOF base name.
+	defaultAppendFilename = "appendonly.aof"
+	// legacyAppendFilename is the AOF base name this generator wrote before
+	// v0.27.0 (#1904). Pods that ran under it hold their AOF under this name.
+	legacyAppendFilename = "Appendonly.aof"
+)
+
+// resolveAppendFilename returns the AOF base name to configure. It keeps the
+// legacy mixed-case name when dataDir holds an AOF written under it and none
+// under the default name, so an upgrade does not start Redis on an empty
+// dataset next to its existing AOF on a case-sensitive filesystem.
+func resolveAppendFilename(dataDir string) string {
+	if hasAOF(dataDir, defaultAppendFilename) || !hasAOF(dataDir, legacyAppendFilename) {
+		return defaultAppendFilename
+	}
+	log.Printf("Found an existing AOF named %q in %s; keeping that appendfilename so the data is loaded", legacyAppendFilename, dataDir)
+	return legacyAppendFilename
+}
+
+// hasAOF reports whether dataDir holds an AOF with the given base name: a
+// Redis 7+ manifest in the default appenddirname, or a pre-7 single AOF file.
+// Names are compared exactly, so the check is case-sensitive on every
+// filesystem.
+func hasAOF(dataDir, base string) bool {
+	return dirContains(filepath.Join(dataDir, "appendonlydir"), base+".manifest") || dirContains(dataDir, base)
+}
+
+func dirContains(dir, name string) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		if e.Name() == name {
+			return true
+		}
+	}
+	return false
+}
+
 // GenerateConfig generates Redis configuration file
 func GenerateConfig() error {
 	confPath := util.CoalesceEnv1("REDIS_CONFIG_FILE", "/etc/redis/redis.conf")
@@ -172,7 +213,7 @@ func GenerateConfig() error {
 		cfg.Append("save", "300 10")
 		cfg.Append("save", "60 10000")
 		cfg.Append("appendonly", "yes")
-		cfg.Append("appendfilename", "\"appendonly.aof\"")
+		cfg.Append("appendfilename", fmt.Sprintf("%q", resolveAppendFilename(dataDir)))
 		cfg.Append("dir", dataDir)
 	} else {
 		fmt.Println("Running without persistence mode")

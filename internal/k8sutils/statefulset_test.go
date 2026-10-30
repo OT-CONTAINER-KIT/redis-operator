@@ -2572,6 +2572,30 @@ func TestStatefulSetSelectorLabels(t *testing.T) {
 	}
 }
 
+func TestGenerateInitContainerDefMountsDataDirWhenPersistent(t *testing.T) {
+	originalEnabled := features.Enabled(features.GenerateConfigInInitContainer)
+	require.NoError(t, features.MutableFeatureGate.Set("GenerateConfigInInitContainer=true"))
+	t.Cleanup(func() {
+		require.NoError(t, features.MutableFeatureGate.Set(fmt.Sprintf("GenerateConfigInInitContainer=%t", originalEnabled)))
+	})
+
+	dataMounts := func(persistence *bool) []corev1.VolumeMount {
+		containers := generateInitContainerDef("", "redis", initContainerParameters{}, nil, nil, containerParameters{PersistenceEnabled: persistence}, ptr.To("v7"))
+		require.Len(t, containers, 1)
+		var mounts []corev1.VolumeMount
+		for _, m := range containers[0].VolumeMounts {
+			if m.MountPath == "/data" {
+				mounts = append(mounts, m)
+			}
+		}
+		return mounts
+	}
+
+	assert.Equal(t, []corev1.VolumeMount{{Name: "redis", MountPath: "/data", ReadOnly: true}}, dataMounts(ptr.To(true)))
+	assert.Empty(t, dataMounts(ptr.To(false)))
+	assert.Empty(t, dataMounts(nil))
+}
+
 func TestGenerateInitContainerDefMountsACLFile(t *testing.T) {
 	originalEnabled := features.Enabled(features.GenerateConfigInInitContainer)
 	require.NoError(t, features.MutableFeatureGate.Set("GenerateConfigInInitContainer=true"))

@@ -814,6 +814,15 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 		if aclMount := generateACLVolumeMount(containerParams.ACLConfig, true); aclMount != nil {
 			VolumeMounts = append(VolumeMounts, *aclMount)
 		}
+		// The bootstrap agent reads the data directory to keep the AOF name an
+		// existing dataset was written under.
+		if containerParams.PersistenceEnabled != nil && *containerParams.PersistenceEnabled {
+			VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
+				Name:      util.CoalesceEnv1(common.EnvOperatorSTSPVCTemplateName, name),
+				MountPath: "/data",
+				ReadOnly:  true,
+			})
+		}
 
 		container := corev1.Container{
 			Name:            "init-config",
