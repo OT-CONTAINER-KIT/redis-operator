@@ -3,12 +3,19 @@ package k8sutils
 import (
 	"context"
 	"errors"
+	"fmt"
+	"path"
+	"strings"
 
+	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
@@ -33,6 +40,25 @@ type RedisSentinelService struct {
 
 // Redis Sentinel Create the Redis Sentinel Setup
 func CreateRedisSentinel(ctx context.Context, client kubernetes.Interface, cr *rsvb2.RedisSentinel, cl kubernetes.Interface, ctrlClient client.Client) error {
+	if err := validateStandaloneSentinelStorage(cr); err != nil {
+		return err
+	}
+	if cr.Spec.RedisSentinelConfig != nil {
+		stored, err := cl.AppsV1().StatefulSets(cr.Namespace).Get(ctx, cr.GetStatefulSetName(), metav1.GetOptions{})
+		if err == nil {
+			persistent := false
+			for _, claim := range stored.Spec.VolumeClaimTemplates {
+				if claim.Name == common.VolumeNameSentinelState {
+					persistent = true
+				}
+			}
+			if !persistent {
+				return fmt.Errorf("legacy Sentinel StatefulSet requires an explicit retained-state storage migration")
+			}
+		} else if !apierrors.IsNotFound(err) {
+			return err
+		}
+	}
 	prop := RedisSentinelSTS{
 		RedisStateFulType:             "sentinel",
 		Affinity:                      cr.Spec.Affinity,
@@ -112,6 +138,12 @@ func generateRedisSentinelParams(ctx context.Context, cr *rsvb2.RedisSentinel, r
 	if cr.Spec.PodManagementPolicy != nil {
 		res.PodManagementPolicy = cr.Spec.PodManagementPolicy
 	}
+	if cr.Spec.RedisSentinelConfig != nil && cr.Spec.Storage != nil {
+		res.SentinelConfigClaim = cr.Spec.Storage.VolumeClaimTemplate.DeepCopy()
+		if res.PersistentVolumeClaimRetentionPolicy == nil {
+			res.PersistentVolumeClaimRetentionPolicy = &appsv1.StatefulSetPersistentVolumeClaimRetentionPolicy{WhenDeleted: appsv1.RetainPersistentVolumeClaimRetentionPolicyType, WhenScaled: appsv1.RetainPersistentVolumeClaimRetentionPolicyType}
+		}
+	}
 
 	if cr.Spec.KubernetesConfig.ImagePullSecrets != nil {
 		res.ImagePullSecrets = cr.Spec.KubernetesConfig.ImagePullSecrets
@@ -160,14 +192,16 @@ func generateRedisSentinelContainerParams(ctx context.Context, client kubernetes
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{
-		Role:                  "sentinel",
-		Image:                 cr.Spec.KubernetesConfig.Image,
-		ImagePullPolicy:       cr.Spec.KubernetesConfig.ImagePullPolicy,
-		Resources:             cr.Spec.KubernetesConfig.Resources,
-		SecurityContext:       cr.Spec.SecurityContext,
-		Port:                  ptr.To(common.SentinelPort),
-		HostPort:              cr.Spec.HostPort,
-		AdditionalEnvVariable: getSentinelEnvVariable(cr),
+		DeferSentinelMonitor:     cr.Spec.RedisSentinelConfig != nil,
+		PersistentSentinelConfig: cr.Spec.RedisSentinelConfig != nil,
+		Role:                     "sentinel",
+		Image:                    cr.Spec.KubernetesConfig.Image,
+		ImagePullPolicy:          cr.Spec.KubernetesConfig.ImagePullPolicy,
+		Resources:                cr.Spec.KubernetesConfig.Resources,
+		SecurityContext:          cr.Spec.SecurityContext,
+		Port:                     ptr.To(common.SentinelPort),
+		HostPort:                 cr.Spec.HostPort,
+		AdditionalEnvVariable:    getSentinelEnvVariable(cr),
 	}
 	if cr.Spec.EnvVars != nil {
 		containerProp.EnvVars = cr.Spec.EnvVars
@@ -276,6 +310,11 @@ func getSentinelEnvVariable(cr *rsvb2.RedisSentinel) *[]corev1.EnvVar {
 	}
 
 	envVar := &[]corev1.EnvVar{
+		{Name: "PERSIST_SENTINEL_CONFIG", Value: "true"},
+		{
+			Name:  "DEFER_SENTINEL_MONITOR",
+			Value: "true",
+		},
 		{
 			Name:  "MASTER_GROUP_NAME",
 			Value: cr.Spec.RedisSentinelConfig.MasterGroupName,
@@ -317,6 +356,77 @@ func getSentinelEnvVariable(cr *rsvb2.RedisSentinel) *[]corev1.EnvVar {
 		})
 	}
 	return envVar
+}
+
+func validateStandaloneSentinelStorage(cr *rsvb2.RedisSentinel) error {
+	if cr.Spec.RedisSentinelConfig == nil {
+		if cr.Spec.Storage != nil {
+			return fmt.Errorf("persistent Sentinel storage requires linked replication configuration")
+		}
+		return nil
+	}
+	if cr.Spec.Storage == nil || cr.Spec.Storage.VolumeClaimTemplate.Spec.Resources.Requests.Storage().Sign() <= 0 {
+		return fmt.Errorf("standalone Sentinel authority requires a persistent configuration volume claim")
+	}
+	if cr.Spec.RedisSentinelConfig.RedisReplicationName == "" || cr.Spec.RedisSentinelConfig.MasterGroupName == "" {
+		return fmt.Errorf("persistent Sentinel storage requires a replication name and master group")
+	}
+	claim := cr.Spec.Storage.VolumeClaimTemplate.Spec
+	if claim.DataSource != nil || claim.DataSourceRef != nil {
+		return fmt.Errorf("sentinel state must not be cloned from a shared claim template")
+	}
+	if claim.VolumeMode != nil && *claim.VolumeMode != corev1.PersistentVolumeFilesystem {
+		return fmt.Errorf("sentinel configuration requires filesystem storage")
+	}
+	if cr.Spec.PodSecurityContext == nil || cr.Spec.PodSecurityContext.FSGroup == nil {
+		return fmt.Errorf("persistent Sentinel configuration requires an explicit pod fsGroup")
+	}
+	if cr.Spec.PodSecurityContext.RunAsUser == nil {
+		return fmt.Errorf("persistent Sentinel configuration requires an explicit pod user")
+	}
+	user := *cr.Spec.PodSecurityContext.RunAsUser
+	if cr.Spec.SecurityContext != nil && cr.Spec.SecurityContext.RunAsUser != nil && *cr.Spec.SecurityContext.RunAsUser != user {
+		return fmt.Errorf("sentinel and its initializer must share the configuration owner")
+	}
+	if init := cr.Spec.InitContainer; init != nil && init.SecurityContext != nil && init.SecurityContext.RunAsUser != nil && *init.SecurityContext.RunAsUser != user {
+		return fmt.Errorf("sentinel and its initializer must share the configuration owner")
+	}
+	if cr.Spec.InitContainer != nil && ptr.Deref(cr.Spec.InitContainer.Enabled, false) {
+		return fmt.Errorf("persistent Sentinel configuration does not permit a later user init container")
+	}
+	if cr.Spec.RedisSentinelConfig.AdditionalSentinelConfig != nil {
+		return fmt.Errorf("persistent Sentinel configuration does not support external configuration overrides")
+	}
+	if extra := cr.Spec.VolumeMount; extra != nil {
+		for _, mount := range extra.MountPath {
+			p := path.Clean(mount.MountPath)
+			if mount.Name == common.VolumeNameSentinelState || p == "/etc/redis" || strings.HasPrefix(p, "/etc/redis/") {
+				return fmt.Errorf("sentinel configuration mounts cannot be overridden")
+			}
+		}
+		for _, volume := range extra.Volume {
+			if volume.Name == common.VolumeNameSentinelState || (volume.PersistentVolumeClaim != nil && strings.HasPrefix(volume.PersistentVolumeClaim.ClaimName, common.VolumeNameSentinelState+"-")) {
+				return fmt.Errorf("managed Sentinel state claims cannot be aliased by extra volumes")
+			}
+		}
+	}
+	for _, env := range ptr.Deref(cr.Spec.EnvVars, []corev1.EnvVar{}) {
+		switch env.Name {
+		case "SENTINEL_CONFIG_FILE", "SENTINEL_ID", "DEFER_SENTINEL_MONITOR", "PERSIST_SENTINEL_CONFIG", "EXTERNAL_CONFIG_FILE":
+			return fmt.Errorf("persistent Sentinel initialization settings cannot be overridden")
+		}
+	}
+	for _, sidecar := range ptr.Deref(cr.Spec.Sidecars, []commonapi.Sidecar{}) {
+		for _, mount := range ptr.Deref(sidecar.Volumes, []corev1.VolumeMount{}) {
+			if mount.Name == common.VolumeNameSentinelState {
+				return fmt.Errorf("sentinel election state must not be mounted by a sidecar")
+			}
+		}
+	}
+	if policy := cr.Spec.KubernetesConfig.PersistentVolumeClaimRetentionPolicy; policy != nil && (policy.WhenDeleted == appsv1.DeletePersistentVolumeClaimRetentionPolicyType || policy.WhenScaled == appsv1.DeletePersistentVolumeClaimRetentionPolicyType) {
+		return fmt.Errorf("sentinel election state must be retained on deletion and scale-down")
+	}
+	return nil
 }
 
 func getRedisReplicationMasterPod(ctx context.Context, client kubernetes.Interface, cr *rsvb2.RedisSentinel, ctrlClient client.Client) RedisDetails {

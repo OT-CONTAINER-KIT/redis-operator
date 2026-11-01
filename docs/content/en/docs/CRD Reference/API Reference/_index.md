@@ -480,6 +480,7 @@ _Appears in:_
 | `kubernetesConfig` _[KubernetesConfig](#kubernetesconfig)_ |  |  |  |
 | `redisExporter` _[RedisExporter](#redisexporter)_ |  |  |  |
 | `redisSentinelConfig` _[RedisSentinelConfig](#redissentinelconfig)_ |  |  |  |
+| `storage` _[RedisSentinelStorage](#redissentinelstorage)_ | Storage retains each standalone Sentinel's complete writable configuration,<br />including its identity and election history, on a separate claim.<br />Existing ephemeral StatefulSets require an explicit storage migration. |  |  |
 | `nodeSelector` _object (keys:string, values:string)_ |  |  |  |
 | `podSecurityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#podsecuritycontext-v1-core)_ |  |  |  |
 | `securityContext` _[SecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#securitycontext-v1-core)_ |  |  |  |
@@ -499,6 +500,22 @@ _Appears in:_
 | `topologySpreadConstraints` _[TopologySpreadConstraint](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#topologyspreadconstraint-v1-core) array_ |  |  |  |
 | `hostPort` _integer_ |  |  |  |
 | `podManagementPolicy` _string_ | PodManagementPolicy controls how pods are created during initial scale up,<br />when replacing pods on nodes, or when scaling down. This field is immutable<br />on an existing StatefulSet; changing it for a running cluster requires<br />recreating the StatefulSet (e.g. via the<br />redis.opstreelabs.in/recreate-statefulset annotation), otherwise the change<br />is ignored. |  | Enum: [OrderedReady Parallel] <br /> |
+
+
+#### RedisSentinelStorage
+
+
+
+
+
+
+
+_Appears in:_
+- [RedisSentinelSpec](#redissentinelspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `volumeClaimTemplate` _[PersistentVolumeClaim](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#persistentvolumeclaim-v1-core)_ |  |  |  |
 
 
 #### RedisSpec

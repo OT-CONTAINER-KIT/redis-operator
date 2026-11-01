@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -59,6 +60,40 @@ func (c *Config) Commit() error {
 		return fmt.Errorf("failed to create directory %s: %v", dir, err)
 	}
 	return os.WriteFile(c.path, []byte(c.content), 0o644)
+}
+
+// CommitIfAbsent publishes a fully written, synced initial configuration without
+// replacing a runtime file that may already contain election history.
+func (c *Config) CommitIfAbsent(mode os.FileMode) error {
+	dir := filepath.Dir(c.path)
+	if err := os.MkdirAll(dir, 0o770); err != nil {
+		return err
+	}
+	file, err := os.CreateTemp(dir, ".sentinel-initial-*.conf")
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	defer os.Remove(file.Name())
+	if err := file.Chmod(mode); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(file, c.content); err != nil {
+		return err
+	}
+	if err := file.Sync(); err != nil {
+		return err
+	}
+	// Link is an atomic no-replace operation on the same filesystem.
+	if err := os.Link(file.Name(), c.path); err != nil {
+		return err
+	}
+	directory, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+	defer directory.Close()
+	return directory.Sync()
 }
 
 func (c *Config) AppendExternalConfig(externalConfigFile string, expand bool) *Config {

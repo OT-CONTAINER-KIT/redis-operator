@@ -34,6 +34,11 @@ jobs:
         run: |
           ./tests/helm/rbac-scope-test.sh
 
+      - name: Assert persistent Sentinel storage templating
+        run: |
+          python3 -m pip install PyYAML==6.0.3
+          bash ./tests/helm/sentinel-storage-test.sh
+
       - name: Install and test Redis Related Helm charts
         run: |
           kubectl cluster-info --context kind-kind

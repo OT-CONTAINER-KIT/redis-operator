@@ -123,5 +123,6 @@ helm delete <my-release> --namespace <namespace>
 | serviceMonitor.namespace | string | `""` | Namespace where servicemonitor resource will be created, if empty it will be created in the same namespace as the redis-sentinel |
 | serviceMonitor.scrapeTimeout | string | `"10s"` |  |
 | sidecars | list | `[]` |  |
+| storage | object | `{"volumeClaimTemplate":{"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"1Gi"}}}}}` | One retained configuration claim per Sentinel; existing ephemeral sets need an explicit migration. |
 | tolerations | list | `[]` |  |
 | topologySpreadConstraints | list | `[]` |  |

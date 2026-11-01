@@ -3,6 +3,8 @@ package bootstrap
 import (
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"strings"
 
 	agentutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/agent/util"
@@ -45,6 +47,20 @@ sentinel deny-scripts-reconfig yes
 
 func GenerateConfig() error {
 	confPath, _ := util.CoalesceEnv("SENTINEL_CONFIG_FILE", "/etc/redis/sentinel.conf")
+	deferMonitor, _ := util.CoalesceEnv("DEFER_SENTINEL_MONITOR", "false")
+	persistent, _ := util.CoalesceEnv("PERSIST_SENTINEL_CONFIG", "false")
+	if deferMonitor == "true" && persistent != "true" {
+		return fmt.Errorf("standalone Sentinel requires persistent configuration")
+	}
+	if persistent == "true" {
+		if id, _ := util.CoalesceEnv("SENTINEL_ID", ""); id != "" {
+			return fmt.Errorf("persistent Sentinel identity must come from its retained configuration")
+		}
+		retained, err := retainSentinelConfig(confPath)
+		if err != nil || retained {
+			return err
+		}
+	}
 	cfg := agentutil.NewConfig(confPath, defaultSentinelConfig)
 
 	// set_sentinel_password
@@ -71,15 +87,17 @@ func GenerateConfig() error {
 		resolveHostnames, _ := util.CoalesceEnv("RESOLVE_HOSTNAMES", "no")
 		announceHostnames, _ := util.CoalesceEnv("ANNOUNCE_HOSTNAMES", "no")
 
-		cfg.Append("sentinel monitor", masterGroupName, ip, port, quorum)
-		cfg.Append("sentinel down-after-milliseconds", masterGroupName, downAfterMilliseconds)
-		cfg.Append("sentinel parallel-syncs", masterGroupName, parallelSyncs)
-		cfg.Append("sentinel failover-timeout", masterGroupName, failoverTimeout)
+		if deferMonitor != "true" {
+			cfg.Append("sentinel monitor", masterGroupName, ip, port, quorum)
+			cfg.Append("sentinel down-after-milliseconds", masterGroupName, downAfterMilliseconds)
+			cfg.Append("sentinel parallel-syncs", masterGroupName, parallelSyncs)
+			cfg.Append("sentinel failover-timeout", masterGroupName, failoverTimeout)
+		}
 		cfg.Append("sentinel resolve-hostnames", resolveHostnames)
 		cfg.Append("sentinel announce-hostnames", announceHostnames)
 
 		// If master password is set
-		if masterPassword, ok := util.CoalesceEnv("MASTER_PASSWORD", ""); ok {
+		if masterPassword, ok := util.CoalesceEnv("MASTER_PASSWORD", ""); ok && deferMonitor != "true" {
 			cfg.Append("sentinel auth-pass", masterGroupName, masterPassword)
 		}
 
@@ -150,10 +168,68 @@ func GenerateConfig() error {
 	cfg.AppendExternalConfig(externalConfigFile, expandExternal == "true")
 
 	// Commit configuration
+	if persistent == "true" {
+		if err := cfg.CommitIfAbsent(0o600); err != nil {
+			return err
+		}
+		return recordSentinelInitialization(filepath.Dir(confPath))
+	}
 	if err := cfg.Commit(); err != nil {
 		return err
 	}
 
 	fmt.Println("Starting sentinel service .....")
 	return nil
+}
+
+func retainSentinelConfig(path string) (bool, error) {
+	info, err := os.Lstat(path)
+	if os.IsNotExist(err) {
+		if _, markerErr := os.Lstat(filepath.Join(filepath.Dir(path), ".sentinel-state-initialized")); markerErr == nil {
+			return false, fmt.Errorf("initialized Sentinel state is missing; recovery is required")
+		} else if !os.IsNotExist(markerErr) {
+			return false, markerErr
+		}
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if !info.Mode().IsRegular() || info.Size() == 0 {
+		return false, fmt.Errorf("existing Sentinel state is empty or not a regular file; recovery is required")
+	}
+	// Permission and durability checks do not read or log credential-bearing data.
+	file, err := os.OpenFile(path, os.O_RDWR, 0)
+	if err != nil {
+		return false, err
+	}
+	defer file.Close()
+	if err := file.Sync(); err != nil {
+		return false, err
+	}
+	dir, err := os.Open(filepath.Dir(path))
+	if err != nil {
+		return false, err
+	}
+	defer dir.Close()
+	if err := dir.Sync(); err != nil {
+		return false, err
+	}
+	if err := recordSentinelInitialization(filepath.Dir(path)); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func recordSentinelInitialization(directory string) error {
+	path := filepath.Join(directory, ".sentinel-state-initialized")
+	if info, err := os.Lstat(path); err == nil {
+		if !info.Mode().IsRegular() || info.Size() == 0 {
+			return fmt.Errorf("invalid Sentinel initialization marker; recovery is required")
+		}
+		return nil
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	return agentutil.NewConfig(path, "persistent-sentinel-state-v1\n").CommitIfAbsent(0o600)
 }

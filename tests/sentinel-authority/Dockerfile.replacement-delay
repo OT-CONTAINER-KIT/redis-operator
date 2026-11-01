@@ -1,0 +1,6 @@
+FROM quay.io/opstree/redis:v8.4.0
+USER 0
+RUN mv /usr/local/bin/redis-server /usr/local/bin/redis-server.real
+COPY replacement-delay.sh /usr/local/bin/redis-server
+RUN chmod 0755 /usr/local/bin/redis-server
+USER 1000

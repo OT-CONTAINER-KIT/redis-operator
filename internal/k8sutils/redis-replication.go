@@ -2,10 +2,13 @@ package k8sutils
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/envs"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util/maps"
 	corev1 "k8s.io/api/core/v1"
@@ -78,11 +81,32 @@ func CreateReplicationService(ctx context.Context, cr *rrvb2.RedisReplication, c
 }
 
 // CreateReplicationRedis will create a replication redis setup
-func CreateReplicationRedis(ctx context.Context, cr *rrvb2.RedisReplication, cl kubernetes.Interface, ctrlClient client.Client) error {
+func CreateReplicationRedis(ctx context.Context, cr *rrvb2.RedisReplication, cl kubernetes.Interface, ctrlClient client.Reader) error {
+	if cr.EnableSentinel() && (cr.Annotations[common.SentinelOwnershipAnnotation] == "sentinel" || cr.Annotations[common.SentinelStartupAnnotation] == "enabled") {
+		return fmt.Errorf("activated standalone Sentinel authority does not permit embedded Sentinel")
+	}
 	stateFulName := cr.Name
 	labels := getRedisLabels(cr.Name, replication, "replication", cr.Labels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, annotations)
+	containerParams := generateRedisReplicationContainerParams(ctx, cr, ctrlClient)
+	if containerParams.SentinelBootstrap && cr.Spec.InitContainer != nil && ptr.Deref(cr.Spec.InitContainer.Enabled, false) {
+		return fmt.Errorf("protected Sentinel startup does not permit a later user init container")
+	}
+	if containerParams.SentinelBootstrap && cr.Spec.ReadinessProbe != nil && (cr.Spec.ReadinessProbe.Exec != nil || cr.Spec.ReadinessProbe.HTTPGet != nil || cr.Spec.ReadinessProbe.TCPSocket != nil || cr.Spec.ReadinessProbe.GRPC != nil) {
+		return fmt.Errorf("protected Sentinel startup requires the managed discovery readiness probe")
+	}
+	if !cr.EnableSentinel() && cr.Annotations[common.SentinelStartupAnnotation] == "enabled" {
+		configured := false
+		for _, env := range ptr.Deref(containerParams.EnvVars, []corev1.EnvVar{}) {
+			if env.Name == "SENTINEL_BOOTSTRAP_ADDRS" && env.Value != "" {
+				configured = true
+			}
+		}
+		if !configured {
+			return fmt.Errorf("cannot update activated replication without one standalone Sentinel configuration")
+		}
+	}
 
 	err := CreateOrUpdateStateFul(
 		ctx,
@@ -92,7 +116,7 @@ func CreateReplicationRedis(ctx context.Context, cr *rrvb2.RedisReplication, cl 
 		generateRedisReplicationParams(cr),
 		redisReplicationAsOwner(cr),
 		generateRedisReplicationInitContainerParams(cr),
-		generateRedisReplicationContainerParams(ctx, cr, ctrlClient),
+		containerParams,
 		cr.Spec.Sidecars,
 	)
 	if err != nil {
@@ -152,7 +176,7 @@ func generateRedisReplicationParams(cr *rrvb2.RedisReplication) statefulSetParam
 }
 
 // generateRedisReplicationContainerParams generates Redis container information
-func generateRedisReplicationContainerParams(ctx context.Context, cr *rrvb2.RedisReplication, ctrlClient client.Client) containerParameters {
+func generateRedisReplicationContainerParams(ctx context.Context, cr *rrvb2.RedisReplication, ctrlClient client.Reader) containerParameters {
 	trueProperty := true
 	falseProperty := false
 	containerProp := containerParameters{
@@ -228,11 +252,47 @@ func generateRedisReplicationContainerParams(ctx context.Context, cr *rrvb2.Redi
 		hostnameEnv = append(append([]corev1.EnvVar{}, *containerProp.EnvVars...), hostnameEnv...)
 	}
 	containerProp.EnvVars = &hostnameEnv
+	if !cr.EnableSentinel() && cr.Annotations[common.SentinelStartupAnnotation] == "enabled" && ctrlClient != nil {
+		containerProp.SentinelBootstrap = true
+		hostnameEnv = append(hostnameEnv, corev1.EnvVar{Name: "SENTINEL_BOOTSTRAP_REQUIRED", Value: "true"})
+		hostnameEnv = append(hostnameEnv, corev1.EnvVar{Name: "SENTINEL_MEMBER_IP", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "status.podIP"}}})
+		containerProp.EnvVars = &hostnameEnv
+		var linked rsvb2.RedisSentinelList
+		if err := ctrlClient.List(ctx, &linked, client.InNamespace(cr.Namespace)); err == nil {
+			matches := 0
+			for _, rs := range linked.Items {
+				if rs.Spec.RedisSentinelConfig != nil && rs.Spec.RedisSentinelConfig.RedisReplicationName == cr.Name {
+					matches++
+				}
+			}
+			for _, rs := range linked.Items {
+				if matches != 1 || rs.Spec.RedisSentinelConfig == nil || rs.Spec.RedisSentinelConfig.RedisReplicationName != cr.Name {
+					continue
+				}
+				containerProp.SentinelBootstrap = true
+				var addresses []string
+				for i := int32(0); i < rs.Spec.GetSentinelCounts("sentinel"); i++ {
+					addresses = append(addresses, fmt.Sprintf("%s-%d.%s-headless.%s.svc.%s", rs.GetStatefulSetName(), i, rs.GetStatefulSetName(), rs.Namespace, envs.GetServiceDNSDomain()))
+				}
+				hostnameEnv = append(hostnameEnv, corev1.EnvVar{Name: "SENTINEL_BOOTSTRAP_ADDRS", Value: strings.Join(addresses, ",")}, corev1.EnvVar{Name: "SENTINEL_BOOTSTRAP_GROUP", Value: rs.Spec.RedisSentinelConfig.MasterGroupName})
+				var members []string
+				for i := int32(0); cr.Spec.Size != nil && i < *cr.Spec.Size; i++ {
+					members = append(members, fmt.Sprintf("%s-%d.%s-headless.%s.svc.%s", cr.Name, i, cr.Name, cr.Namespace, envs.GetServiceDNSDomain()))
+				}
+				hostnameEnv = append(hostnameEnv, corev1.EnvVar{Name: "SENTINEL_BOOTSTRAP_MEMBERS", Value: strings.Join(members, ",")})
+				if secret := rs.Spec.KubernetesConfig.ExistingPasswordSecret; secret != nil && secret.Name != nil && secret.Key != nil {
+					hostnameEnv = append(hostnameEnv, corev1.EnvVar{Name: "SENTINEL_BOOTSTRAP_PASSWORD", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: *secret.Name}, Key: *secret.Key}}})
+				}
+				containerProp.EnvVars = &hostnameEnv
+				break
+			}
+		}
+	}
 
 	return containerProp
 }
 
-func sentinelHostnameSettings(ctx context.Context, ctrlClient client.Client, cr *rrvb2.RedisReplication) (string, string) {
+func sentinelHostnameSettings(ctx context.Context, ctrlClient client.Reader, cr *rrvb2.RedisReplication) (string, string) {
 	if cr.EnableSentinel() {
 		return sentinelHostnameFlag(cr.Spec.Sentinel.ResolveHostnames), sentinelHostnameFlag(cr.Spec.Sentinel.AnnounceHostnames)
 	}
