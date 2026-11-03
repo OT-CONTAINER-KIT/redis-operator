@@ -814,14 +814,14 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 		if aclMount := generateACLVolumeMount(containerParams.ACLConfig, true); aclMount != nil {
 			VolumeMounts = append(VolumeMounts, *aclMount)
 		}
-		// The bootstrap agent reads the data directory to keep the AOF name an
-		// existing dataset was written under.
 		if containerParams.PersistenceEnabled != nil && *containerParams.PersistenceEnabled {
+			const aofDataRoot = "/aof-data"
 			VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
 				Name:      util.CoalesceEnv1(common.EnvOperatorSTSPVCTemplateName, name),
-				MountPath: "/data",
+				MountPath: path.Join(aofDataRoot, "data"),
 				ReadOnly:  true,
 			})
+			envVars = append(envVars, corev1.EnvVar{Name: consts.ENV_KEY_AOF_DATA_ROOT, Value: aofDataRoot})
 		}
 
 		container := corev1.Container{

@@ -2579,21 +2579,41 @@ func TestGenerateInitContainerDefMountsDataDirWhenPersistent(t *testing.T) {
 		require.NoError(t, features.MutableFeatureGate.Set(fmt.Sprintf("GenerateConfigInInitContainer=%t", originalEnabled)))
 	})
 
-	dataMounts := func(persistence *bool) []corev1.VolumeMount {
-		containers := generateInitContainerDef("", "redis", initContainerParameters{}, nil, nil, containerParameters{PersistenceEnabled: persistence}, ptr.To("v7"))
-		require.Len(t, containers, 1)
-		var mounts []corev1.VolumeMount
-		for _, m := range containers[0].VolumeMounts {
-			if m.MountPath == "/data" {
-				mounts = append(mounts, m)
+	for _, tt := range []struct {
+		name        string
+		persistence *bool
+	}{
+		{name: "persistent with ACL PVC", persistence: ptr.To(true)},
+		{name: "persistence disabled", persistence: ptr.To(false)},
+		{name: "persistence unspecified"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			params := containerParameters{
+				PersistenceEnabled: tt.persistence,
+				ACLConfig:          &common.ACLConfig{PersistentVolumeClaim: ptr.To("acl-pvc")},
 			}
-		}
-		return mounts
+			containers := generateInitContainerDef("", "redis", initContainerParameters{}, nil, nil, params, ptr.To("v7"))
+			require.Len(t, containers, 1)
+			var dataMounts []corev1.VolumeMount
+			for _, mount := range containers[0].VolumeMounts {
+				if mount.Name == "redis" {
+					dataMounts = append(dataMounts, mount)
+				}
+				if mount.ReadOnly {
+					assert.False(t, strings.HasPrefix("/data/redis", mount.MountPath+"/"), "read-only parent blocks the ACL mountpoint")
+				}
+			}
+			assert.Contains(t, containers[0].VolumeMounts, corev1.VolumeMount{Name: "acl-pvc", MountPath: "/data/redis", ReadOnly: true})
+			rootEnv := corev1.EnvVar{Name: consts.ENV_KEY_AOF_DATA_ROOT, Value: "/aof-data"}
+			if ptr.Deref(tt.persistence, false) {
+				assert.Equal(t, []corev1.VolumeMount{{Name: "redis", MountPath: "/aof-data/data", ReadOnly: true}}, dataMounts)
+				assert.Contains(t, containers[0].Env, rootEnv)
+			} else {
+				assert.Empty(t, dataMounts)
+				assert.NotContains(t, containers[0].Env, rootEnv)
+			}
+		})
 	}
-
-	assert.Equal(t, []corev1.VolumeMount{{Name: "redis", MountPath: "/data", ReadOnly: true}}, dataMounts(ptr.To(true)))
-	assert.Empty(t, dataMounts(ptr.To(false)))
-	assert.Empty(t, dataMounts(nil))
 }
 
 func TestGenerateInitContainerDefMountsACLFile(t *testing.T) {
