@@ -139,17 +139,22 @@ type containerParameters struct {
 	EnabledPassword              *bool
 	SecretName                   *string
 	SecretKey                    *string
-	PersistenceEnabled           *bool
-	TLSConfig                    *commonapi.TLSConfig
-	ACLConfig                    *commonapi.ACLConfig
-	ReadinessProbe               *corev1.Probe
-	LivenessProbe                *corev1.Probe
-	AdditionalEnvVariable        *[]corev1.EnvVar
-	AdditionalVolume             []corev1.Volume
-	AdditionalMountPath          []corev1.VolumeMount
-	EnvVars                      *[]corev1.EnvVar
-	Port                         *int
-	HostPort                     *int
+	// SecretChecksum is a hash of the password Secret's current content. When
+	// non-empty it is stamped onto the pod template as an annotation so that a
+	// Secret update triggers a StatefulSet rolling restart, since Kubernetes does
+	// not refresh an already-running container's SecretKeyRef env var in place.
+	SecretChecksum        string
+	PersistenceEnabled    *bool
+	TLSConfig             *commonapi.TLSConfig
+	ACLConfig             *commonapi.ACLConfig
+	ReadinessProbe        *corev1.Probe
+	LivenessProbe         *corev1.Probe
+	AdditionalEnvVariable *[]corev1.EnvVar
+	AdditionalVolume      []corev1.Volume
+	AdditionalMountPath   []corev1.VolumeMount
+	EnvVars               *[]corev1.EnvVar
+	Port                  *int
+	HostPort              *int
 	// Sentinel-driven preStop settings. These are only populated for the
 	// "replication" role when an embedded Sentinel is enabled. When
 	// SentinelService is empty the replication preStop hook is not installed.
@@ -345,6 +350,13 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 	}
 
 	statefulset.Spec.Template.Spec.InitContainers = generateInitContainerDef(containerParams.Role, stsMeta.GetName(), initcontainerParams, params.ExternalConfig, initcontainerParams.AdditionalMountPath, containerParams, params.ClusterVersion)
+
+	if containerParams.SecretChecksum != "" {
+		if statefulset.Spec.Template.Annotations == nil {
+			statefulset.Spec.Template.Annotations = make(map[string]string)
+		}
+		statefulset.Spec.Template.Annotations[common.AnnotationKeyPasswordSecretChecksum] = containerParams.SecretChecksum
+	}
 
 	if params.PodManagementPolicy != nil {
 		statefulset.Spec.PodManagementPolicy = appsv1.PodManagementPolicyType(*params.PodManagementPolicy)
