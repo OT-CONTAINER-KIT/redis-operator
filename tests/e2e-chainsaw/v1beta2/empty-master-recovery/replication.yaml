@@ -1,0 +1,73 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-secret
+stringData:
+  password: Opstree1234
+type: Opaque
+---
+# No persistence: a restarted pod always comes back empty.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-external-config
+data:
+  redis-additional.conf: |
+    save ""
+    appendonly no
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisReplication
+metadata:
+  name: redis-replication
+spec:
+  clusterSize: 3
+  podSecurityContext:
+    runAsUser: 1000
+    fsGroup: 1000
+  kubernetesConfig:
+    image: quay.io/opstree/redis:latest
+    imagePullPolicy: IfNotPresent
+    redisSecret:
+      name: redis-secret
+      key: password
+    resources:
+      requests:
+        cpu: 101m
+        memory: 128Mi
+      limits:
+        memory: 128Mi
+  redisConfig:
+    additionalRedisConfig: redis-external-config
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisSentinel
+metadata:
+  name: redis-sentinel
+spec:
+  clusterSize: 3
+  podSecurityContext:
+    runAsUser: 1000
+    fsGroup: 1000
+  kubernetesConfig:
+    image: quay.io/opstree/redis-sentinel:latest
+    imagePullPolicy: IfNotPresent
+    redisSecret:
+      name: redis-secret
+      key: password
+    resources:
+      requests:
+        cpu: 101m
+        memory: 128Mi
+      limits:
+        memory: 128Mi
+  redisSentinelConfig:
+    redisReplicationName: redis-replication
+    redisReplicationPassword:
+      secretKeyRef:
+        name: redis-secret
+        key: password
+    masterGroupName: myMaster
+    quorum: "2"
+    downAfterMilliseconds: "5000"

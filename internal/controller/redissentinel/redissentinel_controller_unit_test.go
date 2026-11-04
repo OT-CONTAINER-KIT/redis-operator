@@ -9,6 +9,7 @@ import (
 	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/redis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -72,6 +73,10 @@ func (f *fakeChecker) CheckClusterSlotsAssigned(context.Context, *rcvb2.RedisClu
 
 func (f *fakeChecker) GetReplicationKeyCounts(context.Context, *rrvb2.RedisReplication, []string) map[string]int64 {
 	return nil
+}
+
+func (f *fakeChecker) GetSentinelMasters(context.Context, *rsvb2.RedisSentinel) ([]redis.SentinelMasterReport, error) {
+	return nil, nil
 }
 
 type fakeHealer struct {

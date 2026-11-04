@@ -383,7 +383,11 @@ func (h *healer) SentinelMonitor(ctx context.Context, rs *rsvb2.RedisSentinel, m
 }
 
 func (h *healer) getSentinelPods(ctx context.Context, rs *rsvb2.RedisSentinel) (*v1.PodList, error) {
-	sentinelSTS, err := h.k8s.AppsV1().StatefulSets(rs.Namespace).Get(ctx, rs.GetStatefulSetName(), metav1.GetOptions{})
+	return getSentinelPods(ctx, h.k8s, rs)
+}
+
+func getSentinelPods(ctx context.Context, k8s kubernetes.Interface, rs *rsvb2.RedisSentinel) (*v1.PodList, error) {
+	sentinelSTS, err := k8s.AppsV1().StatefulSets(rs.Namespace).Get(ctx, rs.GetStatefulSetName(), metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -392,7 +396,7 @@ func (h *healer) getSentinelPods(ctx context.Context, rs *rsvb2.RedisSentinel) (
 	for k, v := range sentinelSTS.Spec.Selector.MatchLabels {
 		labels = append(labels, fmt.Sprintf("%s=%s", k, v))
 	}
-	pods, err := h.k8s.CoreV1().Pods(rs.Namespace).List(ctx, metav1.ListOptions{
+	pods, err := k8s.CoreV1().Pods(rs.Namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: strings.Join(labels, ","),
 	})
 	if err != nil {
