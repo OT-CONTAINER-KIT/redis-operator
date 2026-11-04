@@ -84,6 +84,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// Check if the cluster is downscaled
 	if leaderCount := r.GetStatefulSetReplicas(ctx, instance.Namespace, instance.Name+"-leader"); leaderReplicas < leaderCount {
+		// Downscaling moves the slots of every removed shard to one of the
+		// remaining leaders. With no leader left there is nowhere to move them,
+		// so refuse instead of panicking on the round-robin modulo below.
+		if leaderReplicas < 1 {
+			msg := fmt.Sprintf("Refusing to downscale Redis cluster from %d to %d leaders: at least one leader is required to take over the slots of the removed shards", leaderCount, leaderReplicas)
+			logger.Info("Refusing to downscale Redis cluster without a remaining leader", "Current.LeaderReplicas", leaderCount, "Desired.LeaderReplicas", leaderReplicas)
+			r.Recorder.Event(instance, corev1.EventTypeWarning, events.EventReasonRedisClusterDownscale, msg)
+			return intctrlutil.Reconciled()
+		}
 		if !r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-leader") || !r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name+"-follower") {
 			return intctrlutil.Reconciled()
 		}
