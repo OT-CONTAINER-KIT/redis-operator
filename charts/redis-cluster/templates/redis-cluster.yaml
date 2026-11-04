@@ -42,7 +42,7 @@ spec:
 
   redisExporter:
     enabled: {{ .Values.redisExporter.enabled }}
-    image: "{{ .Values.redisExporter.image }}:{{ .Values.redisExporter.tag }}"
+    image: "{{ .Values.redisExporter.image }}{{- if .Values.redisExporter.tag }}:{{ .Values.redisExporter.tag }}{{- end }}{{- if .Values.redisExporter.digest }}@{{ .Values.redisExporter.digest }}{{- end }}"
     imagePullPolicy: "{{ .Values.redisExporter.imagePullPolicy }}"
     {{- if .Values.redisExporter.resources}}
     resources: {{ toYaml .Values.redisExporter.resources | nindent 6 }}
@@ -55,7 +55,7 @@ spec:
     {{- end }}
 
   kubernetesConfig:
-    image: "{{ .Values.redisCluster.image }}:{{ .Values.redisCluster.tag }}"
+    image: "{{ .Values.redisCluster.image }}{{- if .Values.redisCluster.tag }}:{{ .Values.redisCluster.tag }}{{- end }}{{- if .Values.redisCluster.digest }}@{{ .Values.redisCluster.digest }}{{- end }}"
     imagePullPolicy: "{{ .Values.redisCluster.imagePullPolicy }}"
     {{- if .Values.redisCluster.imagePullSecrets}}
     imagePullSecrets: {{ toYaml .Values.redisCluster.imagePullSecrets | nindent 4 }}

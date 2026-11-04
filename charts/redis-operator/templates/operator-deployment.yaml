@@ -38,7 +38,7 @@ spec:
       - name: "{{ .Values.redisOperator.name }}"
         securityContext:
           {{- toYaml .Values.securityContext | nindent 10 }}
-        image: "{{ .Values.redisOperator.imageName }}:{{ .Values.redisOperator.imageTag | default (printf "v%s" .Chart.AppVersion) }}"
+        image: "{{ .Values.redisOperator.imageName }}{{- if .Values.redisOperator.imageTag }}:{{ .Values.redisOperator.imageTag }}{{- else }}:{{ printf "v%s" .Chart.AppVersion }}{{- end }}{{- if .Values.redisOperator.imageDigest }}@{{ .Values.redisOperator.imageDigest }}{{- end }}"
         imagePullPolicy: {{ .Values.redisOperator.imagePullPolicy }}
         livenessProbe:
           httpGet:
@@ -96,7 +96,7 @@ spec:
       {{- end }}
         env:
         - name: INIT_CONTAINER_IMAGE
-          value: {{ .Values.redisOperator.imageName }}:{{ .Values.redisOperator.initContainerImageTag | default .Values.redisOperator.imageTag | default (printf "v%s" .Chart.AppVersion) }}
+          value: {{ .Values.redisOperator.imageName }}{{- if .Values.redisOperator.initContainerImageTag }}:{{ .Values.redisOperator.initContainerImageTag }}{{- else if .Values.redisOperator.imageTag }}:{{ .Values.redisOperator.imageTag }}{{- else }}:{{ printf "v%s" .Chart.AppVersion }}{{- end }}{{- if .Values.redisOperator.imageDigest }}@{{ .Values.redisOperator.imageDigest }}{{- end }}
         - name: ENABLE_WEBHOOKS
           value: {{ .Values.redisOperator.webhook | quote }}
         {{- if .Values.redisOperator.watchNamespace }}
