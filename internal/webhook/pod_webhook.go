@@ -53,6 +53,14 @@ const (
 
 const annotationKeyEnablePodAntiAffinity = "redisclusters.redis.redis.opstreelabs.in/role-anti-affinity"
 
+// annotationKeyPodAntiAffinityTopologyKey optionally overrides the topologyKey used for the
+// injected leader/follower anti-affinity term. When the annotation is absent or empty the
+// webhook falls back to defaultAntiAffinityTopologyKey, preserving the previous behaviour.
+const annotationKeyPodAntiAffinityTopologyKey = "redisclusters.redis.redis.opstreelabs.in/role-anti-affinity-topology-key"
+
+// defaultAntiAffinityTopologyKey is the topologyKey applied when no override annotation is set.
+const defaultAntiAffinityTopologyKey = "kubernetes.io/hostname"
+
 func (v *PodAntiAffiniytMutate) Handle(ctx context.Context, req admission.Request) admission.Response {
 	logger := v.logger.WithValues("Request.Namespace", req.Namespace, "Request.Name", req.Name)
 
@@ -129,7 +137,7 @@ func (v *PodAntiAffiniytMutate) AddPodAntiAffinity(pod *corev1.Pod) {
 				},
 			},
 		},
-		TopologyKey: "kubernetes.io/hostname",
+		TopologyKey: v.getAntiAffinityTopologyKey(pod),
 	}
 
 	pod.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = append(pod.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution, addAntiAffinity)
@@ -164,4 +172,14 @@ func (v *PodAntiAffiniytMutate) getAntiAffinityValue(podName string) string {
 		return strings.ReplaceAll(podName, "leader", "follower")
 	}
 	return ""
+}
+
+// getAntiAffinityTopologyKey returns the topologyKey for the injected anti-affinity term.
+// It honours the role-anti-affinity-topology-key annotation when present and non-empty,
+// otherwise it falls back to the historical default of "kubernetes.io/hostname".
+func (v *PodAntiAffiniytMutate) getAntiAffinityTopologyKey(pod *corev1.Pod) string {
+	if key, ok := pod.GetAnnotations()[annotationKeyPodAntiAffinityTopologyKey]; ok && key != "" {
+		return key
+	}
+	return defaultAntiAffinityTopologyKey
 }

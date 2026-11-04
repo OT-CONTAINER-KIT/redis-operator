@@ -73,6 +73,48 @@ func TestPodAntiAffinityMutate_Handle(t *testing.T) {
 			},
 		},
 		{
+			name: "Should use custom topologyKey from annotation",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "redis-follower-0",
+					Namespace: "default",
+					Annotations: map[string]string{
+						annotationKeyEnablePodAntiAffinity:      "true",
+						annotationKeyPodAntiAffinityTopologyKey: "topology.kubernetes.io/zone",
+						podAnnotationsRedisClusterApp:           "db-01",
+					},
+					Labels: map[string]string{
+						podLabelsRedisType: "redis-cluster",
+					},
+				},
+				Spec: corev1.PodSpec{},
+			},
+			expectedPatches: []jsonpatch.JsonPatchOperation{
+				{
+					Operation: "add",
+					Path:      "/spec/affinity",
+					Value: map[string]interface{}{
+						"podAntiAffinity": map[string]interface{}{
+							"requiredDuringSchedulingIgnoredDuringExecution": []interface{}{
+								map[string]interface{}{
+									"labelSelector": map[string]interface{}{
+										"matchExpressions": []interface{}{
+											map[string]interface{}{
+												"key":      "statefulset.kubernetes.io/pod-name",
+												"operator": "In",
+												"values":   []interface{}{"redis-leader-0"},
+											},
+										},
+									},
+									"topologyKey": "topology.kubernetes.io/zone",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "Should not mutate pod without proper annotations",
 			pod: &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
