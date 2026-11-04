@@ -17,6 +17,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -60,6 +61,7 @@ func newSentinelStatefulSet(rr *rrvb2.RedisReplication, svcName string) appsv1.S
 		Name:            rr.SentinelStatefulSet(),
 		Namespace:       rr.Namespace,
 		Replicas:        rr.Spec.Sentinel.Size,
+		MinReadySeconds: ptr.Deref(rr.Spec.Sentinel.MinReadySeconds, 0),
 		ServiceName:     svcName,
 		PodTemplateSpec: buildSentinelPodTemplate(rr, labels),
 	})

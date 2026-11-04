@@ -387,3 +387,35 @@ func (f *fakeSentinelRedisService) GetInfoSentinel(context.Context) (*redis.Info
 func (f *fakeSentinelRedisService) GetClusterInfo(context.Context) (*redis.ClusterStatus, error) {
 	return &redis.ClusterStatus{}, nil
 }
+
+// TestNewSentinelStatefulSetMinReadySeconds guards spec.sentinel.minReadySeconds,
+// which the embedded Sentinel inherits from KubernetesConfig, so that a rollout
+// waits for each Sentinel to stay ready before replacing the next one.
+func TestNewSentinelStatefulSetMinReadySeconds(t *testing.T) {
+	tests := []struct {
+		name            string
+		minReadySeconds *int32
+		want            int32
+	}{
+		{name: "unset", minReadySeconds: nil, want: 0},
+		{name: "set", minReadySeconds: ptr.To(int32(30)), want: 30},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rr := &rrvb2.RedisReplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "example-replication", Namespace: "default"},
+				Spec: rrvb2.RedisReplicationSpec{
+					Sentinel: &rrvb2.Sentinel{
+						KubernetesConfig: commonapi.KubernetesConfig{MinReadySeconds: tt.minReadySeconds},
+						Size:             3,
+					},
+				},
+			}
+
+			sts := newSentinelStatefulSet(rr, rr.SentinelHLService())
+
+			assert.Equal(t, tt.want, sts.Spec.MinReadySeconds)
+		})
+	}
+}
