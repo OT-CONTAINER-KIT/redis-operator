@@ -2572,6 +2572,50 @@ func TestStatefulSetSelectorLabels(t *testing.T) {
 	}
 }
 
+func TestGenerateInitContainerDefMountsDataDirWhenPersistent(t *testing.T) {
+	originalEnabled := features.Enabled(features.GenerateConfigInInitContainer)
+	require.NoError(t, features.MutableFeatureGate.Set("GenerateConfigInInitContainer=true"))
+	t.Cleanup(func() {
+		require.NoError(t, features.MutableFeatureGate.Set(fmt.Sprintf("GenerateConfigInInitContainer=%t", originalEnabled)))
+	})
+
+	for _, tt := range []struct {
+		name        string
+		persistence *bool
+	}{
+		{name: "persistent with ACL PVC", persistence: ptr.To(true)},
+		{name: "persistence disabled", persistence: ptr.To(false)},
+		{name: "persistence unspecified"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			params := containerParameters{
+				PersistenceEnabled: tt.persistence,
+				ACLConfig:          &common.ACLConfig{PersistentVolumeClaim: ptr.To("acl-pvc")},
+			}
+			containers := generateInitContainerDef("", "redis", initContainerParameters{}, nil, nil, params, ptr.To("v7"))
+			require.Len(t, containers, 1)
+			var dataMounts []corev1.VolumeMount
+			for _, mount := range containers[0].VolumeMounts {
+				if mount.Name == "redis" {
+					dataMounts = append(dataMounts, mount)
+				}
+				if mount.ReadOnly {
+					assert.False(t, strings.HasPrefix("/data/redis", mount.MountPath+"/"), "read-only parent blocks the ACL mountpoint")
+				}
+			}
+			assert.Contains(t, containers[0].VolumeMounts, corev1.VolumeMount{Name: "acl-pvc", MountPath: "/data/redis", ReadOnly: true})
+			rootEnv := corev1.EnvVar{Name: consts.ENV_KEY_AOF_DATA_ROOT, Value: "/aof-data"}
+			if ptr.Deref(tt.persistence, false) {
+				assert.Equal(t, []corev1.VolumeMount{{Name: "redis", MountPath: "/aof-data/data", ReadOnly: true}}, dataMounts)
+				assert.Contains(t, containers[0].Env, rootEnv)
+			} else {
+				assert.Empty(t, dataMounts)
+				assert.NotContains(t, containers[0].Env, rootEnv)
+			}
+		})
+	}
+}
+
 func TestGenerateInitContainerDefMountsACLFile(t *testing.T) {
 	originalEnabled := features.Enabled(features.GenerateConfigInInitContainer)
 	require.NoError(t, features.MutableFeatureGate.Set("GenerateConfigInInitContainer=true"))

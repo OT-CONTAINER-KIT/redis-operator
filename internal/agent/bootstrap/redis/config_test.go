@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/consts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -74,6 +75,8 @@ func Test_GenerateConfig_AppendOnlyFilename_MatchesRedisDefault(t *testing.T) {
 
 	t.Setenv("REDIS_CONFIG_FILE", confPath)
 	t.Setenv("PERSISTENCE_ENABLED", "true")
+	t.Setenv("DATA_DIR", t.TempDir())
+	t.Setenv(consts.ENV_KEY_AOF_DATA_ROOT, "")
 	t.Setenv("SETUP_MODE", "standalone")
 	t.Setenv("TLS_MODE", "false")
 
@@ -83,11 +86,128 @@ func Test_GenerateConfig_AppendOnlyFilename_MatchesRedisDefault(t *testing.T) {
 	require.NoError(t, err)
 	conf := string(raw)
 
-	// The generated appendfilename must match Redis' own lowercase default
-	// ("appendonly.aof"). Diverging from it (e.g. "Appendonly.aof") makes
-	// Redis look for a file that doesn't exist on disk, silently losing all
-	// previously persisted data on startup.
 	assert.Contains(t, conf, `appendfilename "appendonly.aof"`)
+}
+
+func Test_GenerateConfig_AppendOnlyFilename_KeepsExistingAOF(t *testing.T) {
+	tests := []struct {
+		name    string
+		files   []string
+		missing bool
+		want    string
+	}{
+		{name: "missing data dir uses the Redis default", missing: true, want: "appendonly.aof"},
+		{name: "empty data dir uses the Redis default", want: "appendonly.aof"},
+		{
+			name:  "legacy multi-part AOF keeps the legacy name",
+			files: []string{"appendonlydir/Appendonly.aof.manifest", "appendonlydir/Appendonly.aof.1.base.rdb"},
+			want:  "Appendonly.aof",
+		},
+		{name: "legacy single-file AOF keeps the legacy name", files: []string{"Appendonly.aof"}, want: "Appendonly.aof"},
+		{
+			name:  "default AOF uses the default name",
+			files: []string{"appendonlydir/appendonly.aof.manifest"},
+			want:  "appendonly.aof",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmp := t.TempDir()
+			dataDir := filepath.Join(tmp, "data")
+			if !tt.missing {
+				require.NoError(t, os.MkdirAll(dataDir, 0o755))
+			}
+			for _, f := range tt.files {
+				p := filepath.Join(dataDir, f)
+				require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
+				require.NoError(t, os.WriteFile(p, nil, 0o644))
+			}
+			confPath := filepath.Join(tmp, "redis.conf")
+
+			t.Setenv("REDIS_CONFIG_FILE", confPath)
+			t.Setenv("PERSISTENCE_ENABLED", "true")
+			t.Setenv("DATA_DIR", dataDir)
+			t.Setenv(consts.ENV_KEY_AOF_DATA_ROOT, "")
+			t.Setenv("SETUP_MODE", "standalone")
+			t.Setenv("TLS_MODE", "false")
+
+			require.NoError(t, GenerateConfig())
+
+			raw, err := os.ReadFile(confPath)
+			require.NoError(t, err)
+			assert.Contains(t, string(raw), `appendfilename "`+tt.want+`"`)
+		})
+	}
+}
+
+func Test_GenerateConfig_AppendOnlyFilename_InspectionRoot(t *testing.T) {
+	for _, dataDir := range []string{"/data", "/data/nested"} {
+		t.Run(dataDir, func(t *testing.T) {
+			root := t.TempDir()
+			manifest := filepath.Join(root, dataDir, "appendonlydir", "Appendonly.aof.manifest")
+			require.NoError(t, os.MkdirAll(filepath.Dir(manifest), 0o755))
+			require.NoError(t, os.WriteFile(manifest, nil, 0o644))
+			confPath := filepath.Join(t.TempDir(), "redis.conf")
+			t.Setenv("REDIS_CONFIG_FILE", confPath)
+			t.Setenv("PERSISTENCE_ENABLED", "true")
+			t.Setenv("DATA_DIR", dataDir)
+			t.Setenv(consts.ENV_KEY_AOF_DATA_ROOT, root)
+			t.Setenv("SETUP_MODE", "standalone")
+			t.Setenv("TLS_MODE", "false")
+
+			require.NoError(t, GenerateConfig())
+			raw, err := os.ReadFile(confPath)
+			require.NoError(t, err)
+			assert.Contains(t, string(raw), `appendfilename "Appendonly.aof"`)
+			assert.Contains(t, string(raw), "\ndir "+dataDir+"\n")
+			assert.NotContains(t, string(raw), root)
+		})
+	}
+}
+
+func Test_GenerateConfig_AppendOnlyFilename_UnreadableData(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("requires a non-root user to exercise directory permissions")
+	}
+	for _, blockedDir := range []string{"data", "data/appendonlydir"} {
+		t.Run(blockedDir, func(t *testing.T) {
+			root := t.TempDir()
+			manifest := filepath.Join(root, "data/appendonlydir/Appendonly.aof.manifest")
+			require.NoError(t, os.MkdirAll(filepath.Dir(manifest), 0o755))
+			require.NoError(t, os.WriteFile(manifest, nil, 0o644))
+			blockedPath := filepath.Join(root, blockedDir)
+			require.NoError(t, os.Chmod(blockedPath, 0o000))
+			t.Cleanup(func() { require.NoError(t, os.Chmod(blockedPath, 0o755)) })
+			confPath := filepath.Join(t.TempDir(), "redis.conf")
+			t.Setenv("REDIS_CONFIG_FILE", confPath)
+			t.Setenv("PERSISTENCE_ENABLED", "true")
+			t.Setenv("DATA_DIR", "/data")
+			t.Setenv(consts.ENV_KEY_AOF_DATA_ROOT, root)
+			t.Setenv("SETUP_MODE", "standalone")
+			t.Setenv("TLS_MODE", "false")
+
+			err := GenerateConfig()
+			require.ErrorIs(t, err, os.ErrPermission)
+			assert.ErrorContains(t, err, blockedPath)
+			assert.NoFileExists(t, confPath)
+		})
+	}
+}
+
+func Test_GenerateConfig_AppendOnlyFilename_InvalidDataDirectory(t *testing.T) {
+	dataDir := filepath.Join(t.TempDir(), "data")
+	require.NoError(t, os.WriteFile(dataDir, nil, 0o644))
+	confPath := filepath.Join(t.TempDir(), "redis.conf")
+	t.Setenv("REDIS_CONFIG_FILE", confPath)
+	t.Setenv("PERSISTENCE_ENABLED", "true")
+	t.Setenv("DATA_DIR", dataDir)
+	t.Setenv(consts.ENV_KEY_AOF_DATA_ROOT, "")
+	t.Setenv("SETUP_MODE", "standalone")
+	t.Setenv("TLS_MODE", "false")
+
+	require.ErrorContains(t, GenerateConfig(), "cannot inspect AOF directory")
+	assert.NoFileExists(t, confPath)
 }
 
 func Test_GenerateConfig_ReplicaAnnounceIP(t *testing.T) {
