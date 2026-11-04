@@ -2552,6 +2552,11 @@ spec:
                       minAvailable:
                         format: int32
                         type: integer
+                      unhealthyPodEvictionPolicy:
+                        description: |-
+                          UnhealthyPodEvictionPolicyType defines the criteria for when unhealthy pods
+                          should be considered for eviction.
+                        type: string
                     type: object
                   readinessProbe:
                     description: |-
@@ -4234,6 +4239,11 @@ spec:
                       minAvailable:
                         format: int32
                         type: integer
+                      unhealthyPodEvictionPolicy:
+                        description: |-
+                          UnhealthyPodEvictionPolicyType defines the criteria for when unhealthy pods
+                          should be considered for eviction.
+                        type: string
                     type: object
                   readinessProbe:
                     description: |-
