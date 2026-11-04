@@ -312,9 +312,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 					return intctrlutil.RequeueAfter(ctx, 10*time.Second, "added node, waiting for cluster convergence before rebalancing")
 				}
-				// No functioning cluster exists yet, create one from scratch.
-				logger.Info("Creating cluster", "Current.Leaders", leaderCount, "Desired.Leaders", leaderReplicas)
-				k8sutils.ExecuteRedisClusterCommand(ctx, r.K8sClient, instance)
+				// The pods may still remember a previous cluster topology whose peer
+				// addresses went stale -- e.g. every pod was recreated with a new IP
+				// after a full cluster restart or power loss. `cluster create` on such
+				// nodes always fails with "is not empty", so heal the stale addresses
+				// with CLUSTER MEET and let gossip re-converge the topology instead.
+				if k8sutils.ClusterNodesRememberTopology(ctx, r.K8sClient, instance) {
+					logger.Info("Cluster nodes remember a previous topology, healing stale peer addresses via CLUSTER MEET", "Current.Leaders", leaderCount, "Desired.Leaders", leaderReplicas)
+					if err := k8sutils.HealClusterNodesByMeet(ctx, r.K8sClient, instance); err != nil {
+						logger.Error(err, "Failed to heal cluster topology via CLUSTER MEET")
+					}
+				} else {
+					// No functioning cluster exists yet, create one from scratch.
+					logger.Info("Creating cluster", "Current.Leaders", leaderCount, "Desired.Leaders", leaderReplicas)
+					k8sutils.ExecuteRedisClusterCommand(ctx, r.K8sClient, instance)
+				}
 			}
 		} else {
 			stable, err := k8sutils.ClusterStableNoOpenSlots(ctx, r.K8sClient, instance)

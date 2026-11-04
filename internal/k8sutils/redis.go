@@ -286,6 +286,106 @@ func repairDisconnectedNodes(ctx context.Context, client kubernetes.Interface, c
 	return lastError
 }
 
+// ClusterNodesRememberTopology reports whether any reachable leader pod still
+// remembers cluster nodes other than itself. Fresh nodes know nobody (CLUSTER
+// NODES returns only the myself entry), while nodes left over from a split or
+// fully-restarted cluster remember their peers -- typically at addresses that
+// went stale when every pod was recreated with a new IP. `redis-cli --cluster
+// create` on such nodes always fails with "is not empty", so the controller
+// must heal the topology via CLUSTER MEET instead of creating from scratch.
+func ClusterNodesRememberTopology(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) bool {
+	return clusterNodesRememberTopology(ctx, cr.Spec.GetReplicaCounts("leader"), cr.Name, func(podName string) *redis.Client {
+		return configureRedisClient(ctx, client, cr, podName)
+	})
+}
+
+func clusterNodesRememberTopology(ctx context.Context, leaderReplicas int32, clusterName string, makeClient func(podName string) *redis.Client) bool {
+	logger := log.FromContext(ctx)
+	for i := int32(0); i < leaderReplicas; i++ {
+		podName := clusterName + "-leader-" + strconv.Itoa(int(i))
+		redisClient := makeClient(podName)
+		nodes, err := clusterNodes(ctx, redisClient)
+		redisClient.Close()
+		if err != nil {
+			logger.V(1).Error(err, "Failed to get cluster nodes from leader, trying next", "Pod", podName)
+			continue
+		}
+		if len(nodes) > 1 {
+			return true
+		}
+	}
+	return false
+}
+
+// HealClusterNodesByMeet issues CLUSTER MEET from every reachable leader pod to
+// the current address of every cluster pod. Since Redis 4.0, meeting a node
+// whose ID is already known updates its stored address, so this re-converges a
+// cluster whose nodes.conf files all hold stale peer addresses (e.g. after
+// every pod came back with a new IP) -- a state gossip can never recover from
+// on its own, because no node knows any reachable address to bootstrap from.
+//
+// Meets are issued from every reachable leader rather than only leader-0,
+// because in this state leader-0 itself may be the node whose topology was
+// lost. Per-target failures (e.g. a pod being down) are logged and tolerated;
+// the next reconcile retries them.
+func HealClusterNodesByMeet(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) error {
+	return healClusterNodesByMeet(ctx, client, cr, func(podName string) *redis.Client {
+		return configureRedisClient(ctx, client, cr, podName)
+	})
+}
+
+func healClusterNodesByMeet(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, makeClient func(podName string) *redis.Client) error {
+	logger := log.FromContext(ctx)
+	port := strconv.Itoa(*cr.Spec.Port)
+
+	// Collect the current address of every cluster pod as a meet target.
+	type meetTarget struct {
+		podName string
+		ip      string
+	}
+	var targets []meetTarget
+	addTargets := func(role string, replicas int32) {
+		for i := int32(0); i < replicas; i++ {
+			podName := cr.Name + "-" + role + "-" + strconv.Itoa(int(i))
+			ip := getRedisServerIP(ctx, client, RedisDetails{PodName: podName, Namespace: cr.Namespace})
+			if ip == "" {
+				logger.V(1).Info("Skipping meet target with no IP, pod is likely not running", "Pod", podName)
+				continue
+			}
+			targets = append(targets, meetTarget{podName: podName, ip: ip})
+		}
+	}
+	addTargets("leader", cr.Spec.GetReplicaCounts("leader"))
+	addTargets("follower", cr.Spec.GetReplicaCounts("follower"))
+
+	reachedLeader := false
+	var lastErr error
+	for i := int32(0); i < cr.Spec.GetReplicaCounts("leader"); i++ {
+		leaderPod := cr.Name + "-leader-" + strconv.Itoa(int(i))
+		redisClient := makeClient(leaderPod)
+		if err := redisClient.Ping(ctx).Err(); err != nil {
+			lastErr = err
+			redisClient.Close()
+			logger.V(1).Error(err, "Leader is not reachable, skipping it as a meet source", "Pod", leaderPod)
+			continue
+		}
+		reachedLeader = true
+		for _, target := range targets {
+			if target.podName == leaderPod {
+				continue
+			}
+			if err := redisClient.ClusterMeet(ctx, target.ip, port).Err(); err != nil {
+				logger.V(1).Error(err, "CLUSTER MEET failed, will retry on next reconcile", "Source", leaderPod, "Target.Pod", target.podName, "Target.IP", target.ip)
+			}
+		}
+		redisClient.Close()
+	}
+	if !reachedLeader {
+		return fmt.Errorf("failed to heal cluster topology via cluster meet, no leader pod is reachable: %w", lastErr)
+	}
+	return nil
+}
+
 // RepairStaleReplication checks connected followers for broken replication
 // (master_link_status != up) and re-issues CLUSTER REPLICATE to force
 // the follower to re-resolve its master's current IP from gossip.
