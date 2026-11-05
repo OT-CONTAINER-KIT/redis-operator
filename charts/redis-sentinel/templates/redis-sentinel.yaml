@@ -3,7 +3,7 @@ apiVersion: redis.redis.opstreelabs.in/v1beta2
 kind: RedisSentinel
 metadata:
   name: {{ .Values.redisSentinel.name | default .Release.Name }}
-  labels: {{- include "common.labels" . | nindent 4 }}
+  labels: {{- include "redis-sentinel.labels" . | nindent 4 }}
   annotations:
     {{- include "common.annotations" . | nindent 4 }}
     {{ if .Values.redisSentinel.recreateStatefulSetOnUpdateInvalid }}
