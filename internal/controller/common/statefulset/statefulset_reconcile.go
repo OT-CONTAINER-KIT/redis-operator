@@ -5,9 +5,9 @@ import (
 
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/reconciler"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util/maps"
+	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -39,6 +39,9 @@ func New(params Params) appsv1.StatefulSet {
 }
 
 func Reconcile(ctx context.Context, k8sClient client.Client, expected appsv1.StatefulSet, owner client.Object) (appsv1.StatefulSet, error) {
+	if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(&expected); err != nil {
+		return expected, err
+	}
 	reconciled, err := reconciler.Reconcile(ctx, reconciler.Params{
 		Client:   k8sClient,
 		Owner:    owner,
@@ -69,7 +72,16 @@ func Reconcile(ctx context.Context, k8sClient client.Client, expected appsv1.Sta
 func needUpdate(expected, existed *appsv1.StatefulSet) bool {
 	return !maps.IsSubset(expected.Labels, existed.Labels) ||
 		!maps.IsSubset(expected.Annotations, existed.Annotations) ||
-		!equality.Semantic.DeepEqual(expected.Spec, existed.Spec)
+		changed(expected, existed)
+}
+
+// changed ignores fields the API server defaults, which DeepEqual reported as a change on every reconcile.
+func changed(expected, existed *appsv1.StatefulSet) bool {
+	result, err := patch.DefaultPatchMaker.Calculate(existed, expected,
+		patch.IgnoreStatusFields(),
+		patch.IgnoreVolumeClaimTemplateTypeMetaAndStatus(),
+	)
+	return err != nil || !result.IsEmpty()
 }
 
 func update(expected, existed *appsv1.StatefulSet) {
