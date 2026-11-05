@@ -2,10 +2,23 @@ package redis
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestRoutingProbeTimeoutDoesNotChangeMaintenanceClientOptions(t *testing.T) {
+	bounded := (&service{connectionInfo: &ConnectionInfo{Host: "127.0.0.1", Port: "6379", ProbeTimeout: time.Second}}).createClient()
+	defer bounded.Close()
+	assert.Equal(t, time.Second, bounded.Options().ReadTimeout)
+	assert.Equal(t, 0, bounded.Options().MaxRetries)
+	assert.True(t, bounded.Options().ContextTimeoutEnabled)
+	maintenance := (&service{connectionInfo: &ConnectionInfo{Host: "127.0.0.1", Port: "6379"}}).createClient()
+	defer maintenance.Close()
+	assert.False(t, maintenance.Options().ContextTimeoutEnabled)
+	assert.Greater(t, maintenance.Options().ReadTimeout, time.Second)
+}
 
 func TestCountKeyspaceKeys(t *testing.T) {
 	tests := []struct {

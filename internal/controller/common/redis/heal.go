@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
@@ -46,6 +47,8 @@ type Healer interface {
 	// In that case the old master label is removed, because keeping it could point the master
 	// service at a dead pod. If that removal fails, an error is returned so the caller retries.
 	// Pass an empty masterPod when no master has been identified.
+	// Once masterPod answers as master, other masters are excluded from both role
+	// services until demotion. Their old master labels are removed before publishing it.
 	UpdateRedisRoleLabel(ctx context.Context, ns string, labels map[string]string, secret *commonapi.ExistingPasswordSecret, tlsConfig *commonapi.TLSConfig, masterPod string) error
 }
 
@@ -95,6 +98,57 @@ func (h *healer) UpdateRedisRoleLabel(ctx context.Context, ns string, labels map
 			return err
 		}
 	}
+	roleConnection := func(pod v1.Pod) *redis.ConnectionInfo {
+		info := createConnectionInfo(ctx, pod, password, tlsConfig, h.k8s, ns, "6379")
+		if masterPod != "" {
+			info.ProbeTimeout = time.Second
+		}
+		return info
+	}
+
+	var identifiedMasterConfirmed bool
+	for _, pod := range pods.Items {
+		if pod.Name != masterPod || !k8sutils.IsRedisPodProbeable(&pod) {
+			continue
+		}
+		connInfo := roleConnection(pod)
+		isMaster, probeErr := h.redis.Connect(connInfo).IsMaster(ctx)
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		identifiedMasterConfirmed = probeErr == nil && isMaster
+		break
+	}
+	if masterPod != "" && !identifiedMasterConfirmed {
+		// An identified single-master route may only change after its first probe
+		// confirms the candidate. A later successful probe is not a new election.
+		log.FromContext(ctx).Info("Keeping role routes unchanged: identified master is not confirmed", "identifiedMaster", masterPod)
+		return nil
+	}
+	if identifiedMasterConfirmed {
+		// Remove conflicting routes first; do not briefly publish two masters while
+		// waiting for Sentinel to demote a returning master.
+		for _, pod := range pods.Items {
+			if pod.Name == masterPod || pod.Labels[common.RedisRoleLabelKey] != common.RedisRoleLabelMaster {
+				continue
+			}
+			if k8sutils.IsRedisPodProbeable(&pod) {
+				connInfo := roleConnection(pod)
+				_, probeErr := h.redis.Connect(connInfo).IsMaster(ctx)
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+				if probeErr != nil && !isConnectivityError(probeErr) {
+					return fmt.Errorf("cannot verify conflicting master %s: %w", pod.Name, probeErr)
+				}
+			}
+			rErr := retry.RetryOnConflict(retry.DefaultRetry, removeRoleLabelFunc(pod.Name))
+			if rErr != nil && !apierrors.IsNotFound(rErr) {
+				return fmt.Errorf("failed to remove conflicting master label from pod %s: %w", pod.Name, rErr)
+			}
+			delete(pod.Labels, common.RedisRoleLabelKey)
+		}
+	}
 
 	var masterConfirmed bool
 	var unreachableMasterPods []string
@@ -103,7 +157,7 @@ func (h *healer) UpdateRedisRoleLabel(ctx context.Context, ns string, labels map
 			continue
 		}
 
-		connInfo := createConnectionInfo(ctx, pod, password, tlsConfig, h.k8s, ns, "6379")
+		connInfo := roleConnection(pod)
 		redisService := h.redis.Connect(connInfo)
 		isMaster, err := redisService.IsMaster(ctx)
 		if err != nil {
@@ -129,6 +183,17 @@ func (h *healer) UpdateRedisRoleLabel(ctx context.Context, ns string, labels map
 		}
 		role := common.RedisRoleLabelSlave
 		if isMaster {
+			if identifiedMasterConfirmed && pod.Name != masterPod {
+				// A returning Redis may still report master. It is neither an eligible
+				// write target nor a replica until Sentinel completes demotion.
+				if _, exists := pod.Labels[common.RedisRoleLabelKey]; exists {
+					rErr := retry.RetryOnConflict(retry.DefaultRetry, removeRoleLabelFunc(pod.Name))
+					if rErr != nil && !apierrors.IsNotFound(rErr) {
+						return fmt.Errorf("failed to remove conflicting role label from pod %s: %w", pod.Name, rErr)
+					}
+				}
+				continue
+			}
 			role = common.RedisRoleLabelMaster
 			// The pod the caller identified as the master needs no further proof: a
 			// survivor promoted by Sentinel after its only peer was lost has no replica

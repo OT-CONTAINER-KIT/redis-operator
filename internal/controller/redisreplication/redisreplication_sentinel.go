@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"time"
 
 	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
@@ -205,9 +206,10 @@ func (r *Reconciler) querySentinelMonitoredMaster(ctx context.Context, redisClie
 			continue
 		}
 		info, err := redisClient.Connect(&redis.ConnectionInfo{
-			Host:     sentinelPod.Status.PodIP,
-			Port:     "26379",
-			Password: sentinelPassword,
+			Host:         sentinelPod.Status.PodIP,
+			Port:         "26379",
+			Password:     sentinelPassword,
+			ProbeTimeout: time.Second,
 		}).GetInfoSentinel(ctx)
 		if err != nil {
 			if ctxErr := ctx.Err(); ctxErr != nil {
