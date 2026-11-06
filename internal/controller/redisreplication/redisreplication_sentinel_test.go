@@ -2,6 +2,7 @@ package redisreplication
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
@@ -356,6 +357,14 @@ type fakeSentinelRedisService struct {
 }
 
 func (f *fakeSentinelRedisService) IsMaster(context.Context) (bool, error) { return false, nil }
+
+func (f *fakeSentinelRedisService) SentinelMonitorIfAbsent(context.Context, *redis.ConnectionInfo, string, string) error {
+	return nil
+}
+
+func (f *fakeSentinelRedisService) GetSentinelMaster(context.Context, string) (*redis.SentinelMasterState, error) {
+	return nil, fmt.Errorf("No such master")
+}
 
 func (f *fakeSentinelRedisService) GetKeyCount(context.Context) (int64, error) {
 	return 0, nil

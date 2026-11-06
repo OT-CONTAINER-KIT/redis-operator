@@ -1,0 +1,2 @@
+FROM quay.io/opstree/redis-operator:v0.27.0
+COPY --chown=65532:65532 operator /operator

@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -75,6 +76,83 @@ func Test_GenerateConfig_SentinelAnnounceIP(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDeferredMonitorStartsWithoutPlaceholderOrPerMasterSettings(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sentinel.conf")
+	t.Setenv("SENTINEL_CONFIG_FILE", path)
+	t.Setenv("DEFER_SENTINEL_MONITOR", "true")
+	t.Setenv("PERSIST_SENTINEL_CONFIG", "true")
+	t.Setenv("SENTINEL_ID", "")
+	t.Setenv("REDIS_PASSWORD", "")
+	t.Setenv("MASTER_PASSWORD", "")
+	t.Setenv("MASTER_GROUP_NAME", "deferred")
+	t.Setenv("IP", "0.0.0.0")
+	require.NoError(t, GenerateConfig())
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "#") {
+			continue
+		}
+		assert.NotContains(t, line, "sentinel monitor ")
+		assert.NotContains(t, line, "sentinel down-after-milliseconds ")
+		assert.NotContains(t, line, "sentinel auth-pass ")
+	}
+}
+
+func TestPersistentSentinelPreservesCompleteElectionState(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sentinel.conf")
+	t.Setenv("SENTINEL_CONFIG_FILE", path)
+	t.Setenv("DEFER_SENTINEL_MONITOR", "true")
+	t.Setenv("PERSIST_SENTINEL_CONFIG", "true")
+	t.Setenv("SENTINEL_ID", "")
+	t.Setenv("REDIS_PASSWORD", "")
+	t.Setenv("MASTER_PASSWORD", "")
+	t.Setenv("EXTERNAL_CONFIG_FILE", filepath.Join(t.TempDir(), "absent.conf"))
+	original := []byte("sentinel myid " + strings.Repeat("1", 40) + "\nsentinel monitor myMaster 192.0.2.10 6379 2\nsentinel current-epoch 1001\nsentinel config-epoch myMaster 42\nsentinel leader-epoch myMaster 1001\n")
+	require.NoError(t, os.WriteFile(path, original, 0o600))
+	for i := 0; i < 2; i++ {
+		require.NoError(t, GenerateConfig())
+		data, err := os.ReadFile(path)
+		require.NoError(t, err)
+		require.Equal(t, original, data)
+	}
+}
+
+func TestPersistentSentinelRefusesEmptyOrLinkedState(t *testing.T) {
+	for _, linked := range []bool{false, true} {
+		path := filepath.Join(t.TempDir(), "sentinel.conf")
+		t.Setenv("SENTINEL_CONFIG_FILE", path)
+		t.Setenv("DEFER_SENTINEL_MONITOR", "true")
+		t.Setenv("PERSIST_SENTINEL_CONFIG", "true")
+		t.Setenv("SENTINEL_ID", "")
+		if linked {
+			target := filepath.Join(t.TempDir(), "synthetic-state")
+			require.NoError(t, os.WriteFile(target, []byte("synthetic"), 0o600))
+			require.NoError(t, os.Symlink(target, path))
+		} else {
+			require.NoError(t, os.WriteFile(path, nil, 0o600))
+		}
+		require.Error(t, GenerateConfig())
+	}
+}
+
+func TestPersistentSentinelDoesNotReinitializeLostState(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sentinel.conf")
+	t.Setenv("SENTINEL_CONFIG_FILE", path)
+	t.Setenv("DEFER_SENTINEL_MONITOR", "true")
+	t.Setenv("PERSIST_SENTINEL_CONFIG", "true")
+	t.Setenv("SENTINEL_ID", "")
+	t.Setenv("REDIS_PASSWORD", "")
+	t.Setenv("MASTER_PASSWORD", "")
+	t.Setenv("EXTERNAL_CONFIG_FILE", filepath.Join(t.TempDir(), "absent.conf"))
+	require.NoError(t, GenerateConfig())
+	require.NoError(t, os.Remove(path))
+	require.Error(t, GenerateConfig())
+	_, err := os.Stat(path)
+	require.True(t, os.IsNotExist(err))
 }
 
 func Test_GenerateConfig_TLS_CACertFile(t *testing.T) {

@@ -352,6 +352,8 @@ func Test_getSentinelEnvVariable(t *testing.T) {
 				},
 			},
 			want: &[]corev1.EnvVar{
+				{Name: "PERSIST_SENTINEL_CONFIG", Value: "true"},
+				{Name: "DEFER_SENTINEL_MONITOR", Value: "true"},
 				{
 					Name:  "MASTER_GROUP_NAME",
 					Value: "master",

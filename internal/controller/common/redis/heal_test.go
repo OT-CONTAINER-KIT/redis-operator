@@ -684,17 +684,18 @@ func TestIsConnectivityError(t *testing.T) {
 }
 
 type fakeRedisClient struct {
-	connectHosts       []string
-	isMasterByHost     map[string]bool
-	replicasByHost     map[string]int
-	errByHost          map[string]error
-	replicaErrByHost   map[string]error
-	keyCountByHost     map[string]int64
-	keyCountErrByHost  map[string]error
-	sentinelInfoByHost map[string]*redisservice.InfoSentinelResult
-	monitorHosts       []string
-	setHosts           []string
-	resetHosts         []string
+	connectHosts         []string
+	isMasterByHost       map[string]bool
+	replicasByHost       map[string]int
+	errByHost            map[string]error
+	replicaErrByHost     map[string]error
+	keyCountByHost       map[string]int64
+	keyCountErrByHost    map[string]error
+	sentinelInfoByHost   map[string]*redisservice.InfoSentinelResult
+	sentinelMasterByHost map[string]*redisservice.SentinelMasterState
+	monitorHosts         []string
+	setHosts             []string
+	resetHosts           []string
 }
 
 func (f *fakeRedisClient) Connect(info *redisservice.ConnectionInfo) redisservice.Service {
@@ -712,6 +713,16 @@ func (f *fakeRedisService) IsMaster(context.Context) (bool, error) {
 		return false, err
 	}
 	return f.client.isMasterByHost[f.host], nil
+}
+
+func (f *fakeRedisService) GetSentinelMaster(context.Context, string) (*redisservice.SentinelMasterState, error) {
+	if report := f.client.sentinelMasterByHost[f.host]; report != nil {
+		return report, nil
+	}
+	if err := f.client.errByHost[f.host]; err != nil {
+		return nil, err
+	}
+	return nil, fmt.Errorf("No such master")
 }
 
 func (f *fakeRedisService) GetAttachedReplicaCount(context.Context) (int, error) {
@@ -734,6 +745,10 @@ func (f *fakeRedisService) SentinelMonitor(context.Context, *redisservice.Connec
 	}
 	f.client.monitorHosts = append(f.client.monitorHosts, f.host)
 	return nil
+}
+
+func (f *fakeRedisService) SentinelMonitorIfAbsent(ctx context.Context, master *redisservice.ConnectionInfo, group, quorum string) error {
+	return f.SentinelMonitor(ctx, master, group, quorum)
 }
 
 func (f *fakeRedisService) SentinelSet(context.Context, string, string, string) error {

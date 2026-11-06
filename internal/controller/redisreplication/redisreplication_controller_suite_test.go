@@ -23,6 +23,7 @@ import (
 	"time"
 
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
+	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	redis "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/redis"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	. "github.com/onsi/ginkgo/v2"
@@ -76,6 +77,8 @@ var _ = BeforeSuite(func() {
 	Expect(cfg).ToNot(BeNil())
 
 	err = rrvb2.AddToScheme(scheme.Scheme)
+	Expect(err).ToNot(HaveOccurred())
+	err = rsvb2.AddToScheme(scheme.Scheme)
 	Expect(err).ToNot(HaveOccurred())
 
 	// +kubebuilder:scaffold:scheme
