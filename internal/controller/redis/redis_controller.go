@@ -18,6 +18,7 @@ package redis
 
 import (
 	"context"
+	"reflect"
 	"time"
 
 	rvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redis/v1beta2"
@@ -26,10 +27,12 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -62,15 +65,45 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if err = k8sutils.AddFinalizer(ctx, instance, RedisFinalizer, r.Client); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "failed to add finalizer")
 	}
+	if instance.Status.State == "" {
+		requeue, err := r.updateStatus(ctx, instance, rvb2.RedisStatus{
+			State:  rvb2.RedisInitializing,
+			Reason: rvb2.InitializingReason,
+		})
+		if err != nil {
+			return intctrlutil.RequeueE(ctx, err, "failed to update status to initializing")
+		}
+		if requeue {
+			return intctrlutil.Requeue()
+		}
+	}
+
 	err = k8sutils.CreateStandaloneRedis(ctx, instance, r.K8sClient)
 	if err != nil {
+		if _, statusErr := r.updateStatus(ctx, instance, rvb2.RedisStatus{
+			State:  rvb2.RedisFailed,
+			Reason: rvb2.FailedReason,
+		}); statusErr != nil {
+			return intctrlutil.RequeueE(ctx, statusErr, "failed to update status to failed")
+		}
 		return intctrlutil.RequeueE(ctx, err, "failed to create redis")
 	}
 	err = k8sutils.CreateStandaloneService(ctx, instance, r.K8sClient)
 	if err != nil {
+		if _, statusErr := r.updateStatus(ctx, instance, rvb2.RedisStatus{
+			State:  rvb2.RedisFailed,
+			Reason: rvb2.FailedReason,
+		}); statusErr != nil {
+			return intctrlutil.RequeueE(ctx, statusErr, "failed to update status to failed")
+		}
 		return intctrlutil.RequeueE(ctx, err, "failed to create service")
 	}
 
+	// Apply any dynamic (CONFIG SET-able) Redis configuration from spec.redisConfig.dynamicConfig.
+	// Runs unconditionally on every reconcile (not gated on status.state) so config changes are
+	// re-applied to an already-Ready instance without a restart, and — since it returns/requeues
+	// before reaching the Ready check below — also defers the first Ready transition until the
+	// requested configuration has actually been applied.
 	if len(instance.Spec.GetRedisDynamicConfig()) > 0 {
 		if !r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name) {
 			return intctrlutil.RequeueAfter(ctx, time.Second*10, "waiting for redis statefulset to be ready before applying dynamic config")
@@ -83,7 +116,48 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return intctrlutil.RequeueAfter(ctx, time.Second*10, "waiting for redis to become reachable to apply dynamic config")
 		}
 	}
+
+	// The Ready transition is event-driven: this controller owns the StatefulSet,
+	// so StatefulSet status changes trigger a reconcile and no periodic requeue is
+	// needed to observe readiness.
+	if instance.Status.State != rvb2.RedisReady && r.IsStatefulSetReady(ctx, instance.Namespace, instance.Name) {
+		requeue, err := r.updateStatus(ctx, instance, rvb2.RedisStatus{
+			State:  rvb2.RedisReady,
+			Reason: rvb2.ReadyReason,
+		})
+		if err != nil {
+			return intctrlutil.RequeueE(ctx, err, "failed to update status to ready")
+		}
+		if requeue {
+			return intctrlutil.Requeue()
+		}
+	}
 	return intctrlutil.Reconciled()
+}
+
+func (r *Reconciler) updateStatus(ctx context.Context, instance *rvb2.Redis, status rvb2.RedisStatus) (requeue bool, err error) {
+	if reflect.DeepEqual(instance.Status, status) {
+		return false, nil
+	}
+	copy := instance.DeepCopy()
+	copy.Spec = rvb2.RedisSpec{}
+	copy.Status = status
+	err = common.UpdateStatus(ctx, r.Client, copy)
+	if err != nil && apierrors.IsConflict(err) {
+		log.FromContext(ctx).Info("conflict detected, reloading instance and retrying status update")
+		namespacedName := client.ObjectKey{
+			Namespace: instance.Namespace,
+			Name:      instance.Name,
+		}
+		if err := r.Get(ctx, namespacedName, instance); err != nil {
+			return true, err
+		}
+		copy = instance.DeepCopy()
+		copy.Spec = rvb2.RedisSpec{}
+		copy.Status = status
+		return true, common.UpdateStatus(ctx, r.Client, copy)
+	}
+	return false, err
 }
 
 // SetupWithManager sets up the controller with the Manager.
