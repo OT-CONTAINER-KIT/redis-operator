@@ -77,6 +77,7 @@ helm delete <my-release> --namespace <namespace>
 | redisExporter.enabled | bool | `false` |  |
 | redisExporter.env | list | `[]` |  |
 | redisExporter.image | string | `"quay.io/opstree/redis-exporter"` |  |
+| redisExporter.digest | string | `""` | Optional image digest (e.g. `sha256:abc...`). If set, rendered as `image:tag@digest`. Can be used instead of or together with tag. |
 | redisExporter.imagePullPolicy | string | `"IfNotPresent"` |  |
 | redisExporter.resources | object | `{}` |  |
 | redisExporter.securityContext | object | `{}` |  |
@@ -85,6 +86,7 @@ helm delete <my-release> --namespace <namespace>
 | redisReplication.dynamicConfig | list | `[]` | DynamicConfig is a list of "key value" Redis parameters applied at runtime    via CONFIG SET (without triggering a rolling restart). Note: CONFIG SET is    not persisted to disk, so values are not retained across pod restarts unless    they are also provided through externalConfig.    Example:    dynamicConfig:      - "maxmemory-policy allkeys-lru"      - "slowlog-log-slower-than 5000" |
 | redisReplication.ignoreAnnotations | list | `[]` |  |
 | redisReplication.image | string | `"quay.io/opstree/redis"` |  |
+| redisReplication.digest | string | `""` | Optional image digest (e.g. `sha256:abc...`). If set, rendered as `image:tag@digest`. Can be used instead of or together with tag. |
 | redisReplication.imagePullPolicy | string | `"IfNotPresent"` |  |
 | redisReplication.imagePullSecrets | list | `[]` |  |
 | redisReplication.livenessProbe | object | `{}` |  |

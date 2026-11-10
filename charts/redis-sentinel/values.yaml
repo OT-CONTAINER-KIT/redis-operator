@@ -4,6 +4,7 @@ redisSentinel:
   clusterSize: 3
   image: quay.io/opstree/redis-sentinel
   tag: v7.0.15
+  digest: ""
   imagePullPolicy: IfNotPresent
   imagePullSecrets: []
     # - name:  Secret with Registry credentials
@@ -83,6 +84,7 @@ redisExporter:
   enabled: false
   image: quay.io/opstree/redis-exporter
   tag: "v1.44.0"
+  digest: ""
   imagePullPolicy: IfNotPresent
   resources: {}
     # requests:

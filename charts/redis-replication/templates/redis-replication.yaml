@@ -12,7 +12,7 @@ metadata:
 spec:
   clusterSize: {{ .Values.redisReplication.clusterSize }}  
   kubernetesConfig:
-    image: "{{ .Values.redisReplication.image }}:{{ .Values.redisReplication.tag }}"
+    image: "{{ .Values.redisReplication.image }}{{- if .Values.redisReplication.tag }}:{{ .Values.redisReplication.tag }}{{- end }}{{- if .Values.redisReplication.digest }}@{{ .Values.redisReplication.digest }}{{- end }}"
     imagePullPolicy: "{{ .Values.redisReplication.imagePullPolicy }}"
     {{- if .Values.redisReplication.imagePullSecrets }}
     imagePullSecrets: {{ toYaml .Values.redisReplication.imagePullSecrets | nindent 4 }}
@@ -47,7 +47,7 @@ spec:
 
   redisExporter:
     enabled: {{ .Values.redisExporter.enabled }}
-    image: "{{ .Values.redisExporter.image }}:{{ .Values.redisExporter.tag }}"
+    image: "{{ .Values.redisExporter.image }}{{- if .Values.redisExporter.tag }}:{{ .Values.redisExporter.tag }}{{- end }}{{- if .Values.redisExporter.digest }}@{{ .Values.redisExporter.digest }}{{- end }}"
     imagePullPolicy: "{{ .Values.redisExporter.imagePullPolicy }}"
     {{- if .Values.redisExporter.resources}}
     resources: {{ toYaml .Values.redisExporter.resources | nindent 6 }}
@@ -136,7 +136,7 @@ spec:
   {{- end }}
   {{- if .Values.sentinel.enabled }}
   sentinel:
-    image: "{{ .Values.sentinel.image }}:{{ .Values.sentinel.tag }}"
+    image: "{{ .Values.sentinel.image }}{{- if .Values.sentinel.tag }}:{{ .Values.sentinel.tag }}{{- end }}{{- if .Values.sentinel.digest }}@{{ .Values.sentinel.digest }}{{- end }}"
     imagePullPolicy: "{{ .Values.sentinel.imagePullPolicy }}"
     size: {{ .Values.sentinel.size }}
     {{- if .Values.sentinel.resources }}
