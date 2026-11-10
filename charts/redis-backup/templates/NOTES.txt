@@ -1,0 +1,18 @@
+{{- if not .Values.enabled }}
+redis-backup is installed but disabled. Set `enabled: true`, provide `clusterName`,
+and either `existingSecret` or `secret.create` to render backup resources.
+{{- else if .Values.schedule }}
+A CronJob "{{ include "redis-backup.fullname" . }}" has been scheduled: {{ .Values.schedule }}.
+
+Inspect runs:
+  kubectl get cronjob {{ include "redis-backup.fullname" . }} -n {{ .Release.Namespace }}
+  kubectl get jobs    -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+Trigger an ad-hoc run:
+  kubectl create job --from=cronjob/{{ include "redis-backup.fullname" . }} manual-$(date +%s) -n {{ .Release.Namespace }}
+{{- else }}
+A one-shot Job "{{ include "redis-backup.fullname" . }}" has been created.
+
+Follow progress:
+  kubectl logs -f job/{{ include "redis-backup.fullname" . }} -n {{ .Release.Namespace }}
+{{- end }}

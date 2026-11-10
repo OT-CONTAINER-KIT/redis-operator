@@ -1,0 +1,21 @@
+apiVersion: v2
+name: redis-backup
+description: Scheduled or one-shot backups of a RedisCluster to S3, Azure Blob, or GCS via redis-cli --rdb and restic.
+version: 0.1.0
+appVersion: "0.27.0"
+home: https://github.com/ot-container-kit/redis-operator
+sources:
+  - https://github.com/ot-container-kit/redis-operator
+maintainers:
+  - name: iamabhishek-dubey
+  - name: sandy724
+  - name: shubham-cmyk
+keywords:
+  - operator
+  - redis
+  - opstree
+  - kubernetes
+  - backup
+  - restic
+icon: https://github.com/OT-CONTAINER-KIT/redis-operator/raw/main/static/redis-operator-logo.svg
+type: application

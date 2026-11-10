@@ -1,0 +1,117 @@
+---
+# -- Master switch. When false the chart renders no resources, so `helm install`
+#    with defaults is a safe no-op.
+enabled: false
+
+# -- Name of the RedisCluster CR to back up. Required when enabled=true.
+clusterName: ""
+
+# -- Namespace of the RedisCluster. Empty = the chart's release namespace.
+clusterNamespace: ""
+
+image:
+  repository: quay.io/opstree/redis-operator-backup
+  tag: latest
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+  # - name: regcred
+
+# -- Cron schedule in standard cron syntax. Empty = render a one-shot Job
+#    instead of a CronJob.
+schedule: ""
+
+# -- CronJob-only tuning. Ignored when `schedule` is empty.
+cronJob:
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  suspend: false
+  # -- startingDeadlineSeconds; null = unset
+  startingDeadlineSeconds: null
+  # -- IANA time zone (Kubernetes 1.27+). Empty = cluster default.
+  timeZone: ""
+
+# -- Job tuning. Applies to the one-shot Job and to each CronJob invocation.
+job:
+  backoffLimit: 2
+  # -- Null = unset
+  activeDeadlineSeconds: null
+  # -- Garbage-collect finished Jobs after this many seconds. Null = never.
+  ttlSecondsAfterFinished: 86400
+  restartPolicy: OnFailure
+
+# -- Secret providing backup env vars (restic + destination credentials). Mounted
+#    with envFrom, so every key becomes an env var on the backup container.
+#    Choose exactly one path: `secret.create: true` (chart creates it from
+#    stringData) or `existingSecret: <name>` (bring your own).
+secret:
+  # -- Create a Secret from `stringData` below. Keep secrets out of values.yaml
+  #    in real deployments; prefer `existingSecret`.
+  create: false
+  # -- Override the generated Secret name. Default: <release>-redis-backup
+  name: ""
+  # -- Free-form env map written into the generated Secret.
+  stringData: {}
+  # Example:
+  #   RESTIC_PASSWORD: changeme
+  #   RESTIC_CACHE_DIR: /tmp/restic_cache
+  #   REDIS_PORT: "6379"
+  #   REDIS_PASSWORD: ""
+  #   BACKUP_DESTINATION: AWS_S3
+  #   AWS_S3_BUCKET: my-redis-backups
+  #   AWS_DEFAULT_REGION: us-east-1
+  #   AWS_ACCESS_KEY_ID: ...
+  #   AWS_SECRET_ACCESS_KEY: ...
+
+# -- Reference an existing Secret with the backup env vars. Preferred for
+#    production. Ignored when `secret.create: true`.
+existingSecret: ""
+
+serviceAccount:
+  create: true
+  # -- Override the generated ServiceAccount name. Default: <release>-redis-backup
+  name: ""
+  annotations: {}
+
+rbac:
+  # -- Create a scoped Role + RoleBinding granting `get` on redisclusters.
+  #    backup.bash looks up the cluster's leader count from the CR, so this is
+  #    the minimum needed. Disable if you've bound the SA to a Role yourself.
+  create: true
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL
+
+resources: {}
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # limits:
+  #   cpu: 500m
+  #   memory: 512Mi
+
+podAnnotations: {}
+podLabels: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# -- Extra env to append after envFrom (useful for toggles that aren't secrets).
+extraEnv: []
+  # - name: LOG_LEVEL
+  #   value: debug
+
+# -- Extra volumes mounted into the backup pod (e.g. a restic cache PVC).
+extraVolumes: []
+extraVolumeMounts: []
