@@ -1,3 +1,17 @@
-{{ with .Site.Params.gcs_engine_id }}
- <input id="agones-search" type="search" class="form-control td-search-input" placeholder="&#xf002 {{ T "ui_search" }}" aria-label="{{ T "ui_search" }}" autocomplete="off">
+{{ if or .Site.Params.gcs_engine_id .Site.Params.algolia_docsearch }}
+<input id="redis-operator-search" type="search" class="form-control td-search-input" placeholder="&#xf002; {{ T "ui_search" }}" aria-label="{{ T "ui_search" }}" autocomplete="off">
+{{ else if .Site.Params.offlineSearch }}
+{{ $offlineSearchIndex := resources.Get "json/offline-search-index.json" | resources.ExecuteAsTemplate "offline-search-index.json" . }}
+{{ $offlineSearchIndexFingerprint := $offlineSearchIndex | resources.Fingerprint "md5" }}
+<input
+  id="redis-operator-search"
+  type="search"
+  class="form-control td-search-input"
+  placeholder="&#xf002; {{ T "ui_search" }}"
+  aria-label="{{ T "ui_search" }}"
+  autocomplete="off"
+  data-offline-search-index-json-src="{{ $offlineSearchIndexFingerprint.RelPermalink }}"
+  data-offline-search-base-href="/"
+  data-offline-search-max-results="{{ .Site.Params.offlineSearchMaxResults | default 10 }}"
+>
 {{ end }}
