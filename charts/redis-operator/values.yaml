@@ -23,6 +23,9 @@ redisOperator:
   podAnnotations: {}
   # Additional Pod labels (e.g. for filtering Pod by custom labels)
   podLabels: {}
+  # Additional labels on the operator Deployment's own metadata (not the pod
+  # template) - e.g. for label selectors that key off the workload resource itself.
+  deploymentLabels: {}
 
   # Additional arguments for redis-operator container
   extraArgs: []
