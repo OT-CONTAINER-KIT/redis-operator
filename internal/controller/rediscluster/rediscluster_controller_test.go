@@ -322,6 +322,14 @@ var _ = Describe("Redis Cluster Controller", func() {
 
 		AfterEach(func() {
 			Expect(k8sClient.Delete(context.Background(), redisCluster)).Should(Succeed())
+			// The finalizer is removed on a later reconciliation, so the object
+			// outlives the Delete call. Recreating it before then fails.
+			Eventually(func() error {
+				return k8sClient.Get(context.Background(), types.NamespacedName{
+					Name:      redisCluster.Name,
+					Namespace: ns,
+				}, &rcvb2.RedisCluster{})
+			}, timeout, interval).ShouldNot(Succeed())
 		})
 
 		It("should announce the allocated node ports from the first StatefulSet revision", func() {
@@ -381,6 +389,91 @@ var _ = Describe("Redis Cluster Controller", func() {
 			for name := range announceEnv(followerSts) {
 				Expect(name).NotTo(ContainSubstring("_leader_"))
 			}
+		})
+
+		It("should delete the per-pod Services of ordinals removed by a scale-down", func() {
+			// No StatefulSet controller runs in envtest, so readiness has to be
+			// simulated. The operator refuses to scale down until both StatefulSets
+			// report ready, and their spec changes as the test scales, so this is
+			// re-applied on every poll rather than once.
+			markReady := func(name string) {
+				sts := &appsv1.StatefulSet{}
+				if err := k8sClient.Get(context.Background(), types.NamespacedName{Name: name, Namespace: ns}, sts); err != nil {
+					return
+				}
+				if sts.Spec.Replicas == nil {
+					return
+				}
+				sts.Status.Replicas = *sts.Spec.Replicas
+				sts.Status.ReadyReplicas = *sts.Spec.Replicas
+				sts.Status.AvailableReplicas = *sts.Spec.Replicas
+				sts.Status.CurrentReplicas = *sts.Spec.Replicas
+				sts.Status.UpdatedReplicas = *sts.Spec.Replicas
+				sts.Status.ObservedGeneration = sts.Generation
+				_ = k8sClient.Status().Update(context.Background(), sts)
+			}
+
+			// perPodServices counts the Services named after a pod of a role, which
+			// are the ones holding a node port allocation.
+			perPodServices := func(role string) int {
+				services := &corev1.ServiceList{}
+				if err := k8sClient.List(context.Background(), services,
+					client.InNamespace(ns),
+					client.MatchingLabels{"app": redisCluster.Name + "-" + role},
+				); err != nil {
+					return -1
+				}
+				var count int
+				for i := range services.Items {
+					if _, perPod := services.Items[i].Labels["statefulset.kubernetes.io/pod-name"]; perPod {
+						count++
+					}
+				}
+				return count
+			}
+
+			setClusterSize := func(size int32) {
+				Eventually(func() error {
+					rc := &rcvb2.RedisCluster{}
+					if err := k8sClient.Get(context.Background(), types.NamespacedName{Name: redisCluster.Name, Namespace: ns}, rc); err != nil {
+						return err
+					}
+					rc.Spec.ClusterSize = ptr.To(size)
+					return k8sClient.Update(context.Background(), rc)
+				}, timeout, interval).Should(Succeed())
+			}
+
+			countWhileReady := func(role string) func() int {
+				return func() int {
+					markReady(redisCluster.Name + "-leader")
+					markReady(redisCluster.Name + "-follower")
+					return perPodServices(role)
+				}
+			}
+
+			By("waiting for the initial three shards")
+			Eventually(countWhileReady("leader"), time.Second*30, interval).Should(Equal(3))
+
+			By("scaling up to four shards")
+			setClusterSize(4)
+			Eventually(countWhileReady("leader"), time.Second*60, interval).Should(Equal(4))
+			Eventually(countWhileReady("follower"), time.Second*60, interval).Should(Equal(4))
+
+			By("scaling back down to three shards")
+			setClusterSize(3)
+
+			By("verifying the Service of the removed ordinal is deleted rather than left holding its node port")
+			Eventually(countWhileReady("leader"), time.Second*60, interval).Should(Equal(3))
+			Eventually(countWhileReady("follower"), time.Second*60, interval).Should(Equal(3))
+
+			By("verifying the removed ordinal is gone by name")
+			Consistently(func() error {
+				svc := &corev1.Service{}
+				return k8sClient.Get(context.Background(), types.NamespacedName{
+					Name:      redisCluster.Name + "-leader-3",
+					Namespace: ns,
+				}, svc)
+			}, time.Second*3, interval).ShouldNot(Succeed())
 		})
 	})
 })

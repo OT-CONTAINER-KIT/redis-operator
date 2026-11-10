@@ -120,6 +120,17 @@ func updateService(ctx context.Context, k8sClient kubernetes.Interface, namespac
 	return nil
 }
 
+// deleteService is a method to delete a service in Kubernetes
+func deleteService(ctx context.Context, k8sClient kubernetes.Interface, namespace string, name string) error {
+	err := k8sClient.CoreV1().Services(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Redis service deletion failed", "service", name)
+		return err
+	}
+	log.FromContext(ctx).V(1).Info("Redis service deleted successfully", "service", name)
+	return nil
+}
+
 // getService is a method to get service is Kubernetes
 func getService(ctx context.Context, k8sClient kubernetes.Interface, namespace string, name string) (*corev1.Service, error) {
 	getOpts := metav1.GetOptions{
