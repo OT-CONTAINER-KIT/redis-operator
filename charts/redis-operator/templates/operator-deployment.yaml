@@ -99,6 +99,14 @@ spec:
           value: {{ .Values.redisOperator.imageName }}:{{ .Values.redisOperator.initContainerImageTag | default .Values.redisOperator.imageTag | default (printf "v%s" .Chart.AppVersion) }}
         - name: ENABLE_WEBHOOKS
           value: {{ .Values.redisOperator.webhook | quote }}
+        - name: ENABLE_REDIS_CONTROLLER
+          value: {{ .Values.redisOperator.controllers.redis | quote }}
+        - name: ENABLE_REDIS_CLUSTER_CONTROLLER
+          value: {{ .Values.redisOperator.controllers.redisCluster | quote }}
+        - name: ENABLE_REDIS_REPLICATION_CONTROLLER
+          value: {{ .Values.redisOperator.controllers.redisReplication | quote }}
+        - name: ENABLE_REDIS_SENTINEL_CONTROLLER
+          value: {{ .Values.redisOperator.controllers.redisSentinel | quote }}
         {{- if .Values.redisOperator.watchNamespace }}
         - name: WATCH_NAMESPACE
           value: {{ .Values.redisOperator.watchNamespace | quote }}

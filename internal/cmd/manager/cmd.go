@@ -242,44 +242,62 @@ func setupControllers(mgr ctrl.Manager, k8sClient kubernetes.Interface, maxConcu
 
 	healer := redis.NewHealer(k8sClient)
 
-	if err := (&rediscontroller.Reconciler{
-		Client:      mgr.GetClient(),
-		K8sClient:   k8sClient,
-		StatefulSet: k8sutils.NewStatefulSetService(k8sClient),
-	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Redis")
-		return err
+	if envs.IsRedisControllerEnabled() {
+		if err := (&rediscontroller.Reconciler{
+			Client:      mgr.GetClient(),
+			K8sClient:   k8sClient,
+			StatefulSet: k8sutils.NewStatefulSetService(k8sClient),
+		}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "Redis")
+			return err
+		}
+	} else {
+		setupLog.Info("controller disabled by environment, skipping setup", "controller", "Redis", "env", envs.EnableRedisControllerEnv)
 	}
-	if err := (&redisclustercontroller.Reconciler{
-		Client:      mgr.GetClient(),
-		K8sClient:   k8sClient,
-		Healer:      healer,
-		Checker:     redis.NewChecker(k8sClient),
-		Recorder:    mgr.GetEventRecorderFor("rediscluster-controller"),
-		StatefulSet: k8sutils.NewStatefulSetService(k8sClient),
-	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "RedisCluster")
-		return err
+
+	if envs.IsRedisClusterControllerEnabled() {
+		if err := (&redisclustercontroller.Reconciler{
+			Client:      mgr.GetClient(),
+			K8sClient:   k8sClient,
+			Healer:      healer,
+			Checker:     redis.NewChecker(k8sClient),
+			Recorder:    mgr.GetEventRecorderFor("rediscluster-controller"),
+			StatefulSet: k8sutils.NewStatefulSetService(k8sClient),
+		}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "RedisCluster")
+			return err
+		}
+	} else {
+		setupLog.Info("controller disabled by environment, skipping setup", "controller", "RedisCluster", "env", envs.EnableRedisClusterControllerEnv)
 	}
-	if err := (&redisreplicationcontroller.Reconciler{
-		Client:      mgr.GetClient(),
-		K8sClient:   k8sClient,
-		Healer:      healer,
-		Checker:     redis.NewChecker(k8sClient),
-		StatefulSet: k8sutils.NewStatefulSetService(k8sClient),
-	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "RedisReplication")
-		return err
+	if envs.IsRedisReplicationControllerEnabled() {
+		if err := (&redisreplicationcontroller.Reconciler{
+			Client:      mgr.GetClient(),
+			K8sClient:   k8sClient,
+			Healer:      healer,
+			Checker:     redis.NewChecker(k8sClient),
+			StatefulSet: k8sutils.NewStatefulSetService(k8sClient),
+		}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "RedisReplication")
+			return err
+		}
+	} else {
+		setupLog.Info("controller disabled by environment, skipping setup", "controller", "RedisReplication", "env", envs.EnableRedisReplicationControllerEnv)
 	}
-	if err := (&redissentinelcontroller.RedisSentinelReconciler{
-		Client:             mgr.GetClient(),
-		Checker:            redis.NewChecker(k8sClient),
-		Healer:             healer,
-		K8sClient:          k8sClient,
-		ReplicationWatcher: intctrlutil.NewResourceWatcher(),
-	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "RedisSentinel")
-		return err
+
+	if envs.IsRedisSentinelControllerEnabled() {
+		if err := (&redissentinelcontroller.RedisSentinelReconciler{
+			Client:             mgr.GetClient(),
+			Checker:            redis.NewChecker(k8sClient),
+			Healer:             healer,
+			K8sClient:          k8sClient,
+			ReplicationWatcher: intctrlutil.NewResourceWatcher(),
+		}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "RedisSentinel")
+			return err
+		}
+	} else {
+		setupLog.Info("controller disabled by environment, skipping setup", "controller", "RedisSentinel", "env", envs.EnableRedisSentinelControllerEnv)
 	}
 
 	return nil

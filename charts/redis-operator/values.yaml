@@ -39,6 +39,17 @@ redisOperator:
   webhook: false
   automountServiceAccountToken: true
 
+  # -- Per-controller start switches, rendered as ENABLE_*_CONTROLLER env vars.
+  # All default to true, reproducing upstream behavior where every controller
+  # starts. Set a controller to false for a minimal install whose CRD is not
+  # deployed: otherwise the manager's informer List for the missing CRD keeps
+  # failing and the manager never becomes Ready.
+  controllers:
+    redis: true
+    redisCluster: true
+    redisReplication: true
+    redisSentinel: true
+
   # pprof configuration for performance profiling
   pprof:
     # Enable pprof server for performance profiling
