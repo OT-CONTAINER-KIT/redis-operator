@@ -545,6 +545,35 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 				log.FromContext(ctx).Info("Successfully reconfigured slave replication")
 			}
 		}
+
+		// With Sentinel enabled, disconnected replicas are normally re-aimed by
+		// Sentinel itself during a failover. Sentinel can only discover replicas
+		// through the master's INFO output, though: a replica whose REPLICAOF points
+		// at a defunct master address never reconnects, stays invisible to Sentinel,
+		// and no failover is triggered while the master itself stays healthy. The
+		// result is a permanent split (one master, zero attached replicas) that
+		// neither Sentinel nor the operator heals. Re-attach such replicas once a
+		// quorum of Sentinels confirms the sole observed master is the master they
+		// monitor, which rules out intervening while a failover is in progress.
+		if currentRealMaster == "" && instance.EnableSentinel() && !incompleteTopology {
+			monitored, err := r.sentinelMonitoredMaster(ctx, instance, masterNodes)
+			if err != nil {
+				log.FromContext(ctx).Error(err, "Skipping disconnected-slave healing because Sentinel could not confirm the monitored master",
+					"candidate", masterNodes[0])
+			} else if monitored != masterNodes[0] {
+				log.FromContext(ctx).Info("Skipping disconnected-slave healing because Sentinel does not monitor the observed master",
+					"candidate", masterNodes[0], "monitored", monitored)
+			} else {
+				allPods := append(masterNodes, slaveNodes...)
+				if err := r.createRedisReplicationLink(ctx, instance, allPods, realMaster); err != nil {
+					log.FromContext(ctx).Error(err, "Failed to re-attach disconnected replicas to the Sentinel-confirmed master",
+						"master", realMaster, "slaves", slaveNodes)
+					return intctrlutil.RequeueAfter(ctx, time.Second*60, "")
+				}
+				log.FromContext(ctx).Info("Re-attached disconnected replicas to the Sentinel-confirmed master",
+					"master", realMaster, "slaves", slaveNodes)
+			}
+		}
 	}
 
 	monitoring.RedisReplicationReplicasSizeMismatch.WithLabelValues(instance.Namespace, instance.Name).Set(0)
