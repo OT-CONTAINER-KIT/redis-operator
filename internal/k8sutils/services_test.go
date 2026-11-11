@@ -2,14 +2,18 @@ package k8sutils
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sClientFake "k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 )
 
 var defaultExporterPortProvider exporterPortProvider = func() (int, bool) {
@@ -471,6 +475,110 @@ func Test_getService(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.want, got)
+			}
+		})
+	}
+}
+
+func TestReconcileMetricsService(t *testing.T) {
+	namespace := "test-namespace"
+	serviceName := "test-redis-metrics"
+	selectorLabels := map[string]string{"app": "test-redis"}
+	ownerDef := metav1.OwnerReference{
+		APIVersion: "redis.redis.opstreelabs.in/v1beta2",
+		Kind:       "RedisReplication",
+		Name:       "test-redis",
+		UID:        "abc-123",
+	}
+	existingMetricsService := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      serviceName,
+			Namespace: namespace,
+		},
+	}
+
+	tests := []struct {
+		name           string
+		enabled        bool
+		existing       *corev1.Service
+		injectGetError bool
+		wantErr        bool
+		wantPresent    bool
+		wantVerbs      []string
+	}{
+		{
+			name:        "enabled creates metrics Service when absent",
+			enabled:     true,
+			wantPresent: true,
+			wantVerbs:   []string{"get", "create"},
+		},
+		{
+			name:        "enabled updates metrics Service when present",
+			enabled:     true,
+			existing:    existingMetricsService,
+			wantPresent: true,
+			wantVerbs:   []string{"get", "update"},
+		},
+		{
+			name:        "disabled deletes orphaned metrics Service",
+			enabled:     false,
+			existing:    existingMetricsService,
+			wantPresent: false,
+			wantVerbs:   []string{"get", "delete"},
+		},
+		{
+			name:        "disabled is a no-op when metrics Service is absent",
+			enabled:     false,
+			wantPresent: false,
+			wantVerbs:   []string{"get"},
+		},
+		{
+			name:           "disabled propagates non-NotFound get errors",
+			enabled:        false,
+			injectGetError: true,
+			wantErr:        true,
+			wantPresent:    false,
+			wantVerbs:      []string{"get"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var objs []runtime.Object
+			if tt.existing != nil {
+				objs = append(objs, tt.existing.DeepCopyObject())
+			}
+			client := k8sClientFake.NewSimpleClientset(objs...)
+			if tt.injectGetError {
+				client.PrependReactor("get", "services", func(k8stesting.Action) (bool, runtime.Object, error) {
+					return true, nil, apierrors.NewInternalError(fmt.Errorf("simulated apiserver failure"))
+				})
+			}
+
+			err := ReconcileMetricsService(context.TODO(), namespace, serviceName,
+				selectorLabels, ownerDef, common.RedisExporterPort, tt.enabled, client)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			var gotVerbs []string
+			for _, action := range client.Actions() {
+				if action.GetResource().Resource == "services" {
+					gotVerbs = append(gotVerbs, action.GetVerb())
+				}
+			}
+			assert.Equal(t, tt.wantVerbs, gotVerbs)
+
+			got, getErr := client.CoreV1().Services(namespace).Get(context.TODO(), serviceName, metav1.GetOptions{})
+			if tt.wantPresent {
+				assert.NoError(t, getErr)
+				assert.Equal(t, "metrics", got.Labels["app.kubernetes.io/component"])
+				assert.Len(t, got.Spec.Ports, 1)
+				assert.Equal(t, int32(common.RedisExporterPort), got.Spec.Ports[0].Port)
+			} else if !tt.injectGetError {
+				assert.True(t, apierrors.IsNotFound(getErr))
 			}
 		})
 	}
