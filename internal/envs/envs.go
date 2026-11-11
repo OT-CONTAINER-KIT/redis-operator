@@ -48,6 +48,15 @@ const (
 
 	// ServiceDNSDomain defines the DNS domain suffix for Kubernetes services
 	ServiceDNSDomain = "SERVICE_DNS_DOMAIN"
+
+	// Controller enable/disable environment variable keys. Setting any of
+	// these to "false" skips starting the corresponding controller, which lets
+	// the manager run without that controller's CRD installed. An unset value
+	// keeps the upstream default of starting every controller.
+	EnableRedisControllerEnv            = "ENABLE_REDIS_CONTROLLER"
+	EnableRedisClusterControllerEnv     = "ENABLE_REDIS_CLUSTER_CONTROLLER"
+	EnableRedisReplicationControllerEnv = "ENABLE_REDIS_REPLICATION_CONTROLLER"
+	EnableRedisSentinelControllerEnv    = "ENABLE_REDIS_SENTINEL_CONTROLLER"
 )
 
 var (
@@ -109,6 +118,40 @@ func GetExecCommandTimeout(defaultValue time.Duration) time.Duration {
 // IsWebhookEnabled returns true if webhooks are enabled
 func IsWebhookEnabled() bool {
 	return os.Getenv(EnableWebhooksEnv) != "false"
+}
+
+// isControllerEnabled reports whether a controller should be started. Only the
+// literal value "false" disables it; an unset variable (or any other value)
+// leaves the controller enabled, preserving the upstream default of starting
+// every controller.
+func isControllerEnabled(env string) bool {
+	return os.Getenv(env) != "false"
+}
+
+// IsRedisControllerEnabled reports whether the standalone Redis controller
+// should be started (env ENABLE_REDIS_CONTROLLER, default enabled).
+func IsRedisControllerEnabled() bool {
+	return isControllerEnabled(EnableRedisControllerEnv)
+}
+
+// IsRedisClusterControllerEnabled reports whether the RedisCluster controller
+// should be started (env ENABLE_REDIS_CLUSTER_CONTROLLER, default enabled).
+func IsRedisClusterControllerEnabled() bool {
+	return isControllerEnabled(EnableRedisClusterControllerEnv)
+}
+
+// IsRedisReplicationControllerEnabled reports whether the RedisReplication
+// controller should be started (env ENABLE_REDIS_REPLICATION_CONTROLLER,
+// default enabled).
+func IsRedisReplicationControllerEnabled() bool {
+	return isControllerEnabled(EnableRedisReplicationControllerEnv)
+}
+
+// IsRedisSentinelControllerEnabled reports whether the RedisSentinel
+// controller should be started (env ENABLE_REDIS_SENTINEL_CONTROLLER,
+// default enabled).
+func IsRedisSentinelControllerEnabled() bool {
+	return isControllerEnabled(EnableRedisSentinelControllerEnv)
 }
 
 // GetFeatureGates returns feature gates string

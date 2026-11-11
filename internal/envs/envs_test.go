@@ -199,6 +199,51 @@ func TestIsWebhookEnabled(t *testing.T) {
 	}
 }
 
+func TestControllerEnabledGetters(t *testing.T) {
+	// Every controller must default to enabled when its env var is unset, so
+	// the minimal-install switches preserve upstream behavior (all four
+	// controllers start) unless explicitly turned down.
+	controllers := []struct {
+		name   string
+		envKey string
+		getter func() bool
+	}{
+		{"Redis", EnableRedisControllerEnv, IsRedisControllerEnabled},
+		{"RedisCluster", EnableRedisClusterControllerEnv, IsRedisClusterControllerEnabled},
+		{"RedisReplication", EnableRedisReplicationControllerEnv, IsRedisReplicationControllerEnabled},
+		{"RedisSentinel", EnableRedisSentinelControllerEnv, IsRedisSentinelControllerEnabled},
+	}
+
+	tests := []struct {
+		name        string
+		envValue    string
+		envSet      bool
+		expectedVal bool
+	}{
+		{name: "unset defaults to enabled", envSet: false, expectedVal: true},
+		{name: "false disables", envValue: "false", envSet: true, expectedVal: false},
+		{name: "true stays enabled", envValue: "true", envSet: true, expectedVal: true},
+		{name: "arbitrary value stays enabled", envValue: "yes", envSet: true, expectedVal: true},
+	}
+
+	for _, c := range controllers {
+		for _, tt := range tests {
+			t.Run(c.name+"/"+tt.name, func(t *testing.T) {
+				if tt.envSet {
+					os.Setenv(c.envKey, tt.envValue)
+					defer os.Unsetenv(c.envKey)
+				} else {
+					os.Unsetenv(c.envKey)
+				}
+
+				if actual := c.getter(); actual != tt.expectedVal {
+					t.Errorf("%s() = %v, want %v", c.name, actual, tt.expectedVal)
+				}
+			})
+		}
+	}
+}
+
 func TestGetFeatureGates(t *testing.T) {
 	tests := []struct {
 		name          string
