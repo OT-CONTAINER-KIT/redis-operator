@@ -19,6 +19,7 @@ type Params struct {
 	Replicas        int32
 	ServiceName     string
 	PodTemplateSpec corev1.PodTemplateSpec
+	UpdateStrategy  appsv1.StatefulSetUpdateStrategy
 }
 
 func New(params Params) appsv1.StatefulSet {
@@ -33,7 +34,8 @@ func New(params Params) appsv1.StatefulSet {
 			Selector: &metav1.LabelSelector{
 				MatchLabels: params.PodTemplateSpec.Labels,
 			},
-			Template: params.PodTemplateSpec,
+			Template:       params.PodTemplateSpec,
+			UpdateStrategy: params.UpdateStrategy,
 		},
 	}
 }

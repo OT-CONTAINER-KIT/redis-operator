@@ -9,6 +9,7 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/service/redis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,6 +36,73 @@ func TestSentinelExistingPasswordSecretResolvesToEmbeddedRedisSecret(t *testing.
 	// ...and require that the promoted selector resolves to it, rather than to a
 	// separate (nil) outer field.
 	assert.Same(t, secret, sentinel.ExistingPasswordSecret)
+}
+
+func TestNewSentinelStatefulSetUsesUpdateStrategy(t *testing.T) {
+	rr := &rrvb2.RedisReplication{
+		ObjectMeta: metav1.ObjectMeta{Name: "example-replication", Namespace: "default"},
+		Spec: rrvb2.RedisReplicationSpec{
+			Sentinel: &rrvb2.Sentinel{
+				Size: 3,
+				KubernetesConfig: commonapi.KubernetesConfig{
+					UpdateStrategy: appsv1.StatefulSetUpdateStrategy{Type: appsv1.OnDeleteStatefulSetStrategyType},
+				},
+			},
+		},
+	}
+
+	sts := newSentinelStatefulSet(rr, rr.SentinelHLService())
+	assert.Equal(t, appsv1.OnDeleteStatefulSetStrategyType, sts.Spec.UpdateStrategy.Type)
+}
+
+func TestNewSentinelStatefulSetLeavesUpdateStrategyUnsetByDefault(t *testing.T) {
+	rr := &rrvb2.RedisReplication{
+		ObjectMeta: metav1.ObjectMeta{Name: "example-replication", Namespace: "default"},
+		Spec:       rrvb2.RedisReplicationSpec{Sentinel: &rrvb2.Sentinel{Size: 3}},
+	}
+
+	sts := newSentinelStatefulSet(rr, rr.SentinelHLService())
+	assert.Equal(t, appsv1.StatefulSetUpdateStrategy{}, sts.Spec.UpdateStrategy)
+}
+
+func TestNewSentinelServiceUsesServiceAnnotations(t *testing.T) {
+	rr := &rrvb2.RedisReplication{
+		ObjectMeta: metav1.ObjectMeta{Name: "example-replication", Namespace: "default"},
+		Spec: rrvb2.RedisReplicationSpec{
+			Sentinel: &rrvb2.Sentinel{
+				Size: 3,
+				KubernetesConfig: commonapi.KubernetesConfig{
+					Service: &commonapi.ServiceConfig{
+						ServiceAnnotations: map[string]string{
+							"example.com/team":  "storage",
+							"example.com/scope": "generic",
+						},
+						Headless: &commonapi.Service{
+							AdditionalAnnotations: map[string]string{
+								"example.com/scope": "headless",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	svc := newSentinelService(rr)
+	assert.Equal(t, map[string]string{
+		"example.com/team":  "storage",
+		"example.com/scope": "headless",
+	}, svc.Annotations)
+	assert.Equal(t, "None", svc.Spec.ClusterIP)
+}
+
+func TestNewSentinelServiceWithoutServiceConfigHasNoAnnotations(t *testing.T) {
+	rr := &rrvb2.RedisReplication{
+		ObjectMeta: metav1.ObjectMeta{Name: "example-replication", Namespace: "default"},
+		Spec:       rrvb2.RedisReplicationSpec{Sentinel: &rrvb2.Sentinel{Size: 3}},
+	}
+
+	assert.Nil(t, newSentinelService(rr).Annotations)
 }
 
 func TestBuildSentinelPodTemplate(t *testing.T) {
