@@ -147,3 +147,8 @@ manager:
     maxConcurrentReconciles: 3
     # Accepts a Go duration (e.g. "30s", "5m"). Empty uses the operator's built-in default.
     execCommandTimeout: ""
+    # RedisReplication reconcile requeue intervals. Accepts Go durations (e.g. "30s", "5s").
+    # Empty keeps the operator's built-in upstream default (30s steady-state / 60s failure
+    # requeue) and renders no flag, so an unconfigured chart behaves exactly like upstream.
+    replicationRequeueInterval: ""
+    replicationFailureRequeueInterval: ""
