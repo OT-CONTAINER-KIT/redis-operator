@@ -74,6 +74,12 @@ rbac:
   # -- Aggregate the Redis CRs into the builtin view, edit and admin ClusterRoles.
   # Only rendered when rbac.scope is "cluster".
   aggregate: true
+  # -- Render a least-privilege rule set scoped to the RedisReplication + in-pod
+  # Sentinel call surface (12 rules) instead of the full upstream rules. Use with
+  # rbac.scope "namespace" and the redisOperator.controllers.* switches so the
+  # manager runs with only the RedisReplication CRD installed. false (default)
+  # renders the complete upstream Role/ClusterRole unchanged.
+  minimal: false
 serviceAccountName: redis-operator
 
 serviceAccount:
