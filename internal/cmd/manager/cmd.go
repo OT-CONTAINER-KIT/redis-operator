@@ -30,6 +30,7 @@ import (
 	rediscontroller "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/redis"
 	redisclustercontroller "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/rediscluster"
 	redisreplicationcontroller "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/redisreplication"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/redisreplication/reconcileconfig"
 	redissentinelcontroller "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/redissentinel"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/controllerutil"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/envs"
@@ -55,15 +56,17 @@ var setupLog = ctrl.Log.WithName("setup")
 
 // managerOptions contains all options needed for the manager
 type managerOptions struct {
-	metricsAddr             string
-	secureMetrics           bool
-	probeAddr               string
-	pprofAddr               string
-	enableLeaderElection    bool
-	enableWebhooks          bool
-	maxConcurrentReconciles int
-	featureGatesString      string
-	zapOptions              zap.Options
+	metricsAddr               string
+	secureMetrics             bool
+	probeAddr                 string
+	pprofAddr                 string
+	enableLeaderElection      bool
+	enableWebhooks            bool
+	maxConcurrentReconciles   int
+	featureGatesString        string
+	replicationRequeue        time.Duration
+	replicationFailureRequeue time.Duration
+	zapOptions                zap.Options
 }
 
 // CMD creates a cobra command for running the Redis operator manager
@@ -100,6 +103,8 @@ func addFlags(cmd *cobra.Command, opts *managerOptions) {
 	cmd.Flags().BoolVar(&opts.enableLeaderElection, "leader-elect", false, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	cmd.Flags().BoolVar(&opts.enableWebhooks, "enable-webhooks", envs.IsWebhookEnabled(), "Enable webhooks")
 	cmd.Flags().IntVar(&opts.maxConcurrentReconciles, "max-concurrent-reconciles", 3, "Maximum number of concurrent reconciles per controller. Reconciles for distinct objects run in parallel (controller-runtime still serializes per object), so a single slow or stuck reconcile cannot starve other Redis resources across namespaces.")
+	cmd.Flags().DurationVar(&opts.replicationRequeue, "replication-requeue-interval", reconcileconfig.DefaultRequeueInterval, "Steady-state requeue interval for the RedisReplication controller after a successful reconcile and while waiting for a statefulset to become ready. Defaults to the upstream 30s cadence.")
+	cmd.Flags().DurationVar(&opts.replicationFailureRequeue, "replication-failure-requeue-interval", reconcileconfig.DefaultFailureRequeueInterval, "Backoff requeue interval for the RedisReplication controller after a resource creation or replication reconfiguration error. Defaults to the upstream 60s cadence.")
 	cmd.Flags().StringVar(&opts.featureGatesString, "feature-gates", envs.GetFeatureGates(), "A set of key=value pairs that describe feature gates for alpha/experimental features. "+
 		"Options are:\n  GenerateConfigInInitContainer=true|false: enables using init container for config generation"+
 		"\n  AvoidCommandLinePassword=true|false: prevents using -a <password> in redis-cli commands")
@@ -155,7 +160,11 @@ func runManager(opts *managerOptions) error {
 	if err != nil {
 		return err
 	}
-	if err := setupControllers(mgr, k8sClient, opts.maxConcurrentReconciles); err != nil {
+	replicationCfg := (&reconcileconfig.Config{
+		RequeueInterval:        opts.replicationRequeue,
+		FailureRequeueInterval: opts.replicationFailureRequeue,
+	}).Normalize()
+	if err := setupControllers(mgr, k8sClient, opts.maxConcurrentReconciles, replicationCfg); err != nil {
 		return err
 	}
 	if opts.enableWebhooks {
@@ -236,7 +245,7 @@ func createK8sClient(qps float32) (kubernetes.Interface, error) {
 }
 
 // setupControllers sets up all controllers
-func setupControllers(mgr ctrl.Manager, k8sClient kubernetes.Interface, maxConcurrentReconciles int) error {
+func setupControllers(mgr ctrl.Manager, k8sClient kubernetes.Interface, maxConcurrentReconciles int, replicationCfg *reconcileconfig.Config) error {
 	// Get max concurrent reconciles from environment
 	maxConcurrentReconciles = envs.GetMaxConcurrentReconciles(maxConcurrentReconciles)
 
@@ -262,11 +271,12 @@ func setupControllers(mgr ctrl.Manager, k8sClient kubernetes.Interface, maxConcu
 		return err
 	}
 	if err := (&redisreplicationcontroller.Reconciler{
-		Client:      mgr.GetClient(),
-		K8sClient:   k8sClient,
-		Healer:      healer,
-		Checker:     redis.NewChecker(k8sClient),
-		StatefulSet: k8sutils.NewStatefulSetService(k8sClient),
+		Client:        mgr.GetClient(),
+		K8sClient:     k8sClient,
+		Healer:        healer,
+		Checker:       redis.NewChecker(k8sClient),
+		StatefulSet:   k8sutils.NewStatefulSetService(k8sClient),
+		RequeueConfig: replicationCfg,
 	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RedisReplication")
 		return err
