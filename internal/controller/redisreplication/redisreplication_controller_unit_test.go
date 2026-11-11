@@ -275,6 +275,141 @@ func TestReconcileRedisSkipsSentinelReconfigurationForLoneStandaloneMasterWhenTo
 	assert.Equal(t, []string{"example-replication-1"}, askedSentinelAbout)
 }
 
+// The master is healthy but both replicas are orphaned: they still answer as
+// slaves while replicating from a defunct master address, so the master has
+// zero attached replicas. Sentinel cannot discover them (it learns replicas
+// from the master's INFO output) and never starts a failover against a healthy
+// master. Once a quorum of Sentinels confirms the sole observed master, the
+// operator must re-attach the orphaned replicas instead of leaving the split.
+func TestReconcileRedisReattachesOrphanedSlavesWhenSentinelConfirmsMaster(t *testing.T) {
+	createCalled := false
+	var gotPods []string
+	var gotMaster string
+	var askedSentinelAbout []string
+	r := &Reconciler{
+		StatefulSet:              &fakeStatefulSetService{},
+		K8sClient:                fake.NewSimpleClientset(),
+		RedisReplicationTopology: topologyOf([]string{"example-replication-1"}, []string{"example-replication-0", "example-replication-2"}, nil),
+		RedisReplicationRealMaster: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string {
+			return ""
+		},
+		Checker: keyCountsOf(map[string]int64{"example-replication-0": 0, "example-replication-1": 0, "example-replication-2": 0}),
+		CreateRedisReplicationLink: func(_ context.Context, _ kubernetes.Interface, _ *rrvb2.RedisReplication, pods []string, realMaster string) error {
+			createCalled = true
+			gotPods = append([]string{}, pods...)
+			gotMaster = realMaster
+			return nil
+		},
+		ConfigureSentinel: func(context.Context, *rrvb2.RedisReplication, string) error {
+			return nil
+		},
+		SentinelMonitoredMaster: func(_ context.Context, _ *rrvb2.RedisReplication, candidates []string) (string, error) {
+			askedSentinelAbout = candidates
+			return "example-replication-1", nil
+		},
+	}
+
+	result, err := r.reconcileRedis(context.Background(), newSentinelReplicationInstanceForTest())
+
+	require.NoError(t, err)
+	assert.Equal(t, ctrl.Result{}, result)
+	assert.True(t, createCalled)
+	assert.ElementsMatch(t, []string{"example-replication-0", "example-replication-1", "example-replication-2"}, gotPods)
+	assert.Equal(t, "example-replication-1", gotMaster)
+	assert.Equal(t, []string{"example-replication-1"}, askedSentinelAbout)
+}
+
+// A Sentinel quorum does not confirm the observed master (a failover may be in
+// progress): the operator must not re-aim replicas at a master Sentinel is
+// abandoning. Best-effort skip, the reconcile stays error-free.
+func TestReconcileRedisSkipsOrphanedSlaveHealingWhenSentinelMonitorsAnotherMaster(t *testing.T) {
+	createCalled := false
+	r := &Reconciler{
+		StatefulSet:              &fakeStatefulSetService{},
+		K8sClient:                fake.NewSimpleClientset(),
+		RedisReplicationTopology: topologyOf([]string{"example-replication-1"}, []string{"example-replication-0", "example-replication-2"}, nil),
+		RedisReplicationRealMaster: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string {
+			return ""
+		},
+		CreateRedisReplicationLink: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string, string) error {
+			createCalled = true
+			return nil
+		},
+		ConfigureSentinel: func(context.Context, *rrvb2.RedisReplication, string) error {
+			return nil
+		},
+		SentinelMonitoredMaster: func(context.Context, *rrvb2.RedisReplication, []string) (string, error) {
+			return "", nil
+		},
+	}
+
+	result, err := r.reconcileRedis(context.Background(), newSentinelReplicationInstanceForTest())
+
+	require.NoError(t, err)
+	assert.Equal(t, ctrl.Result{}, result)
+	assert.False(t, createCalled)
+}
+
+// Sentinel itself cannot be reached: leave the replicas alone and retry on the
+// next reconcile instead of issuing REPLICAOF without a quorum-confirmed master.
+func TestReconcileRedisSkipsOrphanedSlaveHealingWhenSentinelQueryFails(t *testing.T) {
+	createCalled := false
+	r := &Reconciler{
+		StatefulSet:              &fakeStatefulSetService{},
+		K8sClient:                fake.NewSimpleClientset(),
+		RedisReplicationTopology: topologyOf([]string{"example-replication-1"}, []string{"example-replication-0", "example-replication-2"}, nil),
+		RedisReplicationRealMaster: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string {
+			return ""
+		},
+		CreateRedisReplicationLink: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string, string) error {
+			createCalled = true
+			return nil
+		},
+		ConfigureSentinel: func(context.Context, *rrvb2.RedisReplication, string) error {
+			return nil
+		},
+		SentinelMonitoredMaster: func(context.Context, *rrvb2.RedisReplication, []string) (string, error) {
+			return "", errors.New("sentinel unreachable")
+		},
+	}
+
+	result, err := r.reconcileRedis(context.Background(), newSentinelReplicationInstanceForTest())
+
+	require.NoError(t, err)
+	assert.Equal(t, ctrl.Result{}, result)
+	assert.False(t, createCalled)
+}
+
+// With an incomplete topology the observed master may already be gone; do not
+// even ask Sentinel in the healing path and never re-aim replicas.
+func TestReconcileRedisSkipsOrphanedSlaveHealingWhenTopologyIsIncomplete(t *testing.T) {
+	createCalled := false
+	r := &Reconciler{
+		StatefulSet:              &fakeStatefulSetService{},
+		K8sClient:                fake.NewSimpleClientset(),
+		RedisReplicationTopology: topologyOf([]string{"example-replication-1"}, []string{"example-replication-2"}, []string{"example-replication-0"}),
+		RedisReplicationRealMaster: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string {
+			return ""
+		},
+		CreateRedisReplicationLink: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string, string) error {
+			createCalled = true
+			return nil
+		},
+		ConfigureSentinel: func(context.Context, *rrvb2.RedisReplication, string) error {
+			return nil
+		},
+		SentinelMonitoredMaster: func(context.Context, *rrvb2.RedisReplication, []string) (string, error) {
+			return "example-replication-1", nil
+		},
+	}
+
+	result, err := r.reconcileRedis(context.Background(), newSentinelReplicationInstanceForTest())
+
+	require.NoError(t, err)
+	assert.Equal(t, ctrl.Result{}, result)
+	assert.False(t, createCalled)
+}
+
 // Sentinel has failed over: the promoted pod has the surviving replica attached,
 // which a standalone node cannot show. It is the master even though the old
 // master is still unobserved, and Sentinel is kept in sync with it.
