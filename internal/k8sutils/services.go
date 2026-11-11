@@ -224,3 +224,34 @@ func CreateOrUpdateMetricsService(ctx context.Context, namespace string, service
 	}
 	return patchService(ctx, storedService, service, namespace, cl)
 }
+
+// ReconcileMetricsService keeps the dedicated metrics Service in sync with the
+// exporter toggle: it is created or updated while the exporter is enabled, and
+// removed when the exporter is disabled (or absent from the spec). Without the
+// delete branch the Service stays orphaned until the whole CR is garbage
+// collected, even though no exporter sidecar remains behind its selector.
+func ReconcileMetricsService(ctx context.Context, namespace string, serviceName string, selectorLabels map[string]string, ownerDef metav1.OwnerReference, exporterPort int, enabled bool, cl kubernetes.Interface) error {
+	if enabled {
+		return CreateOrUpdateMetricsService(ctx, namespace, serviceName, selectorLabels, ownerDef, exporterPort, cl)
+	}
+	_, err := getService(ctx, cl, namespace, serviceName)
+	if err == nil {
+		return deleteService(ctx, cl, namespace, serviceName)
+	} else if err != nil && errors.IsNotFound(err) {
+		log.FromContext(ctx).V(1).Info("Reconciliation successful, no metrics Service found.", "service", serviceName)
+		// It is fine if it is not found, as we are deleting anyway.
+		return nil
+	}
+	return err
+}
+
+// deleteService is a method to delete Services in Kubernetes
+func deleteService(ctx context.Context, cl kubernetes.Interface, namespace string, serviceName string) error {
+	err := cl.CoreV1().Services(namespace).Delete(ctx, serviceName, metav1.DeleteOptions{})
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Redis Service deletion failed")
+		return err
+	}
+	log.FromContext(ctx).V(1).Info("Redis Service delete was successful", "service", serviceName)
+	return nil
+}

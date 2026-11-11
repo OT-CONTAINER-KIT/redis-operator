@@ -450,15 +450,15 @@ func (service RedisClusterService) CreateRedisClusterService(ctx context.Context
 		return err
 	}
 
-	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
-		defaultP := ptr.To(common.RedisExporterPort)
-		exporterPort := *util.Coalesce(cr.Spec.RedisExporter.Port, defaultP)
-		selectorLabels := getRedisStableLabels(serviceName, string(cluster), service.RedisServiceRole)
-		err = CreateOrUpdateMetricsService(ctx, cr.Namespace, serviceName+"-metrics", selectorLabels, redisClusterAsOwner(cr), exporterPort, cl)
-		if err != nil {
-			log.FromContext(ctx).Error(err, "Cannot create metrics service for Redis", "Setup.Type", service.RedisServiceRole)
-			return err
-		}
+	exporterEnabled := cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled
+	exporterPort := common.RedisExporterPort
+	if exporterEnabled {
+		exporterPort = *util.Coalesce(cr.Spec.RedisExporter.Port, ptr.To(common.RedisExporterPort))
+	}
+	selectorLabels := getRedisStableLabels(serviceName, string(cluster), service.RedisServiceRole)
+	if err = ReconcileMetricsService(ctx, cr.Namespace, serviceName+"-metrics", selectorLabels, redisClusterAsOwner(cr), exporterPort, exporterEnabled, cl); err != nil {
+		log.FromContext(ctx).Error(err, "Cannot reconcile metrics service for Redis", "Setup.Type", service.RedisServiceRole)
+		return err
 	}
 	return nil
 }
