@@ -30,7 +30,7 @@ The easiest way to install a redis operator is using Helm chart. The operator he
 
 ```shell
 $ helm repo add ot-helm https://ot-container-kit.github.io/helm-charts/
-$ helm install redis-operator ot-helm/redis-operator --namespace ot-operators --set featureGates.GenerateConfigInInitContainer=true
+$ helm install redis-operator ot-helm/redis-operator --namespace ot-operators --create-namespace --set featureGates.GenerateConfigInInitContainer=true
 ...
 Release "redis-operator" does not exist. Installing it now.
 NAME:          redis-operator
