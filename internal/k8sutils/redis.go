@@ -606,13 +606,14 @@ func executeFailoverCommand(ctx context.Context, client kubernetes.Interface, cr
 // (including failed/disconnected ones). This is used by the controller to
 // decide whether the cluster topology exists at all. For detecting unhealthy
 // nodes that need repair, use UnhealthyNodesInCluster instead.
-func CheckRedisNodeCount(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, nodeType string) int32 {
-	redisClient := configureRedisClient(ctx, client, cr, cr.Name+"-leader-0")
+func CheckRedisNodeCount(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, nodeType string) (int32, error) {
+	leader := cr.Name + "-leader-0"
+	redisClient := configureRedisClient(ctx, client, cr, leader)
 	defer redisClient.Close()
 	var redisNodeType string
 	clusterNodes, err := clusterNodes(ctx, redisClient)
 	if err != nil {
-		log.FromContext(ctx).Error(err, "failed to get cluster nodes")
+		return 0, fmt.Errorf("failed to get Redis cluster topology from %s: %w", leader, err)
 	}
 	count := len(clusterNodes)
 
@@ -635,7 +636,7 @@ func CheckRedisNodeCount(ctx context.Context, client kubernetes.Interface, cr *r
 	} else {
 		log.FromContext(ctx).V(1).Info("Total number of redis nodes are", "Nodes", strconv.Itoa(count))
 	}
-	return int32(count)
+	return int32(count), nil
 }
 
 // RedisClusterStatusHealth use `redis-cli --cluster check 127.0.0.1:6379`
