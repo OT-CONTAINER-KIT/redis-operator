@@ -814,6 +814,15 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 		if aclMount := generateACLVolumeMount(containerParams.ACLConfig, true); aclMount != nil {
 			VolumeMounts = append(VolumeMounts, *aclMount)
 		}
+		if containerParams.PersistenceEnabled != nil && *containerParams.PersistenceEnabled {
+			const aofDataRoot = "/aof-data"
+			VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
+				Name:      util.CoalesceEnv1(common.EnvOperatorSTSPVCTemplateName, name),
+				MountPath: path.Join(aofDataRoot, "data"),
+				ReadOnly:  true,
+			})
+			envVars = append(envVars, corev1.EnvVar{Name: consts.ENV_KEY_AOF_DATA_ROOT, Value: aofDataRoot})
+		}
 
 		container := corev1.Container{
 			Name:            "init-config",
