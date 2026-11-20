@@ -523,8 +523,9 @@ func TestExecuteSingleLeaderAddSlots(t *testing.T) {
 			client := k8sClientFake.NewSimpleClientset(objects...)
 
 			var execs []recordedExec
-			executeSingleLeaderAddSlots(context.TODO(), client, tt.redisCluster, func(_ context.Context, _ kubernetes.Interface, _ *rcvb2.RedisCluster, cmd []string, podName string) {
+			executeSingleLeaderAddSlots(context.TODO(), client, tt.redisCluster, func(_ context.Context, _ kubernetes.Interface, _ *rcvb2.RedisCluster, cmd []string, podName string) error {
 				execs = append(execs, recordedExec{cmd: cmd, podName: podName})
+				return nil
 			})
 
 			expectedPrefix := append([]string{"redis-cli"}, tt.expectedFlags...)
@@ -740,6 +741,7 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 		leaderPod       RedisDetails
 		followerPod     RedisDetails
 		expectedCommand []string
+		wantAuthErr     bool
 	}{
 		{
 			name: "Test case with cluster version v7",
@@ -813,12 +815,9 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 				PodName:   "redis-cluster-follower-0",
 				Namespace: "default",
 			},
-			expectedCommand: []string{
-				"redis-cli", "--cluster", "add-node",
-				"redis-cluster-follower-0.redis-cluster-follower-headless.default.svc.cluster.local:6379",
-				"redis-cluster-leader-0.redis-cluster-leader-headless.default.svc.cluster.local:6379",
-				"--cluster-slave",
-			},
+			// getRedisClusterAuthArgs must fail the caller instead of building
+			// an add-node command without authentication.
+			wantAuthErr: true,
 		},
 		{
 			name: "Test case without cluster version v7",
@@ -894,9 +893,17 @@ func TestCreateRedisReplicationCommand(t *testing.T) {
 			objects = append(objects, secret...)
 
 			client := k8sClientFake.NewSimpleClientset(objects...)
-			cmd := createRedisReplicationCommand(context.TODO(), client, tt.redisCluster, tt.leaderPod, tt.followerPod)
+			cmd, err := createRedisReplicationCommand(context.TODO(), client, tt.redisCluster, tt.leaderPod, tt.followerPod)
 
+			if tt.wantAuthErr {
+				// A failure to resolve the password must abort command
+				// assembly instead of emitting an unauthenticated add-node.
+				assert.Error(t, err)
+				assert.Nil(t, cmd)
+				return
+			}
 			// Assert the command is as expected using testify
+			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedCommand, cmd)
 		})
 	}
