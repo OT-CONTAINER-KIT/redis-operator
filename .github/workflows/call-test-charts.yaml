@@ -7,7 +7,7 @@ on:
         description: 'JSON array of chart directories to test'
         required: false
         type: string
-        default: '["redis-operator", "redis", "redis-cluster", "redis-replication", "redis-sentinel"]'
+        default: '["redis-operator", "redis", "redis-cluster", "redis-replication", "redis-sentinel", "redis-backup"]'
 
 jobs:
   test-charts:
