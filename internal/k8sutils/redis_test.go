@@ -273,6 +273,64 @@ e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@31001,redis-cluster-lea
 	assert.Equal(t, 0, repaired)
 }
 
+func TestReplicationSyncInProgress(t *testing.T) {
+	tests := []struct {
+		name     string
+		info     string
+		expected bool
+	}{
+		{
+			name:     "full resync in progress",
+			info:     "# Replication\r\nrole:slave\r\nmaster_host:10.0.0.1\r\nmaster_port:6379\r\nmaster_link_status:down\r\nmaster_sync_in_progress:1\r\n",
+			expected: true,
+		},
+		{
+			name:     "no sync in progress",
+			info:     "# Replication\r\nrole:slave\r\nmaster_host:10.0.0.1\r\nmaster_port:6379\r\nmaster_link_status:down\r\nmaster_sync_in_progress:0\r\n",
+			expected: false,
+		},
+		{
+			name:     "master node - no master_sync_in_progress field",
+			info:     "# Replication\r\nrole:master\r\nconnected_slaves:2\r\n",
+			expected: false,
+		},
+		{
+			name:     "empty info",
+			info:     "",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, replicationSyncInProgress(tt.info))
+		})
+	}
+}
+
+func TestRepairStaleReplication_fullResyncInProgress(t *testing.T) {
+	ctx := context.Background()
+	redisClient, mock := redismock.NewClientMock()
+
+	mock.ExpectClusterNodes().SetVal(`
+e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@31001,redis-cluster-leader-0 myself,master - 0 0 1 connected 0-16383
+07c37dfeb235213a872192d90877d0cd55635b91 127.0.0.1:30002@31002,redis-cluster-follower-0 slave e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 0 1426238317239 1 connected
+`)
+
+	followerClient, followerMock := redismock.NewClientMock()
+	followerMock.ExpectInfo("replication").SetVal(
+		"# Replication\r\nrole:slave\r\nmaster_host:10.130.24.167\r\nmaster_port:6379\r\nmaster_link_status:down\r\nmaster_last_io_seconds_ago:-1\r\nmaster_sync_in_progress:1\r\n",
+	)
+
+	repaired, lastError := repairStaleReplication(ctx, redisClient, func(_ string) *redis.Client {
+		return followerClient
+	})
+	assert.NoError(t, lastError)
+	assert.Equal(t, 0, repaired)
+	// No CLUSTER REPLICATE was expected: an unexpected call would fail here.
+	assert.NoError(t, followerMock.ExpectationsWereMet(), "expected no CLUSTER REPLICATE during a full resync")
+}
+
 func TestGetRedisServerIP(t *testing.T) {
 	tests := []struct {
 		name        string
