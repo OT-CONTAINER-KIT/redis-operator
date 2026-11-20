@@ -3,6 +3,10 @@ package rediscluster
 import (
 	"context"
 	"errors"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"path/filepath"
 	"testing"
 
 	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
@@ -217,4 +221,43 @@ func TestReapplyDynamicConfigIfReady(t *testing.T) {
 		}}
 		assert.ErrorIs(t, r.reapplyDynamicConfigIfReady(context.TODO(), newCluster(rcvb2.RedisClusterReady, "100mb")), wantErr)
 	})
+}
+
+func TestReconcileRetriesWhenClusterTopologyIsUnavailable(t *testing.T) {
+	// A local non-Redis endpoint causes topology discovery to fail.
+	server := httptest.NewServer(http.NotFoundHandler())
+	t.Cleanup(server.Close)
+	addr := server.Listener.Addr().(*net.TCPAddr)
+	t.Setenv("KUBECONFIG", filepath.Join(t.TempDir(), "absent"))
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, rcvb2.AddToScheme(scheme))
+	instance := &rcvb2.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "example", Namespace: "default", UID: "cluster-uid"},
+		Spec: rcvb2.RedisClusterSpec{
+			ClusterSize: ptr.To(int32(1)),
+			Port:        ptr.To(addr.Port),
+		},
+		Status: rcvb2.RedisClusterStatus{
+			State:                 rcvb2.RedisClusterReady,
+			ReadyLeaderReplicas:   1,
+			ReadyFollowerReplicas: 1,
+		},
+	}
+	leader := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "example-leader-0", Namespace: instance.Namespace},
+		Status:     corev1.PodStatus{PodIP: addr.IP.String()},
+	}
+	r := &Reconciler{
+		Client:      clientfake.NewClientBuilder().WithScheme(scheme).WithObjects(instance).Build(),
+		StatefulSet: &fakeStatefulSet{replicas: 1, ready: true},
+		K8sClient:   k8sfake.NewSimpleClientset(leader),
+		Checker:     &fakeChecker{slotsAssigned: true},
+		Recorder:    record.NewFakeRecorder(10),
+	}
+
+	_, err := r.Reconcile(t.Context(), ctrl.Request{
+		NamespacedName: types.NamespacedName{Name: instance.Name, Namespace: instance.Namespace},
+	})
+	require.ErrorContains(t, err, "failed to get Redis cluster topology")
 }

@@ -387,8 +387,11 @@ func RebalanceRedisClusterEmptyMasters(ctx context.Context, client kubernetes.In
 	executeCommand(ctx, client, cr, cmd, cr.Name+"-leader-1")
 }
 
-func CheckIfEmptyMasters(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) {
-	totalRedisLeaderNodes := CheckRedisNodeCount(ctx, client, cr, "leader")
+func CheckIfEmptyMasters(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) error {
+	totalRedisLeaderNodes, err := CheckRedisNodeCount(ctx, client, cr, "leader")
+	if err != nil {
+		return err
+	}
 	redisClient := configureRedisClient(ctx, client, cr, cr.Name+"-leader-0")
 	defer redisClient.Close()
 
@@ -406,6 +409,7 @@ func CheckIfEmptyMasters(ctx context.Context, client kubernetes.Interface, cr *r
 			break
 		}
 	}
+	return nil
 }
 
 // Rebalance Redis Cluster Would Rebalance the Redis Cluster without using the empty masters
@@ -445,9 +449,12 @@ func waitForNodePresence(ctx context.Context, client kubernetes.Interface, cr *r
 }
 
 // Add redis cluster node would add a node to the existing redis cluster using redis-cli
-func AddRedisNodeToCluster(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) {
+func AddRedisNodeToCluster(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) error {
 	cmd := []string{"redis-cli", "--cluster", "add-node"}
-	activeRedisNode := CheckRedisNodeCount(ctx, client, cr, "leader")
+	activeRedisNode, err := CheckRedisNodeCount(ctx, client, cr, "leader")
+	if err != nil {
+		return err
+	}
 	newPod := RedisDetails{
 		PodName:   cr.Name + "-leader-" + strconv.Itoa(int(activeRedisNode)),
 		Namespace: cr.Namespace,
@@ -471,6 +478,7 @@ func AddRedisNodeToCluster(ctx context.Context, client kubernetes.Interface, cr 
 	if err := waitForNodePresence(ctx, client, cr, getRedisServerIP(ctx, client, newPod), 90*time.Second); err != nil {
 		log.FromContext(ctx).Error(err, "node added but not converged yet: %w")
 	}
+	return nil
 }
 
 // getAttachedFollowerNodeIDs would return a slice of redis followers attached to a redis leader
