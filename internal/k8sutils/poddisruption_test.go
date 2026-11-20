@@ -9,8 +9,9 @@ import (
 )
 
 type pdbParams struct {
-	MinAvailable   *int32
-	MaxUnavailable *int32
+	MinAvailable               *int32
+	MaxUnavailable             *int32
+	UnhealthyPodEvictionPolicy *v1.UnhealthyPodEvictionPolicyType
 }
 
 func TestGeneratePodDisruptionBudgetDef_PriorityLogic(t *testing.T) {
@@ -20,6 +21,7 @@ func TestGeneratePodDisruptionBudgetDef_PriorityLogic(t *testing.T) {
 		clusterSize int32
 		expectMin   *int32
 		expectMax   *int32
+		expectUEP   *v1.UnhealthyPodEvictionPolicyType
 	}{
 		{
 			name:        "only MinAvailable set",
@@ -49,6 +51,22 @@ func TestGeneratePodDisruptionBudgetDef_PriorityLogic(t *testing.T) {
 			expectMin:   int32Ptr(3), // (4/2)+1
 			expectMax:   nil,
 		},
+		{
+			name:        "unhealthyPodEvictionPolicy propagates alongside MaxUnavailable",
+			params:      pdbParams{MaxUnavailable: int32Ptr(1), UnhealthyPodEvictionPolicy: uepPtr(v1.AlwaysAllow)},
+			clusterSize: 4,
+			expectMin:   nil,
+			expectMax:   int32Ptr(1),
+			expectUEP:   uepPtr(v1.AlwaysAllow),
+		},
+		{
+			name:        "unhealthyPodEvictionPolicy unset by default",
+			params:      pdbParams{MaxUnavailable: int32Ptr(1)},
+			clusterSize: 4,
+			expectMin:   nil,
+			expectMax:   int32Ptr(1),
+			expectUEP:   nil,
+		},
 	}
 
 	for _, tc := range cases {
@@ -68,11 +86,19 @@ func TestGeneratePodDisruptionBudgetDef_PriorityLogic(t *testing.T) {
 			} else {
 				assert.Nil(t, pdb.Spec.MaxUnavailable)
 			}
+			if tc.expectUEP != nil {
+				assert.NotNil(t, pdb.Spec.UnhealthyPodEvictionPolicy)
+				assert.Equal(t, *tc.expectUEP, *pdb.Spec.UnhealthyPodEvictionPolicy)
+			} else {
+				assert.Nil(t, pdb.Spec.UnhealthyPodEvictionPolicy)
+			}
 		})
 	}
 }
 
 func int32Ptr(i int32) *int32 { return &i }
+
+func uepPtr(p v1.UnhealthyPodEvictionPolicyType) *v1.UnhealthyPodEvictionPolicyType { return &p }
 
 func generateTestPDB(params pdbParams, clusterSize int32) *v1.PodDisruptionBudget {
 	pdb := &v1.PodDisruptionBudget{Spec: v1.PodDisruptionBudgetSpec{}}
@@ -82,6 +108,9 @@ func generateTestPDB(params pdbParams, clusterSize int32) *v1.PodDisruptionBudge
 		pdb.Spec.MinAvailable = &intstr.IntOrString{Type: intstr.Int, IntVal: *params.MinAvailable}
 	} else {
 		pdb.Spec.MinAvailable = &intstr.IntOrString{Type: intstr.Int, IntVal: (clusterSize / 2) + 1}
+	}
+	if params.UnhealthyPodEvictionPolicy != nil {
+		pdb.Spec.UnhealthyPodEvictionPolicy = params.UnhealthyPodEvictionPolicy
 	}
 	return pdb
 }
