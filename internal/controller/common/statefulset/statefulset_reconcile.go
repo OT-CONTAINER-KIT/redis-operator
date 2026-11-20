@@ -17,6 +17,7 @@ type Params struct {
 	Name            string
 	Namespace       string
 	Replicas        int32
+	MinReadySeconds int32
 	ServiceName     string
 	PodTemplateSpec corev1.PodTemplateSpec
 }
@@ -28,8 +29,9 @@ func New(params Params) appsv1.StatefulSet {
 			Namespace: params.Namespace,
 		},
 		Spec: appsv1.StatefulSetSpec{
-			ServiceName: params.ServiceName,
-			Replicas:    ptr.To(params.Replicas),
+			ServiceName:     params.ServiceName,
+			Replicas:        ptr.To(params.Replicas),
+			MinReadySeconds: params.MinReadySeconds,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: params.PodTemplateSpec.Labels,
 			},
