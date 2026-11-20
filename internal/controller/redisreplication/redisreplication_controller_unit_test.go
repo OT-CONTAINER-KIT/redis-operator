@@ -96,6 +96,8 @@ func TestReconcileRedisKeepsHealthyBehaviorWhenTopologyIsComplete(t *testing.T) 
 	assert.Equal(t, "example-replication-1", gotMaster)
 }
 
+// Sentinel still knows the lost master and its replicas, so it is left to
+// fail over to the pod holding data.
 func TestReconcileRedisRefusesToReplicateDataHoldingMastersFromAnEmptyMaster(t *testing.T) {
 	createCalled := false
 	r := &Reconciler{
@@ -104,20 +106,25 @@ func TestReconcileRedisRefusesToReplicateDataHoldingMastersFromAnEmptyMaster(t *
 		RedisReplicationRealMaster: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string {
 			return "example-replication-0"
 		},
-		Checker: keyCountsOf(map[string]int64{"example-replication-0": 0, "example-replication-2": 120}),
+		Checker: keyCountsOf(map[string]int64{"example-replication-0": 0, "example-replication-1": 0, "example-replication-2": 120}),
 		CreateRedisReplicationLink: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string, string) error {
 			createCalled = true
 			return nil
 		},
+		SentinelFailover:      sentinelFailoverExpected(70 * time.Second),
+		ReplicationStates:     replicationStatesOf(map[string]k8sutils.RedisReplicationState{"example-replication-2": {Role: "master", ReplID: "standalone", Offset: 900}}),
+		PromoteReplicationPod: promotionForbidden(t),
 	}
 
 	result, err := r.reconcileRedis(context.Background(), newReplicationInstanceForTest())
 
 	require.NoError(t, err)
-	assert.Equal(t, time.Second*60, result.RequeueAfter)
+	assert.Equal(t, sentinelFailoverRequeue, result.RequeueAfter)
 	assert.False(t, createCalled)
 }
 
+// Sentinel still knows the lost master and its replicas, so it is left to
+// fail over to one of the replicas holding data.
 func TestReconcileRedisRefusesToReplicateDataHoldingSlavesFromAnEmptyMaster(t *testing.T) {
 	createCalled := false
 	r := &Reconciler{
@@ -131,12 +138,15 @@ func TestReconcileRedisRefusesToReplicateDataHoldingSlavesFromAnEmptyMaster(t *t
 			createCalled = true
 			return nil
 		},
+		SentinelFailover:      sentinelFailoverExpected(70 * time.Second),
+		ReplicationStates:     replicationStatesOf(lostMasterReplicas),
+		PromoteReplicationPod: promotionForbidden(t),
 	}
 
 	result, err := r.reconcileRedis(context.Background(), newReplicationInstanceForTest())
 
 	require.NoError(t, err)
-	assert.Equal(t, time.Second*60, result.RequeueAfter)
+	assert.Equal(t, sentinelFailoverRequeue, result.RequeueAfter)
 	assert.False(t, createCalled)
 }
 
@@ -175,6 +185,9 @@ func TestReconcileRedisRefusesEmptyMasterWhenAPeerKeyCountIsUnknown(t *testing.T
 			createCalled = true
 			return nil
 		},
+		SentinelFailover:      noSentinelFailover,
+		ReplicationStates:     replicationStatesOf(lostMasterReplicas),
+		PromoteReplicationPod: promotionForbidden(t),
 	}
 
 	result, err := r.reconcileRedis(context.Background(), newReplicationInstanceForTest())
@@ -197,6 +210,8 @@ func TestReconcileRedisSkipsReplicationChangesWhenTheMasterKeyCountIsUnknown(t *
 			createCalled = true
 			return nil
 		},
+		SentinelFailover:      noSentinelFailover,
+		PromoteReplicationPod: promotionForbidden(t),
 	}
 
 	result, err := r.reconcileRedis(context.Background(), newReplicationInstanceForTest())
@@ -1203,6 +1218,13 @@ func keyCountsOf(keyCounts map[string]int64) redischecker.Checker {
 
 type fakeChecker struct {
 	keyCounts map[string]int64
+	// sentinelMasters holds the reports of each RedisSentinel by name.
+	sentinelMasters map[string][]redischecker.SentinelMasterReport
+	sentinelErr     error
+}
+
+func (f *fakeChecker) GetSentinelMasters(_ context.Context, rs *rsvb2.RedisSentinel) ([]redischecker.SentinelMasterReport, error) {
+	return f.sentinelMasters[rs.Name], f.sentinelErr
 }
 
 func (f *fakeChecker) GetMasterFromReplication(context.Context, *rrvb2.RedisReplication) (corev1.Pod, error) {
