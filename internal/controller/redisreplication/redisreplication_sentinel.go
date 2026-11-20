@@ -13,6 +13,7 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/envs"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/service/redis"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util/maps"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,11 +30,22 @@ func newSentinelService(rr *rrvb2.RedisReplication) corev1.Service {
 		rr.GetLabels(),
 	)
 
+	// The Sentinel Service is headless, so both the generic service annotations
+	// and the headless-specific ones apply; the latter win on conflicts.
+	var annotations map[string]string
+	if merged := maps.Merge(
+		rr.Spec.Sentinel.GetServiceAnnotations(),
+		rr.Spec.Sentinel.GetHeadlessServiceAnnotations(),
+	); len(merged) > 0 {
+		annotations = merged
+	}
+
 	return corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      rr.SentinelHLService(),
-			Namespace: rr.Namespace,
-			Labels:    labels,
+			Name:        rr.SentinelHLService(),
+			Namespace:   rr.Namespace,
+			Labels:      labels,
+			Annotations: annotations,
 		},
 		Spec: corev1.ServiceSpec{
 			ClusterIP: "None",
@@ -64,6 +76,7 @@ func newSentinelStatefulSet(rr *rrvb2.RedisReplication, svcName string) appsv1.S
 		MinReadySeconds: ptr.Deref(rr.Spec.Sentinel.MinReadySeconds, 0),
 		ServiceName:     svcName,
 		PodTemplateSpec: buildSentinelPodTemplate(rr, labels),
+		UpdateStrategy:  rr.Spec.Sentinel.UpdateStrategy,
 	})
 }
 
