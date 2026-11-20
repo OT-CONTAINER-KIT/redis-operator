@@ -1,0 +1,104 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+# Regression test for OT-CONTAINER-KIT/redis-operator#1980.
+#
+# On a single-leader cluster, a failed CLUSTER NODES call used to be counted as
+# zero leaders. The reconciler then ran the cluster creation path, CLUSTER RESET
+# was refused because the master holds keys, and the operator answered with
+# FLUSHALL. This test makes only CLUSTER NODES fail (an ACL rule) on a cluster
+# holding data and asserts that the data survives several reconciles.
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: cluster-nodes-unreadable
+spec:
+  steps:
+    - name: Install single-leader cluster
+      try:
+        - apply:
+            file: cluster.yaml
+        - assert:
+            file: ready-cluster.yaml
+
+    - name: Wait for slots to be assigned
+      try:
+        - script:
+            timeout: 5m
+            content: |
+              #!/bin/bash
+              CMD="kubectl exec --namespace ${NAMESPACE} redis-cluster-v1beta2-leader-0 -c redis-cluster-v1beta2-leader -- redis-cli"
+              for i in $(seq 1 30); do
+                INFO=$(${CMD} cluster info 2>/dev/null)
+                if echo "$INFO" | grep -q "cluster_state:ok" && echo "$INFO" | grep -q "cluster_slots_assigned:16384"; then
+                  echo "cluster formed"
+                  exit 0
+                fi
+                sleep 10
+              done
+              echo "cluster did not form: $INFO"
+              exit 1
+            check:
+              (contains($stdout, 'cluster formed')): true
+
+    - name: Put data
+      try:
+        - script:
+            timeout: 60s
+            content: |
+              #!/bin/bash
+              set -eo pipefail
+              kubectl exec -i --namespace ${NAMESPACE} redis-cluster-v1beta2-leader-0 -c redis-cluster-v1beta2-leader -- sh -c \
+                'for i in $(seq 1 1000); do echo "SET unreadable-key-$i v$i"; done | redis-cli --pipe'
+              N=$(kubectl exec --namespace ${NAMESPACE} redis-cluster-v1beta2-leader-0 -c redis-cluster-v1beta2-leader -- redis-cli dbsize | tr -d '\r')
+              echo "dbsize=$N"
+            check:
+              (contains($stdout, 'dbsize=1000')): true
+
+    - name: Make CLUSTER NODES unreadable and wait for reconciles
+      try:
+        - script:
+            timeout: 60s
+            content: |
+              #!/bin/bash
+              CMD="kubectl exec --namespace ${NAMESPACE} redis-cluster-v1beta2-leader-0 -c redis-cluster-v1beta2-leader -- redis-cli"
+              ${CMD} acl setuser default -cluster\|nodes
+              # The fault must be in place and must not block anything else.
+              ${CMD} cluster nodes 2>&1 | grep -q NOPERM && echo "cluster nodes blocked"
+              ${CMD} cluster info | grep -q cluster_slots_assigned:16384 && echo "cluster info allowed"
+              ${CMD} get unreadable-key-1 | grep -q v1 && echo "get allowed"
+            check:
+              (contains($stdout, 'cluster nodes blocked')): true
+              (contains($stdout, 'cluster info allowed')): true
+              (contains($stdout, 'get allowed')): true
+        # The RedisCluster controller requeues every 10-60s. Wait for several.
+        - sleep:
+            duration: 150s
+        - script:
+            timeout: 30s
+            content: |
+              #!/bin/bash
+              N=$(kubectl exec --namespace ${NAMESPACE} redis-cluster-v1beta2-leader-0 -c redis-cluster-v1beta2-leader -- redis-cli dbsize | tr -d '\r')
+              echo "dbsize=$N"
+            check:
+              (contains($stdout, 'dbsize=1000')): true
+      finally:
+        - script:
+            timeout: 30s
+            content: |
+              kubectl exec --namespace ${NAMESPACE} redis-cluster-v1beta2-leader-0 -c redis-cluster-v1beta2-leader -- \
+                redis-cli acl setuser default +@all
+
+    - name: Cluster recovers with data intact
+      try:
+        - assert:
+            file: ready-cluster.yaml
+        - script:
+            timeout: 30s
+            content: |
+              #!/bin/bash
+              CMD="kubectl exec --namespace ${NAMESPACE} redis-cluster-v1beta2-leader-0 -c redis-cluster-v1beta2-leader -- redis-cli"
+              echo "dbsize=$(${CMD} dbsize | tr -d '\r')"
+              echo "value=$(${CMD} get unreadable-key-500 | tr -d '\r')"
+            check:
+              (contains($stdout, 'dbsize=1000')): true
+              (contains($stdout, 'value=v500')): true
