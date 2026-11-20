@@ -173,6 +173,29 @@ NAME             TYPE                DATA   AGE
 redis-tls-cert   kubernetes.io/tls   3      18m
 ```
 
+### TLS secret format
+
+Create the TLS Secret in the same namespace as the Redis or RedisCluster resource. The `redis-tls-cert` Secret created by the CA issuer above contains these PEM-encoded data fields:
+
+| Data key | Contents |
+| --- | --- |
+| `tls.crt` | The Redis certificate, including any intermediate certificates. |
+| `tls.key` | The private key matching `tls.crt`. |
+| `ca.crt` | The CA certificate used to trust the Redis certificate. This is a public certificate, not the CA private key. |
+
+If you already have a certificate issued by a private CA, create the Secret from your `server.crt`, `server.key`, and `ca.crt` files:
+
+```shell
+$ kubectl create secret generic redis-tls-cert \
+    --type=kubernetes.io/tls \
+    --from-file=tls.crt=server.crt \
+    --from-file=tls.key=server.key \
+    --from-file=ca.crt=ca.crt \
+    --namespace ot-operators
+```
+
+The `kubernetes.io/tls` type requires `tls.crt` and `tls.key`; `ca.crt` is additional data. `kubectl create secret tls` only adds the certificate and private key, so the command above also includes the private CA's certificate. If `ca.crt` is absent and `spec.TLS.ca` is unset, the operator uses its system trust store instead.
+
 ### Redis TLS configuration
 
 Redis TLS configuration can be done via `YAML` manifests and `helm` values file. We need to add details about the certificate to the Redis and RedisCluster objects.
@@ -182,9 +205,12 @@ For `YAML` manifest configuration, we need to define the TLS block like this:
 ```yaml
 spec:
   TLS:
+    ca: ca.crt
     secret:
       secretName: redis-tls-cert
       optional: false
 ```
+
+Set `spec.TLS.ca` to `ca.crt` for the private CA example above. The certificate and private key default to `tls.crt` and `tls.key`; if an existing Secret uses other data keys, select them with `spec.TLS.cert` and `spec.TLS.key`.
 
 For `helm upgrade` method we need to update the values file of `Redis` and `RedisCluster`.
