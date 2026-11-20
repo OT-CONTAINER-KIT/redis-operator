@@ -1,7 +1,7 @@
 {{/* vim: set filetype=mustache: */}}
 
 {{/* Define common labels */}}
-{{- define "common.labels" -}}
+{{- define "redis-replication.labels" -}}
 app.kubernetes.io/name: {{ .Release.Name }}
 helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}

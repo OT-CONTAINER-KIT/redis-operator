@@ -3,7 +3,7 @@ apiVersion: redis.redis.opstreelabs.in/v1beta2
 kind: Redis
 metadata:
   name:  {{ .Values.redisStandalone.name | default .Release.Name }}
-  labels: {{- include "common.labels" . | nindent 4 }}
+  labels: {{- include "redis.labels" . | nindent 4 }}
   annotations:
     {{- include "common.annotations" . | nindent 4 }}
     {{ if .Values.redisStandalone.recreateStatefulSetOnUpdateInvalid }}
