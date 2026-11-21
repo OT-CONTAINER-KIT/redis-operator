@@ -1367,7 +1367,7 @@ func TestGenerateInitContainerDef(t *testing.T) {
 	for i := range tests {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
-			initContainer := generateInitContainerDef("", test.initContainerName, test.initContainerDef, nil, test.mountPaths, containerParameters{}, ptr.To("v6"))
+			initContainer := generateInitContainerDef("", test.initContainerName, test.initContainerDef, nil, test.mountPaths, containerParameters{}, ptr.To("v6"), false)
 			assert.Equal(t, initContainer, test.expectedInitContainerDef, "Init Container Configuration")
 		})
 	}
@@ -1605,7 +1605,7 @@ func TestGenerateInitContainerDefWithSecurityContext(t *testing.T) {
 			// Note: The operator image will be determined by the actual implementation
 			// We'll test the SecurityContext functionality without mocking the image
 
-			initContainer := generateInitContainerDef("", test.initContainerName, test.initContainerDef, nil, test.mountPaths, containerParameters{}, ptr.To("v6"))
+			initContainer := generateInitContainerDef("", test.initContainerName, test.initContainerDef, nil, test.mountPaths, containerParameters{}, ptr.To("v6"), false)
 
 			// Verify the SecurityContext is correctly applied
 			if test.featureEnabled {
@@ -1712,6 +1712,7 @@ func TestGetEnvironmentVariables(t *testing.T) {
 		envVar              *[]corev1.EnvVar
 		port                *int
 		clusterVersion      *string
+		nodeConfVolume      bool
 		expectedEnvironment []corev1.EnvVar
 	}{
 		{
@@ -1841,6 +1842,7 @@ func TestGetEnvironmentVariables(t *testing.T) {
 				}},
 				{Name: "SERVER_MODE", Value: "cluster"},
 				{Name: "SETUP_MODE", Value: "cluster"},
+				{Name: "NODE_CONF_DIR", Value: "/data"},
 				{Name: "TEST_ENV", Value: "test-value"},
 				{Name: "REDIS_PORT", Value: "6380"},
 			},
@@ -1880,6 +1882,7 @@ func TestGetEnvironmentVariables(t *testing.T) {
 					},
 				}},
 				{Name: "REDIS_PORT", Value: "6381"},
+				{Name: "NODE_CONF_DIR", Value: "/data"},
 				{Name: "SERVER_MODE", Value: "cluster"},
 				{Name: "SETUP_MODE", Value: "cluster"},
 			},
@@ -1900,12 +1903,40 @@ func TestGetEnvironmentVariables(t *testing.T) {
 				{Name: "SETUP_MODE", Value: "cluster"},
 			},
 		},
+		{
+			name:               "Cluster keeps nodes.conf on the data volume when no node-conf volume is requested",
+			role:               "cluster",
+			persistenceEnabled: ptr.To(true),
+			port:               ptr.To(6379),
+			expectedEnvironment: []corev1.EnvVar{
+				{Name: "NODE_CONF_DIR", Value: "/data"},
+				{Name: "PERSISTENCE_ENABLED", Value: "true"},
+				{Name: "REDIS_ADDR", Value: "redis://localhost:6379"},
+				{Name: "REDIS_PORT", Value: "6379"},
+				{Name: "SERVER_MODE", Value: "cluster"},
+				{Name: "SETUP_MODE", Value: "cluster"},
+			},
+		},
+		{
+			name:               "Cluster uses the dedicated node-conf volume when requested",
+			role:               "cluster",
+			persistenceEnabled: ptr.To(true),
+			nodeConfVolume:     true,
+			port:               ptr.To(6379),
+			expectedEnvironment: []corev1.EnvVar{
+				{Name: "PERSISTENCE_ENABLED", Value: "true"},
+				{Name: "REDIS_ADDR", Value: "redis://localhost:6379"},
+				{Name: "REDIS_PORT", Value: "6379"},
+				{Name: "SERVER_MODE", Value: "cluster"},
+				{Name: "SETUP_MODE", Value: "cluster"},
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			actualEnvironment := getEnvironmentVariables(tt.role, tt.enabledPassword, tt.secretName,
-				tt.secretKey, tt.persistenceEnabled, tt.tlsConfig, tt.aclConfig, tt.envVar, tt.port, tt.clusterVersion, nil, nil)
+				tt.secretKey, tt.persistenceEnabled, tt.tlsConfig, tt.aclConfig, tt.envVar, tt.port, tt.clusterVersion, nil, nil, tt.nodeConfVolume)
 
 			assert.ElementsMatch(t, tt.expectedEnvironment, actualEnvironment)
 		})
@@ -2592,7 +2623,7 @@ func TestGenerateInitContainerDefMountsDataDirWhenPersistent(t *testing.T) {
 				PersistenceEnabled: tt.persistence,
 				ACLConfig:          &common.ACLConfig{PersistentVolumeClaim: ptr.To("acl-pvc")},
 			}
-			containers := generateInitContainerDef("", "redis", initContainerParameters{}, nil, nil, params, ptr.To("v7"))
+			containers := generateInitContainerDef("", "redis", initContainerParameters{}, nil, nil, params, ptr.To("v7"), false)
 			require.Len(t, containers, 1)
 			var dataMounts []corev1.VolumeMount
 			for _, mount := range containers[0].VolumeMounts {
@@ -2654,7 +2685,7 @@ func TestGenerateInitContainerDefMountsACLFile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			containers := generateInitContainerDef("", "redis", initContainerParameters{}, nil, nil, containerParameters{ACLConfig: tt.aclConfig}, ptr.To("v7"))
+			containers := generateInitContainerDef("", "redis", initContainerParameters{}, nil, nil, containerParameters{ACLConfig: tt.aclConfig}, ptr.To("v7"), false)
 			require.Len(t, containers, 1)
 			initConfig := containers[0]
 			assert.Equal(t, "init-config", initConfig.Name)

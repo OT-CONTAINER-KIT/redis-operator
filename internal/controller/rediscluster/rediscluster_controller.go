@@ -110,7 +110,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			// We handle one failover per reconcile cycle and requeue — the loop will converge
 			// over successive reconciliations until all target pods are masters.
 			for i := int32(0); i < leaderReplicas; i++ {
-				if !(k8sutils.VerifyLeaderPod(ctx, r.K8sClient, instance, i)) {
+				if !k8sutils.VerifyLeaderPod(ctx, r.K8sClient, instance, i) {
 					logger.Info("Transfer target leader pod is not a master, initiating failover before scale-down", "Pod.Index", i)
 					if err = k8sutils.ClusterFailover(ctx, r.K8sClient, instance, i); err != nil {
 						logger.Error(err, "Failed to initiate cluster failover for transfer target")
@@ -125,7 +125,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				//  Imp if the last index of leader sts is not leader make it then
 				// check whether the redis is leader or not ?
 				// if not true then make it leader pod
-				if !(k8sutils.VerifyLeaderPod(ctx, r.K8sClient, instance, shardIdx)) {
+				if !k8sutils.VerifyLeaderPod(ctx, r.K8sClient, instance, shardIdx) {
 					// lastLeaderPod is slaving right now Make it the master Pod
 					// We have to bring a manual failover here to make it a leaderPod
 					// clusterFailover should also include the clusterReplicate since we have to map the followers to new leader
@@ -316,26 +316,31 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 					return intctrlutil.RequeueAfter(ctx, 10*time.Second, "added node, waiting for cluster convergence before rebalancing")
 				}
-				// No scale-up is in progress, so the missing leader is either a pod
-				// that was never part of a cluster or one that fell out of an
-				// existing cluster. The counts above are read from leader-0, so
-				// when that pod is the orphan every check describes the orphan
-				// instead of the cluster, and `--cluster create` can only fail
-				// with "Node ... is not empty" while the rest of the cluster
-				// keeps serving.
-				formed, repaired, err := k8sutils.RejoinStaleLeaderNodes(ctx, r.K8sClient, instance)
-				if err != nil {
-					logger.Error(err, "Failed to rejoin leader pods that fell out of the existing cluster")
+			}
+			// The counts above are read from leader-0, so when that pod is the
+			// orphan every check describes the orphan instead of the cluster, and
+			// `--cluster create` can only fail with "Node ... is not empty" while
+			// the rest of the cluster keeps serving. A pod that fell out of the
+			// cluster is repaired whether the count is short (the pod is missing)
+			// or long (its previous incarnation is still listed), so this runs on
+			// both sides of the comparison.
+			formed, repaired, err := k8sutils.RejoinStaleNodes(ctx, r.K8sClient, instance)
+			if err != nil {
+				logger.Error(err, "Failed to rejoin pods that fell out of the existing cluster")
+				if r.Recorder != nil {
+					r.Recorder.Event(instance, corev1.EventTypeWarning, events.RedisClusterRejoinFailed, err.Error())
 				}
-				if repaired > 0 {
-					return intctrlutil.RequeueAfter(ctx, 10*time.Second, "rejoined stale leader pod, waiting for cluster convergence")
-				}
-				if formed {
-					// A complete cluster already exists, so creating another one
-					// cannot succeed. Stay on this path (and log why) until the
-					// orphaned pod is rejoined.
-					return intctrlutil.RequeueAfter(ctx, time.Second*60, "existing cluster found, skipping cluster creation", "Current.Leaders", leaderCount, "Desired.Leaders", leaderReplicas)
-				}
+			}
+			if repaired > 0 {
+				return intctrlutil.RequeueAfter(ctx, 10*time.Second, "rejoined stale pod, waiting for cluster convergence")
+			}
+			if formed {
+				// A complete cluster already exists, so creating another one
+				// cannot succeed. Stay on this path (and log why) until the
+				// orphaned pod is rejoined.
+				return intctrlutil.RequeueAfter(ctx, time.Second*60, "existing cluster found, skipping cluster creation", "Current.Leaders", leaderCount, "Desired.Leaders", leaderReplicas)
+			}
+			if leaderCount < leaderReplicas {
 				// No functioning cluster exists yet, create one from scratch.
 				logger.Info("Creating cluster", "Current.Leaders", leaderCount, "Desired.Leaders", leaderReplicas)
 				k8sutils.ExecuteRedisClusterCommand(ctx, r.K8sClient, instance)
@@ -392,10 +397,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// counts above are read from leader-0, so they do not show it. Reattach
 		// such a pod before the generic repair, which cannot turn it into a
 		// replica while it still claims slots and holds keys.
-		if _, repaired, rejoinErr := k8sutils.RejoinStaleLeaderNodes(ctx, r.K8sClient, instance); rejoinErr != nil {
-			logger.Error(rejoinErr, "failed to rejoin leader pods that fell out of the existing cluster")
+		if _, repaired, rejoinErr := k8sutils.RejoinStaleNodes(ctx, r.K8sClient, instance); rejoinErr != nil {
+			logger.Error(rejoinErr, "failed to rejoin pods that fell out of the existing cluster")
 		} else if repaired > 0 {
-			return intctrlutil.RequeueAfter(ctx, 10*time.Second, "rejoined stale leader pod, waiting for cluster convergence")
+			return intctrlutil.RequeueAfter(ctx, 10*time.Second, "rejoined stale pod, waiting for cluster convergence")
 		}
 		if err = k8sutils.RepairDisconnectedNodes(ctx, r.K8sClient, instance); err != nil {
 			logger.Error(err, "failed to repair disconnected nodes")

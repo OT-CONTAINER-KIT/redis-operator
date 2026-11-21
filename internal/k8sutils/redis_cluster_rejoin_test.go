@@ -17,6 +17,10 @@ import (
 )
 
 const (
+	// rejoinTestPreviousID is the ID the pod had before it was recreated; the
+	// live cluster still lists it as a failed replica of rejoinTestMasterID.
+	rejoinTestPreviousID = "5f1c2d3e4a5b6c7d8e9f0a1b2c3d4e5f60718a9b"
+
 	rejoinTestNamespace = "redis-lab"
 	rejoinTestCluster   = "redis-cluster"
 
@@ -90,6 +94,11 @@ func TestClusterMembershipFromInfo(t *testing.T) {
 			name: "standalone node without slots",
 			info: "cluster_state:fail\ncluster_slots_assigned:0\ncluster_known_nodes:1\n",
 			want: clusterMembershipIsolated,
+		},
+		{
+			name: "single node cluster that owns every slot",
+			info: "cluster_state:ok\ncluster_slots_assigned:16384\ncluster_known_nodes:1\n",
+			want: clusterMembershipFormed,
 		},
 		{
 			name: "partially created cluster is left alone",
@@ -197,14 +206,18 @@ func TestRejoinStaleLeaderNodesRejoinsOrphan(t *testing.T) {
 			rejoinTestMasterID + " 10.0.0.10:6379@16379 master - 0 0 3 connected 0-5460\n",
 	)
 	orphanMock.ExpectClusterReplicate(rejoinTestMasterID).SetVal("OK")
+	// Every node that still lists the previous incarnation has to forget it,
+	// including the reattached pod itself.
+	orphanMock.ExpectClusterForget(rejoinTestPreviousID).SetVal("OK")
 
-	formedNodes := rejoinTestMasterID + " 10.0.0.10:6379@16379 master - 0 0 3 connected 0-5460\n" +
-		rejoinTestOrphanID + " 10.0.0.93:6379@16379 slave,fail " + rejoinTestMasterID + " 0 0 1 disconnected\n"
+	formedNodes := rejoinTestMasterID + " 10.0.0.10:6379@16379," + rejoinTestCluster + "-leader-1 master - 0 0 3 connected 0-5460\n" +
+		rejoinTestPreviousID + " 10.0.0.93:6379@16379," + rejoinTestCluster + "-leader-0 slave,fail " + rejoinTestMasterID + " 0 0 1 disconnected\n"
 
 	seedClient, seedMock := redismock.NewClientMock()
 	seedMock.ExpectClusterInfo().SetVal(rejoinTestFormedInfo)
 	seedMock.ExpectClusterNodes().SetVal(formedNodes)
 	seedMock.ExpectClusterMeet("10.0.0.9", "6379").SetVal("OK")
+	seedMock.ExpectClusterForget(rejoinTestPreviousID).SetVal("OK")
 
 	peerClient, peerMock := redismock.NewClientMock()
 	peerMock.ExpectClusterInfo().SetVal(rejoinTestFormedInfo)
@@ -215,7 +228,7 @@ func TestRejoinStaleLeaderNodesRejoinsOrphan(t *testing.T) {
 		rejoinTestPod(rejoinTestCluster+"-leader-2", "10.0.0.11"),
 	)
 
-	formed, repaired, err := rejoinStaleLeaderNodes(ctx, k8sClient, rejoinTestClusterSpec(), func(podName string) *redis.Client {
+	formed, repaired, err := rejoinStaleNodes(ctx, k8sClient, rejoinTestClusterSpec(), func(podName string) *redis.Client {
 		switch podName {
 		case rejoinTestCluster + "-leader-0":
 			return orphanClient
@@ -233,6 +246,61 @@ func TestRejoinStaleLeaderNodesRejoinsOrphan(t *testing.T) {
 	assert.Equal(t, 1, repaired)
 	assert.NoError(t, orphanMock.ExpectationsWereMet())
 	assert.NoError(t, seedMock.ExpectationsWereMet())
+	assert.NoError(t, peerMock.ExpectationsWereMet())
+}
+
+// TestRejoinStaleFollowerPod covers the same identity loss on a follower pod: a
+// rollout replaces every pod, so a replica that comes back standalone has to be
+// attached back to its shard as well.
+func TestRejoinStaleFollowerPod(t *testing.T) {
+	ctx := context.Background()
+
+	replicaClient, replicaMock := redismock.NewClientMock()
+	replicaMock.ExpectClusterInfo().SetVal(rejoinTestIsolatedInfo)
+	replicaMock.ExpectClusterNodes().SetVal(
+		rejoinTestOrphanID + " 10.0.0.30:6379@16379 myself,master - 0 0 0 connected\n",
+	)
+	replicaMock.ExpectDBSize().SetVal(3)
+	replicaMock.ExpectFlushAll().SetVal("OK")
+	replicaMock.ExpectClusterNodes().SetVal(
+		rejoinTestOrphanID + " 10.0.0.30:6379@16379 myself,master - 0 0 0 connected\n",
+	)
+	replicaMock.ExpectClusterNodes().SetVal(
+		rejoinTestOrphanID + " 10.0.0.30:6379@16379 myself,master - 0 0 0 connected\n" +
+			rejoinTestMasterID + " 10.0.0.10:6379@16379 master - 0 0 3 connected 0-5460\n",
+	)
+	replicaMock.ExpectClusterReplicate(rejoinTestMasterID).SetVal("OK")
+	replicaMock.ExpectClusterForget(rejoinTestPreviousID).SetVal("OK")
+
+	peerClient, peerMock := redismock.NewClientMock()
+	peerMock.ExpectClusterInfo().SetVal(rejoinTestFormedInfo)
+	peerMock.ExpectClusterNodes().SetVal(
+		rejoinTestMasterID + " 10.0.0.10:6379@16379," + rejoinTestCluster + "-leader-1 master - 0 0 3 connected 0-5460\n" +
+			rejoinTestPreviousID + " 10.0.0.30:6379@16379," + rejoinTestCluster + "-follower-1 slave,fail " + rejoinTestMasterID + " 0 0 1 connected\n",
+	)
+	peerMock.ExpectClusterMeet("10.0.0.30", "6379").SetVal("OK")
+	peerMock.ExpectClusterForget(rejoinTestPreviousID).SetVal("OK")
+
+	k8sClient := k8sClientFake.NewSimpleClientset(
+		rejoinTestPod(rejoinTestCluster+"-leader-1", "10.0.0.10"),
+		rejoinTestPod(rejoinTestCluster+"-follower-1", "10.0.0.30"),
+	)
+
+	formed, repaired, err := rejoinStaleNodes(ctx, k8sClient, rejoinTestClusterSpec(), func(podName string) *redis.Client {
+		switch podName {
+		case rejoinTestCluster + "-leader-1":
+			return peerClient
+		case rejoinTestCluster + "-follower-1":
+			return replicaClient
+		}
+		t.Errorf("unexpected client requested for pod %s", podName)
+		return nil
+	})
+
+	assert.NoError(t, err)
+	assert.True(t, formed)
+	assert.Equal(t, 1, repaired)
+	assert.NoError(t, replicaMock.ExpectationsWereMet())
 	assert.NoError(t, peerMock.ExpectationsWereMet())
 }
 
@@ -259,7 +327,7 @@ func TestRejoinStaleLeaderNodesSkipsUnknownNode(t *testing.T) {
 		rejoinTestPod(rejoinTestCluster+"-leader-1", "10.0.0.10"),
 	)
 
-	formed, repaired, err := rejoinStaleLeaderNodes(ctx, k8sClient, &rcvb2.RedisCluster{
+	formed, repaired, err := rejoinStaleNodes(ctx, k8sClient, &rcvb2.RedisCluster{
 		ObjectMeta: metav1.ObjectMeta{Name: rejoinTestCluster, Namespace: rejoinTestNamespace},
 		Spec: rcvb2.RedisClusterSpec{
 			// Only two leader pods exist in this case.
@@ -277,7 +345,9 @@ func TestRejoinStaleLeaderNodesSkipsUnknownNode(t *testing.T) {
 		return nil
 	})
 
-	assert.NoError(t, err)
+	// The pod cannot be attached anywhere, so the pass has to say so: the
+	// caller raises an event and keeps the cluster create out of the picture.
+	assert.Error(t, err)
 	assert.True(t, formed)
 	assert.Equal(t, 0, repaired)
 	assert.NoError(t, orphanMock.ExpectationsWereMet(), "an unknown node must not be reset, met or replicated")
@@ -300,11 +370,84 @@ func TestRejoinStaleLeaderNodesNoFormedCluster(t *testing.T) {
 		k8sObjects = append(k8sObjects, rejoinTestPod(podName, "10.0.0."+strconv.Itoa(i+9)))
 	}
 
-	formed, repaired, err := rejoinStaleLeaderNodes(ctx, k8sClientFake.NewSimpleClientset(k8sObjects...), rejoinTestClusterSpec(), func(podName string) *redis.Client {
+	formed, repaired, err := rejoinStaleNodes(ctx, k8sClientFake.NewSimpleClientset(k8sObjects...), rejoinTestClusterSpec(), func(podName string) *redis.Client {
 		return clients[podName]
 	})
 
 	assert.NoError(t, err)
 	assert.False(t, formed)
 	assert.Equal(t, 0, repaired)
+}
+
+func TestShardPartnerPods(t *testing.T) {
+	cr := rejoinTestClusterSpec()
+
+	assert.Equal(t, []string{"redis-cluster-follower-0"}, shardPartnerPods(cr, "redis-cluster-leader-0"))
+	assert.Equal(t, []string{"redis-cluster-leader-1"}, shardPartnerPods(cr, "redis-cluster-follower-4"))
+	assert.Empty(t, shardPartnerPods(cr, "other-pod"))
+}
+
+func TestPlanStaleRejoin(t *testing.T) {
+	cr := rejoinTestClusterSpec()
+	master := clusterNodesResponse{
+		rejoinTestMasterID, "10.0.0.10:6379@16379,redis-cluster-leader-1",
+		"master", "-", "0", "0", "3", "connected", "0-5460",
+	}
+	promotedReplica := clusterNodesResponse{
+		rejoinTestMasterID, "10.0.0.20:6379@16379,redis-cluster-follower-0",
+		"master", "-", "0", "0", "4", "connected", "0-5460",
+	}
+
+	t.Run("previous incarnation of the same pod", func(t *testing.T) {
+		nodes := []clusterNodesResponse{
+			master,
+			{rejoinTestPreviousID, "10.0.0.93:6379@16379,redis-cluster-leader-0", "slave,fail", rejoinTestMasterID, "0", "0", "1", "disconnected"},
+		}
+		plan, err := planStaleRejoin(nodes, cr, "redis-cluster-leader-0", rejoinTestOrphanID)
+		assert.NoError(t, err)
+		assert.Equal(t, rejoinTestMasterID, plan.masterID)
+		assert.Equal(t, []string{rejoinTestPreviousID}, plan.forgetIDs)
+	})
+
+	t.Run("entry under the current node ID is not forgotten", func(t *testing.T) {
+		nodes := []clusterNodesResponse{
+			master,
+			{rejoinTestOrphanID, "10.0.0.93:6379@16379,redis-cluster-leader-0", "slave,fail", rejoinTestMasterID, "0", "0", "1", "disconnected"},
+		}
+		plan, err := planStaleRejoin(nodes, cr, "redis-cluster-leader-0", rejoinTestOrphanID)
+		assert.NoError(t, err)
+		assert.Equal(t, rejoinTestMasterID, plan.masterID)
+		assert.Empty(t, plan.forgetIDs)
+	})
+
+	t.Run("forgotten pod is found through its shard", func(t *testing.T) {
+		plan, err := planStaleRejoin([]clusterNodesResponse{promotedReplica}, cr, "redis-cluster-leader-0", rejoinTestOrphanID)
+		assert.NoError(t, err)
+		assert.Equal(t, rejoinTestMasterID, plan.masterID)
+		assert.Empty(t, plan.forgetIDs)
+	})
+
+	t.Run("entry without a hostname falls back to the shard", func(t *testing.T) {
+		nodes := []clusterNodesResponse{
+			promotedReplica,
+			{rejoinTestPreviousID, "10.0.0.93:6379@16379", "slave,fail", rejoinTestMasterID, "0", "0", "1", "disconnected"},
+		}
+		plan, err := planStaleRejoin(nodes, cr, "redis-cluster-leader-0", rejoinTestOrphanID)
+		assert.NoError(t, err)
+		assert.Equal(t, rejoinTestMasterID, plan.masterID)
+	})
+
+	t.Run("failed master with slots is not overwritten", func(t *testing.T) {
+		nodes := []clusterNodesResponse{
+			master,
+			{rejoinTestPreviousID, "10.0.0.93:6379@16379,redis-cluster-leader-0", "master,fail", "-", "0", "0", "1", "disconnected", "0-5460"},
+		}
+		_, err := planStaleRejoin(nodes, cr, "redis-cluster-leader-0", rejoinTestOrphanID)
+		assert.ErrorContains(t, err, "refusing to flush")
+	})
+
+	t.Run("unknown pod without a shard master is reported", func(t *testing.T) {
+		_, err := planStaleRejoin([]clusterNodesResponse{master}, cr, "redis-cluster-leader-0", rejoinTestOrphanID)
+		assert.ErrorContains(t, err, "no record of pod")
+	})
 }

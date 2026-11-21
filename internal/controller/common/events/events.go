@@ -2,6 +2,9 @@ package events
 
 const (
 	EventReasonRedisClusterDownscale = "RedisClusterDownscale"
+	// RedisClusterRejoinFailed reports a pod that fell out of the cluster and
+	// could not be attached back to its shard automatically.
+	RedisClusterRejoinFailed = "RedisClusterRejoinFailed"
 )
 
 type Event struct {
