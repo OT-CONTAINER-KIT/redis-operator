@@ -316,6 +316,26 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 					return intctrlutil.RequeueAfter(ctx, 10*time.Second, "added node, waiting for cluster convergence before rebalancing")
 				}
+				// No scale-up is in progress, so the missing leader is either a pod
+				// that was never part of a cluster or one that fell out of an
+				// existing cluster. The counts above are read from leader-0, so
+				// when that pod is the orphan every check describes the orphan
+				// instead of the cluster, and `--cluster create` can only fail
+				// with "Node ... is not empty" while the rest of the cluster
+				// keeps serving.
+				formed, repaired, err := k8sutils.RejoinStaleLeaderNodes(ctx, r.K8sClient, instance)
+				if err != nil {
+					logger.Error(err, "Failed to rejoin leader pods that fell out of the existing cluster")
+				}
+				if repaired > 0 {
+					return intctrlutil.RequeueAfter(ctx, 10*time.Second, "rejoined stale leader pod, waiting for cluster convergence")
+				}
+				if formed {
+					// A complete cluster already exists, so creating another one
+					// cannot succeed. Stay on this path (and log why) until the
+					// orphaned pod is rejoined.
+					return intctrlutil.RequeueAfter(ctx, time.Second*60, "existing cluster found, skipping cluster creation", "Current.Leaders", leaderCount, "Desired.Leaders", leaderReplicas)
+				}
 				// No functioning cluster exists yet, create one from scratch.
 				logger.Info("Creating cluster", "Current.Leaders", leaderCount, "Desired.Leaders", leaderReplicas)
 				k8sutils.ExecuteRedisClusterCommand(ctx, r.K8sClient, instance)
@@ -367,6 +387,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 
 		logger.Info("Cluster has unhealthy nodes; attempting to repair disconnected nodes")
+		// A pod recreated from a stale nodes.conf can keep a one-node cluster of
+		// its own while the rest of the cluster keeps serving, and the topology
+		// counts above are read from leader-0, so they do not show it. Reattach
+		// such a pod before the generic repair, which cannot turn it into a
+		// replica while it still claims slots and holds keys.
+		if _, repaired, rejoinErr := k8sutils.RejoinStaleLeaderNodes(ctx, r.K8sClient, instance); rejoinErr != nil {
+			logger.Error(rejoinErr, "failed to rejoin leader pods that fell out of the existing cluster")
+		} else if repaired > 0 {
+			return intctrlutil.RequeueAfter(ctx, 10*time.Second, "rejoined stale leader pod, waiting for cluster convergence")
+		}
 		if err = k8sutils.RepairDisconnectedNodes(ctx, r.K8sClient, instance); err != nil {
 			logger.Error(err, "failed to repair disconnected nodes")
 		}
