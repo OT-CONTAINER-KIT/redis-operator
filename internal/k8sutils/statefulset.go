@@ -344,7 +344,7 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 		},
 	}
 
-	statefulset.Spec.Template.Spec.InitContainers = generateInitContainerDef(containerParams.Role, stsMeta.GetName(), initcontainerParams, params.ExternalConfig, initcontainerParams.AdditionalMountPath, containerParams, params.ClusterVersion)
+	statefulset.Spec.Template.Spec.InitContainers = generateInitContainerDef(containerParams.Role, stsMeta.GetName(), initcontainerParams, params.ExternalConfig, initcontainerParams.AdditionalMountPath, containerParams, params.ClusterVersion, params.NodeConfVolume)
 
 	if params.PodManagementPolicy != nil {
 		statefulset.Spec.PodManagementPolicy = appsv1.PodManagementPolicyType(*params.PodManagementPolicy)
@@ -488,6 +488,7 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 				clusterVersion,
 				containerParams.Resources,
 				containerParams.MaxMemoryPercentOfLimit,
+				nodeConfVolume,
 			),
 			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe, sentinelCntr, enableTLS),
 			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe, sentinelCntr, enableTLS),
@@ -795,7 +796,7 @@ if [ "$ROLE" = "master" ]; then
 fi`, redisCLIAuthSanitizer, tlsArgs, cfg.SentinelService, sentinelPort, cfg.SentinelMasterName, demotionWaitLoop(tlsArgs, waitSeconds, "    "))
 }
 
-func generateInitContainerDef(role, name string, initcontainerParams initContainerParameters, externalConfig *string, mountpath []corev1.VolumeMount, containerParams containerParameters, clusterVersion *string) []corev1.Container {
+func generateInitContainerDef(role, name string, initcontainerParams initContainerParameters, externalConfig *string, mountpath []corev1.VolumeMount, containerParams containerParameters, clusterVersion *string, nodeConfVolume bool) []corev1.Container {
 	containers := []corev1.Container{}
 
 	if features.Enabled(features.GenerateConfigInInitContainer) {
@@ -843,6 +844,7 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 				clusterVersion,
 				containerParams.Resources,
 				containerParams.MaxMemoryPercentOfLimit,
+				nodeConfVolume,
 			),
 			VolumeMounts: VolumeMounts,
 		}
@@ -1094,7 +1096,7 @@ func getProbeInfo(probe *corev1.Probe, sentinel, enableTLS bool) *corev1.Probe {
 func getEnvironmentVariables(role string, enabledPassword *bool, secretName *string,
 	secretKey *string, persistenceEnabled *bool, tlsConfig *commonapi.TLSConfig,
 	aclConfig *commonapi.ACLConfig, envVar *[]corev1.EnvVar, port *int, clusterVersion *string,
-	resources *corev1.ResourceRequirements, maxMemoryPercentOfLimit *int,
+	resources *corev1.ResourceRequirements, maxMemoryPercentOfLimit *int, nodeConfVolume bool,
 ) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{Name: "SERVER_MODE", Value: role},
@@ -1184,6 +1186,15 @@ func getEnvironmentVariables(role string, enabledPassword *bool, secretName *str
 	}
 	if persistenceEnabled != nil && *persistenceEnabled {
 		envVars = append(envVars, corev1.EnvVar{Name: "PERSISTENCE_ENABLED", Value: "true"})
+	}
+
+	// Cluster mode keeps the node identity in nodes.conf. Without a dedicated
+	// node-conf volume that file has to live on the data volume: a nodes.conf
+	// that only exists in the container loses the node ID on every restart, and
+	// the recreated pod comes back as an isolated node that the rest of the
+	// cluster still knows under its previous ID.
+	if role == "cluster" && persistenceEnabled != nil && *persistenceEnabled && !nodeConfVolume {
+		envVars = append(envVars, corev1.EnvVar{Name: "NODE_CONF_DIR", Value: "/data"})
 	}
 
 	if envVar != nil {

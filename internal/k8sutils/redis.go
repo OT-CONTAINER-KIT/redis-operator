@@ -372,6 +372,561 @@ func replicationLinkUp(info string) bool {
 	return true
 }
 
+// totalRedisClusterSlots is the number of hash slots a complete Redis Cluster owns.
+const totalRedisClusterSlots = 16384
+
+// staleLeaderRejoinTimeout bounds how long a rejoined pod is given to learn the
+// existing cluster's node table before the rejoin is retried on a later pass.
+const staleLeaderRejoinTimeout = 30 * time.Second
+
+// clusterMembership describes what a single pod believes about the cluster.
+type clusterMembership int
+
+const (
+	// clusterMembershipUnknown means the pod could not be asked, or reports a
+	// view that is neither a complete cluster nor a standalone one.
+	clusterMembershipUnknown clusterMembership = iota
+	// clusterMembershipFormed means the pod takes part in a cluster that
+	// already owns every hash slot.
+	clusterMembershipFormed
+	// clusterMembershipIsolated means the pod believes it is a cluster of its
+	// own: it forgot (or never received) the rest of the cluster.
+	clusterMembershipIsolated
+)
+
+// probeClusterMembership classifies the pod's own cluster view.
+//
+// A recreated pod that lost its nodes.conf reports a single known node, while a
+// pod that is part of the cluster reports the whole node table and a complete
+// slot map. Anything in between (a partially created cluster, an uncovered slot
+// range after a node loss) is deliberately reported as unknown: it is not
+// evidence of a pod that fell out of a healthy cluster, and clearing such a
+// pod's slots could drop coverage that no other node has.
+func probeClusterMembership(ctx context.Context, redisClient *redis.Client) clusterMembership {
+	info, err := redisClient.ClusterInfo(ctx).Result()
+	if err != nil {
+		return clusterMembershipUnknown
+	}
+	return clusterMembershipFromInfo(info)
+}
+
+// clusterMembershipFromInfo classifies a CLUSTER INFO reply. See
+// probeClusterMembership for the reasoning behind the three states.
+func clusterMembershipFromInfo(info string) clusterMembership {
+	fields := parseClusterInfo(info)
+	knownNodes, err := strconv.Atoi(fields["cluster_known_nodes"])
+	if err != nil {
+		return clusterMembershipUnknown
+	}
+	slots, err := strconv.Atoi(fields["cluster_slots_assigned"])
+	if err != nil {
+		return clusterMembershipUnknown
+	}
+	if knownNodes <= 1 {
+		// A cluster of one node is legitimate when it owns every slot; a single
+		// node with a partial slot map is what a pod that lost its nodes.conf
+		// comes back as.
+		if slots == totalRedisClusterSlots {
+			return clusterMembershipFormed
+		}
+		return clusterMembershipIsolated
+	}
+	if slots != totalRedisClusterSlots {
+		return clusterMembershipUnknown
+	}
+	return clusterMembershipFormed
+}
+
+// RejoinStaleNodes rejoins pods that have fallen out of an existing cluster, and
+// reports whether such a cluster exists.
+//
+// Recreating a pod without a persistent nodes.conf gives it a new node ID and
+// cluster state of its own -- a standalone node that owns a slot or two -- while
+// the remaining nodes keep serving. Every topology check reads leader-0, so when
+// that pod is the orphaned one the operator sees a one-node cluster and loops on
+// `redis-cli --cluster create`, which cannot work: it fails with
+// "Node ... is not empty". A master pod that comes back this way also leaves its
+// shard without a replica until it is reattached.
+//
+// The pod is reattached instead. The remaining nodes still list the orphan under
+// its old node ID as a failed replica of its shard's master, which is what a
+// failover leaves behind. Its stale slot claims and its stale dataset are dropped
+// (the dataset is a replica copy by definition, and the full sync that follows
+// replaces it anyway), it is met into the cluster, and it is pointed back at that
+// master -- the end state a cluster reaches on its own after a failover, driven
+// explicitly because a pod that owns no slots of the live cluster is not
+// reachable by the gossip layer on its own.
+//
+// Leader and follower pods are both checked: rolling out a change replaces every
+// pod, so every pod that lost its node ID has to be attached back, no matter
+// which role its name carries.
+//
+// formed is true when at least one pod belongs to a cluster with a complete slot
+// map; the caller must not run `--cluster create` in that case.
+// repaired counts the pods reattached during this pass.
+func RejoinStaleNodes(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) (formed bool, repaired int, err error) {
+	return rejoinStaleNodes(ctx, client, cr, func(podName string) *redis.Client {
+		return configureRedisClient(ctx, client, cr, podName)
+	})
+}
+
+func rejoinStaleNodes(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, makeClient func(podName string) *redis.Client) (bool, int, error) {
+	logger := log.FromContext(ctx)
+
+	var (
+		formedPod string
+		stalePods []string
+	)
+	pods := make([]string, 0, cr.Spec.GetReplicaCounts("leader")+cr.Spec.GetReplicaCounts("follower"))
+	for i := int32(0); i < cr.Spec.GetReplicaCounts("leader"); i++ {
+		pods = append(pods, fmt.Sprintf("%s-leader-%d", cr.Name, i))
+	}
+	for i := int32(0); i < cr.Spec.GetReplicaCounts("follower"); i++ {
+		pods = append(pods, fmt.Sprintf("%s-follower-%d", cr.Name, i))
+	}
+	for _, podName := range pods {
+		pod, err := client.CoreV1().Pods(cr.Namespace).Get(ctx, podName, metav1.GetOptions{})
+		if err != nil || !IsRedisPodProbeable(pod) {
+			continue
+		}
+		redisClient := makeClient(podName)
+		membership := probeClusterMembership(ctx, redisClient)
+		redisClient.Close()
+
+		switch membership {
+		case clusterMembershipFormed:
+			if formedPod == "" {
+				formedPod = podName
+			}
+		case clusterMembershipIsolated:
+			stalePods = append(stalePods, podName)
+		}
+	}
+
+	if formedPod == "" {
+		return false, 0, nil
+	}
+	if len(stalePods) == 0 {
+		return true, 0, nil
+	}
+
+	formedClient := makeClient(formedPod)
+	defer formedClient.Close()
+
+	formedNodes, err := clusterNodes(ctx, formedClient)
+	if err != nil {
+		return true, 0, fmt.Errorf("failed to read cluster nodes from %s: %w", formedPod, err)
+	}
+
+	port := strconv.Itoa(*cr.Spec.Port)
+	repaired := 0
+	var lastError error
+	for _, podName := range stalePods {
+		rejoined, err := rejoinStaleNode(ctx, client, cr, formedClient, makeClient, podName, formedNodes, port)
+		if err != nil {
+			lastError = err
+			logger.Error(err, "Failed to rejoin pod into the existing cluster", "Pod", podName)
+		}
+		// A pod can be attached and still report an error, for example when the
+		// previous incarnation could not be forgotten on every node. It is
+		// reattached either way, and the caller has to re-read the node counts
+		// instead of retrying the same pass from the old table.
+		if rejoined {
+			repaired++
+		}
+	}
+	return true, repaired, lastError
+}
+
+func rejoinStaleNode(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, formedClient *redis.Client, makeClient func(podName string) *redis.Client, podName string, formedNodes []clusterNodesResponse, port string) (bool, error) {
+	logger := log.FromContext(ctx)
+
+	redisClient := makeClient(podName)
+	defer redisClient.Close()
+
+	ownNodes, err := clusterNodes(ctx, redisClient)
+	if err != nil {
+		return false, fmt.Errorf("failed to read the node's own cluster view: %w", err)
+	}
+	myself, ok := myselfNode(ownNodes)
+	if !ok {
+		return false, fmt.Errorf("failed to find the node's own entry in CLUSTER NODES")
+	}
+	nodeID := myself[0]
+
+	// The live cluster still lists the pod under the node ID it had before the
+	// restart, but that ID is not a reliable way to find the pod's shard: a pod
+	// without a persistent nodes.conf comes back with a new ID, which is exactly
+	// the state this repair has to handle. The shard is therefore derived from
+	// the entries the live cluster keeps for the pod's hostname, with the pods of
+	// the same shard as a fallback.
+	plan, err := planStaleRejoin(formedNodes, cr, podName, nodeID)
+	if err != nil {
+		return false, err
+	}
+	masterID := plan.masterID
+
+	ip := getRedisServerIP(ctx, client, RedisDetails{PodName: podName, Namespace: cr.Namespace})
+	if ip == "" {
+		return false, fmt.Errorf("failed to get the pod IP")
+	}
+
+	// A master cannot become a replica while it claims slots or holds keys, and
+	// CLUSTER RESET is refused for the same reason on a master with a dataset.
+	// Both are leftovers of the interrupted failover that preceded the pod's
+	// deletion: the cluster already reports this node as a replica, so its keys
+	// are a replica copy and the full sync after CLUSTER REPLICATE replaces them.
+	if err = discardStaleDataset(ctx, redisClient); err != nil {
+		return false, err
+	}
+	if err = releaseNodeSlots(ctx, redisClient, staleLeaderRejoinTimeout); err != nil {
+		return false, err
+	}
+	// MEET is issued from the healthy pod: the orphan's own node table still
+	// points at the addresses its nodes.conf was written with, while the healthy
+	// side knows the orphan's node ID and can update its address.
+	if err = formedClient.ClusterMeet(ctx, ip, port).Err(); err != nil {
+		return false, fmt.Errorf("failed to meet the node at %s:%s: %w", ip, port, err)
+	}
+	// CLUSTER MEET only starts the handshake: the node learns the cluster's node
+	// table a few gossip rounds later, and CLUSTER REPLICATE needs the master in
+	// that table.
+	if err = waitForClusterNodeID(ctx, redisClient, masterID, staleLeaderRejoinTimeout); err != nil {
+		return false, err
+	}
+	if err = redisClient.ClusterReplicate(ctx, masterID).Err(); err != nil {
+		return false, fmt.Errorf("failed to replicate from master %s: %w", masterID, err)
+	}
+
+	// The pod is a replica again, but every node still lists its previous
+	// incarnation. Leaving those entries behind keeps the cluster wider than the
+	// desired size, so the node counts never match and reconciliation never
+	// settles. The replicas are forgotten only after the replication link is
+	// established, because FORGET on a node that still owns slots is refused.
+	forgetErr := forgetStaleNodeIDs(ctx, makeClient, redisClient, podName, formedNodes, plan.forgetIDs)
+
+	logger.Info("Rejoined pod to the existing cluster as a replica", "Pod", podName, "NodeID", nodeID, "MasterNodeID", masterID)
+	if forgetErr != nil {
+		return true, forgetErr
+	}
+	return true, nil
+}
+
+// staleRejoinPlan describes how a pod that fell out of the cluster is attached
+// back to the shard it belongs to.
+type staleRejoinPlan struct {
+	// masterID is the master the pod has to replicate from.
+	masterID string
+	// forgetIDs are the pod's previous incarnations: the live cluster still
+	// lists them under the addresses and IDs from before the restart.
+	forgetIDs []string
+}
+
+// planStaleRejoin finds the shard of a pod that came back isolated.
+//
+// A pod without a persistent nodes.conf gets a new node ID on every restart,
+// while the live cluster keeps the old incarnation in its table as a failed
+// replica of the master that was promoted in its place. The old ID is therefore
+// not an input to this decision; it is only something to clean up afterwards.
+// The shard is read from the entries the cluster keeps for the pod's hostname,
+// and when that entry is gone, from the pods of the same shard, because a
+// follower is created as a replica of its leader (follower N -> leader N).
+//
+// A pod the cluster does not know, and whose shard has no healthy master, is
+// reported as an error instead of being re-added blind: attaching it to the
+// wrong shard, or as an empty master, changes the topology the user asked for.
+func planStaleRejoin(nodes []clusterNodesResponse, cr *rcvb2.RedisCluster, podName, nodeID string) (staleRejoinPlan, error) {
+	var plan staleRejoinPlan
+	orphanedSlots := 0
+	for _, node := range nodes {
+		if len(node) < 4 || nodePodName(node) != podName {
+			continue
+		}
+		// An entry under the pod's current node ID is the same incarnation and
+		// is only read for its role; anything else is a previous incarnation
+		// that has to be forgotten once the pod is back.
+		if node[0] != nodeID {
+			plan.forgetIDs = append(plan.forgetIDs, node[0])
+		}
+		if nodeIsOfType(node, "master") {
+			orphanedSlots += len(nodeSlots(node))
+		}
+		if masterID, ok := replicaMasterID(nodes, node[0]); ok && nodeHealthyMaster(nodes, masterID) {
+			plan.masterID = masterID
+		}
+	}
+	if plan.masterID != "" {
+		return plan, nil
+	}
+
+	// The cluster may already have forgotten the pod, for example after the
+	// failed entry was cleaned up by hand. The shard is still known: the pods
+	// of a shard are created in a fixed pairing, and whichever of them is a
+	// healthy master right now is the one the pod has to follow.
+	for _, partner := range shardPartnerPods(cr, podName) {
+		for _, node := range nodes {
+			if len(node) < 3 || nodePodName(node) != partner {
+				continue
+			}
+			if nodeIsOfType(node, "master") && !nodeFailedOrDisconnected(node) {
+				plan.masterID = node[0]
+				return plan, nil
+			}
+		}
+	}
+
+	if orphanedSlots > 0 {
+		return plan, fmt.Errorf("pod %s is recorded as the master of %d slots and no replica holds them; refusing to flush the only copy of the data", podName, orphanedSlots)
+	}
+	return plan, fmt.Errorf("the cluster has no record of pod %s (node ID %s) and none of its shard peers is a master", podName, nodeID)
+}
+
+// nodePodName returns the pod name the cluster recorded for a node, or an empty
+// string when the entry carries no hostname.
+func nodePodName(node clusterNodesResponse) string {
+	if len(node) < 2 {
+		return ""
+	}
+	addressAndHost := strings.Split(node[1], ",")
+	if len(addressAndHost) != 2 {
+		return ""
+	}
+	return strings.Split(addressAndHost[1], ".")[0]
+}
+
+// nodeHealthyMaster reports whether nodeID is listed as a master that has not
+// been marked as failed or disconnected.
+func nodeHealthyMaster(nodes []clusterNodesResponse, nodeID string) bool {
+	for _, node := range nodes {
+		if len(node) > 2 && node[0] == nodeID {
+			return nodeIsOfType(node, "master") && !nodeFailedOrDisconnected(node)
+		}
+	}
+	return false
+}
+
+// shardPartnerPods returns the other pods of the shard podName belongs to.
+// Follower N replicates from leader N, the pairing used when the cluster is
+// created (see ExecuteRedisReplicationCommand).
+func shardPartnerPods(cr *rcvb2.RedisCluster, podName string) []string {
+	leaderCount := int(cr.Spec.GetReplicaCounts("leader"))
+	followerCount := int(cr.Spec.GetReplicaCounts("follower"))
+	if leaderCount <= 0 {
+		return nil
+	}
+
+	if idx, ok := podIndex(cr.Name+"-leader-", podName); ok {
+		var partners []string
+		for followerIdx := 0; followerIdx < followerCount; followerIdx++ {
+			if followerIdx%leaderCount == idx {
+				partners = append(partners, fmt.Sprintf("%s-follower-%d", cr.Name, followerIdx))
+			}
+		}
+		return partners
+	}
+	if idx, ok := podIndex(cr.Name+"-follower-", podName); ok {
+		return []string{fmt.Sprintf("%s-leader-%d", cr.Name, idx%leaderCount)}
+	}
+	return nil
+}
+
+func podIndex(prefix, podName string) (int, bool) {
+	if !strings.HasPrefix(podName, prefix) {
+		return 0, false
+	}
+	idx, err := strconv.Atoi(strings.TrimPrefix(podName, prefix))
+	if err != nil {
+		return 0, false
+	}
+	return idx, true
+}
+
+// forgetStaleNodeIDs removes the pod's previous incarnations from the node
+// table of the pods that are currently part of the cluster. A node cannot
+// forget itself, so the rejoined pod is asked first, through the client it was
+// repaired with. The targets come from the cluster's own view instead of the
+// desired pod list: a pod that is down cannot be asked, and gossip does not
+// reintroduce a node that no live node knows.
+func forgetStaleNodeIDs(ctx context.Context, makeClient func(podName string) *redis.Client, self *redis.Client, podName string, nodes []clusterNodesResponse, ids []string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	logger := log.FromContext(ctx)
+
+	var lastError error
+	forget := func(client *redis.Client, on string) {
+		for _, id := range ids {
+			if err := client.ClusterForget(ctx, id).Err(); err != nil && !isUnknownNodeError(err) {
+				lastError = err
+				logger.V(1).Error(err, "Failed to forget the pod's previous node ID", "Pod", podName, "On", on, "NodeID", id)
+			}
+		}
+	}
+
+	forget(self, podName)
+	seen := map[string]struct{}{podName: {}}
+	for _, node := range nodes {
+		host := nodePodName(node)
+		if host == "" {
+			continue
+		}
+		if _, ok := seen[host]; ok {
+			continue
+		}
+		seen[host] = struct{}{}
+		client := makeClient(host)
+		forget(client, host)
+		client.Close()
+	}
+	return lastError
+}
+
+// isUnknownNodeError reports whether CLUSTER FORGET failed only because the node
+// was already gone from that node's table, which is the expected result when a
+// previous pass already cleaned it up.
+func isUnknownNodeError(err error) bool {
+	return err != nil && strings.Contains(strings.ToLower(err.Error()), "unknown node")
+}
+
+// myselfNode returns the CLUSTER NODES entry of the node that produced the view.
+func myselfNode(nodes []clusterNodesResponse) (clusterNodesResponse, bool) {
+	for _, node := range nodes {
+		if len(node) > 2 && hasFlag(node[2], "myself") {
+			return node, true
+		}
+	}
+	return nil, false
+}
+
+// replicaMasterID returns the master the cluster associates with nodeID, or
+// false when the node is unknown or is not a replica.
+func replicaMasterID(nodes []clusterNodesResponse, nodeID string) (string, bool) {
+	for _, node := range nodes {
+		if len(node) < 4 || node[0] != nodeID {
+			continue
+		}
+		if !nodeIsOfType(node, "slave") || node[3] == "-" {
+			return "", false
+		}
+		return node[3], true
+	}
+	return "", false
+}
+
+// waitForClusterNodeID waits until the node's cluster view contains nodeID.
+func waitForClusterNodeID(ctx context.Context, redisClient *redis.Client, nodeID string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		nodes, err := clusterNodes(ctx, redisClient)
+		if err == nil && clusterNodeIDPresent(nodes, nodeID) {
+			return nil
+		}
+		time.Sleep(time.Second)
+	}
+	return fmt.Errorf("node %s did not appear in the node table within %s", nodeID, timeout)
+}
+
+func clusterNodeIDPresent(nodes []clusterNodesResponse, nodeID string) bool {
+	for _, node := range nodes {
+		if len(node) > 0 && node[0] == nodeID {
+			return true
+		}
+	}
+	return false
+}
+
+// nodeSlots returns the slots a node claims for itself.
+func nodeSlots(node clusterNodesResponse) []int {
+	if len(node) <= 8 {
+		return nil
+	}
+	return parseSlotTokens(node[8:])
+}
+
+// parseSlotTokens turns the slot column of a CLUSTER NODES entry into individual
+// slot numbers. Migrating/importing markers are skipped: they point at a slot
+// that belongs to another node, not to this one.
+func parseSlotTokens(tokens []string) []int {
+	var slots []int
+	for _, token := range tokens {
+		if strings.HasPrefix(token, "[") {
+			continue
+		}
+		first, last, isRange := strings.Cut(token, "-")
+		start, err := strconv.Atoi(first)
+		if err != nil || start < 0 || start >= totalRedisClusterSlots {
+			continue
+		}
+		end := start
+		if isRange {
+			if end, err = strconv.Atoi(last); err != nil || end < start || end >= totalRedisClusterSlots {
+				continue
+			}
+		}
+		for slot := start; slot <= end; slot++ {
+			slots = append(slots, slot)
+		}
+	}
+	return slots
+}
+
+// discardStaleDataset removes the keys a recreated pod kept on its PVC. Both
+// CLUSTER RESET and CLUSTER REPLICATE refuse to run on a master that holds keys,
+// so the stale replica copy has to go before the node can rejoin. The dataset is
+// replaced by a full sync from the master anyway.
+func discardStaleDataset(ctx context.Context, redisClient *redis.Client) error {
+	keys, err := redisClient.DBSize(ctx).Result()
+	if err != nil {
+		return fmt.Errorf("failed to count the node's keys: %w", err)
+	}
+	if keys == 0 {
+		return nil
+	}
+	if err = redisClient.FlushAll(ctx).Err(); err != nil {
+		return fmt.Errorf("failed to drop the stale dataset: %w", err)
+	}
+	return nil
+}
+
+// releaseNodeSlots unassigns every slot the node claims, because a master with
+// assigned slots cannot become a replica. CLUSTER DELSLOTS is all-or-nothing and
+// rejects a slot that is already unassigned, and gossip may take a conflicting
+// slot away from the node while the rejoin is running, so the claims are re-read
+// between attempts.
+func releaseNodeSlots(ctx context.Context, redisClient *redis.Client, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("timed out releasing the node's slots after %s", timeout)
+		}
+		nodes, err := clusterNodes(ctx, redisClient)
+		if err != nil {
+			return fmt.Errorf("failed to read the node's own cluster view: %w", err)
+		}
+		myself, ok := myselfNode(nodes)
+		if !ok {
+			return fmt.Errorf("failed to find the node's own entry in CLUSTER NODES")
+		}
+		slots := nodeSlots(myself)
+		if len(slots) == 0 {
+			return nil
+		}
+		if err = redisClient.ClusterDelSlots(ctx, slots...).Err(); err != nil {
+			time.Sleep(time.Second)
+			continue
+		}
+		// Gossip may hand a conflicting slot back to the node between the two
+		// reads above; give it a moment instead of spinning on the socket.
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
 func getHostFromClusterNode(node clusterNodesResponse) (string, error) {
 	addressAndHost := node[1]
 	s := strings.Split(addressAndHost, ",")
@@ -504,7 +1059,7 @@ func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Inter
 				Namespace: cr.Namespace,
 			}
 			leaderPod := RedisDetails{
-				PodName:   cr.Name + "-leader-" + strconv.Itoa((followerIdx)%int(leaderCounts)),
+				PodName:   cr.Name + "-leader-" + strconv.Itoa(followerIdx%int(leaderCounts)),
 				Namespace: cr.Namespace,
 			}
 			podIP = getRedisServerIP(ctx, client, followerPod)
