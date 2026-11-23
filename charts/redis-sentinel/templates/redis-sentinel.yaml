@@ -11,6 +11,9 @@ metadata:
     {{ end }}
 spec:
   clusterSize: {{ .Values.redisSentinel.clusterSize }}
+  # Retain the complete writable Sentinel configuration, not just voter IDs.
+  storage:
+    volumeClaimTemplate: {{ toYaml .Values.storage.volumeClaimTemplate | nindent 6 }}
   # Sentinel Config
   redisSentinelConfig:
     redisReplicationName: {{ .Values.redisSentinelConfig.redisReplicationName}}

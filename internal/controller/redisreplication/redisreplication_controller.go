@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
+	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	redishealer "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/redis"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/service"
@@ -17,6 +19,7 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/monitoring"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/service/redis"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -33,6 +36,8 @@ const (
 // Reconciler reconciles a RedisReplication object
 type Reconciler struct {
 	client.Client
+	// APIReader bypasses the manager cache for irreversible ownership checks.
+	APIReader client.Reader
 	k8sutils.StatefulSet
 	Healer                     redishealer.Healer
 	Checker                    redishealer.Checker
@@ -42,17 +47,42 @@ type Reconciler struct {
 	CreateRedisReplicationLink func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string, string) error
 	ConfigureSentinel          func(context.Context, *rrvb2.RedisReplication, string) error
 	SentinelMonitoredMaster    func(context.Context, *rrvb2.RedisReplication, []string) (string, error)
+	StandaloneMaster           func(context.Context, *rrvb2.RedisReplication, *rsvb2.RedisSentinel) (string, error)
+	// Ephemeral, private credential memoization. Never put these values in
+	// annotations, metrics, logs or persisted election state.
+	sentinelAuthMu sync.Mutex
+	sentinelAuth   map[sentinelAuthKey]cachedSentinelAuth
+	// Read-only observation and clock seams for deterministic recovery tests.
+	replacementProbe         replacementRecoveryProbe
+	replacementNow           func() time.Time
+	replacementMu            sync.Mutex
+	replacementSession       string
+	replacementInvalidations map[replacementFenceKey]uint64
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	instance := &rrvb2.RedisReplication{}
 
-	err := r.Get(ctx, req.NamespacedName, instance)
+	var reader client.Reader = r.Client
+	if r.APIReader != nil {
+		reader = r.APIReader
+	}
+	err := reader.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			r.forgetSentinelAuthOwner(req.NamespacedName)
+			r.forgetReplacementOwner(req.NamespacedName)
+		}
 		return intctrlutil.RequeueECheck(ctx, err, "failed to get RedisReplication instance")
 	}
+	// Direct typed reads need not retain TypeMeta. Owner references still
+	// require the API version and kind when creating dependent resources.
+	instance.APIVersion = rrvb2.GroupVersion.String()
+	instance.Kind = "RedisReplication"
 
 	if k8sutils.IsDeleted(instance) {
+		r.forgetSentinelAuthOwner(req.NamespacedName)
+		r.forgetReplacementOwner(req.NamespacedName)
 		if err := k8sutils.HandleRedisReplicationFinalizer(ctx, r.Client, instance, RedisReplicationFinalizer); err != nil {
 			return intctrlutil.RequeueE(ctx, err, "")
 		}
@@ -80,6 +110,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 
+	linked, err := r.findLinkedSentinel(ctx, instance)
+	if err != nil {
+		return intctrlutil.RequeueE(ctx, err, "")
+	}
+	if linked != nil {
+		return intctrlutil.RequeueAfter(ctx, 5*time.Second, "")
+	}
 	return intctrlutil.RequeueAfter(ctx, time.Second*30, "")
 }
 
@@ -279,7 +316,16 @@ func (r *Reconciler) reconcileFinalizer(ctx context.Context, instance *rrvb2.Red
 }
 
 func (r *Reconciler) reconcileResources(ctx context.Context, instance *rrvb2.RedisReplication) (ctrl.Result, error) {
-	if err := k8sutils.CreateReplicationRedis(ctx, instance, r.K8sClient, r.Client); err != nil {
+	var reader client.Reader = r.Client
+	if r.APIReader != nil {
+		reader = r.APIReader
+	}
+	if err := k8sutils.CreateReplicationRedis(ctx, instance, r.K8sClient, reader); err != nil {
+		if instance.Annotations[common.SentinelStartupAnnotation] == "enabled" {
+			if routeErr := r.routeRedisMaster(ctx, instance, ""); routeErr != nil {
+				return intctrlutil.RequeueE(ctx, routeErr, "")
+			}
+		}
 		return intctrlutil.RequeueAfter(ctx, time.Second*60, "")
 	}
 	if err := k8sutils.CreateReplicationService(ctx, instance, r.K8sClient); err != nil {
@@ -477,7 +523,52 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 	masterNodes, slaveNodes := topology.Masters, topology.Slaves
 	observedPods := topology.Observed()
 	incompleteTopology := !topology.Complete()
+	monitoring.RedisReplicationReplicasSizeMismatch.WithLabelValues(instance.Namespace, instance.Name).Set(0)
+	if instance.Spec.Size != nil {
+		if int(*instance.Spec.Size) != observedPods {
+			monitoring.RedisReplicationReplicasSizeMismatch.WithLabelValues(instance.Namespace, instance.Name).Set(1)
+		}
+		monitoring.RedisReplicationReplicasSizeDesired.WithLabelValues(instance.Namespace, instance.Name).Set(float64(*instance.Spec.Size))
+	}
+	monitoring.RedisReplicationReplicasSizeCurrent.WithLabelValues(instance.Namespace, instance.Name).Set(float64(observedPods))
 	realMaster, masterPositivelyIdentified := r.observedRedisReplicationMaster(ctx, instance, topology)
+	linked, err := r.linkedSentinel(ctx, instance)
+	if err != nil {
+		recoveryErr := r.resetReplacementObservation(ctx, instance)
+		if routeErr := r.routeRedisMaster(ctx, instance, ""); routeErr != nil {
+			return intctrlutil.RequeueE(ctx, routeErr, "")
+		}
+		if recoveryErr != nil {
+			return intctrlutil.RequeueE(ctx, recoveryErr, "cannot reset replacement observation")
+		}
+		return intctrlutil.RequeueE(ctx, err, "")
+	}
+	if linked != nil {
+		selected, _, selectErr := r.sentinelSelectedMaster(ctx, instance, linked)
+		if selectErr != nil {
+			log.FromContext(ctx).Info("Waiting for Sentinel authority", "reason", selectErr.Error())
+			selected = ""
+		}
+		var recoveryErr error
+		if selected == "" {
+			recoveryErr = r.reconcileStandaloneReplacement(ctx, instance, linked, "")
+		}
+		if err := r.routeRedisMaster(ctx, instance, selected); err != nil {
+			return intctrlutil.RequeueE(ctx, err, "")
+		}
+		if recoveryErr != nil {
+			return intctrlutil.RequeueE(ctx, recoveryErr, "cannot reset replacement observation")
+		}
+		if selected == "" {
+			return intctrlutil.RequeueAfter(ctx, 5*time.Second, "Waiting for Sentinel")
+		}
+		// A sampled election is not a demotion permit. Sentinel owns all role
+		// changes after activation, including returning-primary repair.
+		if err := r.reconcileStandaloneReplacement(ctx, instance, linked, selected); err != nil {
+			return intctrlutil.RequeueE(ctx, err, "cannot persist bounded replacement recovery")
+		}
+		return intctrlutil.Reconciled()
+	}
 	if len(masterNodes) > 1 {
 		log.FromContext(ctx).Info("Creating redis replication by executing replication creation commands")
 
@@ -547,14 +638,6 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 		}
 	}
 
-	monitoring.RedisReplicationReplicasSizeMismatch.WithLabelValues(instance.Namespace, instance.Name).Set(0)
-	if instance.Spec.Size != nil && int(*instance.Spec.Size) != observedPods {
-		monitoring.RedisReplicationReplicasSizeMismatch.WithLabelValues(instance.Namespace, instance.Name).Set(1)
-	}
-
-	monitoring.RedisReplicationReplicasSizeCurrent.WithLabelValues(instance.Namespace, instance.Name).Set(float64(observedPods))
-	monitoring.RedisReplicationReplicasSizeDesired.WithLabelValues(instance.Namespace, instance.Name).Set(float64(*instance.Spec.Size))
-
 	if instance.EnableSentinel() {
 		if incompleteTopology && !masterPositivelyIdentified {
 			log.FromContext(ctx).Info("Skipping sentinel reconfiguration because topology is incomplete and the master is ambiguous",
@@ -575,6 +658,48 @@ func (r *Reconciler) reconcileStatus(ctx context.Context, instance *rrvb2.RedisR
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
 	realMaster, _ := r.observedRedisReplicationMaster(ctx, instance, topology)
+	linked, err := r.linkedSentinel(ctx, instance)
+	if err != nil {
+		recoveryErr := r.resetReplacementObservation(ctx, instance)
+		if routeErr := r.routeRedisMaster(ctx, instance, ""); routeErr != nil {
+			return intctrlutil.RequeueE(ctx, routeErr, "")
+		}
+		if recoveryErr != nil {
+			return intctrlutil.RequeueE(ctx, recoveryErr, "cannot reset replacement observation")
+		}
+		return intctrlutil.RequeueE(ctx, err, "")
+	}
+	if linked != nil {
+		selected, _, selectErr := r.sentinelSelectedMaster(ctx, instance, linked)
+		if selectErr != nil {
+			selected = ""
+		}
+		var recoveryErr error
+		if selected == "" {
+			recoveryErr = r.resetReplacementObservation(ctx, instance)
+		}
+		if err := r.routeRedisMaster(ctx, instance, selected); err != nil {
+			return intctrlutil.RequeueE(ctx, err, "")
+		}
+		if recoveryErr != nil {
+			return intctrlutil.RequeueE(ctx, recoveryErr, "cannot reset replacement observation")
+		}
+		count := 0
+		if selected != "" {
+			count = len(topology.Slaves)
+		}
+		monitoring.RedisReplicationConnectedSlavesTotal.WithLabelValues(instance.Namespace, instance.Name).Set(float64(count))
+		return intctrlutil.Reconciled()
+	}
+	if instance.Status.MasterNode == "" && instance.Status.ConnectionInfo == nil {
+		configured, err := r.findLinkedSentinel(ctx, instance)
+		if err != nil {
+			return intctrlutil.RequeueE(ctx, err, "")
+		}
+		if configured != nil && (!topology.Complete() || len(topology.Masters) != 1 || (*instance.Spec.Size > 1 && r.redisReplicationRealMaster(ctx, instance, topology.Masters) == "")) {
+			return intctrlutil.RequeueAfter(ctx, 5*time.Second, "waiting for initial replication before Sentinel authority")
+		}
+	}
 	// Every pod answered and none is a master: there is no master to record, as
 	// opposed to a master that could not be identified.
 	masterAbsent := topology.Complete() && len(topology.Masters) == 0
@@ -599,11 +724,19 @@ func (r *Reconciler) updateStatus(ctx context.Context, rr *rrvb2.RedisReplicatio
 	copy := rr.DeepCopy()
 	copy.Spec = rrvb2.RedisReplicationSpec{}
 	copy.Status = status
-	return common.UpdateStatus(ctx, r.Client, copy)
+	if err := common.UpdateStatus(ctx, r.Client, copy); err != nil {
+		return err
+	}
+	rr.ResourceVersion = copy.ResourceVersion
+	rr.Status = copy.Status
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, opts controller.Options) error {
+	if r.APIReader == nil {
+		r.APIReader = mgr.GetAPIReader()
+	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&rrvb2.RedisReplication{}).
 		WithOptions(opts).

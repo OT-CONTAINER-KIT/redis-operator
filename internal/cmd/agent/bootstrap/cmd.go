@@ -18,5 +18,9 @@ func CMD() *cobra.Command {
 		},
 	}
 	bootstrapCmd.Flags().Bool("sentinel", false, "Generate sentinel config instead of redis config")
+	// Capability flag: older init images must reject the new startup contract
+	// instead of silently generating a guessed monitor or unprotected primary.
+	bootstrapCmd.Flags().Bool("standalone-authority", false, "Support create-only standalone Sentinel authority initialization")
+	bootstrapCmd.Flags().Bool("persistent-sentinel-state", false, "Preserve durable Sentinel configuration and election history")
 	return bootstrapCmd
 }

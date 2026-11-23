@@ -107,6 +107,7 @@ type statefulSetParameters struct {
 	Tolerations                          *[]corev1.Toleration
 	EnableMetrics                        bool
 	PersistentVolumeClaim                corev1.PersistentVolumeClaim
+	SentinelConfigClaim                  *corev1.PersistentVolumeClaim
 	NodeConfPersistentVolumeClaim        corev1.PersistentVolumeClaim
 	ImagePullSecrets                     *[]corev1.LocalObjectReference
 	ExternalConfig                       *string
@@ -124,6 +125,11 @@ type statefulSetParameters struct {
 
 // containerParameters will define container input params
 type containerParameters struct {
+	// Standalone Sentinel starts without a guessed monitor. Its controller
+	// initializes absent monitors after validating the live replication set.
+	DeferSentinelMonitor         bool
+	PersistentSentinelConfig     bool
+	SentinelBootstrap            bool
 	Image                        string
 	ImagePullPolicy              corev1.PullPolicy
 	Resources                    *corev1.ResourceRequirements
@@ -345,6 +351,13 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 	}
 
 	statefulset.Spec.Template.Spec.InitContainers = generateInitContainerDef(containerParams.Role, stsMeta.GetName(), initcontainerParams, params.ExternalConfig, initcontainerParams.AdditionalMountPath, containerParams, params.ClusterVersion)
+	if containerParams.PersistentSentinelConfig {
+		// Configuration must never fall back to an emptyDir on this path.
+		statefulset.Spec.Template.Spec.Volumes = nil
+		if params.SentinelConfigClaim != nil {
+			statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, createPVCTemplate(common.VolumeNameSentinelState, stsMeta, *params.SentinelConfigClaim))
+		}
+	}
 
 	if params.PodManagementPolicy != nil {
 		statefulset.Spec.PodManagementPolicy = appsv1.PodManagementPolicyType(*params.PodManagementPolicy)
@@ -495,7 +508,7 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 		},
 	}
 
-	if features.Enabled(features.GenerateConfigInInitContainer) {
+	if features.Enabled(features.GenerateConfigInInitContainer) || containerParams.DeferSentinelMonitor || containerParams.SentinelBootstrap {
 		if sentinelCntr {
 			containerDefinition[0].Command = []string{"redis-sentinel"}
 			containerDefinition[0].Args = []string{"/etc/redis/sentinel.conf"}
@@ -503,6 +516,25 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 			containerDefinition[0].Command = []string{"redis-server"}
 			containerDefinition[0].Args = []string{"/etc/redis/redis.conf"}
 		}
+	}
+	if (containerParams.DeferSentinelMonitor || containerParams.SentinelBootstrap) && !features.Enabled(features.GenerateConfigInInitContainer) {
+		containerDefinition[0].VolumeMounts = append(containerDefinition[0].VolumeMounts, generateConfigVolumeMount(common.VolumeNameConfig))
+	}
+	if containerParams.PersistentSentinelConfig {
+		for i := range containerDefinition[0].VolumeMounts {
+			if containerDefinition[0].VolumeMounts[i].MountPath == "/etc/redis" {
+				containerDefinition[0].VolumeMounts[i].Name = common.VolumeNameSentinelState
+			}
+		}
+	}
+	if containerParams.SentinelBootstrap {
+		probe := containerDefinition[0].ReadinessProbe.DeepCopy()
+		probe.ProbeHandler = corev1.ProbeHandler{Exec: &corev1.ExecAction{Command: []string{"sh", "/etc/redis/sentinel-ready.sh"}}}
+		probe.TimeoutSeconds = max(probe.TimeoutSeconds, 10)
+		if probe.PeriodSeconds == 0 {
+			probe.PeriodSeconds = 2
+		}
+		containerDefinition[0].ReadinessProbe = probe
 	}
 
 	preStopCfg := PreStopConfig{
@@ -798,7 +830,7 @@ fi`, redisCLIAuthSanitizer, tlsArgs, cfg.SentinelService, sentinelPort, cfg.Sent
 func generateInitContainerDef(role, name string, initcontainerParams initContainerParameters, externalConfig *string, mountpath []corev1.VolumeMount, containerParams containerParameters, clusterVersion *string) []corev1.Container {
 	containers := []corev1.Container{}
 
-	if features.Enabled(features.GenerateConfigInInitContainer) {
+	if features.Enabled(features.GenerateConfigInInitContainer) || containerParams.DeferSentinelMonitor || containerParams.SentinelBootstrap {
 		// give all container env vars to init container
 		envVars := append(
 			ptr.Deref(containerParams.EnvVars, []corev1.EnvVar{}),
@@ -807,6 +839,12 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 
 		VolumeMounts := []corev1.VolumeMount{
 			generateConfigVolumeMount(common.VolumeNameConfig),
+		}
+		if containerParams.PersistentSentinelConfig {
+			VolumeMounts[0].Name = common.VolumeNameSentinelState
+		}
+		if containerParams.SentinelBootstrap && ptr.Deref(containerParams.PersistenceEnabled, false) {
+			VolumeMounts = append(VolumeMounts, corev1.VolumeMount{Name: util.CoalesceEnv1(common.EnvOperatorSTSPVCTemplateName, name), MountPath: "/data", ReadOnly: true})
 		}
 		if externalConfig != nil {
 			VolumeMounts = append(VolumeMounts, externalConfigMount)
@@ -854,6 +892,12 @@ func generateInitContainerDef(role, name string, initcontainerParams initContain
 			container.Args = []string{"bootstrap", "--sentinel"}
 		} else {
 			container.Args = []string{"bootstrap"}
+		}
+		if containerParams.DeferSentinelMonitor || containerParams.SentinelBootstrap {
+			container.Args = append(container.Args, "--standalone-authority")
+		}
+		if containerParams.PersistentSentinelConfig {
+			container.Args = append(container.Args, "--persistent-sentinel-state")
 		}
 		containers = append(containers, container)
 	}

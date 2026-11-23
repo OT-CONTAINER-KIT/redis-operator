@@ -2,7 +2,6 @@ package redissentinel
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
@@ -10,7 +9,6 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/redis"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/controllerutil"
-	"github.com/OT-CONTAINER-KIT/redis-operator/internal/envs"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -18,7 +16,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -71,7 +68,7 @@ func (r *RedisSentinelReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 	}
 
-	return intctrlutil.Reconciled()
+	return intctrlutil.RequeueAfter(ctx, 5*time.Second, "")
 }
 
 type reconciler struct {
@@ -93,10 +90,8 @@ func (r *RedisSentinelReconciler) reconcileFinalizer(ctx context.Context, instan
 }
 
 func (r *RedisSentinelReconciler) reconcileReplication(ctx context.Context, instance *rsvb2.RedisSentinel) (ctrl.Result, error) {
-	if instance.Spec.RedisSentinelConfig != nil && !k8sutils.IsRedisReplicationReady(ctx, r.K8sClient, r.Client, instance) {
-		return intctrlutil.RequeueAfter(ctx, time.Second*10, "Redis Replication is specified but not ready")
-	}
-
+	// Resource recovery must not depend on finding a Redis primary. The
+	// sentinel step separately gates initial bootstrap using replication status.
 	if instance.Spec.RedisSentinelConfig != nil {
 		r.ReplicationWatcher.Watch(
 			ctx,
@@ -114,10 +109,10 @@ func (r *RedisSentinelReconciler) reconcileReplication(ctx context.Context, inst
 }
 
 func (r *RedisSentinelReconciler) reconcileSentinel(ctx context.Context, instance *rsvb2.RedisSentinel) (ctrl.Result, error) {
-	if err := k8sutils.CreateRedisSentinel(ctx, r.K8sClient, instance, r.K8sClient, r.Client); err != nil {
-		return intctrlutil.RequeueE(ctx, err, "")
-	}
 	if instance.Spec.RedisSentinelConfig == nil {
+		if err := k8sutils.CreateRedisSentinel(ctx, r.K8sClient, instance, r.K8sClient, r.Client); err != nil {
+			return intctrlutil.RequeueE(ctx, err, "")
+		}
 		return intctrlutil.Reconciled()
 	}
 
@@ -129,29 +124,21 @@ func (r *RedisSentinelReconciler) reconcileSentinel(ctx context.Context, instanc
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
 
-	master, err := r.Checker.GetMasterFromReplication(ctx, rr)
-	if err != nil {
+	if rr.Status.MasterNode == "" && rr.Status.ConnectionInfo == nil {
+		return intctrlutil.RequeueAfter(ctx, 5*time.Second, "waiting for verified Redis primary")
+	}
+	// Initial bootstrap must finish first. Once authority is activated,
+	// an unroutable primary must not disable StatefulSet recreation.
+	if err := k8sutils.CreateRedisSentinel(ctx, r.K8sClient, instance, r.K8sClient, r.Client); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
-	if master.Name == "" {
-		log.FromContext(ctx).Info("no reachable master found in Redis Replication, requeueing", "redisReplication", rr.Name)
-		return intctrlutil.RequeueAfter(ctx, time.Second*10, "")
-	}
-	var monitorAddr string
-	if instance.Spec.RedisSentinelConfig.ResolveHostnames == "yes" {
-		monitorAddr = fmt.Sprintf("%s.%s.%s.svc.%s", master.Name, common.GetHeadlessServiceNameFromPodName(master.Name), rr.Namespace, envs.GetServiceDNSDomain())
-	} else {
-		monitorAddr = master.Status.PodIP
-	}
-	if err := r.Healer.SentinelMonitor(ctx, instance, monitorAddr); err != nil {
+	// Monitor initialization belongs to the replication authority path, not
+	// a cached status address. Ordinary settings do not replace election state.
+	if err := r.Healer.SentinelSet(ctx, instance, ""); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
-	if err := r.Healer.SentinelSet(ctx, instance, monitorAddr); err != nil {
-		return intctrlutil.RequeueE(ctx, err, "")
-	}
-	if err := r.Healer.SentinelReset(ctx, instance, rr); err != nil {
-		return intctrlutil.RequeueE(ctx, err, "")
-	}
+	// Even conditional RESET discards election state. Standalone topology
+	// discovery and failover recovery must not be reset by desired-state repair.
 	return intctrlutil.Reconciled()
 }
 

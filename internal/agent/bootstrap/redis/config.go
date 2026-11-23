@@ -98,6 +98,14 @@ func dirContains(dir, name string) (bool, error) {
 func GenerateConfig() error {
 	confPath := util.CoalesceEnv1("REDIS_CONFIG_FILE", "/etc/redis/redis.conf")
 	cfg := agentutil.NewConfig(confPath, defaultRedisConfig)
+	if err := sentinelStartup(cfg); err != nil {
+		return err
+	}
+	if util.CoalesceEnv1("SENTINEL_BOOTSTRAP_REQUIRED", "") == "true" {
+		if err := writeStandaloneReadinessScript(filepath.Dir(confPath)); err != nil {
+			return err
+		}
+	}
 
 	var (
 		persistenceEnabled = util.CoalesceEnv1("PERSISTENCE_ENABLED", "false")

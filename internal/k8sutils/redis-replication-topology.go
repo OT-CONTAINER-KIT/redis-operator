@@ -68,6 +68,31 @@ func (t RedisReplicationTopology) byRole(redisRole string) []string {
 }
 
 func getRedisReplicationTopology(ctx context.Context, cl kubernetes.Interface, cr *rrvb2.RedisReplication, probeRole func(context.Context, *corev1.Pod) (string, error)) (RedisReplicationTopology, error) {
+	return getRedisReplicationTopologyWhen(ctx, cl, cr, probeRole, IsRedisPodProbeable)
+}
+
+// GetRunningRedisReplicationTopology is only for non-destructive missing-monitor
+// initialization. Discovery-aware readiness itself depends on those monitors,
+// so using full readiness here would create a circular recovery dependency.
+func GetRunningRedisReplicationTopology(ctx context.Context, cl kubernetes.Interface, cr *rrvb2.RedisReplication) (RedisReplicationTopology, error) {
+	return getRedisReplicationTopologyWhen(ctx, cl, cr, func(ctx context.Context, pod *corev1.Pod) (string, error) {
+		connection := configureRedisReplicationClientForPod(ctx, cl, cr, pod)
+		defer connection.Close()
+		return checkRedisServerRole(ctx, connection, pod.Name)
+	}, func(pod *corev1.Pod) bool {
+		if pod.Status.Phase != corev1.PodRunning || pod.DeletionTimestamp != nil || pod.Status.PodIP == "" {
+			return false
+		}
+		for _, status := range pod.Status.ContainerStatuses {
+			if status.Name == cr.Name && status.State.Running != nil {
+				return true
+			}
+		}
+		return false
+	})
+}
+
+func getRedisReplicationTopologyWhen(ctx context.Context, cl kubernetes.Interface, cr *rrvb2.RedisReplication, probeRole func(context.Context, *corev1.Pod) (string, error), eligible func(*corev1.Pod) bool) (RedisReplicationTopology, error) {
 	var topology RedisReplicationTopology
 
 	statefulset, err := GetStatefulSet(ctx, cl, cr.GetNamespace(), cr.GetName())
@@ -89,7 +114,7 @@ func getRedisReplicationTopology(ctx context.Context, cl kubernetes.Interface, c
 			return RedisReplicationTopology{}, err
 		}
 
-		if !IsRedisPodProbeable(pod) {
+		if !eligible(pod) {
 			log.FromContext(ctx).V(1).Info("Redis pod is not Running and Ready, skipping role probe", "pod", podName)
 			topology.Unobserved = append(topology.Unobserved, podName)
 			continue

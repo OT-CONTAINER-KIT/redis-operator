@@ -104,6 +104,9 @@ func generateStatefulSetsAnots(stsMeta metav1.ObjectMeta, ignoreAnnots []string)
 		"redis.opstreelabs.instance": stsMeta.GetName(),
 	}
 	for k, v := range stsMeta.GetAnnotations() {
+		if k == common.SentinelReplacementRecoveryAnnotation {
+			continue
+		}
 		anots[k] = v
 	}
 	return filterAnnotations(anots, ignoreAnnots...)
@@ -114,6 +117,8 @@ func filterAnnotations(anots map[string]string, ignoreAnnots ...string) map[stri
 	// Filter out some problematic annotations we don't want in the template.
 	delete(anots, "kubectl.kubernetes.io/last-applied-configuration")
 	delete(anots, "banzaicloud.com/last-applied")
+	delete(anots, common.SentinelOwnershipAnnotation)
+	delete(anots, common.SentinelStartupAnnotation)
 
 	for _, ignoreAnnot := range ignoreAnnots {
 		delete(anots, ignoreAnnot)

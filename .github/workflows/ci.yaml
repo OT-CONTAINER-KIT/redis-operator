@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 env:
-  GOLANG_VERSION: 1.25.0
+  GOLANG_VERSION: 1.26.10
   APPLICATION_NAME: redis-operator
   DockerImagName: docker.io/opstree/redis-operator
   BuildDocs: true
@@ -54,6 +54,19 @@ jobs:
         run: make integration-test-setup
       - name: Run Go Tests with coverage
         run: go test ./... -coverprofile=coverage.txt -covermode=atomic
+      - name: Check the separate documentation server module
+        working-directory: docs
+        run: go vet ./...
+      - name: Check local harness guard tests
+        env:
+          PYTHONPATH: tests/sentinel-authority
+        run: python3 -m unittest discover -s tests/sentinel-authority -p 'test_*.py'
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Check native client probe syntax
+        working-directory: tests/sentinel-authority/native-clients
+        run: npm test
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:

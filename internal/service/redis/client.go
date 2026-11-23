@@ -57,9 +57,11 @@ type Service interface {
 	GetAttachedReplicaCount(ctx context.Context) (int, error)
 	GetKeyCount(ctx context.Context) (int64, error)
 	SentinelMonitor(ctx context.Context, master *ConnectionInfo, masterGroupName, quorum string) error
+	SentinelMonitorIfAbsent(ctx context.Context, master *ConnectionInfo, masterGroupName, quorum string) error
 	SentinelSet(ctx context.Context, masterGroupName, key, value string) error
 	SentinelReset(ctx context.Context, masterGroupName string) error
 	GetInfoSentinel(ctx context.Context) (*InfoSentinelResult, error)
+	GetSentinelMaster(ctx context.Context, group string) (*SentinelMasterState, error)
 	GetClusterInfo(ctx context.Context) (*ClusterStatus, error)
 }
 
@@ -100,6 +102,63 @@ func NewService() Service {
 }
 
 func (s *service) createClient() *rediscli.Client {
+	return s.createClientWithProtocol(0)
+}
+
+type SentinelMasterState struct {
+	IP, Port, Flags, Epoch string
+	FailoverState          string
+	// Set only by a before/client-address/after read with identical raw state.
+	// Keep the diagnostic address and flags intact for conservative decisions.
+	clientIP, clientPort string
+}
+
+func (s *service) GetSentinelMaster(ctx context.Context, group string) (*SentinelMasterState, error) {
+	c := s.createClientWithProtocol(2)
+	if c == nil {
+		return nil, fmt.Errorf("sentinel connection is not configured")
+	}
+	defer c.Close()
+	return ReadSentinelMasterState(ctx, group, func(ctx context.Context, args ...string) (interface{}, error) {
+		command := make([]interface{}, len(args))
+		for i, arg := range args {
+			command[i] = arg
+		}
+		return c.Do(ctx, command...).Result()
+	})
+}
+
+func parseSentinelMaster(result []interface{}) (*SentinelMasterState, error) {
+	if len(result)%2 != 0 {
+		return nil, fmt.Errorf("%w: malformed master fields", ErrInvalidSentinelReport)
+	}
+	values := map[string]string{}
+	for i := 0; i < len(result); i += 2 {
+		key, ok := result[i].(string)
+		if !ok {
+			return nil, fmt.Errorf("%w: malformed master field", ErrInvalidSentinelReport)
+		}
+		if _, duplicate := values[key]; duplicate {
+			return nil, fmt.Errorf("%w: duplicate master field", ErrInvalidSentinelReport)
+		}
+		switch value := result[i+1].(type) {
+		case string:
+			values[key] = value
+		case []byte:
+			values[key] = string(value)
+		case int64:
+			values[key] = strconv.FormatInt(value, 10)
+		default:
+			return nil, fmt.Errorf("%w: malformed master value", ErrInvalidSentinelReport)
+		}
+	}
+	if values["ip"] == "" || values["port"] == "" || values["config-epoch"] == "" || values["flags"] == "" {
+		return nil, fmt.Errorf("%w: incomplete master fields", ErrInvalidSentinelReport)
+	}
+	return &SentinelMasterState{IP: values["ip"], Port: values["port"], Flags: values["flags"], Epoch: values["config-epoch"], FailoverState: values["failover-state"]}, nil
+}
+
+func (s *service) createClientWithProtocol(protocol int) *rediscli.Client {
 	if s.connectionInfo == nil {
 		return nil
 	}
@@ -107,6 +166,7 @@ func (s *service) createClient() *rediscli.Client {
 		Addr:     s.connectionInfo.GetAddress(),
 		Password: s.connectionInfo.Password,
 		DB:       0,
+		Protocol: protocol,
 	}
 	if s.connectionInfo.TLSConfig != nil {
 		opts.TLSConfig = s.connectionInfo.TLSConfig
@@ -213,7 +273,7 @@ func (c *service) SentinelMonitor(ctx context.Context, master *ConnectionInfo, m
 		err error
 	)
 
-	client := c.createClient()
+	client := c.createClientWithProtocol(2)
 	if client == nil {
 		return nil
 	}
@@ -287,6 +347,32 @@ func (c *service) SentinelMonitor(ctx context.Context, master *ConnectionInfo, m
 		}
 	}
 
+	return nil
+}
+
+// SentinelMonitorIfAbsent never removes, resets, or retargets a monitor. MONITOR
+// itself rejects an existing group, closing the query-to-create race without an
+// epoch check or a destructive REMOVE. Callers must choose a safe bootstrap seed.
+func (c *service) SentinelMonitorIfAbsent(ctx context.Context, master *ConnectionInfo, group, quorum string) error {
+	if _, err := c.GetSentinelMaster(ctx, group); err == nil {
+		return nil
+	} else if !strings.Contains(err.Error(), "No such master") {
+		return err
+	}
+	client := c.createClientWithProtocol(2)
+	if client == nil {
+		return fmt.Errorf("sentinel connection is not configured")
+	}
+	defer client.Close()
+	if err := client.Do(ctx, "SENTINEL", "MONITOR", group, master.Host, master.Port, quorum).Err(); err != nil {
+		if strings.Contains(err.Error(), "Duplicate master name") {
+			return nil
+		}
+		return err
+	}
+	if master.Password != "" {
+		return client.Do(ctx, "SENTINEL", "SET", group, "auth-pass", master.Password).Err()
+	}
 	return nil
 }
 

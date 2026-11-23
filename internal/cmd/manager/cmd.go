@@ -263,6 +263,7 @@ func setupControllers(mgr ctrl.Manager, k8sClient kubernetes.Interface, maxConcu
 	}
 	if err := (&redisreplicationcontroller.Reconciler{
 		Client:      mgr.GetClient(),
+		APIReader:   mgr.GetAPIReader(),
 		K8sClient:   k8sClient,
 		Healer:      healer,
 		Checker:     redis.NewChecker(k8sClient),

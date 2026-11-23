@@ -1,0 +1,3 @@
+FROM quay.io/opstree/redis:v8.4.0
+COPY --chown=1000:1000 client-probe /probe
+ENTRYPOINT ["/probe"]

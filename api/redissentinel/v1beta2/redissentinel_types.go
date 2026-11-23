@@ -6,13 +6,20 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// +kubebuilder:validation:XValidation:rule="!has(self.storage) || (has(self.redisSentinelConfig) && has(self.redisSentinelConfig.redisReplicationName) && self.redisSentinelConfig.redisReplicationName.size() > 0 && has(self.redisSentinelConfig.masterGroupName) && self.redisSentinelConfig.masterGroupName.size() > 0)",message="persistent Sentinel storage requires a replication name and master group"
+// +kubebuilder:validation:XValidation:rule="!has(oldSelf.storage) || has(self.storage)",message="persistent Sentinel storage cannot be removed in place"
+// +kubebuilder:validation:XValidation:rule="!(has(self.storage) || has(oldSelf.storage)) || (has(self.redisSentinelConfig) && has(oldSelf.redisSentinelConfig) && self.redisSentinelConfig.redisReplicationName == oldSelf.redisSentinelConfig.redisReplicationName && self.redisSentinelConfig.masterGroupName == oldSelf.redisSentinelConfig.masterGroupName)",message="persistent Sentinel monitor identity requires an explicit migration"
 type RedisSentinelSpec struct {
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:default=3
-	Size                          *int32                            `json:"clusterSize"`
-	KubernetesConfig              common.KubernetesConfig           `json:"kubernetesConfig"`
-	RedisExporter                 *common.RedisExporter             `json:"redisExporter,omitempty"`
-	RedisSentinelConfig           *RedisSentinelConfig              `json:"redisSentinelConfig,omitempty"`
+	Size                *int32                  `json:"clusterSize"`
+	KubernetesConfig    common.KubernetesConfig `json:"kubernetesConfig"`
+	RedisExporter       *common.RedisExporter   `json:"redisExporter,omitempty"`
+	RedisSentinelConfig *RedisSentinelConfig    `json:"redisSentinelConfig,omitempty"`
+	// Storage retains each standalone Sentinel's complete writable configuration,
+	// including its identity and election history, on a separate claim.
+	// Existing ephemeral StatefulSets require an explicit storage migration.
+	Storage                       *RedisSentinelStorage             `json:"storage,omitempty"`
 	NodeSelector                  map[string]string                 `json:"nodeSelector,omitempty"`
 	PodSecurityContext            *corev1.PodSecurityContext        `json:"podSecurityContext,omitempty"`
 	SecurityContext               *corev1.SecurityContext           `json:"securityContext,omitempty"`
@@ -40,6 +47,10 @@ type RedisSentinelSpec struct {
 	// +optional
 	// +kubebuilder:validation:Enum=OrderedReady;Parallel
 	PodManagementPolicy *string `json:"podManagementPolicy,omitempty"`
+}
+
+type RedisSentinelStorage struct {
+	VolumeClaimTemplate corev1.PersistentVolumeClaim `json:"volumeClaimTemplate"`
 }
 
 func (cr *RedisSentinelSpec) GetSentinelCounts(t string) int32 {

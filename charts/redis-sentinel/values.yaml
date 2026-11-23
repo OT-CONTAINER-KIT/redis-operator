@@ -25,8 +25,19 @@ redisSentinel:
   # When set to true, the operator will delete the statefulset and recreate it. Default is false.
   recreateStatefulSetOnUpdateInvalid: false
   persistentVolumeClaimRetentionPolicy: {}
-    # whenDeleted: Delete
+    # whenDeleted: Retain
     # whenScaled: Retain
+
+# -- One retained configuration claim per Sentinel; existing ephemeral sets need an explicit migration.
+storage:
+  volumeClaimTemplate:
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+      # storageClassName: standard-rwo
 
 # Overwite name for resources
 # name: ""

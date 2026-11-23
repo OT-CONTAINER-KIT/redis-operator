@@ -30,6 +30,7 @@ import (
 )
 
 type Healer interface {
+	SetRedisMasterLabel(ctx context.Context, ns string, labels map[string]string, secret *commonapi.ExistingPasswordSecret, tlsConfig *commonapi.TLSConfig, masterPod string) error
 	SentinelMonitor(ctx context.Context, rs *rsvb2.RedisSentinel, master string) error
 	// SentinelSet sets the config for a specific master
 	// See: https://redis.io/docs/latest/operate/oss_and_stack/management/sentinel/#reconfiguring-sentinel-at-runtime
@@ -365,7 +366,14 @@ func (h *healer) SentinelMonitor(ctx context.Context, rs *rsvb2.RedisSentinel, m
 			Port:     "6379",
 			Password: masterPass,
 		}
-		err = h.redis.Connect(connInfo).SentinelMonitor(
+		// Existing monitors contain election state and are never retargeted.
+		if _, queryErr := h.redis.Connect(connInfo).GetSentinelMaster(ctx, rs.Spec.RedisSentinelConfig.MasterGroupName); queryErr == nil {
+			continue
+		} else if !strings.Contains(queryErr.Error(), "No such master") {
+			errs = append(errs, fmt.Errorf("sentinel master on pod %s: %w", pod.Name, queryErr))
+			continue
+		}
+		err = h.redis.Connect(connInfo).SentinelMonitorIfAbsent(
 			ctx,
 			masterConnInfo,
 			rs.Spec.RedisSentinelConfig.MasterGroupName,
