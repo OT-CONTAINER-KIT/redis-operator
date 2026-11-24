@@ -133,6 +133,16 @@ type fakeChecker struct {
 	electedMaster corev1.Pod
 	electedErr    error
 	failover      bool
+	// configured and expected Sentinels reported by SentinelsMonitoring.
+	configured, expected int
+}
+
+func (f *fakeChecker) SentinelsMonitoring(context.Context, *rsvb2.RedisSentinel, string) (int, int, error) {
+	return f.configured, f.expected, nil
+}
+
+func (f *fakeChecker) GetMisattachedReplicas(context.Context, *rrvb2.RedisReplication, string, []string) ([]string, error) {
+	return nil, nil
 }
 
 func (f *fakeChecker) SentinelFailoverInProgress(context.Context, *rsvb2.RedisSentinel) (bool, error) {
@@ -194,4 +204,34 @@ func TestReconcileSentinelLeavesTheSentinelsAloneDuringAFailover(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 5*time.Second, result.RequeueAfter)
 	assert.Empty(t, healer.monitoredMasters)
+}
+
+// A Sentinel skipped by this pass (not Running yet, unreachable) produces no
+// watch event: the controller must come back until every Sentinel monitors
+// the master.
+func TestReconcileSentinelRequeuesWhileASentinelIsNotConfigured(t *testing.T) {
+	healer := &fakeHealer{}
+	r, instance := failoverInProgressSentinelReconciler(t, &fakeChecker{
+		master:     podWithIP("example-replication-0", "10.0.0.10"),
+		configured: 1, expected: 3,
+	}, healer)
+
+	result, err := r.reconcileSentinel(context.Background(), instance)
+
+	require.NoError(t, err)
+	assert.Equal(t, 30*time.Second, result.RequeueAfter)
+	assert.Equal(t, []string{"10.0.0.10"}, healer.monitoredMasters)
+}
+
+func TestReconcileSentinelIsDoneOnceEverySentinelIsConfigured(t *testing.T) {
+	healer := &fakeHealer{}
+	r, instance := failoverInProgressSentinelReconciler(t, &fakeChecker{
+		master:     podWithIP("example-replication-0", "10.0.0.10"),
+		configured: 3, expected: 3,
+	}, healer)
+
+	result, err := r.reconcileSentinel(context.Background(), instance)
+
+	require.NoError(t, err)
+	assert.Zero(t, result.RequeueAfter)
 }

@@ -354,7 +354,9 @@ func getRedisReplicationMasterPod(ctx context.Context, client kubernetes.Interfa
 		return emptyRedisInfo
 	}
 
-	replicasNum := *cr.Spec.Size
+	// The size of the replication, not of the RedisSentinel, tells whether
+	// the replication has a single pod.
+	replicasNum := replicationInstance.Spec.GetReplicationCounts("replication")
 
 	if replicasNum == 1 {
 		realMasterPod = masterPods[0]

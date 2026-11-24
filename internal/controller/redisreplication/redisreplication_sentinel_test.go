@@ -388,6 +388,8 @@ func (f *fakeSentinelRedisService) SentinelMaster(context.Context, string) (map[
 	return nil, nil
 }
 
+func (f *fakeSentinelRedisService) GetMasterHost(context.Context) (string, error) { return "", nil }
+
 func (f *fakeSentinelRedisService) GetClusterInfo(context.Context) (*redis.ClusterStatus, error) {
 	return &redis.ClusterStatus{}, nil
 }

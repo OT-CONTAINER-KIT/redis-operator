@@ -246,7 +246,7 @@ func (h *healer) SentinelSet(ctx context.Context, rs *rsvb2.RedisSentinel, maste
 	}
 	var errs []error
 	for _, pod := range pods.Items {
-		if !k8sutils.IsRedisPodProbeable(&pod) {
+		if !isSentinelReachable(&pod) {
 			continue
 		}
 		connInfo := createConnectionInfo(ctx, pod, sentinelPass, rs.Spec.TLS, h.k8s, rs.Namespace, "26379")
@@ -289,7 +289,7 @@ func (h *healer) SentinelReset(ctx context.Context, rs *rsvb2.RedisSentinel, rr 
 
 	var errs []error
 	for _, pod := range pods.Items {
-		if !k8sutils.IsRedisPodProbeable(&pod) {
+		if !isSentinelReachable(&pod) {
 			continue
 		}
 		connInfo := createConnectionInfo(ctx, pod, sentinelPass, rs.Spec.TLS, h.k8s, rs.Namespace, "26379")
@@ -369,7 +369,7 @@ func (h *healer) SentinelMonitor(ctx context.Context, rs *rsvb2.RedisSentinel, m
 
 	var errs []error
 	for _, pod := range pods.Items {
-		if !k8sutils.IsRedisPodProbeable(&pod) {
+		if !isSentinelReachable(&pod) {
 			continue
 		}
 		connInfo := createConnectionInfo(ctx, pod, sentinelPass, rs.Spec.TLS, h.k8s, rs.Namespace, "26379")

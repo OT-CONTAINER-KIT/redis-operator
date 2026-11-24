@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/utils/ptr"
 )
 
 func sentinelMonitoringAddress(address string) *redisservice.InfoSentinelResult {
@@ -104,4 +105,60 @@ func TestSentinelFailoverInProgress(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+// A Sentinel left on the bootstrap placeholder never fails over: the
+// RedisSentinel controller must keep retrying until every Sentinel monitors
+// the master.
+func TestSentinelsMonitoring(t *testing.T) {
+	rs, _, objects := newSentinelFixture("10.0.1.10", "10.0.1.11")
+	c := &checker{
+		k8s: k8sfake.NewSimpleClientset(objects...),
+		redis: &fakeRedisClient{sentinelMasterIPByHost: map[string]string{
+			"10.0.1.10": "10.0.0.10",
+			"10.0.1.11": "0.0.0.0",
+		}},
+	}
+	rs.Spec.Size = ptr.To(int32(3)) // the third Sentinel has no pod yet
+
+	configured, expected, err := c.SentinelsMonitoring(context.Background(), rs, "10.0.0.10")
+
+	require.NoError(t, err)
+	assert.Equal(t, 1, configured)
+	assert.Equal(t, 3, expected)
+}
+
+// A replica left on the IP of a recreated master, or chained to another
+// replica, is invisible to Sentinel, which only learns replicas from the
+// master.
+func TestGetMisattachedReplicas(t *testing.T) {
+	rr, objects := newReplicationFixture("10.0.0.10", "10.0.0.11", "10.0.0.12")
+	c := &checker{
+		k8s: k8sfake.NewSimpleClientset(objects...),
+		redis: &fakeRedisClient{masterHostByHost: map[string]string{
+			"10.0.0.10": "10.0.0.12",
+			"10.0.0.11": "10.0.9.99",
+		}},
+	}
+
+	got, err := c.GetMisattachedReplicas(context.Background(), rr, "example-replication-2",
+		[]string{"example-replication-0", "example-replication-1"})
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"example-replication-1"}, got)
+}
+
+func TestGetMisattachedReplicasAcceptsTheMasterHostname(t *testing.T) {
+	rr, objects := newReplicationFixture("10.0.0.10", "10.0.0.11", "10.0.0.12")
+	c := &checker{
+		k8s: k8sfake.NewSimpleClientset(objects...),
+		redis: &fakeRedisClient{masterHostByHost: map[string]string{
+			"10.0.0.10": "example-replication-2.example-replication-headless.default.svc.cluster.local",
+		}},
+	}
+
+	got, err := c.GetMisattachedReplicas(context.Background(), rr, "example-replication-2", []string{"example-replication-0"})
+
+	require.NoError(t, err)
+	assert.Empty(t, got)
 }

@@ -645,7 +645,9 @@ func TestSentinelResetSkipsSentinelsWithoutMasterGroup(t *testing.T) {
 	assert.Equal(t, []string{"10.0.1.12"}, redisClient.resetHosts)
 }
 
-func TestSentinelMonitorSkipsUnreadySentinelsAndReportsUnreachableOnes(t *testing.T) {
+// Readiness is a client-facing signal: a Sentinel whose readinessProbe needs a
+// configured master only becomes Ready once the operator configured it.
+func TestSentinelMonitorConfiguresUnreadySentinelsAndReportsUnreachableOnes(t *testing.T) {
 	rs, _, objects := newSentinelFixture("10.0.1.10", "10.0.1.11")
 	labels := map[string]string{"app": rs.GetStatefulSetName()}
 	objects = append(objects, newLabeledRedisPod(rs.GetStatefulSetName()+"-2", labels, "10.0.1.12", corev1.PodRunning, false))
@@ -657,7 +659,20 @@ func TestSentinelMonitorSkipsUnreadySentinelsAndReportsUnreachableOnes(t *testin
 	err := h.SentinelMonitor(context.Background(), rs, "10.0.0.10")
 
 	require.ErrorContains(t, err, rs.GetStatefulSetName()+"-0")
-	assert.Equal(t, []string{"10.0.1.11"}, redisClient.monitorHosts)
+	assert.ElementsMatch(t, []string{"10.0.1.11", "10.0.1.12"}, redisClient.monitorHosts)
+}
+
+func TestSentinelSetConfiguresUnreadySentinels(t *testing.T) {
+	rs, _, objects := newSentinelFixture("10.0.1.10")
+	rs.Spec.RedisSentinelConfig.DownAfterMilliseconds = "30000"
+	labels := map[string]string{"app": rs.GetStatefulSetName()}
+	objects = append(objects, newLabeledRedisPod(rs.GetStatefulSetName()+"-1", labels, "10.0.1.11", corev1.PodRunning, false))
+	redisClient := &fakeRedisClient{}
+	h := &healer{redis: redisClient, k8s: k8sfake.NewSimpleClientset(objects...)}
+
+	require.NoError(t, h.SentinelSet(context.Background(), rs, "10.0.0.10"))
+
+	assert.ElementsMatch(t, []string{"10.0.1.10", "10.0.1.11"}, redisClient.setHosts)
 }
 
 func TestIsConnectivityError(t *testing.T) {
@@ -713,9 +728,13 @@ type fakeRedisClient struct {
 	sentinelInfoByHost map[string]*redisservice.InfoSentinelResult
 	// sentinelFlagsByHost holds the flags of SENTINEL MASTER per sentinel host.
 	sentinelFlagsByHost map[string]string
-	monitorHosts        []string
-	setHosts            []string
-	resetHosts          []string
+	// sentinelMasterIPByHost holds the ip of SENTINEL MASTER per sentinel host.
+	sentinelMasterIPByHost map[string]string
+	// masterHostByHost holds the master_host of INFO replication per redis host.
+	masterHostByHost map[string]string
+	monitorHosts     []string
+	setHosts         []string
+	resetHosts       []string
 }
 
 func (f *fakeRedisClient) Connect(info *redisservice.ConnectionInfo) redisservice.Service {
@@ -787,7 +806,18 @@ func (f *fakeRedisService) SentinelMaster(context.Context, string) (map[string]s
 	if err := f.client.errByHost[f.host]; err != nil {
 		return nil, err
 	}
-	return map[string]string{"flags": f.client.sentinelFlagsByHost[f.host]}, nil
+	fields := map[string]string{"flags": f.client.sentinelFlagsByHost[f.host]}
+	if ip, ok := f.client.sentinelMasterIPByHost[f.host]; ok {
+		fields["ip"] = ip
+	}
+	return fields, nil
+}
+
+func (f *fakeRedisService) GetMasterHost(context.Context) (string, error) {
+	if err := f.client.errByHost[f.host]; err != nil {
+		return "", err
+	}
+	return f.client.masterHostByHost[f.host], nil
 }
 
 func (f *fakeRedisService) GetClusterInfo(context.Context) (*redisservice.ClusterStatus, error) {

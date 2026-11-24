@@ -27,6 +27,12 @@ type Checker interface {
 	// SentinelFailoverInProgress reports whether a Sentinel of rs is running a
 	// failover; only the Sentinel leading it reports it.
 	SentinelFailoverInProgress(ctx context.Context, rs *rsvb2.RedisSentinel) (bool, error)
+	// SentinelsMonitoring returns how many Sentinels of rs monitor master,
+	// out of the expected size of rs.
+	SentinelsMonitoring(ctx context.Context, rs *rsvb2.RedisSentinel, master string) (configured, expected int, err error)
+	// GetMisattachedReplicas returns the replicas that do not replicate from
+	// master: a stale IP of a recreated master, or another replica.
+	GetMisattachedReplicas(ctx context.Context, rr *rr.RedisReplication, master string, replicas []string) ([]string, error)
 }
 
 type checker struct {

@@ -1172,22 +1172,30 @@ type fakeSentinelInfoClient struct {
 	infoByHost     map[string]*redis.InfoSentinelResult
 	errByHost      map[string]error
 	flagsByHost    map[string]string
+	ipByHost       map[string]string // ip of SENTINEL MASTER per sentinel host
 }
 
 func (f *fakeSentinelInfoClient) Connect(info *redis.ConnectionInfo) redis.Service {
 	f.connectedHosts = append(f.connectedHosts, info.Host)
-	return &fakeSentinelInfoService{info: f.infoByHost[info.Host], err: f.errByHost[info.Host], flags: f.flagsByHost[info.Host]}
+	return &fakeSentinelInfoService{info: f.infoByHost[info.Host], err: f.errByHost[info.Host], flags: f.flagsByHost[info.Host], ip: f.ipByHost[info.Host]}
 }
 
 type fakeSentinelInfoService struct {
 	info  *redis.InfoSentinelResult
 	err   error
 	flags string
+	ip    string
 }
 
 func (f *fakeSentinelInfoService) SentinelMaster(context.Context, string) (map[string]string, error) {
-	return map[string]string{"flags": f.flags}, f.err
+	fields := map[string]string{"flags": f.flags}
+	if f.ip != "" {
+		fields["ip"] = f.ip
+	}
+	return fields, f.err
 }
+
+func (f *fakeSentinelInfoService) GetMasterHost(context.Context) (string, error) { return "", nil }
 
 func (f *fakeSentinelInfoService) IsMaster(context.Context) (bool, error) { return false, nil }
 
@@ -1251,7 +1259,16 @@ func keyCountsOf(keyCounts map[string]int64) redischecker.Checker {
 }
 
 type fakeChecker struct {
-	keyCounts map[string]int64
+	keyCounts   map[string]int64
+	misattached []string
+}
+
+func (f *fakeChecker) SentinelsMonitoring(context.Context, *rsvb2.RedisSentinel, string) (int, int, error) {
+	return 0, 0, nil
+}
+
+func (f *fakeChecker) GetMisattachedReplicas(context.Context, *rrvb2.RedisReplication, string, []string) ([]string, error) {
+	return f.misattached, nil
 }
 
 func (f *fakeChecker) GetMasterFromReplication(context.Context, *rrvb2.RedisReplication) (corev1.Pod, error) {

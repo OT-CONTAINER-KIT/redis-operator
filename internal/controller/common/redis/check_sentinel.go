@@ -166,3 +166,78 @@ func (c *checker) SentinelFailoverInProgress(ctx context.Context, rs *rsvb2.Redi
 	}
 	return false, nil
 }
+
+// isSentinelReachable reports whether the operator can configure a Sentinel
+// pod. Readiness is not required: a Sentinel whose readinessProbe needs a
+// configured master only becomes Ready once the operator configured it.
+func isSentinelReachable(pod *corev1.Pod) bool {
+	return pod != nil && pod.Status.Phase == corev1.PodRunning && pod.Status.PodIP != "" && pod.DeletionTimestamp == nil
+}
+
+func (c *checker) SentinelsMonitoring(ctx context.Context, rs *rsvb2.RedisSentinel, master string) (int, int, error) {
+	expected := int(rs.Spec.GetSentinelCounts("sentinel"))
+	if rs.Spec.RedisSentinelConfig == nil {
+		return 0, expected, nil
+	}
+	sentinelPods, err := c.podsOfStatefulSet(ctx, rs.Namespace, rs.GetStatefulSetName())
+	if err != nil {
+		return 0, expected, fmt.Errorf("get sentinel pods: %w", err)
+	}
+	sentinelPassword, err := c.GetPassword(ctx, rs.Namespace, rs.Spec.KubernetesConfig.ExistingPasswordSecret)
+	if err != nil {
+		return 0, expected, fmt.Errorf("get sentinel password: %w", err)
+	}
+	configured := 0
+	for _, sentinelPod := range sentinelPods {
+		if !isSentinelReachable(&sentinelPod) {
+			continue
+		}
+		connInfo := createConnectionInfo(ctx, sentinelPod, sentinelPassword, rs.Spec.TLS, c.k8s, rs.Namespace, "26379")
+		fields, err := c.redis.Connect(connInfo).SentinelMaster(ctx, rs.Spec.RedisSentinelConfig.MasterGroupName)
+		if err != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return configured, expected, ctxErr
+			}
+			continue
+		}
+		if fields["ip"] == master {
+			configured++
+		}
+	}
+	return configured, expected, nil
+}
+
+func (c *checker) GetMisattachedReplicas(ctx context.Context, rr *rrvb2.RedisReplication, master string, replicas []string) ([]string, error) {
+	pods, err := c.podsOfStatefulSet(ctx, rr.Namespace, rr.GetStatefulSetName())
+	if err != nil {
+		return nil, fmt.Errorf("get replication pods: %w", err)
+	}
+	byName := make(map[string]corev1.Pod, len(pods))
+	byAddress := make(map[string]string, 2*len(pods))
+	for _, pod := range pods {
+		byName[pod.Name] = pod
+		byAddress[fmt.Sprintf("%s.%s.%s.svc.%s", pod.Name, common.GetHeadlessServiceNameFromPodName(pod.Name), rr.Namespace, envs.GetServiceDNSDomain())] = pod.Name
+		if pod.Status.PodIP != "" {
+			byAddress[pod.Status.PodIP] = pod.Name
+		}
+	}
+	password, err := c.GetPassword(ctx, rr.Namespace, rr.Spec.KubernetesConfig.ExistingPasswordSecret)
+	if err != nil {
+		return nil, fmt.Errorf("get redis password: %w", err)
+	}
+	var misattached []string
+	for _, name := range replicas {
+		pod, ok := byName[name]
+		if !ok || !k8sutils.IsRedisPodProbeable(&pod) {
+			continue
+		}
+		host, err := c.redis.Connect(createConnectionInfo(ctx, pod, password, rr.Spec.TLS, c.k8s, rr.Namespace, "6379")).GetMasterHost(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("get master of %s: %w", name, err)
+		}
+		if host != "" && byAddress[strings.TrimSuffix(host, ".")] != master {
+			misattached = append(misattached, name)
+		}
+	}
+	return misattached, nil
+}

@@ -218,6 +218,45 @@ func (r *Reconciler) querySentinelFailoverInProgress(ctx context.Context, redisC
 	return false, nil
 }
 
+func (r *Reconciler) sentinelCanDecide(ctx context.Context, inst *rrvb2.RedisReplication) (bool, error) {
+	if r.SentinelCanDecide != nil {
+		return r.SentinelCanDecide(ctx, inst)
+	}
+	return r.querySentinelCanDecide(ctx, redis.NewClient(), inst)
+}
+
+// querySentinelCanDecide reports whether a quorum of the Sentinels monitoring
+// inst is configured: they monitor a real address, neither the 0.0.0.0
+// bootstrap placeholder nor their own IP (#1774). Sentinels without state
+// cannot fail over, so the operator has to elect the master in their place.
+func (r *Reconciler) querySentinelCanDecide(ctx context.Context, redisClient redis.Client, inst *rrvb2.RedisReplication) (bool, error) {
+	voters, err := r.linkedSentinelVoters(ctx, inst)
+	if err != nil || voters == nil {
+		return false, err
+	}
+	configured := 0
+	for _, sentinelPod := range voters.pods {
+		if sentinelPod.Status.Phase != corev1.PodRunning || sentinelPod.Status.PodIP == "" {
+			continue
+		}
+		fields, err := redisClient.Connect(&redis.ConnectionInfo{
+			Host:     sentinelPod.Status.PodIP,
+			Port:     "26379",
+			Password: voters.password,
+		}).SentinelMaster(ctx, voters.masterName)
+		if err != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return false, ctxErr
+			}
+			continue
+		}
+		if ip := fields["ip"]; ip != "" && ip != "0.0.0.0" && ip != sentinelPod.Status.PodIP {
+			configured++
+		}
+	}
+	return configured >= voters.quorum, nil
+}
+
 // sentinelVoters are the Sentinels that monitor a RedisReplication: the
 // embedded spec.sentinel, or a standalone RedisSentinel that references it.
 type sentinelVoters struct {

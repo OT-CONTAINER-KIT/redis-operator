@@ -63,6 +63,8 @@ type Service interface {
 	// SentinelMaster returns the fields of SENTINEL MASTER masterGroupName
 	// (ip, quorum, flags...), or nil when the sentinel does not monitor it.
 	SentinelMaster(ctx context.Context, masterGroupName string) (map[string]string, error)
+	// GetMasterHost returns the master_host of a replica, "" for a master.
+	GetMasterHost(ctx context.Context) (string, error)
 	GetClusterInfo(ctx context.Context) (*ClusterStatus, error)
 }
 
@@ -438,4 +440,23 @@ func SentinelFailoverInProgress(sentinelMaster map[string]string) bool {
 		}
 	}
 	return false
+}
+
+func (c *service) GetMasterHost(ctx context.Context) (string, error) {
+	client := c.createClient()
+	if client == nil {
+		return "", nil
+	}
+	defer client.Close()
+
+	info, err := client.Info(ctx, "replication").Result()
+	if err != nil {
+		return "", err
+	}
+	for _, line := range strings.Split(info, "\r\n") {
+		if host, ok := strings.CutPrefix(line, "master_host:"); ok {
+			return strings.TrimSpace(host), nil
+		}
+	}
+	return "", nil
 }

@@ -169,6 +169,19 @@ func (r *RedisSentinelReconciler) reconcileSentinel(ctx context.Context, instanc
 	if err := r.Healer.SentinelReset(ctx, instance, rr); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
+	// A Sentinel skipped by this pass (not Running yet, restarted on the
+	// 0.0.0.0 placeholder) produces no watch event: come back until every
+	// Sentinel monitors the master, or it never takes part in a failover.
+	configured, expected, err := r.Checker.SentinelsMonitoring(ctx, instance, monitorAddr)
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Could not check which sentinels monitor the master")
+		return intctrlutil.RequeueAfter(ctx, time.Second*30, "")
+	}
+	if configured < expected {
+		log.FromContext(ctx).Info("Not every sentinel monitors the master yet, requeueing",
+			"master", monitorAddr, "configured", configured, "expected", expected)
+		return intctrlutil.RequeueAfter(ctx, time.Second*30, "")
+	}
 	return intctrlutil.Reconciled()
 }
 
