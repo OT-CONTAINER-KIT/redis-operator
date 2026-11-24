@@ -2,6 +2,7 @@ package k8sutils
 
 import (
 	"context"
+	"crypto/x509"
 	"os"
 	"path/filepath"
 	"testing"
@@ -97,7 +98,7 @@ func Test_getRedisPassword(t *testing.T) {
 	}
 }
 
-func Test_getRedisTLSConfig(t *testing.T) {
+func Test_GetRedisTLSConfig(t *testing.T) {
 	tests := []struct {
 		name         string
 		setup        func() *k8sClientFake.Clientset
@@ -330,7 +331,7 @@ func Test_getRedisTLSConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			client := tt.setup()
 
-			tlsConfig := getRedisTLSConfig(context.TODO(), client, tt.redisCluster.Namespace, tt.redisCluster.Spec.TLS)
+			tlsConfig := GetRedisTLSConfig(context.TODO(), client, tt.redisCluster.Namespace, tt.redisCluster.Spec.TLS)
 
 			if tt.expectTLS {
 				require.NotNil(t, tlsConfig, "Expected TLS configuration but got nil")
@@ -347,6 +348,97 @@ func Test_getRedisTLSConfig(t *testing.T) {
 			} else {
 				assert.Nil(t, tlsConfig, "Expected no TLS configuration but got one")
 			}
+		})
+	}
+}
+
+func Test_GetSentinelTLSConfig(t *testing.T) {
+	testdata := func(name string) []byte {
+		return helperReadFile(filepath.Join("..", "..", "tests", "testdata", "secrets", name))
+	}
+	secretWith := func(keys ...string) *corev1.Secret {
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: "redis-tls-secret", Namespace: "default"},
+			Data:       map[string][]byte{},
+		}
+		for _, key := range keys {
+			secret.Data[key] = testdata(key)
+		}
+		return secret
+	}
+	implicitCA := &common.TLSConfig{Secret: corev1.SecretVolumeSource{SecretName: "redis-tls-secret"}}
+
+	tests := []struct {
+		name      string
+		tlsConfig *common.TLSConfig
+		secret    *corev1.Secret
+		wantTLS   bool
+		wantErr   string
+	}{
+		{
+			name: "TLS not configured",
+		},
+		{
+			name:      "CA from the secret",
+			tlsConfig: implicitCA,
+			secret:    secretWith("ca.crt", "tls.crt", "tls.key"),
+			wantTLS:   true,
+		},
+		{
+			// GetRedisTLSConfig falls back to the system trust store here;
+			// the Sentinel path must not.
+			name:      "no CA in the secret and no explicit CA key",
+			tlsConfig: implicitCA,
+			secret:    secretWith("tls.crt", "tls.key"),
+			wantErr:   `TLS secret default/redis-tls-secret is missing the CA key "ca.crt"`,
+		},
+		{
+			name: "explicit CA key missing from the secret",
+			tlsConfig: &common.TLSConfig{
+				CaCertFile: "root.pem",
+				Secret:     corev1.SecretVolumeSource{SecretName: "redis-tls-secret"},
+			},
+			secret:  secretWith("ca.crt", "tls.crt", "tls.key"),
+			wantErr: `is missing the CA key "root.pem"`,
+		},
+		{
+			name:      "secret not found",
+			tlsConfig: implicitCA,
+			wantErr:   "get TLS secret default/redis-tls-secret",
+		},
+		{
+			name:      "no secret name",
+			tlsConfig: &common.TLSConfig{},
+			wantErr:   "TLS secret name is not set",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := k8sClientFake.NewSimpleClientset()
+			if tt.secret != nil {
+				client = k8sClientFake.NewSimpleClientset(tt.secret)
+			}
+
+			tlsConfig, err := GetSentinelTLSConfig(context.Background(), client, "default", tt.tlsConfig)
+
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+				assert.Nil(t, tlsConfig)
+				return
+			}
+			require.NoError(t, err)
+			if !tt.wantTLS {
+				assert.Nil(t, tlsConfig)
+				return
+			}
+			require.NotNil(t, tlsConfig)
+			require.NotEmpty(t, tlsConfig.Certificates)
+			require.NotNil(t, tlsConfig.VerifyPeerCertificate)
+			// The pool holds exactly the secret's CA, not the system roots.
+			wantPool := x509.NewCertPool()
+			require.True(t, wantPool.AppendCertsFromPEM(testdata("ca.crt")))
+			assert.True(t, wantPool.Equal(tlsConfig.RootCAs), "RootCAs must be the secret's CA only")
 		})
 	}
 }

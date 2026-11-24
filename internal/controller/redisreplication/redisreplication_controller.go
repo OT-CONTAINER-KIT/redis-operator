@@ -8,6 +8,7 @@ import (
 
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/configmap"
 	redishealer "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/redis"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/service"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/statefulset"
@@ -294,6 +295,12 @@ func (r *Reconciler) reconcileResources(ctx context.Context, instance *rrvb2.Red
 		if err != nil {
 			return intctrlutil.RequeueE(ctx, err, "")
 		}
+		// The Sentinel pods mount this ConfigMap, so it must exist before them.
+		if instance.Spec.TLS != nil {
+			if _, err := configmap.Reconcile(ctx, r.Client, newSentinelTLSConfigMap(instance), instance); err != nil {
+				return intctrlutil.RequeueE(ctx, err, "")
+			}
+		}
 		sts := newSentinelStatefulSet(instance, svc.Name)
 		_, err = statefulset.Reconcile(ctx, r.Client, sts, instance)
 		if err != nil {
@@ -377,11 +384,16 @@ func (r *Reconciler) configureSentinelPod(
 	if err != nil {
 		return err
 	}
+	sentinelTLS, err := r.sentinelTLSConfig(ctx, inst)
+	if err != nil {
+		return err
+	}
 
 	sentinelConnInfo := &redis.ConnectionInfo{
-		Host:     sentinelPod.Status.PodIP,
-		Port:     "26379",
-		Password: sentinelPassword,
+		Host:      sentinelPod.Status.PodIP,
+		Port:      "26379",
+		Password:  sentinelPassword,
+		TLSConfig: sentinelTLS,
 	}
 
 	sentinelService := redisClient.Connect(sentinelConnInfo)

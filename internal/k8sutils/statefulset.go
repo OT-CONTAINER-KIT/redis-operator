@@ -489,8 +489,8 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 				containerParams.Resources,
 				containerParams.MaxMemoryPercentOfLimit,
 			),
-			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe, sentinelCntr, enableTLS),
-			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe, sentinelCntr, enableTLS),
+			ReadinessProbe: GetProbeInfo(containerParams.ReadinessProbe, sentinelCntr, enableTLS),
+			LivenessProbe:  GetProbeInfo(containerParams.LivenessProbe, sentinelCntr, enableTLS),
 			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, clusterMode, nodeConfVolume, externalConfig, mountpath, containerParams.TLSConfig, containerParams.ACLConfig),
 		},
 	}
@@ -770,6 +770,10 @@ fi`, redisCLIAuthSanitizer, tlsArgs, tlsArgs, tlsArgs, demotionWaitLoop(tlsArgs,
 // failover: SENTINEL FAILOVER replies -NOGOODSLAVE when no replica is eligible
 // and -INPROGRESS when one is already running, and in neither case does waiting
 // for this node's demotion achieve anything.
+//
+// With TLS the embedded Sentinel only listens on TLS and requires a client
+// certificate, so the SENTINEL FAILOVER call carries the same TLS arguments as
+// the local calls; without them it fails and the hook never fails over.
 func generateReplicationPreStop(tlsArgs string, cfg PreStopConfig) string {
 	sentinelPort := cfg.SentinelPort
 	if sentinelPort == 0 {
@@ -781,7 +785,7 @@ func generateReplicationPreStop(tlsArgs string, cfg PreStopConfig) string {
 ROLE=$(redis-cli -h $(hostname) -p ${REDIS_PORT} %s info replication | awk -F: '/role:master/ {print "master"}')
 
 if [ "$ROLE" = "master" ]; then
-    FAILOVER_RESULT=$(redis-cli -h "%s" -p %d SENTINEL FAILOVER %s 2>&1)
+    FAILOVER_RESULT=$(redis-cli -h "%s" -p %d%s SENTINEL FAILOVER %s 2>&1)
     case "$FAILOVER_RESULT" in
         OK*) ;;
         *)
@@ -792,7 +796,7 @@ if [ "$ROLE" = "master" ]; then
     esac
 
     %s
-fi`, redisCLIAuthSanitizer, tlsArgs, cfg.SentinelService, sentinelPort, cfg.SentinelMasterName, demotionWaitLoop(tlsArgs, waitSeconds, "    "))
+fi`, redisCLIAuthSanitizer, tlsArgs, cfg.SentinelService, sentinelPort, tlsArgs, cfg.SentinelMasterName, demotionWaitLoop(tlsArgs, waitSeconds, "    "))
 }
 
 func generateInitContainerDef(role, name string, initcontainerParams initContainerParameters, externalConfig *string, mountpath []corev1.VolumeMount, containerParams containerParameters, clusterVersion *string) []corev1.Container {
@@ -890,6 +894,25 @@ func GenerateTLSEnvironmentVariables(tlsconfig *commonapi.TLSConfig) []corev1.En
 		Value: path.Join(root, tlsCertKey),
 	})
 	return envVars
+}
+
+// GenerateSentinelTLSEnvironmentVariables returns the TLS environment of a
+// Sentinel container whose config is rendered by the sentinel image's
+// entrypoint (entrypoint-sentinel.sh). That entrypoint reads the CA path from
+// REDIS_TLS_CA_KEY, not REDIS_TLS_CA_CERT, and always writes it to
+// tls-ca-cert-file, so the CA is set even without an explicit tlsConfig.CaCertFile:
+// Sentinel cannot verify Redis or its peers over TLS without one. The same
+// path is also exported as REDIS_TLS_CA_CERT, which the GetProbeInfo probes read.
+func GenerateSentinelTLSEnvironmentVariables(tlsconfig *commonapi.TLSConfig) []corev1.EnvVar {
+	root := "/tls/"
+	caCert, tlsCert, tlsCertKey := getTLSSecretKeys(tlsconfig)
+	return []corev1.EnvVar{
+		{Name: "TLS_MODE", Value: "true"},
+		{Name: "REDIS_TLS_CA_KEY", Value: path.Join(root, caCert)},
+		{Name: "REDIS_TLS_CA_CERT", Value: path.Join(root, caCert)},
+		{Name: "REDIS_TLS_CERT", Value: path.Join(root, tlsCert)},
+		{Name: "REDIS_TLS_CERT_KEY", Value: path.Join(root, tlsCertKey)},
+	}
 }
 
 // enableRedisMonitoring will add Redis Exporter as sidecar container
@@ -1045,10 +1068,13 @@ func generateACLVolumeMount(aclConfig *commonapi.ACLConfig, readOnly bool) *core
 	}
 }
 
-// getProbeInfo generate probe for Redis StatefulSet
+// GetProbeInfo generate probe for Redis StatefulSet
 // The `ping` command will exit successfully even if the node is loading,
 // so we need to verify that the Redis `ping` command returns "PONG".
-func getProbeInfo(probe *corev1.Probe, sentinel, enableTLS bool) *corev1.Probe {
+// The rendered command reads REDIS_PORT or SENTINEL_PORT, REDISCLI_AUTH and,
+// with TLS, REDIS_TLS_CERT, REDIS_TLS_CERT_KEY and REDIS_TLS_CA_CERT from the
+// container environment.
+func GetProbeInfo(probe *corev1.Probe, sentinel, enableTLS bool) *corev1.Probe {
 	if probe == nil {
 		probe = &corev1.Probe{}
 	}

@@ -793,7 +793,7 @@ func configureRedisClient(ctx context.Context, client kubernetes.Interface, cr *
 		WriteTimeout: defaultRedisClientTimeout,
 	}
 	if cr.Spec.TLS != nil {
-		opts.TLSConfig = getRedisTLSConfig(ctx, client, cr.Namespace, cr.Spec.TLS)
+		opts.TLSConfig = GetRedisTLSConfig(ctx, client, cr.Namespace, cr.Spec.TLS)
 	}
 	return redis.NewClient(opts)
 }
@@ -817,7 +817,7 @@ func configureRedisStandaloneClient(ctx context.Context, client kubernetes.Inter
 		DB:       0,
 	}
 	if cr.Spec.TLS != nil {
-		opts.TLSConfig = getRedisTLSConfig(ctx, client, cr.Namespace, cr.Spec.TLS)
+		opts.TLSConfig = GetRedisTLSConfig(ctx, client, cr.Namespace, cr.Spec.TLS)
 	}
 	return redis.NewClient(opts)
 }
@@ -989,7 +989,7 @@ func configureRedisReplicationClientForAddress(ctx context.Context, client kuber
 		WriteTimeout: defaultRedisClientTimeout,
 	}
 	if cr.Spec.TLS != nil {
-		opts.TLSConfig = getRedisTLSConfig(ctx, client, cr.Namespace, cr.Spec.TLS)
+		opts.TLSConfig = GetRedisTLSConfig(ctx, client, cr.Namespace, cr.Spec.TLS)
 	}
 	return redis.NewClient(opts)
 }
