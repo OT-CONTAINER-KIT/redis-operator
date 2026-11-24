@@ -1,0 +1,32 @@
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisReplication
+metadata:
+  name: redis-replication-tls
+spec:
+  clusterSize: 3
+  TLS:
+    ca: ca.crt
+    cert: tls.crt
+    key: tls.key
+    secret:
+      secretName: redis-replication-tls-cert
+  kubernetesConfig:
+    image: quay.io/opstree/redis:latest
+    imagePullPolicy: IfNotPresent
+    redisSecret:
+      name: redis-secret
+      key: password
+  sentinel:
+    size: 3
+    image: quay.io/opstree/redis-sentinel:latest
+    imagePullPolicy: IfNotPresent
+    # Far longer than the failover assertion window, so Sentinel cannot detect
+    # the deleted master and fail over on its own within it: a switch inside
+    # the window can only come from the preStop hook.
+    downAfterMilliseconds: "300000"
+    # The same password as Redis, so the preStop hook, which authenticates to
+    # Sentinel with the Redis password, can run SENTINEL FAILOVER.
+    redisSecret:
+      name: redis-secret
+      key: password
