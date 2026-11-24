@@ -218,18 +218,6 @@ func (r *Reconciler) querySentinelFailoverInProgress(ctx context.Context, redisC
 	return false, nil
 }
 
-// hasLinkedStandaloneSentinel reports whether a RedisSentinel monitors inst.
-// When it cannot tell, it answers true, so that the operator does not compete
-// with a Sentinel it could not see.
-func (r *Reconciler) hasLinkedStandaloneSentinel(ctx context.Context, inst *rrvb2.RedisReplication) bool {
-	rs, err := r.linkedStandaloneSentinel(ctx, inst)
-	if err != nil {
-		log.FromContext(ctx).Error(err, "Could not look for a RedisSentinel monitoring the replication")
-		return true
-	}
-	return rs != nil
-}
-
 // sentinelVoters are the Sentinels that monitor a RedisReplication: the
 // embedded spec.sentinel, or a standalone RedisSentinel that references it.
 type sentinelVoters struct {

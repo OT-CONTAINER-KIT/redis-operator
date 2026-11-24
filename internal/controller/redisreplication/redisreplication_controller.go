@@ -539,10 +539,7 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 	} else if len(masterNodes) == 1 && len(slaveNodes) > 0 {
 		currentRealMaster := r.redisReplicationRealMaster(ctx, instance, masterNodes)
 
-		// Sentinel, embedded or standalone, reconfigures the replicas itself:
-		// re-pointing them here while it fails over chains them to the old
-		// master.
-		if currentRealMaster == "" && !instance.EnableSentinel() && !r.hasLinkedStandaloneSentinel(ctx, instance) {
+		if currentRealMaster == "" && !instance.EnableSentinel() {
 			log.FromContext(ctx).Info("Detected disconnected slaves, reconfiguring replication",
 				"master", realMaster, "slaves", slaveNodes)
 

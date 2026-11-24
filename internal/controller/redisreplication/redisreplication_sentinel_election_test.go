@@ -235,35 +235,6 @@ func TestReconcileRedisCarriesOnWhenSentinelCannotTellAboutAFailover(t *testing.
 	assert.Equal(t, "example-replication-0", gotMaster)
 }
 
-// A standalone Sentinel reconfigures the replicas itself, like an embedded one:
-// re-pointing "disconnected" replicas while it fails over chains them to the
-// old master.
-func TestReconcileRedisLeavesDisconnectedReplicasToALinkedStandaloneSentinel(t *testing.T) {
-	createCalled := false
-	rs := newStandaloneSentinelForTest("redis-sentinel", "example-replication")
-	r := &Reconciler{
-		Client:                   ctrlClientWith(t, rs),
-		StatefulSet:              &fakeStatefulSetService{},
-		K8sClient:                fake.NewSimpleClientset(),
-		RedisReplicationTopology: topologyOf([]string{"example-replication-0"}, []string{"example-replication-1", "example-replication-2"}, nil),
-		RedisReplicationRealMaster: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string {
-			return ""
-		},
-		Checker: keyCountsOf(map[string]int64{"example-replication-0": 100, "example-replication-1": 100, "example-replication-2": 100}),
-		CreateRedisReplicationLink: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string, string) error {
-			createCalled = true
-			return nil
-		},
-		SentinelMonitoredMaster:    sentinelMonitoring(""),
-		SentinelFailoverInProgress: func(context.Context, *rrvb2.RedisReplication) (bool, error) { return false, nil },
-	}
-
-	_, err := r.reconcileRedis(context.Background(), newReplicationInstanceForTest())
-
-	require.NoError(t, err)
-	assert.False(t, createCalled)
-}
-
 func TestQuerySentinelFailoverInProgressAsksTheLinkedStandaloneSentinel(t *testing.T) {
 	rs := newStandaloneSentinelForTest("redis-sentinel", "example-replication")
 	redisClient := &fakeSentinelInfoClient{flagsByHost: map[string]string{
