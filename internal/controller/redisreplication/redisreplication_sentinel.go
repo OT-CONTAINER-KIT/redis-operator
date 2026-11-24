@@ -8,6 +8,7 @@ import (
 
 	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
+	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/statefulset"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/envs"
@@ -18,6 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -178,7 +180,142 @@ func (r *Reconciler) sentinelMonitoredMaster(ctx context.Context, inst *rrvb2.Re
 	return r.querySentinelMonitoredMaster(ctx, redis.NewClient(), inst, candidates)
 }
 
+func (r *Reconciler) sentinelFailoverInProgress(ctx context.Context, inst *rrvb2.RedisReplication) (bool, error) {
+	if r.SentinelFailoverInProgress != nil {
+		return r.SentinelFailoverInProgress(ctx, inst)
+	}
+	return r.querySentinelFailoverInProgress(ctx, redis.NewClient(), inst)
+}
+
+// querySentinelFailoverInProgress reports whether a Sentinel monitoring inst
+// runs a failover. Only the leader of a failover reports it, so one Sentinel
+// is enough; unreachable Sentinels are skipped.
+func (r *Reconciler) querySentinelFailoverInProgress(ctx context.Context, redisClient redis.Client, inst *rrvb2.RedisReplication) (bool, error) {
+	voters, err := r.linkedSentinelVoters(ctx, inst)
+	if err != nil || voters == nil {
+		return false, err
+	}
+	for _, sentinelPod := range voters.pods {
+		if !k8sutils.IsRedisPodProbeable(&sentinelPod) {
+			continue
+		}
+		fields, err := redisClient.Connect(&redis.ConnectionInfo{
+			Host:     sentinelPod.Status.PodIP,
+			Port:     "26379",
+			Password: voters.password,
+		}).SentinelMaster(ctx, voters.masterName)
+		if err != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return false, ctxErr
+			}
+			log.FromContext(ctx).V(1).Info("Failed to read sentinel master, skipping sentinel pod", "pod", sentinelPod.Name, "error", err)
+			continue
+		}
+		if redis.SentinelFailoverInProgress(fields) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// hasLinkedStandaloneSentinel reports whether a RedisSentinel monitors inst.
+// When it cannot tell, it answers true, so that the operator does not compete
+// with a Sentinel it could not see.
+func (r *Reconciler) hasLinkedStandaloneSentinel(ctx context.Context, inst *rrvb2.RedisReplication) bool {
+	rs, err := r.linkedStandaloneSentinel(ctx, inst)
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Could not look for a RedisSentinel monitoring the replication")
+		return true
+	}
+	return rs != nil
+}
+
+// sentinelVoters are the Sentinels that monitor a RedisReplication: the
+// embedded spec.sentinel, or a standalone RedisSentinel that references it.
+type sentinelVoters struct {
+	pods       []corev1.Pod
+	password   string
+	masterName string
+	quorum     int
+}
+
+func (r *Reconciler) linkedSentinelVoters(ctx context.Context, inst *rrvb2.RedisReplication) (*sentinelVoters, error) {
+	if inst.EnableSentinel() {
+		password, err := r.sentinelPassword(ctx, inst)
+		if err != nil {
+			return nil, fmt.Errorf("get sentinel password secret: %w", err)
+		}
+		pods, err := r.getSentinelPods(ctx, inst)
+		if err != nil {
+			return nil, fmt.Errorf("get sentinel pods: %w", err)
+		}
+		return &sentinelVoters{
+			pods:       pods.Items,
+			password:   password,
+			masterName: masterGroupName,
+			quorum:     int(inst.Spec.Sentinel.Size/2) + 1,
+		}, nil
+	}
+
+	rs, err := r.linkedStandaloneSentinel(ctx, inst)
+	if err != nil || rs == nil {
+		return nil, err
+	}
+	password, err := r.secretPassword(ctx, inst.Namespace, rs.Spec.KubernetesConfig.ExistingPasswordSecret)
+	if err != nil {
+		return nil, fmt.Errorf("get sentinel password secret of %s: %w", rs.Name, err)
+	}
+	sts, err := r.K8sClient.AppsV1().StatefulSets(rs.Namespace).Get(ctx, rs.GetStatefulSetName(), metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("get sentinel statefulset of %s: %w", rs.Name, err)
+	}
+	selector, err := metav1.LabelSelectorAsSelector(sts.Spec.Selector)
+	if err != nil {
+		return nil, fmt.Errorf("parse sentinel selector of %s: %w", rs.Name, err)
+	}
+	pods, err := r.K8sClient.CoreV1().Pods(rs.Namespace).List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
+	if err != nil {
+		return nil, fmt.Errorf("get sentinel pods of %s: %w", rs.Name, err)
+	}
+	size := int32(1)
+	if rs.Spec.Size != nil {
+		size = *rs.Spec.Size
+	}
+	return &sentinelVoters{
+		pods:       pods.Items,
+		password:   password,
+		masterName: rs.Spec.RedisSentinelConfig.MasterGroupName,
+		quorum:     int(size/2) + 1,
+	}, nil
+}
+
+// linkedStandaloneSentinel returns the RedisSentinel that monitors inst, or nil.
+func (r *Reconciler) linkedStandaloneSentinel(ctx context.Context, inst *rrvb2.RedisReplication) (*rsvb2.RedisSentinel, error) {
+	var sentinels rsvb2.RedisSentinelList
+	if err := r.List(ctx, &sentinels, client.InNamespace(inst.Namespace)); err != nil {
+		return nil, fmt.Errorf("list redis sentinels: %w", err)
+	}
+	for i := range sentinels.Items {
+		rs := &sentinels.Items[i]
+		if rs.Spec.RedisSentinelConfig != nil && rs.Spec.RedisSentinelConfig.RedisReplicationName == inst.Name {
+			return rs, nil
+		}
+	}
+	return nil, nil
+}
+
+// querySentinelMonitoredMaster returns the candidate that a quorum of the
+// Sentinels monitoring inst reports as master, or "" if there is none or no
+// Sentinel monitors inst.
 func (r *Reconciler) querySentinelMonitoredMaster(ctx context.Context, redisClient redis.Client, inst *rrvb2.RedisReplication, candidates []string) (string, error) {
+	voters, err := r.linkedSentinelVoters(ctx, inst)
+	if err != nil {
+		return "", err
+	}
+	if voters == nil {
+		return "", nil
+	}
+
 	// Sentinel reports the master by IP, or by hostname when hostnames are announced.
 	podByAddress := make(map[string]string, 2*len(candidates))
 	for _, podName := range candidates {
@@ -192,24 +329,15 @@ func (r *Reconciler) querySentinelMonitoredMaster(ctx context.Context, redisClie
 		}
 	}
 
-	sentinelPassword, err := r.sentinelPassword(ctx, inst)
-	if err != nil {
-		return "", fmt.Errorf("get sentinel password secret: %w", err)
-	}
-	sentinelPods, err := r.getSentinelPods(ctx, inst)
-	if err != nil {
-		return "", fmt.Errorf("get sentinel pods: %w", err)
-	}
-
 	votes := make(map[string]int, len(candidates))
-	for _, sentinelPod := range sentinelPods.Items {
+	for _, sentinelPod := range voters.pods {
 		if !k8sutils.IsRedisPodProbeable(&sentinelPod) {
 			continue
 		}
 		info, err := redisClient.Connect(&redis.ConnectionInfo{
 			Host:     sentinelPod.Status.PodIP,
 			Port:     "26379",
-			Password: sentinelPassword,
+			Password: voters.password,
 		}).GetInfoSentinel(ctx)
 		if err != nil {
 			if ctxErr := ctx.Err(); ctxErr != nil {
@@ -218,26 +346,25 @@ func (r *Reconciler) querySentinelMonitoredMaster(ctx context.Context, redisClie
 			log.FromContext(ctx).V(1).Info("Failed to read sentinel info, skipping sentinel pod", "pod", sentinelPod.Name, "error", err)
 			continue
 		}
-		if podName := podByAddress[sentinelReportedMasterHost(info)]; podName != "" {
+		if podName := podByAddress[sentinelReportedMasterHost(info, voters.masterName)]; podName != "" {
 			votes[podName]++
 		}
 	}
 
-	quorum := int(inst.Spec.Sentinel.Size/2) + 1
 	for _, podName := range candidates {
-		if votes[podName] >= quorum {
+		if votes[podName] >= voters.quorum {
 			return podName, nil
 		}
 	}
 	return "", nil
 }
 
-func sentinelReportedMasterHost(info *redis.InfoSentinelResult) string {
+func sentinelReportedMasterHost(info *redis.InfoSentinelResult, masterName string) string {
 	if info == nil {
 		return ""
 	}
 	for _, master := range info.Masters {
-		if master.Name == masterGroupName {
+		if master.Name == masterName {
 			return sentinelAddressHost(master.Address)
 		}
 	}

@@ -42,6 +42,7 @@ type Reconciler struct {
 	CreateRedisReplicationLink func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string, string) error
 	ConfigureSentinel          func(context.Context, *rrvb2.RedisReplication, string) error
 	SentinelMonitoredMaster    func(context.Context, *rrvb2.RedisReplication, []string) (string, error)
+	SentinelFailoverInProgress func(context.Context, *rrvb2.RedisReplication) (bool, error)
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -244,18 +245,20 @@ func (r *Reconciler) observedRedisReplicationMaster(ctx context.Context, instanc
 			"unobservedPods", topology.Unobserved)
 		return "", false
 	default:
-		realMaster := r.redisReplicationRealMaster(ctx, instance, topology.Masters)
-		if realMaster == "" && instance.EnableSentinel() {
-			monitored, err := r.sentinelMonitoredMaster(ctx, instance, topology.Masters)
-			if err != nil {
-				log.FromContext(ctx).Error(err, "Could not ask sentinel which of the observed masters it monitors",
-					"masters", topology.Masters)
-			} else if monitored != "" {
-				log.FromContext(ctx).Info("No master with attached replicas found, using the master monitored by sentinel",
-					"master", monitored)
-				realMaster = monitored
-			}
+		// Several pods report role:master. Right after a Sentinel failover the
+		// promoted pod has no replica yet, while the old master may still report
+		// role:master with replicas attached, so "the master with attached
+		// replicas" would undo the failover. Follow a Sentinel quorum first.
+		monitored, err := r.sentinelMonitoredMaster(ctx, instance, topology.Masters)
+		if err != nil {
+			log.FromContext(ctx).Error(err, "Could not ask sentinel which of the observed masters it monitors",
+				"masters", topology.Masters)
+		} else if monitored != "" {
+			log.FromContext(ctx).Info("Several masters observed, using the master monitored by a sentinel quorum",
+				"master", monitored, "masters", topology.Masters)
+			return monitored, true
 		}
+		realMaster := r.redisReplicationRealMaster(ctx, instance, topology.Masters)
 		return realMaster, realMaster != ""
 	}
 }
@@ -469,6 +472,15 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 		}
 	}
 
+	// Between SLAVEOF NO ONE and +switch-master the Sentinels still name the
+	// old master while the promoted pod already reports role:master: leave the
+	// replication and the Sentinels alone until the failover ends.
+	if failover, err := r.sentinelFailoverInProgress(ctx, instance); err != nil {
+		log.FromContext(ctx).Error(err, "Could not ask sentinel whether a failover is in progress")
+	} else if failover {
+		return intctrlutil.RequeueAfter(ctx, time.Second*5, "sentinel failover in progress, not touching the replication")
+	}
+
 	var realMaster string
 	topology, err := r.redisReplicationTopology(ctx, instance)
 	if err != nil {
@@ -527,7 +539,10 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 	} else if len(masterNodes) == 1 && len(slaveNodes) > 0 {
 		currentRealMaster := r.redisReplicationRealMaster(ctx, instance, masterNodes)
 
-		if currentRealMaster == "" && !instance.EnableSentinel() {
+		// Sentinel, embedded or standalone, reconfigures the replicas itself:
+		// re-pointing them here while it fails over chains them to the old
+		// master.
+		if currentRealMaster == "" && !instance.EnableSentinel() && !r.hasLinkedStandaloneSentinel(ctx, instance) {
 			log.FromContext(ctx).Info("Detected disconnected slaves, reconfiguring replication",
 				"master", realMaster, "slaves", slaveNodes)
 

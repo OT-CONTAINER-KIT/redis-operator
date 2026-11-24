@@ -314,6 +314,20 @@ func (h *healer) SentinelReset(ctx context.Context, rs *rsvb2.RedisSentinel, rr 
 		if !masterInfo.HasStaleEntries(expectedSlaves, expectedSentinels) {
 			continue
 		}
+		// SENTINEL RESET aborts a failover the Sentinel runs, and the replica
+		// count it reports is in flux until the failover ends.
+		fields, err := sentinel.SentinelMaster(ctx, masterGroupName)
+		if err != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return ctxErr
+			}
+			errs = append(errs, fmt.Errorf("sentinel master on pod %s: %w", pod.Name, err))
+			continue
+		}
+		if redis.SentinelFailoverInProgress(fields) {
+			log.FromContext(ctx).Info("sentinel is running a failover, not resetting it", "pod", pod.Name)
+			continue
+		}
 		log.FromContext(ctx).Info("sentinel has stale topology entries, resetting",
 			"pod", pod.Name,
 			"expectedSlaves", expectedSlaves,

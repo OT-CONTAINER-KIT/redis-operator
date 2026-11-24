@@ -384,6 +384,10 @@ func (f *fakeSentinelRedisService) GetInfoSentinel(context.Context) (*redis.Info
 	}, nil
 }
 
+func (f *fakeSentinelRedisService) SentinelMaster(context.Context, string) (map[string]string, error) {
+	return nil, nil
+}
+
 func (f *fakeSentinelRedisService) GetClusterInfo(context.Context) (*redis.ClusterStatus, error) {
 	return &redis.ClusterStatus{}, nil
 }
