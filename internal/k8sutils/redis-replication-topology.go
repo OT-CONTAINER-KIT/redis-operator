@@ -3,8 +3,10 @@ package k8sutils
 import (
 	"context"
 	"strconv"
+	"time"
 
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
+	rediscli "github.com/redis/go-redis/v9"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,6 +41,18 @@ func (t RedisReplicationTopology) Observed() int {
 func GetRedisReplicationTopology(ctx context.Context, cl kubernetes.Interface, cr *rrvb2.RedisReplication) (RedisReplicationTopology, error) {
 	return getRedisReplicationTopology(ctx, cl, cr, func(ctx context.Context, pod *corev1.Pod) (string, error) {
 		redisClient := configureRedisReplicationClientForPod(ctx, cl, cr, pod)
+		if cr.EnableSentinel() && cr.Status.MasterNode != "" {
+			// A failed peer must not pin the routing reconciliation until Sentinel
+			// has already demoted it and disconnected its application clients.
+			opts := *redisClient.Options()
+			_ = redisClient.Close()
+			opts.DialTimeout = time.Second
+			opts.ReadTimeout = time.Second
+			opts.WriteTimeout = time.Second
+			opts.ContextTimeoutEnabled = true
+			opts.MaxRetries = -1
+			redisClient = rediscli.NewClient(&opts)
+		}
 		defer redisClient.Close()
 
 		return checkRedisServerRole(ctx, redisClient, pod.Name)
