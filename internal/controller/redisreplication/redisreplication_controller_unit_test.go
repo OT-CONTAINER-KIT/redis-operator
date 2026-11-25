@@ -31,6 +31,7 @@ import (
 func TestReconcileRedisSkipsReplicationChangesWhenTopologyIsIncomplete(t *testing.T) {
 	createCalled := false
 	r := &Reconciler{
+		Client:                   emptyCtrlClient(),
 		K8sClient:                fake.NewSimpleClientset(),
 		RedisReplicationTopology: topologyOf([]string{"example-replication-0"}, []string{"example-replication-1"}, []string{"example-replication-2"}),
 		RedisReplicationRealMaster: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string {
@@ -51,6 +52,7 @@ func TestReconcileRedisSkipsReplicationChangesWhenTopologyIsIncomplete(t *testin
 func TestReconcileRedisSkipsReplicationChangesWhenMultipleMastersAreObservedButTopologyIsIncomplete(t *testing.T) {
 	createCalled := false
 	r := &Reconciler{
+		Client:                   emptyCtrlClient(),
 		K8sClient:                fake.NewSimpleClientset(),
 		RedisReplicationTopology: topologyOf([]string{"example-replication-0", "example-replication-1"}, nil, []string{"example-replication-2"}),
 		RedisReplicationRealMaster: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string {
@@ -74,6 +76,7 @@ func TestReconcileRedisKeepsHealthyBehaviorWhenTopologyIsComplete(t *testing.T) 
 	var gotPods []string
 	var gotMaster string
 	r := &Reconciler{
+		Client:                   emptyCtrlClient(),
 		K8sClient:                fake.NewSimpleClientset(),
 		RedisReplicationTopology: topologyOf([]string{"example-replication-0", "example-replication-1"}, []string{"example-replication-2"}, nil),
 		RedisReplicationRealMaster: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string {
@@ -99,6 +102,7 @@ func TestReconcileRedisKeepsHealthyBehaviorWhenTopologyIsComplete(t *testing.T) 
 func TestReconcileRedisRefusesToReplicateDataHoldingMastersFromAnEmptyMaster(t *testing.T) {
 	createCalled := false
 	r := &Reconciler{
+		Client:                   emptyCtrlClient(),
 		K8sClient:                fake.NewSimpleClientset(),
 		RedisReplicationTopology: topologyOf([]string{"example-replication-0", "example-replication-2"}, []string{"example-replication-1"}, nil),
 		RedisReplicationRealMaster: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string {
@@ -121,6 +125,7 @@ func TestReconcileRedisRefusesToReplicateDataHoldingMastersFromAnEmptyMaster(t *
 func TestReconcileRedisRefusesToReplicateDataHoldingSlavesFromAnEmptyMaster(t *testing.T) {
 	createCalled := false
 	r := &Reconciler{
+		Client:                   emptyCtrlClient(),
 		K8sClient:                fake.NewSimpleClientset(),
 		RedisReplicationTopology: topologyOf([]string{"example-replication-2"}, []string{"example-replication-0", "example-replication-1"}, nil),
 		RedisReplicationRealMaster: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string {
@@ -143,6 +148,7 @@ func TestReconcileRedisRefusesToReplicateDataHoldingSlavesFromAnEmptyMaster(t *t
 func TestReconcileRedisBootstrapsReplicationWhenEveryPodIsEmpty(t *testing.T) {
 	var gotMaster string
 	r := &Reconciler{
+		Client:                   emptyCtrlClient(),
 		K8sClient:                fake.NewSimpleClientset(),
 		RedisReplicationTopology: topologyOf([]string{"example-replication-0", "example-replication-1", "example-replication-2"}, nil, nil),
 		RedisReplicationRealMaster: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string {
@@ -165,6 +171,7 @@ func TestReconcileRedisBootstrapsReplicationWhenEveryPodIsEmpty(t *testing.T) {
 func TestReconcileRedisRefusesEmptyMasterWhenAPeerKeyCountIsUnknown(t *testing.T) {
 	createCalled := false
 	r := &Reconciler{
+		Client:                   emptyCtrlClient(),
 		K8sClient:                fake.NewSimpleClientset(),
 		RedisReplicationTopology: topologyOf([]string{"example-replication-2"}, []string{"example-replication-0", "example-replication-1"}, nil),
 		RedisReplicationRealMaster: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string {
@@ -187,6 +194,7 @@ func TestReconcileRedisRefusesEmptyMasterWhenAPeerKeyCountIsUnknown(t *testing.T
 func TestReconcileRedisSkipsReplicationChangesWhenTheMasterKeyCountIsUnknown(t *testing.T) {
 	createCalled := false
 	r := &Reconciler{
+		Client:                   emptyCtrlClient(),
 		K8sClient:                fake.NewSimpleClientset(),
 		RedisReplicationTopology: topologyOf([]string{"example-replication-0", "example-replication-1"}, []string{"example-replication-2"}, nil),
 		RedisReplicationRealMaster: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string {
@@ -210,6 +218,7 @@ func TestReconcileRedisSkipsSentinelReconfigurationWhenTopologyIsIncompleteAndMa
 	createCalled := false
 	sentinelCalled := false
 	r := &Reconciler{
+		Client:                   emptyCtrlClient(),
 		StatefulSet:              &fakeStatefulSetService{},
 		K8sClient:                fake.NewSimpleClientset(),
 		RedisReplicationTopology: topologyOf([]string{"example-replication-0", "example-replication-1"}, nil, []string{"example-replication-2"}),
@@ -244,6 +253,7 @@ func TestReconcileRedisSkipsSentinelReconfigurationForLoneStandaloneMasterWhenTo
 	sentinelCalled := false
 	var askedSentinelAbout []string
 	r := &Reconciler{
+		Client:                   emptyCtrlClient(),
 		StatefulSet:              &fakeStatefulSetService{},
 		K8sClient:                fake.NewSimpleClientset(),
 		RedisReplicationTopology: topologyOf([]string{"example-replication-1"}, []string{"example-replication-2"}, []string{"example-replication-0"}),
@@ -282,6 +292,7 @@ func TestReconcileRedisConfiguresSentinelForLoneMasterWithAttachedReplicasWhenTo
 	sentinelCalled := false
 	var gotMaster string
 	r := &Reconciler{
+		Client:                   emptyCtrlClient(),
 		StatefulSet:              &fakeStatefulSetService{},
 		K8sClient:                fake.NewSimpleClientset(),
 		RedisReplicationTopology: topologyOf([]string{"example-replication-2"}, []string{"example-replication-1"}, []string{"example-replication-0"}),
@@ -315,6 +326,7 @@ func TestReconcileRedisConfiguresSentinelForLoneMasterThatSentinelReports(t *tes
 	sentinelCalled := false
 	var gotMaster string
 	r := &Reconciler{
+		Client:                   emptyCtrlClient(),
 		StatefulSet:              &fakeStatefulSetService{},
 		K8sClient:                fake.NewSimpleClientset(),
 		RedisReplicationTopology: topologyOf([]string{"example-replication-1"}, nil, []string{"example-replication-0"}),
@@ -345,6 +357,7 @@ func TestReconcileRedisConfiguresSentinelForLoneMasterThatSentinelReports(t *tes
 func TestReconcileRedisSkipsSentinelReconfigurationWhenSentinelCannotBeAsked(t *testing.T) {
 	sentinelCalled := false
 	r := &Reconciler{
+		Client:                   emptyCtrlClient(),
 		StatefulSet:              &fakeStatefulSetService{},
 		K8sClient:                fake.NewSimpleClientset(),
 		RedisReplicationTopology: topologyOf([]string{"example-replication-1"}, nil, []string{"example-replication-0", "example-replication-2"}),
@@ -376,6 +389,7 @@ func TestReconcileRedisAttachesReturningMasterUnderTheMasterSentinelMonitors(t *
 	var gotPods []string
 	var gotMaster, gotSentinelMaster string
 	r := &Reconciler{
+		Client:                   emptyCtrlClient(),
 		StatefulSet:              &fakeStatefulSetService{},
 		K8sClient:                fake.NewSimpleClientset(),
 		RedisReplicationTopology: topologyOf([]string{"example-replication-0", "example-replication-1"}, nil, nil),
@@ -412,6 +426,7 @@ func TestReconcileRedisConfiguresSentinelForLoneMasterWhenTopologyIsComplete(t *
 	sentinelCalled := false
 	var gotMaster string
 	r := &Reconciler{
+		Client:                   emptyCtrlClient(),
 		StatefulSet:              &fakeStatefulSetService{},
 		K8sClient:                fake.NewSimpleClientset(),
 		RedisReplicationTopology: topologyOf([]string{"example-replication-1"}, []string{"example-replication-0", "example-replication-2"}, nil),
@@ -864,24 +879,50 @@ func TestObservedRedisReplicationMaster(t *testing.T) {
 			wantAsked:   true,
 		},
 		{
-			name:          "several masters resolve through attached replicas",
+			// Several masters are always checked against Sentinel first; without a
+			// linked Sentinel (or without a quorum) attached replicas decide.
+			name:          "several masters resolve through attached replicas when no sentinel quorum names one",
 			topology:      k8sutils.RedisReplicationTopology{Masters: []string{pod0, pod1}, Slaves: []string{pod2}},
 			realMaster:    pod1,
 			wantMaster:    pod1,
 			wantConfirmed: true,
+			wantAsked:     true,
 		},
 		{
-			name:     "several masters without replicas are unresolved",
-			recorded: pod0,
-			topology: k8sutils.RedisReplicationTopology{Masters: []string{pod0, pod1, pod2}},
+			name:      "several masters without replicas are unresolved",
+			recorded:  pod0,
+			topology:  k8sutils.RedisReplicationTopology{Masters: []string{pod0, pod1, pod2}},
+			wantAsked: true,
 		},
 		{
-			name:          "with sentinel several masters with replicas settle without asking",
+			// Right after a failover the promoted pod has no replica yet while the
+			// old master still has some: Sentinel wins over attached replicas.
+			name:           "several masters follow a standalone sentinel quorum over attached replicas",
+			topology:       k8sutils.RedisReplicationTopology{Masters: []string{pod0, pod1}, Slaves: []string{pod2}},
+			realMaster:     pod1,
+			sentinelMaster: pod0,
+			wantMaster:     pod0,
+			wantConfirmed:  true,
+			wantAsked:      true,
+		},
+		{
+			name:           "with sentinel several masters follow the sentinel quorum over attached replicas",
+			sentinel:       true,
+			topology:       k8sutils.RedisReplicationTopology{Masters: []string{pod0, pod1}, Slaves: []string{pod2}},
+			realMaster:     pod1,
+			sentinelMaster: pod0,
+			wantMaster:     pod0,
+			wantConfirmed:  true,
+			wantAsked:      true,
+		},
+		{
+			name:          "with sentinel several masters fall back to attached replicas when sentinel names none",
 			sentinel:      true,
 			topology:      k8sutils.RedisReplicationTopology{Masters: []string{pod0, pod1}, Slaves: []string{pod2}},
 			realMaster:    pod1,
 			wantMaster:    pod1,
 			wantConfirmed: true,
+			wantAsked:     true,
 		},
 		{
 			name:           "with sentinel several replica-less masters resolve through sentinel",
@@ -914,6 +955,7 @@ func TestObservedRedisReplicationMaster(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			sentinelAsked := false
 			r := &Reconciler{
+				Client:    emptyCtrlClient(),
 				K8sClient: fake.NewSimpleClientset(),
 				RedisReplicationRealMaster: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string {
 					return tt.realMaster
@@ -935,7 +977,7 @@ func TestObservedRedisReplicationMaster(t *testing.T) {
 			assert.Equal(t, tt.wantMaster, master)
 			assert.Equal(t, tt.wantConfirmed, confirmed)
 			assert.Equal(t, master != "", confirmed, "a master is returned exactly when it is confirmed")
-			assert.Equal(t, tt.wantAsked, sentinelAsked, "sentinel is asked only when completeness and attached replicas cannot settle it")
+			assert.Equal(t, tt.wantAsked, sentinelAsked, "sentinel is asked when several masters are observed, or when completeness and attached replicas cannot settle a lone master")
 		})
 	}
 }
@@ -1127,18 +1169,26 @@ func newRunningPodForTest(namespace, name, podIP string, labels map[string]strin
 
 type fakeSentinelInfoClient struct {
 	connectedHosts []string
+	connections    []*redis.ConnectionInfo
 	infoByHost     map[string]*redis.InfoSentinelResult
 	errByHost      map[string]error
+	flagsByHost    map[string]string
 }
 
 func (f *fakeSentinelInfoClient) Connect(info *redis.ConnectionInfo) redis.Service {
 	f.connectedHosts = append(f.connectedHosts, info.Host)
-	return &fakeSentinelInfoService{info: f.infoByHost[info.Host], err: f.errByHost[info.Host]}
+	f.connections = append(f.connections, info)
+	return &fakeSentinelInfoService{info: f.infoByHost[info.Host], err: f.errByHost[info.Host], flags: f.flagsByHost[info.Host]}
 }
 
 type fakeSentinelInfoService struct {
-	info *redis.InfoSentinelResult
-	err  error
+	info  *redis.InfoSentinelResult
+	err   error
+	flags string
+}
+
+func (f *fakeSentinelInfoService) SentinelMaster(context.Context, string) (map[string]string, error) {
+	return map[string]string{"flags": f.flags}, f.err
 }
 
 func (f *fakeSentinelInfoService) IsMaster(context.Context) (bool, error) { return false, nil }
@@ -1172,6 +1222,7 @@ func (f *fakeSentinelInfoService) GetClusterInfo(context.Context) (*redis.Cluste
 func TestReconcileStatusRequeuesWhenTopologyCannotBeObserved(t *testing.T) {
 	healer := &fakeHealer{}
 	r := &Reconciler{
+		Client:    emptyCtrlClient(),
 		K8sClient: fake.NewSimpleClientset(),
 		Healer:    healer,
 		RedisReplicationTopology: func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication) (k8sutils.RedisReplicationTopology, error) {
@@ -1207,6 +1258,14 @@ type fakeChecker struct {
 
 func (f *fakeChecker) GetMasterFromReplication(context.Context, *rrvb2.RedisReplication) (corev1.Pod, error) {
 	return corev1.Pod{}, nil
+}
+
+func (f *fakeChecker) GetSentinelElectedMaster(context.Context, *rsvb2.RedisSentinel, *rrvb2.RedisReplication) (corev1.Pod, error) {
+	return corev1.Pod{}, nil
+}
+
+func (f *fakeChecker) SentinelFailoverInProgress(context.Context, *rsvb2.RedisSentinel) (bool, error) {
+	return false, nil
 }
 
 func (f *fakeChecker) GetPassword(context.Context, string, *commonapi.ExistingPasswordSecret) (string, error) {

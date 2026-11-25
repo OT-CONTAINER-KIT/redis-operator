@@ -314,6 +314,20 @@ func (h *healer) SentinelReset(ctx context.Context, rs *rsvb2.RedisSentinel, rr 
 		if !masterInfo.HasStaleEntries(expectedSlaves, expectedSentinels) {
 			continue
 		}
+		// SENTINEL RESET aborts a failover the Sentinel runs, and the replica
+		// count it reports is in flux until the failover ends.
+		fields, err := sentinel.SentinelMaster(ctx, masterGroupName)
+		if err != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return ctxErr
+			}
+			errs = append(errs, fmt.Errorf("sentinel master on pod %s: %w", pod.Name, err))
+			continue
+		}
+		if redis.SentinelFailoverInProgress(fields) {
+			log.FromContext(ctx).Info("sentinel is running a failover, not resetting it", "pod", pod.Name)
+			continue
+		}
 		log.FromContext(ctx).Info("sentinel has stale topology entries, resetting",
 			"pod", pod.Name,
 			"expectedSlaves", expectedSlaves,
@@ -491,6 +505,13 @@ func newTLSConfigVerifyingChainWithoutHostname(cert tls.Certificate, rootCAs *x5
 }
 
 // createConnectionInfo creates a Redis connection info with TLS support
+// SentinelConnectionInfo returns the connection to a Sentinel pod, the same
+// way the RedisSentinel controller reaches it: over TLS, by the pod DNS name,
+// when tlsConfig is set.
+func SentinelConnectionInfo(ctx context.Context, k8sClient kubernetes.Interface, pod v1.Pod, password string, tlsConfig *commonapi.TLSConfig, namespace string) *redis.ConnectionInfo {
+	return createConnectionInfo(ctx, pod, password, tlsConfig, k8sClient, namespace, "26379")
+}
+
 func createConnectionInfo(ctx context.Context, pod v1.Pod, password string, tlsConfig *commonapi.TLSConfig, k8sClient kubernetes.Interface, namespace, port string) *redis.ConnectionInfo {
 	connInfo := &redis.ConnectionInfo{
 		Host:     pod.Status.PodIP,

@@ -610,6 +610,25 @@ func TestSentinelResetResetsSentinelsWithStaleEntries(t *testing.T) {
 	assert.ElementsMatch(t, []string{"10.0.1.10", "10.0.1.11"}, redisClient.resetHosts)
 }
 
+// SENTINEL RESET aborts the failover a Sentinel is running: right after a
+// failover the replica counts are in flux and can look stale.
+func TestSentinelResetNeverResetsASentinelRunningAFailover(t *testing.T) {
+	rs, rr, objects := newSentinelFixture("10.0.1.10", "10.0.1.11", "10.0.1.12")
+	redisClient := &fakeRedisClient{
+		sentinelInfoByHost: map[string]*redisservice.InfoSentinelResult{
+			"10.0.1.10": sentinelInfo(3, 3),
+			"10.0.1.11": sentinelInfo(3, 3),
+			"10.0.1.12": sentinelInfo(3, 3),
+		},
+		sentinelFlagsByHost: map[string]string{"10.0.1.10": "master,failover_in_progress", "10.0.1.11": "master", "10.0.1.12": "master"},
+	}
+	h := &healer{redis: redisClient, k8s: k8sfake.NewSimpleClientset(objects...)}
+
+	require.NoError(t, h.SentinelReset(context.Background(), rs, rr))
+
+	assert.ElementsMatch(t, []string{"10.0.1.11", "10.0.1.12"}, redisClient.resetHosts)
+}
+
 func TestSentinelResetSkipsSentinelsWithoutMasterGroup(t *testing.T) {
 	rs, rr, objects := newSentinelFixture("10.0.1.10", "10.0.1.11", "10.0.1.12")
 	redisClient := &fakeRedisClient{
@@ -692,9 +711,11 @@ type fakeRedisClient struct {
 	keyCountByHost     map[string]int64
 	keyCountErrByHost  map[string]error
 	sentinelInfoByHost map[string]*redisservice.InfoSentinelResult
-	monitorHosts       []string
-	setHosts           []string
-	resetHosts         []string
+	// sentinelFlagsByHost holds the flags of SENTINEL MASTER per sentinel host.
+	sentinelFlagsByHost map[string]string
+	monitorHosts        []string
+	setHosts            []string
+	resetHosts          []string
 }
 
 func (f *fakeRedisClient) Connect(info *redisservice.ConnectionInfo) redisservice.Service {
@@ -760,6 +781,13 @@ func (f *fakeRedisService) GetInfoSentinel(context.Context) (*redisservice.InfoS
 		return info, nil
 	}
 	return &redisservice.InfoSentinelResult{}, nil
+}
+
+func (f *fakeRedisService) SentinelMaster(context.Context, string) (map[string]string, error) {
+	if err := f.client.errByHost[f.host]; err != nil {
+		return nil, err
+	}
+	return map[string]string{"flags": f.client.sentinelFlagsByHost[f.host]}, nil
 }
 
 func (f *fakeRedisService) GetClusterInfo(context.Context) (*redisservice.ClusterStatus, error) {

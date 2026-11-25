@@ -60,6 +60,9 @@ type Service interface {
 	SentinelSet(ctx context.Context, masterGroupName, key, value string) error
 	SentinelReset(ctx context.Context, masterGroupName string) error
 	GetInfoSentinel(ctx context.Context) (*InfoSentinelResult, error)
+	// SentinelMaster returns the fields of SENTINEL MASTER masterGroupName
+	// (ip, quorum, flags...), or nil when the sentinel does not monitor it.
+	SentinelMaster(ctx context.Context, masterGroupName string) (map[string]string, error)
 	GetClusterInfo(ctx context.Context) (*ClusterStatus, error)
 }
 
@@ -393,4 +396,49 @@ func (c *service) GetClusterInfo(ctx context.Context) (*ClusterStatus, error) {
 	}
 
 	return status, nil
+}
+
+func (c *service) SentinelMaster(ctx context.Context, masterGroupName string) (map[string]string, error) {
+	client := c.createClient()
+	if client == nil {
+		return nil, nil
+	}
+	defer client.Close()
+	return sentinelMaster(ctx, client, masterGroupName)
+}
+
+func sentinelMaster(ctx context.Context, client *rediscli.Client, masterGroupName string) (map[string]string, error) {
+	reply, err := client.Do(ctx, "SENTINEL", "MASTER", masterGroupName).Result()
+	if err != nil {
+		if strings.Contains(err.Error(), "No such master") {
+			return nil, nil
+		}
+		return nil, err
+	}
+	fields := map[string]string{}
+	// RESP3 replies with a map, RESP2 with a flat list of field/value pairs.
+	switch r := reply.(type) {
+	case map[interface{}]interface{}:
+		for k, v := range r {
+			key, _ := k.(string)
+			fields[key] = fmt.Sprint(v)
+		}
+	case []interface{}:
+		for i := 0; i+1 < len(r); i += 2 {
+			key, _ := r[i].(string)
+			fields[key] = fmt.Sprint(r[i+1])
+		}
+	}
+	return fields, nil
+}
+
+// SentinelFailoverInProgress reports whether the fields of SENTINEL MASTER
+// flag a failover led by that sentinel.
+func SentinelFailoverInProgress(sentinelMaster map[string]string) bool {
+	for _, flag := range strings.Split(sentinelMaster["flags"], ",") {
+		if flag == "failover_in_progress" {
+			return true
+		}
+	}
+	return false
 }
