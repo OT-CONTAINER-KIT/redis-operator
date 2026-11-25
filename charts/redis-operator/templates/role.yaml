@@ -21,6 +21,139 @@ metadata:
     app.kubernetes.io/component: role
     app.kubernetes.io/part-of : {{ .Release.Name }}
 rules:
+{{- if .Values.rbac.minimal }}
+  # Least-privilege rule set for a RedisReplication + in-pod Sentinel install.
+  # Every resource/verb below maps to an actual controller call; the standalone
+  # Redis, RedisCluster and RedisSentinel CRD rules, CRD and namespace access,
+  # and nonResourceURLs are removed. Pair with the redisOperator.controllers.*
+  # switches to disable the controllers whose CRDs are not installed. All
+  # resources are namespaced, so the same set renders valid as either a Role
+  # or ClusterRole.
+  # RedisReplication CRD and its status/finalizers sub-resources.
+- apiGroups:
+  - redis.redis.opstreelabs.in
+  resources:
+  - redisreplications
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - redis.redis.opstreelabs.in
+  resources:
+  - redisreplications/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - redis.redis.opstreelabs.in
+  resources:
+  - redisreplications/finalizers
+  verbs:
+  - update
+  # Pods are probed and role-labelled (no create/delete); exec runs REPLICAOF
+  # and SENTINEL commands through the kubelet.
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - pods/exec
+  verbs:
+  - create
+  # The six (+exporter/metrics) operand Services are fully reconciled.
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+  # Read-only: existingSecret and external config are consumed, never created.
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  # Events are emitted by the (P1) RedisReplication EventRecorder.
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+  - update
+  # PVCs are only grown in place; the StatefulSet owns their create/delete.
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumeclaims
+  verbs:
+  - get
+  - list
+  - update
+  # Redis and in-pod Sentinel StatefulSets.
+- apiGroups:
+  - apps
+  resources:
+  - statefulsets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+  # The operand PodDisruptionBudget.
+- apiGroups:
+  - policy
+  resources:
+  - poddisruptionbudgets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+  # Leader election lease; the chart always passes --leader-elect.
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+{{- else }}
 - apiGroups:
   - redis.redis.opstreelabs.in
   resources:
@@ -139,4 +272,5 @@ rules:
   - patch
   - update
   - watch
+{{- end }}
 {{- end }}
