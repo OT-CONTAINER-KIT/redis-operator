@@ -8,14 +8,17 @@ import (
 	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/redis"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -217,4 +220,55 @@ func TestReapplyDynamicConfigIfReady(t *testing.T) {
 		}}
 		assert.ErrorIs(t, r.reapplyDynamicConfigIfReady(context.TODO(), newCluster(rcvb2.RedisClusterReady, "100mb")), wantErr)
 	})
+}
+
+func TestReconcileKeepsFollowersWhenRedisMembershipCannotBeRead(t *testing.T) {
+	ctx := context.Background()
+	scheme := runtime.NewScheme()
+	require.NoError(t, rcvb2.AddToScheme(scheme))
+	cluster := &rcvb2.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "example", Namespace: "default", Finalizers: []string{RedisClusterFinalizer}},
+		Spec: rcvb2.RedisClusterSpec{
+			ClusterSize:   ptr.To(int32(3)),
+			RedisFollower: rcvb2.RedisFollower{RedisFollower: commonapi.RedisFollower{Replicas: ptr.To(int32(1))}},
+		},
+		Status: rcvb2.RedisClusterStatus{
+			State:                 rcvb2.RedisClusterInitializing,
+			Reason:                rcvb2.InitializingClusterFollowerReason,
+			ReadyLeaderReplicas:   3,
+			ReadyFollowerReplicas: 2,
+		},
+	}
+	leader := &appsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "example-leader", Namespace: cluster.Namespace},
+		Spec:       appsv1.StatefulSetSpec{Replicas: ptr.To(int32(3))},
+		Status:     appsv1.StatefulSetStatus{ReadyReplicas: 3, UpdatedReplicas: 3},
+	}
+	follower := &appsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "example-follower", Namespace: cluster.Namespace},
+		Spec:       appsv1.StatefulSetSpec{Replicas: ptr.To(int32(2))},
+	}
+	kube := k8sfake.NewSimpleClientset(leader, follower)
+	var followerUpdateAttempted bool
+	kube.PrependReactor("update", "statefulsets", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		sts := action.(k8stesting.UpdateAction).GetObject().(*appsv1.StatefulSet)
+		if sts.Name == follower.Name {
+			followerUpdateAttempted = true
+			return true, nil, errors.New("follower StatefulSet update attempted")
+		}
+		// Match the API server's separation of StatefulSet spec and status.
+		sts.Status = leader.Status
+		return false, nil, nil
+	})
+	r := &Reconciler{
+		Client:      clientfake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(cluster).WithObjects(cluster).Build(),
+		StatefulSet: k8sutils.NewStatefulSetService(kube),
+		K8sClient:   kube,
+		Recorder:    record.NewFakeRecorder(10),
+	}
+
+	_, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}})
+
+	assert.ErrorContains(t, err, "no Redis address")
+	assert.False(t, followerUpdateAttempted, "follower StatefulSet was updated without verifying Redis membership")
 }
