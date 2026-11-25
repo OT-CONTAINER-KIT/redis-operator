@@ -129,9 +129,26 @@ func (r *RedisSentinelReconciler) reconcileSentinel(ctx context.Context, instanc
 		return intctrlutil.RequeueE(ctx, err, "")
 	}
 
-	master, err := r.Checker.GetMasterFromReplication(ctx, rr)
+	// Commands sent to the Sentinels while one of them runs a failover can
+	// abort it (SENTINEL RESET) or point them back at the old master.
+	if failover, err := r.Checker.SentinelFailoverInProgress(ctx, instance); err != nil {
+		log.FromContext(ctx).Error(err, "Could not ask sentinel whether a failover is in progress")
+	} else if failover {
+		return intctrlutil.RequeueAfter(ctx, time.Second*5, "sentinel failover in progress, not touching the sentinels")
+	}
+	// Right after a Sentinel failover the old master may still report
+	// role:master with replicas attached while the promoted pod has none, so
+	// "the master with attached replicas" would point the Sentinels back at
+	// the old master. Keep the master a Sentinel quorum elected, if any.
+	master, err := r.Checker.GetSentinelElectedMaster(ctx, instance, rr)
 	if err != nil {
-		return intctrlutil.RequeueE(ctx, err, "")
+		log.FromContext(ctx).Error(err, "Could not ask sentinel which master it monitors, using the master with attached replicas")
+	}
+	if master.Name == "" {
+		master, err = r.Checker.GetMasterFromReplication(ctx, rr)
+		if err != nil {
+			return intctrlutil.RequeueE(ctx, err, "")
+		}
 	}
 	if master.Name == "" {
 		log.FromContext(ctx).Info("no reachable master found in Redis Replication, requeueing", "redisReplication", rr.Name)
@@ -151,6 +168,19 @@ func (r *RedisSentinelReconciler) reconcileSentinel(ctx context.Context, instanc
 	}
 	if err := r.Healer.SentinelReset(ctx, instance, rr); err != nil {
 		return intctrlutil.RequeueE(ctx, err, "")
+	}
+	// A Sentinel skipped by this pass (not Running yet, restarted on the
+	// 0.0.0.0 placeholder) produces no watch event: come back until every
+	// Sentinel monitors the master, or it never takes part in a failover.
+	configured, expected, err := r.Checker.SentinelsMonitoring(ctx, instance, monitorAddr)
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Could not check which sentinels monitor the master")
+		return intctrlutil.RequeueAfter(ctx, time.Second*30, "")
+	}
+	if configured < expected {
+		log.FromContext(ctx).Info("Not every sentinel monitors the master yet, requeueing",
+			"master", monitorAddr, "configured", configured, "expected", expected)
+		return intctrlutil.RequeueAfter(ctx, time.Second*30, "")
 	}
 	return intctrlutil.Reconciled()
 }

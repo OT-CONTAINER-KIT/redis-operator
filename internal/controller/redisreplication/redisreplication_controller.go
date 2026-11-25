@@ -2,8 +2,10 @@ package redisreplication
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
@@ -42,6 +44,17 @@ type Reconciler struct {
 	CreateRedisReplicationLink func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string, string) error
 	ConfigureSentinel          func(context.Context, *rrvb2.RedisReplication, string) error
 	SentinelMonitoredMaster    func(context.Context, *rrvb2.RedisReplication, []string) (string, error)
+	SentinelFailoverInProgress func(context.Context, *rrvb2.RedisReplication) (bool, error)
+	// SentinelCanDecide reports whether a quorum of the linked Sentinels is
+	// configured, so that Sentinel can elect the master by itself.
+	SentinelCanDecide             func(context.Context, *rrvb2.RedisReplication) (bool, error)
+	RedisReplicationBestMaster    func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string) string
+	PromoteRedisReplicationMaster func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, string) error
+	Now                           func() time.Time
+
+	// emptyMasterSince records, per RedisReplication, since when the operator
+	// refuses to replicate from an empty master and waits for Sentinel.
+	emptyMasterSince sync.Map
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -183,9 +196,89 @@ func (r *Reconciler) ensureMasterHoldsData(ctx context.Context, instance *rrvb2.
 	if len(podsHoldingData) == 0 && len(podsUnknown) == 0 {
 		return nil
 	}
-	return fmt.Errorf("master %s holds no keys while pods %v hold data and %v could not be probed, refusing to replicate from it; "+
+	return &emptyMasterError{master: realMaster, holdingData: podsHoldingData, unknown: podsUnknown}
+}
+
+// emptyMasterError is returned when the master holds no keys while other pods
+// hold data: replicating from it would wipe them.
+type emptyMasterError struct {
+	master      string
+	holdingData []string
+	unknown     []string
+}
+
+func (e *emptyMasterError) Error() string {
+	return fmt.Sprintf("master %s holds no keys while pods %v hold data and %v could not be probed, refusing to replicate from it; "+
 		"to recover, run REPLICAOF NO ONE on a pod that holds data, then REPLICAOF <its address> 6379 on %s, and the operator will attach the rest",
-		realMaster, podsHoldingData, podsUnknown, realMaster)
+		e.master, e.holdingData, e.unknown, e.master)
+}
+
+// sentinelFailoverGrace is how long the operator leaves configured Sentinels
+// to fail over away from an empty master: the default down-after-milliseconds
+// (30 s) plus the default failover-timeout (180 s).
+const sentinelFailoverGrace = 210 * time.Second
+
+// linkOrPromote creates the replication link to realMaster. When realMaster
+// is empty while other pods hold data, it promotes the best data-holding pod
+// instead, provided that every key count is known and Sentinel cannot elect a
+// master by itself: no linked Sentinel, Sentinels without state (#1938), or
+// configured Sentinels that did not fail over within sentinelFailoverGrace.
+func (r *Reconciler) linkOrPromote(ctx context.Context, instance *rrvb2.RedisReplication, linkPods, allPods []string, realMaster string) error {
+	key := instance.Namespace + "/" + instance.Name
+	err := r.createRedisReplicationLink(ctx, instance, linkPods, realMaster)
+	var empty *emptyMasterError
+	if !errors.As(err, &empty) {
+		r.emptyMasterSince.Delete(key)
+		return err
+	}
+	if len(empty.unknown) > 0 || len(empty.holdingData) == 0 {
+		return err
+	}
+	canDecide, cerr := r.sentinelCanDecide(ctx, instance)
+	if cerr != nil {
+		log.FromContext(ctx).Error(cerr, "Could not ask sentinel whether it can elect a master, not promoting")
+		return err
+	}
+	if canDecide {
+		since, _ := r.emptyMasterSince.LoadOrStore(key, r.now())
+		if waited := r.now().Sub(since.(time.Time)); waited < sentinelFailoverGrace {
+			log.FromContext(ctx).Info("Empty master while replicas hold data, waiting for sentinel to fail over",
+				"master", realMaster, "holdingData", empty.holdingData, "waited", waited.String())
+			return err
+		}
+	}
+	best := r.redisReplicationBestMaster(ctx, instance, empty.holdingData)
+	if best == "" {
+		return err
+	}
+	log.FromContext(ctx).Info("Empty master while replicas hold data and sentinel cannot elect a master, promoting a data-holding pod",
+		"emptyMaster", realMaster, "promoted", best, "holdingData", empty.holdingData)
+	if err := r.promoteRedisReplicationMaster(ctx, instance, best); err != nil {
+		return fmt.Errorf("promote %s: %w", best, err)
+	}
+	r.emptyMasterSince.Delete(key)
+	return r.createRedisReplicationLink(ctx, instance, allPods, best)
+}
+
+func (r *Reconciler) now() time.Time {
+	if r.Now != nil {
+		return r.Now()
+	}
+	return time.Now()
+}
+
+func (r *Reconciler) redisReplicationBestMaster(ctx context.Context, instance *rrvb2.RedisReplication, pods []string) string {
+	if r.RedisReplicationBestMaster != nil {
+		return r.RedisReplicationBestMaster(ctx, r.K8sClient, instance, pods)
+	}
+	return k8sutils.GetRedisReplicationBestMaster(ctx, r.K8sClient, instance, pods)
+}
+
+func (r *Reconciler) promoteRedisReplicationMaster(ctx context.Context, instance *rrvb2.RedisReplication, pod string) error {
+	if r.PromoteRedisReplicationMaster != nil {
+		return r.PromoteRedisReplicationMaster(ctx, r.K8sClient, instance, pod)
+	}
+	return k8sutils.PromoteRedisReplicationMaster(ctx, r.K8sClient, instance, pod)
 }
 
 func (r *Reconciler) createRedisReplicationLink(ctx context.Context, instance *rrvb2.RedisReplication, pods []string, realMaster string) error {
@@ -244,18 +337,20 @@ func (r *Reconciler) observedRedisReplicationMaster(ctx context.Context, instanc
 			"unobservedPods", topology.Unobserved)
 		return "", false
 	default:
-		realMaster := r.redisReplicationRealMaster(ctx, instance, topology.Masters)
-		if realMaster == "" && instance.EnableSentinel() {
-			monitored, err := r.sentinelMonitoredMaster(ctx, instance, topology.Masters)
-			if err != nil {
-				log.FromContext(ctx).Error(err, "Could not ask sentinel which of the observed masters it monitors",
-					"masters", topology.Masters)
-			} else if monitored != "" {
-				log.FromContext(ctx).Info("No master with attached replicas found, using the master monitored by sentinel",
-					"master", monitored)
-				realMaster = monitored
-			}
+		// Several pods report role:master. Right after a Sentinel failover the
+		// promoted pod has no replica yet, while the old master may still report
+		// role:master with replicas attached, so "the master with attached
+		// replicas" would undo the failover. Follow a Sentinel quorum first.
+		monitored, err := r.sentinelMonitoredMaster(ctx, instance, topology.Masters)
+		if err != nil {
+			log.FromContext(ctx).Error(err, "Could not ask sentinel which of the observed masters it monitors",
+				"masters", topology.Masters)
+		} else if monitored != "" {
+			log.FromContext(ctx).Info("Several masters observed, using the master monitored by a sentinel quorum",
+				"master", monitored, "masters", topology.Masters)
+			return monitored, true
 		}
+		realMaster := r.redisReplicationRealMaster(ctx, instance, topology.Masters)
 		return realMaster, realMaster != ""
 	}
 }
@@ -469,6 +564,15 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 		}
 	}
 
+	// Between SLAVEOF NO ONE and +switch-master the Sentinels still name the
+	// old master while the promoted pod already reports role:master: leave the
+	// replication and the Sentinels alone until the failover ends.
+	if failover, err := r.sentinelFailoverInProgress(ctx, instance); err != nil {
+		log.FromContext(ctx).Error(err, "Could not ask sentinel whether a failover is in progress")
+	} else if failover {
+		return intctrlutil.RequeueAfter(ctx, time.Second*5, "sentinel failover in progress, not touching the replication")
+	}
+
 	var realMaster string
 	topology, err := r.redisReplicationTopology(ctx, instance)
 	if err != nil {
@@ -519,7 +623,7 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 				"unobservedPods", topology.Unobserved)
 		} else if realMaster == "" {
 			log.FromContext(ctx).Info("Skipping replication reconfiguration because the current master could not be identified")
-		} else if err := r.createRedisReplicationLink(ctx, instance, masterNodes, realMaster); err != nil {
+		} else if err := r.linkOrPromote(ctx, instance, masterNodes, append(append([]string{}, masterNodes...), slaveNodes...), realMaster); err != nil {
 			log.FromContext(ctx).Error(err, "Failed to create redis replication link",
 				"master", realMaster, "masters", masterNodes)
 			return intctrlutil.RequeueAfter(ctx, time.Second*60, "")
@@ -536,13 +640,28 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 					"observedPods", observedPods,
 					"unobservedPods", topology.Unobserved)
 			} else {
-				allPods := append(masterNodes, slaveNodes...)
-				if err := r.createRedisReplicationLink(ctx, instance, allPods, realMaster); err != nil {
+				allPods := append(append([]string{}, masterNodes...), slaveNodes...)
+				if err := r.linkOrPromote(ctx, instance, allPods, allPods, realMaster); err != nil {
 					log.FromContext(ctx).Error(err, "Failed to reconfigure master-slave replication",
 						"master", realMaster, "slaves", slaveNodes)
 					return intctrlutil.RequeueAfter(ctx, time.Second*60, "")
 				}
 				log.FromContext(ctx).Info("Successfully reconfigured slave replication")
+			}
+		} else if currentRealMaster != "" && !incompleteTopology && r.Checker != nil {
+			// A replica that follows the IP of a recreated master, or another
+			// replica, is invisible to Sentinel, which only learns replicas
+			// from the master: re-point it (#1779).
+			misattached, err := r.Checker.GetMisattachedReplicas(ctx, instance, currentRealMaster, slaveNodes)
+			if err != nil {
+				log.FromContext(ctx).Error(err, "Could not check the master of the replicas")
+			} else if len(misattached) > 0 {
+				log.FromContext(ctx).Info("Detected replicas that do not replicate from the master, re-pointing them",
+					"master", currentRealMaster, "replicas", misattached)
+				if err := r.createRedisReplicationLink(ctx, instance, append([]string{currentRealMaster}, misattached...), currentRealMaster); err != nil {
+					log.FromContext(ctx).Error(err, "Failed to re-point the replicas", "master", currentRealMaster, "replicas", misattached)
+					return intctrlutil.RequeueAfter(ctx, time.Second*60, "")
+				}
 			}
 		}
 	}

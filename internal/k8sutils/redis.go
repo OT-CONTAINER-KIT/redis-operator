@@ -1280,3 +1280,10 @@ func setRedisStandaloneDynamicConfig(ctx context.Context, cr *rvb2.Redis, makeCl
 
 	return applyDynamicConfig(ctx, redisClient, podName, dynamicConfig)
 }
+
+// PromoteRedisReplicationMaster turns podName into a master with REPLICAOF NO ONE.
+func PromoteRedisReplicationMaster(ctx context.Context, client kubernetes.Interface, cr *rrvb2.RedisReplication, podName string) error {
+	redisClient := configureRedisReplicationClient(ctx, client, cr, podName)
+	defer redisClient.Close()
+	return redisClient.SlaveOf(ctx, "NO", "ONE").Err()
+}

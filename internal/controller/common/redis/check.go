@@ -9,6 +9,7 @@ import (
 	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	rr "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
+	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/service/redis"
 	corev1 "k8s.io/api/core/v1"
@@ -22,6 +23,16 @@ type Checker interface {
 	GetReplicationKeyCounts(ctx context.Context, rr *rr.RedisReplication, podNames []string) map[string]int64
 	GetPassword(ctx context.Context, ns string, secret *commonapi.ExistingPasswordSecret) (string, error)
 	CheckClusterSlotsAssigned(ctx context.Context, cr *rcvb2.RedisCluster) (bool, error)
+	GetSentinelElectedMaster(ctx context.Context, rs *rsvb2.RedisSentinel, rr *rr.RedisReplication) (corev1.Pod, error)
+	// SentinelFailoverInProgress reports whether a Sentinel of rs is running a
+	// failover; only the Sentinel leading it reports it.
+	SentinelFailoverInProgress(ctx context.Context, rs *rsvb2.RedisSentinel) (bool, error)
+	// SentinelsMonitoring returns how many Sentinels of rs monitor master,
+	// out of the expected size of rs.
+	SentinelsMonitoring(ctx context.Context, rs *rsvb2.RedisSentinel, master string) (configured, expected int, err error)
+	// GetMisattachedReplicas returns the replicas that do not replicate from
+	// master: a stale IP of a recreated master, or another replica.
+	GetMisattachedReplicas(ctx context.Context, rr *rr.RedisReplication, master string, replicas []string) ([]string, error)
 }
 
 type checker struct {
