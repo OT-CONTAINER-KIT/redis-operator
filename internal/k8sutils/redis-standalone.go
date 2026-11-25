@@ -68,14 +68,15 @@ func CreateStandaloneService(ctx context.Context, cr *rvb2.Redis, cl kubernetes.
 			return err
 		}
 	}
-	if cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled {
-		exporterPort := *util.Coalesce(cr.Spec.RedisExporter.Port, ptr.To(common.RedisExporterPort))
-		selectorLabels := getRedisStableLabels(cr.Name, string(standalone), "standalone")
-		err = CreateOrUpdateMetricsService(ctx, cr.Namespace, cr.Name+"-metrics", selectorLabels, redisAsOwner(cr), exporterPort, cl)
-		if err != nil {
-			log.FromContext(ctx).Error(err, "Cannot create metrics service for Redis")
-			return err
-		}
+	exporterEnabled := cr.Spec.RedisExporter != nil && cr.Spec.RedisExporter.Enabled
+	exporterPort := common.RedisExporterPort
+	if exporterEnabled {
+		exporterPort = *util.Coalesce(cr.Spec.RedisExporter.Port, ptr.To(common.RedisExporterPort))
+	}
+	selectorLabels := getRedisStableLabels(cr.Name, string(standalone), "standalone")
+	if err = ReconcileMetricsService(ctx, cr.Namespace, cr.Name+"-metrics", selectorLabels, redisAsOwner(cr), exporterPort, exporterEnabled, cl); err != nil {
+		log.FromContext(ctx).Error(err, "Cannot reconcile metrics service for Redis")
+		return err
 	}
 	return nil
 }
