@@ -404,7 +404,10 @@ func (c *service) SentinelMaster(ctx context.Context, masterGroupName string) (m
 		return nil, nil
 	}
 	defer client.Close()
+	return sentinelMaster(ctx, client, masterGroupName)
+}
 
+func sentinelMaster(ctx context.Context, client *rediscli.Client, masterGroupName string) (map[string]string, error) {
 	reply, err := client.Do(ctx, "SENTINEL", "MASTER", masterGroupName).Result()
 	if err != nil {
 		if strings.Contains(err.Error(), "No such master") {
