@@ -223,6 +223,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if err != nil {
 			return intctrlutil.RequeueE(ctx, err, "")
 		}
+		followerSet, err := k8sutils.GetStatefulSet(ctx, r.K8sClient, instance.Namespace, instance.Name+"-follower")
+		if err != nil && !apierrors.IsNotFound(err) {
+			return intctrlutil.RequeueE(ctx, err, "read follower StatefulSet before reconciliation")
+		}
+		if err == nil && followerSet.Spec.Replicas != nil && followerReplicas < *followerSet.Spec.Replicas {
+			if err := k8sutils.PrepareRedisFollowerScaleDown(ctx, r.K8sClient, instance, *followerSet.Spec.Replicas); err != nil {
+				return intctrlutil.RequeueE(ctx, err, "prepare Redis follower scale-down")
+			}
+		}
 		err = k8sutils.CreateRedisFollower(ctx, instance, r.K8sClient)
 		if err != nil {
 			return intctrlutil.RequeueE(ctx, err, "")
