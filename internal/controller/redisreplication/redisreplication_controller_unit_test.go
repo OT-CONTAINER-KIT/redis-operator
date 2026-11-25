@@ -1169,6 +1169,7 @@ func newRunningPodForTest(namespace, name, podIP string, labels map[string]strin
 
 type fakeSentinelInfoClient struct {
 	connectedHosts []string
+	connections    []*redis.ConnectionInfo
 	infoByHost     map[string]*redis.InfoSentinelResult
 	errByHost      map[string]error
 	flagsByHost    map[string]string
@@ -1177,6 +1178,7 @@ type fakeSentinelInfoClient struct {
 
 func (f *fakeSentinelInfoClient) Connect(info *redis.ConnectionInfo) redis.Service {
 	f.connectedHosts = append(f.connectedHosts, info.Host)
+	f.connections = append(f.connections, info)
 	return &fakeSentinelInfoService{info: f.infoByHost[info.Host], err: f.errByHost[info.Host], flags: f.flagsByHost[info.Host], ip: f.ipByHost[info.Host]}
 }
 

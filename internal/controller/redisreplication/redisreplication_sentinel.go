@@ -10,6 +10,7 @@ import (
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
+	redishealer "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/redis"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/statefulset"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/envs"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
@@ -199,11 +200,7 @@ func (r *Reconciler) querySentinelFailoverInProgress(ctx context.Context, redisC
 		if !k8sutils.IsRedisPodProbeable(&sentinelPod) {
 			continue
 		}
-		fields, err := redisClient.Connect(&redis.ConnectionInfo{
-			Host:     sentinelPod.Status.PodIP,
-			Port:     "26379",
-			Password: voters.password,
-		}).SentinelMaster(ctx, voters.masterName)
+		fields, err := redisClient.Connect(r.sentinelConnectionInfo(ctx, inst, voters, sentinelPod)).SentinelMaster(ctx, voters.masterName)
 		if err != nil {
 			if ctxErr := ctx.Err(); ctxErr != nil {
 				return false, ctxErr
@@ -264,6 +261,13 @@ type sentinelVoters struct {
 	password   string
 	masterName string
 	quorum     int
+	// tls is the TLS configuration of a standalone RedisSentinel; the
+	// embedded Sentinel does not support TLS.
+	tls *commonapi.TLSConfig
+}
+
+func (r *Reconciler) sentinelConnectionInfo(ctx context.Context, inst *rrvb2.RedisReplication, voters *sentinelVoters, sentinelPod corev1.Pod) *redis.ConnectionInfo {
+	return redishealer.SentinelConnectionInfo(ctx, r.K8sClient, sentinelPod, voters.password, voters.tls, inst.Namespace)
 }
 
 func (r *Reconciler) linkedSentinelVoters(ctx context.Context, inst *rrvb2.RedisReplication) (*sentinelVoters, error) {
@@ -312,6 +316,7 @@ func (r *Reconciler) linkedSentinelVoters(ctx context.Context, inst *rrvb2.Redis
 		pods:       pods.Items,
 		password:   password,
 		masterName: rs.Spec.RedisSentinelConfig.MasterGroupName,
+		tls:        rs.Spec.TLS,
 		quorum:     int(size/2) + 1,
 	}, nil
 }
@@ -361,11 +366,7 @@ func (r *Reconciler) querySentinelMonitoredMaster(ctx context.Context, redisClie
 		if !k8sutils.IsRedisPodProbeable(&sentinelPod) {
 			continue
 		}
-		info, err := redisClient.Connect(&redis.ConnectionInfo{
-			Host:     sentinelPod.Status.PodIP,
-			Port:     "26379",
-			Password: voters.password,
-		}).GetInfoSentinel(ctx)
+		info, err := redisClient.Connect(r.sentinelConnectionInfo(ctx, inst, voters, sentinelPod)).GetInfoSentinel(ctx)
 		if err != nil {
 			if ctxErr := ctx.Err(); ctxErr != nil {
 				return "", ctxErr

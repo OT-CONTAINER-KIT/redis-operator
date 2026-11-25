@@ -505,6 +505,13 @@ func newTLSConfigVerifyingChainWithoutHostname(cert tls.Certificate, rootCAs *x5
 }
 
 // createConnectionInfo creates a Redis connection info with TLS support
+// SentinelConnectionInfo returns the connection to a Sentinel pod, the same
+// way the RedisSentinel controller reaches it: over TLS, by the pod DNS name,
+// when tlsConfig is set.
+func SentinelConnectionInfo(ctx context.Context, k8sClient kubernetes.Interface, pod v1.Pod, password string, tlsConfig *commonapi.TLSConfig, namespace string) *redis.ConnectionInfo {
+	return createConnectionInfo(ctx, pod, password, tlsConfig, k8sClient, namespace, "26379")
+}
+
 func createConnectionInfo(ctx context.Context, pod v1.Pod, password string, tlsConfig *commonapi.TLSConfig, k8sClient kubernetes.Interface, namespace, port string) *redis.ConnectionInfo {
 	connInfo := &redis.ConnectionInfo{
 		Host:     pod.Status.PodIP,
