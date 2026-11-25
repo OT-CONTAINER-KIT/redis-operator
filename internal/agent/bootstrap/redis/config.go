@@ -46,6 +46,54 @@ func announceHostname() (string, error) {
 	return name, nil
 }
 
+const (
+	defaultAppendFilename = "appendonly.aof"
+	legacyAppendFilename  = "Appendonly.aof"
+)
+
+func resolveAppendFilename(dataDir string) (string, error) {
+	found, err := hasAOF(dataDir, defaultAppendFilename)
+	if err != nil {
+		return "", err
+	}
+	if found {
+		return defaultAppendFilename, nil
+	}
+	found, err = hasAOF(dataDir, legacyAppendFilename)
+	if err != nil {
+		return "", err
+	}
+	if !found {
+		return defaultAppendFilename, nil
+	}
+	log.Printf("Found an existing AOF named %q in %s; keeping that appendfilename so the data is loaded", legacyAppendFilename, dataDir)
+	return legacyAppendFilename, nil
+}
+
+func hasAOF(dataDir, base string) (bool, error) {
+	found, err := dirContains(filepath.Join(dataDir, "appendonlydir"), base+".manifest")
+	if err != nil || found {
+		return found, err
+	}
+	return dirContains(dataDir, base)
+}
+
+func dirContains(dir, name string) (bool, error) {
+	entries, err := os.ReadDir(dir)
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("cannot inspect AOF directory %q: %w", dir, err)
+	}
+	for _, e := range entries {
+		if e.Name() == name {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // GenerateConfig generates Redis configuration file
 func GenerateConfig() error {
 	confPath := util.CoalesceEnv1("REDIS_CONFIG_FILE", "/etc/redis/redis.conf")
@@ -168,11 +216,19 @@ func GenerateConfig() error {
 	}
 
 	if persistenceEnabled == "true" {
+		aofDataDir := dataDir
+		if aofDataRoot := os.Getenv(consts.ENV_KEY_AOF_DATA_ROOT); aofDataRoot != "" {
+			aofDataDir = filepath.Join(aofDataRoot, dataDir)
+		}
+		appendFilename, err := resolveAppendFilename(aofDataDir)
+		if err != nil {
+			return err
+		}
 		cfg.Append("save", "900 1")
 		cfg.Append("save", "300 10")
 		cfg.Append("save", "60 10000")
 		cfg.Append("appendonly", "yes")
-		cfg.Append("appendfilename", "\"appendonly.aof\"")
+		cfg.Append("appendfilename", fmt.Sprintf("%q", appendFilename))
 		cfg.Append("dir", dataDir)
 	} else {
 		fmt.Println("Running without persistence mode")
