@@ -100,6 +100,21 @@ spec:
     - monitoring
 ```
 
+### One ServiceMonitor for the whole fleet
+
+The `serviceMonitor` option of the `redis-cluster` chart creates two ServiceMonitors (leader and follower) for every RedisCluster release. With many clusters that means many ServiceMonitor objects and many Prometheus scrape jobs. Because every cluster's metrics services carry the same labels, a single ServiceMonitor can scrape all of them instead. The `redis-operator` chart can create it:
+
+```yaml
+fleetServiceMonitor:
+  enabled: true
+  setupTypes: [cluster]          # also: standalone, replication, sentinel
+  targetNamespaces: [redis-prod] # empty = the ServiceMonitor's namespace; or allNamespaces: true
+  extraLabels:
+    release: kube-prometheus-stack
+```
+
+Then disable the per-release ServiceMonitors (`serviceMonitor.enabled=false`) in the `redis-cluster` chart and keep `redisExporter.enabled=true`. New clusters are scraped as soon as the operator creates their metrics services. The `job` and `service` labels on the scraped series still name each cluster's service (for example `my-cluster-leader-metrics`), the same as with per-release ServiceMonitors.
+
 ## Grafana Dashboards
 
 There is detailed dashboard created for Redis cluster monitoring setup. Refer to that dashboard once the metrics are available inside Prometheus setup.

@@ -121,7 +121,7 @@ helm delete <my-release> --namespace <namespace>
 | redisExporter.securityContext | object | `{}` |  |
 | redisExporter.tag | string | `"v1.44.0"` |  |
 | serviceAccountName | string | `""` |  |
-| serviceMonitor.enabled | bool | `false` |  |
+| serviceMonitor.enabled | bool | `false` | Create leader/follower ServiceMonitors for this release. For many clusters, prefer the single fleet-wide ServiceMonitor from the redis-operator chart (fleetServiceMonitor.enabled) |
 | serviceMonitor.extraLabels | object | `{}` | extraLabels are added to the servicemonitor when enabled set to true |
 | serviceMonitor.interval | string | `"30s"` |  |
 | serviceMonitor.namespace | string | `""` | Namespace where servicemonitor resource will be created, if empty it will be created in the same namespace as the redis-cluster |

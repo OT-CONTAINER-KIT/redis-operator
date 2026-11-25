@@ -1,0 +1,55 @@
+{{- with .Values.fleetServiceMonitor }}
+{{- if .enabled }}
+{{- if not .setupTypes }}
+{{- fail "fleetServiceMonitor.setupTypes must list at least one of: cluster, standalone, replication, sentinel" }}
+{{- end }}
+{{- $smNamespace := .namespace | default $.Release.Namespace }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ .name | default (printf "%s-redis-fleet" $.Release.Name) }}
+  namespace: {{ $smNamespace }}
+  labels:
+    app.kubernetes.io/name: {{ $.Values.redisOperator.name }}
+    helm.sh/chart: {{ $.Chart.Name }}-{{ $.Chart.Version | replace "+" "_" }}
+    app.kubernetes.io/managed-by: {{ $.Release.Service }}
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/version: {{ $.Chart.AppVersion }}
+    app.kubernetes.io/component: monitoring
+    app.kubernetes.io/part-of: {{ $.Release.Name }}
+    {{- with .extraLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  # Matches the dedicated <name>-metrics Services the operator creates for every
+  # Redis CR with redisExporter.enabled, so new CRs are scraped without a new ServiceMonitor.
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: metrics
+    matchExpressions:
+    - key: redis_setup_type
+      operator: In
+      values:
+      {{- toYaml .setupTypes | nindent 6 }}
+  namespaceSelector:
+    {{- if .allNamespaces }}
+    any: true
+    {{- else }}
+    matchNames:
+    {{- toYaml (.targetNamespaces | default (list $smNamespace)) | nindent 4 }}
+    {{- end }}
+  endpoints:
+  - port: redis-exporter
+    interval: {{ .interval }}
+    scrapeTimeout: {{ .scrapeTimeout }}
+    {{- with .relabelings }}
+    relabelings:
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with .metricRelabelings }}
+    metricRelabelings:
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- end }}
+{{- end }}

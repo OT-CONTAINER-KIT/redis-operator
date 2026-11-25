@@ -170,6 +170,7 @@ externalService:
   port: 6379
 
 serviceMonitor:
+  # -- Create leader/follower ServiceMonitors for this release. For many clusters, prefer the single fleet-wide ServiceMonitor from the redis-operator chart (fleetServiceMonitor.enabled)
   enabled: false
   interval: 30s
   scrapeTimeout: 10s
