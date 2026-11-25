@@ -31,8 +31,8 @@ metadata:
     app.kubernetes.io/part-of: {{ .Release.Name }}
 spec:
   dnsNames:
-    - {{ .Values.service.name }}.{{ .Values.service.namespace }}.svc
-    - {{ .Values.service.name }}.{{ .Values.service.namespace }}.svc.{{ .Values.redisOperator.serviceDNSDomain | default "cluster.local" }}
+    - {{ .Values.service.name }}.{{ .Release.Namespace }}.svc
+    - {{ .Values.service.name }}.{{ .Release.Namespace }}.svc.{{ .Values.redisOperator.serviceDNSDomain | default "cluster.local" }}
   issuerRef:
     kind: {{ .Values.issuer.kind }}
     name: {{ .Values.issuer.name }}
