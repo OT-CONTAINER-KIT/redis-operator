@@ -14,6 +14,7 @@ import (
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/envs"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/features"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
+	utilannotations "github.com/OT-CONTAINER-KIT/redis-operator/internal/util/annotations"
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
@@ -233,6 +234,12 @@ func patchStatefulSet(ctx context.Context, storedStateful, newStateful *appsv1.S
 		newStateful.Spec.PodManagementPolicy = storedStateful.Spec.PodManagementPolicy
 	}
 
+	// Preserve pod-template annotations owned by other tools (e.g. the
+	// restartedAt annotation from `kubectl rollout restart`) before the diff
+	// is calculated. Stripping them here would issue a competing template
+	// update while the StatefulSet rollout is still in progress.
+	preservePodTemplateAnnotations(storedStateful, newStateful)
+
 	// Calculate the patch between the stored and new objects, ignoring immutable or unnecessary fields.
 	patchResult, err := patch.DefaultPatchMaker.Calculate(storedStateful, newStateful,
 		patch.IgnoreStatusFields(),
@@ -296,6 +303,24 @@ func mergeAnnotations(stored, new *appsv1.StatefulSet) {
 		if _, exists := new.Annotations[key]; !exists {
 			new.Annotations[key] = value
 		}
+	}
+}
+
+// preservePodTemplateAnnotations carries allowlisted pod-template
+// annotations from the stored StatefulSet into the desired one. These keys
+// are written by external tooling rather than the operator, so rebuilding the
+// template from the CR would otherwise drop them and fight an in-flight
+// rollout. Existing values on the desired template are never overwritten.
+func preservePodTemplateAnnotations(stored, new *appsv1.StatefulSet) {
+	value, ok := stored.Spec.Template.Annotations[utilannotations.KubectlRestartedAt]
+	if !ok {
+		return
+	}
+	if new.Spec.Template.Annotations == nil {
+		new.Spec.Template.Annotations = make(map[string]string)
+	}
+	if _, exists := new.Spec.Template.Annotations[utilannotations.KubectlRestartedAt]; !exists {
+		new.Spec.Template.Annotations[utilannotations.KubectlRestartedAt] = value
 	}
 }
 
