@@ -68,6 +68,12 @@ spec:
         {{- if and .Values.manager.config.maxConcurrentReconciles (gt (int .Values.manager.config.maxConcurrentReconciles) 0) }}
         - --max-concurrent-reconciles={{ .Values.manager.config.maxConcurrentReconciles }}
         {{- end }}
+        {{- if .Values.manager.config.replicationRequeueInterval }}
+        - --replication-requeue-interval={{ .Values.manager.config.replicationRequeueInterval }}
+        {{- end }}
+        {{- if .Values.manager.config.replicationFailureRequeueInterval }}
+        - --replication-failure-requeue-interval={{ .Values.manager.config.replicationFailureRequeueInterval }}
+        {{- end }}
         {{- range $arg := .Values.redisOperator.extraArgs }}
         - {{ $arg }}
         {{- end }}

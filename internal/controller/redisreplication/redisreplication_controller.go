@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
 	redishealer "github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/redis"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/service"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/statefulset"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/redisreplication/reconcileconfig"
 	intctrlutil "github.com/OT-CONTAINER-KIT/redis-operator/internal/controllerutil"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/envs"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
@@ -42,6 +42,18 @@ type Reconciler struct {
 	CreateRedisReplicationLink func(context.Context, kubernetes.Interface, *rrvb2.RedisReplication, []string, string) error
 	ConfigureSentinel          func(context.Context, *rrvb2.RedisReplication, string) error
 	SentinelMonitoredMaster    func(context.Context, *rrvb2.RedisReplication, []string) (string, error)
+
+	// RequeueConfig holds the configurable steady-state/failure requeue
+	// intervals. When nil (e.g. a zero-value Reconciler in tests) the
+	// upstream default cadence is used.
+	RequeueConfig *reconcileconfig.Config
+}
+
+// requeueConfig returns the normalized requeue configuration. A nil
+// RequeueConfig resolves to the upstream default intervals, so an
+// unconfigured Reconciler behaves exactly like the hard-coded upstream loop.
+func (r *Reconciler) requeueConfig() *reconcileconfig.Config {
+	return r.RequeueConfig.Normalize()
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -80,7 +92,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 
-	return intctrlutil.RequeueAfter(ctx, time.Second*30, "")
+	return intctrlutil.RequeueAfter(ctx, r.requeueConfig().RequeueInterval, "")
 }
 
 // UpdateRedisReplicationMaster records masterNode as the master of the
@@ -279,14 +291,15 @@ func (r *Reconciler) reconcileFinalizer(ctx context.Context, instance *rrvb2.Red
 }
 
 func (r *Reconciler) reconcileResources(ctx context.Context, instance *rrvb2.RedisReplication) (ctrl.Result, error) {
+	cfg := r.requeueConfig()
 	if err := k8sutils.CreateReplicationRedis(ctx, instance, r.K8sClient, r.Client); err != nil {
-		return intctrlutil.RequeueAfter(ctx, time.Second*60, "")
+		return intctrlutil.RequeueAfter(ctx, cfg.FailureRequeueInterval, "")
 	}
 	if err := k8sutils.CreateReplicationService(ctx, instance, r.K8sClient); err != nil {
-		return intctrlutil.RequeueAfter(ctx, time.Second*60, "")
+		return intctrlutil.RequeueAfter(ctx, cfg.FailureRequeueInterval, "")
 	}
 	if err := k8sutils.ReconcileReplicationPodDisruptionBudget(ctx, instance, instance.Spec.PodDisruptionBudget, r.K8sClient); err != nil {
-		return intctrlutil.RequeueAfter(ctx, time.Second*60, "")
+		return intctrlutil.RequeueAfter(ctx, cfg.FailureRequeueInterval, "")
 	}
 	if instance.EnableSentinel() {
 		svc := newSentinelService(instance)
@@ -454,12 +467,13 @@ func (r *Reconciler) sentinelResetIfNeed(ctx context.Context, inst *rrvb2.RedisR
 }
 
 func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisReplication) (ctrl.Result, error) {
+	cfg := r.requeueConfig()
 	if instance.EnableSentinel() {
 		if !r.IsStatefulSetReady(ctx, instance.Namespace, instance.SentinelStatefulSet()) {
-			return intctrlutil.RequeueAfter(ctx, time.Second*30, "waiting for sentinel statefulset to be ready")
+			return intctrlutil.RequeueAfter(ctx, cfg.RequeueInterval, "waiting for sentinel statefulset to be ready")
 		}
 		if !r.IsStatefulSetReady(ctx, instance.Namespace, instance.RedisStatefulSet()) {
-			return intctrlutil.RequeueAfter(ctx, time.Second*30, "waiting for redis statefulset to be ready")
+			return intctrlutil.RequeueAfter(ctx, cfg.RequeueInterval, "waiting for redis statefulset to be ready")
 		}
 	}
 
@@ -522,7 +536,7 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 		} else if err := r.createRedisReplicationLink(ctx, instance, masterNodes, realMaster); err != nil {
 			log.FromContext(ctx).Error(err, "Failed to create redis replication link",
 				"master", realMaster, "masters", masterNodes)
-			return intctrlutil.RequeueAfter(ctx, time.Second*60, "")
+			return intctrlutil.RequeueAfter(ctx, cfg.FailureRequeueInterval, "")
 		}
 	} else if len(masterNodes) == 1 && len(slaveNodes) > 0 {
 		currentRealMaster := r.redisReplicationRealMaster(ctx, instance, masterNodes)
@@ -540,7 +554,7 @@ func (r *Reconciler) reconcileRedis(ctx context.Context, instance *rrvb2.RedisRe
 				if err := r.createRedisReplicationLink(ctx, instance, allPods, realMaster); err != nil {
 					log.FromContext(ctx).Error(err, "Failed to reconfigure master-slave replication",
 						"master", realMaster, "slaves", slaveNodes)
-					return intctrlutil.RequeueAfter(ctx, time.Second*60, "")
+					return intctrlutil.RequeueAfter(ctx, cfg.FailureRequeueInterval, "")
 				}
 				log.FromContext(ctx).Info("Successfully reconfigured slave replication")
 			}
