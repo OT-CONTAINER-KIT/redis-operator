@@ -95,3 +95,39 @@ func TestSentinelFailoverInProgress(t *testing.T) {
 	}
 	assert.False(t, SentinelFailoverInProgress(nil))
 }
+
+func TestMasterHostReadsTheMasterOfAReplica(t *testing.T) {
+	client, mock := redismock.NewClientMock()
+	mock.ExpectInfo("replication").SetVal("# Replication\r\nrole:slave\r\nmaster_host:redis-0.redis-headless.default.svc.cluster.local\r\nmaster_port:6379\r\n")
+
+	host, err := masterHost(context.Background(), client)
+
+	require.NoError(t, err)
+	assert.Equal(t, "redis-0.redis-headless.default.svc.cluster.local", host)
+}
+
+func TestMasterHostIsEmptyOnAMaster(t *testing.T) {
+	client, mock := redismock.NewClientMock()
+	mock.ExpectInfo("replication").SetVal("# Replication\r\nrole:master\r\nconnected_slaves:2\r\n")
+
+	host, err := masterHost(context.Background(), client)
+
+	require.NoError(t, err)
+	assert.Empty(t, host)
+}
+
+func TestMasterHostReturnsErrors(t *testing.T) {
+	client, mock := redismock.NewClientMock()
+	mock.ExpectInfo("replication").SetErr(errors.New("LOADING Redis is loading the dataset in memory"))
+
+	_, err := masterHost(context.Background(), client)
+
+	require.Error(t, err)
+}
+
+func TestGetMasterHostWithoutConnectionReturnsNothing(t *testing.T) {
+	host, err := NewService().GetMasterHost(context.Background())
+
+	require.NoError(t, err)
+	assert.Empty(t, host)
+}

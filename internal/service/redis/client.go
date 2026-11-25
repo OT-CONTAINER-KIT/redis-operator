@@ -451,7 +451,10 @@ func (c *service) GetMasterHost(ctx context.Context) (string, error) {
 		return "", nil
 	}
 	defer client.Close()
+	return masterHost(ctx, client)
+}
 
+func masterHost(ctx context.Context, client *rediscli.Client) (string, error) {
 	info, err := client.Info(ctx, "replication").Result()
 	if err != nil {
 		return "", err
