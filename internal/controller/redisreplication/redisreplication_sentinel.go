@@ -236,11 +236,7 @@ func (r *Reconciler) querySentinelCanDecide(ctx context.Context, redisClient red
 		if sentinelPod.Status.Phase != corev1.PodRunning || sentinelPod.Status.PodIP == "" {
 			continue
 		}
-		fields, err := redisClient.Connect(&redis.ConnectionInfo{
-			Host:     sentinelPod.Status.PodIP,
-			Port:     "26379",
-			Password: voters.password,
-		}).SentinelMaster(ctx, voters.masterName)
+		fields, err := redisClient.Connect(r.sentinelConnectionInfo(ctx, inst, voters, sentinelPod)).SentinelMaster(ctx, voters.masterName)
 		if err != nil {
 			if ctxErr := ctx.Err(); ctxErr != nil {
 				return false, ctxErr

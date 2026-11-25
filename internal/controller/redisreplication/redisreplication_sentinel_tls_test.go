@@ -91,3 +91,12 @@ func selfSignedTLSSecret(t *testing.T, namespace, name string) *corev1.Secret {
 		},
 	}
 }
+
+func TestQuerySentinelCanDecideReachesTLSSentinelsOverTLS(t *testing.T) {
+	redisClient := &fakeSentinelInfoClient{}
+
+	_, err := tlsSentinelReconciler(t).querySentinelCanDecide(context.Background(), redisClient, newReplicationInstanceForTest())
+
+	require.NoError(t, err)
+	assertSentinelConnectionsUseTLS(t, redisClient.connections)
+}
