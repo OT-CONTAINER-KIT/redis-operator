@@ -411,7 +411,7 @@ echo "args=$*"
 			script := sentinelCLIFunc + `
 sentinel_cli -h "svc" -p 26379 SENTINEL FAILOVER mymaster
 echo "outer=[${REDISCLI_AUTH:-}]"`
-			cmd := exec.Command("sh", "-c", script)
+			cmd := exec.CommandContext(t.Context(), "sh", "-c", script)
 			cmd.Env = append([]string{"PATH=" + binDir + string(os.PathListSeparator) + os.Getenv("PATH")}, tt.env...)
 			out, err := cmd.CombinedOutput()
 			require.NoError(t, err, string(out))
