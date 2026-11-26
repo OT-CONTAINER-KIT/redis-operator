@@ -25,8 +25,8 @@ spec:
     # the deleted master and fail over on its own within it: a switch inside
     # the window can only come from the preStop hook.
     downAfterMilliseconds: "300000"
-    # The same password as Redis, so the preStop hook, which authenticates to
-    # Sentinel with the Redis password, can run SENTINEL FAILOVER.
+    # A different password from Redis: the preStop hook must authenticate its
+    # SENTINEL FAILOVER with this one, not with the Redis password.
     redisSecret:
-      name: redis-secret
+      name: redis-sentinel-secret
       key: password

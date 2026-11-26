@@ -3,7 +3,10 @@ package k8sutils
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/exec"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -186,7 +189,7 @@ func TestGenerateReplicationPreStopContent(t *testing.T) {
 
 	// Failover targets the injected service, port and master group rather than
 	// values derived in shell, so they stay correct across names/topologies.
-	assert.Contains(t, script, `redis-cli -h "my-replication-s-hl" -p 26379 SENTINEL FAILOVER customMaster`)
+	assert.Contains(t, script, `sentinel_cli -h "my-replication-s-hl" -p 26379 SENTINEL FAILOVER customMaster`)
 	// The demotion wait is bounded by WaitSeconds, not a hardcoded 30, and by a
 	// wall-clock deadline rather than an iteration count.
 	assert.Contains(t, script, "DEADLINE=$(( $(date +%s) + 20 ))")
@@ -274,10 +277,9 @@ func TestGenerateReplicationPreStopTLS(t *testing.T) {
 		wantTLSCalls int
 	}{
 		{
-			// Byte-for-byte what the hook rendered before TLS support.
 			name:         "without TLS",
 			enableTLS:    false,
-			wantFailover: `FAILOVER_RESULT=$(redis-cli -h "my-replication-s-hl" -p 26379 SENTINEL FAILOVER mymaster 2>&1)`,
+			wantFailover: `FAILOVER_RESULT=$(sentinel_cli -h "my-replication-s-hl" -p 26379 SENTINEL FAILOVER mymaster 2>&1)`,
 		},
 		{
 			// The embedded Sentinel only listens on TLS and requires a client
@@ -285,7 +287,7 @@ func TestGenerateReplicationPreStopTLS(t *testing.T) {
 			// local calls or the hook never fails over.
 			name:         "with TLS",
 			enableTLS:    true,
-			wantFailover: `FAILOVER_RESULT=$(redis-cli -h "my-replication-s-hl" -p 26379` + GenerateTLSArgs(true) + ` SENTINEL FAILOVER mymaster 2>&1)`,
+			wantFailover: `FAILOVER_RESULT=$(sentinel_cli -h "my-replication-s-hl" -p 26379` + GenerateTLSArgs(true) + ` SENTINEL FAILOVER mymaster 2>&1)`,
 			wantTLSCalls: 3,
 		},
 	}
@@ -307,6 +309,125 @@ func TestGenerateReplicationPreStopTLS(t *testing.T) {
 				assert.NotContains(t, script, "--tls")
 				assert.NotContains(t, script, "REDIS_TLS_")
 			}
+		})
+	}
+}
+
+func TestGenerateContainerDefSentinelAuthEnv(t *testing.T) {
+	sentinelSecret := &common.ExistingPasswordSecret{Name: ptr.To("sentinel-secret"), Key: ptr.To("password")}
+	wantEnv := corev1.EnvVar{
+		Name: sentinelCLIAuthEnv,
+		ValueFrom: &corev1.EnvVarSource{
+			SecretKeyRef: &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{Name: "sentinel-secret"},
+				Key:                  "password",
+			},
+		},
+	}
+	tests := []struct {
+		name    string
+		params  containerParameters
+		wantSet bool
+	}{
+		{
+			name: "replication with embedded sentinel and sentinel password",
+			params: containerParameters{
+				Role: "replication", SentinelService: "my-replication-s-hl", SentinelMasterName: "mymaster",
+				SentinelPasswordSecret: sentinelSecret,
+			},
+			wantSet: true,
+		},
+		{
+			name: "replication with embedded sentinel without sentinel password",
+			params: containerParameters{
+				Role: "replication", SentinelService: "my-replication-s-hl", SentinelMasterName: "mymaster",
+			},
+		},
+		{
+			// No Sentinel service means no hook, so nothing reads the variable.
+			name:   "replication without sentinel",
+			params: containerParameters{Role: "replication", SentinelPasswordSecret: sentinelSecret},
+		},
+		{
+			name:   "cluster",
+			params: containerParameters{Role: "cluster", SentinelPasswordSecret: sentinelSecret},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.params.Image = "redis:latest"
+			containers := generateContainerDef("redis", tt.params, false, false, false, nil, nil, nil, nil)
+			require.NotEmpty(t, containers)
+			if tt.wantSet {
+				assert.Contains(t, containers[0].Env, wantEnv)
+				return
+			}
+			for _, env := range containers[0].Env {
+				assert.NotEqual(t, sentinelCLIAuthEnv, env.Name)
+			}
+		})
+	}
+}
+
+// TestSentinelCLIAuth runs sentinel_cli in a real shell against a fake
+// redis-cli that reports the REDISCLI_AUTH it was started with.
+func TestSentinelCLIAuth(t *testing.T) {
+	binDir := t.TempDir()
+	fakeCLI := `#!/bin/sh
+if [ -n "${REDISCLI_AUTH+x}" ]; then echo "auth=[$REDISCLI_AUTH]"; else echo "auth unset"; fi
+echo "args=$*"
+`
+	require.NoError(t, os.WriteFile(filepath.Join(binDir, "redis-cli"), []byte(fakeCLI), 0o755))
+
+	tests := []struct {
+		name     string
+		env      []string
+		wantAuth string
+	}{
+		{
+			// Distinct passwords: Sentinel must get its own, trimmed like REDISCLI_AUTH.
+			name:     "sentinel password replaces the redis password",
+			env:      []string{"REDISCLI_AUTH=redis-pass", sentinelCLIAuthEnv + "=sentinel-pass\n"},
+			wantAuth: "auth=[sentinel-pass]",
+		},
+		{
+			// A password-less Sentinel rejects any AUTH, so the Redis password must not leak through.
+			name:     "no sentinel password unsets the redis password",
+			env:      []string{"REDISCLI_AUTH=redis-pass"},
+			wantAuth: "auth unset",
+		},
+		{
+			name:     "empty sentinel password unsets the redis password",
+			env:      []string{"REDISCLI_AUTH=redis-pass", sentinelCLIAuthEnv + "="},
+			wantAuth: "auth unset",
+		},
+		{
+			name:     "no passwords at all",
+			wantAuth: "auth unset",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			script := sentinelCLIFunc + `
+sentinel_cli -h "svc" -p 26379 SENTINEL FAILOVER mymaster
+echo "outer=[${REDISCLI_AUTH:-}]"`
+			cmd := exec.Command("sh", "-c", script)
+			cmd.Env = append([]string{"PATH=" + binDir + string(os.PathListSeparator) + os.Getenv("PATH")}, tt.env...)
+			out, err := cmd.CombinedOutput()
+			require.NoError(t, err, string(out))
+
+			lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+			require.Len(t, lines, 3, string(out))
+			assert.Equal(t, tt.wantAuth, lines[0])
+			assert.Equal(t, "args=-h svc -p 26379 SENTINEL FAILOVER mymaster", lines[1])
+			// The local redis-cli calls after the failover still need the Redis password.
+			wantOuter := "outer=[]"
+			for _, kv := range tt.env {
+				if v, ok := strings.CutPrefix(kv, "REDISCLI_AUTH="); ok {
+					wantOuter = "outer=[" + v + "]"
+				}
+			}
+			assert.Equal(t, wantOuter, lines[2])
 		})
 	}
 }

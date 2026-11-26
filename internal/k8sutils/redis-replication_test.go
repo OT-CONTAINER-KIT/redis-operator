@@ -272,8 +272,21 @@ func Test_generateRedisReplicationContainerParams_SentinelPreStop(t *testing.T) 
 		assert.Equal(t, "my-replication-s-hl", got.SentinelService)
 		assert.Equal(t, "mymaster", got.SentinelMasterName)
 		assert.Equal(t, 26379, got.SentinelPort)
+		assert.Nil(t, got.SentinelPasswordSecret)
 		// grace(60) - headroom(10) => 50s wait, leaving headroom before SIGKILL.
 		assert.Equal(t, 50, got.PreStopWaitSeconds)
+	})
+
+	t.Run("embedded sentinel password is the hook's sentinel password", func(t *testing.T) {
+		cr := base()
+		cr.Spec.KubernetesConfig.ExistingPasswordSecret = &common.ExistingPasswordSecret{Name: ptr.To("redis-secret"), Key: ptr.To("password")}
+		sentinelSecret := &common.ExistingPasswordSecret{Name: ptr.To("sentinel-secret"), Key: ptr.To("password")}
+		cr.Spec.Sentinel = &rrvb2.Sentinel{Size: 3}
+		cr.Spec.Sentinel.ExistingPasswordSecret = sentinelSecret
+
+		got := generateRedisReplicationContainerParams(context.TODO(), cr, nil)
+		assert.Equal(t, sentinelSecret, got.SentinelPasswordSecret)
+		assert.Equal(t, ptr.To("redis-secret"), got.SecretName)
 	})
 
 	t.Run("embedded sentinel with size 0 stays disabled", func(t *testing.T) {

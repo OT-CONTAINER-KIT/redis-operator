@@ -118,8 +118,10 @@ spec:
 
     - name: Fail over through the preStop hook when the master is deleted
       description: >
-        The master's preStop hook runs SENTINEL FAILOVER over TLS. Sentinel
-        runs with down-after-milliseconds 300000, and the operator never fails
+        The master's preStop hook runs SENTINEL FAILOVER over TLS,
+        authenticated with the Sentinel password, which differs from the Redis
+        password: with the Redis password Sentinel answers WRONGPASS and the
+        hook does not fail over. Sentinel runs with down-after-milliseconds 300000, and the operator never fails
         over itself, so nothing but the hook can move the master within the
         60s window after the deletion. A nonempty, changed master address
         inside that window is the hook's failover.
