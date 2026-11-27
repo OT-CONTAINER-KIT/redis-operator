@@ -1,0 +1,5 @@
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: redis-replication-pdb-s

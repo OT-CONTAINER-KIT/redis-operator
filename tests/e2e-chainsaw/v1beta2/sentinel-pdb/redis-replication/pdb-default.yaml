@@ -1,0 +1,20 @@
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: redis-replication-pdb-s
+  ownerReferences:
+    - apiVersion: redis.redis.opstreelabs.in/v1beta2
+      controller: true
+      kind: RedisReplication
+      name: redis-replication-pdb
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: redis-replication-pdb-s
+      role: sentinel
+status:
+  # Counts the pods the selector actually matches, so a selector that drifts
+  # from the Sentinel pod labels fails here instead of protecting nothing.
+  expectedPods: 3

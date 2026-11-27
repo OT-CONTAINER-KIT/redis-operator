@@ -1,0 +1,17 @@
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisReplication
+metadata:
+  name: redis-replication-pdb
+spec:
+  clusterSize: 3
+  kubernetesConfig:
+    image: quay.io/opstree/redis:latest
+    imagePullPolicy: IfNotPresent
+  sentinel:
+    size: 3
+    image: quay.io/opstree/redis-sentinel:latest
+    imagePullPolicy: IfNotPresent
+    pdb:
+      enabled: false
+      maxUnavailable: 1

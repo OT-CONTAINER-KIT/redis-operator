@@ -1,0 +1,60 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: sentinel-pdb
+spec:
+  steps:
+    - name: Default budget
+      description: >
+        spec.sentinel.pdb.enabled creates a PodDisruptionBudget named after the
+        Sentinel StatefulSet, owned by the RedisReplication, that selects the
+        three Sentinel pods and keeps a majority of them.
+      try:
+        - apply:
+            file: replication.yaml
+        - assert:
+            file: pdb-default.yaml
+
+    - name: maxUnavailable
+      description: Setting maxUnavailable replaces the default minAvailable in place.
+      try:
+        - apply:
+            file: replication-max-unavailable.yaml
+        - assert:
+            file: pdb-max-unavailable.yaml
+
+    - name: Disable
+      description: Disabling the budget removes it.
+      try:
+        - apply:
+            file: replication-pdb-disabled.yaml
+        - error:
+            file: pdb.yaml
+
+    - name: Foreign budget is not adopted
+      description: >
+        A budget of the same name that the RedisReplication does not control is
+        left as it is when the budget is enabled.
+      try:
+        - apply:
+            file: foreign-pdb.yaml
+        - apply:
+            file: replication-max-unavailable.yaml
+        # The operator refuses on every reconcile and there is no state change
+        # to wait for.
+        - sleep:
+            duration: 30s
+        - assert:
+            file: foreign-pdb-untouched.yaml
+
+    - name: Foreign budget is not deleted
+      description: Disabling the budget again does not delete one the operator does not control.
+      try:
+        - apply:
+            file: replication-pdb-disabled.yaml
+        - sleep:
+            duration: 30s
+        - assert:
+            file: foreign-pdb-untouched.yaml
