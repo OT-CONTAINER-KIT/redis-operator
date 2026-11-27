@@ -194,6 +194,196 @@ bffda5dec210cd73576a3993156dc134b5c63a4f :6379@16379,redis-cluster-leader-9 mast
 	assert.Equal(t, expectedErr, err, "Expected error to match the one set in the mock")
 }
 
+func TestClusterNodesRememberTopology(t *testing.T) {
+	ctx := context.Background()
+	singleNode := "e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@31001 myself,master - 0 0 1 connected 0-5460"
+	twoNodes := singleNode + "\n07c37dfeb235213a872192d90877d0cd55635b91 127.0.0.1:30004@31004 slave e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 0 1426238317239 4 disconnected"
+
+	tests := []struct {
+		name     string
+		leaders  int32
+		setup    func(t *testing.T) func(podName string) *redis.Client
+		expected bool
+	}{
+		{
+			name:    "fresh nodes know nobody",
+			leaders: 3,
+			setup: func(t *testing.T) func(podName string) *redis.Client {
+				t.Helper()
+				return func(podName string) *redis.Client {
+					client, mock := redismock.NewClientMock()
+					mock.ExpectClusterNodes().SetVal(singleNode)
+					t.Cleanup(func() { assert.NoError(t, mock.ExpectationsWereMet()) })
+					return client
+				}
+			},
+			expected: false,
+		},
+		{
+			name:    "a leader remembering peers means an existing topology",
+			leaders: 3,
+			setup: func(t *testing.T) func(podName string) *redis.Client {
+				t.Helper()
+				return func(podName string) *redis.Client {
+					client, mock := redismock.NewClientMock()
+					mock.ExpectClusterNodes().SetVal(twoNodes)
+					t.Cleanup(func() { assert.NoError(t, mock.ExpectationsWereMet()) })
+					return client
+				}
+			},
+			expected: true,
+		},
+		{
+			name:    "unreachable leaders are skipped, next leader answers",
+			leaders: 3,
+			setup: func(t *testing.T) func(podName string) *redis.Client {
+				t.Helper()
+				return func(podName string) *redis.Client {
+					client, mock := redismock.NewClientMock()
+					if strings.HasSuffix(podName, "-0") {
+						mock.ExpectClusterNodes().SetErr(redis.ErrClosed)
+					} else {
+						mock.ExpectClusterNodes().SetVal(twoNodes)
+					}
+					t.Cleanup(func() { assert.NoError(t, mock.ExpectationsWereMet()) })
+					return client
+				}
+			},
+			expected: true,
+		},
+		{
+			name:    "all leaders unreachable means no known topology",
+			leaders: 2,
+			setup: func(t *testing.T) func(podName string) *redis.Client {
+				t.Helper()
+				return func(podName string) *redis.Client {
+					client, mock := redismock.NewClientMock()
+					mock.ExpectClusterNodes().SetErr(redis.ErrClosed)
+					t.Cleanup(func() { assert.NoError(t, mock.ExpectationsWereMet()) })
+					return client
+				}
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, clusterNodesRememberTopology(ctx, tt.leaders, "redis-cluster", tt.setup(t)))
+		})
+	}
+}
+
+func TestHealClusterNodesByMeet(t *testing.T) {
+	ctx := context.Background()
+	namespace := "default"
+	port := 6379
+
+	newCluster := func() *rcvb2.RedisCluster {
+		return &rcvb2.RedisCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "redis-cluster",
+				Namespace: namespace,
+			},
+			Spec: rcvb2.RedisClusterSpec{
+				ClusterSize: ptr.To(int32(3)),
+				RedisFollower: rcvb2.RedisFollower{
+					RedisFollower: common.RedisFollower{
+						Replicas: ptr.To(int32(1)),
+					},
+				},
+				Port: &port,
+			},
+		}
+	}
+	pods := []runtime.Object{
+		&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "redis-cluster-leader-0", Namespace: namespace}, Status: corev1.PodStatus{PodIP: "10.0.0.1"}},
+		&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "redis-cluster-leader-1", Namespace: namespace}, Status: corev1.PodStatus{PodIP: "10.0.0.2"}},
+		&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "redis-cluster-leader-2", Namespace: namespace}, Status: corev1.PodStatus{PodIP: "10.0.0.3"}},
+		&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "redis-cluster-follower-0", Namespace: namespace}, Status: corev1.PodStatus{PodIP: "10.0.0.4"}},
+	}
+
+	t.Run("every reachable leader meets every other pod's current IP", func(t *testing.T) {
+		k8sClient := k8sClientFake.NewSimpleClientset(pods...)
+		makeClient := func(podName string) *redis.Client {
+			client, mock := redismock.NewClientMock()
+			mock.ExpectPing().SetVal("PONG")
+			for _, targetIP := range []string{"10.0.0.1", "10.0.0.2", "10.0.0.3", "10.0.0.4"} {
+				ownIP := map[string]string{
+					"redis-cluster-leader-0": "10.0.0.1",
+					"redis-cluster-leader-1": "10.0.0.2",
+					"redis-cluster-leader-2": "10.0.0.3",
+				}[podName]
+				if targetIP == ownIP {
+					continue
+				}
+				mock.ExpectClusterMeet(targetIP, "6379").SetVal("OK")
+			}
+			t.Cleanup(func() { assert.NoError(t, mock.ExpectationsWereMet()) })
+			return client
+		}
+		assert.NoError(t, healClusterNodesByMeet(ctx, k8sClient, newCluster(), makeClient))
+	})
+
+	t.Run("unreachable leaders are skipped, other leaders still issue meets", func(t *testing.T) {
+		k8sClient := k8sClientFake.NewSimpleClientset(pods...)
+		makeClient := func(podName string) *redis.Client {
+			client, mock := redismock.NewClientMock()
+			if podName == "redis-cluster-leader-0" {
+				mock.ExpectPing().SetErr(redis.ErrClosed)
+			} else {
+				mock.ExpectPing().SetVal("PONG")
+				for _, targetIP := range []string{"10.0.0.1", "10.0.0.3", "10.0.0.4"} {
+					if podName == "redis-cluster-leader-2" && targetIP == "10.0.0.3" {
+						continue
+					}
+					mock.ExpectClusterMeet(targetIP, "6379").SetVal("OK")
+				}
+			}
+			t.Cleanup(func() { assert.NoError(t, mock.ExpectationsWereMet()) })
+			return client
+		}
+		assert.NoError(t, healClusterNodesByMeet(ctx, k8sClient, newCluster(), makeClient))
+	})
+
+	t.Run("fails when no leader is reachable", func(t *testing.T) {
+		k8sClient := k8sClientFake.NewSimpleClientset(pods...)
+		makeClient := func(podName string) *redis.Client {
+			client, mock := redismock.NewClientMock()
+			mock.ExpectPing().SetErr(redis.ErrClosed)
+			t.Cleanup(func() { assert.NoError(t, mock.ExpectationsWereMet()) })
+			return client
+		}
+		err := healClusterNodesByMeet(ctx, k8sClient, newCluster(), makeClient)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "no leader pod is reachable")
+	})
+
+	t.Run("pods without an IP are not met", func(t *testing.T) {
+		// leader-2 has no IP registered (pod not running)
+		podsWithoutLeader2 := []runtime.Object{pods[0], pods[1], pods[3]}
+		k8sClient := k8sClientFake.NewSimpleClientset(podsWithoutLeader2...)
+		makeClient := func(podName string) *redis.Client {
+			client, mock := redismock.NewClientMock()
+			mock.ExpectPing().SetVal("PONG")
+			ownIP := map[string]string{
+				"redis-cluster-leader-0": "10.0.0.1",
+				"redis-cluster-leader-1": "10.0.0.2",
+				"redis-cluster-leader-2": "10.0.0.3",
+			}[podName]
+			for _, targetIP := range []string{"10.0.0.1", "10.0.0.2", "10.0.0.4"} {
+				if targetIP == ownIP {
+					continue
+				}
+				mock.ExpectClusterMeet(targetIP, "6379").SetVal("OK")
+			}
+			t.Cleanup(func() { assert.NoError(t, mock.ExpectationsWereMet()) })
+			return client
+		}
+		assert.NoError(t, healClusterNodesByMeet(ctx, k8sClient, newCluster(), makeClient))
+	})
+}
+
 func TestReplicationLinkUp(t *testing.T) {
 	tests := []struct {
 		name     string
