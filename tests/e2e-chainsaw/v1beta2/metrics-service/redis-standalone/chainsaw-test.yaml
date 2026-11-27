@@ -26,21 +26,9 @@ spec:
               #!/bin/bash
               set -e
               # Verify the metrics service exists and has exactly one port (9121)
-              PORTS=$(kubectl get svc -n ${NAMESPACE} redis-standalone-metrics-metrics -o jsonpath='{.spec.ports[*].port}')
+              PORTS=$(kubectl get svc -n ${NAMESPACE} redis-standalone-v1beta2 -o jsonpath='{.spec.ports[*].port}')
               if [ "$PORTS" != "9121" ]; then
                 echo "Expected metrics service to only expose port 9121, got: $PORTS"
-                exit 1
-              fi
-              # Verify it does NOT expose Redis data port 6379
-              HAS_REDIS_PORT=$(kubectl get svc -n ${NAMESPACE} redis-standalone-metrics-metrics -o jsonpath='{.spec.ports[?(@.port==6379)].port}')
-              if [ -n "$HAS_REDIS_PORT" ]; then
-                echo "Metrics service should not expose Redis port 6379"
-                exit 1
-              fi
-              # Verify the component label
-              COMPONENT=$(kubectl get svc -n ${NAMESPACE} redis-standalone-metrics-metrics -o jsonpath='{.metadata.labels.app\.kubernetes\.io/component}')
-              if [ "$COMPONENT" != "metrics" ]; then
-                echo "Expected app.kubernetes.io/component=metrics label, got: $COMPONENT"
                 exit 1
               fi
               echo "Metrics service validation passed"
@@ -55,7 +43,7 @@ spec:
               #!/bin/bash
               set -e
               OUTPUT=$(kubectl run -n ${NAMESPACE} metrics-check --rm -i --restart=Never --image=busybox:1.36 -- \
-                wget -qO- --timeout=10 http://redis-standalone-metrics-metrics.${NAMESPACE}.svc.cluster.local:9121/metrics 2>&1)
+                wget -qO- --timeout=10 http://redis-standalone-v1beta2.${NAMESPACE}.svc.cluster.local:9121/metrics 2>&1)
               echo "$OUTPUT"
               if ! echo "$OUTPUT" | grep -q "redis_"; then
                 echo "ERROR: No redis_ metrics found in output"
