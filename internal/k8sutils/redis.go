@@ -116,10 +116,12 @@ func getEndpoint(ctx context.Context, client kubernetes.Interface, cr *rcvb2.Red
 	return host + ":" + strconv.Itoa(port)
 }
 
-// podExecFunc matches executeCommand's signature; it is injected into
-// executeSingleLeaderAddSlots so the command assembly and batching logic
-// can be unit tested without a live pod exec.
-type podExecFunc func(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, cmd []string, podName string)
+// podExecFunc matches executeCommandE's signature; it is injected into
+// executeSingleLeaderAddSlots and executeRedisReplicationCommand so the
+// command assembly and batching logic can be unit tested without a live pod
+// exec. It returns the exec error so callers that reconcile with retries can
+// propagate failures instead of only logging them.
+type podExecFunc func(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, cmd []string, podName string) error
 
 // checkRedisCLIAuthInEnv returns true if we can use the pod's REDISCLI_AUTH variable instead of sending redis-cli -a <password>.
 // It checks only variables specified via env[].valueFrom since this is what the operator sets; it does not look at envFrom.
@@ -208,7 +210,7 @@ func executeSingleLeaderAddSlots(ctx context.Context, client kubernetes.Interfac
 		cmd = append(cmd, flags...)
 		cmd = append(cmd, "CLUSTER", "ADDSLOTSRANGE", "0", "16383")
 		logger.V(1).Info("Executing CLUSTER ADDSLOTSRANGE 0 16383")
-		execute(ctx, client, cr, cmd, podName)
+		_ = execute(ctx, client, cr, cmd, podName)
 		return
 	}
 
@@ -227,7 +229,7 @@ func executeSingleLeaderAddSlots(ctx context.Context, client kubernetes.Interfac
 		}
 		logger.V(1).Info("Executing CLUSTER ADDSLOTS batch",
 			"SlotsRange", fmt.Sprintf("%d-%d", start, end-1))
-		execute(ctx, client, cr, cmd, podName)
+		_ = execute(ctx, client, cr, cmd, podName)
 	}
 }
 
@@ -427,7 +429,7 @@ func ExecuteRedisClusterCommand(ctx context.Context, client kubernetes.Interface
 		if err != nil {
 			log.FromContext(ctx).Error(err, "error executing failover command")
 		}
-		executeSingleLeaderAddSlots(ctx, client, cr, executeCommand)
+		executeSingleLeaderAddSlots(ctx, client, cr, executeCommandE)
 	default:
 		cmd := CreateMultipleLeaderRedisCommand(ctx, client, cr)
 		authArgs, err := getRedisClusterAuthArgs(ctx, client, cr, cr.Name+"-leader-0")
@@ -469,67 +471,79 @@ func getRedisTLSArgs(tlsConfig *commonapi.TLSConfig, clientHost string) []string
 }
 
 // createRedisReplicationCommand will create redis replication creation command
-func createRedisReplicationCommand(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, leaderPod RedisDetails, followerPod RedisDetails) []string {
+func createRedisReplicationCommand(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, leaderPod RedisDetails, followerPod RedisDetails) ([]string, error) {
 	cmd := []string{"redis-cli", "--cluster", "add-node"}
 	cmd = append(cmd, getEndpoint(ctx, client, cr, followerPod))
 	cmd = append(cmd, getEndpoint(ctx, client, cr, leaderPod))
 	cmd = append(cmd, "--cluster-slave")
 	authArgs, err := getRedisClusterAuthArgs(ctx, client, cr, leaderPod.PodName)
 	if err != nil {
-		log.FromContext(ctx).Error(err, "Failed to get password authentication arguments")
+		// Bail out instead of emitting an unauthenticated add-node command
+		// that is guaranteed to fail with NOAUTH.
+		return nil, fmt.Errorf("failed to get password authentication arguments: %w", err)
 	}
 	cmd = append(cmd, authArgs...)
 	cmd = append(cmd, getRedisTLSArgs(cr.Spec.TLS, leaderPod.PodName)...)
-	return cmd
+	return cmd, nil
 }
 
-// ExecuteRedisReplicationCommand will execute the replication command
-func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) {
-	var podIP string
+// ExecuteRedisReplicationCommand will execute the replication command that
+// joins every follower to the cluster as a replica of a leader. It returns an
+// error so the caller can rely on the reconcile retry/backoff instead of
+// retrying inside this function.
+func ExecuteRedisReplicationCommand(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster) error {
+	return executeRedisReplicationCommand(ctx, client, cr, executeCommandE)
+}
+
+// executeRedisReplicationCommand walks every follower once, round-robin
+// pairing follower i with leader i%leaderCounts. The loop condition is the
+// only place followerIdx advances, so no failure path can stall progress: an
+// unreachable follower or a failed add-node exec surfaces as an error and the
+// caller retries with reconcile backoff.
+func executeRedisReplicationCommand(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, executeCmd podExecFunc) error {
 	followerCounts := cr.Spec.GetReplicaCounts("follower")
 	leaderCounts := cr.Spec.GetReplicaCounts("leader")
-	followerPerLeader := followerCounts / leaderCounts
 
 	redisClient := configureRedisClient(ctx, client, cr, cr.Name+"-leader-0")
 	defer redisClient.Close()
 
 	nodes, err := clusterNodes(ctx, redisClient)
 	if err != nil {
-		log.FromContext(ctx).Error(err, "failed to get cluster nodes")
+		return fmt.Errorf("failed to get cluster nodes: %w", err)
 	}
-	for followerIdx := 0; followerIdx <= int(followerCounts)-1; {
-		for i := 0; i < int(followerPerLeader) && followerIdx <= int(followerCounts)-1; i++ {
-			followerPod := RedisDetails{
-				PodName:   cr.Name + "-follower-" + strconv.Itoa(followerIdx),
-				Namespace: cr.Namespace,
-			}
-			leaderPod := RedisDetails{
-				PodName:   cr.Name + "-leader-" + strconv.Itoa((followerIdx)%int(leaderCounts)),
-				Namespace: cr.Namespace,
-			}
-			podIP = getRedisServerIP(ctx, client, followerPod)
-			if !checkRedisNodePresence(ctx, nodes, podIP) {
-				log.FromContext(ctx).V(1).Info("Adding node to cluster.", "Node.IP", podIP, "Follower.Pod", followerPod)
-				cmd := createRedisReplicationCommand(ctx, client, cr, leaderPod, followerPod)
-				redisClient := configureRedisClient(ctx, client, cr, followerPod.PodName)
-				pong, err := redisClient.Ping(ctx).Result()
-				redisClient.Close()
-				if err != nil {
-					log.FromContext(ctx).Error(err, "Failed to ping Redis server", "Follower.Pod", followerPod)
-					continue
-				}
-				if pong == "PONG" {
-					executeCommand(ctx, client, cr, cmd, cr.Name+"-leader-0")
-				} else {
-					log.FromContext(ctx).V(1).Info("Skipping execution of command due to failed Redis ping", "Follower.Pod", followerPod)
-				}
-			} else {
-				log.FromContext(ctx).V(1).Info("Skipping Adding node to cluster, already present.", "Follower.Pod", followerPod)
-			}
-
-			followerIdx++
+	for followerIdx := 0; followerIdx < int(followerCounts); followerIdx++ {
+		followerPod := RedisDetails{
+			PodName:   cr.Name + "-follower-" + strconv.Itoa(followerIdx),
+			Namespace: cr.Namespace,
+		}
+		leaderPod := RedisDetails{
+			PodName:   cr.Name + "-leader-" + strconv.Itoa((followerIdx)%int(leaderCounts)),
+			Namespace: cr.Namespace,
+		}
+		podIP := getRedisServerIP(ctx, client, followerPod)
+		if checkRedisNodePresence(ctx, nodes, podIP) {
+			log.FromContext(ctx).V(1).Info("Skipping Adding node to cluster, already present.", "Node.IP", podIP, "Follower.Pod", followerPod)
+			continue
+		}
+		cmd, err := createRedisReplicationCommand(ctx, client, cr, leaderPod, followerPod)
+		if err != nil {
+			return fmt.Errorf("failed to build add-node command for follower %s: %w", followerPod.PodName, err)
+		}
+		followerClient := configureRedisClient(ctx, client, cr, followerPod.PodName)
+		pong, err := followerClient.Ping(ctx).Result()
+		followerClient.Close()
+		if err != nil {
+			return fmt.Errorf("failed to ping follower %s: %w", followerPod.PodName, err)
+		}
+		if pong != "PONG" {
+			log.FromContext(ctx).V(1).Info("Skipping execution of command due to failed Redis ping", "Follower.Pod", followerPod)
+			continue
+		}
+		if err := executeCmd(ctx, client, cr, cmd, cr.Name+"-leader-0"); err != nil {
+			return fmt.Errorf("failed to add follower %s to the cluster: %w", followerPod.PodName, err)
 		}
 	}
+	return nil
 }
 
 type clusterNodesResponse []string
@@ -822,14 +836,23 @@ func configureRedisStandaloneClient(ctx context.Context, client kubernetes.Inter
 	return redis.NewClient(opts)
 }
 
-// executeCommand will execute the commands in pod
+// executeCommand will execute the commands in pod, logging any failure.
 func executeCommand(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, cmd []string, podName string) {
+	_ = executeCommandE(ctx, client, cr, cmd, podName)
+}
+
+// executeCommandE executes a command in a pod and returns the error instead of
+// swallowing it, so callers that reconcile with retries (e.g.
+// executeRedisReplicationCommand) can propagate failures. The error is also
+// logged with the command and output for operator context.
+func executeCommandE(ctx context.Context, client kubernetes.Interface, cr *rcvb2.RedisCluster, cmd []string, podName string) error {
 	execOut, execErr := executeCommand1(ctx, client, cr, cmd, podName)
 	if execErr != nil {
 		log.FromContext(ctx).Error(execErr, "Could not execute command", "Command", cmd, "Output", execOut)
-		return
+		return execErr
 	}
 	log.FromContext(ctx).V(1).Info("Successfully executed the command", "Command", cmd, "Output", execOut)
+	return nil
 }
 
 // defaultExecCommandTimeout bounds a single exec stream against a redis pod. It is generous
@@ -866,6 +889,9 @@ func executeCommand1(ctx context.Context, client kubernetes.Interface, cr *rcvb2
 	}
 	targetContainer, pod := getContainerID(ctx, client, cr, podName)
 	if targetContainer < 0 {
+		// getContainerID logs the underlying cause; surface a real error so a
+		// missing pod cannot be mistaken for a successful exec.
+		err = fmt.Errorf("could not find pod %s/%s or its leader container", cr.Namespace, podName)
 		log.FromContext(ctx).Error(err, "Could not find pod to execute")
 		return "", err
 	}
