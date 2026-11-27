@@ -1,0 +1,10 @@
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: redis-replication-pdb-s
+spec:
+  maxUnavailable: 1
+  (minAvailable == null): true
+status:
+  expectedPods: 3

@@ -353,6 +353,7 @@ _Appears in:_
 - [RedisLeader](#redisleader)
 - [RedisReplicationSpec](#redisreplicationspec)
 - [RedisSentinelSpec](#redissentinelspec)
+- [Sentinel](#sentinel)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
@@ -576,6 +577,7 @@ _Appears in:_
 | `priorityClassName` _string_ |  |  |  |
 | `terminationGracePeriodSeconds` _integer_ |  |  |  |
 | `serviceAccountName` _string_ |  |  |  |
+| `pdb` _[RedisPodDisruptionBudget](#redispoddisruptionbudget)_ | PodDisruptionBudget configures a PodDisruptionBudget for the Sentinel pods.<br />The top-level spec.pdb covers only the Redis pods. |  |  |
 
 
 #### SentinelConfig

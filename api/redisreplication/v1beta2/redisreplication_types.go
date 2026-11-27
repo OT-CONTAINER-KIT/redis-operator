@@ -55,6 +55,10 @@ type Sentinel struct {
 	PriorityClassName             string                            `json:"priorityClassName,omitempty"`
 	TerminationGracePeriodSeconds *int64                            `json:"terminationGracePeriodSeconds,omitempty"`
 	ServiceAccountName            *string                           `json:"serviceAccountName,omitempty"`
+	// PodDisruptionBudget configures a PodDisruptionBudget for the Sentinel pods.
+	// The top-level spec.pdb covers only the Redis pods.
+	// +optional
+	PodDisruptionBudget *common.RedisPodDisruptionBudget `json:"pdb,omitempty"`
 }
 
 func (cr *RedisReplicationSpec) GetReplicationCounts(t string) int32 {

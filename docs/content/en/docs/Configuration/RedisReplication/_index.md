@@ -80,6 +80,9 @@ Redis replication configuration can be customized by [values.yaml](https://githu
 | sentinel.announceHostnames | string | `"no"` | Whether Sentinel announces hostnames to clients |
 | sentinel.redisSecret.secretName | string | `""` | Secret containing the Sentinel password (`requirepass` on port 26379) |
 | sentinel.redisSecret.secretKey | string | `""` | Key in the secret containing the Sentinel password |
+| sentinel.pdb.enabled | bool | `false` | Creates a PodDisruptionBudget for the Sentinel pods, named after the Sentinel StatefulSet. The top-level `pdb` covers only the Redis pods |
+| sentinel.pdb.minAvailable | int | `null` | Minimum number of Sentinel pods that must stay available. With neither this nor `maxUnavailable` set, a majority of the Sentinels |
+| sentinel.pdb.maxUnavailable | int | `null` | Maximum number of Sentinel pods that can be unavailable. Takes precedence over `minAvailable` |
 
 ## RedisReplication Instance Configuration
 

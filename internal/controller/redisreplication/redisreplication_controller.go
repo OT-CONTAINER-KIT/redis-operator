@@ -307,6 +307,9 @@ func (r *Reconciler) reconcileResources(ctx context.Context, instance *rrvb2.Red
 			return intctrlutil.RequeueE(ctx, err, "")
 		}
 	}
+	if err := r.reconcileSentinelPodDisruptionBudget(ctx, instance); err != nil {
+		return intctrlutil.RequeueE(ctx, err, "")
+	}
 	return intctrlutil.Reconciled()
 }
 

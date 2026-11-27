@@ -1,0 +1,12 @@
+---
+# A budget a user created by hand under the name the operator would use.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: redis-replication-pdb-s
+spec:
+  maxUnavailable: 2
+  selector:
+    matchLabels:
+      app: redis-replication-pdb-s
+      role: sentinel

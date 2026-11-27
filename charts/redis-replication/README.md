@@ -100,13 +100,16 @@ helm delete <my-release> --namespace <namespace>
 | redisReplication.serviceType | string | `"ClusterIP"` |  |
 | redisReplication.tag | string | `"v7.0.15"` |  |
 | securityContext | object | `{}` |  |
-| sentinel | object | `{"affinity":{},"announceHostnames":"no","downAfterMilliseconds":"5000","enabled":false,"failoverTimeout":"10000","ignoreAnnotations":[],"image":"quay.io/opstree/redis-sentinel","imagePullPolicy":"IfNotPresent","minReadySeconds":0,"nodeSelector":{},"parallelSyncs":"1","persistentVolumeClaimRetentionPolicy":{},"podSecurityContext":{},"priorityClassName":"","redisSecret":{"secretKey":"","secretName":""},"resolveHostnames":"no","resources":{},"securityContext":{},"serviceAccountName":"","size":3,"tag":"v7.0.15","terminationGracePeriodSeconds":null,"tolerations":[],"topologySpreadConstraints":[]}` | Sentinel configuration for automatic failover. When enabled, the operator creates a Sentinel StatefulSet alongside the replication pods. The operator queries Sentinel for the current master instead of forcing master-by-ordinal. |
+| sentinel | object | `{"affinity":{},"announceHostnames":"no","downAfterMilliseconds":"5000","enabled":false,"failoverTimeout":"10000","ignoreAnnotations":[],"image":"quay.io/opstree/redis-sentinel","imagePullPolicy":"IfNotPresent","minReadySeconds":0,"nodeSelector":{},"parallelSyncs":"1","pdb":{"enabled":false,"maxUnavailable":null,"minAvailable":null},"persistentVolumeClaimRetentionPolicy":{},"podSecurityContext":{},"priorityClassName":"","redisSecret":{"secretKey":"","secretName":""},"resolveHostnames":"no","resources":{},"securityContext":{},"serviceAccountName":"","size":3,"tag":"v7.0.15","terminationGracePeriodSeconds":null,"tolerations":[],"topologySpreadConstraints":[]}` | Sentinel configuration for automatic failover. When enabled, the operator creates a Sentinel StatefulSet alongside the replication pods. The operator queries Sentinel for the current master instead of forcing master-by-ordinal. |
 | sentinel.affinity | object | `{}` | Affinity rules for Sentinel pods, e.g. anti-affinity to keep them off the Redis nodes. |
 | sentinel.announceHostnames | string | `"no"` | Whether Sentinel announces hostnames instead of IPs to clients |
 | sentinel.downAfterMilliseconds | string | `"5000"` | Time in milliseconds before master is considered down |
 | sentinel.failoverTimeout | string | `"10000"` | Failover timeout in milliseconds |
 | sentinel.nodeSelector | object | `{}` | Node selector for scheduling Sentinel pods. |
 | sentinel.parallelSyncs | string | `"1"` | Number of replicas to reconfigure in parallel during failover |
+| sentinel.pdb.enabled | bool | `false` | Create a PodDisruptionBudget for the Sentinel pods. The top-level `pdb` covers only the Redis pods. |
+| sentinel.pdb.maxUnavailable | string | `nil` | Maximum number of Sentinel pods that can be unavailable. Takes precedence over minAvailable. |
+| sentinel.pdb.minAvailable | string | `nil` | Minimum number of Sentinel pods that must stay available. With neither this nor maxUnavailable set, a majority of the Sentinels. |
 | sentinel.podSecurityContext | object | `{}` | Pod-level security context for Sentinel pods. |
 | sentinel.priorityClassName | string | `""` | PriorityClass name for Sentinel pods. |
 | sentinel.redisSecret | object | `{"secretKey":"","secretName":""}` | Secret holding the Sentinel password (requirepass on port 26379). The password Sentinel uses towards Redis always comes from redisReplication.redisSecret. |

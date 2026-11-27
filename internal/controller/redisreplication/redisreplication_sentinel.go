@@ -11,12 +11,14 @@ import (
 	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/poddisruptionbudget"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/statefulset"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/envs"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/service/redis"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
@@ -109,6 +111,55 @@ func newSentinelStatefulSet(rr *rrvb2.RedisReplication, svcName string) appsv1.S
 		ServiceName:     svcName,
 		PodTemplateSpec: buildSentinelPodTemplate(rr, labels),
 	})
+}
+
+// newSentinelPodDisruptionBudget returns the budget for the Sentinel pods,
+// named after their StatefulSet. With neither maxUnavailable nor minAvailable
+// set it keeps a majority of the Sentinels, the quorum failover needs.
+func newSentinelPodDisruptionBudget(rr *rrvb2.RedisReplication) policyv1.PodDisruptionBudget {
+	labels := common.GetRedisLabels(
+		rr.SentinelStatefulSet(),
+		common.SetupTypeSentinel,
+		"sentinel",
+		rr.GetLabels(),
+	)
+	pdb := policyv1.PodDisruptionBudget{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      rr.SentinelStatefulSet(),
+			Namespace: rr.Namespace,
+			Labels:    labels,
+		},
+		Spec: policyv1.PodDisruptionBudgetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app":  rr.SentinelStatefulSet(),
+					"role": "sentinel",
+				},
+			},
+		},
+	}
+	params := rr.Spec.Sentinel.PodDisruptionBudget
+	switch {
+	case params.MaxUnavailable != nil:
+		pdb.Spec.MaxUnavailable = ptr.To(intstr.FromInt32(*params.MaxUnavailable))
+	case params.MinAvailable != nil:
+		pdb.Spec.MinAvailable = ptr.To(intstr.FromInt32(*params.MinAvailable))
+	default:
+		pdb.Spec.MinAvailable = ptr.To(intstr.FromInt32(rr.Spec.Sentinel.Size/2 + 1))
+	}
+	return pdb
+}
+
+// reconcileSentinelPodDisruptionBudget creates the Sentinel budget when it is
+// enabled and removes it once it is disabled or Sentinel is turned off.
+func (r *Reconciler) reconcileSentinelPodDisruptionBudget(ctx context.Context, rr *rrvb2.RedisReplication) error {
+	if rr.EnableSentinel() {
+		if params := rr.Spec.Sentinel.PodDisruptionBudget; params != nil && params.Enabled {
+			_, err := poddisruptionbudget.Reconcile(ctx, r.Client, newSentinelPodDisruptionBudget(rr), rr)
+			return err
+		}
+	}
+	return poddisruptionbudget.Delete(ctx, r.Client, rr.Namespace, rr.SentinelStatefulSet(), rr)
 }
 
 func buildSentinelPodTemplate(rr *rrvb2.RedisReplication, labels map[string]string) corev1.PodTemplateSpec {
