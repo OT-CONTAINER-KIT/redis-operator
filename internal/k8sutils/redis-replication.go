@@ -217,6 +217,7 @@ func generateRedisReplicationContainerParams(ctx context.Context, cr *rrvb2.Redi
 		containerProp.SentinelService = cr.SentinelHLService()
 		containerProp.SentinelMasterName = cr.SentinelMasterName()
 		containerProp.SentinelPort = 26379
+		containerProp.SentinelPasswordSecret = cr.Spec.Sentinel.ExistingPasswordSecret
 		containerProp.PreStopWaitSeconds = preStopWaitSeconds(cr.Spec.TerminationGracePeriodSeconds)
 	}
 	resolve, announce := sentinelHostnameSettings(ctx, ctrlClient, cr)

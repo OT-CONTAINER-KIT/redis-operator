@@ -1,0 +1,14 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-replication-tls-s-tls
+  ownerReferences:
+    - apiVersion: redis.redis.opstreelabs.in/v1beta2
+      controller: true
+      kind: RedisReplication
+      name: redis-replication-tls
+data:
+  redis-sentinel-additional.conf: |
+    tls-replication yes
+    tls-auth-clients yes

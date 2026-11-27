@@ -1,0 +1,18 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-replication-tls
+status:
+  readyReplicas: 3
+  replicas: 3
+---
+# Readiness now comes from a redis-cli PING over TLS with the replication's
+# certificate, so a ready Sentinel answers on its TLS port.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-replication-tls-s
+status:
+  readyReplicas: 3
+  replicas: 3

@@ -156,6 +156,10 @@ type containerParameters struct {
 	SentinelService    string
 	SentinelMasterName string
 	SentinelPort       int
+	// SentinelPasswordSecret is the embedded Sentinel's own password
+	// (spec.sentinel.redisSecret). The preStop hook authenticates its
+	// SENTINEL FAILOVER call with it, not with the Redis password.
+	SentinelPasswordSecret *commonapi.ExistingPasswordSecret
 	// PreStopWaitSeconds is not Sentinel-specific: it is populated for the
 	// "replication" role and for every RedisCluster leader and follower, and
 	// bounds the demotion wait in whichever preStop hook is installed.
@@ -489,8 +493,8 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 				containerParams.Resources,
 				containerParams.MaxMemoryPercentOfLimit,
 			),
-			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe, sentinelCntr, enableTLS),
-			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe, sentinelCntr, enableTLS),
+			ReadinessProbe: GetProbeInfo(containerParams.ReadinessProbe, sentinelCntr, enableTLS),
+			LivenessProbe:  GetProbeInfo(containerParams.LivenessProbe, sentinelCntr, enableTLS),
 			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, clusterMode, nodeConfVolume, externalConfig, mountpath, containerParams.TLSConfig, containerParams.ACLConfig),
 		},
 	}
@@ -514,6 +518,17 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 		WaitSeconds:        containerParams.PreStopWaitSeconds,
 	}
 	if preStopCmd := GeneratePreStopCommand(preStopCfg); preStopCmd != "" {
+		if secret := containerParams.SentinelPasswordSecret; preStopCfg.Role == "replication" && secret != nil && secret.Name != nil && secret.Key != nil {
+			containerDefinition[0].Env = append(containerDefinition[0].Env, corev1.EnvVar{
+				Name: sentinelCLIAuthEnv,
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{Name: *secret.Name},
+						Key:                  *secret.Key,
+					},
+				},
+			})
+		}
 		containerDefinition[0].Lifecycle = &corev1.Lifecycle{
 			PreStop: &corev1.LifecycleHandler{
 				Exec: &corev1.ExecAction{
@@ -580,6 +595,28 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 // The -n guard keeps the variable unset on password-less deployments, where
 // exporting an empty value would make redis-cli send AUTH with an empty password.
 const redisCLIAuthSanitizer = `if [ -n "${REDISCLI_AUTH:-}" ]; then REDISCLI_AUTH="$(printf %s "$REDISCLI_AUTH" | tr -d '\r\n')"; export REDISCLI_AUTH; fi`
+
+// sentinelCLIAuthEnv carries spec.sentinel.redisSecret into the Redis pods of
+// a RedisReplication with an embedded Sentinel. The Sentinel's requirepass is
+// that password, not the Redis one in REDISCLI_AUTH, so the preStop hook must
+// switch to it for SENTINEL FAILOVER.
+const sentinelCLIAuthEnv = "SENTINEL_REDISCLI_AUTH"
+
+// sentinelCLIFunc defines sentinel_cli, which runs redis-cli against the
+// Sentinel with the Sentinel password instead of the Redis one. It runs in a
+// subshell so the Redis password stays in REDISCLI_AUTH for the local calls.
+// Without a Sentinel password REDISCLI_AUTH is unset rather than emptied: an
+// empty value still makes redis-cli send AUTH, which a password-less Sentinel
+// rejects. The password is trimmed of CR/LF like REDISCLI_AUTH (see
+// redisCLIAuthSanitizer).
+const sentinelCLIFunc = `sentinel_cli() (
+    unset REDISCLI_AUTH
+    if [ -n "${` + sentinelCLIAuthEnv + `:-}" ]; then
+        REDISCLI_AUTH="$(printf %s "$` + sentinelCLIAuthEnv + `" | tr -d '\r\n')"
+        export REDISCLI_AUTH
+    fi
+    exec redis-cli "$@"
+)`
 
 // PreStopConfig holds the inputs needed to render a container preStop hook.
 type PreStopConfig struct {
@@ -770,6 +807,15 @@ fi`, redisCLIAuthSanitizer, tlsArgs, tlsArgs, tlsArgs, demotionWaitLoop(tlsArgs,
 // failover: SENTINEL FAILOVER replies -NOGOODSLAVE when no replica is eligible
 // and -INPROGRESS when one is already running, and in neither case does waiting
 // for this node's demotion achieve anything.
+//
+// With TLS the embedded Sentinel only listens on TLS and requires a client
+// certificate, so the SENTINEL FAILOVER call carries the same TLS arguments as
+// the local calls; without them it fails and the hook never fails over.
+//
+// The SENTINEL FAILOVER call authenticates with the Sentinel's own password
+// (spec.sentinel.redisSecret) through sentinel_cli, not with the Redis
+// password: with distinct passwords Sentinel answers WRONGPASS and the hook
+// exits without failing over.
 func generateReplicationPreStop(tlsArgs string, cfg PreStopConfig) string {
 	sentinelPort := cfg.SentinelPort
 	if sentinelPort == 0 {
@@ -778,10 +824,11 @@ func generateReplicationPreStop(tlsArgs string, cfg PreStopConfig) string {
 	waitSeconds := max(cfg.WaitSeconds, 1)
 	return fmt.Sprintf(`#!/bin/sh
 %s
+%s
 ROLE=$(redis-cli -h $(hostname) -p ${REDIS_PORT} %s info replication | awk -F: '/role:master/ {print "master"}')
 
 if [ "$ROLE" = "master" ]; then
-    FAILOVER_RESULT=$(redis-cli -h "%s" -p %d SENTINEL FAILOVER %s 2>&1)
+    FAILOVER_RESULT=$(sentinel_cli -h "%s" -p %d%s SENTINEL FAILOVER %s 2>&1)
     case "$FAILOVER_RESULT" in
         OK*) ;;
         *)
@@ -792,7 +839,7 @@ if [ "$ROLE" = "master" ]; then
     esac
 
     %s
-fi`, redisCLIAuthSanitizer, tlsArgs, cfg.SentinelService, sentinelPort, cfg.SentinelMasterName, demotionWaitLoop(tlsArgs, waitSeconds, "    "))
+fi`, redisCLIAuthSanitizer, sentinelCLIFunc, tlsArgs, cfg.SentinelService, sentinelPort, tlsArgs, cfg.SentinelMasterName, demotionWaitLoop(tlsArgs, waitSeconds, "    "))
 }
 
 func generateInitContainerDef(role, name string, initcontainerParams initContainerParameters, externalConfig *string, mountpath []corev1.VolumeMount, containerParams containerParameters, clusterVersion *string) []corev1.Container {
@@ -899,6 +946,25 @@ func GenerateTLSEnvironmentVariables(tlsconfig *commonapi.TLSConfig) []corev1.En
 		Value: path.Join(root, tlsCertKey),
 	})
 	return envVars
+}
+
+// GenerateSentinelTLSEnvironmentVariables returns the TLS environment of a
+// Sentinel container whose config is rendered by the sentinel image's
+// entrypoint (entrypoint-sentinel.sh). That entrypoint reads the CA path from
+// REDIS_TLS_CA_KEY, not REDIS_TLS_CA_CERT, and always writes it to
+// tls-ca-cert-file, so the CA is set even without an explicit tlsConfig.CaCertFile:
+// Sentinel cannot verify Redis or its peers over TLS without one. The same
+// path is also exported as REDIS_TLS_CA_CERT, which the GetProbeInfo probes read.
+func GenerateSentinelTLSEnvironmentVariables(tlsconfig *commonapi.TLSConfig) []corev1.EnvVar {
+	root := "/tls/"
+	caCert, tlsCert, tlsCertKey := getTLSSecretKeys(tlsconfig)
+	return []corev1.EnvVar{
+		{Name: "TLS_MODE", Value: "true"},
+		{Name: "REDIS_TLS_CA_KEY", Value: path.Join(root, caCert)},
+		{Name: "REDIS_TLS_CA_CERT", Value: path.Join(root, caCert)},
+		{Name: "REDIS_TLS_CERT", Value: path.Join(root, tlsCert)},
+		{Name: "REDIS_TLS_CERT_KEY", Value: path.Join(root, tlsCertKey)},
+	}
 }
 
 // enableRedisMonitoring will add Redis Exporter as sidecar container
@@ -1054,10 +1120,13 @@ func generateACLVolumeMount(aclConfig *commonapi.ACLConfig, readOnly bool) *core
 	}
 }
 
-// getProbeInfo generate probe for Redis StatefulSet
+// GetProbeInfo generate probe for Redis StatefulSet
 // The `ping` command will exit successfully even if the node is loading,
 // so we need to verify that the Redis `ping` command returns "PONG".
-func getProbeInfo(probe *corev1.Probe, sentinel, enableTLS bool) *corev1.Probe {
+// The rendered command reads REDIS_PORT or SENTINEL_PORT, REDISCLI_AUTH and,
+// with TLS, REDIS_TLS_CERT, REDIS_TLS_CERT_KEY and REDIS_TLS_CA_CERT from the
+// container environment.
+func GetProbeInfo(probe *corev1.Probe, sentinel, enableTLS bool) *corev1.Probe {
 	if probe == nil {
 		probe = &corev1.Probe{}
 	}

@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
+	"fmt"
 	"strings"
 
 	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
@@ -31,16 +32,53 @@ func getRedisPassword(ctx context.Context, client kubernetes.Interface, namespac
 	return "", nil
 }
 
-func getRedisTLSConfig(ctx context.Context, client kubernetes.Interface, namespace string, tlsConfig *commonapi.TLSConfig) *tls.Config {
+// GetRedisTLSConfig builds the client TLS config the operator uses towards
+// Redis pods from the TLS secret: the secret's certificate is presented as the
+// client certificate and the peer chain is verified against its CA without
+// checking the hostname. When the CA key is not set explicitly and the secret
+// has no ca.crt, the chain is verified against the system trust store instead.
+// It returns nil when TLS is not configured, and also when the secret cannot
+// be used, after logging why; callers that require TLS must treat nil as an
+// error.
+func GetRedisTLSConfig(ctx context.Context, client kubernetes.Interface, namespace string, tlsConfig *commonapi.TLSConfig) *tls.Config {
 	if tlsConfig == nil || tlsConfig.Secret.SecretName == "" {
 		return nil
 	}
-
-	tlsSecretName := tlsConfig.Secret.SecretName
-	secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), tlsSecretName, metav1.GetOptions{})
+	// An explicitly configured CA key that is missing is a misconfiguration;
+	// an implicit one falls back to the system trust store.
+	config, err := tlsConfigFromSecret(ctx, client, namespace, tlsConfig, tlsConfig.CaCertFile != "")
 	if err != nil {
-		logf.FromContext(ctx).Error(err, "Failed in getting TLS secret", "secretName", tlsSecretName, "namespace", namespace)
+		logf.FromContext(ctx).Error(err, "Failed to build TLS config", "secretName", tlsConfig.Secret.SecretName, "namespace", namespace)
 		return nil
+	}
+	return config
+}
+
+// GetSentinelTLSConfig builds the client TLS config for operator connections
+// to the RedisReplication embedded Sentinel. Unlike GetRedisTLSConfig it never
+// falls back to the system trust store: the Sentinel pods are configured with
+// the secret's CA, and hostname verification is skipped, so trusting public
+// roots would accept any publicly issued certificate. A secret without the CA,
+// for example mid-rotation, is an error. It returns nil and no error when TLS
+// is not configured.
+func GetSentinelTLSConfig(ctx context.Context, client kubernetes.Interface, namespace string, tlsConfig *commonapi.TLSConfig) (*tls.Config, error) {
+	if tlsConfig == nil {
+		return nil, nil
+	}
+	if tlsConfig.Secret.SecretName == "" {
+		return nil, errors.New("TLS secret name is not set")
+	}
+	return tlsConfigFromSecret(ctx, client, namespace, tlsConfig, true)
+}
+
+// tlsConfigFromSecret reads the TLS secret once, so the client certificate and
+// the CA always come from the same version of it. Without requireCA a secret
+// that lacks the CA key falls back to the system trust store.
+func tlsConfigFromSecret(ctx context.Context, client kubernetes.Interface, namespace string, tlsConfig *commonapi.TLSConfig, requireCA bool) (*tls.Config, error) {
+	tlsSecretName := tlsConfig.Secret.SecretName
+	secret, err := client.CoreV1().Secrets(namespace).Get(ctx, tlsSecretName, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("get TLS secret %s/%s: %w", namespace, tlsSecretName, err)
 	}
 
 	caFile, certFile, keyFile := getTLSSecretKeys(tlsConfig)
@@ -49,40 +87,32 @@ func getRedisTLSConfig(ctx context.Context, client kubernetes.Interface, namespa
 	tlsCaCertificate, caExists := secret.Data[caFile]
 
 	if !certExists || !keyExists {
-		logf.FromContext(ctx).Error(errors.New("required TLS cert or key is missing in the secret"), "Missing TLS cert/key in the secret")
-		return nil
+		return nil, fmt.Errorf("TLS secret %s/%s is missing the %q or %q key", namespace, tlsSecretName, certFile, keyFile)
 	}
 
 	cert, err := tls.X509KeyPair(tlsClientCert, tlsClientKey)
 	if err != nil {
-		logf.FromContext(ctx).Error(err, "Couldn't load TLS client key pair", "secretName", tlsSecretName, "namespace", namespace)
-		return nil
-	}
-
-	// If user explicitly set CA key and it is missing, treat this as misconfiguration.
-	if !caExists && tlsConfig.CaCertFile != "" {
-		logf.FromContext(ctx).Error(errors.New("configured TLS CA key file is missing in the secret"), "Missing configured TLS CA in the secret", "caKeyFile", tlsConfig.CaCertFile)
-		return nil
+		return nil, fmt.Errorf("load TLS client key pair from secret %s/%s: %w", namespace, tlsSecretName, err)
 	}
 
 	if !caExists {
+		if requireCA {
+			return nil, fmt.Errorf("TLS secret %s/%s is missing the CA key %q", namespace, tlsSecretName, caFile)
+		}
 		logf.FromContext(ctx).V(1).Info("CA certificate not found in TLS secret, using system trust store", "secretName", tlsSecretName)
 		systemCertPool, err := x509.SystemCertPool()
 		if err != nil {
-			logf.FromContext(ctx).Error(err, "Failed to load system certificate pool", "secretName", tlsSecretName)
-			return nil
+			return nil, fmt.Errorf("load system certificate pool: %w", err)
 		}
-		return newTLSConfigVerifyingChainWithoutHostname(cert, systemCertPool)
+		return newTLSConfigVerifyingChainWithoutHostname(cert, systemCertPool), nil
 	}
 
 	tlsCaCertificates := x509.NewCertPool()
-	ok := tlsCaCertificates.AppendCertsFromPEM(tlsCaCertificate)
-	if !ok {
-		logf.FromContext(ctx).Error(errors.New("invalid CA certificate"), "Invalid CA Certificates", "secretName", tlsSecretName, "namespace", namespace)
-		return nil
+	if !tlsCaCertificates.AppendCertsFromPEM(tlsCaCertificate) {
+		return nil, fmt.Errorf("TLS secret %s/%s has no valid PEM certificate under the CA key %q", namespace, tlsSecretName, caFile)
 	}
 
-	return newTLSConfigVerifyingChainWithoutHostname(cert, tlsCaCertificates)
+	return newTLSConfigVerifyingChainWithoutHostname(cert, tlsCaCertificates), nil
 }
 
 // newTLSConfigVerifyingChainWithoutHostname builds a client *tls.Config that

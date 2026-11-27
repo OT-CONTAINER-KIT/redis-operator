@@ -138,6 +138,7 @@ When `spec.sentinel` is set, two secrets control authentication:
 
 - `spec.kubernetesConfig.redisSecret` is the Redis password. The embedded Sentinel uses it as `auth-pass` towards the monitored master; it is passed to the Sentinel pod as `MASTER_PASSWORD`, and the operator sets it again with `SENTINEL SET mymaster auth-pass` whenever it points Sentinel at a new master address.
 - `spec.sentinel.redisSecret` is the Sentinel's own password (`requirepass` on port 26379), the same role `kubernetesConfig.redisSecret` plays on a standalone `RedisSentinel`. It is passed to the Sentinel pod as `REDIS_PASSWORD`; the operator authenticates to Sentinel with it, and Sentinel-aware clients must send it as well. When it is omitted, the Sentinel port accepts unauthenticated connections.
+- The preStop hook of the Redis pods runs `SENTINEL FAILOVER` when the master is terminated. It authenticates to Sentinel with `spec.sentinel.redisSecret`, which is passed to the Redis pods as `SENTINEL_REDISCLI_AUTH`, and sends no password when it is omitted. The two secrets may hold different passwords.
 
 Previously `spec.sentinel.redisSecret` only changed the boot-time `MASTER_PASSWORD` and the Sentinel port was always unauthenticated. If you already set it, upgrading enables `requirepass` on the Sentinel pods, so clients that discover the master through Sentinel must start sending that password.
 
@@ -159,6 +160,46 @@ spec:
     redisSecret:
       name: redis-sentinel-secret
       key: password
+```
+
+## Embedded Sentinel Probes
+
+The Sentinel container has readiness and liveness probes that run `redis-cli PING` against port 26379 and expect `PONG`, authenticating with `spec.sentinel.redisSecret` when it is set and using TLS when `spec.TLS` is set. A Sentinel pod is ready only once it answers. The operator waits for all Sentinel pods to be ready before configuring replication and asks only ready Sentinels which master they monitor.
+
+## Embedded Sentinel TLS
+
+When `spec.TLS` is set, the embedded Sentinel uses the same TLS secret as the Redis pods:
+
+- The secret is mounted at `/tls` in the Sentinel pods, which listen only on TLS (port 26379) and require a client certificate.
+- Sentinel connects to Redis and to the other Sentinels over TLS, presenting the same certificate.
+- The operator connects to Sentinel over TLS with that certificate as well. It verifies the certificate chain against the CA in the secret but not the hostname, as it does for the Redis pods.
+
+Because one certificate is used as both server and client certificate, it must be valid for both: either it has no extended key usage, or it lists both `server auth` and `client auth`. The secret must contain the CA certificate (`ca.crt`, or the key named in `spec.TLS.ca`). Sentinel needs it to verify Redis and its peers, and the operator verifies Sentinel against it, so unlike the Redis connections neither falls back to the system trust store. While the CA is missing from the secret, for example during a rotation, the operator does not connect to Sentinel and retries on the next reconcile.
+
+The sentinel image only configures the TLS listener, so the operator adds `tls-replication yes` and `tls-auth-clients yes` through an owned ConfigMap named `<name>-s-tls`. The image includes that file as the last line of `sentinel.conf`. If a ConfigMap with that name already exists and is not controlled by the RedisReplication, the operator leaves it untouched and reports an error instead of taking it over. `spec.sentinel.additionalSentinelConfig` is not applied to the embedded Sentinel.
+
+Sentinel-aware clients must connect to the Sentinel service over TLS and present a client certificate signed by the same CA.
+
+When the certificate is reissued, the operator uses the new one from its next reconcile on, because it reads the secret every time it connects. The secret is mounted as a directory, so the files in the Sentinel pods are updated too, but a running Sentinel keeps the certificate it loaded at startup: Sentinel has no `CONFIG` command, and `SENTINEL CONFIG SET` does not accept the TLS settings. Restart the Sentinel pods one at a time, each after the previous one is ready again, before the old certificate expires. Sentinels with the old and the new certificate keep working together as long as both are signed by the same CA. The Redis pods likewise keep the certificate they loaded until they restart.
+
+```yaml
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisReplication
+metadata:
+  name: redis-replication
+spec:
+  clusterSize: 3
+  TLS:
+    ca: ca.crt
+    cert: tls.crt
+    key: tls.key
+    secret:
+      secretName: redis-tls-cert
+  kubernetesConfig:
+    image: quay.io/opstree/redis:latest
+  sentinel:
+    size: 3
+    image: quay.io/opstree/redis-sentinel:latest
 ```
 
 ## ACL Configuration

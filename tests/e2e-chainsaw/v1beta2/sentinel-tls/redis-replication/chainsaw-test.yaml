@@ -1,0 +1,216 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: sentinel-tls-redis-replication
+spec:
+  steps:
+    - name: Deploy a TLS RedisReplication with the embedded Sentinel
+      description: >
+        The Sentinel pods reuse the replication's certificate, which is issued
+        for both server and client auth like the Redis certificates in practice.
+      try:
+        - script:
+            timeout: 10s
+            content: |
+              cat <<EOF | kubectl apply -f -
+              ---
+              apiVersion: cert-manager.io/v1
+              kind: Issuer
+              metadata:
+                name: selfsigned-issuer
+                namespace: ${NAMESPACE}
+              spec:
+                selfSigned: {}
+              ---
+              apiVersion: cert-manager.io/v1
+              kind: Certificate
+              metadata:
+                name: redis-replication-tls
+                namespace: ${NAMESPACE}
+              spec:
+                commonName: redis-replication-tls
+                dnsNames:
+                  - "*.redis-replication-tls-headless.${NAMESPACE}.svc.cluster.local"
+                  - "*.redis-replication-tls-s-hl.${NAMESPACE}.svc.cluster.local"
+                usages:
+                  - digital signature
+                  - key encipherment
+                  - server auth
+                  - client auth
+                issuerRef:
+                  name: selfsigned-issuer
+                  kind: Issuer
+                secretName: redis-replication-tls-cert
+              EOF
+        - apply:
+            file: secret.yaml
+        - apply:
+            file: replication.yaml
+        - assert:
+            file: ready-configmap.yaml
+        - assert:
+            file: ready-sts.yaml
+
+    - name: Assert every Sentinel monitors the TLS master
+      description: >
+        The entrypoint starts Sentinel monitoring 0.0.0.0, so a master with two
+        replicas and two peers on every Sentinel means the operator ran SENTINEL
+        MONITOR over TLS and Sentinel reaches Redis and its peers over TLS
+        (tls-replication). A TLS-only master without it shows as disconnected.
+        Every Sentinel must also carry the long down-after-milliseconds the
+        failover step relies on.
+      try:
+        - script:
+            timeout: 180s
+            content: |
+              #!/bin/bash
+              set -u
+              for i in $(seq 1 60); do
+                ALL_OK=true
+                for S in 0 1 2; do
+                  INFO=$(kubectl exec -n ${NAMESPACE} redis-replication-tls-s-${S} -c sentinel -- sh -c \
+                    'redis-cli -p 26379 --tls --cert "$REDIS_TLS_CERT" --key "$REDIS_TLS_CERT_KEY" --cacert "$REDIS_TLS_CA_KEY" sentinel master mymaster' 2>&1 | paste -sd' ' -)
+                  FLAGS=$(echo "${INFO}" | grep -oE 'flags [^ ]+' | cut -d' ' -f2)
+                  SLAVES=$(echo "${INFO}" | grep -oE 'num-slaves [0-9]+' | cut -d' ' -f2)
+                  PEERS=$(echo "${INFO}" | grep -oE 'num-other-sentinels [0-9]+' | cut -d' ' -f2)
+                  DOWN_AFTER=$(echo "${INFO}" | grep -oE 'down-after-milliseconds [0-9]+' | cut -d' ' -f2)
+                  if [ "${FLAGS}" != "master" ] || [ "${SLAVES}" != "2" ] || [ "${PEERS}" != "2" ] || [ "${DOWN_AFTER}" != "300000" ]; then
+                    echo "attempt ${i}: sentinel-${S} flags=${FLAGS} num-slaves=${SLAVES} num-other-sentinels=${PEERS} down-after-milliseconds=${DOWN_AFTER}"
+                    ALL_OK=false
+                  fi
+                done
+                if [ "${ALL_OK}" = "true" ]; then
+                  echo "every sentinel monitors the TLS master"
+                  exit 0
+                fi
+                sleep 3
+              done
+              exit 1
+            check:
+              (contains($stdout, 'every sentinel monitors the TLS master')): true
+
+    - name: Assert Sentinel refuses plain and certificate-less clients
+      description: >
+        tls-auth-clients yes overrides the entrypoint's "optional", so a client
+        without a certificate cannot run SENTINEL FAILOVER, SET or REMOVE.
+      try:
+        - script:
+            timeout: 60s
+            content: |
+              #!/bin/bash
+              set -u
+              PLAIN=$(kubectl exec -n ${NAMESPACE} redis-replication-tls-s-0 -c sentinel -- \
+                redis-cli -p 26379 ping 2>&1 || true)
+              NOCERT=$(kubectl exec -n ${NAMESPACE} redis-replication-tls-s-0 -c sentinel -- sh -c \
+                'redis-cli -p 26379 --tls --cacert "$REDIS_TLS_CA_KEY" ping' 2>&1 || true)
+              WITHCERT=$(kubectl exec -n ${NAMESPACE} redis-replication-tls-s-0 -c sentinel -- sh -c \
+                'redis-cli -p 26379 --tls --cert "$REDIS_TLS_CERT" --key "$REDIS_TLS_CERT_KEY" --cacert "$REDIS_TLS_CA_KEY" ping' 2>&1 || true)
+              echo "plain: ${PLAIN}"
+              echo "no client certificate: ${NOCERT}"
+              echo "client certificate: ${WITHCERT}"
+              if [ "${PLAIN}" != "PONG" ] && [ "${NOCERT}" != "PONG" ] && [ "${WITHCERT}" = "PONG" ]; then
+                echo "sentinel only accepts TLS clients with a certificate"
+              fi
+            check:
+              (contains($stdout, 'sentinel only accepts TLS clients with a certificate')): true
+
+    - name: Fail over through the preStop hook when the master is deleted
+      description: >
+        The master's preStop hook runs SENTINEL FAILOVER over TLS,
+        authenticated with the Sentinel password, which differs from the Redis
+        password: with the Redis password Sentinel answers WRONGPASS and the
+        hook does not fail over. Sentinel runs with down-after-milliseconds 300000, and the operator never fails
+        over itself, so nothing but the hook can move the master within the
+        60s window after the deletion. A nonempty, changed master address
+        inside that window is the hook's failover.
+      try:
+        - script:
+            timeout: 120s
+            content: |
+              #!/bin/bash
+              set -u
+              WINDOW_SECONDS=60
+              sentinel_cli() {
+                kubectl exec -n ${NAMESPACE} redis-replication-tls-s-0 -c sentinel -- sh -c \
+                  "redis-cli -p 26379 --tls --cert \"\$REDIS_TLS_CERT\" --key \"\$REDIS_TLS_CERT_KEY\" --cacert \"\$REDIS_TLS_CA_KEY\" $*"
+              }
+              OLD_IP=$(sentinel_cli sentinel get-master-addr-by-name mymaster | head -1)
+              if [ -z "${OLD_IP}" ]; then
+                echo "sentinel reports no master"
+                exit 1
+              fi
+              OLD_POD=$(kubectl get pods -n ${NAMESPACE} -l app=redis-replication-tls \
+                -o jsonpath="{.items[?(@.status.podIP==\"${OLD_IP}\")].metadata.name}")
+              if [ -z "${OLD_POD}" ]; then
+                echo "no pod has the master address ${OLD_IP}"
+                exit 1
+              fi
+              SINCE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+              echo "deleting master ${OLD_POD} (${OLD_IP})"
+              kubectl delete pod -n ${NAMESPACE} "${OLD_POD}" --wait=false
+              DEADLINE=$(( $(date +%s) + WINDOW_SECONDS ))
+              NEW_IP=""
+              MOVED=false
+              while [ "$(date +%s)" -lt "${DEADLINE}" ]; do
+                NEW_IP=$(sentinel_cli sentinel get-master-addr-by-name mymaster | head -1)
+                if [ -n "${NEW_IP}" ] && [ "${NEW_IP}" != "${OLD_IP}" ]; then
+                  # Re-check the clock: the exec above may have run past the deadline.
+                  if [ "$(date +%s)" -le "${DEADLINE}" ]; then
+                    MOVED=true
+                  fi
+                  break
+                fi
+                sleep 2
+              done
+              # For diagnosis only: these lines do not decide the result.
+              kubectl logs -n ${NAMESPACE} redis-replication-tls-s-0 -c sentinel --since-time="${SINCE}" \
+                | grep -E 'switch-master|odown|try-failover' || true
+              if [ "${MOVED}" = "true" ]; then
+                echo "master moved from ${OLD_IP} to ${NEW_IP} within ${WINDOW_SECONDS}s"
+                echo "preStop failover over TLS verified"
+              else
+                echo "master still ${NEW_IP:-unknown} (was ${OLD_IP}) ${WINDOW_SECONDS}s after the deletion"
+              fi
+            check:
+              (contains($stdout, 'preStop failover over TLS verified')): true
+
+    - name: Assert the replication recovers with the new master
+      try:
+        - assert:
+            file: ready-sts.yaml
+        - script:
+            timeout: 300s
+            content: |
+              #!/bin/bash
+              set -u
+              for i in $(seq 1 90); do
+                ALL_OK=true
+                for S in 0 1 2; do
+                  INFO=$(kubectl exec -n ${NAMESPACE} redis-replication-tls-s-${S} -c sentinel -- sh -c \
+                    'redis-cli -p 26379 --tls --cert "$REDIS_TLS_CERT" --key "$REDIS_TLS_CERT_KEY" --cacert "$REDIS_TLS_CA_KEY" sentinel master mymaster' 2>&1 | paste -sd' ' -)
+                  FLAGS=$(echo "${INFO}" | grep -oE 'flags [^ ]+' | cut -d' ' -f2)
+                  SLAVES=$(echo "${INFO}" | grep -oE 'num-slaves [0-9]+' | cut -d' ' -f2)
+                  if [ "${FLAGS}" != "master" ] || [ "${SLAVES}" != "2" ]; then
+                    echo "attempt ${i}: sentinel-${S} flags=${FLAGS} num-slaves=${SLAVES}"
+                    ALL_OK=false
+                  fi
+                done
+                MASTER_NODE=$(kubectl get redisreplication redis-replication-tls -n ${NAMESPACE} -o jsonpath='{.status.masterNode}')
+                MASTER_IP=$(kubectl get pod -n ${NAMESPACE} "${MASTER_NODE}" -o jsonpath='{.status.podIP}' 2>/dev/null)
+                SENTINEL_IP=$(kubectl exec -n ${NAMESPACE} redis-replication-tls-s-0 -c sentinel -- sh -c \
+                  'redis-cli -p 26379 --tls --cert "$REDIS_TLS_CERT" --key "$REDIS_TLS_CERT_KEY" --cacert "$REDIS_TLS_CA_KEY" sentinel get-master-addr-by-name mymaster' | head -1)
+                if [ "${MASTER_IP}" != "${SENTINEL_IP}" ]; then
+                  echo "attempt ${i}: status.masterNode=${MASTER_NODE} (${MASTER_IP}), sentinel master ${SENTINEL_IP}"
+                  ALL_OK=false
+                fi
+                if [ "${ALL_OK}" = "true" ]; then
+                  echo "replication recovered under the sentinel master"
+                  exit 0
+                fi
+                sleep 3
+              done
+              exit 1
+            check:
+              (contains($stdout, 'replication recovered under the sentinel master')): true

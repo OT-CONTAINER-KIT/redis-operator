@@ -2,6 +2,7 @@ package reconciler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 
@@ -23,7 +24,18 @@ type Params struct {
 
 	NeedUpdate func(existed client.Object) bool
 	Update     func(existed client.Object)
+
+	// RequireControlledByOwner refuses to touch an existing object unless
+	// Owner is its controller (matched by UID). Without it an object of the
+	// same name is adopted: its controller reference is replaced by Owner's
+	// and the Update callback overwrites it, which is only safe for names no
+	// other workload can plausibly use.
+	RequireControlledByOwner bool
 }
+
+// ErrNotControlledByOwner is returned, wrapped, when RequireControlledByOwner
+// is set and the existing object is not controlled by the owner.
+var ErrNotControlledByOwner = errors.New("existing object is not controlled by the owner")
 
 func Reconcile(ctx context.Context, params Params) (client.Object, error) {
 	if params.Owner != nil {
@@ -60,6 +72,11 @@ func Reconcile(ctx context.Context, params Params) (client.Object, error) {
 		return existed, create()
 	} else if err != nil {
 		return nil, fmt.Errorf("failed to get %s %s/%s: %w", kind, namespace, name, err)
+	}
+
+	if params.RequireControlledByOwner && params.Owner != nil && !metav1.IsControlledBy(existed, params.Owner) {
+		return nil, fmt.Errorf("%s %s/%s already exists and is not controlled by %s (uid %s), refusing to overwrite it: %w",
+			kind, namespace, name, params.Owner.GetName(), params.Owner.GetUID(), ErrNotControlledByOwner)
 	}
 
 	if params.NeedUpdate(existed) {
