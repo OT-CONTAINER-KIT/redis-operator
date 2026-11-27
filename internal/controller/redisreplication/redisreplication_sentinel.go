@@ -104,11 +104,21 @@ func newSentinelStatefulSet(rr *rrvb2.RedisReplication, svcName string) appsv1.S
 	return statefulset.New(statefulset.Params{
 		Name:            rr.SentinelStatefulSet(),
 		Namespace:       rr.Namespace,
+		Annotations:     sentinelAnnotations(rr),
 		Replicas:        rr.Spec.Sentinel.Size,
 		MinReadySeconds: ptr.Deref(rr.Spec.Sentinel.MinReadySeconds, 0),
 		ServiceName:     svcName,
 		PodTemplateSpec: buildSentinelPodTemplate(rr, labels),
 	})
+}
+
+// sentinelAnnotations returns the annotations of the Sentinel StatefulSet and
+// its pod template. Like the Redis StatefulSet, they carry the annotations of
+// the RedisReplication, without spec.sentinel.ignoreAnnotations, so that a
+// tool keyed on them, such as Reloader restarting the pods when the TLS
+// secret is reissued, covers the Sentinel pods as well.
+func sentinelAnnotations(rr *rrvb2.RedisReplication) map[string]string {
+	return k8sutils.GenerateStatefulSetAnnotations(rr.ObjectMeta, rr.Spec.Sentinel.IgnoreAnnotations)
 }
 
 func buildSentinelPodTemplate(rr *rrvb2.RedisReplication, labels map[string]string) corev1.PodTemplateSpec {
@@ -167,7 +177,8 @@ func buildSentinelPodTemplate(rr *rrvb2.RedisReplication, labels map[string]stri
 
 	return corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels: labels,
+			Labels:      labels,
+			Annotations: sentinelAnnotations(rr),
 		},
 		Spec: spec,
 	}

@@ -876,3 +876,55 @@ func TestNewSentinelStatefulSetMinReadySeconds(t *testing.T) {
 		})
 	}
 }
+
+// The Sentinel StatefulSet carries the RedisReplication's annotations like
+// the Redis StatefulSet does, so that Reloader keyed on them restarts the
+// Sentinel pods when the TLS secret is reissued.
+func TestNewSentinelStatefulSetAnnotations(t *testing.T) {
+	const reload = "secret.reloader.stakater.com/reload"
+	tests := []struct {
+		name              string
+		annotations       map[string]string
+		ignoreAnnotations []string
+		want              map[string]string
+	}{
+		{
+			name: "no annotations",
+			want: map[string]string{"redis.opstreelabs.in": "true", "redis.opstreelabs.instance": "example-replication"},
+		},
+		{
+			name: "annotations of the RedisReplication, without the ignored and generated ones",
+			annotations: map[string]string{
+				reload:     "redis-tls-cert",
+				"team":     "cache",
+				"internal": "only on the CR",
+				"kubectl.kubernetes.io/last-applied-configuration": "{}",
+			},
+			ignoreAnnotations: []string{"internal"},
+			want: map[string]string{
+				"redis.opstreelabs.in":       "true",
+				"redis.opstreelabs.instance": "example-replication",
+				reload:                       "redis-tls-cert",
+				"team":                       "cache",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rr := &rrvb2.RedisReplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "example-replication", Namespace: "default", Annotations: tt.annotations},
+				Spec: rrvb2.RedisReplicationSpec{
+					Sentinel: &rrvb2.Sentinel{
+						KubernetesConfig: commonapi.KubernetesConfig{IgnoreAnnotations: tt.ignoreAnnotations},
+						Size:             3,
+					},
+				},
+			}
+
+			sts := newSentinelStatefulSet(rr, rr.SentinelHLService())
+
+			assert.Equal(t, tt.want, sts.Annotations, "StatefulSet")
+			assert.Equal(t, tt.want, sts.Spec.Template.Annotations, "pod template")
+		})
+	}
+}
