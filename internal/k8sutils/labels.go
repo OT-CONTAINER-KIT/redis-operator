@@ -8,6 +8,7 @@ import (
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/podtemplate"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -114,6 +115,7 @@ func filterAnnotations(anots map[string]string, ignoreAnnots ...string) map[stri
 	// Filter out some problematic annotations we don't want in the template.
 	delete(anots, "kubectl.kubernetes.io/last-applied-configuration")
 	delete(anots, "banzaicloud.com/last-applied")
+	delete(anots, podtemplate.AnnotationApply)
 
 	for _, ignoreAnnot := range ignoreAnnots {
 		delete(anots, ignoreAnnot)

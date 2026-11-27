@@ -6,6 +6,7 @@ import (
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/podtemplate"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util/maps"
 	corev1 "k8s.io/api/core/v1"
@@ -83,16 +84,21 @@ func CreateReplicationRedis(ctx context.Context, cr *rrvb2.RedisReplication, cl 
 	labels := getRedisLabels(cr.Name, replication, "replication", cr.Labels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 	objectMetaInfo := generateObjectMetaInformation(stateFulName, cr.Namespace, labels, annotations)
+	containerParams := generateRedisReplicationContainerParams(ctx, cr, ctrlClient)
+	params := generateRedisReplicationParams(cr)
+	// The hostname settings can come from a RedisSentinel resource, so they are
+	// inputs of the pod template that are not part of this resource.
+	params.PodTemplateInputs = podtemplate.InputsKey(cr, envValues(containerParams.EnvVars, "RESOLVE_HOSTNAMES", "ANNOUNCE_HOSTNAMES")...)
 
 	err := CreateOrUpdateStateFul(
 		ctx,
 		cl,
 		cr.GetNamespace(),
 		objectMetaInfo,
-		generateRedisReplicationParams(cr),
+		params,
 		redisReplicationAsOwner(cr),
 		generateRedisReplicationInitContainerParams(cr),
-		generateRedisReplicationContainerParams(ctx, cr, ctrlClient),
+		containerParams,
 		cr.Spec.Sidecars,
 	)
 	if err != nil {

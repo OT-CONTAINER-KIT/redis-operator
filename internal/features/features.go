@@ -10,6 +10,11 @@ const (
 	// instead of a regular container
 	GenerateConfigInInitContainer featuregate.Feature = "GenerateConfigInInitContainer"
 	AvoidCommandLinePassword      featuregate.Feature = "AvoidCommandLinePassword"
+	// DeferPodTemplateUpdates keeps the pod template of existing StatefulSets when
+	// only the operator version changed what it would be, so that an operator
+	// upgrade does not re-create the Redis pods. The new template is applied with
+	// the next change of the custom resource.
+	DeferPodTemplateUpdates featuregate.Feature = "DeferPodTemplateUpdates"
 )
 
 // DefaultRedisOperatorFeatureGates consists of all known Redis operator feature gates.
@@ -17,6 +22,7 @@ const (
 var DefaultRedisOperatorFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
 	GenerateConfigInInitContainer: {Default: false, PreRelease: featuregate.Alpha},
 	AvoidCommandLinePassword:      {Default: false, PreRelease: featuregate.Alpha},
+	DeferPodTemplateUpdates:       {Default: false, PreRelease: featuregate.Alpha},
 }
 
 // MutableFeatureGate is a feature gate that can be dynamically set

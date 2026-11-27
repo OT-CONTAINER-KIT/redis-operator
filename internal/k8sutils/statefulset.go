@@ -2,6 +2,7 @@ package k8sutils
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"path"
 	"sort"
@@ -11,6 +12,7 @@ import (
 	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/consts"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/podtemplate"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/envs"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/features"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
@@ -120,6 +122,9 @@ type statefulSetParameters struct {
 	HostNetwork                          bool
 	MinReadySeconds                      int32
 	PodManagementPolicy                  *string
+	// PodTemplateInputs is podtemplate.InputsKey of the owning custom resource.
+	// It is used only when the DeferPodTemplateUpdates feature gate is enabled.
+	PodTemplateInputs string
 }
 
 // containerParameters will define container input params
@@ -185,7 +190,11 @@ type initContainerParameters struct {
 func CreateOrUpdateStateFul(ctx context.Context, cl kubernetes.Interface, namespace string, stsMeta metav1.ObjectMeta, params statefulSetParameters, ownerDef metav1.OwnerReference, initcontainerParams initContainerParameters, containerParams containerParameters, sidecars *[]commonapi.Sidecar) error {
 	storedStateful, err := GetStatefulSet(ctx, cl, namespace, stsMeta.Name)
 	statefulSetDef := generateStatefulSetsDef(stsMeta, params, ownerDef, initcontainerParams, containerParams, getSidecars(sidecars))
+	deferTemplate := features.Enabled(features.DeferPodTemplateUpdates) && params.PodTemplateInputs != ""
 	if err != nil {
+		if deferTemplate {
+			podtemplate.SetCreated(statefulSetDef, params.PodTemplateInputs)
+		}
 		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(statefulSetDef); err != nil { //nolint:gocritic
 			log.FromContext(ctx).Error(err, "Unable to patch redis statefulset with comparison object")
 			return err
@@ -195,7 +204,69 @@ func CreateOrUpdateStateFul(ctx context.Context, cl kubernetes.Interface, namesp
 		}
 		return err
 	}
+	if deferTemplate {
+		deferPodTemplateUpdate(ctx, storedStateful, statefulSetDef, params.PodTemplateInputs)
+	}
 	return patchStatefulSet(ctx, storedStateful, statefulSetDef, namespace, params.RecreateStatefulSet, params.RecreateStatefulsetStrategy, cl)
+}
+
+// deferPodTemplateUpdate keeps the pod template of the stored StatefulSet when
+// the owning custom resource did not change since that template was written,
+// so that a new operator version does not re-create the pods by itself. See
+// podtemplate.Reconcile.
+func deferPodTemplateUpdate(ctx context.Context, stored, desired *appsv1.StatefulSet, inputsKey string) {
+	res := podtemplate.Reconcile(desired, stored, lastAppliedPodTemplate(stored), inputsKey)
+	if res.Pending && stored.Annotations[podtemplate.AnnotationPending] != "true" {
+		log.FromContext(ctx).Info("Pod template update is pending: this operator version generates a different pod template. "+
+			"The current template is kept until the resource changes or its "+podtemplate.AnnotationApply+" annotation is set to a new value",
+			"statefulset", stored.Name)
+	}
+}
+
+// envValues returns "name=value" for each of the named variables in envVars.
+func envValues(envVars *[]corev1.EnvVar, names ...string) []string {
+	if envVars == nil {
+		return nil
+	}
+	var res []string
+	for _, name := range names {
+		for _, e := range *envVars {
+			if e.Name == name {
+				res = append(res, e.Name+"="+e.Value)
+			}
+		}
+	}
+	return res
+}
+
+// nodePortAnnounceValues returns "name=value" for each NodePort announce
+// variable in envVars.
+func nodePortAnnounceValues(envVars *[]corev1.EnvVar) []string {
+	if envVars == nil {
+		return nil
+	}
+	var res []string
+	for _, e := range *envVars {
+		if strings.HasPrefix(e.Name, "announce_port_") || strings.HasPrefix(e.Name, "announce_bus_port_") {
+			res = append(res, e.Name+"="+e.Value)
+		}
+	}
+	return res
+}
+
+// lastAppliedPodTemplate returns the pod template the operator last wrote to
+// the StatefulSet, without API server defaults, from the last applied
+// annotation, or nil if it is not available.
+func lastAppliedPodTemplate(sts *appsv1.StatefulSet) *corev1.PodTemplateSpec {
+	original, err := patch.DefaultAnnotator.GetOriginalConfiguration(sts)
+	if err != nil || len(original) == 0 {
+		return nil
+	}
+	var applied appsv1.StatefulSet
+	if err := json.Unmarshal(original, &applied); err != nil {
+		return nil
+	}
+	return &applied.Spec.Template
 }
 
 // patchStatefulSet patches the Redis StatefulSet by applying changes while maintaining atomicity.

@@ -102,7 +102,8 @@ func addFlags(cmd *cobra.Command, opts *managerOptions) {
 	cmd.Flags().IntVar(&opts.maxConcurrentReconciles, "max-concurrent-reconciles", 3, "Maximum number of concurrent reconciles per controller. Reconciles for distinct objects run in parallel (controller-runtime still serializes per object), so a single slow or stuck reconcile cannot starve other Redis resources across namespaces.")
 	cmd.Flags().StringVar(&opts.featureGatesString, "feature-gates", envs.GetFeatureGates(), "A set of key=value pairs that describe feature gates for alpha/experimental features. "+
 		"Options are:\n  GenerateConfigInInitContainer=true|false: enables using init container for config generation"+
-		"\n  AvoidCommandLinePassword=true|false: prevents using -a <password> in redis-cli commands")
+		"\n  AvoidCommandLinePassword=true|false: prevents using -a <password> in redis-cli commands"+
+		"\n  DeferPodTemplateUpdates=true|false: keeps existing pod templates on operator upgrade until the resource changes")
 	cmd.Flags().Duration(
 		operator.KubeClientTimeoutMGRFlag,
 		60*time.Second,

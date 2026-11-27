@@ -3,7 +3,9 @@ package statefulset
 import (
 	"context"
 
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/podtemplate"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/reconciler"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/features"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util/maps"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -41,11 +43,22 @@ func New(params Params) appsv1.StatefulSet {
 }
 
 func Reconcile(ctx context.Context, k8sClient client.Client, expected appsv1.StatefulSet, owner client.Object) (appsv1.StatefulSet, error) {
+	deferTemplate := features.Enabled(features.DeferPodTemplateUpdates) && owner != nil
+	var inputsKey string
+	if deferTemplate {
+		inputsKey = podtemplate.InputsKey(owner)
+		podtemplate.SetCreated(&expected, inputsKey)
+	}
 	reconciled, err := reconciler.Reconcile(ctx, reconciler.Params{
 		Client:   k8sClient,
 		Owner:    owner,
 		Expected: &expected,
 		NeedUpdate: func(existed client.Object) bool {
+			if deferTemplate {
+				// There is no copy of the template the operator wrote without API
+				// server defaults here, so the stored template is kept as it is.
+				podtemplate.Reconcile(&expected, existed.(*appsv1.StatefulSet), nil, inputsKey)
+			}
 			return needUpdate(&expected, existed.(*appsv1.StatefulSet))
 		},
 		Update: func(existed client.Object) {

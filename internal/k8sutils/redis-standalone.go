@@ -5,6 +5,7 @@ import (
 
 	rvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redis/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/podtemplate"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
@@ -85,12 +86,14 @@ func CreateStandaloneRedis(ctx context.Context, cr *rvb2.Redis, cl kubernetes.In
 	labels := getRedisLabels(cr.Name, standalone, "standalone", cr.Labels)
 	annotations := generateStatefulSetsAnots(cr.ObjectMeta, cr.Spec.KubernetesConfig.IgnoreAnnotations)
 	objectMetaInfo := generateObjectMetaInformation(cr.Name, cr.Namespace, labels, annotations)
+	params := generateRedisStandaloneParams(cr)
+	params.PodTemplateInputs = podtemplate.InputsKey(cr)
 	err := CreateOrUpdateStateFul(
 		ctx,
 		cl,
 		cr.GetNamespace(),
 		objectMetaInfo,
-		generateRedisStandaloneParams(cr),
+		params,
 		redisAsOwner(cr),
 		generateRedisStandaloneInitContainerParams(cr),
 		generateRedisStandaloneContainerParams(cr),

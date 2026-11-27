@@ -7,6 +7,7 @@ import (
 	rrvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
 	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/podtemplate"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -67,12 +68,14 @@ func (service RedisSentinelSTS) CreateRedisSentinelSetup(ctx context.Context, cl
 		return err
 	}
 
+	params := generateRedisSentinelParams(ctx, cr, service.getSentinelCount(cr), service.ExternalConfig, service.Affinity)
+	params.PodTemplateInputs = podtemplate.InputsKey(cr)
 	err = CreateOrUpdateStateFul(
 		ctx,
 		cl,
 		cr.GetNamespace(),
 		objectMetaInfo,
-		generateRedisSentinelParams(ctx, cr, service.getSentinelCount(cr), service.ExternalConfig, service.Affinity),
+		params,
 		redisSentinelAsOwner(cr),
 		generateRedisSentinelInitContainerParams(cr),
 		containerParams,

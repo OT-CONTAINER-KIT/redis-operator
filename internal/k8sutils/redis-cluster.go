@@ -8,6 +8,7 @@ import (
 
 	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/podtemplate"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/util"
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	corev1 "k8s.io/api/core/v1"
@@ -337,12 +338,16 @@ func (service RedisClusterSTS) CreateRedisClusterSetup(ctx context.Context, cr *
 		log.FromContext(ctx).Error(err, "Cannot generate container parameters for Redis", "Setup.Type", service.RedisStateFulType)
 		return err
 	}
+	params := generateRedisClusterParams(ctx, cr, service.getReplicaCount(cr), service.ExternalConfig, service)
+	// The NodePorts allocated to the per-pod services are inputs of the pod
+	// template that are not part of this resource.
+	params.PodTemplateInputs = podtemplate.InputsKey(cr, nodePortAnnounceValues(containerParams.EnvVars)...)
 	err = CreateOrUpdateStateFul(
 		ctx,
 		cl,
 		cr.GetNamespace(),
 		objectMetaInfo,
-		generateRedisClusterParams(ctx, cr, service.getReplicaCount(cr), service.ExternalConfig, service),
+		params,
 		redisClusterAsOwner(cr),
 		generateRedisClusterInitContainerParams(cr),
 		containerParams,

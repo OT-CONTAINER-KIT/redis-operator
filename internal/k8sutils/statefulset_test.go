@@ -13,7 +13,9 @@ import (
 
 	common "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/consts"
+	"github.com/OT-CONTAINER-KIT/redis-operator/internal/controller/common/podtemplate"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/features"
+	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -2589,6 +2591,14 @@ func TestGenerateStatefulSetsDef(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			stsDef := generateStatefulSetsDef(test.statefulSetMeta, test.stsParams, test.stsOwnerDef, test.initContainerParams, test.containerParams, test.sideCareContainer)
 			assert.Equal(t, stsDef, test.expectedStsDef, "StatefulSet Configuration")
+
+			// DeferPodTemplateUpdates compares the generated template with the one
+			// read back from the last applied annotation; both must hash the same.
+			stored := stsDef.DeepCopy()
+			require.NoError(t, patch.DefaultAnnotator.SetLastAppliedAnnotation(stored))
+			applied := lastAppliedPodTemplate(stored)
+			require.NotNil(t, applied)
+			assert.Equal(t, podtemplate.Hash(&stsDef.Spec.Template), podtemplate.Hash(applied), "pod template hash after the last applied round trip")
 		})
 	}
 }

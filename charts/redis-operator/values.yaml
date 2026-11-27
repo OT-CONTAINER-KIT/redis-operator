@@ -136,6 +136,8 @@ featureGates: {}
   # AvoidCommandLinePassword: false
   # Enable generating Redis configuration using an init container instead of a regular container
   # GenerateConfigInInitContainer: false
+  # Keep the pod template of existing StatefulSets when only the operator version changed it
+  # DeferPodTemplateUpdates: false
 
 manager:
   # config values for the operator manager
