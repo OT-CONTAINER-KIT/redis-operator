@@ -201,4 +201,16 @@ spec:
     {{- if and .Values.sentinel.serviceAccountName (ne .Values.sentinel.serviceAccountName "") }}
     serviceAccountName: {{ .Values.sentinel.serviceAccountName | quote }}
     {{- end }}
+    {{- with .Values.sentinel.pdb }}
+    {{- if .enabled }}
+    pdb:
+      enabled: true
+      {{- if not (kindIs "invalid" .minAvailable) }}
+      minAvailable: {{ .minAvailable }}
+      {{- end }}
+      {{- if not (kindIs "invalid" .maxUnavailable) }}
+      maxUnavailable: {{ .maxUnavailable }}
+      {{- end }}
+    {{- end }}
+    {{- end }}
   {{- end }}

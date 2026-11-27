@@ -17056,6 +17056,20 @@ spec:
                   parallelSyncs:
                     default: "1"
                     type: string
+                  pdb:
+                    description: |-
+                      PodDisruptionBudget configures a PodDisruptionBudget for the Sentinel pods.
+                      The top-level spec.pdb covers only the Redis pods.
+                    properties:
+                      enabled:
+                        type: boolean
+                      maxUnavailable:
+                        format: int32
+                        type: integer
+                      minAvailable:
+                        format: int32
+                        type: integer
+                    type: object
                   persistentVolumeClaimRetentionPolicy:
                     description: |-
                       StatefulSetPersistentVolumeClaimRetentionPolicy describes the policy used for PVCs

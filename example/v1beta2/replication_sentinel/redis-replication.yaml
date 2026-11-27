@@ -82,6 +82,12 @@ spec:
         labelSelector:
           matchLabels:
             role: sentinel
+    # Keep a majority of the Sentinels through drains and other voluntary
+    # disruptions, so they can still agree on a failover. spec.pdb covers only
+    # the Redis pods.
+    pdb:
+      enabled: true
+      maxUnavailable: 1
     # Optional: pin Sentinels to dedicated nodes and tolerate their taint.
     # nodeSelector:
     #   node-role.kubernetes.io/redis-sentinel: "true"

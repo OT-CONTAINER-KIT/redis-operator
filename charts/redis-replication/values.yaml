@@ -300,3 +300,10 @@ sentinel:
   terminationGracePeriodSeconds:
   # -- ServiceAccount name for Sentinel pods.
   serviceAccountName: ""
+  pdb:
+    # -- Create a PodDisruptionBudget for the Sentinel pods. The top-level `pdb` covers only the Redis pods.
+    enabled: false
+    # -- Minimum number of Sentinel pods that must stay available. With neither this nor maxUnavailable set, a majority of the Sentinels.
+    minAvailable:
+    # -- Maximum number of Sentinel pods that can be unavailable. Takes precedence over minAvailable.
+    maxUnavailable:
