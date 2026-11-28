@@ -1,0 +1,97 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: empty-master-recovery
+spec:
+  description: >
+    A replication without persistence watched by a separate RedisSentinel.
+    When the master restarts it comes back empty while the replicas still hold
+    the data. If the Sentinels keep their state they fail over to a replica;
+    if they restart together with the master they know nobody to promote, and
+    the operator has to promote a replica that holds the data itself instead of
+    refusing to replicate from the empty master forever.
+  steps:
+    - name: Deploy the replication and the Sentinels
+      try:
+        - apply:
+            file: replication.yaml
+        - assert:
+            file: ready-sts.yaml
+
+    - name: Wait for the master and the Sentinels to settle
+      try:
+        - script:
+            timeout: 11m
+            content: ./wait-for-recovery.sh 600 0
+            check:
+              (contains($stdout, 'recovered')): true
+
+    - name: Write data and let it reach the replicas
+      try:
+        - script:
+            timeout: 3m
+            content: |
+              master=$(kubectl -n ${NAMESPACE} get redisreplication redis-replication -o jsonpath='{.status.masterNode}')
+              kubectl -n ${NAMESPACE} exec $master -c redis-replication -- sh -c \
+                'for i in $(seq 1000); do echo "SET key-$i value"; done | redis-cli > /dev/null'
+              for i in $(seq 24); do
+                synced=0
+                for pod in redis-replication-0 redis-replication-1 redis-replication-2; do
+                  keys=$(kubectl -n ${NAMESPACE} exec $pod -c redis-replication -- redis-cli dbsize | tr -d '\r')
+                  [ "$keys" = 1000 ] && synced=$((synced + 1))
+                done
+                [ $synced -eq 3 ] && echo written && exit 0
+                sleep 5
+              done
+              exit 1
+            check:
+              (contains($stdout, 'written')): true
+
+    - name: Restart the master together with every Sentinel
+      try:
+        - script:
+            timeout: 4m
+            content: |
+              master=$(kubectl -n ${NAMESPACE} get redisreplication redis-replication -o jsonpath='{.status.masterNode}')
+              ./delete-pods.sh 180 $master \
+                redis-sentinel-sentinel-0 redis-sentinel-sentinel-1 redis-sentinel-sentinel-2
+            check:
+              (contains($stdout, 'deleted')): true
+
+    - name: A replica holding the data becomes the master
+      try:
+        - script:
+            timeout: 11m
+            content: ./wait-for-recovery.sh 600 1000
+            check:
+              (contains($stdout, 'recovered')): true
+
+    - name: Restart the master alone
+      try:
+        - script:
+            timeout: 4m
+            content: |
+              master=$(kubectl -n ${NAMESPACE} get redisreplication redis-replication -o jsonpath='{.status.masterNode}')
+              ./delete-pods.sh 180 $master
+            check:
+              (contains($stdout, 'deleted')): true
+
+    - name: Sentinel fails over to a replica holding the data
+      try:
+        - script:
+            timeout: 11m
+            content: ./wait-for-recovery.sh 600 1000
+            check:
+              (contains($stdout, 'recovered')): true
+
+    - name: The new master accepts writes
+      try:
+        - script:
+            timeout: 30s
+            content: |
+              master=$(kubectl -n ${NAMESPACE} get redisreplication redis-replication -o jsonpath='{.status.masterNode}')
+              kubectl -n ${NAMESPACE} exec $master -c redis-replication -- redis-cli set after-recovery ok
+            check:
+              (contains($stdout, 'OK')): true

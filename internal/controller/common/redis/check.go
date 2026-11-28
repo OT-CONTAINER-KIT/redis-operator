@@ -9,9 +9,11 @@ import (
 	commonapi "github.com/OT-CONTAINER-KIT/redis-operator/api/common/v1beta2"
 	rcvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/rediscluster/v1beta2"
 	rr "github.com/OT-CONTAINER-KIT/redis-operator/api/redisreplication/v1beta2"
+	rsvb2 "github.com/OT-CONTAINER-KIT/redis-operator/api/redissentinel/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/k8sutils"
 	"github.com/OT-CONTAINER-KIT/redis-operator/internal/service/redis"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -20,8 +22,19 @@ import (
 type Checker interface {
 	GetMasterFromReplication(ctx context.Context, rr *rr.RedisReplication) (corev1.Pod, error)
 	GetReplicationKeyCounts(ctx context.Context, rr *rr.RedisReplication, podNames []string) map[string]int64
+	GetSentinelMasters(ctx context.Context, rs *rsvb2.RedisSentinel) ([]SentinelMasterReport, error)
 	GetPassword(ctx context.Context, ns string, secret *commonapi.ExistingPasswordSecret) (string, error)
 	CheckClusterSlotsAssigned(ctx context.Context, cr *rcvb2.RedisCluster) (bool, error)
+}
+
+// SentinelMasterReport is what one Sentinel pod reports about its master group.
+type SentinelMasterReport struct {
+	Pod string
+	// Master is the master group as the Sentinel reports it, or nil when the
+	// Sentinel does not monitor the group.
+	Master *redis.SentinelMasterInfo
+	// Err is set when the Sentinel could not be asked.
+	Err error
 }
 
 type checker struct {
@@ -142,6 +155,54 @@ func (c *checker) GetReplicationKeyCounts(ctx context.Context, rr *rr.RedisRepli
 		keyCounts[podName] = keys
 	}
 	return keyCounts
+}
+
+// GetSentinelMasters asks every Sentinel pod of rs about its master group. A
+// pod that is not Running and Ready, or does not answer, is reported with Err:
+// it may still hold its state. Terminated pods run no Sentinel and are left
+// out, and a Sentinel StatefulSet that does not exist yields no reports.
+func (c *checker) GetSentinelMasters(ctx context.Context, rs *rsvb2.RedisSentinel) ([]SentinelMasterReport, error) {
+	if rs.Spec.RedisSentinelConfig == nil {
+		return nil, nil
+	}
+	pods, err := getSentinelPods(ctx, c.k8s, rs)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	password, err := c.GetPassword(ctx, rs.Namespace, rs.Spec.KubernetesConfig.ExistingPasswordSecret)
+	if err != nil {
+		return nil, err
+	}
+	masterGroupName := rs.Spec.RedisSentinelConfig.MasterGroupName
+
+	var reports []SentinelMasterReport
+	for _, pod := range pods.Items {
+		if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
+			continue
+		}
+		if !k8sutils.IsRedisPodProbeable(&pod) {
+			reports = append(reports, SentinelMasterReport{Pod: pod.Name, Err: errors.New("pod is not running and ready")})
+			continue
+		}
+		connInfo := createConnectionInfo(ctx, pod, password, rs.Spec.TLS, c.k8s, rs.Namespace, "26379")
+		info, err := c.redis.Connect(connInfo).GetInfoSentinel(ctx)
+		if err != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return nil, ctxErr
+			}
+			reports = append(reports, SentinelMasterReport{Pod: pod.Name, Err: err})
+			continue
+		}
+		report := SentinelMasterReport{Pod: pod.Name}
+		if master, ok := info.Master(masterGroupName); ok {
+			report.Master = &master
+		}
+		reports = append(reports, report)
+	}
+	return reports, nil
 }
 
 // CheckClusterSlotsAssigned verifies if all Redis cluster slots (16384 total) are properly assigned
