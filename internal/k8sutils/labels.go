@@ -97,6 +97,13 @@ func redisSentinelAsOwner(cr *rsvb2.RedisSentinel) metav1.OwnerReference {
 	}
 }
 
+// GenerateStatefulSetAnnotations returns the annotations generateStatefulSetsAnots
+// puts on a StatefulSet and its pod template, for StatefulSets built outside
+// k8sutils such as the embedded Sentinel of a RedisReplication.
+func GenerateStatefulSetAnnotations(stsMeta metav1.ObjectMeta, ignoreAnnots []string) map[string]string {
+	return generateStatefulSetsAnots(stsMeta, ignoreAnnots)
+}
+
 // generateStatefulSetsAnots generates and returns statefulsets annotations
 func generateStatefulSetsAnots(stsMeta metav1.ObjectMeta, ignoreAnnots []string) map[string]string {
 	anots := map[string]string{

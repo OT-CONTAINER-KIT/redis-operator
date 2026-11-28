@@ -71,7 +71,7 @@ Redis replication configuration can be customized by [values.yaml](https://githu
 | sentinel.imagePullPolicy | string | `"IfNotPresent"` | Image pull policy for Sentinel |
 | sentinel.size | int | `3` | Number of Sentinel instances |
 | sentinel.resources | object | `{}` | Resource requests and limits for Sentinel |
-| sentinel.ignoreAnnotations | list | `[]` | List of annotations ignored by Sentinel |
+| sentinel.ignoreAnnotations | list | `[]` | Annotations of the RedisReplication not copied to the Sentinel StatefulSet and pods |
 | sentinel.minReadySeconds | int | `0` | Minimum number of seconds for a Sentinel pod to be ready |
 | sentinel.parallelSyncs | string | `"1"` | Number of replicas reconfigured in parallel during failover |
 | sentinel.failoverTimeout | string | `"10000"` | Sentinel failover timeout in milliseconds |
@@ -180,7 +180,9 @@ The sentinel image only configures the TLS listener, so the operator adds `tls-r
 
 Sentinel-aware clients must connect to the Sentinel service over TLS and present a client certificate signed by the same CA.
 
-When the certificate is reissued, the operator uses the new one from its next reconcile on, because it reads the secret every time it connects. The secret is mounted as a directory, so the files in the Sentinel pods are updated too, but a running Sentinel keeps the certificate it loaded at startup: Sentinel has no `CONFIG` command, and `SENTINEL CONFIG SET` does not accept the TLS settings. Restart the Sentinel pods one at a time, each after the previous one is ready again, before the old certificate expires. Sentinels with the old and the new certificate keep working together as long as both are signed by the same CA. The Redis pods likewise keep the certificate they loaded until they restart.
+When the certificate is reissued, the operator uses the new one from its next reconcile on, because it reads the secret every time it connects. The secret is mounted as a directory, so the files in the Sentinel pods are updated too, but a running Sentinel keeps the certificate it loaded at startup: Sentinel has no `CONFIG` command, and `SENTINEL CONFIG SET` does not accept the TLS settings. The Sentinel pods have to restart before the old certificate expires. Sentinels with the old and the new certificate keep working together as long as both are signed by the same CA. The Redis pods likewise keep the certificate they loaded until they restart.
+
+Restart the Sentinel pods one at a time, each after the previous one is ready again. The operator copies the annotations of the RedisReplication to the Redis and the Sentinel StatefulSets and their pod templates, except those listed in `spec.kubernetesConfig.ignoreAnnotations` and `spec.sentinel.ignoreAnnotations` respectively, and keeps changes others make to a pod template, such as the annotation `kubectl rollout restart` adds. A tool that restarts workloads when a Secret changes can therefore be pointed at both StatefulSets through the annotations of the RedisReplication.
 
 ```yaml
 apiVersion: redis.redis.opstreelabs.in/v1beta2
