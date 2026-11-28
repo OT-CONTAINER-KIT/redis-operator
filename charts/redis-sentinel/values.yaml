@@ -182,6 +182,7 @@ pdb:
   enabled: false
   minAvailable: 1
   maxUnavailable: null
+  # unhealthyPodEvictionPolicy: AlwaysAllow
 
 livenessProbe:
   failureThreshold: 3
